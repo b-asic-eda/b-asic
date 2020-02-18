@@ -7,4 +7,4 @@ PythonBuild:
     untracked: true
   script:
     - apt-get update && apt-get install python3 -y
-    - python3 helloworld.py
+    - bash build.sh
