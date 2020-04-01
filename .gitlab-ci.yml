@@ -1,10 +1,16 @@
-stages:
-  - build
+image: python:3.6
 
-PythonBuild:
-  stage: build
-  artifacts:
-    untracked: true
+stages:
+ - test
+
+before_script:
+  - apt-get update --yes
+  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev
+  - pip3 install pytest pytest-cov
+  - pip3 install .
+  - pip3 show b_asic
+
+run tests:
+  stage: test
   script:
-    - apt-get update && apt-get install python3 -y
-    - bash build.sh
+    - pytest test
