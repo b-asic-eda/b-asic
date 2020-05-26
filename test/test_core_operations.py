@@ -2,226 +2,175 @@
 B-ASIC test suite for the core operations.
 """
 
-from b_asic.core_operations import Constant, Addition, Subtraction, Multiplication, Division, SquareRoot, ComplexConjugate, Max, Min, Absolute, ConstantMultiplication, ConstantAddition, ConstantSubtraction, ConstantDivision
+from b_asic import \
+    Constant, Addition, Subtraction, Multiplication, ConstantMultiplication, Division, \
+    SquareRoot, ComplexConjugate, Max, Min, Absolute, Butterfly
 
-# Constant tests.
-def test_constant():
-    constant_operation = Constant(3)
-    assert constant_operation.evaluate() == 3
+class TestConstant:
+    def test_constant_positive(self):
+        test_operation = Constant(3)
+        assert test_operation.evaluate_output(0, []) == 3
 
-def test_constant_negative():
-    constant_operation = Constant(-3)
-    assert constant_operation.evaluate() == -3
+    def test_constant_negative(self):
+        test_operation = Constant(-3)
+        assert test_operation.evaluate_output(0, []) == -3
 
-def test_constant_complex():
-    constant_operation = Constant(3+4j)
-    assert constant_operation.evaluate() == 3+4j
+    def test_constant_complex(self):
+        test_operation = Constant(3+4j)
+        assert test_operation.evaluate_output(0, []) == 3+4j
 
-# Addition tests.
-def test_addition():
-    test_operation = Addition()
-    constant_operation = Constant(3)
-    constant_operation_2 = Constant(5)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == 8
 
-def test_addition_negative():
-    test_operation = Addition()
-    constant_operation = Constant(-3)
-    constant_operation_2 = Constant(-5)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == -8
+class TestAddition:
+    def test_addition_positive(self):
+        test_operation = Addition()
+        assert test_operation.evaluate_output(0, [3, 5]) == 8
 
-def test_addition_complex():
-    test_operation = Addition()
-    constant_operation = Constant((3+5j))
-    constant_operation_2 = Constant((4+6j))
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == (7+11j)
+    def test_addition_negative(self):
+        test_operation = Addition()
+        assert test_operation.evaluate_output(0, [-3, -5]) == -8
 
-# Subtraction tests.
-def test_subtraction():
-    test_operation = Subtraction()
-    constant_operation = Constant(5)
-    constant_operation_2 = Constant(3)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == 2
+    def test_addition_complex(self):
+        test_operation = Addition()
+        assert test_operation.evaluate_output(0, [3+5j, 4+6j]) == 7+11j
 
-def test_subtraction_negative():
-    test_operation = Subtraction()
-    constant_operation = Constant(-5)
-    constant_operation_2 = Constant(-3)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == -2
 
-def test_subtraction_complex():
-    test_operation = Subtraction()
-    constant_operation = Constant((3+5j))
-    constant_operation_2 = Constant((4+6j))
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == (-1-1j)
+class TestSubtraction:
+    def test_subtraction_positive(self):
+        test_operation = Subtraction()
+        assert test_operation.evaluate_output(0, [5, 3]) == 2
 
-# Multiplication tests.
-def test_multiplication():
-    test_operation = Multiplication()
-    constant_operation = Constant(5)
-    constant_operation_2 = Constant(3)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == 15
+    def test_subtraction_negative(self):
+        test_operation = Subtraction()
+        assert test_operation.evaluate_output(0, [-5, -3]) == -2
 
-def test_multiplication_negative():
-    test_operation = Multiplication()
-    constant_operation = Constant(-5)
-    constant_operation_2 = Constant(-3)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == 15
+    def test_subtraction_complex(self):
+        test_operation = Subtraction()
+        assert test_operation.evaluate_output(0, [3+5j, 4+6j]) == -1-1j
 
-def test_multiplication_complex():
-    test_operation = Multiplication()
-    constant_operation = Constant((3+5j))
-    constant_operation_2 = Constant((4+6j))
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == (-18+38j)
 
-# Division tests.
-def test_division():
-    test_operation = Division()
-    constant_operation = Constant(30)
-    constant_operation_2 = Constant(5)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == 6
+class TestMultiplication:
+    def test_multiplication_positive(self):
+        test_operation = Multiplication()
+        assert test_operation.evaluate_output(0, [5, 3]) == 15
 
-def test_division_negative():
-    test_operation = Division()
-    constant_operation = Constant(-30)
-    constant_operation_2 = Constant(-5)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == 6
+    def test_multiplication_negative(self):
+        test_operation = Multiplication()
+        assert test_operation.evaluate_output(0, [-5, -3]) == 15
 
-def test_division_complex():
-    test_operation = Division()
-    constant_operation = Constant((60+40j))
-    constant_operation_2 = Constant((10+20j))
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == (2.8-1.6j)
+    def test_multiplication_complex(self):
+        test_operation = Multiplication()
+        assert test_operation.evaluate_output(0, [3+5j, 4+6j]) == -18+38j
 
-# SquareRoot tests.
-def test_squareroot():
-    test_operation = SquareRoot()
-    constant_operation = Constant(36)
-    assert test_operation.evaluate(constant_operation.evaluate()) == 6
 
-def test_squareroot_negative():
-    test_operation = SquareRoot()
-    constant_operation = Constant(-36)
-    assert test_operation.evaluate(constant_operation.evaluate()) == 6j
+class TestDivision:
+    def test_division_positive(self):
+        test_operation = Division()
+        assert test_operation.evaluate_output(0, [30, 5]) == 6
 
-def test_squareroot_complex():
-    test_operation = SquareRoot()
-    constant_operation = Constant((48+64j))
-    assert test_operation.evaluate(constant_operation.evaluate()) == (8+4j)
+    def test_division_negative(self):
+        test_operation = Division()
+        assert test_operation.evaluate_output(0, [-30, -5]) == 6
 
-# ComplexConjugate tests.
-def test_complexconjugate():
-    test_operation = ComplexConjugate()
-    constant_operation = Constant(3+4j)
-    assert test_operation.evaluate(constant_operation.evaluate()) == (3-4j)
+    def test_division_complex(self):
+        test_operation = Division()
+        assert test_operation.evaluate_output(0, [60+40j, 10+20j]) == 2.8-1.6j
 
-def test_test_complexconjugate_negative():
-    test_operation = ComplexConjugate()
-    constant_operation = Constant(-3-4j)
-    assert test_operation.evaluate(constant_operation.evaluate()) == (-3+4j)
 
-# Max tests.
-def test_max():
-    test_operation = Max()
-    constant_operation = Constant(30)
-    constant_operation_2 = Constant(5)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == 30
+class TestSquareRoot:
+    def test_squareroot_positive(self):
+        test_operation = SquareRoot()
+        assert test_operation.evaluate_output(0, [36]) == 6
 
-def test_max_negative():
-    test_operation = Max()
-    constant_operation = Constant(-30)
-    constant_operation_2 = Constant(-5)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == -5
+    def test_squareroot_negative(self):
+        test_operation = SquareRoot()
+        assert test_operation.evaluate_output(0, [-36]) == 6j
 
-# Min tests.
-def test_min():
-    test_operation = Min()
-    constant_operation = Constant(30)
-    constant_operation_2 = Constant(5)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == 5
+    def test_squareroot_complex(self):
+        test_operation = SquareRoot()
+        assert test_operation.evaluate_output(0, [48+64j]) == 8+4j
 
-def test_min_negative():
-    test_operation = Min()
-    constant_operation = Constant(-30)
-    constant_operation_2 = Constant(-5)
-    assert test_operation.evaluate(constant_operation.evaluate(), constant_operation_2.evaluate()) == -30
 
-# Absolute tests.
-def test_absolute():
-    test_operation = Absolute()
-    constant_operation = Constant(30)
-    assert test_operation.evaluate(constant_operation.evaluate()) == 30
+class TestComplexConjugate:
+    def test_complexconjugate_positive(self):
+        test_operation = ComplexConjugate()
+        assert test_operation.evaluate_output(0, [3+4j]) == 3-4j
 
-def test_absolute_negative():
-    test_operation = Absolute()
-    constant_operation = Constant(-5)
-    assert test_operation.evaluate(constant_operation.evaluate()) == 5
+    def test_test_complexconjugate_negative(self):
+        test_operation = ComplexConjugate()
+        assert test_operation.evaluate_output(0, [-3-4j]) == -3+4j
 
-def test_absolute_complex():
-    test_operation = Absolute()
-    constant_operation = Constant((3+4j))
-    assert test_operation.evaluate(constant_operation.evaluate()) == 5.0
 
-# ConstantMultiplication tests.
-def test_constantmultiplication():
-    test_operation = ConstantMultiplication(5)
-    constant_operation = Constant(20)
-    assert test_operation.evaluate(constant_operation.evaluate()) == 100
+class TestMax:
+    def test_max_positive(self):
+        test_operation = Max()
+        assert test_operation.evaluate_output(0, [30, 5]) == 30
 
-def test_constantmultiplication_negative():
-    test_operation = ConstantMultiplication(5)
-    constant_operation = Constant(-5)
-    assert test_operation.evaluate(constant_operation.evaluate()) == -25
+    def test_max_negative(self):
+        test_operation = Max()
+        assert test_operation.evaluate_output(0, [-30, -5]) == -5
 
-def test_constantmultiplication_complex():
-    test_operation = ConstantMultiplication(3+2j)
-    constant_operation = Constant((3+4j))
-    assert test_operation.evaluate(constant_operation.evaluate()) == (1+18j)
 
-# ConstantAddition tests.
-def test_constantaddition():
-    test_operation = ConstantAddition(5)
-    constant_operation = Constant(20)
-    assert test_operation.evaluate(constant_operation.evaluate()) == 25
+class TestMin:
+    def test_min_positive(self):
+        test_operation = Min()
+        assert test_operation.evaluate_output(0, [30, 5]) == 5
 
-def test_constantaddition_negative():
-    test_operation = ConstantAddition(4)
-    constant_operation = Constant(-5)
-    assert test_operation.evaluate(constant_operation.evaluate()) == -1
+    def test_min_negative(self):
+        test_operation = Min()
+        assert test_operation.evaluate_output(0, [-30, -5]) == -30
 
-def test_constantaddition_complex():
-    test_operation = ConstantAddition(3+2j)
-    constant_operation = Constant((3+4j))
-    assert test_operation.evaluate(constant_operation.evaluate()) == (6+6j)
 
-# ConstantSubtraction tests.
-def test_constantsubtraction():
-    test_operation = ConstantSubtraction(5)
-    constant_operation = Constant(20)
-    assert test_operation.evaluate(constant_operation.evaluate()) == 15
+class TestAbsolute:
+    def test_absolute_positive(self):
+        test_operation = Absolute()
+        assert test_operation.evaluate_output(0, [30]) == 30
 
-def test_constantsubtraction_negative():
-    test_operation = ConstantSubtraction(4)
-    constant_operation = Constant(-5)
-    assert test_operation.evaluate(constant_operation.evaluate()) == -9
+    def test_absolute_negative(self):
+        test_operation = Absolute()
+        assert test_operation.evaluate_output(0, [-5]) == 5
 
-def test_constantsubtraction_complex():
-    test_operation = ConstantSubtraction(4+6j)
-    constant_operation = Constant((3+4j))
-    assert test_operation.evaluate(constant_operation.evaluate()) == (-1-2j)
+    def test_absolute_complex(self):
+        test_operation = Absolute()
+        assert test_operation.evaluate_output(0, [3+4j]) == 5.0
 
-# ConstantDivision tests.
-def test_constantdivision():
-    test_operation = ConstantDivision(5)
-    constant_operation = Constant(20)
-    assert test_operation.evaluate(constant_operation.evaluate()) == 4
 
-def test_constantdivision_negative():
-    test_operation = ConstantDivision(4)
-    constant_operation = Constant(-20)
-    assert test_operation.evaluate(constant_operation.evaluate()) == -5
+class TestConstantMultiplication:
+    def test_constantmultiplication_positive(self):
+        test_operation = ConstantMultiplication(5)
+        assert test_operation.evaluate_output(0, [20]) == 100
 
-def test_constantdivision_complex():
-    test_operation = ConstantDivision(2+2j)
-    constant_operation = Constant((10+10j))
-    assert test_operation.evaluate(constant_operation.evaluate()) == (5+0j)
+    def test_constantmultiplication_negative(self):
+        test_operation = ConstantMultiplication(5)
+        assert test_operation.evaluate_output(0, [-5]) == -25
+
+    def test_constantmultiplication_complex(self):
+        test_operation = ConstantMultiplication(3+2j)
+        assert test_operation.evaluate_output(0, [3+4j]) == 1+18j
+
+
+class TestButterfly:
+    def test_butterfly_positive(self):
+        test_operation = Butterfly()
+        assert test_operation.evaluate_output(0, [2, 3]) == 5
+        assert test_operation.evaluate_output(1, [2, 3]) == -1
+
+    def test_butterfly_negative(self):
+        test_operation = Butterfly()
+        assert test_operation.evaluate_output(0, [-2, -3]) == -5
+        assert test_operation.evaluate_output(1, [-2, -3]) == 1
+
+    def test_buttefly_complex(self):
+        test_operation = Butterfly()
+        assert test_operation.evaluate_output(0, [2+1j, 3-2j]) == 5-1j
+        assert test_operation.evaluate_output(1, [2+1j, 3-2j]) == -1+3j
+
+
+class TestDepends:
+    def test_depends_addition(self):
+        add1 = Addition()
+        assert set(add1.inputs_required_for_output(0)) == {0, 1}
+
+    def test_depends_butterfly(self):
+        bfly1 = Butterfly()
+        assert set(bfly1.inputs_required_for_output(0)) == {0, 1}
+        assert set(bfly1.inputs_required_for_output(1)) == {0, 1}

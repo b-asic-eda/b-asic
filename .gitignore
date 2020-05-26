@@ -2,7 +2,7 @@
 .vscode/
 build*/
 bin*/
-logs/
+doc/
 dist/
 CMakeLists.txt.user*
 *.autosave
@@ -31,3 +31,6 @@ $RECYCLE.BIN/
 __pycache__/
 env/
 venv/
+*.pyd
+*.so
+_b_asic_debug_log.txt

@@ -1,58 +1,95 @@
-from b_asic.core_operations import Addition, Constant
-from b_asic.signal import Signal
-
 import pytest
+
+from b_asic import Addition, Constant, Signal, Butterfly
+
 
 @pytest.fixture
 def operation():
     return Constant(2)
 
-def create_operation(_type, dest_oper, index, **kwargs):
-    oper = _type(**kwargs)
-    oper_signal = Signal()
-    oper._output_ports[0].add_signal(oper_signal)
-
-    dest_oper._input_ports[index].add_signal(oper_signal)
-    return oper
-
 @pytest.fixture
 def operation_tree():
-    """Return a addition operation connected with 2 constants.
-    ---C---+
-           ---A
-    ---C---+
+    """Valid addition operation connected with 2 constants.
+    2---+
+        |
+        v
+       add = 2 + 3 = 5
+        ^
+        |
+    3---+
     """
-    add_oper = Addition()
-    create_operation(Constant, add_oper, 0, value=2)
-    create_operation(Constant, add_oper, 1, value=3)
-    return add_oper
+    return Addition(Constant(2), Constant(3))
 
 @pytest.fixture
 def large_operation_tree():
-    """Return a constant operation connected with a large operation tree with 3 other constants and 3 additions.
-    ---C---+
-           ---A---+
-    ---C---+      |
-                  +---A
-    ---C---+      |
-           ---A---+
-    ---C---+
+    """Valid addition operation connected with a large operation tree with 2 other additions and 4 constants.
+    2---+
+        |
+        v
+       add---+
+        ^    |
+        |    |
+    3---+    v
+            add = (2 + 3) + (4 + 5) = 14
+    4---+    ^
+        |    |
+        v    |
+       add---+
+        ^
+        |
+    5---+
     """
-    add_oper = Addition()
-    add_oper_2 = Addition()
+    return Addition(Addition(Constant(2), Constant(3)), Addition(Constant(4), Constant(5)))
 
-    const_oper = create_operation(Constant, add_oper, 0, value=2)
-    create_operation(Constant, add_oper, 1, value=3)
+@pytest.fixture
+def large_operation_tree_names():
+    """Valid addition operation connected with a large operation tree with 2 other additions and 4 constants.
+    With names.
+    2---+
+        |
+        v
+       add---+
+        ^    |
+        |    |
+    3---+    v
+            add = (2 + 3) + (4 + 5) = 14
+    4---+    ^
+        |    |
+        v    |
+       add---+
+        ^
+        |
+    5---+
+    """
+    return Addition(Addition(Constant(2, name="constant2"), Constant(3, name="constant3")), Addition(Constant(4, name="constant4"), Constant(5, name="constant5")))
 
-    create_operation(Constant, add_oper_2, 0, value=4)
-    create_operation(Constant, add_oper_2, 1, value=5)
+@pytest.fixture
+def butterfly_operation_tree():
+    """Valid butterfly operations connected to eachother with 3 butterfly operations and 2 constants as inputs and 2 outputs.
+    2 ---+       +--- (2 + 4) ---+       +--- (6 + (-2)) ---+       +--- (4 + 8) ---> out1 = 12
+         |       |               |       |                  |       |
+         v       ^               v       ^                  v       ^
+         butterfly               butterfly                  butterfly
+         ^       v               ^       v                  ^       v
+         |       |               |       |                  |       |               
+    4 ---+       +--- (2 - 4) ---+       +--- (6 - (-2)) ---+       +--- (4 - 8) ---> out2 = -4
+    """
+    return Butterfly(*(Butterfly(*(Butterfly(Constant(2), Constant(4), name="bfly3").outputs), name="bfly2").outputs), name="bfly1")
 
-    add_oper_3 = Addition()
-    add_oper_signal = Signal(add_oper.output(0), add_oper_3.output(0))
-    add_oper._output_ports[0].add_signal(add_oper_signal)
-    add_oper_3._input_ports[0].add_signal(add_oper_signal)
-
-    add_oper_2_signal = Signal(add_oper_2.output(0), add_oper_3.output(0))
-    add_oper_2._output_ports[0].add_signal(add_oper_2_signal)
-    add_oper_3._input_ports[1].add_signal(add_oper_2_signal)
-    return const_oper
+@pytest.fixture
+def operation_graph_with_cycle():
+    """Invalid addition operation connected with an operation graph containing a cycle.
+     +-+
+     | |
+     v |
+    add+---+
+     ^     |
+     |     v
+     7    add = (? + 7) + 6 = ?
+           ^
+           |
+           6
+    """
+    add1 = Addition(None, Constant(7))
+    add1.input(0).connect(add1)
+    return Addition(add1, Constant(6))
