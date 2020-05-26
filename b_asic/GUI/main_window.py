@@ -3,31 +3,7 @@
 This file opens the main window of the GUI for B-ASIC when run.
 """
 
-from tkinter.filedialog import askopenfilename, askopenfile
-from tkinter import Tk
-from PySide2.QtGui import QIcon, QFont, QPainter, QPen, QBrush, QKeySequence
-from PySide2.QtCore import Qt, QSize, QFileInfo
-from PySide2.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QAction,\
-    QStatusBar, QMenuBar, QLineEdit, QPushButton, QSlider, QScrollArea, QVBoxLayout,\
-    QHBoxLayout, QDockWidget, QToolBar, QMenu, QLayout, QSizePolicy, QListWidget,\
-    QListWidgetItem, QGraphicsView, QGraphicsScene, QShortcut, QGraphicsTextItem,\
-    QGraphicsProxyWidget, QInputDialog, QTextEdit, QFileDialog
-from numpy import linspace
-from b_asic.save_load_structure import *
-from select_sfg_window import SelectSFGWindow
-from simulate_sfg_window import SimulateSFGWindow, Plot
-from utils import decorate_class, handle_error
-import b_asic.special_operations as s_oper
-import b_asic.core_operations as c_oper
-from b_asic import Operation, SFG, InputPort, OutputPort, Input, Output, FastSimulation
-from b_asic.simulation import Simulation
-from show_pc_window import ShowPCWindow
-from port_button import PortButton
-from arrow import Arrow
-from gui_interface import Ui_main_window
-from drag_button import DragButton
-from about_window import AboutWindow, FaqWindow, KeybindsWindow
-import sys
+
 from pprint import pprint
 from os import getcwd, path
 import importlib
