@@ -9,15 +9,27 @@ How to build and debug the library during development.
 ### Prerequisites
 The following packages are required in order to build the library:
 * cmake 3.8+
-  * gcc 7+/clang 7+/msvc 16+
-  * fmtlib 5.2.1+
-  * pybind11 2.3.0+
+* gcc 7+/clang 7+/msvc 16+
+* fmtlib
+* pybind11 2.3.0+
 * python 3.6+
+* Python:
   * setuptools
-  * wheel
   * pybind11
   * numpy
-  * pyside2/pyqt5
+  * pyside2
+
+To build a binary distribution, the following additional packages are required:
+* Python:
+  * wheel
+
+To run the test suite, the following additional packages are required:
+* Python:
+  * pytest
+  * pytest-cov (for testing with coverage)
+  
+To generate the documentation, the following additional packages are required:
+* doxygen
 
 ### Using CMake directly
 How to build using CMake.
@@ -98,6 +110,13 @@ pytest
 ```
 pytest --cov=b_asic --cov-report html test
 ```
+
+### Generating documentation
+In `B-ASIC`:
+```
+doxygen
+```
+The output gets written to `B-ASIC/doc`.
 
 ## Usage
 How to build and use the library as a user.

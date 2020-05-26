@@ -1,337 +1,315 @@
-"""@package docstring
-B-ASIC Core Operations Module.
-TODO: More info.
+"""B-ASIC Core Operations Module.
+
+Contains some of the most commonly used mathematical operations.
 """
 
 from numbers import Number
-from typing import Any
+from typing import Optional, Dict
 from numpy import conjugate, sqrt, abs as np_abs
-from b_asic.port import InputPort, OutputPort
-from b_asic.graph_id import GraphIDType
+
+from b_asic.port import SignalSourceProvider, InputPort, OutputPort
 from b_asic.operation import AbstractOperation
 from b_asic.graph_component import Name, TypeName
 
 
-class Input(AbstractOperation):
-    """Input operation.
-    TODO: More info.
-    """
-
-    # TODO: Implement all functions.
-
-    @property
-    def type_name(self) -> TypeName:
-        return "in"
-
-
 class Constant(AbstractOperation):
     """Constant value operation.
-    TODO: More info.
+
+    Gives a specified value that remains constant for every iteration.
+
+    output(0): self.param("value")
     """
 
     def __init__(self, value: Number = 0, name: Name = ""):
-        super().__init__(name)
+        """Construct a Constant operation with the given value."""
+        super().__init__(input_count=0, output_count=1, name=name)
+        self.set_param("value", value)
 
-        self._output_ports = [OutputPort(0, self)]
-        self._parameters["value"] = value
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "c"
 
     def evaluate(self):
         return self.param("value")
 
     @property
-    def type_name(self) -> TypeName:
-        return "c"
+    def value(self) -> Number:
+        """Get the constant value of this operation."""
+        return self.param("value")
+
+    @value.setter
+    def value(self, value: Number) -> None:
+        """Set the constant value of this operation."""
+        return self.set_param("value", value)
 
 
 class Addition(AbstractOperation):
     """Binary addition operation.
-    TODO: More info.
+
+    Gives the result of adding two inputs.
+
+    output(0): input(0) + input(1)
     """
 
-    def __init__(self, source1: OutputPort = None, source2: OutputPort = None, name: Name = ""):
-        super().__init__(name)
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct an Addition operation."""
+        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
 
-        self._input_ports = [InputPort(0, self), InputPort(1, self)]
-        self._output_ports = [OutputPort(0, self)]
-
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-        if source2 is not None:
-            self._input_ports[1].connect(source2)
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "add"
 
     def evaluate(self, a, b):
         return a + b
 
-    @property
-    def type_name(self) -> TypeName:
-        return "add"
-
 
 class Subtraction(AbstractOperation):
     """Binary subtraction operation.
-    TODO: More info.
+
+    Gives the result of subtracting the second input from the first one.
+
+    output(0): input(0) - input(1)
     """
 
-    def __init__(self, source1: OutputPort = None, source2: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self), InputPort(1, self)]
-        self._output_ports = [OutputPort(0, self)]
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a Subtraction operation."""
+        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
 
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-        if source2 is not None:
-            self._input_ports[1].connect(source2)
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "sub"
 
     def evaluate(self, a, b):
         return a - b
 
-    @property
-    def type_name(self) -> TypeName:
-        return "sub"
-
 
 class Multiplication(AbstractOperation):
     """Binary multiplication operation.
-    TODO: More info.
+
+    Gives the result of multiplying two inputs.
+
+    output(0): input(0) * input(1)
     """
 
-    def __init__(self, source1: OutputPort = None, source2: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self), InputPort(1, self)]
-        self._output_ports = [OutputPort(0, self)]
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a Multiplication operation."""
+        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
 
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-        if source2 is not None:
-            self._input_ports[1].connect(source2)
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "mul"
 
     def evaluate(self, a, b):
         return a * b
 
-    @property
-    def type_name(self) -> TypeName:
-        return "mul"
-
 
 class Division(AbstractOperation):
     """Binary division operation.
-    TODO: More info.
+
+    Gives the result of dividing the first input by the second one.
+
+    output(0): input(0) / input(1)
     """
 
-    def __init__(self, source1: OutputPort = None, source2: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self), InputPort(1, self)]
-        self._output_ports = [OutputPort(0, self)]
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a Division operation."""
+        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
 
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-        if source2 is not None:
-            self._input_ports[1].connect(source2)
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "div"
 
     def evaluate(self, a, b):
         return a / b
 
-    @property
-    def type_name(self) -> TypeName:
-        return "div"
-
-
-class SquareRoot(AbstractOperation):
-    """Unary square root operation.
-    TODO: More info.
-    """
-
-    def __init__(self, source1: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self)]
-        self._output_ports = [OutputPort(0, self)]
-
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-
-    def evaluate(self, a):
-        return sqrt((complex)(a))
-
-    @property
-    def type_name(self) -> TypeName:
-        return "sqrt"
-
-
-class ComplexConjugate(AbstractOperation):
-    """Unary complex conjugate operation.
-    TODO: More info.
-    """
-
-    def __init__(self, source1: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self)]
-        self._output_ports = [OutputPort(0, self)]
-
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-
-    def evaluate(self, a):
-        return conjugate(a)
-
-    @property
-    def type_name(self) -> TypeName:
-        return "conj"
-
-
-class Max(AbstractOperation):
-    """Binary max operation.
-    TODO: More info.
-    """
-
-    def __init__(self, source1: OutputPort = None, source2: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self), InputPort(1, self)]
-        self._output_ports = [OutputPort(0, self)]
-
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-        if source2 is not None:
-            self._input_ports[1].connect(source2)
-
-    def evaluate(self, a, b):
-        assert not isinstance(a, complex) and not isinstance(b, complex), \
-            ("core_operations.Max does not support complex numbers.")
-        return a if a > b else b
-
-    @property
-    def type_name(self) -> TypeName:
-        return "max"
-
 
 class Min(AbstractOperation):
     """Binary min operation.
-    TODO: More info.
+
+    Gives the minimum value of two inputs.
+    NOTE: Non-real numbers are not supported.
+
+    output(0): min(input(0), input(1))
     """
 
-    def __init__(self, source1: OutputPort = None, source2: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self), InputPort(1, self)]
-        self._output_ports = [OutputPort(0, self)]
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a Min operation."""
+        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
 
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-        if source2 is not None:
-            self._input_ports[1].connect(source2)
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "min"
 
     def evaluate(self, a, b):
         assert not isinstance(a, complex) and not isinstance(b, complex), \
             ("core_operations.Min does not support complex numbers.")
         return a if a < b else b
 
-    @property
-    def type_name(self) -> TypeName:
-        return "min"
+
+class Max(AbstractOperation):
+    """Binary max operation.
+
+    Gives the maximum value of two inputs.
+    NOTE: Non-real numbers are not supported.
+
+    output(0): max(input(0), input(1))
+    """
+
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a Max operation."""
+        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "max"
+
+    def evaluate(self, a, b):
+        assert not isinstance(a, complex) and not isinstance(b, complex), \
+            ("core_operations.Max does not support complex numbers.")
+        return a if a > b else b
+
+
+class SquareRoot(AbstractOperation):
+    """Square root operation.
+
+    Gives the square root of its input.
+
+    output(0): sqrt(input(0))
+    """
+
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a SquareRoot operation."""
+        super().__init__(input_count=1, output_count=1, name=name, input_sources=[src0],
+                         latency=latency, latency_offsets=latency_offsets)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "sqrt"
+
+    def evaluate(self, a):
+        return sqrt(complex(a))
+
+
+class ComplexConjugate(AbstractOperation):
+    """Complex conjugate operation.
+
+    Gives the complex conjugate of its input.
+
+    output(0): conj(input(0))
+    """
+
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a ComplexConjugate operation."""
+        super().__init__(input_count=1, output_count=1, name=name, input_sources=[src0],
+                         latency=latency, latency_offsets=latency_offsets)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "conj"
+
+    def evaluate(self, a):
+        return conjugate(a)
 
 
 class Absolute(AbstractOperation):
-    """Unary absolute value operation.
-    TODO: More info.
+    """Absolute value operation.
+
+    Gives the absolute value of its input.
+
+    output(0): abs(input(0))
     """
 
-    def __init__(self, source1: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self)]
-        self._output_ports = [OutputPort(0, self)]
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct an Absolute operation."""
+        super().__init__(input_count=1, output_count=1, name=name, input_sources=[src0],
+                         latency=latency, latency_offsets=latency_offsets)
 
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "abs"
 
     def evaluate(self, a):
         return np_abs(a)
 
-    @property
-    def type_name(self) -> TypeName:
-        return "abs"
-
 
 class ConstantMultiplication(AbstractOperation):
-    """Unary constant multiplication operation.
-    TODO: More info.
+    """Constant multiplication operation.
+
+    Gives the result of multiplying its input by a specified value.
+
+    output(0): self.param("value") * input(0)
     """
 
-    def __init__(self, coefficient: Number, source1: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self)]
-        self._output_ports = [OutputPort(0, self)]
-        self._parameters["coefficient"] = coefficient
+    def __init__(self, value: Number = 0, src0: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a ConstantMultiplication operation with the given value."""
+        super().__init__(input_count=1, output_count=1, name=name, input_sources=[src0],
+                         latency=latency, latency_offsets=latency_offsets)
+        self.set_param("value", value)
 
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-
-    def evaluate(self, a):
-        return a * self.param("coefficient")
-
-    @property
-    def type_name(self) -> TypeName:
+    @classmethod
+    def type_name(cls) -> TypeName:
         return "cmul"
 
-
-class ConstantAddition(AbstractOperation):
-    """Unary constant addition operation.
-    TODO: More info.
-    """
-
-    def __init__(self, coefficient: Number, source1: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self)]
-        self._output_ports = [OutputPort(0, self)]
-        self._parameters["coefficient"] = coefficient
-
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
-
     def evaluate(self, a):
-        return a + self.param("coefficient")
+        return a * self.param("value")
 
     @property
-    def type_name(self) -> TypeName:
-        return "cadd"
+    def value(self) -> Number:
+        """Get the constant value of this operation."""
+        return self.param("value")
+
+    @value.setter
+    def value(self, value: Number) -> None:
+        """Set the constant value of this operation."""
+        return self.set_param("value", value)
 
 
-class ConstantSubtraction(AbstractOperation):
-    """Unary constant subtraction operation.
-    TODO: More info.
+class Butterfly(AbstractOperation):
+    """Butterfly operation.
+
+    Gives the result of adding its two inputs, as well as the result of
+    subtracting the second input from the first one.
+
+    output(0): input(0) + input(1)
+    output(1): input(0) - input(1)
     """
 
-    def __init__(self, coefficient: Number, source1: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self)]
-        self._output_ports = [OutputPort(0, self)]
-        self._parameters["coefficient"] = coefficient
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a Butterfly operation."""
+        super().__init__(input_count=2, output_count=2, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
 
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "bfly"
 
-    def evaluate(self, a):
-        return a - self.param("coefficient")
-
-    @property
-    def type_name(self) -> TypeName:
-        return "csub"
+    def evaluate(self, a, b):
+        return a + b, a - b
 
 
-class ConstantDivision(AbstractOperation):
-    """Unary constant division operation.
-    TODO: More info.
+class MAD(AbstractOperation):
+    """Multiply-add operation.
+
+    Gives the result of multiplying the first input by the second input and
+    then adding the third input.
+
+    output(0): (input(0) * input(1)) + input(2)
     """
 
-    def __init__(self, coefficient: Number, source1: OutputPort = None, name: Name = ""):
-        super().__init__(name)
-        self._input_ports = [InputPort(0, self)]
-        self._output_ports = [OutputPort(0, self)]
-        self._parameters["coefficient"] = coefficient
+    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, src2: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a MAD operation."""
+        super().__init__(input_count=3, output_count=1, name=name, input_sources=[src0, src1, src2],
+                         latency=latency, latency_offsets=latency_offsets)
 
-        if source1 is not None:
-            self._input_ports[0].connect(source1)
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "mad"
 
-    def evaluate(self, a):
-        return a / self.param("coefficient")
-
-    @property
-    def type_name(self) -> TypeName:
-        return "cdiv"
+    def evaluate(self, a, b, c):
+        return a * b + c
