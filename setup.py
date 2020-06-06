@@ -61,13 +61,13 @@ class CMakeBuild(build_ext):
 
 setuptools.setup(
     name="b-asic",
-    version="1.0.0",
-    author="Adam Jakobsson, Angus Lothian, Arvid Westerlund, Felix Goding, Ivar Härnqvist, Jacob Wahlman, Kevin Scott, Rasmus Karlsson",
-    author_email="adaja901@student.liu.se, anglo547@student.liu.se, arvwe160@student.liu.se, felgo673@student.liu.se, ivaha717@student.liu.se, jacwa448@student.liu.se, kevsc634@student.liu.se, raska119@student.liu.se",
+    version="1.0.1-beta",
+    author="Adam Jakobsson, Angus Lothian, Arvid Westerlund, Felix Goding, Ivar Härnqvist, Jacob Wahlman, Kevin Scott, Rasmus Karlsson, Oscar Gustafsson",
+    author_email="adaja901@student.liu.se, anglo547@student.liu.se, arvwe160@student.liu.se, felgo673@student.liu.se, ivaha717@student.liu.se, jacwa448@student.liu.se, kevsc634@student.liu.se, raska119@student.liu.se, oscar.gustafsson@liu.se",
     description="Better ASIC Toolbox",
     long_description=open("README.md", "r").read(),
     long_description_content_type="text/markdown",
-    url="https://gitlab.liu.se/PUM_TDDD96/B-ASIC",
+    url="https://gitlab.liu.se/da/B-ASIC",
     license="MIT",
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -76,9 +76,10 @@ setuptools.setup(
     ],
     python_requires=">=3.6",
     install_requires=[
-        "pybind11>=2.3.0",
         "numpy",
+        "pybind11>=2.3.0",
         "pyside2",
+        "qtpy",
         "graphviz",
         "matplotlib"
     ],

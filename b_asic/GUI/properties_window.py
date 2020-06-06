@@ -1,7 +1,7 @@
-from PySide2.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,\
+from qtpy.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,\
 QLabel, QCheckBox, QGridLayout
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QDoubleValidator
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QDoubleValidator
 
 
 class PropertiesWindow(QDialog):

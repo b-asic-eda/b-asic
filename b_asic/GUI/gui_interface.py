@@ -7,7 +7,7 @@
 # WARNING! All changes made in this file will be lost!
 
 
-from PySide2 import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 
 class Ui_main_window(object):

@@ -8,9 +8,9 @@ import os.path
 from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.GUI.utils import decorate_class, handle_error
 
-from PySide2.QtWidgets import QPushButton, QMenu, QAction
-from PySide2.QtCore import Qt, QSize, Signal
-from PySide2.QtGui import QIcon
+from qtpy.QtWidgets import QPushButton, QMenu, QAction
+from qtpy.QtCore import Qt, QSize, Signal
+from qtpy.QtGui import QIcon
 
 
 @decorate_class(handle_error)

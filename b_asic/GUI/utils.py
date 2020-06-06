@@ -1,4 +1,4 @@
-from PySide2.QtWidgets import QErrorMessage
+from qtpy.QtWidgets import QErrorMessage
 from traceback import format_exc
 
 def handle_error(fn):

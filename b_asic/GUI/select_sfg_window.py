@@ -1,7 +1,7 @@
-from PySide2.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,\
+from qtpy.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,\
 QLabel, QCheckBox, QSpinBox, QGroupBox, QFrame, QFormLayout, QGridLayout, QSizePolicy, QFileDialog, QShortcut, QComboBox
-from PySide2.QtCore import Qt, Signal
-from PySide2.QtGui import QIntValidator, QKeySequence
+from qtpy.QtCore import Qt, Signal
+from qtpy.QtGui import QIntValidator, QKeySequence
 
 from matplotlib.backends import qt_compat
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas

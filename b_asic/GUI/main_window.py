@@ -32,13 +32,13 @@ from b_asic.save_load_structure import *
 
 from numpy import linspace
 
-from PySide2.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QAction,\
+from qtpy.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QAction,\
     QStatusBar, QMenuBar, QLineEdit, QPushButton, QSlider, QScrollArea, QVBoxLayout,\
     QHBoxLayout, QDockWidget, QToolBar, QMenu, QLayout, QSizePolicy, QListWidget,\
     QListWidgetItem, QGraphicsView, QGraphicsScene, QShortcut, QGraphicsTextItem,\
     QGraphicsProxyWidget, QInputDialog, QTextEdit, QFileDialog
-from PySide2.QtCore import Qt, QSize, QFileInfo
-from PySide2.QtGui import QIcon, QFont, QPainter, QPen, QBrush, QKeySequence
+from qtpy.QtCore import Qt, QSize, QFileInfo
+from qtpy.QtGui import QIcon, QFont, QPainter, QPen, QBrush, QKeySequence
 
 
 MIN_WIDTH_SCENE = 600

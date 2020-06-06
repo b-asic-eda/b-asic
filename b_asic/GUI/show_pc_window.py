@@ -1,8 +1,8 @@
 from b_asic.signal_flow_graph import SFG
 
-from PySide2.QtWidgets import QDialog, QPushButton, QVBoxLayout, QCheckBox,\
+from qtpy.QtWidgets import QDialog, QPushButton, QVBoxLayout, QCheckBox,\
 QFrame, QFormLayout
-from PySide2.QtCore import Qt, Signal
+from qtpy.QtCore import Qt, Signal
 
 
 class ShowPCWindow(QDialog):
