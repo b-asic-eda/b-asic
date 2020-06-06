@@ -1,9 +1,9 @@
-from PySide2.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QAction,\
+from qtpy.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QAction,\
 QStatusBar, QMenuBar, QLineEdit, QPushButton, QSlider, QScrollArea, QVBoxLayout,\
 QHBoxLayout, QDockWidget, QToolBar, QMenu, QLayout, QSizePolicy, QListWidget, QListWidgetItem,\
 QGraphicsLineItem, QGraphicsWidget
-from PySide2.QtCore import Qt, QSize, QLineF, QPoint, QRectF
-from PySide2.QtGui import QIcon, QFont, QPainter, QPen
+from qtpy.QtCore import Qt, QSize, QLineF, QPoint, QRectF
+from qtpy.QtGui import QIcon, QFont, QPainter, QPen
 
 from b_asic.signal import Signal
 

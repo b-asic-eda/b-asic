@@ -1,8 +1,8 @@
 
 import sys
 
-from PySide2.QtWidgets import QPushButton, QMenu
-from PySide2.QtCore import Qt, Signal
+from qtpy.QtWidgets import QPushButton, QMenu
+from qtpy.QtCore import Qt, Signal
 
 
 class PortButton(QPushButton):

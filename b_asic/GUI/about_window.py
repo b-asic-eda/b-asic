@@ -1,5 +1,5 @@
-from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QDialog, QLabel, QFrame, QScrollArea
-from PySide2.QtCore import Qt
+from qtpy.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QDialog, QLabel, QFrame, QScrollArea
+from qtpy.QtCore import Qt
 
 
 QUESTIONS = {
