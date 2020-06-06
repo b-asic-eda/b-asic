@@ -452,7 +452,7 @@ class SFG(AbstractOperation):
 
     def remove_operation(self, operation_id: GraphID) -> "SFG":
         """Returns a version of the SFG where the operation with the specified GraphID removed.
-        The operation has to have the same amount of input- and output ports or a ValueError will 
+        The operation has to have the same amount of input- and output ports or a ValueError will
         be raised. If no operation with the entered operation_id is found then returns None and does nothing."""
         sfg_copy = self()
         operation = sfg_copy.find_by_id(operation_id)
@@ -504,6 +504,9 @@ class SFG(AbstractOperation):
         return self._precedence_list
 
     def show_precedence_graph(self) -> None:
+        self.precedence_graph().view()
+
+    def precedence_graph(self) -> Digraph:
         p_list = self.get_precedence_list()
         pg = Digraph()
         pg.attr(rankdir='LR')
@@ -514,21 +517,33 @@ class SFG(AbstractOperation):
             with pg.subgraph(name='cluster_' + str(i)) as sub:
                 sub.attr(label='N' + str(i + 1))
                 for port in ports:
-                    sub.node(port.operation.graph_id + '.' + str(port.index))
+                    if port.operation.output_count > 1:
+                        sub.node(port.operation.graph_id + '.' + str(port.index))
+                    else:
+                        sub.node(port.operation.graph_id + '.' + str(port.index), label=port.operation.graph_id)
         # Creates edges for each output port and creates nodes for each operation and edges for them as well
         for i in range(len(p_list)):
             ports = p_list[i]
             for port in ports:
                 for signal in port.signals:
-                    pg.edge(port.operation.graph_id + '.' + str(port.index),
-                            signal.destination.operation.graph_id)
-                    pg.node(signal.destination.operation.graph_id,
-                            shape='square')
-                pg.edge(port.operation.graph_id,
-                        port.operation.graph_id + '.' + str(port.index))
-                pg.node(port.operation.graph_id, shape='square')
+                    if signal.destination.operation.type_name() == Delay.type_name():
+                        dest_node = signal.destination.operation.graph_id + "In"
+                    else:
+                        dest_node = signal.destination.operation.graph_id
+                    dest_label = signal.destination.operation.graph_id
+                    node_node = port.operation.graph_id + '.' + str(port.index)
+                    pg.edge(node_node, dest_node)
+                    pg.node(dest_node, label=dest_label, shape='square')
+                if port.operation.type_name() == Delay.type_name():
+                    source_node = port.operation.graph_id + "Out"
+                else:
+                    source_node = port.operation.graph_id
+                source_label = port.operation.graph_id
+                node_node = port.operation.graph_id + '.' + str(port.index)
+                pg.edge(source_node, node_node)
+                pg.node(source_node, label=source_label, shape='square')
 
-        pg.view()
+        return pg
 
     def print_precedence_graph(self) -> None:
         """Prints a representation of the SFG's precedence list to the standard out.
@@ -561,7 +576,7 @@ class SFG(AbstractOperation):
 
     def get_operations_topological_order(self) -> Iterable[Operation]:
         """Returns an Iterable of the Operations in the SFG in Topological Order.
-        Feedback loops makes an absolutely correct Topological order impossible, so an 
+        Feedback loops makes an absolutely correct Topological order impossible, so an
         approximative Topological Order is returned in such cases in this implementation."""
         if self._operations_topological_order:
             return self._operations_topological_order
