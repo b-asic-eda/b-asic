@@ -10,9 +10,10 @@ from io import StringIO
 from queue import PriorityQueue
 import itertools as it
 from graphviz import Digraph
+from graphviz.backend import FORMATS as GRAPHVIZ_FORMATS, ENGINES as GRAPHVIZ_ENGINES
 
 from b_asic.port import SignalSourceProvider, OutputPort
-from b_asic.operation import Operation, AbstractOperation, ResultKey, DelayMap, MutableResultMap, MutableDelayMap
+from b_asic.operation import Operation, AbstractOperation, ResultKey, MutableResultMap, MutableDelayMap
 from b_asic.signal import Signal
 from b_asic.graph_component import GraphID, GraphIDNumber, GraphComponent, Name, TypeName
 from b_asic.special_operations import Input, Output, Delay
@@ -846,3 +847,71 @@ class SFG(AbstractOperation):
             src.index, input_values, results, delays, key_base, bits_override, truncate)
         results[key] = value
         return value
+
+    def sfg(self, show_id=False, engine=None) -> Digraph:
+        """
+        Returns a Digraph of the SFG. Can be directly displayed in IPython.
+
+        Parameters
+        ----------
+        show_id : Boolean, optional
+            If True, the graph_id:s of signals are shown. The default is False.
+
+        engine: string, optional
+            Graphviz layout engine to be used, see https://graphviz.org/documentation/.
+            Most common are "dot" and "neato". Default is None leading to dot.
+
+        Returns
+        -------
+        Digraph
+            Digraph of the SFG.
+
+        """
+        dg = Digraph()
+        dg.attr(rankdir='LR')
+        if engine:
+            assert engine in GRAPHVIZ_ENGINES, "Unknown layout engine"
+            dg.engine = engine
+        for op in self._components_by_id.values():
+            if isinstance(op, Signal):
+                if show_id:
+                    dg.edge(op.source.operation.graph_id, op.destination.operation.graph_id, label=op.graph_id)
+                else:
+                    dg.edge(op.source.operation.graph_id, op.destination.operation.graph_id)
+            else:
+                if op.type_name() == Delay.type_name():
+                    dg.node(op.graph_id, shape='square')
+                else:
+                    dg.node(op.graph_id)
+        return dg
+
+    def _repr_svg_(self):
+        return self.sfg()._repr_svg_()
+
+    def show_sfg(self, format=None, show_id=False, engine=None) -> None:
+        """
+        Shows a visual representation of the SFG using the default system viewer.
+
+        Parameters
+        ----------
+        format : string, optional
+            File format of the generated graph. Output formats can be found at https://www.graphviz.org/doc/info/output.html
+            Most common are "pdf", "eps", "png", and "svg". Default is None which leads to PDF.
+
+
+        show_id : Boolean, optional
+            If True, the graph_id:s of signals are shown. The default is False.
+
+        engine: string, optional
+            Graphviz layout engine to be used, see https://graphviz.org/documentation/.
+            Most common are "dot" and "neato". Default is None leading to dot.
+        """
+
+        dg = self.sfg(show_id=show_id)
+        if format:
+            assert format in GRAPHVIZ_FORMATS, "Unknown file format"
+            dg.format = format
+        if engine:
+            assert engine in GRAPHVIZ_ENGINES, "Unknown layout engine"
+            dg.engine = engine
+        dg.view()
