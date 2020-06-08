@@ -1016,3 +1016,49 @@ class TestGetComponentsOfType:
 
         assert [op.name for op in sfg_two_inputs_two_outputs.find_by_type_name(Output.type_name())] \
             == ["OUT1", "OUT2"]
+
+
+class TestPrecedenceGraph:
+    def test_precedence_graph(self, sfg_simple_filter):
+        res = 'digraph {\n\trankdir=LR\n\tsubgraph cluster_0 ' \
+        '{\n\t\tlabel=N1\n\t\t"in1.0" [label=in1]\n\t\t"t1.0" [label=t1]' \
+        '\n\t}\n\tsubgraph cluster_1 {\n\t\tlabel=N2\n\t\t"cmul1.0" ' \
+        '[label=cmul1]\n\t}\n\tsubgraph cluster_2 ' \
+        '{\n\t\tlabel=N3\n\t\t"add1.0" [label=add1]\n\t}\n\t"in1.0" ' \
+        '-> add1\n\tadd1 [label=add1 shape=square]\n\tin1 -> "in1.0"' \
+        '\n\tin1 [label=in1 shape=square]\n\t"t1.0" -> cmul1\n\tcmul1 ' \
+        '[label=cmul1 shape=square]\n\t"t1.0" -> out1\n\tout1 ' \
+        '[label=out1 shape=square]\n\tt1Out -> "t1.0"\n\tt1Out ' \
+        '[label=t1 shape=square]\n\t"cmul1.0" -> add1\n\tadd1 ' \
+        '[label=add1 shape=square]\n\tcmul1 -> "cmul1.0"\n\tcmul1 ' \
+        '[label=cmul1 shape=square]\n\t"add1.0" -> t1In\n\tt1In ' \
+        '[label=t1 shape=square]\n\tadd1 -> "add1.0"\n\tadd1 ' \
+        '[label=add1 shape=square]\n}'
+
+        assert sfg_simple_filter.precedence_graph().source == res
+
+
+class TestSFGGraph:
+    def test_sfg(self, sfg_simple_filter):
+        res = 'digraph {\n\trankdir=LR\n\tin1\n\tin1 -> ' \
+            'add1\n\tout1\n\tt1 -> out1\n\tadd1\n\tcmul1 -> ' \
+            'add1\n\tcmul1\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 ' \
+            '-> cmul1\n}'
+
+        assert sfg_simple_filter.sfg().source == res
+
+    def test_sfg_show_id(self, sfg_simple_filter):
+        res = 'digraph {\n\trankdir=LR\n\tin1\n\tin1 -> add1 ' \
+            '[label=s1]\n\tout1\n\tt1 -> out1 [label=s2]\n\tadd1' \
+            '\n\tcmul1 -> add1 [label=s3]\n\tcmul1\n\tadd1 -> t1 ' \
+            '[label=s4]\n\tt1 [shape=square]\n\tt1 -> cmul1 [label=s5]\n}'
+
+        assert sfg_simple_filter.sfg(show_id=True).source == res
+
+    def test_show_sfg_invalid_format(self, sfg_simple_filter):
+        with pytest.raises(AssertionError):
+            sfg_simple_filter.show_sfg(format="ppddff")
+
+    def test_show_sfg_invalid_engine(self, sfg_simple_filter):
+        with pytest.raises(AssertionError):
+            sfg_simple_filter.show_sfg(engine="ppddff")
