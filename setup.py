@@ -81,7 +81,8 @@ setuptools.setup(
         "pyside2",
         "qtpy",
         "graphviz",
-        "matplotlib"
+        "matplotlib",
+        "scipy"
     ],
     packages=["b_asic", "b_asic/GUI"],
     ext_modules=[CMakeExtension("b_asic")],

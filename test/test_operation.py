@@ -177,10 +177,67 @@ class TestLatency:
         assert bfly.latency_offsets == {'in0': 3, "in1": None, "out0": None, 'out1': 5}
 
 
+class TestExecutionTime:
+    def test_execution_time_constructor(self):
+        pass
+
+    def test_set_execution_time(self):
+        bfly = Butterfly()
+        bfly.execution_time = 3
+
+        assert bfly.execution_time == 3
+
+
 class TestCopyOperation:
-    def test_copy_buttefly_latency_offsets(self):
+    def test_copy_butterfly_latency_offsets(self):
         bfly = Butterfly(latency_offsets={'in0': 4, 'in1': 2, 'out0': 10, 'out1': 9})
 
         bfly_copy = bfly.copy_component()
 
         assert bfly_copy.latency_offsets == {'in0': 4, 'in1': 2, 'out0': 10, 'out1': 9}
+
+    def test_copy_execution_time(self):
+        add = Addition()
+        add.execution_time = 2
+
+        add_copy = add.copy_component()
+
+        assert add_copy.execution_time == 2
+
+
+class TestPlotCoordinates():
+    def test_simple_case(self):
+        cmult = ConstantMultiplication(0.5)
+        cmult.execution_time = 1
+        cmult.set_latency(3)
+
+        lat, exe = cmult.get_plot_coordinates()
+        assert lat == [[0, 0], [0, 1], [3, 1], [3, 0], [0, 0]]
+        assert exe == [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]
+
+    def test_complicated_case(self):
+        bfly = Butterfly(latency_offsets={'in0': 2, 'in1': 3, 'out0': 5, 'out1': 10})
+        bfly.execution_time = 7
+
+        lat, exe = bfly.get_plot_coordinates()
+        assert lat == [[2, 0], [2, 0.5], [3, 0.5], [3, 1], [10, 1], [10, 0.5], [5, 0.5], [5, 0], [2, 0]]
+        assert exe == [[0, 0], [0, 1], [7, 1], [7, 0], [0, 0]]
+
+
+class TestIOCoordinates():
+    def test_simple_case(self):
+        cmult = ConstantMultiplication(0.5)
+        cmult.execution_time = 1
+        cmult.set_latency(3)
+
+        i_c, o_c = cmult.get_io_coordinates()
+        assert i_c == [[0, 0.5]]
+        assert o_c == [[3, 0.5]]
+
+    def test_complicated_case(self):
+        bfly = Butterfly(latency_offsets={'in0': 2, 'in1': 3, 'out0': 5, 'out1': 10})
+        bfly.execution_time = 7
+
+        i_c, o_c = bfly.get_io_coordinates()
+        assert i_c == [[2, 0.25], [3, 0.75]]
+        assert o_c == [[5, 0.25], [10, 0.75]]
