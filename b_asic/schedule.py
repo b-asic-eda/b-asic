@@ -1,6 +1,6 @@
-"""B-ASIC Schema Module.
+"""B-ASIC Schedule Module.
 
-Contains the schema class for scheduling operations in an SFG.
+Contains the schedule class for scheduling operations in an SFG.
 """
 
 from collections import defaultdict
@@ -17,8 +17,8 @@ from b_asic.graph_component import GraphID
 from b_asic.special_operations import Delay, Output
 
 
-class Schema:
-    """Schema of an SFG with scheduled Operations."""
+class Schedule:
+    """Schedule of an SFG with scheduled Operations."""
 
     _sfg: SFG
     _start_times: Dict[GraphID, int]
@@ -28,7 +28,7 @@ class Schema:
     _resolution: int
 
     def __init__(self, sfg: SFG, schedule_time: Optional[int] = None, cyclic: bool = False, resolution: int = 1, scheduling_alg: str = "ASAP"):
-        """Construct a Schema from an SFG."""
+        """Construct a Schedule from an SFG."""
         self._sfg = sfg
         self._start_times = dict()
         self._laps = defaultdict(lambda: 0)
@@ -54,7 +54,7 @@ class Schema:
 
     def start_time_of_operation(self, op_id: GraphID) -> int:
         """Get the start time of the operation with the specified by the op_id."""
-        assert op_id in self._start_times, "No operation with the specified op_id in this schema."
+        assert op_id in self._start_times, "No operation with the specified op_id in this schedule."
         return self._start_times[op_id]
 
     def _get_max_end_time(self) -> int:
@@ -67,7 +67,7 @@ class Schema:
         return max_end_time
 
     def forward_slack(self, op_id: GraphID) -> int:
-        assert op_id in self._start_times, "No operation with the specified op_id in this schema."
+        assert op_id in self._start_times, "No operation with the specified op_id in this schedule."
         slack = sys.maxsize
         output_slacks = self._forward_slacks(op_id)
         # Make more pythonic
@@ -93,7 +93,7 @@ class Schema:
         return ret
 
     def backward_slack(self, op_id: GraphID) -> int:
-        assert op_id in self._start_times, "No operation with the specified op_id in this schema."
+        assert op_id in self._start_times, "No operation with the specified op_id in this schedule."
         slack = sys.maxsize
         input_slacks = self._backward_slacks(op_id)
         # Make more pythonic
@@ -120,13 +120,13 @@ class Schema:
 
 
     def slacks(self, op_id: GraphID) -> Tuple[int, int]:
-        assert op_id in self._start_times, "No operation with the specified op_id in this schema."
+        assert op_id in self._start_times, "No operation with the specified op_id in this schedule."
         return (self.backward_slack(op_id), self.forward_slack(op_id))
 
     def print_slacks(self) -> None:
         raise NotImplementedError
 
-    def set_schedule_time(self, time: int) -> "Schema":
+    def set_schedule_time(self, time: int) -> "Schedule":
         assert self._get_max_end_time() < time, "New schedule time to short."
         self._schedule_time = time
         return self
@@ -135,14 +135,14 @@ class Schema:
     def schedule_time(self) -> int:
         return self._schedule_time
 
-    def increase_time_resolution(self, factor: int) -> "Schema":
+    def increase_time_resolution(self, factor: int) -> "Schedule":
         raise NotImplementedError
 
-    def decrease_time_resolution(self, factor: int) -> "Schema":
+    def decrease_time_resolution(self, factor: int) -> "Schedule":
         raise NotImplementedError
 
-    def move_operation(self, op_id: GraphID, time: int) -> "Schema":
-        assert op_id in self._start_times, "No operation with the specified op_id in this schema."
+    def move_operation(self, op_id: GraphID, time: int) -> "Schedule":
+        assert op_id in self._start_times, "No operation with the specified op_id in this schedule."
 
         (backward_slack, forward_slack) = self.slacks(op_id)
         if time < 0:
