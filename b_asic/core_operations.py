@@ -22,7 +22,7 @@ class Constant(AbstractOperation):
 
     def __init__(self, value: Number = 0, name: Name = ""):
         """Construct a Constant operation with the given value."""
-        super().__init__(input_count=0, output_count=1, name=name)
+        super().__init__(input_count=0, output_count=1, name=name, latency_offsets={'out0' : 0})
         self.set_param("value", value)
 
     @classmethod

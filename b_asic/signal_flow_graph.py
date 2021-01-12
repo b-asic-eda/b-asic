@@ -10,6 +10,7 @@ from io import StringIO
 from queue import PriorityQueue
 import itertools as it
 from graphviz import Digraph
+import re
 from graphviz.backend import FORMATS as GRAPHVIZ_FORMATS, ENGINES as GRAPHVIZ_ENGINES
 
 from b_asic.port import SignalSourceProvider, OutputPort
@@ -31,10 +32,14 @@ class GraphIDGenerator:
         """Construct a GraphIDGenerator."""
         self._next_id_number = defaultdict(lambda: id_number_offset)
 
-    def next_id(self, type_name: TypeName) -> GraphID:
+    def next_id(self, type_name: TypeName, used_ids: MutableSet = set()) -> GraphID:
         """Get the next graph id for a certain graph id type."""
         self._next_id_number[type_name] += 1
-        return type_name + str(self._next_id_number[type_name])
+        new_id = type_name + str(self._next_id_number[type_name])
+        while (new_id in used_ids):
+            self._next_id_number[type_name] += 1
+            new_id = type_name + str(self._next_id_number[type_name])
+        return new_id
 
     @property
     def id_number_offset(self) -> GraphIDNumber:
@@ -89,6 +94,7 @@ class SFG(AbstractOperation):
                          name=name, input_sources=input_sources)
 
         self._components_by_id = dict()
+        self._used_ids = set()
         self._components_by_name = defaultdict(list)
         self._components_dfs_order = []
         self._operations_dfs_order = []
@@ -100,6 +106,7 @@ class SFG(AbstractOperation):
         self._original_input_signals_to_indices = {}
         self._original_output_signals_to_indices = {}
         self._precedence_list = None
+
 
         # Setup input signals.
         if input_signals is not None:
@@ -346,14 +353,9 @@ class SFG(AbstractOperation):
         Keyword arguments:
         type_name: The type_name of the desired components.
         """
-        i = self.id_number_offset + 1
-        components = []
-        found_comp = self.find_by_id(type_name + str(i))
-        while found_comp is not None:
-            components.append(found_comp)
-            i += 1
-            found_comp = self.find_by_id(type_name + str(i))
-
+        reg = "{}[0-9]+".format(type_name)
+        p = re.compile(reg)
+        components = [val for key, val in self._components_by_id.items() if p.match(key)]
         return components
 
     def find_by_id(self, graph_id: GraphID) -> Optional[GraphComponent]:
@@ -665,6 +667,11 @@ class SFG(AbstractOperation):
         for op in self.find_by_type_name(type_name):
             op.set_latency(latency)
 
+    def set_execution_time_of_type(self, type_name: TypeName, execution_time: int) -> None:
+        """Set the execution time of all components with the given type name."""
+        for op in self.find_by_type_name(type_name):
+            op.execution_time = execution_time
+
     def set_latency_offsets_of_type(self, type_name: TypeName, latency_offsets: Dict[str, int]) -> None:
         """Set the latency offset of all components with the given type name."""
         for op in self.find_by_type_name(type_name):
@@ -703,9 +710,11 @@ class SFG(AbstractOperation):
         assert original_component not in self._original_components_to_new, "Tried to add duplicate SFG component"
         new_component = original_component.copy_component()
         self._original_components_to_new[original_component] = new_component
-        new_id = self._graph_id_generator.next_id(new_component.type_name())
-        new_component.graph_id = new_id
-        self._components_by_id[new_id] = new_component
+        if not new_component.graph_id or new_component.graph_id in self._used_ids:
+            new_id = self._graph_id_generator.next_id(new_component.type_name(), self._used_ids)
+            new_component.graph_id = new_id
+        self._used_ids.add(new_component.graph_id)
+        self._components_by_id[new_component.graph_id] = new_component
         self._components_by_name[new_component.name].append(new_component)
         return new_component
 

@@ -12,7 +12,7 @@ import collections
 
 from abc import abstractmethod
 from numbers import Number
-from typing import NewType, List, Dict, Sequence, Iterable, Mapping, MutableMapping, Optional, Any, Set, Union
+from typing import NewType, List, Dict, Sequence, Iterable, Mapping, MutableMapping, Optional, Any, Set, Union, Tuple
 
 
 ResultKey = NewType("ResultKey", str)
@@ -248,6 +248,38 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def execution_time(self) -> int:
+        """Get the execution time of the operation, which is the time it takes before the
+        processing element implementing the operation can be reused for starting another operation.
+        """
+        raise NotImplementedError
+
+    @execution_time.setter
+    @abstractmethod
+    def execution_time(self, latency: int) -> None:
+        """Sets the execution time of the operation to the specified integer
+        value. The execution time cannot be a negative integer.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_plot_coordinates(self) -> Tuple[List[List[Number]], List[List[Number]]]:
+        """Get a tuple constaining coordinates for the two polygons outlining
+        the latency and execution time of the operation.
+        The polygons are corresponding to a start time of 0 and are of height 1.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_io_coordinates(self) -> Tuple[List[List[Number]], List[List[Number]]]:
+        """Get a tuple constaining coordinates for inputs and outputs, respectively.
+        These maps to the polygons and are corresponding to a start time of 0
+        and height 1.
+        """
+        raise NotImplementedError
+
 
 class AbstractOperation(Operation, AbstractGraphComponent):
     """Generic abstract operation base class.
@@ -258,6 +290,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     _input_ports: List[InputPort]
     _output_ports: List[OutputPort]
+    _execution_time: Union[int, None]
 
     def __init__(self, input_count: int, output_count: int, name: Name = "", input_sources: Optional[Sequence[Optional[SignalSourceProvider]]] = None, latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
         """Construct an operation with the given input/output count.
@@ -272,6 +305,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         self._input_ports = [InputPort(self, i) for i in range(input_count)]
         self._output_ports = [OutputPort(self, i) for i in range(output_count)]
+        self._execution_time = None
 
         # Connect given input sources, if any.
         if input_sources is not None:
@@ -523,6 +557,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             new_component.input(i).latency_offset = inp.latency_offset
         for i, outp in enumerate(self.outputs):
             new_component.output(i).latency_offset = outp.latency_offset
+        new_component.execution_time = self._execution_time
         return new_component
 
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
@@ -614,3 +649,49 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             else:
                 raise ValueError(
                     "Incorrectly formatted string, expected 'in' + index or 'out' + index")
+
+    @property
+    def execution_time(self) -> int:
+        if self._execution_time is None:
+            raise ValueError("No execution time specified.")
+        return self._execution_time
+
+    @execution_time.setter
+    def execution_time(self, execution_time: int) -> None:
+        assert execution_time is None or execution_time >= 0 , "Negative execution time entered."
+        self._execution_time = execution_time
+
+    def get_plot_coordinates(self) -> Tuple[List[List[Number]], List[List[Number]]]:
+        return (self._get_plot_coordinates_for_latency(), self._get_plot_coordinates_for_execution_time())
+
+    def _get_plot_coordinates_for_execution_time(self) -> List[List[Number]]:
+        # Always a rectangle, but easier if coordinates are returned
+        return [[0, 0], [0, 1], [self.execution_time, 1], [self.execution_time, 0], [0, 0]]
+
+    def _get_plot_coordinates_for_latency(self) -> List[List[Number]]:
+        # Points for latency polygon
+        latency = []
+        # Remember starting point
+        start_point = [self.inputs[0].latency_offset, 0]
+        num_in = len(self.inputs)
+        latency.append(start_point)
+        for k in range(1, num_in):
+            latency.append([self.inputs[k-1].latency_offset, k/num_in])
+            latency.append([self.inputs[k].latency_offset, k/num_in])
+        latency.append([self.inputs[num_in-1].latency_offset, 1])
+
+        num_out = len(self.outputs)
+        latency.append([self.outputs[num_out-1].latency_offset, 1])
+        for k in reversed(range(1, num_out)):
+            latency.append([self.outputs[k].latency_offset, k/num_out])
+            latency.append([self.outputs[k-1].latency_offset, k/num_out])
+        latency.append([self.outputs[0].latency_offset, 0])
+        # Close the polygon
+        latency.append(start_point)
+
+        return latency
+
+    def get_io_coordinates(self) -> Tuple[List[List[Number]], List[List[Number]]]:
+        input_coords = [[self.inputs[k].latency_offset, (1+2*k)/(2*len(self.inputs))] for k in range(len(self.inputs))]
+        output_coords = [[self.outputs[k].latency_offset, (1+2*k)/(2*len(self.outputs))] for k in range(len(self.outputs))]
+        return (input_coords, output_coords)
