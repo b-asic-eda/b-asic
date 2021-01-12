@@ -16,4 +16,4 @@ from b_asic.signal import *
 from b_asic.simulation import *
 from b_asic.special_operations import *
 from b_asic.save_load_structure import *
-from b_asic.schema import *
+from b_asic.schedule import *
