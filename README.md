@@ -14,10 +14,14 @@ The following packages are required in order to build the library:
 * pybind11 2.3.0+
 * python 3.6+
 * Python:
-  * setuptools
-  * pybind11
+  * graphviz
+  * matplotlib
   * numpy
+  * pybind11
   * pyside2
+  * qtpy
+  * scipy
+  * setuptools
 
 To build a binary distribution, the following additional packages are required:
 * Python:
