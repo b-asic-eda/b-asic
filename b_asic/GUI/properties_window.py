@@ -51,7 +51,7 @@ class PropertiesWindow(QDialog):
 
         if self.operation.operation.input_count > 0:
             self.latency_layout = QHBoxLayout()
-            self.latency_label = QLabel("Set Latency For Input Ports (-1 for None):")
+            self.latency_label = QLabel("Set latency for input ports (-1 for None):")
             self.latency_layout.addWidget(self.latency_label)
             self.vertical_layout.addLayout(self.latency_layout)
 
@@ -86,7 +86,7 @@ class PropertiesWindow(QDialog):
 
         if self.operation.operation.output_count > 0:
             self.latency_layout = QHBoxLayout()
-            self.latency_label = QLabel("Set Latency For Output Ports (-1 for None):")
+            self.latency_label = QLabel("Set latency for output ports (-1 for None):")
             self.latency_layout.addWidget(self.latency_label)
             self.vertical_layout.addLayout(self.latency_layout)
 

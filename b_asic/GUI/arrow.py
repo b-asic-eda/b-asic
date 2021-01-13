@@ -35,7 +35,7 @@ class Arrow(QGraphicsLineItem):
             for port1, port2 in self._window.signalPortDict[self]:
                 for operation, operation_ports in self._window.portDict.items():
                     if (port1 in operation_ports or port2 in operation_ports) and operation in self._window.opToSFG:
-                        self._window.logger.info(f"Operation detected in existing sfg, removing sfg with name: {self._window.opToSFG[operation].name}.")
+                        self._window.logger.info(f"Operation detected in existing SFG, removing SFG with name: {self._window.opToSFG[operation].name}.")
                         del self._window.sfg_dict[self._window.opToSFG[operation].name]
                         self._window.opToSFG = {op: self._window.opToSFG[op] for op in self._window.opToSFG if self._window.opToSFG[op] is not self._window.opToSFG[operation]}
 
