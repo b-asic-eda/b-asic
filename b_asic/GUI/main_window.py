@@ -133,7 +133,7 @@ class MainWindow(QMainWindow):
     def create_toolbar_view(self):
         self.toolbar = self.addToolBar("Toolbar")
         self.toolbar.addAction("Create SFG", self.create_SFG_from_toolbar)
-        self.toolbar.addAction("Clear Workspace", self.clear_workspace)
+        self.toolbar.addAction("Clear workspace", self.clear_workspace)
 
     def resizeEvent(self, event):
         self.ui.operation_box.setGeometry(
@@ -167,7 +167,7 @@ class MainWindow(QMainWindow):
         if not accepted:
             return
 
-        self.logger.info(f"Saving sfg to path: {module}.")
+        self.logger.info(f"Saving SFG to path: {module}.")
         operation_positions = dict()
         for operation_drag, operation_scene in self.dragOperationSceneDict.items():
             operation_positions[operation_drag.operation.graph_id] = (
@@ -179,10 +179,10 @@ class MainWindow(QMainWindow):
                     sfg, suffix=f"positions = {str(operation_positions)}"))
         except Exception as e:
             self.logger.error(
-                f"Failed to save sfg to path: {module}, with error: {e}.")
+                f"Failed to save SFG to path: {module}, with error: {e}.")
             return
 
-        self.logger.info(f"Saved sfg to path: {module}.")
+        self.logger.info(f"Saved SFG to path: {module}.")
 
     def save_work(self):
         self.sfg_widget = SelectSFGWindow(self)
@@ -196,7 +196,7 @@ class MainWindow(QMainWindow):
         if not accepted:
             return
 
-        self.logger.info(f"Loading sfg from path: {module}.")
+        self.logger.info(f"Loading SFG from path: {module}.")
         try:
             sfg, positions = python_to_sfg(module)
         except ImportError as e:
@@ -206,7 +206,7 @@ class MainWindow(QMainWindow):
 
         while sfg.name in self.sfg_dict:
             self.logger.warning(
-                f"Duplicate sfg with name: {sfg.name} detected. Please choose a new name.")
+                f"Duplicate SFG with name: {sfg.name} detected. Please choose a new name.")
             name, accepted = QInputDialog.getText(
                 self, "Change SFG Name", "Name: ", QLineEdit.Normal)
             if not accepted:
@@ -240,7 +240,7 @@ class MainWindow(QMainWindow):
             self.opToSFG[self.operationDragDict[op]] = sfg
 
         self.sfg_dict[sfg.name] = sfg
-        self.logger.info(f"Loaded sfg from path: {module}.")
+        self.logger.info(f"Loaded SFG from path: {module}.")
         self.update()
 
     def exit_app(self):
@@ -248,7 +248,7 @@ class MainWindow(QMainWindow):
         QApplication.quit()
 
     def clear_workspace(self):
-        self.logger.info("Clearing workspace from operations and sfgs.")
+        self.logger.info("Clearing workspace from operations and SFGs.")
         self.pressed_operations.clear()
         self.pressed_ports.clear()
         self.operationItemSceneList.clear()
@@ -433,7 +433,7 @@ class MainWindow(QMainWindow):
                     __file__), "operation_icons", f"custom_operation.png")
             attr_button.setIcon(QIcon(icon_path))
             attr_button.setIconSize(QSize(55, 55))
-            attr_button.setToolTip("No sfg")
+            attr_button.setToolTip("No SFG")
             attr_button.setStyleSheet(""" QToolTip { background-color: white;
             color: black }""")
             attr_button.setParent(None)
@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
     def _connect_button(self, *event):
         if len(self.pressed_ports) < 2:
             self.logger.warning(
-                "Can't connect less than two ports. Please select more.")
+                "Cannot connect less than two ports. Please select at least two.")
             return
 
         for i in range(len(self.pressed_ports) - 1):
@@ -498,12 +498,12 @@ class MainWindow(QMainWindow):
             destination = self.pressed_ports[i +
                                              1] if source is not self.pressed_ports[i + 1] else self.pressed_ports[i]
             if source.port.operation is destination.port.operation:
-                self.logger.warning("Can't connect to the same port")
+                self.logger.warning("Cannot connect to the same port")
                 continue
 
             if type(source.port) == type(destination.port):
                 self.logger.warning(
-                    f"Can't connect port of type: {type(source.port).__name__} to port of type: {type(destination.port).__name__}.")
+                    f"Cannot connect port of type: {type(source.port).__name__} to port of type: {type(destination.port).__name__}.")
                 continue
 
             self.connect_button(source, destination)
@@ -547,7 +547,7 @@ class MainWindow(QMainWindow):
 
     def _simulate_sfg(self):
         for sfg, properties in self.dialog.properties.items():
-            self.logger.info(f"Simulating sfg with name: {sfg.name}.")
+            self.logger.info(f"Simulating SFG with name: {sfg.name}.")
             simulation = FastSimulation(
                 sfg, input_providers=properties["input_values"])
             l_result = simulation.run_for(
@@ -560,7 +560,7 @@ class MainWindow(QMainWindow):
 
             if properties["show_plot"]:
                 self.logger.info(
-                    f"Opening plot for sfg with name: {sfg.name}.")
+                    f"Opening plot for SFG with name: {sfg.name}.")
                 self.logger.info(
                     "To save the plot press 'Ctrl+S' when the plot is focused.")
                 self.plot = Plot(simulation, sfg, self)

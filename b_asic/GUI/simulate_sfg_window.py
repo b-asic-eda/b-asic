@@ -35,13 +35,13 @@ class SimulateSFGWindow(QDialog):
 
         spin_box = QSpinBox()
         spin_box.setRange(0, 2147483647)
-        options_layout.addRow("Iteration Count: ", spin_box)
+        options_layout.addRow("Iteration count: ", spin_box)
 
         check_box_plot = QCheckBox()
-        options_layout.addRow("Plot Results: ", check_box_plot)
+        options_layout.addRow("Plot results: ", check_box_plot)
 
         check_box_all = QCheckBox()
-        options_layout.addRow("Get All Results: ", check_box_all)
+        options_layout.addRow("Get all results: ", check_box_all)
 
         sfg_layout.addLayout(options_layout)
 
@@ -54,7 +54,7 @@ class SimulateSFGWindow(QDialog):
 
         if sfg.input_count > 0:
             input_label = QHBoxLayout()
-            input_label = QLabel("Input Values:")
+            input_label = QLabel("Input values:")
             options_layout.addRow(input_label)
 
             input_grid = QGridLayout()
@@ -123,13 +123,13 @@ class SimulateSFGWindow(QDialog):
                     "input_values": input_values
                 }
 
-                # If we plot we should also print the entire data, since you can't really interact with the graph.
+                # If we plot we should also print the entire data, since you cannot really interact with the graph.
                 if self.properties[sfg]["show_plot"]:
                     self.properties[sfg]["all_results"] = True
 
                 continue
 
-            self._window.logger.info(f"Skipping simulation of sfg with name: {sfg.name}, due to previous errors.")
+            self._window.logger.info(f"Skipping simulation of SFG with name: {sfg.name}, due to previous errors.")
 
         self.accept()
         self.simulate.emit()
