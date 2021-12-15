@@ -1,11 +1,11 @@
-#ifndef ASIC_SIMULATION_FORMAT_CODE_H
-#define ASIC_SIMULATION_FORMAT_CODE_H
+#ifndef ASIC_SIMULATION_FORMAT_CODE_HPP
+#define ASIC_SIMULATION_FORMAT_CODE_HPP
 
-#include "../algorithm.h"
-#include "../debug.h"
-#include "../number.h"
-#include "compile.h"
-#include "instruction.h"
+#include "../algorithm.hpp"
+#include "../debug.hpp"
+#include "../number.hpp"
+#include "compile.hpp"
+#include "instruction.hpp"
 
 #include <fmt/format.h>
 #include <string>
@@ -47,8 +47,8 @@ namespace asic {
 }
 
 [[nodiscard]] inline std::string format_compiled_simulation_code_instruction(instruction const& instruction) {
+	// clang-format off
 	switch (instruction.type) {
-		// clang-format off
 		case instruction_type::push_input:              return fmt::format("push_input inputs[{}]", instruction.index);
 		case instruction_type::push_result:             return fmt::format("push_result results[{}]", instruction.index);
 		case instruction_type::push_delay:              return fmt::format("push_delay delays[{}]", instruction.index);
@@ -67,8 +67,8 @@ namespace asic {
 		case instruction_type::update_delay:            return fmt::format("update_delay delays[{}]", instruction.index);
 		case instruction_type::custom:                  return fmt::format("custom custom_sources[{}]", instruction.index);
 		case instruction_type::forward_value:           return "forward_value";
-		// clang-format on
 	}
+	// clang-format on
 	return std::string{};
 }
 
@@ -126,4 +126,4 @@ namespace asic {
 
 } // namespace asic
 
-#endif // ASIC_SIMULATION_FORMAT_CODE
+#endif // ASIC_SIMULATION_FORMAT_CODE_HPP

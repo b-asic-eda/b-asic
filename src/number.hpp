@@ -1,6 +1,7 @@
-#ifndef ASIC_NUMBER_H
-#define ASIC_NUMBER_H
+#ifndef ASIC_NUMBER_HPP
+#define ASIC_NUMBER_HPP
 
+#define NOMINMAX
 #include <complex>
 #include <pybind11/complex.h>
 
@@ -10,4 +11,4 @@ using number = std::complex<double>;
 
 } // namespace asic
 
-#endif // ASIC_NUMBER_H
+#endif // ASIC_NUMBER_HPP

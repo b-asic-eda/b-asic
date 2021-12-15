@@ -1,14 +1,15 @@
-#ifndef ASIC_SIMULATION_SIGNAL_FLOW_GRAPH_H
-#define ASIC_SIMULATION_SIGNAL_FLOW_GRAPH_H
+#ifndef ASIC_SIMULATION_SIGNAL_FLOW_GRAPH_HPP
+#define ASIC_SIMULATION_SIGNAL_FLOW_GRAPH_HPP
 
-#include "../algorithm.h"
-#include "../debug.h"
-#include "../number.h"
-#include "core_operations.h"
-#include "custom_operation.h"
-#include "operation.h"
-#include "special_operations.h"
+#include "../algorithm.hpp"
+#include "../debug.hpp"
+#include "../number.hpp"
+#include "core_operations.hpp"
+#include "custom_operation.hpp"
+#include "operation.hpp"
+#include "special_operations.hpp"
 
+#define NOMINMAX
 #include <Python.h>
 #include <cstddef>
 #include <fmt/format.h>
@@ -51,7 +52,7 @@ private:
 	template <typename Operation, typename... Args>
 	[[nodiscard]] static std::shared_ptr<Operation> add_unary_operation(pybind11::handle op, added_operation_cache& added,
 																		std::string_view prefix, Args&&... args) {
-		auto const new_op = add_operation<Operation>(op, added, std::forward<Args>(args)...);
+		auto new_op = add_operation<Operation>(op, added, std::forward<Args>(args)...);
 		new_op->connect(make_source(op, 0, added, prefix));
 		return new_op;
 	}
@@ -59,7 +60,7 @@ private:
 	template <typename Operation, typename... Args>
 	[[nodiscard]] static std::shared_ptr<Operation> add_binary_operation(pybind11::handle op, added_operation_cache& added,
 																		 std::string_view prefix, Args&&... args) {
-		auto const new_op = add_operation<Operation>(op, added, std::forward<Args>(args)...);
+		auto new_op = add_operation<Operation>(op, added, std::forward<Args>(args)...);
 		new_op->connect(make_source(op, 0, added, prefix), make_source(op, 1, added, prefix));
 		return new_op;
 	}
@@ -73,10 +74,10 @@ private:
 	[[nodiscard]] static std::shared_ptr<operation> make_operation(pybind11::handle op, added_operation_cache& added,
 																   std::string_view prefix);
 
-	std::vector<output_operation> m_output_operations;
-	std::vector<std::shared_ptr<input_operation>> m_input_operations;
+	std::vector<output_operation> m_output_operations{};
+	std::vector<std::shared_ptr<input_operation>> m_input_operations{};
 };
 
 } // namespace asic
 
-#endif // ASIC_SIMULATION_SIGNAL_FLOW_GRAPH_H
+#endif // ASIC_SIMULATION_SIGNAL_FLOW_GRAPH_HPP

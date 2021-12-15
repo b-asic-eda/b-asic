@@ -1,11 +1,12 @@
-#ifndef ASIC_SIMULATION_CUSTOM_OPERATION_H
-#define ASIC_SIMULATION_CUSTOM_OPERATION_H
+#ifndef ASIC_SIMULATION_CUSTOM_OPERATION_HPP
+#define ASIC_SIMULATION_CUSTOM_OPERATION_HPP
 
-#include "../algorithm.h"
-#include "../debug.h"
-#include "../number.h"
-#include "operation.h"
+#include "../algorithm.hpp"
+#include "../debug.hpp"
+#include "../number.hpp"
+#include "operation.hpp"
 
+#define NOMINMAX
 #include <cstddef>
 #include <fmt/format.h>
 #include <functional>
@@ -32,4 +33,4 @@ private:
 
 } // namespace asic
 
-#endif // ASIC_SIMULATION_CUSTOM_OPERATION_H
+#endif // ASIC_SIMULATION_CUSTOM_OPERATION_HPP

@@ -1,8 +1,8 @@
-#ifndef ASIC_SIMULATION_OPERATION_H
-#define ASIC_SIMULATION_OPERATION_H
+#ifndef ASIC_SIMULATION_OPERATION_HPP
+#define ASIC_SIMULATION_OPERATION_HPP
 
-#include "../number.h"
-#include "../span.h"
+#include "../number.hpp"
+#include "../span.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -26,11 +26,11 @@ using delay_map = std::unordered_map<result_key, number>;
 using delay_queue = std::vector<std::pair<result_key, signal_source const*>>;
 
 struct evaluation_context final {
-	result_map* results;
-	delay_map* delays;
-	delay_queue* deferred_delays;
-	std::optional<std::size_t> bits_override;
-	bool truncate;
+	result_map* results = nullptr;
+	delay_map* delays = nullptr;
+	delay_queue* deferred_delays = nullptr;
+	std::optional<std::size_t> bits_override{};
+	bool truncate = false;
 };
 
 class signal_source final {
@@ -46,23 +46,25 @@ public:
 	[[nodiscard]] std::optional<std::size_t> bits() const noexcept;
 
 private:
-	std::shared_ptr<const operation> m_operation;
+	std::shared_ptr<const operation> m_operation{};
 	std::size_t m_index = 0;
-	std::optional<std::size_t> m_bits;
+	std::optional<std::size_t> m_bits{};
 };
 
-class operation {
+class operation { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
+	operation() noexcept = default;
 	virtual ~operation() = default;
+
 	[[nodiscard]] virtual std::size_t output_count() const noexcept = 0;
 	[[nodiscard]] virtual std::optional<number> current_output(std::size_t index, delay_map const& delays) const = 0;
 	[[nodiscard]] virtual number evaluate_output(std::size_t index, evaluation_context const& context) const = 0;
 };
 
-class abstract_operation : public operation {
+class abstract_operation : public operation { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
 	explicit abstract_operation(result_key key);
-	virtual ~abstract_operation() = default;
+	~abstract_operation() override = default;
 
 	[[nodiscard]] std::optional<number> current_output(std::size_t, delay_map const&) const override;
 	[[nodiscard]] number evaluate_output(std::size_t index, evaluation_context const& context) const override;
@@ -78,10 +80,10 @@ private:
 	result_key m_key;
 };
 
-class unary_operation : public abstract_operation {
+class unary_operation : public abstract_operation { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
 	explicit unary_operation(result_key key);
-	virtual ~unary_operation() = default;
+	~unary_operation() override = default;
 
 	void connect(signal_source in);
 
@@ -94,10 +96,10 @@ private:
 	signal_source m_in;
 };
 
-class binary_operation : public abstract_operation {
+class binary_operation : public abstract_operation { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
 	explicit binary_operation(result_key key);
-	virtual ~binary_operation() = default;
+	~binary_operation() override = default;
 
 	void connect(signal_source lhs, signal_source rhs);
 
@@ -112,10 +114,10 @@ private:
 	signal_source m_rhs;
 };
 
-class nary_operation : public abstract_operation {
+class nary_operation : public abstract_operation { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
 	explicit nary_operation(result_key key);
-	virtual ~nary_operation() = default;
+	~nary_operation() override = default;
 
 	void connect(std::vector<signal_source> inputs);
 
@@ -124,9 +126,9 @@ protected:
 	[[nodiscard]] std::vector<number> evaluate_inputs(evaluation_context const& context) const;
 
 private:
-	std::vector<signal_source> m_inputs;
+	std::vector<signal_source> m_inputs{};
 };
 
 } // namespace asic
 
-#endif // ASIC_SIMULATION_OPERATION_H
+#endif // ASIC_SIMULATION_OPERATION_HPP

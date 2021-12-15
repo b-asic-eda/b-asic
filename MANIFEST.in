@@ -2,4 +2,4 @@ include README.md
 include LICENSE
 include CMakeLists.txt
 include b_asic/GUI/operation_icons/*
-recursive-include src *.cpp *.h
+recursive-include src *.cpp *.hpp

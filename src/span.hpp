@@ -1,14 +1,14 @@
-#ifndef ASIC_SPAN_H
-#define ASIC_SPAN_H
+#ifndef ASIC_SPAN_HPP
+#define ASIC_SPAN_HPP
 
+#include <algorithm>
+#include <array>
+#include <cassert>
 #include <cstddef>
-#include <type_traits>
-#include <utility>
 #include <iterator>
 #include <limits>
-#include <array>
-#include <algorithm>
-#include <cassert>
+#include <type_traits>
+#include <utility>
 
 namespace asic {
 
@@ -51,28 +51,38 @@ template <std::size_t From, std::size_t To>
 constexpr auto is_size_convertible_v = is_size_convertible<From, To>::value;
 
 template <typename From, typename To>
-struct is_element_type_convertible : std::bool_constant<std::is_convertible_v<From(*)[], To(*)[]>> {};
+struct is_element_type_convertible : std::bool_constant<std::is_convertible_v<From (*)[], To (*)[]>> {};
 
 template <typename From, typename To>
 constexpr auto is_element_type_convertible_v = is_element_type_convertible<From, To>::value;
 
 template <typename T, std::size_t Size>
 struct span_base {
-	using element_type	= T;
-	using pointer		= element_type*;
-	using size_type		= std::size_t;
+	using element_type = T;
+	using pointer = element_type*;
+	using size_type = std::size_t;
 
 	constexpr span_base() noexcept = default;
-	constexpr span_base(pointer data, [[maybe_unused]] size_type size) : m_data(data) { assert(size == Size); }
+
+	constexpr span_base(pointer data, [[maybe_unused]] size_type size)
+		: m_data(data) {
+		assert(size == Size);
+	}
 
 	template <size_type N>
-	constexpr span_base(span_base<T, N> other) : m_data(other.data()) {
+	constexpr span_base(span_base<T, N> other)
+		: m_data(other.data()) {
 		static_assert(N == Size || N == dynamic_size);
 		assert(other.size() == Size);
 	}
 
-	[[nodiscard]] constexpr pointer data() const noexcept	{ return m_data; }
-	[[nodiscard]] constexpr size_type size() const noexcept	{ return Size; }
+	[[nodiscard]] constexpr pointer data() const noexcept {
+		return m_data;
+	}
+
+	[[nodiscard]] constexpr size_type size() const noexcept {
+		return Size;
+	}
 
 private:
 	pointer m_data = nullptr;
@@ -80,34 +90,37 @@ private:
 
 template <typename T>
 struct span_base<T, dynamic_size> {
-	using element_type	= T;
-	using pointer		= element_type*;
-	using size_type		= std::size_t;
+	using element_type = T;
+	using pointer = element_type*;
+	using size_type = std::size_t;
 
 	constexpr span_base() noexcept = default;
-	constexpr span_base(pointer data, size_type size) : m_data(data), m_size(size) {}
+
+	constexpr span_base(pointer data, size_type size)
+		: m_data(data)
+		, m_size(size) {}
 
 	template <size_type N>
-	explicit constexpr span_base(span_base<T, N> other) : m_data(other.data()), m_size(other.size()) {}
+	explicit constexpr span_base(span_base<T, N> other)
+		: m_data(other.data())
+		, m_size(other.size()) {}
 
-	[[nodiscard]] constexpr pointer data() const noexcept	{ return m_data; }
-	[[nodiscard]] constexpr size_type size() const noexcept	{ return m_size; }
+	[[nodiscard]] constexpr pointer data() const noexcept {
+		return m_data;
+	}
+
+	[[nodiscard]] constexpr size_type size() const noexcept {
+		return m_size;
+	}
 
 private:
-	pointer		m_data = nullptr;
-	size_type	m_size = 0;
+	pointer m_data = nullptr;
+	size_type m_size = 0;
 };
 
 template <typename T, std::size_t Size, std::size_t Offset, std::size_t N>
 struct subspan_type {
-	using type = span<
-		T,
-		(N != dynamic_size) ?
-			N :
-			(Size != dynamic_size) ?
-				Size - Offset :
-				Size
-	>;
+	using type = span<T, (N != dynamic_size) ? N : (Size != dynamic_size) ? Size - Offset : Size>;
 };
 
 template <typename T, std::size_t Size, std::size_t Offset, std::size_t Count>
@@ -116,31 +129,30 @@ using subspan_type_t = typename subspan_type<T, Size, Offset, Count>::type;
 } // namespace detail
 
 template <typename T, std::size_t Size>
-class span final : public detail::span_base<T, Size> {
+class span final : public detail::span_base<T, Size> { // NOLINT(cppcoreguidelines-special-member-functions)
 public:
-	using element_type				= typename detail::span_base<T, Size>::element_type;
-	using pointer					= typename detail::span_base<T, Size>::pointer;
-	using size_type					= typename detail::span_base<T, Size>::size_type;
-	using value_type				= std::remove_cv_t<element_type>;
-	using reference					= element_type&;
-	using iterator					= element_type*;
-	using const_iterator			= const element_type*;
-	using reverse_iterator			= std::reverse_iterator<iterator>;
-	using const_reverse_iterator	= std::reverse_iterator<const_iterator>;
+	using element_type = typename detail::span_base<T, Size>::element_type;
+	using pointer = typename detail::span_base<T, Size>::pointer;
+	using size_type = typename detail::span_base<T, Size>::size_type;
+	using value_type = std::remove_cv_t<element_type>;
+	using reference = element_type&;
+	using iterator = element_type*;
+	using const_iterator = const element_type*;
+	using reverse_iterator = std::reverse_iterator<iterator>;
+	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 	// Default constructor.
 	constexpr span() noexcept = default;
 
 	// Construct from pointer, size.
-	constexpr span(pointer data, size_type size) : detail::span_base<T, Size>(data, size) {}
+	constexpr span(pointer data, size_type size)
+		: detail::span_base<T, Size>(data, size) {}
 
 	// Copy constructor.
-	template <
-		typename U, std::size_t N,
-		typename = std::enable_if_t<detail::is_size_convertible_v<N, Size>>,
-		typename = std::enable_if_t<detail::is_element_type_convertible_v<U, T>>
-	>
-	constexpr span(span<U, N> const& other) : span(other.data(), other.size()) {}
+	template <typename U, std::size_t N, typename = std::enable_if_t<detail::is_size_convertible_v<N, Size>>,
+			  typename = std::enable_if_t<detail::is_element_type_convertible_v<U, T>>>
+	constexpr span(span<U, N> const& other)
+		: span(other.data(), other.size()) {}
 
 	// Copy assignment.
 	constexpr span& operator=(span const&) noexcept = default;
@@ -149,75 +161,111 @@ public:
 	~span() = default;
 
 	// Construct from begin, end.
-	constexpr span(pointer begin, pointer end) : span(begin, end - begin) {}
+	constexpr span(pointer begin, pointer end)
+		: span(begin, end - begin) {}
 
 	// Construct from C array.
 	template <std::size_t N>
-	constexpr span(element_type(&arr)[N]) noexcept : span(std::data(arr), N) {}
+	constexpr span(element_type (&arr)[N]) noexcept
+		: span(std::data(arr), N) {}
 
 	// Construct from std::array.
-	template <
-		std::size_t N,
-		typename = std::enable_if_t<N != 0>
-	>
-	constexpr span(std::array<value_type, N>& arr) noexcept : span(std::data(arr), N) {}
+	template <std::size_t N, typename = std::enable_if_t<N != 0>>
+	constexpr span(std::array<value_type, N>& arr) noexcept
+		: span(std::data(arr), N) {}
 
 	// Construct from empty std::array.
-	constexpr span(std::array<value_type, 0>&) noexcept : span() {}
+	constexpr span(std::array<value_type, 0>&) noexcept
+		: span() {}
 
 	// Construct from const std::array.
-	template <
-		std::size_t N,
-		typename = std::enable_if_t<N != 0>
-	>
-	constexpr span(std::array<value_type, N> const& arr) noexcept : span(std::data(arr), N) {}
+	template <std::size_t N, typename = std::enable_if_t<N != 0>>
+	constexpr span(std::array<value_type, N> const& arr) noexcept
+		: span(std::data(arr), N) {}
 
 	// Construct from empty const std::array.
-	constexpr span(std::array<value_type, 0> const&) noexcept : span() {}
+	constexpr span(std::array<value_type, 0> const&) noexcept
+		: span() {}
 
 	// Construct from other container.
 	template <
-		typename Container,
-		typename = std::enable_if_t<!detail::is_span_v<Container>>,
-		typename = std::enable_if_t<!detail::is_std_array_v<Container>>,
-		typename = decltype(std::data(std::declval<Container>())),
+		typename Container, typename = std::enable_if_t<!detail::is_span_v<Container>>,
+		typename = std::enable_if_t<!detail::is_std_array_v<Container>>, typename = decltype(std::data(std::declval<Container>())),
 		typename = decltype(std::size(std::declval<Container>())),
 		typename = std::enable_if_t<std::is_convertible_v<typename Container::pointer, pointer>>,
-		typename = std::enable_if_t<std::is_convertible_v<typename Container::pointer, decltype(std::data(std::declval<Container>()))>>
-	>
-	constexpr span(Container& container) : span(std::data(container), std::size(container)) {}
+		typename = std::enable_if_t<std::is_convertible_v<typename Container::pointer, decltype(std::data(std::declval<Container>()))>>>
+	constexpr span(Container& container)
+		: span(std::data(container), std::size(container)) {}
 
 	// Construct from other const container.
 	template <
-		typename Container,
-		typename Element = element_type,
-		typename = std::enable_if_t<std::is_const_v<Element>>,
-		typename = std::enable_if_t<!detail::is_span_v<Container>>,
-		typename = std::enable_if_t<!detail::is_std_array_v<Container>>,
-		typename = decltype(std::data(std::declval<Container>())),
-		typename = decltype(std::size(std::declval<Container>())),
+		typename Container, typename Element = element_type, typename = std::enable_if_t<std::is_const_v<Element>>,
+		typename = std::enable_if_t<!detail::is_span_v<Container>>, typename = std::enable_if_t<!detail::is_std_array_v<Container>>,
+		typename = decltype(std::data(std::declval<Container>())), typename = decltype(std::size(std::declval<Container>())),
 		typename = std::enable_if_t<std::is_convertible_v<typename Container::pointer, pointer>>,
-		typename = std::enable_if_t<std::is_convertible_v<typename Container::pointer, decltype(std::data(std::declval<Container>()))>>
-	>
-	constexpr span(Container const& container) : span(std::data(container), std::size(container)) {}
+		typename = std::enable_if_t<std::is_convertible_v<typename Container::pointer, decltype(std::data(std::declval<Container>()))>>>
+	constexpr span(Container const& container)
+		: span(std::data(container), std::size(container)) {}
 
-	[[nodiscard]] constexpr iterator begin() const noexcept						{ return this->data(); }
-	[[nodiscard]] constexpr const_iterator cbegin() const noexcept				{ return this->data(); }
-	[[nodiscard]] constexpr iterator end() const noexcept						{ return this->data() + this->size(); }
-	[[nodiscard]] constexpr const_iterator cend() const noexcept				{ return this->data() + this->size(); }
-	[[nodiscard]] constexpr reverse_iterator rbegin() const noexcept			{ return std::make_reverse_iterator(this->end()); }
-	[[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept		{ return std::make_reverse_iterator(this->cend()); }
-	[[nodiscard]] constexpr reverse_iterator rend() const noexcept				{ return std::make_reverse_iterator(this->begin()); }
-	[[nodiscard]] constexpr const_reverse_iterator crend() const noexcept		{ return std::make_reverse_iterator(this->cbegin()); }
+	[[nodiscard]] constexpr iterator begin() const noexcept {
+		return this->data();
+	}
 
-	[[nodiscard]] constexpr reference operator[](size_type i) const noexcept	{ assert(i < this->size()); return this->data()[i]; }
-	[[nodiscard]] constexpr reference operator()(size_type i) const noexcept	{ assert(i < this->size()); return this->data()[i]; }
+	[[nodiscard]] constexpr const_iterator cbegin() const noexcept {
+		return this->data();
+	}
 
-	[[nodiscard]] constexpr size_type size_bytes() const noexcept				{ return this->size() * sizeof(element_type); }
-	[[nodiscard]] constexpr bool empty() const noexcept							{ return this->size() == 0; }
+	[[nodiscard]] constexpr iterator end() const noexcept {
+		return this->data() + this->size();
+	}
 
-	[[nodiscard]] constexpr reference front() const noexcept					{ assert(!this->empty()); return this->data()[0]; }
-	[[nodiscard]] constexpr reference back() const noexcept						{ assert(!this->empty()); return this->data()[this->size() - 1]; }
+	[[nodiscard]] constexpr const_iterator cend() const noexcept {
+		return this->data() + this->size();
+	}
+
+	[[nodiscard]] constexpr reverse_iterator rbegin() const noexcept {
+		return std::make_reverse_iterator(this->end());
+	}
+
+	[[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept {
+		return std::make_reverse_iterator(this->cend());
+	}
+
+	[[nodiscard]] constexpr reverse_iterator rend() const noexcept {
+		return std::make_reverse_iterator(this->begin());
+	}
+
+	[[nodiscard]] constexpr const_reverse_iterator crend() const noexcept {
+		return std::make_reverse_iterator(this->cbegin());
+	}
+
+	[[nodiscard]] constexpr reference operator[](size_type i) const noexcept {
+		assert(i < this->size());
+		return this->data()[i];
+	}
+
+	[[nodiscard]] constexpr reference operator()(size_type i) const noexcept {
+		assert(i < this->size());
+		return this->data()[i];
+	}
+
+	[[nodiscard]] constexpr size_type size_bytes() const noexcept {
+		return this->size() * sizeof(element_type);
+	}
+
+	[[nodiscard]] constexpr bool empty() const noexcept {
+		return this->size() == 0;
+	}
+
+	[[nodiscard]] constexpr reference front() const noexcept {
+		assert(!this->empty());
+		return this->data()[0];
+	}
+
+	[[nodiscard]] constexpr reference back() const noexcept {
+		assert(!this->empty());
+		return this->data()[this->size() - 1];
+	}
 
 	template <std::size_t N>
 	[[nodiscard]] constexpr span<T, N> first() const {
@@ -239,7 +287,7 @@ public:
 
 	[[nodiscard]] constexpr span<T, dynamic_size> first(size_type n) const {
 		assert(n <= this->size());
-		return { this->data(), n };
+		return {this->data(), n};
 	}
 
 	[[nodiscard]] constexpr span<T, dynamic_size> last(size_type n) const {
@@ -250,7 +298,7 @@ public:
 		if constexpr (Size == dynamic_size) {
 			assert(offset <= this->size());
 			if (n == dynamic_size) {
-				return { this->data() + offset, this->size() - offset };
+				return {this->data() + offset, this->size() - offset};
 			}
 			assert(n <= this->size());
 			assert(offset + n <= this->size());
@@ -298,7 +346,7 @@ template <typename Container>
 span(Container const&) -> span<typename Container::value_type const>;
 
 template <typename T, std::size_t N>
-span(T(&)[N]) -> span<T, N>;
+span(T (&)[N]) -> span<T, N>;
 
 template <typename T, std::size_t N>
 span(std::array<T, N>&) -> span<T, N>;
@@ -307,8 +355,8 @@ template <typename T, std::size_t N>
 span(std::array<T, N> const&) -> span<T const, N>;
 
 template <typename T, typename Dummy>
-span(T, Dummy&&) -> span<std::remove_reference_t<decltype(std::declval<T>()[0])>>;
+span(T, Dummy &&) -> span<std::remove_reference_t<decltype(std::declval<T>()[0])>>;
 
 } // namespace asic
 
-#endif // ASIC_SPAN_H
+#endif // ASIC_SPAN_HPP

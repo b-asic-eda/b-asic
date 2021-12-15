@@ -1,6 +1,6 @@
-#include "special_operations.h"
+#include "special_operations.hpp"
 
-#include "../debug.h"
+#include "../debug.hpp"
 
 namespace asic {
 

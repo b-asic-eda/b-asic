@@ -1,5 +1,6 @@
-#include "simulation.h"
-#include "simulation/simulation.h"
+#include "simulation.hpp"
+
+#include "simulation/simulation.hpp"
 
 namespace py = pybind11;
 
@@ -12,7 +13,7 @@ void define_simulation_class(pybind11::module& module) {
 			py::arg("sfg"),
 			"SFG Constructor.")
 
-		.def(py::init<py::handle, std::optional<std::vector<std::optional<input_provider_t>>>>(),
+		.def(py::init<py::handle, std::optional<std::vector<std::optional<input_provider_type>>>>(),
 			py::arg("sfg"), py::arg("input_providers"),
 			"SFG Constructor.")
 

@@ -1,12 +1,26 @@
-#ifndef ASIC_DEBUG_H
-#define ASIC_DEBUG_H
+#ifndef ASIC_DEBUG_HPP
+#define ASIC_DEBUG_HPP
 
 #ifndef NDEBUG
+
+#ifndef ASIC_ENABLE_DEBUG_LOGGING
 #define ASIC_ENABLE_DEBUG_LOGGING 1
+#endif
+
+#ifndef ASIC_ENABLE_ASSERTS
 #define ASIC_ENABLE_ASSERTS 1
+#endif
+
 #else
+
+#ifndef ASIC_ENABLE_DEBUG_LOGGING
 #define ASIC_ENABLE_DEBUG_LOGGING 0
+#endif
+
+#ifndef ASIC_ENABLE_ASSERTS
 #define ASIC_ENABLE_ASSERTS 0
+#endif
+
 #endif // NDEBUG
 
 #if ASIC_ENABLE_DEBUG_LOGGING
@@ -19,11 +33,11 @@
 #endif // ASIC_ENABLE_DEBUG_LOGGING
 
 #if ASIC_ENABLE_ASSERTS
-#include <filesystem>
-#include <cstdlib>
 #include <cstdio>
-#include <string_view>
+#include <cstdlib>
+#include <filesystem>
 #include <fmt/format.h>
+#include <string_view>
 #endif // ASIC_ENABLE_ASSERTS
 
 namespace asic {
@@ -77,4 +91,4 @@ inline void check_assert(std::string_view file, int line, std::string_view condi
 #define ASIC_ASSERT(condition) ((void)0)
 #endif
 
-#endif // ASIC_DEBUG_H
+#endif // ASIC_DEBUG_HPP

@@ -1,9 +1,9 @@
-#ifndef ASIC_SIMULATION_SPECIAL_OPERATIONS_H
-#define ASIC_SIMULATION_SPECIAL_OPERATIONS_H
+#ifndef ASIC_SIMULATION_SPECIAL_OPERATIONS_HPP
+#define ASIC_SIMULATION_SPECIAL_OPERATIONS_HPP
 
-#include "../debug.h"
-#include "../number.h"
-#include "operation.h"
+#include "../debug.hpp"
+#include "../number.hpp"
+#include "operation.hpp"
 
 #include <cassert>
 #include <cstddef>
@@ -52,4 +52,4 @@ private:
 
 } // namespace asic
 
-#endif // ASIC_SIMULATION_SPECIAL_OPERATIONS_H
+#endif // ASIC_SIMULATION_SPECIAL_OPERATIONS_HPP
