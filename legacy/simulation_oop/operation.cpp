@@ -1,7 +1,8 @@
-#include "operation.h"
+#include "operation.hpp"
 
-#include "../debug.h"
+#include "../debug.hpp"
 
+#define NOMINMAX
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
@@ -11,7 +12,7 @@ namespace asic {
 signal_source::signal_source(std::shared_ptr<const operation> op, std::size_t index, std::optional<std::size_t> bits)
 	: m_operation(std::move(op))
 	, m_index(index)
-	, m_bits(std::move(bits)) {}
+	, m_bits(bits) {}
 
 signal_source::operator bool() const noexcept {
 	return static_cast<bool>(m_operation);
@@ -100,7 +101,7 @@ signal_source const& unary_operation::input() const noexcept {
 number unary_operation::evaluate_input(evaluation_context const& context) const {
 	auto const value = m_in.evaluate_output(context);
 	auto const bits = context.bits_override.value_or(m_in.bits().value_or(0));
-	return (context.truncate && bits) ? this->truncate_input(0, value, bits) : value;
+	return (context.truncate && bits != 0) ? this->truncate_input(0, value, bits) : value;
 }
 
 binary_operation::binary_operation(result_key key)
@@ -122,13 +123,13 @@ signal_source const& binary_operation::rhs() const noexcept {
 number binary_operation::evaluate_lhs(evaluation_context const& context) const {
 	auto const value = m_lhs.evaluate_output(context);
 	auto const bits = context.bits_override.value_or(m_lhs.bits().value_or(0));
-	return (context.truncate && bits) ? this->truncate_input(0, value, bits) : value;
+	return (context.truncate && bits != 0) ? this->truncate_input(0, value, bits) : value;
 }
 
 number binary_operation::evaluate_rhs(evaluation_context const& context) const {
 	auto const value = m_rhs.evaluate_output(context);
 	auto const bits = context.bits_override.value_or(m_rhs.bits().value_or(0));
-	return (context.truncate && bits) ? this->truncate_input(0, value, bits) : value;
+	return (context.truncate && bits != 0) ? this->truncate_input(0, value, bits) : value;
 }
 
 nary_operation::nary_operation(result_key key)
@@ -148,7 +149,7 @@ std::vector<number> nary_operation::evaluate_inputs(evaluation_context const& co
 	for (auto const& input : m_inputs) {
 		auto const value = input.evaluate_output(context);
 		auto const bits = context.bits_override.value_or(input.bits().value_or(0));
-		values.push_back((context.truncate && bits) ? this->truncate_input(0, value, bits) : value);
+		values.push_back((context.truncate && bits != 0) ? this->truncate_input(0, value, bits) : value);
 	}
 	return values;
 }

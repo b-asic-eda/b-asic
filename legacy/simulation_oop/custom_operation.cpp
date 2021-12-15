@@ -1,8 +1,7 @@
-#include "custom_operation.h"
+#include "custom_operation.hpp"
 
+#define NOMINMAX
 #include <pybind11/stl.h>
-
-namespace py = pybind11;
 
 namespace asic {
 

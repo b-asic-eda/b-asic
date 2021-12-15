@@ -29,7 +29,7 @@ class CMakeBuild(build_ext):
             os.path.dirname(self.get_ext_fullpath(ext.name)))
         cmake_configure_argv = [
             CMAKE_EXE, ext.sourcedir,
-            "-DASIC_BUILDING_PYTHON_DISTRIBUTION=true",
+            "-DASIC_BUILDING_PYTHON_DISTRIBUTION=ON",
             "-DCMAKE_BUILD_TYPE=" + cmake_build_type,
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=" + cmake_output_dir,
             "-DPYTHON_EXECUTABLE=" + sys.executable,
@@ -80,7 +80,7 @@ setuptools.setup(
         "pybind11>=2.3.0",
         "pyside2",
         "qtpy",
-        "graphviz",
+        "graphviz<=0.17",
         "matplotlib",
         "scipy"
     ],

@@ -1,6 +1,6 @@
-#include "signal_flow_graph.h"
+#include "signal_flow_graph.hpp"
 
-#include "../debug.h"
+#include "../debug.hpp"
 
 namespace py = pybind11;
 
@@ -67,8 +67,8 @@ std::shared_ptr<custom_operation> signal_flow_graph_operation::add_custom_operat
 																					std::string_view prefix, result_key key) {
 	auto const input_count = op.attr("input_count").cast<std::size_t>();
 	auto const output_count = op.attr("output_count").cast<std::size_t>();
-	auto const new_op = add_operation<custom_operation>(
-		op, added, key, op.attr("evaluate_output"), op.attr("truncate_input"), output_count);
+	auto new_op = add_operation<custom_operation>(
+		op, added, std::move(key), op.attr("evaluate_output"), op.attr("truncate_input"), output_count);
 	auto inputs = std::vector<signal_source>{};
 	inputs.reserve(input_count);
 	for (auto const i : range(input_count)) {

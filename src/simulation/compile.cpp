@@ -1,11 +1,11 @@
+#include "compile.hpp"
+
+#include "../algorithm.hpp"
+#include "../debug.hpp"
+#include "../span.hpp"
+#include "format_code.hpp"
+
 #define NOMINMAX
-#include "compile.h"
-
-#include "../algorithm.h"
-#include "../debug.h"
-#include "../span.h"
-#include "format_code.h"
-
 #include <Python.h>
 #include <fmt/format.h>
 #include <limits>
@@ -25,7 +25,7 @@ namespace asic {
 }
 
 [[nodiscard]] static result_key key_of_output(py::handle op, std::size_t output_index, std::string_view prefix) {
-	auto const base = key_base(op, prefix);
+	auto base = key_base(op, prefix);
 	if (base.empty()) {
 		return fmt::to_string(output_index);
 	}
@@ -70,10 +70,10 @@ private:
 	using sfg_info_stack = std::vector<sfg_info>;
 	using delay_queue = std::vector<std::tuple<std::size_t, py::handle, std::string, sfg_info_stack>>;
 	using added_output_cache = std::unordered_set<PyObject const*>;
-	using added_result_cache = std::unordered_map<PyObject const*, result_index_t>;
+	using added_result_cache = std::unordered_map<PyObject const*, result_index_type>;
 	using added_custom_operation_cache = std::unordered_map<PyObject const*, std::size_t>;
 
-	static constexpr auto no_result_index = std::numeric_limits<result_index_t>::max();
+	static constexpr auto no_result_index = std::numeric_limits<result_index_type>::max();
 
 	void initialize_code(std::size_t input_count, std::size_t output_count) {
 		m_code.required_stack_size = 0;
@@ -101,7 +101,7 @@ private:
 	void resolve_invalid_result_indices() {
 		for (auto& instruction : m_code.instructions) {
 			if (instruction.result_index == no_result_index) {
-				instruction.result_index = static_cast<result_index_t>(m_code.result_keys.size());
+				instruction.result_index = static_cast<result_index_type>(m_code.result_keys.size());
 			}
 		}
 	}
@@ -128,7 +128,7 @@ private:
 		return new_sfg_stack;
 	}
 
-	instruction& add_instruction(instruction_type type, result_index_t result_index, std::ptrdiff_t stack_diff) {
+	instruction& add_instruction(instruction_type type, result_index_type result_index, std::ptrdiff_t stack_diff) {
 		m_stack_depth += stack_diff;
 		if (m_stack_depth < 0) {
 			throw py::value_error{"Detected input/output count mismatch in simulation SFG"};
@@ -142,8 +142,9 @@ private:
 		return instruction;
 	}
 
-	[[nodiscard]] std::optional<result_index_t> begin_operation_output(py::handle op, std::size_t output_index, std::string_view prefix) {
-		auto const pointer = op.attr("outputs")[py::int_{output_index}].ptr();
+	[[nodiscard]] std::optional<result_index_type> begin_operation_output(py::handle op, std::size_t output_index,
+																		  std::string_view prefix) {
+		auto* const pointer = op.attr("outputs")[py::int_{output_index}].ptr();
 		if (m_incomplete_outputs.count(pointer) != 0) {
 			// Make sure the output doesn't depend on its own value, unless it's a delay operation.
 			if (op.attr("type_name")().cast<std::string_view>() != "t") {
@@ -151,11 +152,11 @@ private:
 			}
 		}
 		// Try to add a new result.
-		auto const [it, inserted] = m_added_results.try_emplace(pointer, static_cast<result_index_t>(m_code.result_keys.size()));
+		auto const [it, inserted] = m_added_results.try_emplace(pointer, static_cast<result_index_type>(m_code.result_keys.size()));
 		if (inserted) {
-			if (m_code.result_keys.size() >= static_cast<std::size_t>(std::numeric_limits<result_index_t>::max())) {
+			if (m_code.result_keys.size() >= static_cast<std::size_t>(std::numeric_limits<result_index_type>::max())) {
 				throw py::value_error{fmt::format("Simulation SFG requires too many outputs to be stored (limit: {})",
-												  std::numeric_limits<result_index_t>::max())};
+												  std::numeric_limits<result_index_type>::max())};
 			}
 			m_code.result_keys.push_back(key_of_output(op, output_index, prefix));
 			m_incomplete_outputs.insert(pointer);
@@ -168,7 +169,7 @@ private:
 	}
 
 	void end_operation_output(py::handle op, std::size_t output_index) {
-		auto const pointer = op.attr("outputs")[py::int_{output_index}].ptr();
+		auto* const pointer = op.attr("outputs")[py::int_{output_index}].ptr();
 		[[maybe_unused]] auto const erased = m_incomplete_outputs.erase(pointer);
 		ASIC_ASSERT(erased == 1);
 	}
@@ -184,7 +185,7 @@ private:
 		return it->second;
 	}
 
-	[[nodiscard]] std::size_t add_delay_info(number initial_value, result_index_t result_index) {
+	[[nodiscard]] std::size_t add_delay_info(number initial_value, result_index_type result_index) {
 		auto const delay_index = m_code.delays.size();
 		auto& delay = m_code.delays.emplace_back();
 		delay.initial_value = initial_value;
@@ -209,14 +210,14 @@ private:
 		}
 	}
 
-	void add_unary_operation_output(py::handle op, result_index_t result_index, std::string_view prefix, sfg_info_stack const& sfg_stack,
+	void add_unary_operation_output(py::handle op, result_index_type result_index, std::string_view prefix, sfg_info_stack const& sfg_stack,
 									delay_queue& deferred_delays, instruction_type type) {
 		this->add_source(op, 0, prefix, sfg_stack, deferred_delays);
 		this->add_instruction(type, result_index, 0);
 	}
 
-	void add_binary_operation_output(py::handle op, result_index_t result_index, std::string_view prefix, sfg_info_stack const& sfg_stack,
-									 delay_queue& deferred_delays, instruction_type type) {
+	void add_binary_operation_output(py::handle op, result_index_type result_index, std::string_view prefix,
+									 sfg_info_stack const& sfg_stack, delay_queue& deferred_delays, instruction_type type) {
 		this->add_source(op, 0, prefix, sfg_stack, deferred_delays);
 		this->add_source(op, 1, prefix, sfg_stack, deferred_delays);
 		this->add_instruction(type, result_index, -1);
@@ -299,10 +300,10 @@ private:
 		}
 	}
 
-	simulation_code m_code;
-	added_output_cache m_incomplete_outputs;
-	added_result_cache m_added_results;
-	added_custom_operation_cache m_added_custom_operations;
+	simulation_code m_code{};
+	added_output_cache m_incomplete_outputs{};
+	added_result_cache m_added_results{};
+	added_custom_operation_cache m_added_custom_operations{};
 	std::ptrdiff_t m_stack_depth = 0;
 };
 

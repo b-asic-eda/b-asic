@@ -1,15 +1,13 @@
-#define NOMINMAX
-#include "simulation.h"
+#include "simulation.hpp"
 
-#include "../debug.h"
+#include "../debug.hpp"
 
 namespace py = pybind11;
 
 namespace asic {
 
-simulation::simulation(pybind11::handle sfg, std::optional<std::vector<std::optional<input_provider_t>>> input_providers)
-	: m_sfg("")
-	, m_input_functions(sfg.attr("input_count").cast<std::size_t>(), [](iteration_t) -> number { return number{}; }) {
+simulation::simulation(pybind11::handle sfg, std::optional<std::vector<std::optional<input_provider_type>>> input_providers)
+	: m_input_functions(sfg.attr("input_count").cast<std::size_t>(), [](iteration_type) -> number { return number{}; }) {
 	if (input_providers) {
 		this->set_inputs(std::move(*input_providers));
 	}
@@ -17,29 +15,30 @@ simulation::simulation(pybind11::handle sfg, std::optional<std::vector<std::opti
 	m_sfg.create(sfg, added);
 }
 
-void simulation::set_input(std::size_t index, input_provider_t input_provider) {
+void simulation::set_input(std::size_t index, input_provider_type input_provider) {
 	if (index >= m_input_functions.size()) {
 		throw py::index_error{fmt::format("Input index out of range (expected 0-{}, got {})", m_input_functions.size() - 1, index)};
 	}
-	if (auto* const callable = std::get_if<input_function_t>(&input_provider)) {
+	if (auto* const callable = std::get_if<input_function_type>(&input_provider)) {
 		m_input_functions[index] = std::move(*callable);
 	} else if (auto* const numeric = std::get_if<number>(&input_provider)) {
-		m_input_functions[index] = [value = *numeric](iteration_t) -> number {
+		m_input_functions[index] = [value = *numeric](iteration_type) -> number {
 			return value;
 		};
 	} else if (auto* const list = std::get_if<std::vector<number>>(&input_provider)) {
 		if (!m_input_length) {
-			m_input_length = static_cast<iteration_t>(list->size());
-		} else if (*m_input_length != static_cast<iteration_t>(list->size())) {
+			m_input_length = static_cast<iteration_type>(list->size());
+		} else if (*m_input_length != static_cast<iteration_type>(list->size())) {
 			throw py::value_error{fmt::format("Inconsistent input length for simulation (was {}, got {})", *m_input_length, list->size())};
 		}
-		m_input_functions[index] = [values = std::move(*list)](iteration_t n) -> number {
+		m_input_functions[index] = [values = std::move(*list)](iteration_type n) -> number {
 			return values.at(n);
 		};
 	}
 }
 
-void simulation::set_inputs(std::vector<std::optional<input_provider_t>> input_providers) {
+void simulation::set_inputs(
+	std::vector<std::optional<input_provider_type>> input_providers) { // NOLINT(performance-unnecessary-value-param)
 	if (input_providers.size() != m_input_functions.size()) {
 		throw py::value_error{fmt::format(
 			"Wrong number of inputs supplied to simulation (expected {}, got {})", m_input_functions.size(), input_providers.size())};
@@ -55,7 +54,7 @@ std::vector<number> simulation::step(bool save_results, std::optional<std::size_
 	return this->run_for(1, save_results, bits_override, truncate);
 }
 
-std::vector<number> simulation::run_until(iteration_t iteration, bool save_results, std::optional<std::size_t> bits_override,
+std::vector<number> simulation::run_until(iteration_type iteration, bool save_results, std::optional<std::size_t> bits_override,
 										  bool truncate) {
 	auto result = std::vector<number>{};
 	while (m_iteration < iteration) {
@@ -100,9 +99,9 @@ std::vector<number> simulation::run_until(iteration_t iteration, bool save_resul
 	return result;
 }
 
-std::vector<number> simulation::run_for(iteration_t iterations, bool save_results, std::optional<std::size_t> bits_override,
+std::vector<number> simulation::run_for(iteration_type iterations, bool save_results, std::optional<std::size_t> bits_override,
 										bool truncate) {
-	if (iterations > std::numeric_limits<iteration_t>::max() - m_iteration) {
+	if (iterations > std::numeric_limits<iteration_type>::max() - m_iteration) {
 		throw py::value_error("Simulation iteration type overflow!");
 	}
 	return this->run_until(m_iteration + iterations, save_results, bits_override, truncate);
@@ -115,7 +114,7 @@ std::vector<number> simulation::run(bool save_results, std::optional<std::size_t
 	throw py::index_error{"Tried to run unlimited simulation"};
 }
 
-iteration_t simulation::iteration() const noexcept {
+iteration_type simulation::iteration() const noexcept {
 	return m_iteration;
 }
 

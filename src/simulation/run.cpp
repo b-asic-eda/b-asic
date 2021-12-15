@@ -1,10 +1,10 @@
+#include "run.hpp"
+
+#include "../algorithm.hpp"
+#include "../debug.hpp"
+#include "format_code.hpp"
+
 #define NOMINMAX
-#include "run.h"
-
-#include "../algorithm.h"
-#include "../debug.h"
-#include "format_code.h"
-
 #include <algorithm>
 #include <complex>
 #include <cstddef>
@@ -54,7 +54,7 @@ simulation_state run_simulation(simulation_code const& code, span<number const> 
 
 	// Setup stack.
 	state.stack.resize(code.required_stack_size);
-	auto stack_pointer = state.stack.data();
+	auto* stack_pointer = state.stack.data();
 
 	// Utility functions to make the stack manipulation code below more readable.
 	// Should hopefully be inlined by the compiler.
@@ -97,21 +97,33 @@ simulation_state run_simulation(simulation_code const& code, span<number const> 
 					push(truncate_value(pop(), instruction.bit_mask));
 				}
 				break;
-			case instruction_type::addition:
-				push(pop() + pop());
-				break;
-			case instruction_type::subtraction:
-				push(pop() - pop());
-				break;
-			case instruction_type::multiplication:
-				push(pop() * pop());
-				break;
-			case instruction_type::division:
-				push(pop() / pop());
-				break;
-			case instruction_type::min: {
-				auto const lhs = pop();
+			case instruction_type::addition: {
 				auto const rhs = pop();
+				auto const lhs = pop();
+				push(lhs + rhs);
+				break;
+			}
+			case instruction_type::subtraction: {
+				auto const rhs = pop();
+				auto const lhs = pop();
+				push(lhs - rhs);
+				break;
+			}
+			case instruction_type::multiplication: {
+				auto const rhs = pop();
+				auto const lhs = pop();
+				push(lhs * rhs);
+				break;
+			}
+			case instruction_type::division: {
+				auto const rhs = pop();
+				auto const lhs = pop();
+				push(lhs / rhs);
+				break;
+			}
+			case instruction_type::min: {
+				auto const rhs = pop();
+				auto const lhs = pop();
 				if (lhs.imag() != 0 || rhs.imag() != 0) {
 					throw std::runtime_error{"Min does not support complex numbers."};
 				}
@@ -119,8 +131,8 @@ simulation_state run_simulation(simulation_code const& code, span<number const> 
 				break;
 			}
 			case instruction_type::max: {
-				auto const lhs = pop();
 				auto const rhs = pop();
+				auto const lhs = pop();
 				if (lhs.imag() != 0 || rhs.imag() != 0) {
 					throw std::runtime_error{"Max does not support complex numbers."};
 				}
