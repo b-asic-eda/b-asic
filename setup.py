@@ -15,13 +15,17 @@ class CMakeExtension(Extension):
 
 class CMakeBuild(build_ext):
     def build_extension(self, ext):
-        CMAKE_EXE = os.environ.get("CMAKE_EXE", shutil.which("cmake3"))
+
+        CMAKE_EXE = os.environ.get(
+            "CMAKE_EXE", shutil.which("cmake3") or shutil.which("cmake"))
         if not isinstance(ext, CMakeExtension):
             return super().build_extension(ext)
 
         if not CMAKE_EXE:
             raise RuntimeError(
-                f"Cannot build extension {ext.name}: CMake executable not found! Set the CMAKE_EXE environment variable or update your path.")
+                f"Cannot build extension {ext.name}: CMake executable not "
+                "found! Set the CMAKE_EXE environment variable or update your "
+                "path.")
 
         cmake_build_type = "Debug" if self.debug else "Release"
         cmake_output_dir = os.path.abspath(
@@ -61,8 +65,14 @@ class CMakeBuild(build_ext):
 setuptools.setup(
     name="b-asic",
     version="1.0.1-beta",
-    author="Adam Jakobsson, Angus Lothian, Arvid Westerlund, Felix Goding, Ivar Härnqvist, Jacob Wahlman, Kevin Scott, Rasmus Karlsson, Oscar Gustafsson",
-    author_email="adaja901@student.liu.se, anglo547@student.liu.se, arvwe160@student.liu.se, felgo673@student.liu.se, ivaha717@student.liu.se, jacwa448@student.liu.se, kevsc634@student.liu.se, raska119@student.liu.se, oscar.gustafsson@liu.se",
+    author="Adam Jakobsson, Angus Lothian, Arvid Westerlund, Felix Goding, "
+        "Ivar Härnqvist, Jacob Wahlman, Kevin Scott, Rasmus Karlsson, "
+        "Oscar Gustafsson",
+    author_email="adaja901@student.liu.se, anglo547@student.liu.se, "
+        "arvwe160@student.liu.se, felgo673@student.liu.se, "
+        "ivaha717@student.liu.se, jacwa448@student.liu.se, "
+        "kevsc634@student.liu.se, raska119@student.liu.se, "
+        "oscar.gustafsson@liu.se",
     description="Better ASIC Toolbox",
     long_description=open("README.md", "r").read(),
     long_description_content_type="text/markdown",
