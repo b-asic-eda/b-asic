@@ -1,5 +1,8 @@
 image: python:3.6
 
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
 stages:
  - test
 
@@ -13,7 +16,7 @@ before_script:
 run tests:
   stage: test
   script:
-    - pytest --cov=b_asic --cov-report xml:cov.xml test
+    - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
   artifacts:
       reports:
         coverage_report:
