@@ -49,7 +49,7 @@ class DragButton(QPushButton):
         delete.triggered.connect(self.remove)
         menu.exec_(self.cursor().pos())
 
-    def show_properties_window(self):
+    def show_properties_window(self, event):
         self.properties_window = PropertiesWindow(self, self._window)
         self.properties_window.show()
 
