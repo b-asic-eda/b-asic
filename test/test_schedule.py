@@ -24,7 +24,7 @@ class TestInit:
         for op in schedule._sfg.get_operations_topological_order():
             print(op.latency_offsets)
 
-        start_times_names = dict()
+        start_times_names = {}
         for op_id, start_time in schedule._start_times.items():
             op_name = precedence_sfg_delays.find_by_id(op_id).name
             start_times_names[op_name] = start_time
@@ -49,7 +49,7 @@ class TestInit:
 
         schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
 
-        start_times_names = dict()
+        start_times_names = {}
         for op_id, start_time in schedule._start_times.items():
             op_name = precedence_sfg_delays.find_by_id(op_id).name
             start_times_names[op_name] = start_time
@@ -60,7 +60,7 @@ class TestInit:
     def test_independent_sfg(self, sfg_two_inputs_two_outputs_independent_with_cmul):
         schedule = Schedule(sfg_two_inputs_two_outputs_independent_with_cmul, scheduling_alg="ASAP")
 
-        start_times_names = dict()
+        start_times_names = {}
         for op_id, start_time in schedule._start_times.items():
             op_name = sfg_two_inputs_two_outputs_independent_with_cmul.find_by_id(op_id).name
             start_times_names[op_name] = start_time
@@ -100,7 +100,7 @@ class TestRescheduling:
         schedule.move_operation(precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, 4)
         schedule.move_operation(precedence_sfg_delays.find_by_name("A2")[0].graph_id, 2)
 
-        start_times_names = dict()
+        start_times_names = {}
         for op_id, start_time in schedule._start_times.items():
             op_name = precedence_sfg_delays.find_by_id(op_id).name
             start_times_names[op_name] = start_time

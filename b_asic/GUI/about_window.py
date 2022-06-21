@@ -1,4 +1,5 @@
-from qtpy.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QDialog, QLabel, QFrame, QScrollArea
+from qtpy.QtWidgets import QVBoxLayout, QHBoxLayout, QDialog, QLabel, QFrame, \
+    QScrollArea
 from qtpy.QtCore import Qt
 
 

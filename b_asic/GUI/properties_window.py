@@ -18,7 +18,7 @@ class PropertiesWindow(QDialog):
         self.edit_name = QLineEdit(self.operation.operation_path_name)
         self.name_layout.addWidget(self.name_label)
         self.name_layout.addWidget(self.edit_name)
-        self.latency_fields = dict()
+        self.latency_fields = {}
 
         self.vertical_layout = QVBoxLayout()
         self.vertical_layout.addLayout(self.name_layout)

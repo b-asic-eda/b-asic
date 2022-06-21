@@ -14,9 +14,9 @@ class SimulateSFGWindow(QDialog):
     def __init__(self, window):
         super().__init__()
         self._window = window
-        self.properties = dict()
-        self.sfg_to_layout = dict()
-        self.input_fields = dict()
+        self.properties = {}
+        self.sfg_to_layout = {}
+        self.input_fields = {}
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Simulate SFG")
 

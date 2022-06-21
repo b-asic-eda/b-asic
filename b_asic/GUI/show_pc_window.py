@@ -11,7 +11,7 @@ class ShowPCWindow(QDialog):
     def __init__(self, window):
         super().__init__()
         self._window = window
-        self.check_box_dict = dict()
+        self.check_box_dict = {}
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Show precedence graph")
 

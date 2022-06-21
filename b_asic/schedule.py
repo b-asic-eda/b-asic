@@ -30,7 +30,7 @@ class Schedule:
     def __init__(self, sfg: SFG, schedule_time: Optional[int] = None, cyclic: bool = False, resolution: int = 1, scheduling_alg: str = "ASAP"):
         """Construct a Schedule from an SFG."""
         self._sfg = sfg
-        self._start_times = dict()
+        self._start_times = {}
         self._laps = defaultdict(lambda: 0)
         self._cyclic = cyclic
         self._resolution = resolution
@@ -77,11 +77,11 @@ class Schedule:
         return slack
 
     def _forward_slacks(self, op_id: GraphID) -> Dict["OutputPort", Dict["Signal", int]]:
-        ret = dict()
+        ret = {}
         start_time = self._start_times[op_id]
         op = self._sfg.find_by_id(op_id)
         for output_port in op.outputs:
-            output_slacks = dict()
+            output_slacks = {}
             available_time = start_time + output_port.latency_offset
 
             for signal in output_port.signals:
@@ -103,11 +103,11 @@ class Schedule:
         return slack
 
     def _backward_slacks(self, op_id: GraphID) -> Dict["OutputPort", Dict["Signal", int]]:
-        ret = dict()
+        ret = {}
         start_time = self._start_times[op_id]
         op = self._sfg.find_by_id(op_id)
         for input_port in op.inputs:
-            input_slacks = dict()
+            input_slacks = {}
             usage_time = start_time + input_port.latency_offset
 
             for signal in input_port.signals:
@@ -309,7 +309,7 @@ class Schedule:
         ytickpositions = []
         yticklabels = []
         plt.grid(zorder=0.5)
-        ypositions = dict()
+        ypositions = {}
         for op_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(op_id)
             latency_coords, execution_time_coords = op.get_plot_coordinates()

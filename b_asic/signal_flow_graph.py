@@ -93,7 +93,7 @@ class SFG(AbstractOperation):
                          output_count=output_signal_count + output_operation_count,
                          name=name, input_sources=input_sources)
 
-        self._components_by_id = dict()
+        self._components_by_id = {}
         self._used_ids = set()
         self._components_by_name = defaultdict(list)
         self._components_dfs_order = []

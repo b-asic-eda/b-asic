@@ -53,7 +53,7 @@ def sfg_to_python(sfg: SFG, counter: int = 0, suffix: str = None) -> str:
 
     result += "\n# Signals:\n"
     # Keep track of already existing connections to avoid adding duplicates
-    connections = list()
+    connections = []
     for op in sfg.split():
         for out in op.outputs:
             for signal in out.signals:

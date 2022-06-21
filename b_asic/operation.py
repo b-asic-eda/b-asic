@@ -387,7 +387,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def __str__(self) -> str:
         """Get a string representation of this operation."""
-        inputs_dict = dict()
+        inputs_dict = {}
         for i, port in enumerate(self.inputs):
             if port.signal_count == 0:
                 inputs_dict[i] = '-'
@@ -406,7 +406,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                         dict_ele.append("no_id")
             inputs_dict[i] = dict_ele
 
-        outputs_dict = dict()
+        outputs_dict = {}
         for i, port in enumerate(self.outputs):
             if port.signal_count == 0:
                 outputs_dict[i] = '-'
@@ -618,7 +618,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @property
     def latency_offsets(self) -> Sequence[Sequence[int]]:
-        latency_offsets = dict()
+        latency_offsets = {}
 
         for i, inp in enumerate(self.inputs):
             latency_offsets["in" + str(i)] = inp.latency_offset
