@@ -1,14 +1,14 @@
 stages:
  - test
 
-before-script:
-    - apt-get update --yes
-    - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev
-    - python -m pip install --upgrade pip
-    - python --version
-    - pip install pytest pytest-cov
-    - pip install .
-    - pip show b_asic
+before_script:
+  - apt-get update --yes
+  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev
+  - python -m pip install --upgrade pip
+  - python --version
+  - pip install pytest pytest-cov
+  - pip install .
+  - pip show b_asic
 
 .run-test:
   stage: test
