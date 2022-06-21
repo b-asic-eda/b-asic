@@ -1,5 +1,3 @@
-image: python:3.6
-
 stages:
  - test
 
@@ -10,7 +8,7 @@ before_script:
   - pip3 install .
   - pip3 show b_asic
 
-run tests:
+.run-test:
   stage: test
   script:
     - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
@@ -19,3 +17,23 @@ run tests:
         coverage_report:
           coverage_format: cobertura
           path: cov.xml
+
+run-test-3.6:
+  image: python:3.6
+  extends: ".run-test"
+
+run-test-3.7:
+  image: python:3.7
+  extends: ".run-test"
+
+run-test-3.8:
+  image: python:3.8
+  extends: ".run-test"
+
+run-test-3.9:
+  image: python:3.9
+  extends: ".run-test"
+
+run-test-3.10:
+  image: python:3.10
+  extends: ".run-test"
