@@ -19,7 +19,7 @@ QUESTIONS = {
 
 class KeybindsWindow(QDialog):
     def __init__(self, window):
-        super(KeybindsWindow, self).__init__()
+        super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("B-ASIC Keybinds")
@@ -59,7 +59,7 @@ class KeybindsWindow(QDialog):
 
 class AboutWindow(QDialog):
     def __init__(self, window):
-        super(AboutWindow, self).__init__()
+        super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("About B-ASIC")
@@ -97,7 +97,7 @@ class AboutWindow(QDialog):
 
 class FaqWindow(QDialog):
     def __init__(self, window):
-        super(FaqWindow, self).__init__()
+        super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Frequently Asked Questions")

@@ -10,7 +10,7 @@ from b_asic.signal import Signal
 class Arrow(QGraphicsLineItem):
 
     def __init__(self, source, destination, window, signal=None, parent=None):
-        super(Arrow, self).__init__(parent)
+        super().__init__(parent)
         self.source = source
         self.signal = Signal(source.port, destination.port) if signal is None else signal
         self.destination = destination

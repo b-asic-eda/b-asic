@@ -9,7 +9,7 @@ class ShowPCWindow(QDialog):
     pc = Signal()
 
     def __init__(self, window):
-        super(ShowPCWindow, self).__init__()
+        super().__init__()
         self._window = window
         self.check_box_dict = dict()
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)

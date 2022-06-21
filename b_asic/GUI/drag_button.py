@@ -36,7 +36,7 @@ class DragButton(QPushButton):
         self._m_drag = False
         self._mouse_press_pos = None
         self._mouse_move_pos = None
-        super(DragButton, self).__init__(parent)
+        super().__init__(parent)
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -62,7 +62,7 @@ class DragButton(QPushButton):
             self._mouse_press_pos = event.pos()
             self._mouse_move_pos = event.pos()
 
-        super(DragButton, self).mousePressEvent(event)
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.LeftButton and self._m_press:
@@ -78,7 +78,7 @@ class DragButton(QPushButton):
 
         self._window.scene.update()
         self._window.graphic_view.update()
-        super(DragButton, self).mouseMoveEvent(event)
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         self._m_press = False
@@ -93,7 +93,7 @@ class DragButton(QPushButton):
         else:
             self.select_button(event.modifiers())
 
-        super(DragButton, self).mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
 
     def _toggle_button(self, pressed=False):
         self.pressed = not pressed

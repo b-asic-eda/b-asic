@@ -6,7 +6,7 @@ from qtpy.QtGui import QDoubleValidator
 
 class PropertiesWindow(QDialog):
     def __init__(self, operation, main_window):
-        super(PropertiesWindow, self).__init__()
+        super().__init__()
         self.operation = operation
         self._window = main_window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)

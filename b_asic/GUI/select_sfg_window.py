@@ -12,7 +12,7 @@ class SelectSFGWindow(QDialog):
     ok = Signal()
 
     def __init__(self, window):
-        super(SelectSFGWindow, self).__init__()
+        super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Select SFG")

@@ -12,7 +12,7 @@ class SimulateSFGWindow(QDialog):
     simulate = Signal()
 
     def __init__(self, window):
-        super(SimulateSFGWindow, self).__init__()
+        super().__init__()
         self._window = window
         self.properties = dict()
         self.sfg_to_layout = dict()

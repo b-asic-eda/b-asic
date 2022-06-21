@@ -20,8 +20,8 @@ from b_asic.GUI.utils import decorate_class, handle_error
 from b_asic.GUI.simulate_sfg_window import SimulateSFGWindow, Plot
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
 
-from b_asic import FastSimulation
-from b_asic.simulation import Simulation
+# from b_asic import FastSimulation
+from b_asic.simulation import Simulation as FastSimulation
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.signal_flow_graph import SFG
@@ -30,7 +30,7 @@ import b_asic.core_operations as c_oper
 import b_asic.special_operations as s_oper
 from b_asic.save_load_structure import *
 
-from numpy import linspace
+import numpy as np
 
 from qtpy.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QAction,\
     QStatusBar, QMenuBar, QLineEdit, QPushButton, QSlider, QScrollArea, QVBoxLayout,\
@@ -49,7 +49,7 @@ logging.basicConfig(level=logging.INFO)
 @decorate_class(handle_error)
 class MainWindow(QMainWindow):
     def __init__(self):
-        super(MainWindow, self).__init__()
+        super().__init__()
         self.ui = Ui_main_window()
         self.ui.setupUi(self)
         self.setWindowIcon(QIcon('small_logo.png'))
@@ -140,7 +140,7 @@ class MainWindow(QMainWindow):
             10, 10, self.ui.operation_box.width(), self.height())
         self.graphic_view.setGeometry(self.ui.operation_box.width(
         ) + 20, 60, self.width() - self.ui.operation_box.width() - 20, self.height()-30)
-        super(MainWindow, self).resizeEvent(event)
+        super().resizeEvent(event)
 
     def wheelEvent(self, event):
         if event.modifiers() == Qt.ControlModifier:
@@ -355,7 +355,7 @@ class MainWindow(QMainWindow):
         """Determine the distance between each port on the side of an operation.
         The method returns the distance that each port should have from 0.
         """
-        return [length / 2] if ports == 1 else linspace(0, length, ports)
+        return [length / 2] if ports == 1 else np.linspace(0, length, ports)
 
     def add_ports(self, operation):
         _output_ports_dist = self._determine_port_distance(
@@ -364,12 +364,14 @@ class MainWindow(QMainWindow):
             55 - 17, operation.operation.input_count)
         self.portDict[operation] = list()
 
+        print(_output_ports_dist)
+        print(_input_ports_dist)
         for i, dist in enumerate(_input_ports_dist):
             port = PortButton(
                 ">", operation, operation.operation.input(i), self)
             self.portDict[operation].append(port)
             operation.ports.append(port)
-            port.move(0, dist)
+            port.move(0, round(dist))
             port.show()
 
         for i, dist in enumerate(_output_ports_dist):
@@ -377,7 +379,7 @@ class MainWindow(QMainWindow):
                 ">", operation, operation.operation.output(i), self)
             self.portDict[operation].append(port)
             operation.ports.append(port)
-            port.move(55 - 12, dist)
+            port.move(55 - 12, round(dist))
             port.show()
 
     def get_operations_from_namespace(self, namespace):

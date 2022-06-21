@@ -9,7 +9,7 @@ class PortButton(QPushButton):
     connectionRequested = Signal(QPushButton)
     moved = Signal()
     def __init__(self, name, operation, port, window, parent=None):
-        super(PortButton, self).__init__(name, operation, parent)
+        super().__init__(name, parent=operation)
         self.pressed = False
         self._window = window
         self.port = port
@@ -30,10 +30,10 @@ class PortButton(QPushButton):
         if event.button() == Qt.LeftButton:
             self.select_port(event.modifiers())
 
-        super(PortButton, self).mousePressEvent(event)
+        super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        super(PortButton, self).mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
 
     def _toggle_port(self, pressed=False):
         self.pressed = not pressed
@@ -56,4 +56,3 @@ class PortButton(QPushButton):
 
         for signal in self._window.signalList:
             signal.update()
-
