@@ -6,8 +6,6 @@ import setuptools
 from setuptools import Extension
 from setuptools.command.build_ext import build_ext
 
-CMAKE_EXE = os.environ.get("CMAKE_EXE", shutil.which("cmake"))
-
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=""):
@@ -17,6 +15,7 @@ class CMakeExtension(Extension):
 
 class CMakeBuild(build_ext):
     def build_extension(self, ext):
+        CMAKE_EXE = os.environ.get("CMAKE_EXE", shutil.which("cmake3"))
         if not isinstance(ext, CMakeExtension):
             return super().build_extension(ext)
 
