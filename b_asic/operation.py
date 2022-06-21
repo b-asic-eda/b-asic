@@ -640,15 +640,15 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             port_str = port_str.lower()
             if port_str.startswith("in"):
                 index_str = port_str[2:]
-                assert index_str.isdigit(), "Incorrectly formatted index in string, expected 'in' + index"
+                assert index_str.isdigit(), f"Incorrectly formatted index in string, expected 'in' + index, got: {port_str!r}"
                 self.input(int(index_str)).latency_offset = latency_offset
             elif port_str.startswith("out"):
                 index_str = port_str[3:]
-                assert index_str.isdigit(), "Incorrectly formatted index in string, expected 'out' + index"
+                assert index_str.isdigit(), f"Incorrectly formatted index in string, expected 'out' + index, got: {port_str!r}"
                 self.output(int(index_str)).latency_offset = latency_offset
             else:
                 raise ValueError(
-                    "Incorrectly formatted string, expected 'in' + index or 'out' + index")
+                    f"Incorrectly formatted string, expected 'in' + index or 'out' + index, got: {port_str!r}")
 
     @property
     def execution_time(self) -> int:
@@ -666,6 +666,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def _get_plot_coordinates_for_execution_time(self) -> List[List[Number]]:
         # Always a rectangle, but easier if coordinates are returned
+        if self._execution_time is None:
+            return []
         return [[0, 0], [0, 1], [self.execution_time, 1], [self.execution_time, 0], [0, 0]]
 
     def _get_plot_coordinates_for_latency(self) -> List[List[Number]]:
