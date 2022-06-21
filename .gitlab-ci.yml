@@ -1,8 +1,5 @@
 image: python:3.6
 
-include:
-  - template: Code-Quality.gitlab-ci.yml
-
 stages:
  - test
 
