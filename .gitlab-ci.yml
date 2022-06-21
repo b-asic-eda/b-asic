@@ -39,12 +39,6 @@ run-test-3.10:
   image: python:3.10
   extends: ".run-test"
 
-run-test-qt:
-  image: ubuntu-latest
-  script:
-    - apt-get install --yes xvfb qt5-default
-    - pip install pytest-xvfb pytest-qt
-
 run-gui-test:
   image: ubuntu-latest
   stage: test-gui
