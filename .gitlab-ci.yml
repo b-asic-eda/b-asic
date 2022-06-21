@@ -1,10 +1,7 @@
 stages:
  - test
- - test-gui
 
-.run-test:
-  stage: test
-  script:
+before-script:
     - apt-get update --yes
     - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev
     - python -m pip install --upgrade pip
@@ -12,6 +9,10 @@ stages:
     - pip install pytest pytest-cov
     - pip install .
     - pip show b_asic
+
+.run-test:
+  stage: test
+  script:
     - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
   artifacts:
       reports:
@@ -39,18 +40,15 @@ run-test-3.10:
   image: python:3.10
   extends: ".run-test"
 
-run-gui-test:
-  image: ubuntu-latest
-  stage: test-gui
+run-test-qt:
+  image: python:3.10
+  stage: test
   script:
-      - apt-get update --yes
-      - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev \
-         xvfb
-      - apt-get install --yes python3 python3-pip
-      - apt-get install --yes python3-pyqt5
-      - python -m pip install --upgrade pip
-      - python --version
-      - pip install pytest pytest-cov pytest-xvfb pytest-qt
-      - pip install .
-      - pip show b_asic
-      - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
+    - apt-get install --yes xvfb python3-pyqt5
+    - pip install pytest-xvfb pytest-qt
+    - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
+  artifacts:
+      reports:
+        coverage_report:
+          coverage_format: cobertura
+          path: cov.xml
