@@ -13,4 +13,9 @@ before_script:
 run tests:
   stage: test
   script:
-    - pytest test
+    - pytest --cov=b_asic --cov-report xml:cov.xml test
+  artifacts:
+      reports:
+        coverage_report:
+          coverage_format: cobertura
+          path: cov.xml
