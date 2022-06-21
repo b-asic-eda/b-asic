@@ -308,7 +308,7 @@ class SFG(AbstractOperation):
             input_op: index for index, input_op in enumerate(self._input_operations)}
         output_op = self._output_operations[output_index]
         queue = deque([output_op])
-        visited = set([output_op])
+        visited = {output_op}
         while queue:
             op = queue.popleft()
             if isinstance(op, Input):
@@ -598,7 +598,7 @@ class SFG(AbstractOperation):
             no_inputs_queue) > 0, "Illegal SFG state, dangling signals in SFG."
 
         first_op = no_inputs_queue.popleft()
-        visited = set([first_op])
+        visited = {first_op}
         p_queue = PriorityQueue()
         p_queue_entry_num = it.count()
         # Negative priority as max-heap popping is wanted

@@ -91,7 +91,7 @@ class TestRunFor:
 
         assert simulation.results["0"][4] == 9
         assert simulation.results["1"][4] == 11
-    
+
     def test_with_numpy_array_overflow(self, sfg_two_inputs_two_outputs):
         input0 = np.array([5, 9, 25, -5, 7])
         input1 = np.array([7, 3, 3,  54, 2])
@@ -165,7 +165,7 @@ class TestRun:
 
         assert output0[0] == 11405
         assert output1[0] == 4221
-    
+
     def test_accumulator(self, sfg_accumulator):
         data_in = np.array([5, -2, 25, -6, 7, 0])
         reset   = np.array([0, 0,  0,  1,  0, 0])
@@ -188,7 +188,7 @@ class TestRun:
         simulation = Simulation(sfg_simple_accumulator, [data_in])
         simulation.run()
         assert list(simulation.results["0"]) == [0, 1, 3, 6, 10, 15, 21, 28, 36, 45]
-        
+
     def test_simple_filter(self, sfg_simple_filter):
         input0 = np.array([1, 2, 3, 4, 5])
         simulation = Simulation(sfg_simple_filter, [input0])

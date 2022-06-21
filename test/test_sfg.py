@@ -228,7 +228,7 @@ class TestComponents:
 
         mac_sfg = SFG(inputs=[inp1, inp2], outputs=[out1], name="mac_sfg")
 
-        assert set([comp.name for comp in mac_sfg.components]) == {
+        assert {comp.name for comp in mac_sfg.components} == {
             "INP1", "INP2", "INP3", "ADD1", "ADD2", "MUL1", "OUT1", "S1", "S2", "S3", "S4", "S5", "S6", "S7"}
 
 

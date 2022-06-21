@@ -170,7 +170,7 @@ def sfg_custom_operation():
     class CustomOperation(AbstractOperation):
         def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = ""):
             super().__init__(input_count = 1, output_count = 2, name = name, input_sources = [src0])
-        
+
         @classmethod
         def type_name(self) -> TypeName:
             return "custom"

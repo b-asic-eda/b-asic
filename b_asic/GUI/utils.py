@@ -5,9 +5,10 @@ def handle_error(fn):
     def wrapper(self, *args, **kwargs):
         try:
             return fn(self, *args, **kwargs)
-        except Exception as e:
+        except Exception:
             self._window.logger.error(f"Unexpected error: {format_exc()}")
-            QErrorMessage(self._window).showMessage(f"Unexpected error: {format_exc()}")
+            QErrorMessage(self._window).showMessage(
+                f"Unexpected error: {format_exc()}")
 
     return wrapper
 

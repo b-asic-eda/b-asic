@@ -565,7 +565,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             raise IndexError(
                 f"Output index out of range (expected 0-{self.output_count - 1}, got {output_index})")
         # By default, assume each output depends on all inputs.
-        return [i for i in range(self.input_count)]
+        return list(range(self.input_count))
 
     @property
     def neighbors(self) -> Iterable[GraphComponent]:

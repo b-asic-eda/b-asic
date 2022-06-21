@@ -71,7 +71,7 @@ def butterfly_operation_tree():
          v       ^               v       ^                  v       ^
          butterfly               butterfly                  butterfly
          ^       v               ^       v                  ^       v
-         |       |               |       |                  |       |               
+         |       |               |       |                  |       |
     4 ---+       +--- (2 - 4) ---+       +--- (6 - (-2)) ---+       +--- (4 - 8) ---> out2 = -4
     """
     return Butterfly(*(Butterfly(*(Butterfly(Constant(2), Constant(4), name="bfly3").outputs), name="bfly2").outputs), name="bfly1")

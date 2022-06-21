@@ -109,7 +109,7 @@ class SimulateSFGWindow(QDialog):
         return _input_values
 
     def save_properties(self):
-        for sfg, properties in self.input_fields.items():
+        for sfg, _properties in self.input_fields.items():
             input_values = self.parse_input_values(widget.text().split(",") if widget.text() else [0] for widget in self.input_fields[sfg]["input_values"])
             if max(len(list_) for list_ in input_values) != min(len(list_) for list_ in input_values):
                 self._window.logger.error(f"Minimum length of input lists are not equal to maximum length of input lists: {max(len(list_) for list_ in input_values)} != {min(len(list_) for list_ in input_values)}.")
