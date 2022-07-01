@@ -5,7 +5,7 @@ ASIC toolbox that simplifies circuit design and optimization.
 # NOTE: If this import gives an error,
 # make sure the C++ module has been compiled and installed properly.
 # See the included README.md for more information on how to build/install.
-# from _b_asic import *
+from _b_asic import *
 # Python modules.
 from b_asic.core_operations import *
 from b_asic.graph_component import *

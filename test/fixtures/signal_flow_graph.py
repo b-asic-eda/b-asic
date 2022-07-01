@@ -187,7 +187,7 @@ def sfg_custom_operation():
 
 @pytest.fixture
 def precedence_sfg_delays():
-    """A sfg with delays and interesting layout for precednce list generation.
+    """A sfg with delays and interesting layout for precedence list generation.
          .                                          .
     IN1>--->C0>--->ADD1>--->Q1>---+--->A0>--->ADD4>--->OUT1
          .           ^            |            ^    .

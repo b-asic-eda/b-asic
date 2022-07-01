@@ -1,4 +1,4 @@
-"""A sfg with delays and interesting layout for precednce list generation.
+"""A sfg with delays and interesting layout for precedence list generation.
      .                                          .
 IN1>--->C0>--->ADD1>----------+--->A0>--->ADD4>--->OUT1
      .           ^            |            ^    .
