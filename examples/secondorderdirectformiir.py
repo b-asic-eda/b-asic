@@ -42,4 +42,4 @@ sfg.set_latency_of_type(Addition.type_name(), 1)
 sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
 sfg.set_execution_time_of_type(Addition.type_name(), 1)
 
-schedule = Schedule(sfg)
+schedule = Schedule(sfg, cyclic=True)
