@@ -85,6 +85,39 @@ class Subtraction(AbstractOperation):
         return a - b
 
 
+class AddSub(AbstractOperation):
+    """Two-input addition or subtraction operation.
+
+    Gives the result of adding or subtracting two inputs.
+
+    output(0): input(0) + input(1) if is_add = True
+    output(0): input(0) - input(1) if is_add = False
+    """
+
+    def __init__(self, is_add: bool = True, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct an Addition operation."""
+        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
+        self.set_param("is_add", is_add)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "addsub"
+
+    def evaluate(self, a, b):
+        return a + b if self.is_add else a - b
+
+    @property
+    def is_add(self) -> Number:
+        """Get if operation is add."""
+        return self.param("is_add")
+
+    @is_add.setter
+    def is_add(self, is_add: bool) -> None:
+        """Set if operation is add."""
+        return self.set_param("is_add", is_add)
+
+
 class Multiplication(AbstractOperation):
     """Binary multiplication operation.
 
@@ -313,3 +346,35 @@ class MAD(AbstractOperation):
 
     def evaluate(self, a, b, c):
         return a * b + c
+
+
+class SymmetricTwoportAdaptor(AbstractOperation):
+    """Symmetric twoport-adaptor operation.
+
+    output(0): input(1) + value*(input(1) - input(0)
+    output(1): input(0) + value*(input(1) - input(0)
+    """
+
+    def __init__(self, value: Number = 0, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+        """Construct a Butterfly operation."""
+        super().__init__(input_count=2, output_count=2, name=name, input_sources=[src0, src1],
+                         latency=latency, latency_offsets=latency_offsets)
+        self.set_param("value", value)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return "sym2p"
+
+    def evaluate(self, a, b):
+        tmp = self.value*(b - a)
+        return b + tmp, a + tmp
+
+    @property
+    def value(self) -> Number:
+        """Get the constant value of this operation."""
+        return self.param("value")
+
+    @value.setter
+    def value(self, value: Number) -> None:
+        """Set the constant value of this operation."""
+        return self.set_param("value", value)

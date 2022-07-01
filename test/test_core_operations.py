@@ -2,9 +2,10 @@
 B-ASIC test suite for the core operations.
 """
 
-from b_asic import \
-    Constant, Addition, Subtraction, Multiplication, ConstantMultiplication, Division, \
-    SquareRoot, ComplexConjugate, Max, Min, Absolute, Butterfly
+from b_asic import (Constant, Addition, Subtraction, AddSub, Multiplication,
+                    ConstantMultiplication, Division, SquareRoot,
+                    ComplexConjugate, Max, Min, Absolute, Butterfly,
+                    SymmetricTwoportAdaptor)
 
 class TestConstant:
     def test_constant_positive(self):
@@ -45,6 +46,32 @@ class TestSubtraction:
 
     def test_subtraction_complex(self):
         test_operation = Subtraction()
+        assert test_operation.evaluate_output(0, [3+5j, 4+6j]) == -1-1j
+
+
+class TestAddSub:
+    def test_addition_positive(self):
+        test_operation = AddSub(is_add=True)
+        assert test_operation.evaluate_output(0, [3, 5]) == 8
+
+    def test_addition_negative(self):
+        test_operation = AddSub(is_add=True)
+        assert test_operation.evaluate_output(0, [-3, -5]) == -8
+
+    def test_addition_complex(self):
+        test_operation = AddSub(is_add=True)
+        assert test_operation.evaluate_output(0, [3+5j, 4+6j]) == 7+11j
+
+    def test_addsub_subtraction_positive(self):
+        test_operation = AddSub(is_add=False)
+        assert test_operation.evaluate_output(0, [5, 3]) == 2
+
+    def test_addsub_subtraction_negative(self):
+        test_operation = AddSub(is_add=False)
+        assert test_operation.evaluate_output(0, [-5, -3]) == -2
+
+    def test_addsub_subtraction_complex(self):
+        test_operation = AddSub(is_add=False)
         assert test_operation.evaluate_output(0, [3+5j, 4+6j]) == -1-1j
 
 
@@ -163,6 +190,23 @@ class TestButterfly:
         test_operation = Butterfly()
         assert test_operation.evaluate_output(0, [2+1j, 3-2j]) == 5-1j
         assert test_operation.evaluate_output(1, [2+1j, 3-2j]) == -1+3j
+
+
+class TestSymmetricTwoportAdaptor:
+    def test_symmetrictwoportadaptor_positive(self):
+        test_operation = SymmetricTwoportAdaptor(0.5)
+        assert test_operation.evaluate_output(0, [2, 3]) == 3.5
+        assert test_operation.evaluate_output(1, [2, 3]) == 2.5
+
+    def test_symmetrictwoportadaptor_negative(self):
+        test_operation = SymmetricTwoportAdaptor(0.5)
+        assert test_operation.evaluate_output(0, [-2, -3]) == -3.5
+        assert test_operation.evaluate_output(1, [-2, -3]) == -2.5
+
+    def test_symmetrictwoportadaptor_complex(self):
+        test_operation = SymmetricTwoportAdaptor(0.5)
+        assert test_operation.evaluate_output(0, [2+1j, 3-2j]) == 3.5-3.5j
+        assert test_operation.evaluate_output(1, [2+1j, 3-2j]) == 2.5-0.5j
 
 
 class TestDepends:
