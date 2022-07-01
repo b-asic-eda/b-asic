@@ -317,10 +317,11 @@ class Schedule:
             x = np.array(_x)
             y = np.array(_y)
             plt.fill(x + op_start_time, y + ypos)
-            _x, _y = zip(*execution_time_coords)
-            x = np.array(_x)
-            y = np.array(_y)
-            plt.plot(x + op_start_time, y + ypos, color='black', linewidth=3, alpha=0.5)
+            if execution_time_coords:
+                _x, _y = zip(*execution_time_coords)
+                x = np.array(_x)
+                y = np.array(_y)
+                plt.plot(x + op_start_time, y + ypos, color='black', linewidth=3, alpha=0.5)
             ytickpositions.append(ypos + 0.5)
             yticklabels.append(self._sfg.find_by_id(op_id).name)
             ypositions[op_id] = ypos
