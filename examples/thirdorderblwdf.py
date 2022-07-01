@@ -35,4 +35,4 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.plot(w, 20*np.log10(np.abs(h)/2))
 
-schedule = Schedule(sfg, cyclic=False)
+schedule = Schedule(sfg, cyclic=True)

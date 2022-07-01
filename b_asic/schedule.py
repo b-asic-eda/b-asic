@@ -15,7 +15,7 @@ import io
 from b_asic.signal_flow_graph import SFG
 from b_asic.graph_component import GraphID
 from b_asic.special_operations import Delay, Output
-
+from b_asic import OutputPort, Signal
 
 class Schedule:
     """Schedule of an SFG with scheduled Operations."""
@@ -43,14 +43,13 @@ class Schedule:
 
         max_end_time = self._get_max_end_time()
 
-        if not self._cyclic:
-            if schedule_time is None:
-                self._schedule_time = max_end_time
-            elif schedule_time < max_end_time:
-                raise ValueError(
-                    "Too short schedule time for non-cyclic Schedule entered.")
-            else:
-                self._schedule_time = schedule_time
+        if schedule_time is None:
+            self._schedule_time = max_end_time
+        elif schedule_time < max_end_time:
+            raise ValueError(
+                f"Too short schedule time. Minimum is {max_end_time}.")
+        else:
+            self._schedule_time = schedule_time
 
     def start_time_of_operation(self, op_id: GraphID) -> int:
         """Get the start time of the operation with the specified by the op_id."""
