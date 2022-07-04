@@ -1,11 +1,86 @@
+# This file is used to ignore files which are generated
+# ----------------------------------------------------------------------------
+
+*~
+*.autosave
+*.core
+*.moc
+*.o
+*.obj
+*.orig
+*.rej
+*.so.*
+*_pch.h.cpp
+*_resource.rc
+*.qm
+.#*
+*.*#
+core
+!core/
+tags
+.DS_Store
+.directory
+*.debug
+Makefile*
+*.prl
+*.app
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+Thumbs.db
+*.res
+*.rc
+/.qmake.cache
+/.qmake.stash
+
+# qtcreator generated files
+*.pro.user*
+
+# xemacs temporary files
+*.flc
+
+# Vim temporary files
+.*.swp
+
+# Visual Studio generated files
+*.ib_pdb_index
+*.idb
+*.ilk
+*.pdb
+*.sln
+*.suo
+*.vcproj
+*vcproj.*.*.user
+*.ncb
+*.sdf
+*.opensdf
+*.vcxproj
+*vcxproj.*
+
+# MinGW generated files
+*.Debug
+*.Release
+
+# Python byte code
+*.pyc
+
+# Binaries
+# --------
+*.dll
+*.exe
+*.so
+*.a
+
+# Misc
+
 .vs/
 .vscode/
 build*/
+.build*/
 bin*/
 doc/
 dist/
 CMakeLists.txt.user*
-*.autosave
 *.creator
 *.creator.user*
 \#*\#
@@ -17,7 +92,6 @@ tramp
 .\#*
 *~
 .fuse_hudden*
-.directory
 .Trash-*
 .nfs*
 Thumbs.db
@@ -32,5 +106,7 @@ __pycache__/
 env/
 venv/
 *.pyd
-*.so
 _b_asic_debug_log.txt
+.idea/
+.qt_for_python/
+*.user
