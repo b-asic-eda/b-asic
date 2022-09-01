@@ -42,13 +42,8 @@ run-test-3.10:
 
 run-test-qt:
   image: python:3.10
-  stage: test
+  extends: ".run-test"
   script:
     - apt-get install --yes xvfb python3-pyqt5
     - pip install pytest-xvfb pytest-qt
     - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
-  artifacts:
-      reports:
-        coverage_report:
-          coverage_format: cobertura
-          path: cov.xml
