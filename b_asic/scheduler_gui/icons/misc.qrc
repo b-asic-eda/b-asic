@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/icons">
+    <file>misc/right_filled_panel.svg</file>
+    <file>misc/right_panel.svg</file>
+  </qresource>
+</RCC>

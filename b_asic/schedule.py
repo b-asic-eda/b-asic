@@ -41,7 +41,7 @@ class Schedule:
             raise NotImplementedError(
                 f"No algorithm with name: {scheduling_alg} defined.")
 
-        max_end_time = self._get_max_end_time()
+        max_end_time = self.get_max_end_time()
 
         if schedule_time is None:
             self._schedule_time = max_end_time
@@ -56,7 +56,8 @@ class Schedule:
         assert op_id in self._start_times, "No operation with the specified op_id in this schedule."
         return self._start_times[op_id]
 
-    def _get_max_end_time(self) -> int:
+    def get_max_end_time(self) -> int:
+        """Returnes the current maximum end time among all operations."""
         max_end_time = 0
         for op_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(op_id)
@@ -126,13 +127,33 @@ class Schedule:
         raise NotImplementedError
 
     def set_schedule_time(self, time: int) -> "Schedule":
-        assert self._get_max_end_time() < time, "New schedule time to short."
+        assert self.get_max_end_time() <= time, "New schedule time to short."
         self._schedule_time = time
         return self
 
     @property
+    def sfg(self) -> SFG:
+        return self._sfg
+    
+    @property
+    def start_times(self) -> Dict[GraphID, int]: 
+        return self._start_times
+    
+    @property
+    def laps(self) -> Dict[GraphID, List[int]]:
+        return self._laps
+    
+    @property
     def schedule_time(self) -> int:
         return self._schedule_time
+    
+    @property
+    def cyclic(self) -> bool:
+        return self._cyclic
+    
+    @property
+    def resolution(self) -> int:
+        return self._resolution
 
     def increase_time_resolution(self, factor: int) -> "Schedule":
         raise NotImplementedError

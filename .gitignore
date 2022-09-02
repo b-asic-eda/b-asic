@@ -109,4 +109,8 @@ venv/
 _b_asic_debug_log.txt
 .idea/
 .qt_for_python/
-*.user
+*.pyproject.user
+*.pyproject
+ui_*.py
+TODO.txt
+*.log

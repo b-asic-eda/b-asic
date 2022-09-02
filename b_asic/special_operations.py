@@ -19,6 +19,8 @@ class Input(AbstractOperation):
     Its value will be updated on each iteration when simulating the SFG.
     """
 
+    _execution_time = 0
+
     def __init__(self, name: Name = ""):
         """Construct an Input operation."""
         super().__init__(input_count=0, output_count=1, name=name, latency_offsets={'out0' : 0})
@@ -56,6 +58,8 @@ class Output(AbstractOperation):
     The SFG will forward its input to the corresponding output signal
     destinations.
     """
+
+    _execution_time = 0
 
     def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = ""):
         """Construct an Output operation."""

@@ -7,7 +7,6 @@ from b_asic.signal import Signal
 from b_asic.port import SignalSourceProvider, InputPort, OutputPort
 from b_asic.graph_component import GraphComponent, AbstractGraphComponent, Name
 import itertools as it
-from math import trunc
 import collections
 
 from abc import abstractmethod
@@ -290,7 +289,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     _input_ports: List[InputPort]
     _output_ports: List[OutputPort]
-    _execution_time: Union[int, None]
+    _execution_time: Union[int, None] = None
 
     def __init__(self, input_count: int, output_count: int, name: Name = "", input_sources: Optional[Sequence[Optional[SignalSourceProvider]]] = None, latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
         """Construct an operation with the given input/output count.
@@ -305,7 +304,6 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         self._input_ports = [InputPort(self, i) for i in range(input_count)]
         self._output_ports = [OutputPort(self, i) for i in range(output_count)]
-        self._execution_time = None
 
         # Connect given input sources, if any.
         if input_sources is not None:
