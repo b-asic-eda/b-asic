@@ -1,5 +1,6 @@
 stages:
  - test
+ - pages
 
 before_script:
   - apt-get update --yes
@@ -47,3 +48,12 @@ run-test-qt:
     - apt-get install --yes xvfb python3-pyqt5
     - pip install pytest-xvfb pytest-qt
     - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
+
+pages: 
+  image: python:3.10
+  script:
+     - apt-get install --yes doxygen
+     - doxygen
+  artifacts:
+    paths:
+      - doc/html
