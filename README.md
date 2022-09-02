@@ -4,6 +4,8 @@
 
 B-ASIC is an ASIC toolbox for Python 3 that simplifies circuit design and optimization.
 
+The latest documentation can be viewed at: https://da.gitlab-pages.liu.se/B-ASIC/index.html
+
 ## Development
 
 How to build and debug the library during development.

@@ -67,12 +67,12 @@ setuptools.setup(
     version="1.0.1-beta",
     author="Adam Jakobsson, Angus Lothian, Arvid Westerlund, Felix Goding, "
         "Ivar Härnqvist, Jacob Wahlman, Kevin Scott, Rasmus Karlsson, "
-        "Oscar Gustafsson",
+        "Oscar Gustafsson, Andreas Bolin",
     author_email="adaja901@student.liu.se, anglo547@student.liu.se, "
         "arvwe160@student.liu.se, felgo673@student.liu.se, "
         "ivaha717@student.liu.se, jacwa448@student.liu.se, "
         "kevsc634@student.liu.se, raska119@student.liu.se, "
-        "oscar.gustafsson@liu.se",
+        "oscar.gustafsson@liu.se, andbo467@student.liu.se",
     description="Better ASIC Toolbox",
     long_description=open("README.md", "r").read(),
     long_description_content_type="text/markdown",
