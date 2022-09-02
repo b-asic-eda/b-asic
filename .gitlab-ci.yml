@@ -1,13 +1,13 @@
 stages:
  - test
- - pages
+ - deploy
 
 before_script:
   - apt-get update --yes
-  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev
+  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz
   - python -m pip install --upgrade pip
   - python --version
-  - pip install pytest pytest-cov
+  - pip install pytest pytest-cov sphinx furo numpydoc
   - pip install .
   - pip show b_asic
 
@@ -15,6 +15,7 @@ before_script:
   stage: test
   script:
     - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
+    - sphinx-build -b html docs_sphinx public
   artifacts:
       reports:
         coverage_report:
@@ -49,12 +50,13 @@ run-test-qt:
     - pip install pytest-xvfb pytest-qt
     - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
 
-pages: 
+pages:
+  stage: deploy
   image: python:3.10
   script:
-     - apt-get install --yes doxygen
-     - doxygen
-     - cp -r doc/html public
+    - sphinx-build -b html docs_sphinx public
   artifacts:
     paths:
       - public
+  only:
+    - master

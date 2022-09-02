@@ -1,4 +1,5 @@
-"""B-ASIC Schedule Module.
+"""
+B-ASIC Schedule Module.
 
 Contains the schedule class for scheduling operations in an SFG.
 """
