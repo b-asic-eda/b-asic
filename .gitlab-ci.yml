@@ -54,6 +54,7 @@ pages:
   script:
      - apt-get install --yes doxygen
      - doxygen
+     - cp -r doc/html public
   artifacts:
     paths:
-      - doc/html
+      - public
