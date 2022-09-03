@@ -93,8 +93,8 @@ setuptools.setup(
         "matplotlib",
         "scipy"
     ],
-    packages=["b_asic", "b_asic/GUI"],
-    ext_modules=[CMakeExtension("b_asic")],
+    packages=["b_asic", "b_asic/GUI", "b_asic/scheduler_gui"],
+    ext_modules=[CMakeExtension("_b_asic")],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
     include_package_data=True
