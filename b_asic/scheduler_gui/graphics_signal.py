@@ -1,31 +1,33 @@
-from typing     import Optional
+from typing import Optional
 
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsPathItem
 from qtpy.QtGui import QPainterPath, QPen
-from qtpy.QtCore    import Qt, QPointF
+from qtpy.QtCore import QPointF
 
 # B-ASIC
 from b_asic.signal import Signal
-from b_asic.scheduler_gui.graphics_component_item    import GraphicsComponentItem
+from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
+from b_asic.scheduler_gui._preferences import SIGNAL_ACTIVE, SIGNAL_INACTIVE, SIGNAL_WIDTH
 
 class GraphicsSignal(QGraphicsPathItem):
     _path: Optional[QPainterPath] = None
     _src_operation: GraphicsComponentItem
     _dest_operation: GraphicsComponentItem
     _signal: Signal
+    _active_pen: QPen
+    _inactive_pen: QPen
+
     def __init__(self,
                  src_operation: GraphicsComponentItem,
                  dest_operation: GraphicsComponentItem,
-                 signal: Signal, pen: Optional[QPen] = None,
+                 signal: Signal,
                  parent: Optional[QGraphicsItem] = None):
         super().__init__(parent=parent)
         self._src_operation = src_operation
         self._dest_operation = dest_operation
         self._signal = signal
-        if pen is None:
-            pen = QPen(Qt.black)
-            pen.setWidthF(0.03)
-        self.setPen(pen)
+        self.refresh_pens()
+        self.set_inactive()
         self.update_path()
 
     def update_path(self):
@@ -52,3 +54,17 @@ class GraphicsSignal(QGraphicsPathItem):
 
         path.cubicTo(ctrl_point1, ctrl_point2, dest_point)
         self.setPath(path)
+
+    def refresh_pens(self):
+        pen = QPen(SIGNAL_ACTIVE)
+        pen.setWidthF(SIGNAL_WIDTH)
+        self._active_pen = pen
+        pen = QPen(SIGNAL_INACTIVE)
+        pen.setWidthF(SIGNAL_WIDTH)
+        self._inactive_pen = pen
+
+    def set_active(self):
+        self.setPen(self._active_pen)
+
+    def set_inactive(self):
+        self.setPen(self._inactive_pen)
