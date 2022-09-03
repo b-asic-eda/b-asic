@@ -16,6 +16,9 @@ from qtpy.QtWidgets import (
 
 # B-ASIC
 from b_asic.graph_component     import GraphComponent
+from b_asic.scheduler_gui._preferences import (
+    OPERATION_LATENCY_ACTIVE, OPERATION_LATENCY_INACTIVE,
+    OPERATION_EXECUTION_TIME_INACTIVE)
 
 
 class GraphicsComponentItem(QGraphicsItemGroup):
@@ -99,9 +102,20 @@ class GraphicsComponentItem(QGraphicsItemGroup):
     def get_port_location(self, key) -> QPointF:
         return self.mapToParent(self._ports[key]['pos'])
 
+    def set_active(self):
+        self._set_background(OPERATION_LATENCY_ACTIVE)
+        self.setCursor(QCursor(Qt.ClosedHandCursor))
+
+    def set_inactive(self):
+        self._set_background(OPERATION_LATENCY_INACTIVE)
+        self.setCursor(QCursor(Qt.OpenHandCursor))
+
+    def _set_background(self, color: QColor):
+        brush = QBrush(color)
+        self._component_item.setBrush(brush)
+
     def _make_component(self) -> None:
         """Makes a new component out of the stored attributes."""
-        brush1 = QBrush(Qt.lightGray)       # used by component filling
         pen1 = QPen(Qt.black)               # used by component outline
         pen1.setWidthF(2/self._scale)
         # pen1.setCapStyle(Qt.RoundCap)     # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
@@ -115,22 +129,21 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
         gray = QColor(Qt.gray)
         gray.setAlpha(100)                  # 0-255
-        green = QColor(Qt.magenta)
-        green.setAlpha(200)                 # 0-255
+        execution_time = QColor(OPERATION_EXECUTION_TIME_INACTIVE)
+        execution_time.setAlpha(200)                 # 0-255
         pen3 = QPen()                       # used by execution time outline
-        pen3.setColor(green)
+        pen3.setColor(execution_time)
         pen3.setWidthF(3/self._scale)
 
 
         ## component path
-        def draw_component_path(keys: List[str], revered: bool) -> None:
+        def draw_component_path(keys: List[str], reversed: bool) -> None:
             """Draws component path and also register port positions in self._ports dictionary."""
             nonlocal x
             nonlocal y
             nonlocal old_x
             nonlocal old_y
-            neg = 1
-            if revered: neg = -1
+            neg = -1 if reversed else 1
             for key in keys:
                 # draw 1 or 2 lines
                 x = self._ports[key]['latency']
@@ -153,25 +166,26 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         output_keys = sorted(output_keys, reverse=True)
 
         # Set the starting position
-        if input_keys:
-            x = self._ports[input_keys[0]]['latency']
-        else:
-            x = 0
-        y = 0
-        old_x = x
-        old_y = y
-        component_path = QPainterPath(QPointF(x, y))            # starting point
+
+        x = old_x = self._ports[input_keys[0]]['latency'] if input_keys else 0
+        y = old_y = 0
+        component_path = QPainterPath(QPointF(x, y))  # starting point
 
         # draw the path
-        draw_component_path(input_keys, False)                  # draw input side
-        draw_component_path(output_keys, True)                  # draw ouput side
+        if input_keys:
+            draw_component_path(input_keys, False)  # draw input side
+        else:
+            y = old_y = self._height
+
+        draw_component_path(output_keys, True)  # draw output side
         component_path.closeSubpath()
 
 
         ## component item
         self._component_item = QGraphicsPathItem(component_path)
         self._component_item.setPen(pen1)
-        self._component_item.setBrush(brush1)
+        self._set_background(Qt.lightGray)       # used by component filling
+
 
         ## ports item
         for port_dict in self._ports.values():

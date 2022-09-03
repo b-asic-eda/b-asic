@@ -7,20 +7,18 @@ maintain a component in a graph.
 """
 from collections import defaultdict
 from math import floor
-from pprint     import pprint
-from typing     import Optional, List, Dict, Set
+from pprint import pprint
+from typing import Optional, List, Dict, Set
 
 # QGraphics and QPainter imports
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
-from qtpy.QtGui import QPen
-from qtpy.QtCore    import Qt
 
 # B-ASIC
-from b_asic.schedule            import Schedule
-from b_asic.scheduler_gui.graphics_component_item    import GraphicsComponentItem
-from b_asic.scheduler_gui.graphics_axes_item         import GraphicsAxesItem
-from b_asic.scheduler_gui.graphics_graph_event       import GraphicsGraphEvent
-from b_asic.scheduler_gui.graphics_signal            import GraphicsSignal
+from b_asic.schedule import Schedule
+from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
+from b_asic.scheduler_gui.graphics_axes_item import GraphicsAxesItem
+from b_asic.scheduler_gui.graphics_graph_event import GraphicsGraphEvent
+from b_asic.scheduler_gui.graphics_signal import GraphicsSignal
 
 
 class GraphicsGraphItem(GraphicsGraphEvent, QGraphicsItemGroup):    # PySide2 / PyQt5
@@ -90,6 +88,16 @@ class GraphicsGraphItem(GraphicsGraphEvent, QGraphicsItemGroup):    # PySide2 / 
         """Update lines connected to *item*."""
         for signal in self._signal_dict[item]:
             signal.update_path()
+
+    def set_item_active(self, item: GraphicsComponentItem):
+        item.set_active()
+        for signal in self._signal_dict[item]:
+            signal.set_active()
+
+    def set_item_inactive(self, item: GraphicsComponentItem):
+        item.set_inactive()
+        for signal in self._signal_dict[item]:
+            signal.set_inactive()
 
     def set_new_starttime(self, item: GraphicsComponentItem) -> None:
         """Set new starttime for *item*."""
@@ -166,16 +174,12 @@ class GraphicsGraphItem(GraphicsGraphEvent, QGraphicsItemGroup):    # PySide2 / 
             self.addToGroup(component)
         # self.addToGroup(self._components)
 
-
-        pen1 = QPen(Qt.black)               # used by component outline
-        pen1.setWidthF(0.03)
-
         # add signals
         for component in self._components:
             for output_port in component.operation.outputs:
                 for signal in output_port.signals:
                     dest_component = _components_dict[signal.destination.operation]
-                    gui_signal = GraphicsSignal(component, dest_component, signal, pen=pen1)
+                    gui_signal = GraphicsSignal(component, dest_component, signal)
                     self.addToGroup(gui_signal)
                     self._signal_dict[component].add(gui_signal)
                     self._signal_dict[dest_component].add(gui_signal)

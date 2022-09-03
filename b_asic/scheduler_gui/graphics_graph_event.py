@@ -19,7 +19,6 @@ from b_asic.scheduler_gui.graphics_axes_item         import GraphicsAxesItem
 from b_asic.scheduler_gui.graphics_timeline_item     import GraphicsTimelineItem
 
 
-
 # sys.settrace
 # class GraphicsGraphEvent(QGraphicsItemGroup, QObject):          # PySide2
 class GraphicsGraphEvent:                                       # PyQt5
@@ -152,22 +151,20 @@ class GraphicsGraphEvent:                                       # PyQt5
         horizontally in x-axis scale steps."""
         # Qt.DragMoveCursor
         # button = event.button()
+        def update_pos(item, delta_x):
+            pos = item.x() + delta_x
+            if self.is_component_valid_pos(item, pos):
+                # self.prepareGeometryChange()
+                item.setX(pos)
+                self._current_pos.setX(self._current_pos.x() + delta_x)
+                self._redraw_lines(item)
+
         item: GraphicsComponentItem = self.scene().mouseGrabberItem()
-        dx = (item.mapToParent(event.pos()) - self._current_pos).x()
-        if dx > 0.505:
-            pos = item.x() + 1.0
-            if self.is_component_valid_pos(item, pos):
-                # self.prepareGeometryChange()
-                item.setX(pos)
-                self._current_pos.setX(self._current_pos.x() + 1.0)
-                self._redraw_lines(item)
-        elif dx < -0.505:
-            pos = item.x() - 1.0
-            if self.is_component_valid_pos(item, pos):
-                # self.prepareGeometryChange()
-                item.setX(pos)
-                self._current_pos.setX(self._current_pos.x() - 1.0)
-                self._redraw_lines(item)
+        delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
+        if delta_x > 0.505:
+            update_pos(item, 1)
+        elif delta_x < -0.505:
+            update_pos(item, -1)
 
     def comp_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """Changes the cursor to ClosedHandCursor when grabbing an object and
@@ -178,14 +175,15 @@ class GraphicsGraphEvent:                                       # PyQt5
         self._signals.component_selected.emit(item.op_id)
         # self.component_selected.emit(item.op_id)
         self._current_pos = item.mapToParent(event.pos())
-        item.setCursor(QCursor(Qt.ClosedHandCursor))
+        self.set_item_active(item)
         event.accept()
 
     def comp_mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """Changes the cursor to OpenHandCursor when releasing an object."""
         item: GraphicsComponentItem = self.scene().mouseGrabberItem()
-        item.setCursor(QCursor(Qt.OpenHandCursor))
+        self.set_item_inactive(item)
         self.set_new_starttime(item)
+
 
     def comp_mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None: ...
     def comp_wheelEvent(self, event: QGraphicsSceneWheelEvent) -> None: ...
