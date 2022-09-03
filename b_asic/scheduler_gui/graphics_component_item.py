@@ -127,8 +127,6 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         # pen2.setCosmetic(True)
         port_size = 7/self._scale           # the diameter of an port
 
-        gray = QColor(Qt.gray)
-        gray.setAlpha(100)                  # 0-255
         execution_time = QColor(OPERATION_EXECUTION_TIME_INACTIVE)
         execution_time.setAlpha(200)                 # 0-255
         pen3 = QPen()                       # used by execution time outline
@@ -216,3 +214,5 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         self.addToGroup(self._label_item)
         if self._operation.execution_time:
             self.addToGroup(self._execution_time_item)
+
+        self.set_inactive()
