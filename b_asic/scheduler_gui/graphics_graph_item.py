@@ -34,7 +34,7 @@ class GraphicsGraphItem(GraphicsGraphEvent, QGraphicsItemGroup):    # PySide2 / 
     _components_height: float
     _x_axis_indent:     float
     _event_items:       List[QGraphicsItem]
-    _signal_dict:           Dict[GraphicsComponentItem, Set[GraphicsSignal]]
+    _signal_dict:       Dict[GraphicsComponentItem, Set[GraphicsSignal]]
 
 
     def __init__(self, schedule: Schedule, parent: Optional[QGraphicsItem] = None):
@@ -152,7 +152,7 @@ class GraphicsGraphItem(GraphicsGraphEvent, QGraphicsItemGroup):    # PySide2 / 
 
 #            if not isinstance(op, (Input, Output)):
             self._components_height += spacing
-            component = GraphicsComponentItem(operation)
+            component = GraphicsComponentItem(operation, parent=self)
             component.setPos(self._x_axis_indent + op_start_time, self._components_height)
             self._components.append(component)
             _components_dict[operation] = component
@@ -179,7 +179,7 @@ class GraphicsGraphItem(GraphicsGraphEvent, QGraphicsItemGroup):    # PySide2 / 
             for output_port in component.operation.outputs:
                 for signal in output_port.signals:
                     dest_component = _components_dict[signal.destination.operation]
-                    gui_signal = GraphicsSignal(component, dest_component, signal)
+                    gui_signal = GraphicsSignal(component, dest_component, signal, parent=self)
                     self.addToGroup(gui_signal)
                     self._signal_dict[component].add(gui_signal)
                     self._signal_dict[dest_component].add(gui_signal)
