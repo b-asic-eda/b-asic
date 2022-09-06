@@ -7,7 +7,8 @@ from qtpy.QtCore import QPointF
 # B-ASIC
 from b_asic.signal import Signal
 from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
-from b_asic.scheduler_gui._preferences import SIGNAL_ACTIVE, SIGNAL_INACTIVE, SIGNAL_WIDTH
+from b_asic.scheduler_gui._preferences import (SIGNAL_ACTIVE, SIGNAL_INACTIVE,
+                                               SIGNAL_WIDTH)
 
 class GraphicsSignal(QGraphicsPathItem):
     _path: Optional[QPainterPath] = None
@@ -44,15 +45,24 @@ class GraphicsSignal(QGraphicsPathItem):
         source_y = source_point.y()
         dest_x = dest_point.x()
         dest_y = dest_point.y()
-        if abs(source_x - dest_x) <= 0.1:
-            ctrl_point1 = QPointF(source_x + 0.5, source_y)
-            ctrl_point2 = QPointF(source_x - 0.5, dest_y)
+        if (dest_x - source_x <= -0.1 or
+            self.parentItem().schedule._laps[self._signal.graph_id]):
+            offset = 0.2  # TODO: Get from parent/axes...
+            laps = self.parentItem().schedule._laps[self._signal.graph_id]
+            path.lineTo(self.parentItem().schedule.schedule_time + offset,
+                        source_y)
+            path.moveTo(0 + offset, dest_y)
+            path.lineTo(dest_x, dest_y)
         else:
-            mid_x = (source_x + dest_x)/2
-            ctrl_point1 = QPointF(mid_x, source_y)
-            ctrl_point2 = QPointF(mid_x, dest_y)
+            if abs(source_x - dest_x) <= 0.1:  # "== 0"
+                ctrl_point1 = QPointF(source_x + 0.5, source_y)
+                ctrl_point2 = QPointF(source_x - 0.5, dest_y)
+            else:
+                mid_x = (source_x + dest_x)/2
+                ctrl_point1 = QPointF(mid_x, source_y)
+                ctrl_point2 = QPointF(mid_x, dest_y)
 
-        path.cubicTo(ctrl_point1, ctrl_point2, dest_point)
+            path.cubicTo(ctrl_point1, ctrl_point2, dest_point)
         self.setPath(path)
 
     def refresh_pens(self):
