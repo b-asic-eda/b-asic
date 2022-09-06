@@ -4,11 +4,13 @@ B-ASIC test suite for graph id generator.
 
 import pytest
 
-from b_asic import GraphIDGenerator, GraphID
+from b_asic import GraphIDGenerator
+
 
 @pytest.fixture
 def graph_id_generator():
     return GraphIDGenerator()
+
 
 class TestGetNextId:
     def test_empty_string_generator(self, graph_id_generator):
@@ -17,7 +19,7 @@ class TestGetNextId:
         assert graph_id_generator.next_id("") == "2"
 
     def test_normal_string_generator(self, graph_id_generator):
-        """"Test the graph id generator for a normal string type."""
+        """ "Test the graph id generator for a normal string type."""
         assert graph_id_generator.next_id("add") == "add1"
         assert graph_id_generator.next_id("add") == "add2"
 

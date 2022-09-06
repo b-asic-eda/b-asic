@@ -2,10 +2,17 @@
 B-ASIC test suite for the AbstractOperation class.
 """
 
-import pytest
-
-from b_asic import Addition, Subtraction, Multiplication, ConstantMultiplication, Division, Constant, Butterfly, \
-    MAD, SquareRoot
+from b_asic import (
+    MAD,
+    Addition,
+    Butterfly,
+    Constant,
+    ConstantMultiplication,
+    Division,
+    Multiplication,
+    SquareRoot,
+    Subtraction,
+)
 
 
 class TestOperationOverloading:
@@ -106,8 +113,18 @@ class TestTraverse:
 
     def test_traverse_type(self, large_operation_tree):
         result = list(large_operation_tree.traverse())
-        assert len(list(filter(lambda type_: isinstance(type_, Addition), result))) == 3
-        assert len(list(filter(lambda type_: isinstance(type_, Constant), result))) == 4
+        assert (
+            len(
+                list(filter(lambda type_: isinstance(type_, Addition), result))
+            )
+            == 3
+        )
+        assert (
+            len(
+                list(filter(lambda type_: isinstance(type_, Constant), result))
+            )
+            == 4
+        )
 
     def test_traverse_loop(self, operation_graph_with_cycle):
         assert len(list(operation_graph_with_cycle.traverse())) == 8
@@ -147,19 +164,36 @@ class TestLatency:
         bfly = Butterfly(latency=5)
 
         assert bfly.latency == 5
-        assert bfly.latency_offsets == {'in0': 0, 'in1': 0, 'out0': 5, 'out1': 5}
+        assert bfly.latency_offsets == {
+            "in0": 0,
+            "in1": 0,
+            "out0": 5,
+            "out1": 5,
+        }
 
     def test_latency_offsets_constructor(self):
-        bfly = Butterfly(latency_offsets={'in0': 2, 'in1': 3, 'out0': 5, 'out1': 10})
+        bfly = Butterfly(
+            latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10}
+        )
 
         assert bfly.latency == 8
-        assert bfly.latency_offsets == {'in0': 2, 'in1': 3, 'out0': 5, 'out1': 10}
+        assert bfly.latency_offsets == {
+            "in0": 2,
+            "in1": 3,
+            "out0": 5,
+            "out1": 10,
+        }
 
     def test_latency_and_latency_offsets_constructor(self):
-        bfly = Butterfly(latency=5, latency_offsets={'in1': 2, 'out0': 9})
+        bfly = Butterfly(latency=5, latency_offsets={"in1": 2, "out0": 9})
 
         assert bfly.latency == 9
-        assert bfly.latency_offsets == {"in0": 0, "in1": 2, "out0": 9, "out1": 5}
+        assert bfly.latency_offsets == {
+            "in0": 0,
+            "in1": 2,
+            "out0": 9,
+            "out1": 5,
+        }
 
     def test_set_latency(self):
         bfly = Butterfly()
@@ -167,14 +201,24 @@ class TestLatency:
         bfly.set_latency(9)
 
         assert bfly.latency == 9
-        assert bfly.latency_offsets == {"in0": 0, "in1": 0, "out0": 9, "out1": 9}
+        assert bfly.latency_offsets == {
+            "in0": 0,
+            "in1": 0,
+            "out0": 9,
+            "out1": 9,
+        }
 
     def test_set_latency_offsets(self):
         bfly = Butterfly()
 
-        bfly.set_latency_offsets({'in0': 3, 'out1': 5})
+        bfly.set_latency_offsets({"in0": 3, "out1": 5})
 
-        assert bfly.latency_offsets == {'in0': 3, "in1": None, "out0": None, 'out1': 5}
+        assert bfly.latency_offsets == {
+            "in0": 3,
+            "in1": None,
+            "out0": None,
+            "out1": 5,
+        }
 
 
 class TestExecutionTime:
@@ -190,11 +234,18 @@ class TestExecutionTime:
 
 class TestCopyOperation:
     def test_copy_butterfly_latency_offsets(self):
-        bfly = Butterfly(latency_offsets={'in0': 4, 'in1': 2, 'out0': 10, 'out1': 9})
+        bfly = Butterfly(
+            latency_offsets={"in0": 4, "in1": 2, "out0": 10, "out1": 9}
+        )
 
         bfly_copy = bfly.copy_component()
 
-        assert bfly_copy.latency_offsets == {'in0': 4, 'in1': 2, 'out0': 10, 'out1': 9}
+        assert bfly_copy.latency_offsets == {
+            "in0": 4,
+            "in1": 2,
+            "out0": 10,
+            "out1": 9,
+        }
 
     def test_copy_execution_time(self):
         add = Addition()
@@ -205,7 +256,7 @@ class TestCopyOperation:
         assert add_copy.execution_time == 2
 
 
-class TestPlotCoordinates():
+class TestPlotCoordinates:
     def test_simple_case(self):
         cmult = ConstantMultiplication(0.5)
         cmult.execution_time = 1
@@ -216,15 +267,27 @@ class TestPlotCoordinates():
         assert exe == [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]
 
     def test_complicated_case(self):
-        bfly = Butterfly(latency_offsets={'in0': 2, 'in1': 3, 'out0': 5, 'out1': 10})
+        bfly = Butterfly(
+            latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10}
+        )
         bfly.execution_time = 7
 
         lat, exe = bfly.get_plot_coordinates()
-        assert lat == [[2, 0], [2, 0.5], [3, 0.5], [3, 1], [10, 1], [10, 0.5], [5, 0.5], [5, 0], [2, 0]]
+        assert lat == [
+            [2, 0],
+            [2, 0.5],
+            [3, 0.5],
+            [3, 1],
+            [10, 1],
+            [10, 0.5],
+            [5, 0.5],
+            [5, 0],
+            [2, 0],
+        ]
         assert exe == [[0, 0], [0, 1], [7, 1], [7, 0], [0, 0]]
 
 
-class TestIOCoordinates():
+class TestIOCoordinates:
     def test_simple_case(self):
         cmult = ConstantMultiplication(0.5)
         cmult.execution_time = 1
@@ -235,7 +298,9 @@ class TestIOCoordinates():
         assert o_c == [[3, 0.5]]
 
     def test_complicated_case(self):
-        bfly = Butterfly(latency_offsets={'in0': 2, 'in1': 3, 'out0': 5, 'out1': 10})
+        bfly = Butterfly(
+            latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10}
+        )
         bfly.execution_time = 7
 
         i_c, o_c = bfly.get_io_coordinates()

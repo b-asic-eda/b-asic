@@ -3,7 +3,8 @@ B-ASIC test suite for OutputPort.
 """
 import pytest
 
-from b_asic import OutputPort, InputPort, Signal
+from b_asic import Signal
+
 
 class TestConnect:
     def test_multiple_ports(self, output_port, list_of_input_ports):
@@ -21,6 +22,7 @@ class TestConnect:
 
         assert output_port.signal_count == 1
 
+
 class TestAddSignal:
     def test_dangling(self, output_port):
         s = Signal()
@@ -28,6 +30,7 @@ class TestAddSignal:
 
         assert output_port.signal_count == 1
         assert output_port.signals == [s]
+
 
 class TestClear:
     def test_others_clear(self, output_port, list_of_input_ports):
@@ -48,6 +51,7 @@ class TestClear:
 
         assert output_port.signal_count == 0
         assert output_port.signals == []
+
 
 class TestRemoveSignal:
     def test_one_signal(self, output_port, input_port):

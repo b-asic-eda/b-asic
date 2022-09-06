@@ -61,6 +61,7 @@ def test_signal_creation_and_disconnction_and_connection_changing():
     assert s.source is out_port
     assert s.destination is in_port
 
+
 class Bits:
     def test_pos_int(self, signal):
         signal.bits = 10
@@ -76,7 +77,7 @@ class Bits:
 
     def test_bits_complex(self, signal):
         with pytest.raises(Exception):
-            signal.bits = (2+4j)
+            signal.bits = 2 + 4j
 
     def test_bits_float(self, signal):
         with pytest.raises(Exception):
