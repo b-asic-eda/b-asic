@@ -1,12 +1,25 @@
-from qtpy.QtWidgets import (
-    QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
-    QCheckBox, QSpinBox, QFrame, QFormLayout, QGridLayout, QSizePolicy,
-    QFileDialog, QShortcut)
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvasQTAgg as FigureCanvas,
+)
+from matplotlib.figure import Figure
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QKeySequence
-
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QShortcut,
+    QSizePolicy,
+    QSpinBox,
+    QVBoxLayout,
+)
 
 
 class SimulateSFGWindow(QDialog):
@@ -50,7 +63,7 @@ class SimulateSFGWindow(QDialog):
             "iteration_count": spin_box,
             "show_plot": check_box_plot,
             "all_results": check_box_all,
-            "input_values": []
+            "input_values": [],
         }
 
         if sfg.input_count > 0:
@@ -102,7 +115,9 @@ class SimulateSFGWindow(QDialog):
 
                     _list_values.append(complex(val))
                 except ValueError:
-                    self._window.logger.warning(f"Skipping value: {val}, not a digit.")
+                    self._window.logger.warning(
+                        f"Skipping value: {val}, not a digit."
+                    )
                     continue
 
             _input_values.append(_list_values)
@@ -112,27 +127,34 @@ class SimulateSFGWindow(QDialog):
     def save_properties(self):
         for sfg, _properties in self.input_fields.items():
             input_values = self.parse_input_values(
-                [widget.text().split(",") if widget.text() else [0]
-                 for widget in self.input_fields[sfg]["input_values"]])
+                [
+                    widget.text().split(",") if widget.text() else [0]
+                    for widget in self.input_fields[sfg]["input_values"]
+                ]
+            )
             max_len = max(len(list_) for list_ in input_values)
             min_len = min(len(list_) for list_ in input_values)
             ic_value = self.input_fields[sfg]["iteration_count"].value()
             if max_len != min_len:
                 self._window.logger.error(
-                    f"Minimum length of input lists are not equal to maximum "
-                    f"length of input lists: {max_len} != {min_len}.")
+                    "Minimum length of input lists are not equal to maximum "
+                    f"length of input lists: {max_len} != {min_len}."
+                )
             elif ic_value > min_len:
                 self._window.logger.error(
-                    f"Minimum length of input lists are less than the "
-                    f"iteration count: {ic_value} > {min_len}.")
+                    "Minimum length of input lists are less than the "
+                    f"iteration count: {ic_value} > {min_len}."
+                )
             else:
                 self.properties[sfg] = {
                     "iteration_count": ic_value,
-                    "show_plot":
-                        self.input_fields[sfg]["show_plot"].isChecked(),
-                    "all_results":
-                        self.input_fields[sfg]["all_results"].isChecked(),
-                    "input_values": input_values
+                    "show_plot": self.input_fields[sfg][
+                        "show_plot"
+                    ].isChecked(),
+                    "all_results": self.input_fields[sfg][
+                        "all_results"
+                    ].isChecked(),
+                    "input_values": input_values,
                 }
 
                 # If we plot we should also print the entire data,
@@ -144,15 +166,17 @@ class SimulateSFGWindow(QDialog):
 
             self._window.logger.info(
                 f"Skipping simulation of SFG with name: {sfg.name}, "
-                "due to previous errors.")
+                "due to previous errors."
+            )
 
         self.accept()
         self.simulate.emit()
 
 
 class Plot(FigureCanvas):
-    def __init__(self, simulation, sfg, window, parent=None, width=5, height=4,
-                 dpi=100):
+    def __init__(
+        self, simulation, sfg, window, parent=None, width=5, height=4, dpi=100
+    ):
         self.simulation = simulation
         self.sfg = sfg
         self.dpi = dpi
@@ -165,8 +189,9 @@ class Plot(FigureCanvas):
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
 
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding,
-                                   QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(
+            self, QSizePolicy.Expanding, QSizePolicy.Expanding
+        )
         FigureCanvas.updateGeometry(self)
         self.save_figure = QShortcut(QKeySequence("Ctrl+S"), self)
         self.save_figure.activated.connect(self._save_plot_figure)
@@ -175,8 +200,9 @@ class Plot(FigureCanvas):
     def _save_plot_figure(self):
         self._window.logger.info(f"Saving plot of figure: {self.sfg.name}.")
         file_choices = "PNG (*.png)|*.png"
-        path, ext = QFileDialog.getSaveFileName(self, "Save file", "",
-                                                file_choices)
+        path, ext = QFileDialog.getSaveFileName(
+            self, "Save file", "", file_choices
+        )
         path = path.encode("utf-8")
         if not path[-4:] == file_choices[-4:].encode("utf-8"):
             path += file_choices[-4:].encode("utf-8")
@@ -184,7 +210,8 @@ class Plot(FigureCanvas):
         if path:
             self.print_figure(path.decode(), dpi=self.dpi)
             self._window.logger.info(
-                f"Saved plot: {self.sfg.name} to path: {path}.")
+                f"Saved plot: {self.sfg.name} to path: {path}."
+            )
 
     def _plot_values_sfg(self):
         x_axis = list(range(len(self.simulation.results["0"])))

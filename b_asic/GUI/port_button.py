@@ -1,10 +1,11 @@
-from qtpy.QtWidgets import QPushButton, QMenu
 from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import QMenu, QPushButton
 
 
 class PortButton(QPushButton):
     connectionRequested = Signal(QPushButton)
     moved = Signal()
+
     def __init__(self, name, operation, port, window, parent=None):
         super().__init__(name, parent=operation)
         self.pressed = False
@@ -35,7 +36,8 @@ class PortButton(QPushButton):
     def _toggle_port(self, pressed=False):
         self.pressed = not pressed
         self.setStyleSheet(
-            f"background-color: {'white' if not self.pressed else 'grey'}")
+            f"background-color: {'white' if not self.pressed else 'grey'}"
+        )
 
     def select_port(self, modifiers=None):
         if modifiers != Qt.ControlModifier:

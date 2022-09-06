@@ -6,8 +6,7 @@ Contains the base for all components with an ID in a signal flow graph.
 from abc import ABC, abstractmethod
 from collections import deque
 from copy import copy, deepcopy
-from typing import NewType, Any, Dict, Mapping, Iterable, Generator
-
+from typing import Any, Dict, Generator, Iterable, Mapping, NewType
 
 Name = NewType("Name", str)
 TypeName = NewType("TypeName", str)
@@ -117,9 +116,16 @@ class AbstractGraphComponent(GraphComponent):
 
     def __str__(self) -> str:
         """Get a string representation of this graph component."""
-        return f"id: {self.graph_id if self.graph_id else 'no_id'}, \tname: {self.name if self.name else 'no_name'}" + \
-            "".join((f", \t{key}: {str(param)}" for key,
-                     param in self._parameters.items()))
+        return (
+            f"id: {self.graph_id if self.graph_id else 'no_id'}, \tname:"
+            f" {self.name if self.name else 'no_name'}"
+            + "".join(
+                (
+                    f", \t{key}: {str(param)}"
+                    for key, param in self._parameters.items()
+                )
+            )
+        )
 
     @property
     def name(self) -> Name:
@@ -152,8 +158,9 @@ class AbstractGraphComponent(GraphComponent):
         new_component.name = copy(self.name)
         new_component.graph_id = copy(self.graph_id)
         for name, value in self.params.items():
-            new_component.set_param(copy(name), deepcopy(
-                value))  # pylint: disable=no-member
+            new_component.set_param(
+                copy(name), deepcopy(value)
+            )  # pylint: disable=no-member
         return new_component
 
     def traverse(self) -> Generator[GraphComponent, None, None]:

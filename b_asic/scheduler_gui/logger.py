@@ -29,18 +29,21 @@ Log Uncaught Exceptions:
 ------------------------
 To log uncaught exceptions, implement the following in your program.
   `sys.excepthook = logger.log_exceptions`"""
-import os
-import sys
-from typing import Type, Optional, Union
-from types import TracebackType
-from logging import Logger
 import logging
 import logging.handlers
+import os
+import sys
 import traceback
+from logging import Logger
+from types import TracebackType
+from typing import Optional, Type, Union
+
 from qtpy import QtCore, QtWidgets
 
 
-def getLogger(filename: str='scheduler-gui.log', loglevel: str='INFO') -> Logger:
+def getLogger(
+    filename: str = "scheduler-gui.log", loglevel: str = "INFO"
+) -> Logger:
     """This function creates console- and filehandler and from those, creates a logger object.
 
     Args:
@@ -66,8 +69,11 @@ def getLogger(filename: str='scheduler-gui.log', loglevel: str='INFO') -> Logger
         logger.setLevel(loglevel)
 
         # setup the console logger
-        c_fmt_date = '%T'
-        c_fmt = '[%(process)d] %(asctime)s %(filename)18s:%(lineno)-4s %(funcName)20s() %(levelname)-8s: %(message)s'
+        c_fmt_date = "%T"
+        c_fmt = (
+            "[%(process)d] %(asctime)s %(filename)18s:%(lineno)-4s"
+            " %(funcName)20s() %(levelname)-8s: %(message)s"
+        )
         c_formatter = logging.Formatter(c_fmt, c_fmt_date)
         c_handler = logging.StreamHandler()
         c_handler.setFormatter(c_formatter)
@@ -75,32 +81,44 @@ def getLogger(filename: str='scheduler-gui.log', loglevel: str='INFO') -> Logger
         logger.addHandler(c_handler)
 
         # setup the file logger
-        f_fmt_date = '%Y-%m-%dT%T%Z'
-        f_fmt = '%(asctime)s %(filename)18s:%(lineno)-4s %(funcName)20s() %(levelname)-8s: %(message)s'
+        f_fmt_date = "%Y-%m-%dT%T%Z"
+        f_fmt = (
+            "%(asctime)s %(filename)18s:%(lineno)-4s %(funcName)20s()"
+            " %(levelname)-8s: %(message)s"
+        )
         f_formatter = logging.Formatter(f_fmt, f_fmt_date)
-        f_handler = logging.FileHandler(filename, mode = 'w')
+        f_handler = logging.FileHandler(filename, mode="w")
         f_handler.setFormatter(f_formatter)
         f_handler.setLevel(logging.DEBUG)
         logger.addHandler(f_handler)
 
-    if logger.name == 'scheduler-gui.log':
-        logger.info('Running: %s %s',
-                    os.path.basename(sys.argv[0]),
-                    ' '.join(sys.argv[1:]))
+    if logger.name == "scheduler-gui.log":
+        logger.info(
+            "Running: %s %s",
+            os.path.basename(sys.argv[0]),
+            " ".join(sys.argv[1:]),
+        )
 
     return logger
 
 
 # log uncaught exceptions
-def handle_exceptions(exc_type: Type[BaseException], exc_value: BaseException, exc_traceback: Union[TracebackType, None]) -> None:
-# def log_exceptions(type, value, tb):
+def handle_exceptions(
+    exc_type: Type[BaseException],
+    exc_value: BaseException,
+    exc_traceback: Union[TracebackType, None],
+) -> None:
+    # def log_exceptions(type, value, tb):
     """This function is a helper function to log uncaught exceptions. Install with:
     `sys.excepthook = <module>.handle_exceptions`"""
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    logging.exception("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    logging.exception(
+        "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
+    )
+
 
 # def qt_message_handler(mode, context, message):
 #     if mode == QtCore.QtInfoMsg:

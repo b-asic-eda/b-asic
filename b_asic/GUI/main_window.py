@@ -4,40 +4,47 @@ This file opens the main window of the GUI for B-ASIC when run.
 """
 
 
-from pprint import pprint
-import os
 import importlib
 import logging
+import os
 import sys
+from pprint import pprint
 
+import numpy as np
+from qtpy.QtCore import QFileInfo, QSize, Qt
+from qtpy.QtGui import QIcon, QKeySequence, QPainter
+from qtpy.QtWidgets import (
+    QAction,
+    QApplication,
+    QFileDialog,
+    QGraphicsScene,
+    QGraphicsTextItem,
+    QGraphicsView,
+    QInputDialog,
+    QLineEdit,
+    QListWidgetItem,
+    QMainWindow,
+    QShortcut,
+)
+
+import b_asic.core_operations as c_oper
+import b_asic.special_operations as s_oper
 from b_asic.GUI.about_window import AboutWindow, FaqWindow, KeybindsWindow
+from b_asic.GUI.arrow import Arrow
 from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
-from b_asic.GUI.arrow import Arrow
 from b_asic.GUI.port_button import PortButton
-from b_asic.GUI.show_pc_window import ShowPCWindow
-from b_asic.GUI.utils import decorate_class, handle_error
-from b_asic.GUI.simulate_sfg_window import SimulateSFGWindow, Plot
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
+from b_asic.GUI.show_pc_window import ShowPCWindow
+from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
+from b_asic.GUI.utils import decorate_class, handle_error
+from b_asic.port import OutputPort
+from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.signal_flow_graph import SFG
 
 # from b_asic import FastSimulation
 from b_asic.simulation import Simulation as FastSimulation
-from b_asic.port import OutputPort
-from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Input, Output
-import b_asic.core_operations as c_oper
-import b_asic.special_operations as s_oper
-from b_asic.save_load_structure import sfg_to_python, python_to_sfg
-
-import numpy as np
-
-from qtpy.QtWidgets import (
-    QApplication, QMainWindow, QAction, QLineEdit, QListWidgetItem,
-    QGraphicsView, QGraphicsScene, QShortcut, QFileDialog, QGraphicsTextItem,
-    QInputDialog)
-from qtpy.QtCore import QFileInfo, QSize, Qt
-from qtpy.QtGui import QIcon, QKeySequence, QPainter
-
 
 MIN_WIDTH_SCENE = 600
 MIN_HEIGHT_SCENE = 520
@@ -50,7 +57,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.ui = Ui_main_window()
         self.ui.setupUi(self)
-        self.setWindowIcon(QIcon('small_logo.png'))
+        self.setWindowIcon(QIcon("small_logo.png"))
         self.scene = None
         self._operations_from_name = {}
         self.zoom = 1
@@ -69,14 +76,18 @@ class MainWindow(QMainWindow):
         self.logger = logging.getLogger(__name__)
         self.init_ui()
         self.add_operations_from_namespace(
-            c_oper, self.ui.core_operations_list)
+            c_oper, self.ui.core_operations_list
+        )
         self.add_operations_from_namespace(
-            s_oper, self.ui.special_operations_list)
+            s_oper, self.ui.special_operations_list
+        )
 
         self.shortcut_core = QShortcut(
-            QKeySequence("Ctrl+R"), self.ui.operation_box)
+            QKeySequence("Ctrl+R"), self.ui.operation_box
+        )
         self.shortcut_core.activated.connect(
-            self._refresh_operations_list_from_namespace)
+            self._refresh_operations_list_from_namespace
+        )
         self.scene.selectionChanged.connect(self._select_operations)
 
         self.move_button_index = 0
@@ -94,11 +105,14 @@ class MainWindow(QMainWindow):
         self.ui.aboutBASIC.triggered.connect(self.display_about_page)
         self.ui.keybindsBASIC.triggered.connect(self.display_keybinds_page)
         self.ui.core_operations_list.itemClicked.connect(
-            self.on_list_widget_item_clicked)
+            self.on_list_widget_item_clicked
+        )
         self.ui.special_operations_list.itemClicked.connect(
-            self.on_list_widget_item_clicked)
+            self.on_list_widget_item_clicked
+        )
         self.ui.custom_operations_list.itemClicked.connect(
-            self.on_list_widget_item_clicked)
+            self.on_list_widget_item_clicked
+        )
         self.ui.save_menu.triggered.connect(self.save_work)
         self.ui.load_menu.triggered.connect(self.load_work)
         self.ui.load_operations.triggered.connect(self.add_namespace)
@@ -115,7 +129,8 @@ class MainWindow(QMainWindow):
         self.logger.info("Finished setting up GUI")
         self.logger.info(
             "For questions please refer to 'Ctrl+?', or visit the 'Help' "
-            "section on the toolbar.")
+            "section on the toolbar."
+        )
 
     def init_ui(self):
         self.create_toolbar_view()
@@ -126,7 +141,8 @@ class MainWindow(QMainWindow):
         self.graphic_view = QGraphicsView(self.scene, self)
         self.graphic_view.setRenderHint(QPainter.Antialiasing)
         self.graphic_view.setGeometry(
-            self.ui.operation_box.width(), 20, self.width(), self.height())
+            self.ui.operation_box.width(), 20, self.width(), self.height()
+        )
         self.graphic_view.setDragMode(QGraphicsView.RubberBandDrag)
 
     def create_toolbar_view(self):
@@ -136,16 +152,20 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event):
         self.ui.operation_box.setGeometry(
-            10, 10, self.ui.operation_box.width(), self.height())
-        self.graphic_view.setGeometry(self.ui.operation_box.width(
-        ) + 20, 60, self.width() - self.ui.operation_box.width() - 20,
-            self.height()-30)
+            10, 10, self.ui.operation_box.width(), self.height()
+        )
+        self.graphic_view.setGeometry(
+            self.ui.operation_box.width() + 20,
+            60,
+            self.width() - self.ui.operation_box.width() - 20,
+            self.height() - 30,
+        )
         super().resizeEvent(event)
 
     def wheelEvent(self, event):
         if event.modifiers() == Qt.ControlModifier:
             old_zoom = self.zoom
-            self.zoom += event.angleDelta().y()/2500
+            self.zoom += event.angleDelta().y() / 2500
             self.graphic_view.scale(self.zoom, self.zoom)
             self.zoom = old_zoom
 
@@ -171,15 +191,21 @@ class MainWindow(QMainWindow):
         operation_positions = {}
         for op_drag, op_scene in self.dragOperationSceneDict.items():
             operation_positions[op_drag.operation.graph_id] = (
-                op_scene.x(), op_scene.y())
+                op_scene.x(),
+                op_scene.y(),
+            )
 
         try:
             with open(module, "w+") as file_obj:
-                file_obj.write(sfg_to_python(
-                    sfg, suffix=f"positions = {str(operation_positions)}"))
+                file_obj.write(
+                    sfg_to_python(
+                        sfg, suffix=f"positions = {str(operation_positions)}"
+                    )
+                )
         except Exception as e:
             self.logger.error(
-                f"Failed to save SFG to path: {module}, with error: {e}.")
+                f"Failed to save SFG to path: {module}, with error: {e}."
+            )
             return
 
         self.logger.info(f"Saved SFG to path: {module}.")
@@ -201,16 +227,19 @@ class MainWindow(QMainWindow):
             sfg, positions = python_to_sfg(module)
         except ImportError as e:
             self.logger.error(
-                f"Failed to load module: {module} with the following error: "
-                f"{e}.")
+                f"Failed to load module: {module} with the following error:"
+                f" {e}."
+            )
             return
 
         while sfg.name in self.sfg_dict:
             self.logger.warning(
                 f"Duplicate SFG with name: {sfg.name} detected. "
-                "Please choose a new name.")
+                "Please choose a new name."
+            )
             name, accepted = QInputDialog.getText(
-                self, "Change SFG Name", "Name: ", QLineEdit.Normal)
+                self, "Change SFG Name", "Name: ", QLineEdit.Normal
+            )
             if not accepted:
                 return
 
@@ -218,18 +247,29 @@ class MainWindow(QMainWindow):
 
         for op in sfg.split():
             self.create_operation(
-                op, positions[op.graph_id] if op.graph_id in positions else None)
+                op,
+                positions[op.graph_id] if op.graph_id in positions else None,
+            )
 
         def connect_ports(ports):
             for port in ports:
                 for signal in port.signals:
-                    source = [source for source in self.portDict[
-                        self.operationDragDict[signal.source.operation]]
-                        if source.port is signal.source]
-                    destination = [destination for destination in
-                                   self.portDict[self.operationDragDict[
-                                       signal.destination.operation]]
-                                   if destination.port is signal.destination]
+                    source = [
+                        source
+                        for source in self.portDict[
+                            self.operationDragDict[signal.source.operation]
+                        ]
+                        if source.port is signal.source
+                    ]
+                    destination = [
+                        destination
+                        for destination in self.portDict[
+                            self.operationDragDict[
+                                signal.destination.operation
+                            ]
+                        ]
+                        if destination.port is signal.destination
+                    ]
 
                     if source and destination:
                         self.connect_button(source[0], destination[0])
@@ -276,7 +316,8 @@ class MainWindow(QMainWindow):
                 outputs.append(op.operation)
 
         name, accepted = QInputDialog.getText(
-            self, "Create SFG", "Name: ", QLineEdit.Normal)
+            self, "Create SFG", "Name: ", QLineEdit.Normal
+        )
         if not accepted:
             return
 
@@ -285,55 +326,83 @@ class MainWindow(QMainWindow):
             return
 
         self.logger.info(
-            f"Creating SFG with name: {name} from selected operations.")
+            f"Creating SFG with name: {name} from selected operations."
+        )
 
         sfg = SFG(inputs=inputs, outputs=outputs, name=name)
         self.logger.info(
-            f"Created SFG with name: {name} from selected operations.")
+            f"Created SFG with name: {name} from selected operations."
+        )
 
         def check_equality(signal, signal_2):
-            if not (signal.source.operation.type_name() == signal_2.source.operation.type_name()
-                    and signal.destination.operation.type_name() == signal_2.destination.operation.type_name()):
+            if not (
+                signal.source.operation.type_name()
+                == signal_2.source.operation.type_name()
+                and signal.destination.operation.type_name()
+                == signal_2.destination.operation.type_name()
+            ):
                 return False
 
-            if (hasattr(signal.source.operation, "value") and
-                hasattr(signal_2.source.operation, "value") and
-                hasattr(signal.destination.operation, "value") and
-                hasattr(signal_2.destination.operation, "value")):
-                if not (signal.source.operation.value == signal_2.source.operation.value
-                        and signal.destination.operation.value == signal_2.destination.operation.value):
+            if (
+                hasattr(signal.source.operation, "value")
+                and hasattr(signal_2.source.operation, "value")
+                and hasattr(signal.destination.operation, "value")
+                and hasattr(signal_2.destination.operation, "value")
+            ):
+                if not (
+                    signal.source.operation.value
+                    == signal_2.source.operation.value
+                    and signal.destination.operation.value
+                    == signal_2.destination.operation.value
+                ):
                     return False
 
-            if (hasattr(signal.source.operation, "name") and
-                hasattr(signal_2.source.operation, "name") and
-                hasattr(signal.destination.operation, "name") and
-                hasattr(signal_2.destination.operation, "name")):
-                if not (signal.source.operation.name == signal_2.source.operation.name
-                        and signal.destination.operation.name == signal_2.destination.operation.name):
+            if (
+                hasattr(signal.source.operation, "name")
+                and hasattr(signal_2.source.operation, "name")
+                and hasattr(signal.destination.operation, "name")
+                and hasattr(signal_2.destination.operation, "name")
+            ):
+                if not (
+                    signal.source.operation.name
+                    == signal_2.source.operation.name
+                    and signal.destination.operation.name
+                    == signal_2.destination.operation.name
+                ):
                     return False
 
             try:
                 _signal_source_index = [
-                    signal.source.operation.outputs.index(port) for port in
-                    signal.source.operation.outputs if signal in port.signals]
+                    signal.source.operation.outputs.index(port)
+                    for port in signal.source.operation.outputs
+                    if signal in port.signals
+                ]
                 _signal_2_source_index = [
-                    signal_2.source.operation.outputs.index(port) for port in
-                    signal_2.source.operation.outputs if signal_2 in port.signals]
+                    signal_2.source.operation.outputs.index(port)
+                    for port in signal_2.source.operation.outputs
+                    if signal_2 in port.signals
+                ]
             except ValueError:
                 return False  # Signal output connections not matching
 
             try:
                 _signal_destination_index = [
-                    signal.destination.operation.inputs.index(port) for port in
-                    signal.destination.operation.inputs if signal in port.signals]
+                    signal.destination.operation.inputs.index(port)
+                    for port in signal.destination.operation.inputs
+                    if signal in port.signals
+                ]
                 _signal_2_destination_index = [
-                    signal_2.destination.operation.inputs.index(port) for port in
-                    signal_2.destination.operation.inputs if signal_2 in port.signals]
+                    signal_2.destination.operation.inputs.index(port)
+                    for port in signal_2.destination.operation.inputs
+                    if signal_2 in port.signals
+                ]
             except ValueError:
                 return False  # Signal input connections not matching
 
-            return (_signal_source_index == _signal_2_source_index and
-                    _signal_destination_index == _signal_2_destination_index)
+            return (
+                _signal_source_index == _signal_2_source_index
+                and _signal_destination_index == _signal_2_destination_index
+            )
 
         for _pressed_op in self.pressed_operations:
             for operation in sfg.operations:
@@ -341,15 +410,23 @@ class MainWindow(QMainWindow):
                     for signal in input_.signals:
                         for line in self.signalPortDict:
                             if check_equality(line.signal, signal):
-                                line.source.operation.operation = signal.source.operation
-                                line.destination.operation.operation = signal.destination.operation
+                                line.source.operation.operation = (
+                                    signal.source.operation
+                                )
+                                line.destination.operation.operation = (
+                                    signal.destination.operation
+                                )
 
                 for output_ in operation.outputs:
                     for signal in output_.signals:
                         for line in self.signalPortDict:
                             if check_equality(line.signal, signal):
-                                line.source.operation.operation = signal.source.operation
-                                line.destination.operation.operation = signal.destination.operation
+                                line.source.operation.operation = (
+                                    signal.source.operation
+                                )
+                                line.destination.operation.operation = (
+                                    signal.destination.operation
+                                )
 
         for op in self.pressed_operations:
             op.setToolTip(sfg.name)
@@ -370,16 +447,19 @@ class MainWindow(QMainWindow):
 
     def add_ports(self, operation):
         _output_ports_dist = self._determine_port_distance(
-            55 - 17, operation.operation.output_count)
+            55 - 17, operation.operation.output_count
+        )
         _input_ports_dist = self._determine_port_distance(
-            55 - 17, operation.operation.input_count)
+            55 - 17, operation.operation.input_count
+        )
         self.portDict[operation] = []
 
         print(_output_ports_dist)
         print(_input_ports_dist)
         for i, dist in enumerate(_input_ports_dist):
             port = PortButton(
-                ">", operation, operation.operation.input(i), self)
+                ">", operation, operation.operation.input(i), self
+            )
             self.portDict[operation].append(port)
             operation.ports.append(port)
             port.move(0, round(dist))
@@ -387,7 +467,8 @@ class MainWindow(QMainWindow):
 
         for i, dist in enumerate(_output_ports_dist):
             port = PortButton(
-                ">", operation, operation.operation.output(i), self)
+                ">", operation, operation.operation.output(i), self
+            )
             self.portDict[operation].append(port)
             operation.ports.append(port)
             port.move(55 - 12, round(dist))
@@ -395,9 +476,13 @@ class MainWindow(QMainWindow):
 
     def get_operations_from_namespace(self, namespace):
         self.logger.info(
-            f"Fetching operations from namespace: {namespace.__name__}.")
-        return [comp for comp in dir(namespace)
-                if hasattr(getattr(namespace, comp), "type_name")]
+            f"Fetching operations from namespace: {namespace.__name__}."
+        )
+        return [
+            comp
+            for comp in dir(namespace)
+            if hasattr(getattr(namespace, comp), "type_name")
+        ]
 
     def add_operations_from_namespace(self, namespace, _list):
         for attr_name in self.get_operations_from_namespace(namespace):
@@ -411,7 +496,8 @@ class MainWindow(QMainWindow):
                 pass
 
         self.logger.info(
-            f"Added operations from namespace: {namespace.__name__}.")
+            f"Added operations from namespace: {namespace.__name__}."
+        )
 
     def add_namespace(self):
         module, accepted = QFileDialog().getOpenFileName()
@@ -419,17 +505,20 @@ class MainWindow(QMainWindow):
             return
 
         spec = importlib.util.spec_from_file_location(
-            f"{QFileInfo(module).fileName()}", module)
+            f"{QFileInfo(module).fileName()}", module
+        )
         namespace = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(namespace)
 
         self.add_operations_from_namespace(
-            namespace, self.ui.custom_operations_list)
+            namespace, self.ui.custom_operations_list
+        )
 
     def create_operation(self, op, position=None):
         try:
             attr_button = DragButton(
-                op.graph_id, op, op.type_name().lower(), True, window=self)
+                op.graph_id, op, op.type_name().lower(), True, window=self
+            )
             if position is None:
                 attr_button.move(250, 100)
             else:
@@ -438,37 +527,49 @@ class MainWindow(QMainWindow):
             attr_button.setFixedSize(55, 55)
             attr_button.setStyleSheet(
                 "background-color: white; border-style: solid;"
-                "border-color: black; border-width: 2px")
+                "border-color: black; border-width: 2px"
+            )
             self.add_ports(attr_button)
 
-            icon_path = os.path.join(os.path.dirname(
-                __file__), "operation_icons", f"{op.type_name().lower()}.png")
+            icon_path = os.path.join(
+                os.path.dirname(__file__),
+                "operation_icons",
+                f"{op.type_name().lower()}.png",
+            )
             if not os.path.exists(icon_path):
-                icon_path = os.path.join(os.path.dirname(
-                    __file__), "operation_icons", "custom_operation.png")
+                icon_path = os.path.join(
+                    os.path.dirname(__file__),
+                    "operation_icons",
+                    "custom_operation.png",
+                )
             attr_button.setIcon(QIcon(icon_path))
             attr_button.setIconSize(QSize(55, 55))
             attr_button.setToolTip("No SFG")
-            attr_button.setStyleSheet(""" QToolTip { background-color: white;
-            color: black }""")
+            attr_button.setStyleSheet(
+                """ QToolTip { background-color: white;
+            color: black }"""
+            )
             attr_button.setParent(None)
             attr_button_scene = self.scene.addWidget(attr_button)
             if position is None:
                 attr_button_scene.moveBy(
-                    int(self.scene.width() / 2), int(self.scene.height() / 2))
+                    int(self.scene.width() / 2), int(self.scene.height() / 2)
+                )
             attr_button_scene.setFlag(attr_button_scene.ItemIsSelectable, True)
             operation_label = QGraphicsTextItem(op.name, attr_button_scene)
             if not self.is_show_names:
                 operation_label.setOpacity(0)
             operation_label.setTransformOriginPoint(
-                operation_label.boundingRect().center())
+                operation_label.boundingRect().center()
+            )
             operation_label.moveBy(10, -20)
             attr_button.add_label(operation_label)
             self.operationDragDict[op] = attr_button
             self.dragOperationSceneDict[attr_button] = attr_button_scene
         except Exception as e:
             self.logger.error(
-                f"Unexpected error occured while creating operation: {e}.")
+                f"Unexpected error occured while creating operation: {e}."
+            )
 
     def _create_operation_item(self, item):
         self.logger.info(f"Creating operation of type: {item.text()}.")
@@ -477,7 +578,8 @@ class MainWindow(QMainWindow):
             self.create_operation(attr_oper)
         except Exception as e:
             self.logger.error(
-                f"Unexpected error occured while creating operation: {e}.")
+                f"Unexpected error occured while creating operation: {e}."
+            )
 
     def _refresh_operations_list_from_namespace(self):
         self.logger.info("Refreshing operation list.")
@@ -485,9 +587,11 @@ class MainWindow(QMainWindow):
         self.ui.special_operations_list.clear()
 
         self.add_operations_from_namespace(
-            c_oper, self.ui.core_operations_list)
+            c_oper, self.ui.core_operations_list
+        )
         self.add_operations_from_namespace(
-            s_oper, self.ui.special_operations_list)
+            s_oper, self.ui.special_operations_list
+        )
         self.logger.info("Finished refreshing operation list.")
 
     def on_list_widget_item_clicked(self, item):
@@ -504,22 +608,32 @@ class MainWindow(QMainWindow):
     def _connect_button(self, *event):
         if len(self.pressed_ports) < 2:
             self.logger.warning(
-                "Cannot connect less than two ports. "
-                "Please select at least two.")
+                "Cannot connect less than two ports. Please select at least"
+                " two."
+            )
             return
 
         for i in range(len(self.pressed_ports) - 1):
-            source = self.pressed_ports[i] if isinstance(
-                self.pressed_ports[i].port, OutputPort) else self.pressed_ports[i + 1]
-            destination = self.pressed_ports[
-                i + 1] if source is not self.pressed_ports[i + 1] else self.pressed_ports[i]
+            source = (
+                self.pressed_ports[i]
+                if isinstance(self.pressed_ports[i].port, OutputPort)
+                else self.pressed_ports[i + 1]
+            )
+            destination = (
+                self.pressed_ports[i + 1]
+                if source is not self.pressed_ports[i + 1]
+                else self.pressed_ports[i]
+            )
             if source.port.operation is destination.port.operation:
                 self.logger.warning("Cannot connect to the same port")
                 continue
 
             if type(source.port) == type(destination.port):
                 self.logger.warning(
-                    f"Cannot connect port of type: {type(source.port).__name__} to port of type: {type(destination.port).__name__}.")
+                    "Cannot connect port of type:"
+                    f" {type(source.port).__name__} to port of type:"
+                    f" {type(destination.port).__name__}."
+                )
                 continue
 
             self.connect_button(source, destination)
@@ -529,11 +643,14 @@ class MainWindow(QMainWindow):
 
     def connect_button(self, source, destination):
         signal_exists = (
-            signal for signal in source.port.signals
-            if signal.destination is destination.port)
+            signal
+            for signal in source.port.signals
+            if signal.destination is destination.port
+        )
         self.logger.info(
             f"Connecting: {source.operation.operation.type_name()} "
-            f"-> {destination.operation.operation.type_name()}.")
+            f"-> {destination.operation.operation.type_name()}."
+        )
         try:
             line = Arrow(source, destination, self, signal=next(signal_exists))
         except StopIteration:
@@ -567,21 +684,26 @@ class MainWindow(QMainWindow):
         for sfg, properties in self.dialog.properties.items():
             self.logger.info(f"Simulating SFG with name: {sfg.name}.")
             simulation = FastSimulation(
-                sfg, input_providers=properties["input_values"])
+                sfg, input_providers=properties["input_values"]
+            )
             l_result = simulation.run_for(
                 properties["iteration_count"],
-                save_results=properties["all_results"])
+                save_results=properties["all_results"],
+            )
 
             print(f"{'=' * 10} {sfg.name} {'=' * 10}")
             pprint(
-                simulation.results if properties["all_results"] else l_result)
+                simulation.results if properties["all_results"] else l_result
+            )
             print(f"{'=' * 10} /{sfg.name} {'=' * 10}")
 
             if properties["show_plot"]:
                 self.logger.info(
-                    f"Opening plot for SFG with name: {sfg.name}.")
+                    f"Opening plot for SFG with name: {sfg.name}."
+                )
                 self.logger.info(
-                    "To save the plot press 'Ctrl+S' when the plot is focused.")
+                    "To save the plot press 'Ctrl+S' when the plot is focused."
+                )
                 self.plot = Plot(simulation, sfg, self)
                 self.plot.show()
 

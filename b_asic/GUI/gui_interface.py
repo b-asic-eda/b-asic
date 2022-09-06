@@ -21,20 +21,24 @@ class Ui_main_window(object):
         self.operation_box.setGeometry(QtCore.QRect(10, 10, 201, 531))
         self.operation_box.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.operation_box.setAutoFillBackground(False)
-        self.operation_box.setStyleSheet("QGroupBox { \n"
-"     border: 2px solid gray; \n"
-"     border-radius: 3px;\n"
-"     margin-top: 0.5em; \n"
-" } \n"
-"\n"
-"QGroupBox::title {\n"
-"    subcontrol-origin: margin;\n"
-"    left: 10px;\n"
-"    padding: 0 3px 0 3px;\n"
-"}")
-        self.operation_box.setAlignment(QtCore.Qt.AlignLeading|
-                                        QtCore.Qt.AlignLeft|
-                                        QtCore.Qt.AlignVCenter)
+        self.operation_box.setStyleSheet(
+            "QGroupBox { \n"
+            "     border: 2px solid gray; \n"
+            "     border-radius: 3px;\n"
+            "     margin-top: 0.5em; \n"
+            " } \n"
+            "\n"
+            "QGroupBox::title {\n"
+            "    subcontrol-origin: margin;\n"
+            "    left: 10px;\n"
+            "    padding: 0 3px 0 3px;\n"
+            "}"
+        )
+        self.operation_box.setAlignment(
+            QtCore.Qt.AlignLeading
+            | QtCore.Qt.AlignLeft
+            | QtCore.Qt.AlignVCenter
+        )
         self.operation_box.setFlat(False)
         self.operation_box.setCheckable(False)
         self.operation_box.setObjectName("operation_box")
@@ -45,12 +49,19 @@ class Ui_main_window(object):
         self.core_operations_page = QtWidgets.QWidget()
         self.core_operations_page.setGeometry(QtCore.QRect(0, 0, 171, 217))
         self.core_operations_page.setObjectName("core_operations_page")
-        self.core_operations_list = QtWidgets.QListWidget(self.core_operations_page)
+        self.core_operations_list = QtWidgets.QListWidget(
+            self.core_operations_page
+        )
         self.core_operations_list.setGeometry(QtCore.QRect(10, 0, 141, 211))
         self.core_operations_list.setMinimumSize(QtCore.QSize(141, 0))
-        self.core_operations_list.setEditTriggers(QtWidgets.QAbstractItemView.DoubleClicked|QtWidgets.QAbstractItemView.EditKeyPressed)
+        self.core_operations_list.setEditTriggers(
+            QtWidgets.QAbstractItemView.DoubleClicked
+            | QtWidgets.QAbstractItemView.EditKeyPressed
+        )
         self.core_operations_list.setDragEnabled(False)
-        self.core_operations_list.setDragDropMode(QtWidgets.QAbstractItemView.NoDragDrop)
+        self.core_operations_list.setDragDropMode(
+            QtWidgets.QAbstractItemView.NoDragDrop
+        )
         self.core_operations_list.setMovement(QtWidgets.QListView.Static)
         self.core_operations_list.setFlow(QtWidgets.QListView.TopToBottom)
         self.core_operations_list.setProperty("isWrapping", False)
@@ -65,14 +76,18 @@ class Ui_main_window(object):
         self.special_operations_page = QtWidgets.QWidget()
         self.special_operations_page.setGeometry(QtCore.QRect(0, 0, 171, 217))
         self.special_operations_page.setObjectName("special_operations_page")
-        self.special_operations_list = QtWidgets.QListWidget(self.special_operations_page)
+        self.special_operations_list = QtWidgets.QListWidget(
+            self.special_operations_page
+        )
         self.special_operations_list.setGeometry(QtCore.QRect(10, 0, 141, 211))
         self.special_operations_list.setObjectName("special_operations_list")
         self.operation_list.addItem(self.special_operations_page, "")
         self.custom_operations_page = QtWidgets.QWidget()
         self.custom_operations_page.setGeometry(QtCore.QRect(0, 0, 171, 217))
         self.custom_operations_page.setObjectName("custom_operations_page")
-        self.custom_operations_list = QtWidgets.QListWidget(self.custom_operations_page)
+        self.custom_operations_list = QtWidgets.QListWidget(
+            self.custom_operations_page
+        )
         self.custom_operations_list.setGeometry(QtCore.QRect(10, 0, 141, 211))
         self.custom_operations_list.setObjectName("custom_operations_list")
         self.operation_list.addItem(self.custom_operations_page, "")
@@ -82,7 +97,9 @@ class Ui_main_window(object):
         palette = QtGui.QPalette()
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.WindowText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Active, QtGui.QPalette.WindowText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 255, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Button, brush)
@@ -103,10 +120,14 @@ class Ui_main_window(object):
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Text, brush)
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.BrightText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Active, QtGui.QPalette.BrightText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.ButtonText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Active, QtGui.QPalette.ButtonText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Base, brush)
@@ -118,19 +139,29 @@ class Ui_main_window(object):
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Shadow, brush)
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.AlternateBase, brush)
+        palette.setBrush(
+            QtGui.QPalette.Active, QtGui.QPalette.AlternateBase, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 220))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.ToolTipBase, brush)
+        palette.setBrush(
+            QtGui.QPalette.Active, QtGui.QPalette.ToolTipBase, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.ToolTipText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Active, QtGui.QPalette.ToolTipText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0, 128))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.PlaceholderText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Active, QtGui.QPalette.PlaceholderText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.WindowText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Inactive, QtGui.QPalette.WindowText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 255, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Button, brush)
@@ -139,7 +170,9 @@ class Ui_main_window(object):
         palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Light, brush)
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Midlight, brush)
+        palette.setBrush(
+            QtGui.QPalette.Inactive, QtGui.QPalette.Midlight, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(127, 127, 127))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Dark, brush)
@@ -151,10 +184,14 @@ class Ui_main_window(object):
         palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Text, brush)
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.BrightText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Inactive, QtGui.QPalette.BrightText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.ButtonText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Inactive, QtGui.QPalette.ButtonText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Base, brush)
@@ -166,19 +203,29 @@ class Ui_main_window(object):
         palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Shadow, brush)
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.AlternateBase, brush)
+        palette.setBrush(
+            QtGui.QPalette.Inactive, QtGui.QPalette.AlternateBase, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 220))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.ToolTipBase, brush)
+        palette.setBrush(
+            QtGui.QPalette.Inactive, QtGui.QPalette.ToolTipBase, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.ToolTipText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Inactive, QtGui.QPalette.ToolTipText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0, 128))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.PlaceholderText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Inactive, QtGui.QPalette.PlaceholderText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(127, 127, 127))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 255, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Button, brush)
@@ -187,7 +234,9 @@ class Ui_main_window(object):
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Light, brush)
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Midlight, brush)
+        palette.setBrush(
+            QtGui.QPalette.Disabled, QtGui.QPalette.Midlight, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(127, 127, 127))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Dark, brush)
@@ -199,10 +248,14 @@ class Ui_main_window(object):
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Text, brush)
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.BrightText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Disabled, QtGui.QPalette.BrightText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(127, 127, 127))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Base, brush)
@@ -214,16 +267,24 @@ class Ui_main_window(object):
         palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.Shadow, brush)
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.AlternateBase, brush)
+        palette.setBrush(
+            QtGui.QPalette.Disabled, QtGui.QPalette.AlternateBase, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 220))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.ToolTipBase, brush)
+        palette.setBrush(
+            QtGui.QPalette.Disabled, QtGui.QPalette.ToolTipBase, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.ToolTipText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Disabled, QtGui.QPalette.ToolTipText, brush
+        )
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0, 128))
         brush.setStyle(QtCore.Qt.SolidPattern)
-        palette.setBrush(QtGui.QPalette.Disabled, QtGui.QPalette.PlaceholderText, brush)
+        palette.setBrush(
+            QtGui.QPalette.Disabled, QtGui.QPalette.PlaceholderText, brush
+        )
         self.menu_bar.setPalette(palette)
         self.menu_bar.setObjectName("menu_bar")
         self.file_menu = QtWidgets.QMenu(self.menu_bar)
@@ -291,28 +352,41 @@ class Ui_main_window(object):
         __sortingEnabled = self.core_operations_list.isSortingEnabled()
         self.core_operations_list.setSortingEnabled(False)
         self.core_operations_list.setSortingEnabled(__sortingEnabled)
-        self.operation_list.setItemText(self.operation_list.indexOf(self.core_operations_page), _translate("main_window", "Core operations"))
+        self.operation_list.setItemText(
+            self.operation_list.indexOf(self.core_operations_page),
+            _translate("main_window", "Core operations"),
+        )
         __sortingEnabled = self.special_operations_list.isSortingEnabled()
         self.special_operations_list.setSortingEnabled(False)
         self.special_operations_list.setSortingEnabled(__sortingEnabled)
-        self.operation_list.setItemText(self.operation_list.indexOf(self.special_operations_page), _translate("main_window", "Special operations"))
+        self.operation_list.setItemText(
+            self.operation_list.indexOf(self.special_operations_page),
+            _translate("main_window", "Special operations"),
+        )
         __sortingEnabled = self.special_operations_list.isSortingEnabled()
         self.custom_operations_list.setSortingEnabled(False)
         self.custom_operations_list.setSortingEnabled(__sortingEnabled)
-        self.operation_list.setItemText(self.operation_list.indexOf(self.custom_operations_page), _translate("main_window", "Custom operation"))
+        self.operation_list.setItemText(
+            self.operation_list.indexOf(self.custom_operations_page),
+            _translate("main_window", "Custom operation"),
+        )
         self.file_menu.setTitle(_translate("main_window", "File"))
         self.edit_menu.setTitle(_translate("main_window", "Edit"))
         self.view_menu.setTitle(_translate("main_window", "View"))
         self.run_menu.setTitle(_translate("main_window", "Run"))
         self.actionShowPC.setText(_translate("main_window", "Show PG"))
         self.help_menu.setTitle(_translate("main_window", "Help"))
-        self.actionSimulateSFG.setText(_translate("main_window", "Simulate SFG"))
+        self.actionSimulateSFG.setText(
+            _translate("main_window", "Simulate SFG")
+        )
         self.aboutBASIC.setText(_translate("main_window", "About B-ASIC"))
         self.faqBASIC.setText(_translate("main_window", "FAQ"))
         self.keybindsBASIC.setText(_translate("main_window", "Keybinds"))
         self.load_menu.setText(_translate("main_window", "Load SFG"))
         self.save_menu.setText(_translate("main_window", "Save SFG"))
-        self.load_operations.setText(_translate("main_window", "Load operations"))
+        self.load_operations.setText(
+            _translate("main_window", "Load operations")
+        )
         self.exit_menu.setText(_translate("main_window", "Exit"))
         self.exit_menu.setShortcut(_translate("main_window", "Ctrl+Q"))
         self.actionToolbar.setText(_translate("main_window", "Toolbar"))
@@ -320,6 +394,7 @@ class Ui_main_window(object):
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     main_window = QtWidgets.QMainWindow()
     ui = Ui_main_window()

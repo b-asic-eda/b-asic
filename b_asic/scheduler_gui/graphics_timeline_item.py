@@ -6,11 +6,11 @@ B-ASIC Scheduler-gui Graphics Timeline Item Module.
 Contains the a scheduler-gui GraphicsTimelineItem class for drawing and
 maintain the timeline in a graph.
 """
-from typing     import Optional, overload, List
+from typing import List, Optional, overload
 
 # QGraphics and QPainter imports
-from qtpy.QtCore    import Qt, QLineF
-from qtpy.QtGui     import QCursor
+from qtpy.QtCore import QLineF, Qt
+from qtpy.QtGui import QCursor
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsLineItem, QGraphicsTextItem
 
 
@@ -18,10 +18,12 @@ class GraphicsTimelineItem(QGraphicsLineItem):
     """A class to represent the timeline in GraphicsAxesItem."""
 
     # _scale:             float
-    _delta_time_label:  QGraphicsTextItem
+    _delta_time_label: QGraphicsTextItem
 
     @overload
-    def __init__(self, line: QLineF, parent: Optional[QGraphicsItem] = None) -> None:
+    def __init__(
+        self, line: QLineF, parent: Optional[QGraphicsItem] = None
+    ) -> None:
         """
         Constructs a GraphicsTimelineItem out of 'line'. 'parent' is passed to
         QGraphicsLineItem's constructor.
@@ -33,8 +35,14 @@ class GraphicsTimelineItem(QGraphicsLineItem):
         QGraphicsLineItem's constructor."""
 
     @overload
-    def __init__(self, x1: float, y1: float, x2: float, y2: float,
-                 parent: Optional[QGraphicsItem] = None) -> None:
+    def __init__(
+        self,
+        x1: float,
+        y1: float,
+        x2: float,
+        y2: float,
+        parent: Optional[QGraphicsItem] = None,
+    ) -> None:
         """
         Constructs a GraphicsTimelineItem from (x1, y1) to (x2, y2). 'parent'
         is passed to QGraphicsLineItem's constructor.
@@ -43,21 +51,29 @@ class GraphicsTimelineItem(QGraphicsLineItem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.setFlag(QGraphicsItem.ItemIsMovable)       # mouse move events
+        self.setFlag(QGraphicsItem.ItemIsMovable)  # mouse move events
         # self.setAcceptHoverEvents(True)                 # mouse hover events
-        self.setAcceptedMouseButtons(Qt.LeftButton)     # accepted buttons for movements
-        self.setCursor(QCursor(Qt.SizeHorCursor))       # default cursor when hovering over object
+        self.setAcceptedMouseButtons(
+            Qt.LeftButton
+        )  # accepted buttons for movements
+        self.setCursor(
+            QCursor(Qt.SizeHorCursor)
+        )  # default cursor when hovering over object
 
         self._delta_time_label = QGraphicsTextItem()
         self._delta_time_label.hide()
-        self._delta_time_label.setScale(1.05/75)        # TODO: dont hardcode scale
+        self._delta_time_label.setScale(1.05 / 75)  # TODO: dont hardcode scale
         self._delta_time_label.setParentItem(self)
-        x_pos = - self._delta_time_label.mapRectToParent(self._delta_time_label.boundingRect()).width()/2
+        x_pos = (
+            -self._delta_time_label.mapRectToParent(
+                self._delta_time_label.boundingRect()
+            ).width()
+            / 2
+        )
         y_pos = 0.5
         self._delta_time_label.setPos(x_pos, y_pos)
         # pen = QPen(Qt.black)
         # self._delta_time_label.setPen(pen)
-
 
     # @property
     # def label(self) -> None:
@@ -66,8 +82,13 @@ class GraphicsTimelineItem(QGraphicsLineItem):
     def set_text(self, number: int) -> None:
         """Set the label text to 'number'."""
         # self.prepareGeometryChange()
-        self._delta_time_label.setPlainText(f'( {number:+} )')
-        self._delta_time_label.setX(- self._delta_time_label.mapRectToParent(self._delta_time_label.boundingRect()).width()/2)
+        self._delta_time_label.setPlainText(f"( {number:+} )")
+        self._delta_time_label.setX(
+            -self._delta_time_label.mapRectToParent(
+                self._delta_time_label.boundingRect()
+            ).width()
+            / 2
+        )
 
     # def set_text_pen(self, pen: QPen) -> None:
     #     """Set the label pen to 'pen'."""

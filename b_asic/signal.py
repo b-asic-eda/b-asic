@@ -2,9 +2,14 @@
 
 Contains the class for representing the connections between operations.
 """
-from typing import Optional, Iterable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, Optional
 
-from b_asic.graph_component import GraphComponent, AbstractGraphComponent, TypeName, Name
+from b_asic.graph_component import (
+    AbstractGraphComponent,
+    GraphComponent,
+    Name,
+    TypeName,
+)
 
 if TYPE_CHECKING:
     from b_asic.port import InputPort, OutputPort
@@ -16,7 +21,13 @@ class Signal(AbstractGraphComponent):
     _source: Optional["OutputPort"]
     _destination: Optional["InputPort"]
 
-    def __init__(self, source: Optional["OutputPort"] = None, destination: Optional["InputPort"] = None, bits: Optional[int] = None, name: Name = ""):
+    def __init__(
+        self,
+        source: Optional["OutputPort"] = None,
+        destination: Optional["InputPort"] = None,
+        bits: Optional[int] = None,
+        name: Name = "",
+    ):
         """Construct a Signal."""
         super().__init__(name)
         self._source = None
@@ -33,7 +44,11 @@ class Signal(AbstractGraphComponent):
 
     @property
     def neighbors(self) -> Iterable[GraphComponent]:
-        return [p.operation for p in [self.source, self.destination] if p is not None]
+        return [
+            p.operation
+            for p in [self.source, self.destination]
+            if p is not None
+        ]
 
     @property
     def source(self) -> Optional["OutputPort"]:
@@ -105,6 +120,7 @@ class Signal(AbstractGraphComponent):
     def bits(self, bits: Optional[int]) -> None:
         """Set the number of bits that operations using this signal as an input should truncate received values to.
         None = unlimited."""
-        assert bits is None or (isinstance(bits, int)
-                                and bits >= 0), "Bits must be non-negative."
+        assert bits is None or (
+            isinstance(bits, int) and bits >= 0
+        ), "Bits must be non-negative."
         self.set_param("bits", bits)

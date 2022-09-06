@@ -1,5 +1,5 @@
-from qtpy.QtWidgets import QDialog, QPushButton, QVBoxLayout, QComboBox
 from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import QComboBox, QDialog, QPushButton, QVBoxLayout
 
 
 class SelectSFGWindow(QDialog):

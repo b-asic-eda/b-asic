@@ -5,10 +5,10 @@ Contains classes for managing the ports of operations.
 
 from abc import ABC, abstractmethod
 from copy import copy
-from typing import Optional, List, Iterable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, List, Optional
 
-from b_asic.signal import Signal
 from b_asic.graph_component import Name
+from b_asic.signal import Signal
 
 if TYPE_CHECKING:
     from b_asic.operation import Operation
@@ -97,7 +97,12 @@ class AbstractPort(Port):
     _index: int
     _latency_offset: Optional[int]
 
-    def __init__(self, operation: "Operation", index: int, latency_offset: Optional[int] = None):
+    def __init__(
+        self,
+        operation: "Operation",
+        index: int,
+        latency_offset: Optional[int] = None,
+    ):
         """Construct a port of the given operation at the given port index."""
         self._operation = operation
         self._index = index
@@ -156,13 +161,19 @@ class InputPort(AbstractPort):
         return [] if self._source_signal is None else [self._source_signal]
 
     def add_signal(self, signal: Signal) -> None:
-        assert self._source_signal is None, "Input port may have only one signal added."
-        assert signal is not self._source_signal, "Attempted to add already connected signal."
+        assert (
+            self._source_signal is None
+        ), "Input port may have only one signal added."
+        assert (
+            signal is not self._source_signal
+        ), "Attempted to add already connected signal."
         self._source_signal = signal
         signal.set_destination(self)
 
     def remove_signal(self, signal: Signal) -> None:
-        assert signal is self._source_signal, "Attempted to remove signal that is not connected."
+        assert (
+            signal is self._source_signal
+        ), "Attempted to remove signal that is not connected."
         self._source_signal = None
         signal.remove_destination()
 
@@ -175,13 +186,17 @@ class InputPort(AbstractPort):
         """Get the output port that is currently connected to this input port,
         or None if it is unconnected.
         """
-        return None if self._source_signal is None else self._source_signal.source
+        return (
+            None if self._source_signal is None else self._source_signal.source
+        )
 
     def connect(self, src: SignalSourceProvider, name: Name = "") -> Signal:
         """Connect the provided signal source to this input port by creating a new signal.
         Returns the new signal.
         """
-        assert self._source_signal is None, "Attempted to connect already connected input port."
+        assert (
+            self._source_signal is None
+        ), "Attempted to connect already connected input port."
         # self._source_signal is set by the signal constructor.
         return Signal(source=src.source, destination=self, name=name)
 
@@ -214,12 +229,16 @@ class OutputPort(AbstractPort, SignalSourceProvider):
         return self._destination_signals
 
     def add_signal(self, signal: Signal) -> None:
-        assert signal not in self._destination_signals, "Attempted to add already connected signal."
+        assert (
+            signal not in self._destination_signals
+        ), "Attempted to add already connected signal."
         self._destination_signals.append(signal)
         signal.set_source(self)
 
     def remove_signal(self, signal: Signal) -> None:
-        assert signal in self._destination_signals, "Attempted to remove signal that is not connected."
+        assert (
+            signal in self._destination_signals
+        ), "Attempted to remove signal that is not connected."
         self._destination_signals.remove(signal)
         signal.remove_source()
 

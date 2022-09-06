@@ -3,16 +3,28 @@
 Contains the base for operations that are used by B-ASIC.
 """
 
-from b_asic.signal import Signal
-from b_asic.port import SignalSourceProvider, InputPort, OutputPort
-from b_asic.graph_component import GraphComponent, AbstractGraphComponent, Name
-import itertools as it
 import collections
-
+import itertools as it
 from abc import abstractmethod
 from numbers import Number
-from typing import NewType, List, Dict, Sequence, Iterable, Mapping, MutableMapping, Optional, Any, Set, Union, Tuple
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    NewType,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
+from b_asic.graph_component import AbstractGraphComponent, GraphComponent, Name
+from b_asic.port import InputPort, OutputPort, SignalSourceProvider
+from b_asic.signal import Signal
 
 ResultKey = NewType("ResultKey", str)
 ResultMap = Mapping[ResultKey, Optional[Number]]
@@ -47,21 +59,27 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def __sub__(self, src: Union[SignalSourceProvider, Number]) -> "Subtraction":
+    def __sub__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Subtraction":
         """Overloads the subtraction operator to make it return a new Subtraction operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def __rsub__(self, src: Union[SignalSourceProvider, Number]) -> "Subtraction":
+    def __rsub__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Subtraction":
         """Overloads the subtraction operator to make it return a new Subtraction operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def __mul__(self, src: Union[SignalSourceProvider, Number]) -> "Union[Multiplication, ConstantMultiplication]":
+    def __mul__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Union[Multiplication, ConstantMultiplication]":
         """Overloads the multiplication operator to make it return a new Multiplication operation
         object that is connected to the self and other objects. If other is a number then
         returns a ConstantMultiplication operation object instead.
@@ -69,7 +87,9 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def __rmul__(self, src: Union[SignalSourceProvider, Number]) -> "Union[Multiplication, ConstantMultiplication]":
+    def __rmul__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Union[Multiplication, ConstantMultiplication]":
         """Overloads the multiplication operator to make it return a new Multiplication operation
         object that is connected to the self and other objects. If other is a number then
         returns a ConstantMultiplication operation object instead.
@@ -77,14 +97,18 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def __truediv__(self, src: Union[SignalSourceProvider, Number]) -> "Division":
+    def __truediv__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Division":
         """Overloads the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def __rtruediv__(self, src: Union[SignalSourceProvider, Number]) -> "Division":
+    def __rtruediv__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Division":
         """Overloads the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
         """
@@ -156,7 +180,9 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def current_output(self, index: int, delays: Optional[DelayMap] = None, prefix: str = "") -> Optional[Number]:
+    def current_output(
+        self, index: int, delays: Optional[DelayMap] = None, prefix: str = ""
+    ) -> Optional[Number]:
         """Get the current output at the given index of this operation, if available.
         The delays parameter will be used for lookup.
         The prefix parameter will be used as a prefix for the key string when looking for delays.
@@ -165,7 +191,16 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def evaluate_output(self, index: int, input_values: Sequence[Number], results: Optional[MutableResultMap] = None, delays: Optional[MutableDelayMap] = None, prefix: str = "", bits_override: Optional[int] = None, truncate: bool = True) -> Number:
+    def evaluate_output(
+        self,
+        index: int,
+        input_values: Sequence[Number],
+        results: Optional[MutableResultMap] = None,
+        delays: Optional[MutableDelayMap] = None,
+        prefix: str = "",
+        bits_override: Optional[int] = None,
+        truncate: bool = True,
+    ) -> Number:
         """Evaluate the output at the given index of this operation with the given input values.
         The results parameter will be used to store any results (including intermediate results) for caching.
         The delays parameter will be used to get the current value of any intermediate delays that are encountered, and be updated with their new values.
@@ -177,14 +212,24 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def current_outputs(self, delays: Optional[DelayMap] = None, prefix: str = "") -> Sequence[Optional[Number]]:
+    def current_outputs(
+        self, delays: Optional[DelayMap] = None, prefix: str = ""
+    ) -> Sequence[Optional[Number]]:
         """Get all current outputs of this operation, if available.
         See current_output for more information.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def evaluate_outputs(self, input_values: Sequence[Number], results: Optional[MutableResultMap] = None, delays: Optional[MutableDelayMap] = None, prefix: str = "", bits_override: Optional[int] = None, truncate: bool = True) -> Sequence[Number]:
+    def evaluate_outputs(
+        self,
+        input_values: Sequence[Number],
+        results: Optional[MutableResultMap] = None,
+        delays: Optional[MutableDelayMap] = None,
+        prefix: str = "",
+        bits_override: Optional[int] = None,
+        truncate: bool = True,
+    ) -> Sequence[Number]:
         """Evaluate all outputs of this operation given the input values.
         See evaluate_output for more information.
         """
@@ -264,7 +309,9 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def get_plot_coordinates(self) -> Tuple[List[List[Number]], List[List[Number]]]:
+    def get_plot_coordinates(
+        self,
+    ) -> Tuple[List[List[Number]], List[List[Number]]]:
         """Get a tuple constaining coordinates for the two polygons outlining
         the latency and execution time of the operation.
         The polygons are corresponding to a start time of 0 and are of height 1.
@@ -272,7 +319,9 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def get_io_coordinates(self) -> Tuple[List[List[Number]], List[List[Number]]]:
+    def get_io_coordinates(
+        self,
+    ) -> Tuple[List[List[Number]], List[List[Number]]]:
         """Get a tuple constaining coordinates for inputs and outputs, respectively.
         These maps to the polygons and are corresponding to a start time of 0
         and height 1.
@@ -291,7 +340,17 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     _output_ports: List[OutputPort]
     _execution_time: Union[int, None] = None
 
-    def __init__(self, input_count: int, output_count: int, name: Name = "", input_sources: Optional[Sequence[Optional[SignalSourceProvider]]] = None, latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        input_count: int,
+        output_count: int,
+        name: Name = "",
+        input_sources: Optional[
+            Sequence[Optional[SignalSourceProvider]]
+        ] = None,
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct an operation with the given input/output count.
 
         A list of input sources may be specified to automatically connect
@@ -310,13 +369,19 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             source_count = len(input_sources)
             if source_count != input_count:
                 raise ValueError(
-                    f"Wrong number of input sources supplied to Operation (expected {input_count}, got {source_count})")
+                    "Wrong number of input sources supplied to Operation"
+                    f" (expected {input_count}, got {source_count})"
+                )
             for i, src in enumerate(input_sources):
                 if src is not None:
                     self._input_ports[i].connect(src.source)
 
-        ports_without_latency_offset = set(([f"in{i}" for i in range(self.input_count)] +
-                                            [f"out{i}" for i in range(self.output_count)]))
+        ports_without_latency_offset = set(
+            (
+                [f"in{i}" for i in range(self.input_count)]
+                + [f"out{i}" for i in range(self.output_count)]
+            )
+        )
 
         if latency_offsets is not None:
             self.set_latency_offsets(latency_offsets)
@@ -338,49 +403,97 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def __add__(self, src: Union[SignalSourceProvider, Number]) -> "Addition":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Addition
-        return Addition(self, Constant(src) if isinstance(src, Number) else src)
+        from b_asic.core_operations import Addition, Constant
+
+        return Addition(
+            self, Constant(src) if isinstance(src, Number) else src
+        )
 
     def __radd__(self, src: Union[SignalSourceProvider, Number]) -> "Addition":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Addition
-        return Addition(Constant(src) if isinstance(src, Number) else src, self)
+        from b_asic.core_operations import Addition, Constant
 
-    def __sub__(self, src: Union[SignalSourceProvider, Number]) -> "Subtraction":
+        return Addition(
+            Constant(src) if isinstance(src, Number) else src, self
+        )
+
+    def __sub__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Subtraction":
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Subtraction
-        return Subtraction(self, Constant(src) if isinstance(src, Number) else src)
 
-    def __rsub__(self, src: Union[SignalSourceProvider, Number]) -> "Subtraction":
+        return Subtraction(
+            self, Constant(src) if isinstance(src, Number) else src
+        )
+
+    def __rsub__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Subtraction":
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Subtraction
-        return Subtraction(Constant(src) if isinstance(src, Number) else src, self)
 
-    def __mul__(self, src: Union[SignalSourceProvider, Number]) -> "Union[Multiplication, ConstantMultiplication]":
+        return Subtraction(
+            Constant(src) if isinstance(src, Number) else src, self
+        )
+
+    def __mul__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Union[Multiplication, ConstantMultiplication]":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Multiplication, ConstantMultiplication
-        return ConstantMultiplication(src, self) if isinstance(src, Number) else Multiplication(self, src)
+        from b_asic.core_operations import (
+            ConstantMultiplication,
+            Multiplication,
+        )
 
-    def __rmul__(self, src: Union[SignalSourceProvider, Number]) -> "Union[Multiplication, ConstantMultiplication]":
+        return (
+            ConstantMultiplication(src, self)
+            if isinstance(src, Number)
+            else Multiplication(self, src)
+        )
+
+    def __rmul__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Union[Multiplication, ConstantMultiplication]":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Multiplication, ConstantMultiplication
-        return ConstantMultiplication(src, self) if isinstance(src, Number) else Multiplication(src, self)
+        from b_asic.core_operations import (
+            ConstantMultiplication,
+            Multiplication,
+        )
 
-    def __truediv__(self, src: Union[SignalSourceProvider, Number]) -> "Division":
+        return (
+            ConstantMultiplication(src, self)
+            if isinstance(src, Number)
+            else Multiplication(src, self)
+        )
+
+    def __truediv__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Division":
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Division
-        return Division(self, Constant(src) if isinstance(src, Number) else src)
 
-    def __rtruediv__(self, src: Union[SignalSourceProvider, Number]) -> "Division":
+        return Division(
+            self, Constant(src) if isinstance(src, Number) else src
+        )
+
+    def __rtruediv__(
+        self, src: Union[SignalSourceProvider, Number]
+    ) -> "Division":
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Division
-        return Division(Constant(src) if isinstance(src, Number) else src, self)
+
+        return Division(
+            Constant(src) if isinstance(src, Number) else src, self
+        )
 
     def __lshift__(self, src: SignalSourceProvider) -> Signal:
         if self.input_count != 1:
             diff = "more" if self.input_count > 1 else "less"
             raise TypeError(
-                f"{self.__class__.__name__} cannot be used as a destination because it has {diff} than 1 input")
+                f"{self.__class__.__name__} cannot be used as a destination"
+                f" because it has {diff} than 1 input"
+            )
         return self.input(0).connect(src)
 
     def __str__(self) -> str:
@@ -388,7 +501,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         inputs_dict = {}
         for i, port in enumerate(self.inputs):
             if port.signal_count == 0:
-                inputs_dict[i] = '-'
+                inputs_dict[i] = "-"
                 break
             dict_ele = []
             for signal in port.signals:
@@ -407,7 +520,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         outputs_dict = {}
         for i, port in enumerate(self.outputs):
             if port.signal_count == 0:
-                outputs_dict[i] = '-'
+                outputs_dict[i] = "-"
                 break
             dict_ele = []
             for signal in port.signals:
@@ -423,7 +536,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                         dict_ele.append("no_id")
             outputs_dict[i] = dict_ele
 
-        return super().__str__() + f", \tinputs: {str(inputs_dict)}, \toutputs: {str(outputs_dict)}"
+        return (
+            super().__str__()
+            + f", \tinputs: {str(inputs_dict)}, \toutputs: {str(outputs_dict)}"
+        )
 
     @property
     def input_count(self) -> int:
@@ -473,49 +589,102 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             key = str(index)
         return key
 
-    def current_output(self, index: int, delays: Optional[DelayMap] = None, prefix: str = "") -> Optional[Number]:
+    def current_output(
+        self, index: int, delays: Optional[DelayMap] = None, prefix: str = ""
+    ) -> Optional[Number]:
         return None
 
-    def evaluate_output(self, index: int, input_values: Sequence[Number], results: Optional[MutableResultMap] = None, delays: Optional[MutableDelayMap] = None, prefix: str = "", bits_override: Optional[int] = None, truncate: bool = True) -> Number:
+    def evaluate_output(
+        self,
+        index: int,
+        input_values: Sequence[Number],
+        results: Optional[MutableResultMap] = None,
+        delays: Optional[MutableDelayMap] = None,
+        prefix: str = "",
+        bits_override: Optional[int] = None,
+        truncate: bool = True,
+    ) -> Number:
         if index < 0 or index >= self.output_count:
             raise IndexError(
-                f"Output index out of range (expected 0-{self.output_count - 1}, got {index})")
+                "Output index out of range (expected"
+                f" 0-{self.output_count - 1}, got {index})"
+            )
         if len(input_values) != self.input_count:
             raise ValueError(
-                f"Wrong number of input values supplied to operation (expected {self.input_count}, got {len(input_values)})")
+                "Wrong number of input values supplied to operation (expected"
+                f" {self.input_count}, got {len(input_values)})"
+            )
 
         values = self.evaluate(
-            *(self.truncate_inputs(input_values, bits_override) if truncate else input_values))
+            *(
+                self.truncate_inputs(input_values, bits_override)
+                if truncate
+                else input_values
+            )
+        )
         if isinstance(values, collections.abc.Sequence):
             if len(values) != self.output_count:
                 raise RuntimeError(
-                    f"Operation evaluated to incorrect number of outputs (expected {self.output_count}, got {len(values)})")
+                    "Operation evaluated to incorrect number of outputs"
+                    f" (expected {self.output_count}, got {len(values)})"
+                )
         elif isinstance(values, Number):
             if self.output_count != 1:
                 raise RuntimeError(
-                    f"Operation evaluated to incorrect number of outputs (expected {self.output_count}, got 1)")
+                    "Operation evaluated to incorrect number of outputs"
+                    f" (expected {self.output_count}, got 1)"
+                )
             values = (values,)
         else:
             raise RuntimeError(
-                f"Operation evaluated to invalid type (expected Sequence/Number, got {values.__class__.__name__})")
+                "Operation evaluated to invalid type (expected"
+                f" Sequence/Number, got {values.__class__.__name__})"
+            )
 
         if results is not None:
             for i in range(self.output_count):
                 results[self.key(i, prefix)] = values[i]
         return values[index]
 
-    def current_outputs(self, delays: Optional[DelayMap] = None, prefix: str = "") -> Sequence[Optional[Number]]:
-        return [self.current_output(i, delays, prefix) for i in range(self.output_count)]
+    def current_outputs(
+        self, delays: Optional[DelayMap] = None, prefix: str = ""
+    ) -> Sequence[Optional[Number]]:
+        return [
+            self.current_output(i, delays, prefix)
+            for i in range(self.output_count)
+        ]
 
-    def evaluate_outputs(self, input_values: Sequence[Number], results: Optional[MutableResultMap] = None, delays: Optional[MutableDelayMap] = None, prefix: str = "", bits_override: Optional[int] = None, truncate: bool = True) -> Sequence[Number]:
-        return [self.evaluate_output(i, input_values, results, delays, prefix, bits_override, truncate) for i in range(self.output_count)]
+    def evaluate_outputs(
+        self,
+        input_values: Sequence[Number],
+        results: Optional[MutableResultMap] = None,
+        delays: Optional[MutableDelayMap] = None,
+        prefix: str = "",
+        bits_override: Optional[int] = None,
+        truncate: bool = True,
+    ) -> Sequence[Number]:
+        return [
+            self.evaluate_output(
+                i,
+                input_values,
+                results,
+                delays,
+                prefix,
+                bits_override,
+                truncate,
+            )
+            for i in range(self.output_count)
+        ]
 
     def split(self) -> Iterable[Operation]:
         # Import here to avoid circular imports.
         from b_asic.special_operations import Input
+
         try:
             result = self.evaluate(*([Input()] * self.input_count))
-            if isinstance(result, collections.Sequence) and all(isinstance(e, Operation) for e in result):
+            if isinstance(result, collections.Sequence) and all(
+                isinstance(e, Operation) for e in result
+            ):
                 return result
             if isinstance(result, Operation):
                 return [result]
@@ -527,8 +696,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def to_sfg(self) -> "SFG":
         # Import here to avoid circular imports.
-        from b_asic.special_operations import Input, Output
         from b_asic.signal_flow_graph import SFG
+        from b_asic.special_operations import Input, Output
 
         inputs = [Input() for i in range(self.input_count)]
 
@@ -561,7 +730,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
         if output_index < 0 or output_index >= self.output_count:
             raise IndexError(
-                f"Output index out of range (expected 0-{self.output_count - 1}, got {output_index})")
+                "Output index out of range (expected"
+                f" 0-{self.output_count - 1}, got {output_index})"
+            )
         # By default, assume each output depends on all inputs.
         return list(range(self.input_count))
 
@@ -572,25 +743,39 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @property
     def preceding_operations(self) -> Iterable[Operation]:
         """Returns an Iterable of all Operations that are connected to this Operations input ports."""
-        return [signal.source.operation for signal in self.input_signals if signal.source]
+        return [
+            signal.source.operation
+            for signal in self.input_signals
+            if signal.source
+        ]
 
     @property
     def subsequent_operations(self) -> Iterable[Operation]:
         """Returns an Iterable of all Operations that are connected to this Operations output ports."""
-        return [signal.destination.operation for signal in self.output_signals if signal.destination]
+        return [
+            signal.destination.operation
+            for signal in self.output_signals
+            if signal.destination
+        ]
 
     @property
     def source(self) -> OutputPort:
         if self.output_count != 1:
             diff = "more" if self.output_count > 1 else "less"
             raise TypeError(
-                f"{self.__class__.__name__} cannot be used as an input source because it has {diff} than 1 output")
+                f"{self.__class__.__name__} cannot be used as an input source"
+                f" because it has {diff} than 1 output"
+            )
         return self.output(0)
 
     def truncate_input(self, index: int, value: Number, bits: int) -> Number:
-        return int(value) & ((2 ** bits) - 1)
+        return int(value) & ((2**bits) - 1)
 
-    def truncate_inputs(self, input_values: Sequence[Number], bits_override: Optional[int] = None) -> Sequence[Number]:
+    def truncate_inputs(
+        self,
+        input_values: Sequence[Number],
+        bits_override: Optional[int] = None,
+    ) -> Sequence[Number]:
         """Truncate the values to be used as inputs to the bit lengths specified by the respective signals connected to each input."""
         args = []
         for i, input_port in enumerate(self.inputs):
@@ -601,18 +786,29 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             if bits_override is not None:
                 if isinstance(value, complex):
                     raise TypeError(
-                        "Complex value cannot be truncated to {bits} bits as requested by the signal connected to input #{i}")
+                        "Complex value cannot be truncated to {bits} bits as"
+                        " requested by the signal connected to input #{i}"
+                    )
                 value = self.truncate_input(i, value, bits)
             args.append(value)
         return args
 
     @property
     def latency(self) -> int:
-        if None in [inp.latency_offset for inp in self.inputs] or None in [outp.latency_offset for outp in self.outputs]:
+        if None in [inp.latency_offset for inp in self.inputs] or None in [
+            outp.latency_offset for outp in self.outputs
+        ]:
             raise ValueError(
-                "All native offsets have to set to a non-negative value to calculate the latency.")
+                "All native offsets have to set to a non-negative value to"
+                " calculate the latency."
+            )
 
-        return max(((outp.latency_offset - inp.latency_offset) for outp, inp in it.product(self.outputs, self.inputs)))
+        return max(
+            (
+                (outp.latency_offset - inp.latency_offset)
+                for outp, inp in it.product(self.outputs, self.inputs)
+            )
+        )
 
     @property
     def latency_offsets(self) -> Sequence[Sequence[int]]:
@@ -638,15 +834,23 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             port_str = port_str.lower()
             if port_str.startswith("in"):
                 index_str = port_str[2:]
-                assert index_str.isdigit(), f"Incorrectly formatted index in string, expected 'in' + index, got: {port_str!r}"
+                assert index_str.isdigit(), (
+                    "Incorrectly formatted index in string, expected 'in' +"
+                    f" index, got: {port_str!r}"
+                )
                 self.input(int(index_str)).latency_offset = latency_offset
             elif port_str.startswith("out"):
                 index_str = port_str[3:]
-                assert index_str.isdigit(), f"Incorrectly formatted index in string, expected 'out' + index, got: {port_str!r}"
+                assert index_str.isdigit(), (
+                    "Incorrectly formatted index in string, expected 'out' +"
+                    f" index, got: {port_str!r}"
+                )
                 self.output(int(index_str)).latency_offset = latency_offset
             else:
                 raise ValueError(
-                    f"Incorrectly formatted string, expected 'in' + index or 'out' + index, got: {port_str!r}")
+                    "Incorrectly formatted string, expected 'in' + index or"
+                    f" 'out' + index, got: {port_str!r}"
+                )
 
     @property
     def execution_time(self) -> int:
@@ -656,17 +860,30 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @execution_time.setter
     def execution_time(self, execution_time: int) -> None:
-        assert execution_time is None or execution_time >= 0 , "Negative execution time entered."
+        assert (
+            execution_time is None or execution_time >= 0
+        ), "Negative execution time entered."
         self._execution_time = execution_time
 
-    def get_plot_coordinates(self) -> Tuple[List[List[Number]], List[List[Number]]]:
-        return (self._get_plot_coordinates_for_latency(), self._get_plot_coordinates_for_execution_time())
+    def get_plot_coordinates(
+        self,
+    ) -> Tuple[List[List[Number]], List[List[Number]]]:
+        return (
+            self._get_plot_coordinates_for_latency(),
+            self._get_plot_coordinates_for_execution_time(),
+        )
 
     def _get_plot_coordinates_for_execution_time(self) -> List[List[Number]]:
         # Always a rectangle, but easier if coordinates are returned
         if self._execution_time is None:
             return []
-        return [[0, 0], [0, 1], [self.execution_time, 1], [self.execution_time, 0], [0, 0]]
+        return [
+            [0, 0],
+            [0, 1],
+            [self.execution_time, 1],
+            [self.execution_time, 0],
+            [0, 0],
+        ]
 
     def _get_plot_coordinates_for_latency(self) -> List[List[Number]]:
         # Points for latency polygon
@@ -676,22 +893,36 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         num_in = len(self.inputs)
         latency.append(start_point)
         for k in range(1, num_in):
-            latency.append([self.inputs[k-1].latency_offset, k/num_in])
-            latency.append([self.inputs[k].latency_offset, k/num_in])
-        latency.append([self.inputs[num_in-1].latency_offset, 1])
+            latency.append([self.inputs[k - 1].latency_offset, k / num_in])
+            latency.append([self.inputs[k].latency_offset, k / num_in])
+        latency.append([self.inputs[num_in - 1].latency_offset, 1])
 
         num_out = len(self.outputs)
-        latency.append([self.outputs[num_out-1].latency_offset, 1])
+        latency.append([self.outputs[num_out - 1].latency_offset, 1])
         for k in reversed(range(1, num_out)):
-            latency.append([self.outputs[k].latency_offset, k/num_out])
-            latency.append([self.outputs[k-1].latency_offset, k/num_out])
+            latency.append([self.outputs[k].latency_offset, k / num_out])
+            latency.append([self.outputs[k - 1].latency_offset, k / num_out])
         latency.append([self.outputs[0].latency_offset, 0])
         # Close the polygon
         latency.append(start_point)
 
         return latency
 
-    def get_io_coordinates(self) -> Tuple[List[List[Number]], List[List[Number]]]:
-        input_coords = [[self.inputs[k].latency_offset, (1+2*k)/(2*len(self.inputs))] for k in range(len(self.inputs))]
-        output_coords = [[self.outputs[k].latency_offset, (1+2*k)/(2*len(self.outputs))] for k in range(len(self.outputs))]
+    def get_io_coordinates(
+        self,
+    ) -> Tuple[List[List[Number]], List[List[Number]]]:
+        input_coords = [
+            [
+                self.inputs[k].latency_offset,
+                (1 + 2 * k) / (2 * len(self.inputs)),
+            ]
+            for k in range(len(self.inputs))
+        ]
+        output_coords = [
+            [
+                self.outputs[k].latency_offset,
+                (1 + 2 * k) / (2 * len(self.outputs)),
+            ]
+            for k in range(len(self.outputs))
+        ]
         return (input_coords, output_coords)
