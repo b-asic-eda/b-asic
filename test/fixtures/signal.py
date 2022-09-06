@@ -8,6 +8,7 @@ def signal():
     """Return a signal with no connections."""
     return Signal()
 
+
 @pytest.fixture
 def signals():
     """Return 3 signals with no connections."""

@@ -1,12 +1,27 @@
+from typing import Optional
+
 import pytest
 
-from b_asic import SFG, Input, Output, Constant, Delay, Addition, ConstantMultiplication, Butterfly, AbstractOperation, Name, TypeName, SignalSourceProvider
-from typing import Optional
+from b_asic import (
+    SFG,
+    AbstractOperation,
+    Addition,
+    Butterfly,
+    Constant,
+    ConstantMultiplication,
+    Delay,
+    Input,
+    Name,
+    Output,
+    SignalSourceProvider,
+    TypeName,
+)
 
 
 @pytest.fixture
 def sfg_two_inputs_two_outputs():
-    """Valid SFG with two inputs and two outputs.
+    """
+    Valid SFG with two inputs and two outputs.
          .               .
     in1-------+  +--------->out1
          .    |  |       .
@@ -33,7 +48,8 @@ def sfg_two_inputs_two_outputs():
 
 @pytest.fixture
 def sfg_two_inputs_two_outputs_independent():
-    """Valid SFG with two inputs and two outputs, where the first output only depends
+    """
+    Valid SFG with two inputs and two outputs, where the first output only depends
     on the first input and the second output only depends on the second input.
          .               .
     in1-------------------->out1
@@ -61,7 +77,8 @@ def sfg_two_inputs_two_outputs_independent():
 
 @pytest.fixture
 def sfg_two_inputs_two_outputs_independent_with_cmul():
-    """Valid SFG with two inputs and two outputs, where the first output only depends
+    """
+    Valid SFG with two inputs and two outputs, where the first output only depends
     on the first input and the second output only depends on the second input.
         .                 .
     in1--->cmul1--->cmul2--->out1
@@ -87,7 +104,8 @@ def sfg_two_inputs_two_outputs_independent_with_cmul():
 
 @pytest.fixture
 def sfg_nested():
-    """Valid SFG with two inputs and one output.
+    """
+    Valid SFG with two inputs and one output.
     out1 = in1 + (in1 + in1 * in2) * (in1 + in2 * (in1 + in1 * in2))
     """
     mac_in1 = Input()
@@ -107,17 +125,20 @@ def sfg_nested():
 
 @pytest.fixture
 def sfg_delay():
-    """Valid SFG with one input and one output.
+    """
+    Valid SFG with one input and one output.
     out1 = in1'
     """
     in1 = Input()
     t1 = Delay(in1)
     out1 = Output(t1)
-    return SFG(inputs = [in1], outputs = [out1])
+    return SFG(inputs=[in1], outputs=[out1])
+
 
 @pytest.fixture
 def sfg_accumulator():
-    """Valid SFG with two inputs and one output.
+    """
+    Valid SFG with two inputs and one output.
     data_out = (data_in' + data_in) * (1 - reset)
     """
     data_in = Input()
@@ -125,12 +146,13 @@ def sfg_accumulator():
     t = Delay()
     t << (t + data_in) * (1 - reset)
     data_out = Output(t)
-    return SFG(inputs = [data_in, reset], outputs = [data_out])
+    return SFG(inputs=[data_in, reset], outputs=[data_out])
 
 
 @pytest.fixture
 def sfg_simple_accumulator():
-    """Valid SFG with two inputs and one output.
+    """
+    Valid SFG with two inputs and one output.
          .                .
     in1----->add1-----+----->out1
          .    ^       |   .
@@ -143,11 +165,13 @@ def sfg_simple_accumulator():
     add1 = in1 + t1
     t1 << add1
     out1 = Output(add1)
-    return SFG(inputs = [in1], outputs = [out1])
+    return SFG(inputs=[in1], outputs=[out1])
+
 
 @pytest.fixture
 def sfg_simple_filter():
-    """A valid SFG that is used as a filter in the first lab for TSTE87.
+    """
+    A valid SFG that is used as a filter in the first lab for TSTE87.
          .                 .
          .   +--cmul1<--+  .
          .   |          |  .
@@ -164,19 +188,25 @@ def sfg_simple_filter():
     out1 = Output(t1, "OUT1")
     return SFG(inputs=[in1], outputs=[out1], name="simple_filter")
 
+
 @pytest.fixture
 def sfg_custom_operation():
     """A valid SFG containing a custom operation."""
+
     class CustomOperation(AbstractOperation):
-        def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = ""):
-            super().__init__(input_count = 1, output_count = 2, name = name, input_sources = [src0])
+        def __init__(
+            self, src0: Optional[SignalSourceProvider] = None, name: Name = ""
+        ):
+            super().__init__(
+                input_count=1, output_count=2, name=name, input_sources=[src0]
+            )
 
         @classmethod
         def type_name(self) -> TypeName:
             return "custom"
 
         def evaluate(self, a):
-            return a * 2, 2 ** a
+            return a * 2, 2**a
 
     in1 = Input()
     custom1 = CustomOperation(in1)
@@ -187,7 +217,8 @@ def sfg_custom_operation():
 
 @pytest.fixture
 def precedence_sfg_delays():
-    """A sfg with delays and interesting layout for precedence list generation.
+    """
+    A sfg with delays and interesting layout for precedence list generation.
          .                                          .
     IN1>--->C0>--->ADD1>--->Q1>---+--->A0>--->ADD4>--->OUT1
          .           ^            |            ^    .

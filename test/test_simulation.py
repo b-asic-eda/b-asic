@@ -1,14 +1,16 @@
-import pytest
 import numpy as np
+import pytest
 
-from b_asic import SFG, Output, Simulation
+from b_asic import Simulation
 
 
 class TestRunFor:
     def test_with_lambdas_as_input(self, sfg_two_inputs_two_outputs):
-        simulation = Simulation(sfg_two_inputs_two_outputs, [lambda n: n + 3, lambda n: 1 + n * 2])
+        simulation = Simulation(
+            sfg_two_inputs_two_outputs, [lambda n: n + 3, lambda n: 1 + n * 2]
+        )
 
-        output = simulation.run_for(101, save_results = True)
+        output = simulation.run_for(101, save_results=True)
 
         assert output[0] == 304
         assert output[1] == 505
@@ -46,10 +48,10 @@ class TestRunFor:
 
     def test_with_numpy_arrays_as_input(self, sfg_two_inputs_two_outputs):
         input0 = np.array([5, 9, 25, -5, 7])
-        input1 = np.array([7, 3, 3,  54, 2])
+        input1 = np.array([7, 3, 3, 54, 2])
         simulation = Simulation(sfg_two_inputs_two_outputs, [input0, input1])
 
-        output = simulation.run_for(5, save_results = True)
+        output = simulation.run_for(5, save_results=True)
 
         assert output[0] == 9
         assert output[1] == 11
@@ -94,7 +96,7 @@ class TestRunFor:
 
     def test_with_numpy_array_overflow(self, sfg_two_inputs_two_outputs):
         input0 = np.array([5, 9, 25, -5, 7])
-        input1 = np.array([7, 3, 3,  54, 2])
+        input1 = np.array([7, 3, 3, 54, 2])
         simulation = Simulation(sfg_two_inputs_two_outputs, [input0, input1])
         simulation.run_for(5)
         with pytest.raises(IndexError):
@@ -102,7 +104,7 @@ class TestRunFor:
 
     def test_run_whole_numpy_array(self, sfg_two_inputs_two_outputs):
         input0 = np.array([5, 9, 25, -5, 7])
-        input1 = np.array([7, 3, 3,  54, 2])
+        input1 = np.array([7, 3, 3, 54, 2])
         simulation = Simulation(sfg_two_inputs_two_outputs, [input0, input1])
         simulation.run()
         assert len(simulation.results["0"]) == 5
@@ -113,7 +115,7 @@ class TestRunFor:
     def test_delay(self, sfg_delay):
         simulation = Simulation(sfg_delay)
         simulation.set_input(0, [5, -2, 25, -6, 7, 0])
-        simulation.run_for(6, save_results = True)
+        simulation.run_for(6, save_results=True)
 
         assert simulation.results["0"][0] == 0
         assert simulation.results["0"][1] == 5
@@ -123,30 +125,44 @@ class TestRunFor:
         assert simulation.results["0"][5] == 7
 
     def test_find_result_key(self, precedence_sfg_delays):
-        sim = Simulation(precedence_sfg_delays, [[0, 4, 542, 42, 31.314, 534.123, -453415, 5431]])
+        sim = Simulation(
+            precedence_sfg_delays,
+            [[0, 4, 542, 42, 31.314, 534.123, -453415, 5431]],
+        )
         sim.run()
-        assert sim.results[precedence_sfg_delays.find_result_keys_by_name("ADD2")[0]][4] == 31220
-        assert sim.results[precedence_sfg_delays.find_result_keys_by_name("A1")[0]][2] == 80
+        assert (
+            sim.results[
+                precedence_sfg_delays.find_result_keys_by_name("ADD2")[0]
+            ][4]
+            == 31220
+        )
+        assert (
+            sim.results[
+                precedence_sfg_delays.find_result_keys_by_name("A1")[0]
+            ][2]
+            == 80
+        )
+
 
 class TestRun:
     def test_save_results(self, sfg_two_inputs_two_outputs):
         simulation = Simulation(sfg_two_inputs_two_outputs, [2, 3])
         assert not simulation.results
-        simulation.run_for(10, save_results = False)
+        simulation.run_for(10, save_results=False)
         assert not simulation.results
         simulation.run_for(10)
         assert len(simulation.results["0"]) == 10
         assert len(simulation.results["1"]) == 10
-        simulation.run_for(10, save_results = True)
+        simulation.run_for(10, save_results=True)
         assert len(simulation.results["0"]) == 20
         assert len(simulation.results["1"]) == 20
-        simulation.run_for(10, save_results = False)
+        simulation.run_for(10, save_results=False)
         assert len(simulation.results["0"]) == 20
         assert len(simulation.results["1"]) == 20
-        simulation.run_for(13, save_results = True)
+        simulation.run_for(13, save_results=True)
         assert len(simulation.results["0"]) == 33
         assert len(simulation.results["1"]) == 33
-        simulation.step(save_results = False)
+        simulation.step(save_results=False)
         assert len(simulation.results["0"]) == 33
         assert len(simulation.results["1"]) == 33
         simulation.step()
@@ -168,7 +184,7 @@ class TestRun:
 
     def test_accumulator(self, sfg_accumulator):
         data_in = np.array([5, -2, 25, -6, 7, 0])
-        reset   = np.array([0, 0,  0,  1,  0, 0])
+        reset = np.array([0, 0, 0, 1, 0, 0])
         simulation = Simulation(sfg_accumulator, [data_in, reset])
         output0 = simulation.step()
         output1 = simulation.step()
@@ -187,13 +203,26 @@ class TestRun:
         data_in = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         simulation = Simulation(sfg_simple_accumulator, [data_in])
         simulation.run()
-        assert list(simulation.results["0"]) == [0, 1, 3, 6, 10, 15, 21, 28, 36, 45]
+        assert list(simulation.results["0"]) == [
+            0,
+            1,
+            3,
+            6,
+            10,
+            15,
+            21,
+            28,
+            36,
+            45,
+        ]
 
     def test_simple_filter(self, sfg_simple_filter):
         input0 = np.array([1, 2, 3, 4, 5])
         simulation = Simulation(sfg_simple_filter, [input0])
-        simulation.run_for(len(input0), save_results = True)
-        assert all(simulation.results["0"] == np.array([0, 1.0, 2.5, 4.25, 6.125]))
+        simulation.run_for(len(input0), save_results=True)
+        assert all(
+            simulation.results["0"] == np.array([0, 1.0, 2.5, 4.25, 6.125])
+        )
 
     def test_custom_operation(self, sfg_custom_operation):
         simulation = Simulation(sfg_custom_operation, [lambda n: n + 1])

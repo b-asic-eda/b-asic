@@ -1,11 +1,12 @@
 import pytest
 
-from b_asic import Addition, Constant, Signal, Butterfly
+from b_asic import Addition, Butterfly, Constant, Signal
 
 
 @pytest.fixture
 def operation():
     return Constant(2)
+
 
 @pytest.fixture
 def operation_tree():
@@ -19,6 +20,7 @@ def operation_tree():
     3---+
     """
     return Addition(Constant(2), Constant(3))
+
 
 @pytest.fixture
 def large_operation_tree():
@@ -39,7 +41,10 @@ def large_operation_tree():
         |
     5---+
     """
-    return Addition(Addition(Constant(2), Constant(3)), Addition(Constant(4), Constant(5)))
+    return Addition(
+        Addition(Constant(2), Constant(3)), Addition(Constant(4), Constant(5))
+    )
+
 
 @pytest.fixture
 def large_operation_tree_names():
@@ -61,7 +66,11 @@ def large_operation_tree_names():
         |
     5---+
     """
-    return Addition(Addition(Constant(2, name="constant2"), Constant(3, name="constant3")), Addition(Constant(4, name="constant4"), Constant(5, name="constant5")))
+    return Addition(
+        Addition(Constant(2, name="constant2"), Constant(3, name="constant3")),
+        Addition(Constant(4, name="constant4"), Constant(5, name="constant5")),
+    )
+
 
 @pytest.fixture
 def butterfly_operation_tree():
@@ -74,7 +83,16 @@ def butterfly_operation_tree():
          |       |               |       |                  |       |
     4 ---+       +--- (2 - 4) ---+       +--- (6 - (-2)) ---+       +--- (4 - 8) ---> out2 = -4
     """
-    return Butterfly(*(Butterfly(*(Butterfly(Constant(2), Constant(4), name="bfly3").outputs), name="bfly2").outputs), name="bfly1")
+    return Butterfly(
+        *(
+            Butterfly(
+                *(Butterfly(Constant(2), Constant(4), name="bfly3").outputs),
+                name="bfly2"
+            ).outputs
+        ),
+        name="bfly1"
+    )
+
 
 @pytest.fixture
 def operation_graph_with_cycle():

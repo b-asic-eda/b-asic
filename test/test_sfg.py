@@ -1,16 +1,27 @@
-from os import path, remove
-import pytest
+import io
 import random
 import string
-import io
 import sys
+from os import path, remove
 
-from b_asic import SFG, Signal, Input, Output, Delay, FastSimulation
-from b_asic.core_operations import Constant, Addition, Subtraction, Multiplication, \
-    Division, Min, Max, SquareRoot, ComplexConjugate, Absolute, ConstantMultiplication, \
-    Butterfly
+import pytest
 
-from b_asic.save_load_structure import sfg_to_python, python_to_sfg
+from b_asic import SFG, FastSimulation, Input, Output, Signal
+from b_asic.core_operations import (
+    Absolute,
+    Addition,
+    Butterfly,
+    ComplexConjugate,
+    Constant,
+    ConstantMultiplication,
+    Division,
+    Max,
+    Min,
+    Multiplication,
+    SquareRoot,
+    Subtraction,
+)
+from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 
 
 class TestInit:
@@ -65,15 +76,21 @@ class TestPrintSfg:
         out1 = Output(add1, "OUT1")
         sfg = SFG(inputs=[inp1, inp2], outputs=[out1], name="SFG1")
 
-        assert sfg.__str__() == \
-            "id: no_id, \tname: SFG1, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n" + \
-            "Internal Operations:\n" + \
-            "----------------------------------------------------------------------------------------------------\n" + \
-            str(sfg.find_by_name("INP1")[0]) + "\n" + \
-            str(sfg.find_by_name("INP2")[0]) + "\n" + \
-            str(sfg.find_by_name("ADD1")[0]) + "\n" + \
-            str(sfg.find_by_name("OUT1")[0]) + "\n" + \
-            "----------------------------------------------------------------------------------------------------\n"
+        assert (
+            sfg.__str__()
+            == "id: no_id, \tname: SFG1, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
+            + "Internal Operations:\n"
+            + "----------------------------------------------------------------------------------------------------\n"
+            + str(sfg.find_by_name("INP1")[0])
+            + "\n"
+            + str(sfg.find_by_name("INP2")[0])
+            + "\n"
+            + str(sfg.find_by_name("ADD1")[0])
+            + "\n"
+            + str(sfg.find_by_name("OUT1")[0])
+            + "\n"
+            + "----------------------------------------------------------------------------------------------------\n"
+        )
 
     def test_add_mul(self):
         inp1 = Input("INP1")
@@ -84,17 +101,25 @@ class TestPrintSfg:
         out1 = Output(mul1, "OUT1")
         sfg = SFG(inputs=[inp1, inp2, inp3], outputs=[out1], name="mac_sfg")
 
-        assert sfg.__str__() == \
-            "id: no_id, \tname: mac_sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n" + \
-            "Internal Operations:\n" + \
-            "----------------------------------------------------------------------------------------------------\n" + \
-            str(sfg.find_by_name("INP1")[0]) + "\n" + \
-            str(sfg.find_by_name("INP2")[0]) + "\n" + \
-            str(sfg.find_by_name("ADD1")[0]) + "\n" + \
-            str(sfg.find_by_name("INP3")[0]) + "\n" + \
-            str(sfg.find_by_name("MUL1")[0]) + "\n" + \
-            str(sfg.find_by_name("OUT1")[0]) + "\n" + \
-            "----------------------------------------------------------------------------------------------------\n"
+        assert (
+            sfg.__str__()
+            == "id: no_id, \tname: mac_sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
+            + "Internal Operations:\n"
+            + "----------------------------------------------------------------------------------------------------\n"
+            + str(sfg.find_by_name("INP1")[0])
+            + "\n"
+            + str(sfg.find_by_name("INP2")[0])
+            + "\n"
+            + str(sfg.find_by_name("ADD1")[0])
+            + "\n"
+            + str(sfg.find_by_name("INP3")[0])
+            + "\n"
+            + str(sfg.find_by_name("MUL1")[0])
+            + "\n"
+            + str(sfg.find_by_name("OUT1")[0])
+            + "\n"
+            + "----------------------------------------------------------------------------------------------------\n"
+        )
 
     def test_constant(self):
         inp1 = Input("INP1")
@@ -104,27 +129,40 @@ class TestPrintSfg:
 
         sfg = SFG(inputs=[inp1], outputs=[out1], name="sfg")
 
-        assert sfg.__str__() == \
-            "id: no_id, \tname: sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n" + \
-            "Internal Operations:\n" + \
-            "----------------------------------------------------------------------------------------------------\n" + \
-            str(sfg.find_by_name("CONST")[0]) + "\n" + \
-            str(sfg.find_by_name("INP1")[0]) + "\n" + \
-            str(sfg.find_by_name("ADD1")[0]) + "\n" + \
-            str(sfg.find_by_name("OUT1")[0]) + "\n" + \
-            "----------------------------------------------------------------------------------------------------\n"
+        assert (
+            sfg.__str__()
+            == "id: no_id, \tname: sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
+            + "Internal Operations:\n"
+            + "----------------------------------------------------------------------------------------------------\n"
+            + str(sfg.find_by_name("CONST")[0])
+            + "\n"
+            + str(sfg.find_by_name("INP1")[0])
+            + "\n"
+            + str(sfg.find_by_name("ADD1")[0])
+            + "\n"
+            + str(sfg.find_by_name("OUT1")[0])
+            + "\n"
+            + "----------------------------------------------------------------------------------------------------\n"
+        )
 
     def test_simple_filter(self, sfg_simple_filter):
-        assert sfg_simple_filter.__str__() == \
-            "id: no_id, \tname: simple_filter, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n" + \
-            "Internal Operations:\n" + \
-            "----------------------------------------------------------------------------------------------------\n" + \
-            str(sfg_simple_filter.find_by_name("IN1")[0]) + "\n" + \
-            str(sfg_simple_filter.find_by_name("ADD1")[0]) + "\n" + \
-            str(sfg_simple_filter.find_by_name("T1")[0]) + "\n" + \
-            str(sfg_simple_filter.find_by_name("CMUL1")[0]) + "\n" + \
-            str(sfg_simple_filter.find_by_name("OUT1")[0]) + "\n" + \
-            "----------------------------------------------------------------------------------------------------\n"
+        assert (
+            sfg_simple_filter.__str__()
+            == "id: no_id, \tname: simple_filter, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
+            + "Internal Operations:\n"
+            + "----------------------------------------------------------------------------------------------------\n"
+            + str(sfg_simple_filter.find_by_name("IN1")[0])
+            + "\n"
+            + str(sfg_simple_filter.find_by_name("ADD1")[0])
+            + "\n"
+            + str(sfg_simple_filter.find_by_name("T1")[0])
+            + "\n"
+            + str(sfg_simple_filter.find_by_name("CMUL1")[0])
+            + "\n"
+            + str(sfg_simple_filter.find_by_name("OUT1")[0])
+            + "\n"
+            + "----------------------------------------------------------------------------------------------------\n"
+        )
 
 
 class TestDeepCopy:
@@ -163,8 +201,12 @@ class TestDeepCopy:
         mul1.input(1).connect(add2, "S6")
         out1.input(0).connect(mul1, "S7")
 
-        mac_sfg = SFG(inputs=[inp1, inp2], outputs=[out1],
-                      id_number_offset=100, name="mac_sfg")
+        mac_sfg = SFG(
+            inputs=[inp1, inp2],
+            outputs=[out1],
+            id_number_offset=100,
+            name="mac_sfg",
+        )
         mac_sfg_new = mac_sfg(name="mac_sfg2")
 
         assert mac_sfg.name == "mac_sfg"
@@ -229,7 +271,21 @@ class TestComponents:
         mac_sfg = SFG(inputs=[inp1, inp2], outputs=[out1], name="mac_sfg")
 
         assert {comp.name for comp in mac_sfg.components} == {
-            "INP1", "INP2", "INP3", "ADD1", "ADD2", "MUL1", "OUT1", "S1", "S2", "S3", "S4", "S5", "S6", "S7"}
+            "INP1",
+            "INP2",
+            "INP3",
+            "ADD1",
+            "ADD2",
+            "MUL1",
+            "OUT1",
+            "S1",
+            "S2",
+            "S3",
+            "S4",
+            "S5",
+            "S6",
+            "S7",
+        }
 
 
 class TestReplaceComponents:
@@ -238,7 +294,8 @@ class TestReplaceComponents:
         component_id = "add1"
 
         sfg = sfg.replace_component(
-            Multiplication(name="Multi"), graph_id=component_id)
+            Multiplication(name="Multi"), graph_id=component_id
+        )
         assert component_id not in sfg._components_by_id.keys()
         assert "Multi" in sfg._components_by_name.keys()
 
@@ -247,7 +304,8 @@ class TestReplaceComponents:
         component_id = "add3"
 
         sfg = sfg.replace_component(
-            Multiplication(name="Multi"), graph_id=component_id)
+            Multiplication(name="Multi"), graph_id=component_id
+        )
         assert "Multi" in sfg._components_by_name.keys()
         assert component_id not in sfg._components_by_id.keys()
 
@@ -265,7 +323,8 @@ class TestReplaceComponents:
 
         try:
             sfg = sfg.replace_component(
-                Multiplication(name="Multi"), graph_id=component_id)
+                Multiplication(name="Multi"), graph_id=component_id
+            )
         except AssertionError:
             assert True
         else:
@@ -277,7 +336,8 @@ class TestReplaceComponents:
 
         try:
             sfg = sfg.replace_component(
-                Multiplication(name="Multi"), graph_id=component_id)
+                Multiplication(name="Multi"), graph_id=component_id
+            )
         except AssertionError:
             assert True
         else:
@@ -285,7 +345,6 @@ class TestReplaceComponents:
 
 
 class TestConstructSFG:
-
     def test_1k_additions(self):
         prev_op = Addition(Constant(1), Constant(1))
         for _ in range(999):
@@ -312,8 +371,9 @@ class TestConstructSFG:
         for _ in range(499):
             prev_op_sub = Subtraction(prev_op_sub, Constant(2))
         butterfly = Butterfly(prev_op_add, prev_op_sub)
-        sfg = SFG(outputs=[Output(butterfly.output(0)),
-                           Output(butterfly.output(1))])
+        sfg = SFG(
+            outputs=[Output(butterfly.output(0)), Output(butterfly.output(1))]
+        )
         sim = FastSimulation(sfg)
         sim.step()
         assert sim.results["0"][0].real == 0
@@ -365,13 +425,13 @@ class TestConstructSFG:
         assert sim.results["0"][0].real == 1.539926526059492
 
     def test_1k_complex_conjugates(self):
-        prev_op = ComplexConjugate(Constant(10+5j))
+        prev_op = ComplexConjugate(Constant(10 + 5j))
         for _ in range(999):
             prev_op = ComplexConjugate(prev_op)
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"] == [10+5j]
+        assert sim.results["0"] == [10 + 5j]
 
     def test_1k_absolutes(self):
         prev_op = Absolute(Constant(-3.14159))
@@ -393,30 +453,44 @@ class TestConstructSFG:
 
 
 class TestInsertComponent:
-
     def test_insert_component_in_sfg(self, large_operation_tree_names):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
         sqrt = SquareRoot()
 
         _sfg = sfg.insert_operation(
-            sqrt, sfg.find_by_name("constant4")[0].graph_id)
+            sqrt, sfg.find_by_name("constant4")[0].graph_id
+        )
         assert _sfg.evaluate() != sfg.evaluate()
 
         assert any([isinstance(comp, SquareRoot) for comp in _sfg.operations])
-        assert not any([isinstance(comp, SquareRoot)
-                        for comp in sfg.operations])
+        assert not any(
+            [isinstance(comp, SquareRoot) for comp in sfg.operations]
+        )
 
-        assert not isinstance(sfg.find_by_name("constant4")[0].output(
-            0).signals[0].destination.operation, SquareRoot)
-        assert isinstance(_sfg.find_by_name("constant4")[0].output(
-            0).signals[0].destination.operation, SquareRoot)
+        assert not isinstance(
+            sfg.find_by_name("constant4")[0]
+            .output(0)
+            .signals[0]
+            .destination.operation,
+            SquareRoot,
+        )
+        assert isinstance(
+            _sfg.find_by_name("constant4")[0]
+            .output(0)
+            .signals[0]
+            .destination.operation,
+            SquareRoot,
+        )
 
-        assert sfg.find_by_name("constant4")[0].output(
-            0).signals[0].destination.operation is sfg.find_by_id("add3")
-        assert _sfg.find_by_name("constant4")[0].output(
-            0).signals[0].destination.operation is not _sfg.find_by_id("add3")
-        assert _sfg.find_by_id("sqrt1").output(
-            0).signals[0].destination.operation is _sfg.find_by_id("add3")
+        assert sfg.find_by_name("constant4")[0].output(0).signals[
+            0
+        ].destination.operation is sfg.find_by_id("add3")
+        assert _sfg.find_by_name("constant4")[0].output(0).signals[
+            0
+        ].destination.operation is not _sfg.find_by_id("add3")
+        assert _sfg.find_by_id("sqrt1").output(0).signals[
+            0
+        ].destination.operation is _sfg.find_by_id("add3")
 
     def test_insert_invalid_component_in_sfg(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
@@ -432,7 +506,7 @@ class TestInsertComponent:
         # Should raise an exception for trying to insert an operation after an output.
         sqrt = SquareRoot()
         with pytest.raises(Exception):
-            _sfg = sfg.insert_operation(sqrt, "out1")
+            _ = sfg.insert_operation(sqrt, "out1")
 
     def test_insert_multiple_output_ports(self, butterfly_operation_tree):
         sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
@@ -444,28 +518,56 @@ class TestInsertComponent:
         assert len(_sfg.find_by_name("n_bfly")) == 1
 
         # Correctly connected old output -> new input
-        assert _sfg.find_by_name("bfly3")[0].output(
-            0).signals[0].destination.operation is _sfg.find_by_name("n_bfly")[0]
-        assert _sfg.find_by_name("bfly3")[0].output(
-            1).signals[0].destination.operation is _sfg.find_by_name("n_bfly")[0]
+        assert (
+            _sfg.find_by_name("bfly3")[0]
+            .output(0)
+            .signals[0]
+            .destination.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+        assert (
+            _sfg.find_by_name("bfly3")[0]
+            .output(1)
+            .signals[0]
+            .destination.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
 
         # Correctly connected new input -> old output
-        assert _sfg.find_by_name("n_bfly")[0].input(
-            0).signals[0].source.operation is _sfg.find_by_name("bfly3")[0]
-        assert _sfg.find_by_name("n_bfly")[0].input(
-            1).signals[0].source.operation is _sfg.find_by_name("bfly3")[0]
+        assert (
+            _sfg.find_by_name("n_bfly")[0].input(0).signals[0].source.operation
+            is _sfg.find_by_name("bfly3")[0]
+        )
+        assert (
+            _sfg.find_by_name("n_bfly")[0].input(1).signals[0].source.operation
+            is _sfg.find_by_name("bfly3")[0]
+        )
 
         # Correctly connected new output -> next input
-        assert _sfg.find_by_name("n_bfly")[0].output(
-            0).signals[0].destination.operation is _sfg.find_by_name("bfly2")[0]
-        assert _sfg.find_by_name("n_bfly")[0].output(
-            1).signals[0].destination.operation is _sfg.find_by_name("bfly2")[0]
+        assert (
+            _sfg.find_by_name("n_bfly")[0]
+            .output(0)
+            .signals[0]
+            .destination.operation
+            is _sfg.find_by_name("bfly2")[0]
+        )
+        assert (
+            _sfg.find_by_name("n_bfly")[0]
+            .output(1)
+            .signals[0]
+            .destination.operation
+            is _sfg.find_by_name("bfly2")[0]
+        )
 
         # Correctly connected next input -> new output
-        assert _sfg.find_by_name("bfly2")[0].input(
-            0).signals[0].source.operation is _sfg.find_by_name("n_bfly")[0]
-        assert _sfg.find_by_name("bfly2")[0].input(
-            1).signals[0].source.operation is _sfg.find_by_name("n_bfly")[0]
+        assert (
+            _sfg.find_by_name("bfly2")[0].input(0).signals[0].source.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+        assert (
+            _sfg.find_by_name("bfly2")[0].input(1).signals[0].source.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
 
 
 class TestFindComponentsWithTypeName:
@@ -488,79 +590,152 @@ class TestFindComponentsWithTypeName:
 
         mac_sfg = SFG(inputs=[inp1, inp2], outputs=[out1], name="mac_sfg")
 
-        assert {comp.name for comp in mac_sfg.find_by_type_name(
-            inp1.type_name())} == {"INP1", "INP2", "INP3"}
+        assert {
+            comp.name for comp in mac_sfg.find_by_type_name(inp1.type_name())
+        } == {
+            "INP1",
+            "INP2",
+            "INP3",
+        }
 
-        assert {comp.name for comp in mac_sfg.find_by_type_name(
-            add1.type_name())} == {"ADD1", "ADD2"}
+        assert {
+            comp.name for comp in mac_sfg.find_by_type_name(add1.type_name())
+        } == {
+            "ADD1",
+            "ADD2",
+        }
 
-        assert {comp.name for comp in mac_sfg.find_by_type_name(
-            mul1.type_name())} == {"MUL1"}
+        assert {
+            comp.name for comp in mac_sfg.find_by_type_name(mul1.type_name())
+        } == {"MUL1"}
 
-        assert {comp.name for comp in mac_sfg.find_by_type_name(
-            out1.type_name())} == {"OUT1"}
+        assert {
+            comp.name for comp in mac_sfg.find_by_type_name(out1.type_name())
+        } == {"OUT1"}
 
-        assert {comp.name for comp in mac_sfg.find_by_type_name(
-            Signal.type_name())} == {"S1", "S2", "S3", "S4", "S5", "S6", "S7"}
+        assert {
+            comp.name for comp in mac_sfg.find_by_type_name(Signal.type_name())
+        } == {"S1", "S2", "S3", "S4", "S5", "S6", "S7"}
 
 
 class TestGetPrecedenceList:
-
     def test_inputs_delays(self, precedence_sfg_delays):
 
         precedence_list = precedence_sfg_delays.get_precedence_list()
 
         assert len(precedence_list) == 7
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[0]]) == {"IN1", "T1", "T2"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[0]
+            ]
+        ) == {"IN1", "T1", "T2"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[1]]) == {"C0", "B1", "B2", "A1", "A2"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[1]
+            ]
+        ) == {"C0", "B1", "B2", "A1", "A2"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[2]]) == {"ADD2", "ADD3"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[2]
+            ]
+        ) == {"ADD2", "ADD3"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[3]]) == {"ADD1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[3]
+            ]
+        ) == {"ADD1"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[4]]) == {"Q1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[4]
+            ]
+        ) == {"Q1"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[5]]) == {"A0"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[5]
+            ]
+        ) == {"A0"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[6]]) == {"ADD4"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[6]
+            ]
+        ) == {"ADD4"}
 
-    def test_inputs_constants_delays_multiple_outputs(self, precedence_sfg_delays_and_constants):
+    def test_inputs_constants_delays_multiple_outputs(
+        self, precedence_sfg_delays_and_constants
+    ):
 
-        precedence_list = precedence_sfg_delays_and_constants.get_precedence_list()
+        precedence_list = (
+            precedence_sfg_delays_and_constants.get_precedence_list()
+        )
 
         assert len(precedence_list) == 7
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[0]]) == {"IN1", "T1", "CONST1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[0]
+            ]
+        ) == {"IN1", "T1", "CONST1"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[1]]) == {"C0", "B1", "B2", "A1", "A2"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[1]
+            ]
+        ) == {"C0", "B1", "B2", "A1", "A2"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[2]]) == {"ADD2", "ADD3"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[2]
+            ]
+        ) == {"ADD2", "ADD3"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[3]]) == {"ADD1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[3]
+            ]
+        ) == {"ADD1"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[4]]) == {"Q1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[4]
+            ]
+        ) == {"Q1"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[5]]) == {"A0"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[5]
+            ]
+        ) == {"A0"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[6]]) == {"BFLY1.0", "BFLY1.1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[6]
+            ]
+        ) == {"BFLY1.0", "BFLY1.1"}
 
-    def test_precedence_multiple_outputs_same_precedence(self, sfg_two_inputs_two_outputs):
+    def test_precedence_multiple_outputs_same_precedence(
+        self, sfg_two_inputs_two_outputs
+    ):
         sfg_two_inputs_two_outputs.name = "NESTED_SFG"
 
         in1 = Input("IN1")
@@ -579,16 +754,30 @@ class TestGetPrecedenceList:
 
         assert len(precedence_list) == 3
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[0]]) == {"IN1", "IN2"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[0]
+            ]
+        ) == {"IN1", "IN2"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[1]]) == {"CMUL1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[1]
+            ]
+        ) == {"CMUL1"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[2]]) == {"NESTED_SFG.0", "NESTED_SFG.1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[2]
+            ]
+        ) == {"NESTED_SFG.0", "NESTED_SFG.1"}
 
-    def test_precedence_sfg_multiple_outputs_different_precedences(self, sfg_two_inputs_two_outputs_independent):
+    def test_precedence_sfg_multiple_outputs_different_precedences(
+        self, sfg_two_inputs_two_outputs_independent
+    ):
         sfg_two_inputs_two_outputs_independent.name = "NESTED_SFG"
 
         in1 = Input("IN1")
@@ -606,14 +795,26 @@ class TestGetPrecedenceList:
 
         assert len(precedence_list) == 3
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[0]]) == {"IN1", "IN2"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[0]
+            ]
+        ) == {"IN1", "IN2"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[1]]) == {"CMUL1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[1]
+            ]
+        ) == {"CMUL1"}
 
-        assert set([port.operation.key(port.index, port.operation.name)
-                    for port in precedence_list[2]]) == {"NESTED_SFG.0", "NESTED_SFG.1"}
+        assert set(
+            [
+                port.operation.key(port.index, port.operation.name)
+                for port in precedence_list[2]
+            ]
+        ) == {"NESTED_SFG.0", "NESTED_SFG.1"}
 
 
 class TestPrintPrecedence:
@@ -629,49 +830,96 @@ class TestPrintPrecedence:
 
         captured_output = captured_output.getvalue()
 
-        assert captured_output == \
-            "-" * 120 + "\n" + \
-            "1.1 \t" + str(sfg.find_by_name("IN1")[0]) + "\n" + \
-            "1.2 \t" + str(sfg.find_by_name("T1")[0]) + "\n" + \
-            "1.3 \t" + str(sfg.find_by_name("T2")[0]) + "\n" + \
-            "-" * 120 + "\n" + \
-            "2.1 \t" + str(sfg.find_by_name("C0")[0]) + "\n" + \
-            "2.2 \t" + str(sfg.find_by_name("A1")[0]) + "\n" + \
-            "2.3 \t" + str(sfg.find_by_name("B1")[0]) + "\n" + \
-            "2.4 \t" + str(sfg.find_by_name("A2")[0]) + "\n" + \
-            "2.5 \t" + str(sfg.find_by_name("B2")[0]) + "\n" + \
-            "-" * 120 + "\n" + \
-            "3.1 \t" + str(sfg.find_by_name("ADD3")[0]) + "\n" + \
-            "3.2 \t" + str(sfg.find_by_name("ADD2")[0]) + "\n" + \
-            "-" * 120 + "\n" + \
-            "4.1 \t" + str(sfg.find_by_name("ADD1")[0]) + "\n" + \
-            "-" * 120 + "\n" + \
-            "5.1 \t" + str(sfg.find_by_name("Q1")[0]) + "\n" + \
-            "-" * 120 + "\n" + \
-            "6.1 \t" + str(sfg.find_by_name("A0")[0]) + "\n" + \
-            "-" * 120 + "\n" + \
-            "7.1 \t" + str(sfg.find_by_name("ADD4")[0]) + "\n" + \
-            "-" * 120 + "\n"
+        assert (
+            captured_output
+            == "-" * 120
+            + "\n"
+            + "1.1 \t"
+            + str(sfg.find_by_name("IN1")[0])
+            + "\n"
+            + "1.2 \t"
+            + str(sfg.find_by_name("T1")[0])
+            + "\n"
+            + "1.3 \t"
+            + str(sfg.find_by_name("T2")[0])
+            + "\n"
+            + "-" * 120
+            + "\n"
+            + "2.1 \t"
+            + str(sfg.find_by_name("C0")[0])
+            + "\n"
+            + "2.2 \t"
+            + str(sfg.find_by_name("A1")[0])
+            + "\n"
+            + "2.3 \t"
+            + str(sfg.find_by_name("B1")[0])
+            + "\n"
+            + "2.4 \t"
+            + str(sfg.find_by_name("A2")[0])
+            + "\n"
+            + "2.5 \t"
+            + str(sfg.find_by_name("B2")[0])
+            + "\n"
+            + "-" * 120
+            + "\n"
+            + "3.1 \t"
+            + str(sfg.find_by_name("ADD3")[0])
+            + "\n"
+            + "3.2 \t"
+            + str(sfg.find_by_name("ADD2")[0])
+            + "\n"
+            + "-" * 120
+            + "\n"
+            + "4.1 \t"
+            + str(sfg.find_by_name("ADD1")[0])
+            + "\n"
+            + "-" * 120
+            + "\n"
+            + "5.1 \t"
+            + str(sfg.find_by_name("Q1")[0])
+            + "\n"
+            + "-" * 120
+            + "\n"
+            + "6.1 \t"
+            + str(sfg.find_by_name("A0")[0])
+            + "\n"
+            + "-" * 120
+            + "\n"
+            + "7.1 \t"
+            + str(sfg.find_by_name("ADD4")[0])
+            + "\n"
+            + "-" * 120
+            + "\n"
+        )
 
 
 class TestDepends:
     def test_depends_sfg(self, sfg_two_inputs_two_outputs):
-        assert set(sfg_two_inputs_two_outputs.inputs_required_for_output(0)) == {
-            0, 1}
-        assert set(sfg_two_inputs_two_outputs.inputs_required_for_output(1)) == {
-            0, 1}
+        assert set(
+            sfg_two_inputs_two_outputs.inputs_required_for_output(0)
+        ) == {0, 1}
+        assert set(
+            sfg_two_inputs_two_outputs.inputs_required_for_output(1)
+        ) == {0, 1}
 
-    def test_depends_sfg_independent(self, sfg_two_inputs_two_outputs_independent):
+    def test_depends_sfg_independent(
+        self, sfg_two_inputs_two_outputs_independent
+    ):
         assert set(
-            sfg_two_inputs_two_outputs_independent.inputs_required_for_output(0)) == {0}
+            sfg_two_inputs_two_outputs_independent.inputs_required_for_output(
+                0
+            )
+        ) == {0}
         assert set(
-            sfg_two_inputs_two_outputs_independent.inputs_required_for_output(1)) == {1}
+            sfg_two_inputs_two_outputs_independent.inputs_required_for_output(
+                1
+            )
+        ) == {1}
 
 
 class TestConnectExternalSignalsToComponentsSoloComp:
-
     def test_connect_external_signals_to_components_mac(self):
-        """ Replace a MAC with inner components in an SFG """
+        """Replace a MAC with inner components in an SFG"""
         inp1 = Input("INP1")
         inp2 = Input("INP2")
         inp3 = Input("INP3")
@@ -704,8 +952,10 @@ class TestConnectExternalSignalsToComponentsSoloComp:
         assert test_sfg.evaluate(1, 2) == 9
         assert not test_sfg.connect_external_signals_to_components()
 
-    def test_connect_external_signals_to_components_operation_tree(self, operation_tree):
-        """ Replaces an SFG with only a operation_tree component with its inner components """
+    def test_connect_external_signals_to_components_operation_tree(
+        self, operation_tree
+    ):
+        """Replaces an SFG with only a operation_tree component with its inner components"""
         sfg1 = SFG(outputs=[Output(operation_tree)])
         out1 = Output(None, "OUT1")
         out1.input(0).connect(sfg1.outputs[0], "S1")
@@ -715,8 +965,10 @@ class TestConnectExternalSignalsToComponentsSoloComp:
         assert test_sfg.evaluate_output(0, []) == 5
         assert not test_sfg.connect_external_signals_to_components()
 
-    def test_connect_external_signals_to_components_large_operation_tree(self, large_operation_tree):
-        """ Replaces an SFG with only a large_operation_tree component with its inner components """
+    def test_connect_external_signals_to_components_large_operation_tree(
+        self, large_operation_tree
+    ):
+        """Replaces an SFG with only a large_operation_tree component with its inner components"""
         sfg1 = SFG(outputs=[Output(large_operation_tree)])
         out1 = Output(None, "OUT1")
         out1.input(0).connect(sfg1.outputs[0], "S1")
@@ -728,9 +980,10 @@ class TestConnectExternalSignalsToComponentsSoloComp:
 
 
 class TestConnectExternalSignalsToComponentsMultipleComp:
-
-    def test_connect_external_signals_to_components_operation_tree(self, operation_tree):
-        """ Replaces a operation_tree in an SFG with other components """
+    def test_connect_external_signals_to_components_operation_tree(
+        self, operation_tree
+    ):
+        """Replaces a operation_tree in an SFG with other components"""
         sfg1 = SFG(outputs=[Output(operation_tree)])
 
         inp1 = Input("INP1")
@@ -752,8 +1005,10 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         assert test_sfg.evaluate(1, 2) == 8
         assert not test_sfg.connect_external_signals_to_components()
 
-    def test_connect_external_signals_to_components_large_operation_tree(self, large_operation_tree):
-        """ Replaces a large_operation_tree in an SFG with other components """
+    def test_connect_external_signals_to_components_large_operation_tree(
+        self, large_operation_tree
+    ):
+        """Replaces a large_operation_tree in an SFG with other components"""
         sfg1 = SFG(outputs=[Output(large_operation_tree)])
 
         inp1 = Input("INP1")
@@ -775,7 +1030,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         assert not test_sfg.connect_external_signals_to_components()
 
     def create_sfg(self, op_tree):
-        """ Create a simple SFG with either operation_tree or large_operation_tree """
+        """Create a simple SFG with either operation_tree or large_operation_tree"""
         sfg1 = SFG(outputs=[Output(op_tree)])
 
         inp1 = Input("INP1")
@@ -792,8 +1047,10 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
 
         return SFG(inputs=[inp1, inp2], outputs=[out1])
 
-    def test_connect_external_signals_to_components_many_op(self, large_operation_tree):
-        """ Replaces an sfg component in a larger SFG with several component operations """
+    def test_connect_external_signals_to_components_many_op(
+        self, large_operation_tree
+    ):
+        """Replaces an sfg component in a larger SFG with several component operations"""
         inp1 = Input("INP1")
         inp2 = Input("INP2")
         inp3 = Input("INP3")
@@ -823,43 +1080,98 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
 
 class TestTopologicalOrderOperations:
     def test_feedback_sfg(self, sfg_simple_filter):
-        topological_order = sfg_simple_filter.get_operations_topological_order()
+        topological_order = (
+            sfg_simple_filter.get_operations_topological_order()
+        )
 
         assert [comp.name for comp in topological_order] == [
-            "IN1", "ADD1", "T1", "CMUL1", "OUT1"]
+            "IN1",
+            "ADD1",
+            "T1",
+            "CMUL1",
+            "OUT1",
+        ]
 
-    def test_multiple_independent_inputs(self, sfg_two_inputs_two_outputs_independent):
-        topological_order = sfg_two_inputs_two_outputs_independent.get_operations_topological_order()
+    def test_multiple_independent_inputs(
+        self, sfg_two_inputs_two_outputs_independent
+    ):
+        topological_order = (
+            sfg_two_inputs_two_outputs_independent.get_operations_topological_order()
+        )
 
         assert [comp.name for comp in topological_order] == [
-            "IN1", "OUT1", "IN2", "C1", "ADD1", "OUT2"]
+            "IN1",
+            "OUT1",
+            "IN2",
+            "C1",
+            "ADD1",
+            "OUT2",
+        ]
 
     def test_complex_graph(self, precedence_sfg_delays):
-        topological_order = precedence_sfg_delays.get_operations_topological_order()
+        topological_order = (
+            precedence_sfg_delays.get_operations_topological_order()
+        )
 
-        assert [comp.name for comp in topological_order] == \
-            ['IN1', 'C0', 'ADD1', 'Q1', 'A0', 'T1', 'B1', 'A1',
-                'T2', 'B2', 'ADD2', 'A2', 'ADD3', 'ADD4', 'OUT1']
+        assert [comp.name for comp in topological_order] == [
+            "IN1",
+            "C0",
+            "ADD1",
+            "Q1",
+            "A0",
+            "T1",
+            "B1",
+            "A1",
+            "T2",
+            "B2",
+            "ADD2",
+            "A2",
+            "ADD3",
+            "ADD4",
+            "OUT1",
+        ]
 
 
 class TestRemove:
     def test_remove_single_input_outputs(self, sfg_simple_filter):
         new_sfg = sfg_simple_filter.remove_operation("cmul1")
 
-        assert set(op.name for op in sfg_simple_filter.find_by_name(
-            "T1")[0].subsequent_operations) == {"CMUL1", "OUT1"}
-        assert set(op.name for op in new_sfg.find_by_name("T1")[
-                   0].subsequent_operations) == {"ADD1", "OUT1"}
+        assert set(
+            op.name
+            for op in sfg_simple_filter.find_by_name("T1")[
+                0
+            ].subsequent_operations
+        ) == {"CMUL1", "OUT1"}
+        assert set(
+            op.name
+            for op in new_sfg.find_by_name("T1")[0].subsequent_operations
+        ) == {"ADD1", "OUT1"}
 
-        assert set(op.name for op in sfg_simple_filter.find_by_name(
-            "ADD1")[0].preceding_operations) == {"CMUL1", "IN1"}
-        assert set(op.name for op in new_sfg.find_by_name(
-            "ADD1")[0].preceding_operations) == {"T1", "IN1"}
+        assert set(
+            op.name
+            for op in sfg_simple_filter.find_by_name("ADD1")[
+                0
+            ].preceding_operations
+        ) == {"CMUL1", "IN1"}
+        assert set(
+            op.name
+            for op in new_sfg.find_by_name("ADD1")[0].preceding_operations
+        ) == {"T1", "IN1"}
 
         assert "S1" in set(
-            [sig.name for sig in sfg_simple_filter.find_by_name("T1")[0].output(0).signals])
+            [
+                sig.name
+                for sig in sfg_simple_filter.find_by_name("T1")[0]
+                .output(0)
+                .signals
+            ]
+        )
         assert "S2" in set(
-            [sig.name for sig in new_sfg.find_by_name("T1")[0].output(0).signals])
+            [
+                sig.name
+                for sig in new_sfg.find_by_name("T1")[0].output(0).signals
+            ]
+        )
 
     def test_remove_multiple_inputs_outputs(self, butterfly_operation_tree):
         out1 = Output(butterfly_operation_tree.output(0), "OUT1")
@@ -872,10 +1184,12 @@ class TestRemove:
         assert sfg.find_by_name("bfly3")[0].output(0).signal_count == 1
         assert new_sfg.find_by_name("bfly3")[0].output(0).signal_count == 1
 
-        sfg_dest_0 = sfg.find_by_name(
-            "bfly3")[0].output(0).signals[0].destination
-        new_sfg_dest_0 = new_sfg.find_by_name(
-            "bfly3")[0].output(0).signals[0].destination
+        sfg_dest_0 = (
+            sfg.find_by_name("bfly3")[0].output(0).signals[0].destination
+        )
+        new_sfg_dest_0 = (
+            new_sfg.find_by_name("bfly3")[0].output(0).signals[0].destination
+        )
 
         assert sfg_dest_0.index == 0
         assert new_sfg_dest_0.index == 0
@@ -885,10 +1199,12 @@ class TestRemove:
         assert sfg.find_by_name("bfly3")[0].output(1).signal_count == 1
         assert new_sfg.find_by_name("bfly3")[0].output(1).signal_count == 1
 
-        sfg_dest_1 = sfg.find_by_name(
-            "bfly3")[0].output(1).signals[0].destination
-        new_sfg_dest_1 = new_sfg.find_by_name(
-            "bfly3")[0].output(1).signals[0].destination
+        sfg_dest_1 = (
+            sfg.find_by_name("bfly3")[0].output(1).signals[0].destination
+        )
+        new_sfg_dest_1 = (
+            new_sfg.find_by_name("bfly3")[0].output(1).signals[0].destination
+        )
 
         assert sfg_dest_1.index == 1
         assert new_sfg_dest_1.index == 1
@@ -899,8 +1215,9 @@ class TestRemove:
         assert new_sfg.find_by_name("bfly1")[0].input(0).signal_count == 1
 
         sfg_source_0 = sfg.find_by_name("bfly1")[0].input(0).signals[0].source
-        new_sfg_source_0 = new_sfg.find_by_name(
-            "bfly1")[0].input(0).signals[0].source
+        new_sfg_source_0 = (
+            new_sfg.find_by_name("bfly1")[0].input(0).signals[0].source
+        )
 
         assert sfg_source_0.index == 0
         assert new_sfg_source_0.index == 0
@@ -908,8 +1225,9 @@ class TestRemove:
         assert new_sfg_source_0.operation.name == "bfly3"
 
         sfg_source_1 = sfg.find_by_name("bfly1")[0].input(1).signals[0].source
-        new_sfg_source_1 = new_sfg.find_by_name(
-            "bfly1")[0].input(1).signals[0].source
+        new_sfg_source_1 = (
+            new_sfg.find_by_name("bfly1")[0].input(1).signals[0].source
+        )
 
         assert sfg_source_1.index == 1
         assert new_sfg_source_1.index == 1
@@ -927,8 +1245,9 @@ class TestSaveLoadSFG:
     def get_path(self, existing=False):
         path_ = "".join(random.choices(string.ascii_uppercase, k=4)) + ".py"
         while path.exists(path_) if not existing else not path.exists(path_):
-            path_ = "".join(random.choices(
-                string.ascii_uppercase, k=4)) + ".py"
+            path_ = (
+                "".join(random.choices(string.ascii_uppercase, k=4)) + ".py"
+            )
 
         return path_
 
@@ -992,7 +1311,8 @@ class TestSaveLoadSFG:
         precedence_sfg_registers_and_constants_, _ = python_to_sfg(path_)
 
         assert str(precedence_sfg_delays_and_constants) == str(
-            precedence_sfg_registers_and_constants_)
+            precedence_sfg_registers_and_constants_
+        )
 
         remove(path_)
 
@@ -1004,54 +1324,76 @@ class TestSaveLoadSFG:
 
 class TestGetComponentsOfType:
     def test_get_no_operations_of_type(self, sfg_two_inputs_two_outputs):
-        assert [op.name for op in sfg_two_inputs_two_outputs.find_by_type_name(Multiplication.type_name())] \
-            == []
+        assert [
+            op.name
+            for op in sfg_two_inputs_two_outputs.find_by_type_name(
+                Multiplication.type_name()
+            )
+        ] == []
 
     def test_get_multple_operations_of_type(self, sfg_two_inputs_two_outputs):
-        assert [op.name for op in sfg_two_inputs_two_outputs.find_by_type_name(Addition.type_name())] \
-            == ["ADD1", "ADD2"]
+        assert [
+            op.name
+            for op in sfg_two_inputs_two_outputs.find_by_type_name(
+                Addition.type_name()
+            )
+        ] == ["ADD1", "ADD2"]
 
-        assert [op.name for op in sfg_two_inputs_two_outputs.find_by_type_name(Input.type_name())] \
-            == ["IN1", "IN2"]
+        assert [
+            op.name
+            for op in sfg_two_inputs_two_outputs.find_by_type_name(
+                Input.type_name()
+            )
+        ] == ["IN1", "IN2"]
 
-        assert [op.name for op in sfg_two_inputs_two_outputs.find_by_type_name(Output.type_name())] \
-            == ["OUT1", "OUT2"]
+        assert [
+            op.name
+            for op in sfg_two_inputs_two_outputs.find_by_type_name(
+                Output.type_name()
+            )
+        ] == ["OUT1", "OUT2"]
 
 
 class TestPrecedenceGraph:
     def test_precedence_graph(self, sfg_simple_filter):
-        res = 'digraph {\n\trankdir=LR\n\tsubgraph cluster_0 ' \
-        '{\n\t\tlabel=N1\n\t\t"in1.0" [label=in1]\n\t\t"t1.0" [label=t1]' \
-        '\n\t}\n\tsubgraph cluster_1 {\n\t\tlabel=N2\n\t\t"cmul1.0" ' \
-        '[label=cmul1]\n\t}\n\tsubgraph cluster_2 ' \
-        '{\n\t\tlabel=N3\n\t\t"add1.0" [label=add1]\n\t}\n\t"in1.0" ' \
-        '-> add1\n\tadd1 [label=add1 shape=square]\n\tin1 -> "in1.0"' \
-        '\n\tin1 [label=in1 shape=square]\n\t"t1.0" -> cmul1\n\tcmul1 ' \
-        '[label=cmul1 shape=square]\n\t"t1.0" -> out1\n\tout1 ' \
-        '[label=out1 shape=square]\n\tt1Out -> "t1.0"\n\tt1Out ' \
-        '[label=t1 shape=square]\n\t"cmul1.0" -> add1\n\tadd1 ' \
-        '[label=add1 shape=square]\n\tcmul1 -> "cmul1.0"\n\tcmul1 ' \
-        '[label=cmul1 shape=square]\n\t"add1.0" -> t1In\n\tt1In ' \
-        '[label=t1 shape=square]\n\tadd1 -> "add1.0"\n\tadd1 ' \
-        '[label=add1 shape=square]\n}'
+        res = (
+            "digraph {\n\trankdir=LR\n\tsubgraph cluster_0 "
+            '{\n\t\tlabel=N1\n\t\t"in1.0" [label=in1]\n\t\t"t1.0" [label=t1]'
+            '\n\t}\n\tsubgraph cluster_1 {\n\t\tlabel=N2\n\t\t"cmul1.0" '
+            "[label=cmul1]\n\t}\n\tsubgraph cluster_2 "
+            '{\n\t\tlabel=N3\n\t\t"add1.0" [label=add1]\n\t}\n\t"in1.0" '
+            '-> add1\n\tadd1 [label=add1 shape=square]\n\tin1 -> "in1.0"'
+            '\n\tin1 [label=in1 shape=square]\n\t"t1.0" -> cmul1\n\tcmul1 '
+            '[label=cmul1 shape=square]\n\t"t1.0" -> out1\n\tout1 '
+            '[label=out1 shape=square]\n\tt1Out -> "t1.0"\n\tt1Out '
+            '[label=t1 shape=square]\n\t"cmul1.0" -> add1\n\tadd1 '
+            '[label=add1 shape=square]\n\tcmul1 -> "cmul1.0"\n\tcmul1 '
+            '[label=cmul1 shape=square]\n\t"add1.0" -> t1In\n\tt1In '
+            '[label=t1 shape=square]\n\tadd1 -> "add1.0"\n\tadd1 '
+            "[label=add1 shape=square]\n}"
+        )
 
         assert sfg_simple_filter.precedence_graph().source == res
 
 
 class TestSFGGraph:
     def test_sfg(self, sfg_simple_filter):
-        res = 'digraph {\n\trankdir=LR\n\tin1\n\tin1 -> ' \
-            'add1\n\tout1\n\tt1 -> out1\n\tadd1\n\tcmul1 -> ' \
-            'add1\n\tcmul1\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 ' \
-            '-> cmul1\n}'
+        res = (
+            "digraph {\n\trankdir=LR\n\tin1\n\tin1 -> "
+            "add1\n\tout1\n\tt1 -> out1\n\tadd1\n\tcmul1 -> "
+            "add1\n\tcmul1\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 "
+            "-> cmul1\n}"
+        )
 
         assert sfg_simple_filter.sfg().source == res
 
     def test_sfg_show_id(self, sfg_simple_filter):
-        res = 'digraph {\n\trankdir=LR\n\tin1\n\tin1 -> add1 ' \
-            '[label=s1]\n\tout1\n\tt1 -> out1 [label=s2]\n\tadd1' \
-            '\n\tcmul1 -> add1 [label=s3]\n\tcmul1\n\tadd1 -> t1 ' \
-            '[label=s4]\n\tt1 [shape=square]\n\tt1 -> cmul1 [label=s5]\n}'
+        res = (
+            "digraph {\n\trankdir=LR\n\tin1\n\tin1 -> add1 "
+            "[label=s1]\n\tout1\n\tt1 -> out1 [label=s2]\n\tadd1"
+            "\n\tcmul1 -> add1 [label=s3]\n\tcmul1\n\tadd1 -> t1 "
+            "[label=s4]\n\tt1 [shape=square]\n\tt1 -> cmul1 [label=s5]\n}"
+        )
 
         assert sfg_simple_filter.sfg(show_id=True).source == res
 
