@@ -1,5 +1,6 @@
-from qtpy.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,\
-QLabel, QCheckBox, QGridLayout
+from qtpy.QtWidgets import (
+    QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
+    QCheckBox, QGridLayout)
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QDoubleValidator
 
@@ -23,14 +24,17 @@ class PropertiesWindow(QDialog):
         self.vertical_layout = QVBoxLayout()
         self.vertical_layout.addLayout(self.name_layout)
 
-        if hasattr(self.operation.operation, "value") or hasattr(self.operation.operation, "initial_value"):
+        if (hasattr(self.operation.operation, "value") or
+            hasattr(self.operation.operation, "initial_value")):
             self.constant_layout = QHBoxLayout()
             self.constant_layout.setSpacing(50)
             self.constant_value = QLabel("Value:")
             if hasattr(self.operation.operation, "value"):
-                self.edit_constant = QLineEdit(str(self.operation.operation.value))
+                self.edit_constant = QLineEdit(
+                    str(self.operation.operation.value))
             else:
-                self.edit_constant = QLineEdit(str(self.operation.operation.initial_value))
+                self.edit_constant = QLineEdit(
+                    str(self.operation.operation.initial_value))
 
             self.only_accept_float = QDoubleValidator()
             self.edit_constant.setValidator(self.only_accept_float)
@@ -51,7 +55,8 @@ class PropertiesWindow(QDialog):
 
         if self.operation.operation.input_count > 0:
             self.latency_layout = QHBoxLayout()
-            self.latency_label = QLabel("Set latency for input ports (-1 for None):")
+            self.latency_label = QLabel(
+                "Set latency for input ports (-1 for None):")
             self.latency_layout.addWidget(self.latency_label)
             self.vertical_layout.addLayout(self.latency_layout)
 
@@ -68,7 +73,8 @@ class PropertiesWindow(QDialog):
                 input_layout.addWidget(input_label)
                 input_value = QLineEdit()
                 try:
-                    input_value.setPlaceholderText(str(self.operation.operation.latency))
+                    input_value.setPlaceholderText(
+                        str(self.operation.operation.latency))
                 except ValueError:
                     input_value.setPlaceholderText("-1")
                 int_valid = QDoubleValidator()
@@ -86,7 +92,8 @@ class PropertiesWindow(QDialog):
 
         if self.operation.operation.output_count > 0:
             self.latency_layout = QHBoxLayout()
-            self.latency_label = QLabel("Set latency for output ports (-1 for None):")
+            self.latency_label = QLabel(
+                "Set latency for output ports (-1 for None):")
             self.latency_layout.addWidget(self.latency_label)
             self.vertical_layout.addLayout(self.latency_layout)
 
@@ -103,7 +110,8 @@ class PropertiesWindow(QDialog):
                 input_layout.addWidget(input_label)
                 input_value = QLineEdit()
                 try:
-                    input_value.setPlaceholderText(str(self.operation.operation.latency))
+                    input_value.setPlaceholderText(
+                        str(self.operation.operation.latency))
                 except ValueError:
                     input_value.setPlaceholderText("-1")
                 int_valid = QDoubleValidator()
@@ -125,7 +133,8 @@ class PropertiesWindow(QDialog):
         self.setLayout(self.vertical_layout)
 
     def save_properties(self):
-        self._window.logger.info(f"Saving properties of operation: {self.operation.name}.")
+        self._window.logger.info(
+            f"Saving properties of operation: {self.operation.name}.")
         self.operation.name = self.edit_name.text()
         self.operation.operation.name = self.edit_name.text()
         self.operation.label.setPlainText(self.operation.name)
@@ -141,6 +150,10 @@ class PropertiesWindow(QDialog):
             self.operation.label.setOpacity(0)
             self.operation.is_show_name = False
 
-        self.operation.operation.set_latency_offsets({port: float(self.latency_fields[port].text().replace(",", ".")) if self.latency_fields[port].text() and float(self.latency_fields[port].text().replace(",", ".")) > 0 else None for port in self.latency_fields})
+        self.operation.operation.set_latency_offsets(
+            {port: float(self.latency_fields[port].text().replace(",", "."))
+             if self.latency_fields[port].text() and float(self.latency_fields[port].text().replace(",", ".")) > 0
+             else None
+             for port in self.latency_fields})
 
         self.reject()

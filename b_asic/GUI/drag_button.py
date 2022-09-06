@@ -143,7 +143,8 @@ class DragButton(QPushButton):
                 f"Operation detected in existing SFG, removing SFG with name: {self._window.opToSFG[self].name}.")
             del self._window.sfg_dict[self._window.opToSFG[self].name]
             self._window.opToSFG = {
-                op: self._window.opToSFG[op] for op in self._window.opToSFG if self._window.opToSFG[op] is not self._window.opToSFG[self]}
+                op: self._window.opToSFG[op] for op in self._window.opToSFG
+                if self._window.opToSFG[op] is not self._window.opToSFG[self]}
 
         for port in self._window.portDict[self]:
             if port in self._window.pressed_ports:

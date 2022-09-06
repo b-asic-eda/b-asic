@@ -1,11 +1,5 @@
-from qtpy.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,\
-QLabel, QCheckBox, QSpinBox, QGroupBox, QFrame, QFormLayout, QGridLayout, QSizePolicy, QFileDialog, QShortcut, QComboBox
+from qtpy.QtWidgets import QDialog, QPushButton, QVBoxLayout, QComboBox
 from qtpy.QtCore import Qt, Signal
-from qtpy.QtGui import QIntValidator, QKeySequence
-
-from matplotlib.backends import qt_compat
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 
 
 class SelectSFGWindow(QDialog):
