@@ -32,7 +32,9 @@ class Ui_main_window(object):
 "    left: 10px;\n"
 "    padding: 0 3px 0 3px;\n"
 "}")
-        self.operation_box.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.operation_box.setAlignment(QtCore.Qt.AlignLeading|
+                                        QtCore.Qt.AlignLeft|
+                                        QtCore.Qt.AlignVCenter)
         self.operation_box.setFlat(False)
         self.operation_box.setCheckable(False)
         self.operation_box.setObjectName("operation_box")

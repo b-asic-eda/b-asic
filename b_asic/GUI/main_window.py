@@ -281,7 +281,7 @@ class MainWindow(QMainWindow):
             return
 
         if name == "":
-            self.logger.warning(f"Failed to initialize SFG with empty name.")
+            self.logger.warning("Failed to initialize SFG with empty name.")
             return
 
         self.logger.info(
@@ -396,7 +396,8 @@ class MainWindow(QMainWindow):
     def get_operations_from_namespace(self, namespace):
         self.logger.info(
             f"Fetching operations from namespace: {namespace.__name__}.")
-        return [comp for comp in dir(namespace) if hasattr(getattr(namespace, comp), "type_name")]
+        return [comp for comp in dir(namespace)
+                if hasattr(getattr(namespace, comp), "type_name")]
 
     def add_operations_from_namespace(self, namespace, _list):
         for attr_name in self.get_operations_from_namespace(namespace):
@@ -435,8 +436,9 @@ class MainWindow(QMainWindow):
                 attr_button.move(*position)
 
             attr_button.setFixedSize(55, 55)
-            attr_button.setStyleSheet("background-color: white; border-style: solid;\
-            border-color: black; border-width: 2px")
+            attr_button.setStyleSheet(
+                "background-color: white; border-style: solid;"
+                "border-color: black; border-width: 2px")
             self.add_ports(attr_button)
 
             icon_path = os.path.join(os.path.dirname(
@@ -502,14 +504,15 @@ class MainWindow(QMainWindow):
     def _connect_button(self, *event):
         if len(self.pressed_ports) < 2:
             self.logger.warning(
-                "Cannot connect less than two ports. Please select at least two.")
+                "Cannot connect less than two ports. "
+                "Please select at least two.")
             return
 
         for i in range(len(self.pressed_ports) - 1):
             source = self.pressed_ports[i] if isinstance(
                 self.pressed_ports[i].port, OutputPort) else self.pressed_ports[i + 1]
-            destination = self.pressed_ports[i +
-                                             1] if source is not self.pressed_ports[i + 1] else self.pressed_ports[i]
+            destination = self.pressed_ports[
+                i + 1] if source is not self.pressed_ports[i + 1] else self.pressed_ports[i]
             if source.port.operation is destination.port.operation:
                 self.logger.warning("Cannot connect to the same port")
                 continue
@@ -526,9 +529,11 @@ class MainWindow(QMainWindow):
 
     def connect_button(self, source, destination):
         signal_exists = (
-            signal for signal in source.port.signals if signal.destination is destination.port)
+            signal for signal in source.port.signals
+            if signal.destination is destination.port)
         self.logger.info(
-            f"Connecting: {source.operation.operation.type_name()} -> {destination.operation.operation.type_name()}.")
+            f"Connecting: {source.operation.operation.type_name()} "
+            f"-> {destination.operation.operation.type_name()}.")
         try:
             line = Arrow(source, destination, self, signal=next(signal_exists))
         except StopIteration:
@@ -564,7 +569,8 @@ class MainWindow(QMainWindow):
             simulation = FastSimulation(
                 sfg, input_providers=properties["input_values"])
             l_result = simulation.run_for(
-                properties["iteration_count"], save_results=properties["all_results"])
+                properties["iteration_count"],
+                save_results=properties["all_results"])
 
             print(f"{'=' * 10} {sfg.name} {'=' * 10}")
             pprint(
@@ -587,7 +593,8 @@ class MainWindow(QMainWindow):
 
         self.dialog.show()
 
-        # Wait for input to dialog. Kinda buggy because of the separate window in the same thread.
+        # Wait for input to dialog.
+        # Kinda buggy because of the separate window in the same thread.
         self.dialog.simulate.connect(self._simulate_sfg)
 
     def display_faq_page(self):

@@ -1,6 +1,3 @@
-
-import sys
-
 from qtpy.QtWidgets import QPushButton, QMenu
 from qtpy.QtCore import Qt, Signal
 
@@ -37,7 +34,8 @@ class PortButton(QPushButton):
 
     def _toggle_port(self, pressed=False):
         self.pressed = not pressed
-        self.setStyleSheet(f"background-color: {'white' if not self.pressed else 'grey'}")
+        self.setStyleSheet(
+            f"background-color: {'white' if not self.pressed else 'grey'}")
 
     def select_port(self, modifiers=None):
         if modifiers != Qt.ControlModifier:
