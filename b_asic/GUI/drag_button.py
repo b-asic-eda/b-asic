@@ -5,12 +5,12 @@ Contains a GUI class for drag buttons.
 
 import os.path
 
+from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import QAction, QMenu, QPushButton
+
 from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.GUI.utils import decorate_class, handle_error
-
-from qtpy.QtWidgets import QPushButton, QMenu, QAction
-from qtpy.QtCore import Qt, QSize, Signal
-from qtpy.QtGui import QIcon
 
 
 @decorate_class(handle_error)
@@ -23,7 +23,15 @@ class DragButton(QPushButton):
     connectionRequested = Signal(QPushButton)
     moved = Signal()
 
-    def __init__(self, name, operation, operation_path_name, is_show_name, window, parent=None):
+    def __init__(
+        self,
+        name,
+        operation,
+        operation_path_name,
+        is_show_name,
+        window,
+        parent=None,
+    ):
         self.name = name
         self.ports = []
         self.is_show_name = is_show_name
@@ -73,8 +81,9 @@ class DragButton(QPushButton):
                     if button is self:
                         continue
 
-                    button.move(button.mapToParent(
-                        event.pos() - self._mouse_press_pos))
+                    button.move(
+                        button.mapToParent(event.pos() - self._mouse_press_pos)
+                    )
 
         self._window.scene.update()
         self._window.graphic_view.update()
@@ -97,10 +106,16 @@ class DragButton(QPushButton):
 
     def _toggle_button(self, pressed=False):
         self.pressed = not pressed
-        self.setStyleSheet(f"background-color: {'white' if not self.pressed else 'grey'}; border-style: solid;\
-        border-color: black; border-width: 2px")
-        path_to_image = os.path.join(os.path.dirname(
-            __file__), 'operation_icons', f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}")
+        self.setStyleSheet(
+            f"background-color: {'white' if not self.pressed else 'grey'};"
+            " border-style: solid;        border-color: black;"
+            " border-width: 2px"
+        )
+        path_to_image = os.path.join(
+            os.path.dirname(__file__),
+            "operation_icons",
+            f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}",
+        )
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(55, 55))
 
@@ -124,15 +139,26 @@ class DragButton(QPushButton):
 
     def remove(self):
         self._window.logger.info(
-            f"Removing operation with name {self.operation.name}.")
+            f"Removing operation with name {self.operation.name}."
+        )
         self._window.scene.removeItem(
-            self._window.dragOperationSceneDict[self])
+            self._window.dragOperationSceneDict[self]
+        )
 
         _signals = []
         for signal, ports in self._window.signalPortDict.items():
-            if any(map(lambda port: set(port).intersection(set(self._window.portDict[self])), ports)):
+            if any(
+                map(
+                    lambda port: set(port).intersection(
+                        set(self._window.portDict[self])
+                    ),
+                    ports,
+                )
+            ):
                 self._window.logger.info(
-                    f"Removed signal with name: {signal.signal.name} to/from operation: {self.operation.name}.")
+                    f"Removed signal with name: {signal.signal.name} to/from"
+                    f" operation: {self.operation.name}."
+                )
                 _signals.append(signal)
 
         for signal in _signals:
@@ -140,11 +166,15 @@ class DragButton(QPushButton):
 
         if self in self._window.opToSFG:
             self._window.logger.info(
-                f"Operation detected in existing SFG, removing SFG with name: {self._window.opToSFG[self].name}.")
+                "Operation detected in existing SFG, removing SFG with name:"
+                f" {self._window.opToSFG[self].name}."
+            )
             del self._window.sfg_dict[self._window.opToSFG[self].name]
             self._window.opToSFG = {
-                op: self._window.opToSFG[op] for op in self._window.opToSFG
-                if self._window.opToSFG[op] is not self._window.opToSFG[self]}
+                op: self._window.opToSFG[op]
+                for op in self._window.opToSFG
+                if self._window.opToSFG[op] is not self._window.opToSFG[self]
+            }
 
         for port in self._window.portDict[self]:
             if port in self._window.pressed_ports:

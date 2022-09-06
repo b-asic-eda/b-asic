@@ -4,12 +4,14 @@ Contains some of the most commonly used mathematical operations.
 """
 
 from numbers import Number
-from typing import Optional, Dict
-from numpy import conjugate, sqrt, abs as np_abs
+from typing import Dict, Optional
 
-from b_asic.port import SignalSourceProvider, InputPort, OutputPort
-from b_asic.operation import AbstractOperation
+from numpy import abs as np_abs
+from numpy import conjugate, sqrt
+
 from b_asic.graph_component import Name, TypeName
+from b_asic.operation import AbstractOperation
+from b_asic.port import SignalSourceProvider
 
 
 class Constant(AbstractOperation):
@@ -24,7 +26,12 @@ class Constant(AbstractOperation):
 
     def __init__(self, value: Number = 0, name: Name = ""):
         """Construct a Constant operation with the given value."""
-        super().__init__(input_count=0, output_count=1, name=name, latency_offsets={'out0' : 0})
+        super().__init__(
+            input_count=0,
+            output_count=1,
+            name=name,
+            latency_offsets={"out0": 0},
+        )
         self.set_param("value", value)
 
     @classmethod
@@ -53,10 +60,23 @@ class Addition(AbstractOperation):
     output(0): input(0) + input(1)
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct an Addition operation."""
-        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -74,10 +94,23 @@ class Subtraction(AbstractOperation):
     output(0): input(0) - input(1)
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a Subtraction operation."""
-        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -96,10 +129,24 @@ class AddSub(AbstractOperation):
     output(0): input(0) - input(1) if is_add = False
     """
 
-    def __init__(self, is_add: bool = True, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        is_add: bool = True,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct an Addition operation."""
-        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
         self.set_param("is_add", is_add)
 
     @classmethod
@@ -128,10 +175,23 @@ class Multiplication(AbstractOperation):
     output(0): input(0) * input(1)
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a Multiplication operation."""
-        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -149,10 +209,23 @@ class Division(AbstractOperation):
     output(0): input(0) / input(1)
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a Division operation."""
-        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -171,18 +244,32 @@ class Min(AbstractOperation):
     output(0): min(input(0), input(1))
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a Min operation."""
-        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
         return "min"
 
     def evaluate(self, a, b):
-        assert not isinstance(a, complex) and not isinstance(b, complex), \
-            ("core_operations.Min does not support complex numbers.")
+        assert not isinstance(a, complex) and not isinstance(
+            b, complex
+        ), "core_operations.Min does not support complex numbers."
         return a if a < b else b
 
 
@@ -195,18 +282,32 @@ class Max(AbstractOperation):
     output(0): max(input(0), input(1))
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a Max operation."""
-        super().__init__(input_count=2, output_count=1, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
         return "max"
 
     def evaluate(self, a, b):
-        assert not isinstance(a, complex) and not isinstance(b, complex), \
-            ("core_operations.Max does not support complex numbers.")
+        assert not isinstance(a, complex) and not isinstance(
+            b, complex
+        ), "core_operations.Max does not support complex numbers."
         return a if a > b else b
 
 
@@ -218,10 +319,22 @@ class SquareRoot(AbstractOperation):
     output(0): sqrt(input(0))
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a SquareRoot operation."""
-        super().__init__(input_count=1, output_count=1, name=name, input_sources=[src0],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=name,
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -239,10 +352,22 @@ class ComplexConjugate(AbstractOperation):
     output(0): conj(input(0))
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a ComplexConjugate operation."""
-        super().__init__(input_count=1, output_count=1, name=name, input_sources=[src0],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=name,
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -260,10 +385,22 @@ class Absolute(AbstractOperation):
     output(0): abs(input(0))
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct an Absolute operation."""
-        super().__init__(input_count=1, output_count=1, name=name, input_sources=[src0],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=name,
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -281,10 +418,23 @@ class ConstantMultiplication(AbstractOperation):
     output(0): self.param("value") * input(0)
     """
 
-    def __init__(self, value: Number = 0, src0: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        value: Number = 0,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a ConstantMultiplication operation with the given value."""
-        super().__init__(input_count=1, output_count=1, name=name, input_sources=[src0],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=name,
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
         self.set_param("value", value)
 
     @classmethod
@@ -315,10 +465,23 @@ class Butterfly(AbstractOperation):
     output(1): input(0) - input(1)
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a Butterfly operation."""
-        super().__init__(input_count=2, output_count=2, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=2,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -337,10 +500,24 @@ class MAD(AbstractOperation):
     output(0): (input(0) * input(1)) + input(2)
     """
 
-    def __init__(self, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, src2: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        src2: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a MAD operation."""
-        super().__init__(input_count=3, output_count=1, name=name, input_sources=[src0, src1, src2],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=3,
+            output_count=1,
+            name=name,
+            input_sources=[src0, src1, src2],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -357,10 +534,24 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     output(1): input(0) + value*(input(1) - input(0)
     """
 
-    def __init__(self, value: Number = 0, src0: Optional[SignalSourceProvider] = None, src1: Optional[SignalSourceProvider] = None, name: Name = "", latency: Optional[int] = None, latency_offsets: Optional[Dict[str, int]] = None):
+    def __init__(
+        self,
+        value: Number = 0,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        name: Name = "",
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+    ):
         """Construct a Butterfly operation."""
-        super().__init__(input_count=2, output_count=2, name=name, input_sources=[src0, src1],
-                         latency=latency, latency_offsets=latency_offsets)
+        super().__init__(
+            input_count=2,
+            output_count=2,
+            name=name,
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+        )
         self.set_param("value", value)
 
     @classmethod
@@ -368,7 +559,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         return "sym2p"
 
     def evaluate(self, a, b):
-        tmp = self.value*(b - a)
+        tmp = self.value * (b - a)
         return b + tmp, a + tmp
 
     @property

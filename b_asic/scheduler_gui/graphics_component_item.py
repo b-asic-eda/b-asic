@@ -4,51 +4,71 @@
 
 Contains the scheduler-gui GraphicsComponentItem class for drawing and maintain a component in a graph.
 """
-from typing import (
-    Union, Optional, Dict, List)
+from typing import Dict, List, Optional, Union
 
 # QGraphics and QPainter imports
-from qtpy.QtCore    import Qt, QPointF
-from qtpy.QtGui     import QPainterPath, QColor, QBrush, QPen, QCursor
+from qtpy.QtCore import QPointF, Qt
+from qtpy.QtGui import QBrush, QColor, QCursor, QPainterPath, QPen
 from qtpy.QtWidgets import (
-    QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem, QGraphicsRectItem,
-    QGraphicsSimpleTextItem, QGraphicsEllipseItem)
+    QGraphicsEllipseItem,
+    QGraphicsItem,
+    QGraphicsItemGroup,
+    QGraphicsPathItem,
+    QGraphicsRectItem,
+    QGraphicsSimpleTextItem,
+)
 
 # B-ASIC
-from b_asic.graph_component     import GraphComponent
+from b_asic.graph_component import GraphComponent
 from b_asic.scheduler_gui._preferences import (
-    OPERATION_LATENCY_ACTIVE, OPERATION_LATENCY_INACTIVE,
-    OPERATION_EXECUTION_TIME_INACTIVE)
+    OPERATION_EXECUTION_TIME_INACTIVE,
+    OPERATION_LATENCY_ACTIVE,
+    OPERATION_LATENCY_INACTIVE,
+)
 
 
 class GraphicsComponentItem(QGraphicsItemGroup):
     """A class to represent an component in a graph."""
-    _scale:                 float = 1.0
+
+    _scale: float = 1.0
     """Static, changed from MainWindow."""
-    _operation:             GraphComponent
-    _height:                float
-    _ports:                 Dict[str, Dict[str, Union[float, QPointF]]]     # ['port-id']['latency/pos']
-    _end_time:              int
-    _component_item:        QGraphicsPathItem
-    _execution_time_item:   QGraphicsRectItem
-    _label_item:            QGraphicsSimpleTextItem
-    _port_items:            List[QGraphicsEllipseItem]
+    _operation: GraphComponent
+    _height: float
+    _ports: Dict[
+        str, Dict[str, Union[float, QPointF]]
+    ]  # ['port-id']['latency/pos']
+    _end_time: int
+    _component_item: QGraphicsPathItem
+    _execution_time_item: QGraphicsRectItem
+    _label_item: QGraphicsSimpleTextItem
+    _port_items: List[QGraphicsEllipseItem]
 
-
-    def __init__(self, operation: GraphComponent, height: float = 0.75, parent: Optional[QGraphicsItem] = None):
+    def __init__(
+        self,
+        operation: GraphComponent,
+        height: float = 0.75,
+        parent: Optional[QGraphicsItem] = None,
+    ):
         """Constructs a GraphicsComponentItem. 'parent' is passed to QGraphicsItemGroup's constructor."""
         super().__init__(parent=parent)
         self._operation = operation
         self._height = height
-        self._ports = {k:{'latency':float(v)} for k,v in operation.latency_offsets.items()}
+        self._ports = {
+            k: {"latency": float(v)}
+            for k, v in operation.latency_offsets.items()
+        }
         self._end_time = max(operation.latency_offsets.values())
         self._port_items = []
 
-        self.setFlag(QGraphicsItem.ItemIsMovable)       # mouse move events
-        self.setFlag(QGraphicsItem.ItemIsSelectable)    # mouse move events
+        self.setFlag(QGraphicsItem.ItemIsMovable)  # mouse move events
+        self.setFlag(QGraphicsItem.ItemIsSelectable)  # mouse move events
         # self.setAcceptHoverEvents(True)                 # mouse hover events
-        self.setAcceptedMouseButtons(Qt.LeftButton)     # accepted buttons for movements
-        self.setCursor(QCursor(Qt.OpenHandCursor))      # default cursor when hovering over object
+        self.setAcceptedMouseButtons(
+            Qt.LeftButton
+        )  # accepted buttons for movements
+        self.setCursor(
+            QCursor(Qt.OpenHandCursor)
+        )  # default cursor when hovering over object
 
         self._make_component()
 
@@ -58,13 +78,11 @@ class GraphicsComponentItem(QGraphicsItemGroup):
     #     # QApplication.sendEvent(self.scene(), event)
     #     return True
 
-
     def clear(self) -> None:
         """Sets all children's parent to 'None' and delete the axis."""
         for item in self.childItems():
             item.setParentItem(None)
             del item
-
 
     @property
     def op_id(self) -> str:
@@ -100,7 +118,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         return [self]
 
     def get_port_location(self, key) -> QPointF:
-        return self.mapToParent(self._ports[key]['pos'])
+        return self.mapToParent(self._ports[key]["pos"])
 
     def set_active(self):
         self._set_background(OPERATION_LATENCY_ACTIVE)
@@ -116,23 +134,24 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     def _make_component(self) -> None:
         """Makes a new component out of the stored attributes."""
-        pen1 = QPen(Qt.black)               # used by component outline
-        pen1.setWidthF(2/self._scale)
+        pen1 = QPen(Qt.black)  # used by component outline
+        pen1.setWidthF(2 / self._scale)
         # pen1.setCapStyle(Qt.RoundCap)     # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
-        pen1.setJoinStyle(Qt.RoundJoin)     # Qt.MiterJoin, Qt.BevelJoin (default), Qt.RoundJoin, Qt.SvgMiterJoin
+        pen1.setJoinStyle(
+            Qt.RoundJoin
+        )  # Qt.MiterJoin, Qt.BevelJoin (default), Qt.RoundJoin, Qt.SvgMiterJoin
 
-        brush2 = QBrush(Qt.black)           # used by port filling
-        pen2 = QPen(Qt.black)               # used by port outline
+        brush2 = QBrush(Qt.black)  # used by port filling
+        pen2 = QPen(Qt.black)  # used by port outline
         pen2.setWidthF(0)
         # pen2.setCosmetic(True)
-        port_size = 7/self._scale           # the diameter of an port
+        port_size = 7 / self._scale  # the diameter of an port
 
         execution_time = QColor(OPERATION_EXECUTION_TIME_INACTIVE)
-        execution_time.setAlpha(200)                 # 0-255
-        pen3 = QPen()                       # used by execution time outline
+        execution_time.setAlpha(200)  # 0-255
+        pen3 = QPen()  # used by execution time outline
         pen3.setColor(execution_time)
-        pen3.setWidthF(3/self._scale)
-
+        pen3.setWidthF(3 / self._scale)
 
         ## component path
         def draw_component_path(keys: List[str], reversed: bool) -> None:
@@ -144,28 +163,34 @@ class GraphicsComponentItem(QGraphicsItemGroup):
             neg = -1 if reversed else 1
             for key in keys:
                 # draw 1 or 2 lines
-                x = self._ports[key]['latency']
-                if x != old_x:                                  # Draw horizontal line only
-                    component_path.lineTo(x, y)                 # if we need to.
-                y = old_y + neg*(self._height / len(keys))
-                component_path.lineTo(x, y)                     # vertical line
+                x = self._ports[key]["latency"]
+                if x != old_x:  # Draw horizontal line only
+                    component_path.lineTo(x, y)  # if we need to.
+                y = old_y + neg * (self._height / len(keys))
+                component_path.lineTo(x, y)  # vertical line
                 # register the port pos in dictionary
-                port_x = x                                      # Port coords is at the center
-                port_y = y - neg*abs(y - old_y)/2               # of previous vertical line.
-                self._ports[key]['pos'] = QPointF(port_x, port_y)
+                port_x = x  # Port coords is at the center
+                port_y = (
+                    y - neg * abs(y - old_y) / 2
+                )  # of previous vertical line.
+                self._ports[key]["pos"] = QPointF(port_x, port_y)
                 # update last pos
                 old_x = x
                 old_y = y
 
         # make lists of sorted keys. reverse output port list.
-        input_keys = [key for key in self._ports.keys() if key.lower().startswith("in")]
+        input_keys = [
+            key for key in self._ports.keys() if key.lower().startswith("in")
+        ]
         input_keys = sorted(input_keys)
-        output_keys = [key for key in self._ports.keys() if key.lower().startswith("out")]
+        output_keys = [
+            key for key in self._ports.keys() if key.lower().startswith("out")
+        ]
         output_keys = sorted(output_keys, reverse=True)
 
         # Set the starting position
 
-        x = old_x = self._ports[input_keys[0]]['latency'] if input_keys else 0
+        x = old_x = self._ports[input_keys[0]]["latency"] if input_keys else 0
         y = old_y = 0
         component_path = QPainterPath(QPointF(x, y))  # starting point
 
@@ -178,17 +203,17 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         draw_component_path(output_keys, True)  # draw output side
         component_path.closeSubpath()
 
-
         ## component item
         self._component_item = QGraphicsPathItem(component_path)
         self._component_item.setPen(pen1)
-        self._set_background(Qt.lightGray)       # used by component filling
-
+        self._set_background(Qt.lightGray)  # used by component filling
 
         ## ports item
         for port_dict in self._ports.values():
-            port_pos = self.mapToParent(port_dict['pos'])
-            port = QGraphicsEllipseItem(-port_size/2, -port_size/2, port_size, port_size)   # center of circle is in origo
+            port_pos = self.mapToParent(port_dict["pos"])
+            port = QGraphicsEllipseItem(
+                -port_size / 2, -port_size / 2, port_size, port_size
+            )  # center of circle is in origo
             port.setPen(pen2)
             port.setBrush(brush2)
             port.setPos(port_pos.x(), port_pos.y())
@@ -203,7 +228,9 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
         ## execution time
         if self._operation.execution_time:
-            self._execution_time_item = QGraphicsRectItem(0, 0, self._operation.execution_time, self._height)
+            self._execution_time_item = QGraphicsRectItem(
+                0, 0, self._operation.execution_time, self._height
+            )
             self._execution_time_item.setPen(pen3)
             # self._execution_time_item.setBrush(brush3)
 

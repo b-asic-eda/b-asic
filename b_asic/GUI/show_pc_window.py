@@ -1,8 +1,14 @@
-from b_asic.signal_flow_graph import SFG
-
-from qtpy.QtWidgets import (
-    QDialog, QPushButton, QVBoxLayout, QCheckBox, QFrame, QFormLayout)
 from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QDialog,
+    QFormLayout,
+    QFrame,
+    QPushButton,
+    QVBoxLayout,
+)
+
+from b_asic.signal_flow_graph import SFG
 
 
 class ShowPCWindow(QDialog):
@@ -43,7 +49,8 @@ class ShowPCWindow(QDialog):
         for check_box, sfg in self.check_box_dict.items():
             if check_box.isChecked():
                 self._window.logger.info(
-                    f"Creating a precedence graph from SFG with name: {sfg}.")
+                    f"Creating a precedence graph from SFG with name: {sfg}."
+                )
                 self._window.sfg_dict[sfg].show_precedence_graph()
 
         self.accept()

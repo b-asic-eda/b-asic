@@ -1,51 +1,67 @@
-from qtpy.QtWidgets import QVBoxLayout, QHBoxLayout, QDialog, QLabel, QFrame, \
-    QScrollArea
 from qtpy.QtCore import Qt
-
+from qtpy.QtWidgets import (
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QScrollArea,
+    QVBoxLayout,
+)
 
 QUESTIONS = {
-    "Adding operations":
+    "Adding operations": (
         "Select an operation under 'Special operations' or 'Core operations' "
-        "to add it to the workspace.",
-    "Moving operations":
+        "to add it to the workspace."
+    ),
+    "Moving operations": (
         "To drag an operation, select the operation on the workspace and drag "
-        "it around.",
-    "Selecting operations":
-        "To select one operation just press it once, it will then turn grey.",
-    "Selecting multiple operations using dragging":
+        "it around."
+    ),
+    "Selecting operations": (
+        "To select one operation just press it once, it will then turn grey."
+    ),
+    "Selecting multiple operations using dragging": (
         "To select multiple operations using your mouse, \n"
         "drag the mouse while pressing left mouse button, any operation under "
-        "the selection box will then be selected.",
-    "Selecting multiple operations using without dragging":
+        "the selection box will then be selected."
+    ),
+    "Selecting multiple operations using without dragging": (
         "To select mutliple operations using without dragging, \n"
-        "press 'Ctrl+LMouseButton' on any operation.",
-    "Remove operations":
+        "press 'Ctrl+LMouseButton' on any operation."
+    ),
+    "Remove operations": (
         "To remove an operation, select the operation to be deleted, \n"
         "finally press RMouseButton to bring up the context menu, then press "
-        "'Delete'.",
-    "Remove multiple operations":
+        "'Delete'."
+    ),
+    "Remove multiple operations": (
         "To remove multiple operations, \nselect all operations to be deleted "
-        "and press 'Delete' on your keyboard.",
-    "Connecting operations":
+        "and press 'Delete' on your keyboard."
+    ),
+    "Connecting operations": (
         "To connect operations, select the ports on the operation to connect "
         "from, \nthen select the next port by pressing 'Ctrl+LMouseButton' on "
         "the destination port. Tip: You can chain connection by selecting the "
-        "ports in the order they should be connected.",
-    "Creating a signal-flow-graph":
+        "ports in the order they should be connected."
+    ),
+    "Creating a signal-flow-graph": (
         "To create a signal-flow-graph (SFG), \ncouple together the "
         "operations you wish to create a sfg from, then select all operations "
         "you wish to include in the sfg, \nfinally press 'Create SFG' in the "
-        "upper left corner and enter the name of the sfg.",
-    "Simulating a signal-flow-graph":
+        "upper left corner and enter the name of the sfg."
+    ),
+    "Simulating a signal-flow-graph": (
         "To simulate a signal-flow-graph (SFG), press the run button in the "
         "toolbar, \nthen press 'Simulate SFG' and enter the properties of the "
-        "simulation.",
-    "Properties of simulation":
+        "simulation."
+    ),
+    "Properties of simulation": (
         "The properties of the simulation are, 'Iteration Count': The number "
         "of iterations to run the simulation for, \n'Plot Results': Open a "
         "plot over the output in matplotlib, \n'Get All Results': Print the "
         "detailed output from simulating the sfg in the terminal, \n"
         "'Input Values': The input values to the SFG by index of the port."
+    ),
 }
 
 
@@ -108,7 +124,8 @@ class AboutWindow(QDialog):
 
         title_label = QLabel("B-ASIC / Better ASIC Toolbox")
         subtitle_label = QLabel(
-            "Construct, simulate and analyze components of an ASIC.")
+            "Construct, simulate and analyze components of an ASIC."
+        )
 
         frame = QFrame()
         frame.setFrameShape(QFrame.HLine)

@@ -1,5 +1,7 @@
-from qtpy.QtWidgets import QErrorMessage
 from traceback import format_exc
+
+from qtpy.QtWidgets import QErrorMessage
+
 
 def handle_error(fn):
     def wrapper(self, *args, **kwargs):
@@ -8,9 +10,11 @@ def handle_error(fn):
         except Exception:
             self._window.logger.error(f"Unexpected error: {format_exc()}")
             QErrorMessage(self._window).showMessage(
-                f"Unexpected error: {format_exc()}")
+                f"Unexpected error: {format_exc()}"
+            )
 
     return wrapper
+
 
 def decorate_class(decorator):
     def decorate(cls):
@@ -18,4 +22,5 @@ def decorate_class(decorator):
             if callable(getattr(cls, attr)):
                 setattr(cls, attr, decorator(getattr(cls, attr)))
         return cls
+
     return decorate
