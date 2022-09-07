@@ -1,0 +1,45 @@
+[project]
+name = "b-asic"
+description = "Better ASIC Toolbox"
+readme = "README.md"
+maintainers = [
+    { name = "Oscar Gustafsson", email = "oscar.gustafsson@gmail.com" },
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.7"
+dependencies = [
+    "numpy",
+    "pybind11>=2.3.0",
+    "pyside2",
+    "qtpy",
+    "graphviz<=0.17",
+    "matplotlib",
+    "scipy",
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dynamic = ["version", "authors"]
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+include = ["b_asic*"]
+
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "b_asic/_version.py"
+version_scheme = "release-branch-semver"
+local_scheme = "node-and-date"
+fallback_version = "0.0+UNKNOWN"
+
+[project.urls]
+homepage = "https://gitlab.liu.se/da/B-ASIC"
+documenation = "https://da.gitlab-pages.liu.se/B-ASIC/"

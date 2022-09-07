@@ -22,10 +22,6 @@ before_script:
           coverage_format: cobertura
           path: cov.xml
 
-run-test-3.6:
-  image: python:3.6
-  extends: ".run-test"
-
 run-test-3.7:
   image: python:3.7
   extends: ".run-test"

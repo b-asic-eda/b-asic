@@ -63,8 +63,6 @@ class CMakeBuild(build_ext):
 
 
 setuptools.setup(
-    name="b-asic",
-    version="1.0.1-beta",
     author="Adam Jakobsson, Angus Lothian, Arvid Westerlund, Felix Goding, "
         "Ivar Härnqvist, Jacob Wahlman, Kevin Scott, Rasmus Karlsson, "
         "Oscar Gustafsson, Andreas Bolin",
@@ -73,29 +71,6 @@ setuptools.setup(
         "ivaha717@student.liu.se, jacwa448@student.liu.se, "
         "kevsc634@student.liu.se, raska119@student.liu.se, "
         "oscar.gustafsson@liu.se, andbo467@student.liu.se",
-    description="Better ASIC Toolbox",
-    long_description=open("README.md", "r").read(),
-    long_description_content_type="text/markdown",
-    url="https://gitlab.liu.se/da/B-ASIC",
-    license="MIT",
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-    ],
-    python_requires=">=3.6",
-    install_requires=[
-        "numpy",
-        "pybind11>=2.3.0",
-        "pyside2",
-        "qtpy",
-        "graphviz<=0.17",
-        "matplotlib",
-        "scipy"
-    ],
-    packages=["b_asic", "b_asic/GUI", "b_asic/scheduler_gui"],
     ext_modules=[CMakeExtension("_b_asic")],
     cmdclass={"build_ext": CMakeBuild},
-    zip_safe=False,
-    include_package_data=True
 )
