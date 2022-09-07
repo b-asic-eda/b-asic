@@ -367,9 +367,5 @@
    </property>
   </action>
  </widget>
- <resources>
-  <include location="b_asic/scheduler_gui/icons/basic.qrc"/>
-  <include location="b_asic/scheduler_gui/icons/misc.qrc"/>
- </resources>
  <connections/>
 </ui>
