@@ -114,3 +114,4 @@ _b_asic_debug_log.txt
 ui_*.py
 TODO.txt
 *.log
+b_asic/_version.py
