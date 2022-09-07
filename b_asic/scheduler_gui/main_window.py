@@ -47,10 +47,8 @@ from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.graphics_axes_item import GraphicsAxesItem
 from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
 from b_asic.scheduler_gui.graphics_graph_item import GraphicsGraphItem
-
-# if sys.version_info >= (3, 9):
-#     List = list
-#     #Dict = dict
+sys.path.insert(0, "icons/")  # Needed for *.rc.py files in ui_main_window
+from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
 
 log = logger.getLogger()
 sys.excepthook = logger.handle_exceptions
@@ -78,43 +76,6 @@ if __debug__:
         log.debug("PyQt version:             {}".format(PYQT_VERSION_STR))
     log.debug("QtPy version:             {}".format(qtpy.__version__))
 
-    # Autocompile the .ui form to a python file.
-    try:  # PyQt5, try autocompile
-        from qtpy.uic import compileUiDir
-
-        compileUiDir(".", map=(lambda dir, file: (dir, "ui_" + file)))
-    except:
-        try:  # PySide2, try manual compile
-            import subprocess
-
-            os_ = sys.platform
-            if os_.startswith("linux"):
-                cmds = ["pyside2-uic -o ui_main_window.py main_window.ui"]
-                for cmd in cmds:
-                    subprocess.call(cmd.split())
-            else:
-                # TODO: Implement (startswith) 'win32', 'darwin' (MacOs)
-                raise SystemExit
-        except:  # Compile failed, look for pre-compiled file
-            try:
-                from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
-            except:  # Everything failed, exit
-                log.exception("Could not import 'Ui_MainWindow'.")
-                log.exception(
-                    "Can't autocompile under",
-                    QT_API,
-                    "eviroment. Try to manual compile 'main_window.ui' to"
-                    " 'ui/main_window_ui.py'",
-                )
-                os._exit(1)
-
-
-sys.path.insert(
-    0, "icons/"
-)  # Needed for the compiled '*_rc.py' files in 'ui_*.py' files
-from b_asic.scheduler_gui.ui_main_window import (
-    Ui_MainWindow,
-)  # Only availible when the form (.ui) is compiled
 
 # The following QCoreApplication values is used for QSettings among others
 QCoreApplication.setOrganizationName("Linöping University")
