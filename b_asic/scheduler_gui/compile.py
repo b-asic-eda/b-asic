@@ -7,13 +7,13 @@ If no arguments is given, the compiler search for and compiles all form (.ui)
 files.
 """
 
-from qtpy import uic, API
+from qtpy import uic
 import sys
 import os
 import shutil
 import subprocess
 import argparse
-import b_asic.scheduler_gui
+from b_asic.scheduler_gui._version import __version__
 import b_asic.scheduler_gui.logger as logger
 
 log = logger.getLogger()
@@ -21,7 +21,7 @@ sys.excepthook = logger.handle_exceptions
 
 
 def _check_filenames(*filenames: str) -> None:
-    """Check if the filename(s) exist and if not, raise 'FileNotFoundError'
+    """Check if the filename(s) exist, otherwise raise FileNotFoundError
     exception."""
     for filename in filenames:
         if not os.path.exists(filename):
@@ -29,7 +29,8 @@ def _check_filenames(*filenames: str) -> None:
 
 
 def _check_qt_version() -> None:
-    """Checks if PySide2 or PyQt5 is installed, raises AssertionError otherwise."""
+    """Check if PySide2 or PyQt5 is installed, otherwise raise AssertionError
+    exception."""
     assert uic.PYSIDE2 or uic.PYQT5, 'PySide2 or PyQt5 need to be installed'
 
 
@@ -45,16 +46,14 @@ def replace_qt_bindings(filename: str) -> None:
 
 def compile_rc(*filenames: str) -> None:
     """Compile resource file(s) given by 'filenames'. If no arguments are given,
-    the compiler will search for '*.qrc' files in 'icons\' folder and compile
-    accordingly."""
+    the compiler will search for resource (.qrc) files and compile accordingly."""
     _check_qt_version()
 
     def compile(filename: str = None) -> None:
         outfile = f'{os.path.splitext(filename)[0]}_rc.py'
-        os_ = sys.platform
-
         rcc = shutil.which('pyside2-rcc')
         args = f'-g python -o {outfile} {filename}'
+
         if rcc is None:
             rcc = shutil.which('rcc')
         if rcc is None:
@@ -62,6 +61,7 @@ def compile_rc(*filenames: str) -> None:
             args = f'-o {outfile} {filename}'
         assert rcc, "PySide2 compiler failed, can't find rcc"
 
+        os_ = sys.platform
         if os_.startswith("linux"):  # Linux
             cmd = f'{rcc} {args}'
             subprocess.call(cmd.split())
@@ -84,7 +84,7 @@ def compile_rc(*filenames: str) -> None:
 
     if not filenames:
         rc_files = [os.path.join(root, name)
-                    for root, dirs, files in os.walk('.')
+                    for root, _, files in os.walk('.')
                         for name in files
                             if name.endswith(('.qrc'))]
         
@@ -98,21 +98,20 @@ def compile_rc(*filenames: str) -> None:
 
 
 def compile_ui(*filenames: str) -> None:
-    """Compile form file(s) given by 'filenames'. If no arguments are given,
-    the compiler will search for '*.ui' files and compile accordingly."""
+    """Compile form file(s) given by 'filenames'. If no arguments are given, the
+    compiler will search for form (.ui) files and compile accordingly."""
     _check_qt_version()
 
     def compile(filename: str) -> None:
         dir, file = os.path.split(filename)
-        file, _ = os.path.splitext(file)
+        file = os.path.splitext(file)[0]
         dir = dir if dir else '.'
         outfile = f'{dir}/ui_{file}.py'
 
         if uic.PYSIDE2:
-            os_ = sys.platform
-
             uic_ = shutil.which('pyside2-uic')
             args = f'-g python -o {outfile} {filename}'
+
             if uic_ is None:
                 uic_ = shutil.which('uic')
             if uic_ is None:
@@ -120,6 +119,7 @@ def compile_ui(*filenames: str) -> None:
                 args = f'-o {outfile} {filename}'
             assert uic_, "PySide2 compiler failed, can't find uic"
 
+            os_ = sys.platform
             if os_.startswith("linux"):  # Linux
                 cmd = f'{uic_} {args}'
                 subprocess.call(cmd.split())
@@ -147,7 +147,7 @@ def compile_ui(*filenames: str) -> None:
 
     if not filenames:
         ui_files = [os.path.join(root, name)
-                    for root, dirs, files in os.walk('.')
+                    for root, _, files in os.walk('.')
                         for name in files
                             if name.endswith(('.ui'))]
         for filename in ui_files:
@@ -159,22 +159,19 @@ def compile_ui(*filenames: str) -> None:
 
 
 def compile_all():
-    """The compiler will search for '*.qrc* resource files in 'icons\' folder
-    and for '*.ui' form files and compile accordingly."""
+    """The compiler will search for resource (.qrc) files and form (.ui) files
+    and compile accordingly."""
     compile_rc()
     compile_ui()
 
 
 if __name__ == '__main__':
-    ver = b_asic.scheduler_gui.__version__
-    descr = __doc__
-
-    parser = argparse.ArgumentParser(description=f'{descr}',
+    parser = argparse.ArgumentParser(description=f'{__doc__}',
                                      formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('-v', '--version',
                         action='version',
-                        version=f'%(prog)s v{ver}')
+                        version=f'%(prog)s v{__version__}')
 
     if sys.version_info >= (3, 8):
         parser.add_argument('--ui',
