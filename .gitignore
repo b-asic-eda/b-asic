@@ -111,7 +111,6 @@ _b_asic_debug_log.txt
 .qt_for_python/
 *.pyproject.user
 *.pyproject
-ui_*.py
 TODO.txt
 *.log
 b_asic/_version.py

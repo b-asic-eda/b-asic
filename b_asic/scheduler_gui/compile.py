@@ -13,12 +13,14 @@ import os
 import shutil
 import subprocess
 import argparse
-from b_asic.scheduler_gui._version import __version__
-import b_asic.scheduler_gui.logger as logger
+from setuptools_scm import get_version
 
-log = logger.getLogger()
-sys.excepthook = logger.handle_exceptions
-
+try:
+    import b_asic.scheduler_gui.logger as logger
+    log = logger.getLogger()
+    sys.excepthook = logger.handle_exceptions
+except ModuleNotFoundError:
+    log = None
 
 def _check_filenames(*filenames: str) -> None:
     """Check if the filename(s) exist, otherwise raise FileNotFoundError
@@ -68,16 +70,25 @@ def compile_rc(*filenames: str) -> None:
 
         elif os_.startswith("win32"):  # Windows
             # TODO: implement
-            log.error('Windows RC compiler not implemented')
+            if log is not None:
+                log.error('Windows RC compiler not implemented')
+            else:
+                print('Windows RC compiler not implemented')
             raise NotImplementedError
 
         elif os_.startswith("darwin"):  # macOS
             # TODO: implement
-            log.error('macOS RC compiler not implemented')
+            if log is not None:
+                log.error('macOS RC compiler not implemented')
+            else:
+                print('macOS RC compiler not implemented')
             raise NotImplementedError
 
         else:  # other OS
-            log.error(f'{os_} RC compiler not supported')
+            if log is not None:
+                log.error(f'{os_} RC compiler not supported')
+            else:
+                print(f'{os_} RC compiler not supported')
             raise NotImplementedError
 
         replace_qt_bindings(outfile)  # replace qt-bindings with qtpy
@@ -169,9 +180,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=f'{__doc__}',
                                      formatter_class=argparse.RawTextHelpFormatter)
 
+
+    version = get_version(root='../..', relative_to=__file__)
+
     parser.add_argument('-v', '--version',
                         action='version',
-                        version=f'%(prog)s v{__version__}')
+                        version=f'%(prog)s v{version}')
 
     if sys.version_info >= (3, 8):
         parser.add_argument('--ui',
