@@ -529,6 +529,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 "'Operator' not found in info table. It may have been renamed."
             )
 
+    def exit_app(self):
+        """Exit application."""
+        log.info("Exiting the application.")
+        QApplication.quit()
+
     def info_table_clear_component(self) -> None:
         """Clears the component part of the info table."""
         row = self.info_table.findItems("Operator", Qt.MatchExactly)
