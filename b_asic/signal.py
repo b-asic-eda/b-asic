@@ -90,7 +90,8 @@ class Signal(AbstractGraphComponent):
 
     def remove_source(self) -> None:
         """Disconnect the source OutputPort of the signal. If the source port
-        still is connected to this signal then also disconnect the source port."""
+        still is connected to this signal then also disconnect the source port.
+        """
         src = self._source
         if src is not None:
             self._source = None

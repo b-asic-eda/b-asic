@@ -80,7 +80,8 @@ class GraphComponent(ABC):
 
     @abstractmethod
     def copy_component(self, *args, **kwargs) -> "GraphComponent":
-        """Get a new instance of this graph component type with the same name, id and parameters."""
+        """Get a new instance of this graph component type with the same name, id and parameters.
+        """
         raise NotImplementedError
 
     @property

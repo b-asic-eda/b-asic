@@ -15,19 +15,31 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(MainWindow.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            MainWindow.sizePolicy().hasHeightForWidth()
+        )
         MainWindow.setSizePolicy(sizePolicy)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/icons/basic/small_logo.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(
+            QtGui.QPixmap(":/icons/basic/small_logo.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off,
+        )
         MainWindow.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.centralwidget.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.centralwidget.sizePolicy().hasHeightForWidth()
+        )
         self.centralwidget.setSizePolicy(sizePolicy)
         self.centralwidget.setObjectName("centralwidget")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
@@ -39,15 +51,28 @@ class Ui_MainWindow(object):
         self.splitter.setHandleWidth(0)
         self.splitter.setObjectName("splitter")
         self.view = QtWidgets.QGraphicsView(self.splitter)
-        self.view.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
-        self.view.setRenderHints(QtGui.QPainter.HighQualityAntialiasing|QtGui.QPainter.TextAntialiasing)
-        self.view.setViewportUpdateMode(QtWidgets.QGraphicsView.FullViewportUpdate)
+        self.view.setAlignment(
+            QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop
+        )
+        self.view.setRenderHints(
+            QtGui.QPainter.HighQualityAntialiasing
+            | QtGui.QPainter.TextAntialiasing
+        )
+        self.view.setViewportUpdateMode(
+            QtWidgets.QGraphicsView.FullViewportUpdate
+        )
         self.view.setObjectName("view")
         self.info_table = QtWidgets.QTableWidget(self.splitter)
-        self.info_table.setStyleSheet("alternate-background-color: #fadefb;background-color: #ebebeb;")
-        self.info_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.info_table.setStyleSheet(
+            "alternate-background-color: #fadefb;background-color: #ebebeb;"
+        )
+        self.info_table.setEditTriggers(
+            QtWidgets.QAbstractItemView.NoEditTriggers
+        )
         self.info_table.setAlternatingRowColors(True)
-        self.info_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.info_table.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectRows
+        )
         self.info_table.setRowCount(2)
         self.info_table.setColumnCount(2)
         self.info_table.setObjectName("info_table")
@@ -56,10 +81,10 @@ class Ui_MainWindow(object):
         item = QtWidgets.QTableWidgetItem()
         self.info_table.setVerticalHeaderItem(1, item)
         item = QtWidgets.QTableWidgetItem()
-        item.setTextAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignVCenter)
+        item.setTextAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignVCenter)
         self.info_table.setHorizontalHeaderItem(0, item)
         item = QtWidgets.QTableWidgetItem()
-        item.setTextAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignVCenter)
+        item.setTextAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignVCenter)
         self.info_table.setHorizontalHeaderItem(1, item)
         item = QtWidgets.QTableWidgetItem()
         font = QtGui.QFont()
@@ -72,7 +97,13 @@ class Ui_MainWindow(object):
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
         item.setForeground(brush)
-        item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEditable|QtCore.Qt.ItemIsDragEnabled|QtCore.Qt.ItemIsDropEnabled|QtCore.Qt.ItemIsUserCheckable)
+        item.setFlags(
+            QtCore.Qt.ItemIsSelectable
+            | QtCore.Qt.ItemIsEditable
+            | QtCore.Qt.ItemIsDragEnabled
+            | QtCore.Qt.ItemIsDropEnabled
+            | QtCore.Qt.ItemIsUserCheckable
+        )
         self.info_table.setItem(0, 0, item)
         item = QtWidgets.QTableWidgetItem()
         font = QtGui.QFont()
@@ -85,7 +116,13 @@ class Ui_MainWindow(object):
         brush = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         brush.setStyle(QtCore.Qt.SolidPattern)
         item.setForeground(brush)
-        item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEditable|QtCore.Qt.ItemIsDragEnabled|QtCore.Qt.ItemIsDropEnabled|QtCore.Qt.ItemIsUserCheckable)
+        item.setFlags(
+            QtCore.Qt.ItemIsSelectable
+            | QtCore.Qt.ItemIsEditable
+            | QtCore.Qt.ItemIsDragEnabled
+            | QtCore.Qt.ItemIsDropEnabled
+            | QtCore.Qt.ItemIsUserCheckable
+        )
         self.info_table.setItem(1, 0, item)
         self.info_table.horizontalHeader().setHighlightSections(False)
         self.info_table.horizontalHeader().setStretchLastSection(True)
@@ -125,8 +162,16 @@ class Ui_MainWindow(object):
         self.menu_node_info.setCheckable(True)
         self.menu_node_info.setChecked(True)
         icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap(":/icons/misc/right_panel.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        icon1.addPixmap(QtGui.QPixmap(":/icons/misc/right_filled_panel.svg"), QtGui.QIcon.Normal, QtGui.QIcon.On)
+        icon1.addPixmap(
+            QtGui.QPixmap(":/icons/misc/right_panel.svg"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off,
+        )
+        icon1.addPixmap(
+            QtGui.QPixmap(":/icons/misc/right_filled_panel.svg"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.On,
+        )
         self.menu_node_info.setIcon(icon1)
         self.menu_node_info.setIconVisibleInMenu(False)
         self.menu_node_info.setObjectName("menu_node_info")
@@ -195,19 +240,33 @@ class Ui_MainWindow(object):
         self.menu_Edit.setTitle(_translate("MainWindow", "&Edit"))
         self.menuWindow.setTitle(_translate("MainWindow", "&Window"))
         self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))
-        self.menu_load_from_file.setText(_translate("MainWindow", "&Load Schedule From File..."))
-        self.menu_load_from_file.setToolTip(_translate("MainWindow", "Load schedule from python script"))
-        self.menu_load_from_file.setShortcut(_translate("MainWindow", "Ctrl+O"))
+        self.menu_load_from_file.setText(
+            _translate("MainWindow", "&Load Schedule From File...")
+        )
+        self.menu_load_from_file.setToolTip(
+            _translate("MainWindow", "Load schedule from python script")
+        )
+        self.menu_load_from_file.setShortcut(
+            _translate("MainWindow", "Ctrl+O")
+        )
         self.menu_save.setText(_translate("MainWindow", "&Save"))
         self.menu_save.setToolTip(_translate("MainWindow", "Save schedule"))
         self.menu_save.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.menu_node_info.setText(_translate("MainWindow", "&Node Info"))
-        self.menu_node_info.setToolTip(_translate("MainWindow", "Show node information"))
+        self.menu_node_info.setToolTip(
+            _translate("MainWindow", "Show node information")
+        )
         self.menu_node_info.setShortcut(_translate("MainWindow", "Ctrl+I"))
         self.menu_quit.setText(_translate("MainWindow", "&Quit"))
         self.menu_quit.setShortcut(_translate("MainWindow", "Ctrl+Q"))
         self.menu_save_as.setText(_translate("MainWindow", "Save &As..."))
-        self.menu_exit_dialog.setText(_translate("MainWindow", "&Hide exit dialog"))
-        self.menu_exit_dialog.setToolTip(_translate("MainWindow", "Hide exit dialog"))
+        self.menu_exit_dialog.setText(
+            _translate("MainWindow", "&Hide exit dialog")
+        )
+        self.menu_exit_dialog.setToolTip(
+            _translate("MainWindow", "Hide exit dialog")
+        )
         self.actionT.setText(_translate("MainWindow", "T"))
-        self.menu_close_schedule.setText(_translate("MainWindow", "&Close Schedule"))
+        self.menu_close_schedule.setText(
+            _translate("MainWindow", "&Close Schedule")
+        )

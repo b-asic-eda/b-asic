@@ -297,7 +297,8 @@ class SFG(AbstractOperation):
     def __call__(
         self, *src: Optional[SignalSourceProvider], name: Name = ""
     ) -> "SFG":
-        """Get a new independent SFG instance that is identical to this SFG except without any of its external connections."""
+        """Get a new independent SFG instance that is identical to this SFG except without any of its external connections.
+        """
         return SFG(
             inputs=self._input_operations,
             outputs=self._output_operations,
@@ -379,7 +380,8 @@ class SFG(AbstractOperation):
 
     def connect_external_signals_to_components(self) -> bool:
         """Connects any external signals to this SFG's internal operations. This SFG becomes unconnected to the SFG
-        it is a component off, causing it to become invalid afterwards. Returns True if succesful, False otherwise."""
+        it is a component off, causing it to become invalid afterwards. Returns True if succesful, False otherwise.
+        """
         if len(self.inputs) != len(self.input_operations):
             raise IndexError(
                 f"Number of inputs does not match the number of"
@@ -411,12 +413,14 @@ class SFG(AbstractOperation):
 
     @property
     def input_operations(self) -> Sequence[Operation]:
-        """Get the internal input operations in the same order as their respective input ports."""
+        """Get the internal input operations in the same order as their respective input ports.
+        """
         return self._input_operations
 
     @property
     def output_operations(self) -> Sequence[Operation]:
-        """Get the internal output operations in the same order as their respective output ports."""
+        """Get the internal output operations in the same order as their respective output ports.
+        """
         return self._output_operations
 
     def split(self) -> Iterable[Operation]:
@@ -471,7 +475,8 @@ class SFG(AbstractOperation):
 
     @property
     def id_number_offset(self) -> GraphIDNumber:
-        """Get the graph id number offset of the graph id generator for this SFG."""
+        """Get the graph id number offset of the graph id generator for this SFG.
+        """
         return self._graph_id_generator.id_number_offset
 
     @property
@@ -612,7 +617,8 @@ class SFG(AbstractOperation):
     def remove_operation(self, operation_id: GraphID) -> "SFG":
         """Returns a version of the SFG where the operation with the specified GraphID removed.
         The operation has to have the same amount of input- and output ports or a ValueError will
-        be raised. If no operation with the entered operation_id is found then returns None and does nothing."""
+        be raised. If no operation with the entered operation_id is found then returns None and does nothing.
+        """
         sfg_copy = self()
         operation = sfg_copy.find_by_id(operation_id)
         if operation is None:
@@ -756,7 +762,8 @@ class SFG(AbstractOperation):
     def get_operations_topological_order(self) -> Iterable[Operation]:
         """Returns an Iterable of the Operations in the SFG in Topological Order.
         Feedback loops makes an absolutely correct Topological order impossible, so an
-        approximative Topological Order is returned in such cases in this implementation."""
+        approximative Topological Order is returned in such cases in this implementation.
+        """
         if self._operations_topological_order:
             return self._operations_topological_order
 
@@ -791,7 +798,6 @@ class SFG(AbstractOperation):
 
         while operations_left > 0:
             while not p_queue.empty():
-
                 op = p_queue.get()[2]
 
                 operations_left -= 1
@@ -869,14 +875,16 @@ class SFG(AbstractOperation):
     def set_execution_time_of_type(
         self, type_name: TypeName, execution_time: int
     ) -> None:
-        """Set the execution time of all components with the given type name."""
+        """Set the execution time of all components with the given type name.
+        """
         for op in self.find_by_type_name(type_name):
             op.execution_time = execution_time
 
     def set_latency_offsets_of_type(
         self, type_name: TypeName, latency_offsets: Dict[str, int]
     ) -> None:
-        """Set the latency offset of all components with the given type name."""
+        """Set the latency offset of all components with the given type name.
+        """
         for op in self.find_by_type_name(type_name):
             op.set_latency_offsets(latency_offsets)
 

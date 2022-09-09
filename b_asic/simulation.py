@@ -68,7 +68,8 @@ class Simulation:
             self.set_inputs(input_providers)
 
     def set_input(self, index: int, input_provider: InputProvider) -> None:
-        """Set the input function used to get values for the specific input at the given index to the internal SFG."""
+        """Set the input function used to get values for the specific input at the given index to the internal SFG.
+        """
         if index < 0 or index >= len(self._input_functions):
             raise IndexError(
                 "Input index out of range (expected"
@@ -91,7 +92,8 @@ class Simulation:
     def set_inputs(
         self, input_providers: Sequence[Optional[InputProvider]]
     ) -> None:
-        """Set the input functions used to get values for the inputs to the internal SFG."""
+        """Set the input functions used to get values for the inputs to the internal SFG.
+        """
         if len(input_providers) != self._sfg.input_count:
             raise ValueError(
                 "Wrong number of inputs supplied to simulation (expected"
@@ -107,7 +109,8 @@ class Simulation:
         bits_override: Optional[int] = None,
         truncate: bool = True,
     ) -> Sequence[Number]:
-        """Run one iteration of the simulation and return the resulting output values."""
+        """Run one iteration of the simulation and return the resulting output values.
+        """
         return self.run_for(1, save_results, bits_override, truncate)
 
     def run_until(
@@ -148,7 +151,8 @@ class Simulation:
         bits_override: Optional[int] = None,
         truncate: bool = True,
     ) -> Sequence[Number]:
-        """Run a given number of iterations of the simulation and return the output values of the last iteration."""
+        """Run a given number of iterations of the simulation and return the output values of the last iteration.
+        """
         return self.run_until(
             self._iteration + iterations, save_results, bits_override, truncate
         )
@@ -159,7 +163,8 @@ class Simulation:
         bits_override: Optional[int] = None,
         truncate: bool = True,
     ) -> Sequence[Number]:
-        """Run the simulation until the end of its input arrays and return the output values of the last iteration."""
+        """Run the simulation until the end of its input arrays and return the output values of the last iteration.
+        """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")
         return self.run_until(
@@ -185,5 +190,6 @@ class Simulation:
         self._results.clear()
 
     def clear_state(self) -> None:
-        """Clear all current state of the simulation, except for the results and iteration."""
+        """Clear all current state of the simulation, except for the results and iteration.
+        """
         self._delays.clear()

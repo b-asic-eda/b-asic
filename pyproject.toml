@@ -51,3 +51,8 @@ fallback_version = "0.0+UNKNOWN"
 [project.urls]
 homepage = "https://gitlab.liu.se/da/B-ASIC"
 documenation = "https://da.gitlab-pages.liu.se/B-ASIC/"
+
+[tool.black]
+skip-string-normalization = true
+preview = true
+line-length = 79

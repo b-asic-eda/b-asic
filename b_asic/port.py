@@ -47,7 +47,8 @@ class Port(ABC):
     @latency_offset.setter
     @abstractmethod
     def latency_offset(self, latency_offset: int) -> None:
-        """Set the latency_offset of the port to the integer specified value."""
+        """Set the latency_offset of the port to the integer specified value.
+        """
         raise NotImplementedError
 
     @property

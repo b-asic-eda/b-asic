@@ -110,7 +110,8 @@ def sfg_to_python(sfg: SFG, counter: int = 0, suffix: str = None) -> str:
 
 
 def python_to_sfg(path: str) -> SFG:
-    """Given a serialized file try to deserialize it and load it to the library."""
+    """Given a serialized file try to deserialize it and load it to the library.
+    """
     with open(path) as f:
         code = compile(f.read(), path, "exec")
         exec(code, globals(), locals())

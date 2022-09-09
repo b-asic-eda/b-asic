@@ -64,7 +64,8 @@ class Schedule:
             self._schedule_time = schedule_time
 
     def start_time_of_operation(self, op_id: GraphID) -> int:
-        """Get the start time of the operation with the specified by the op_id."""
+        """Get the start time of the operation with the specified by the op_id.
+        """
         assert (
             op_id in self._start_times
         ), "No operation with the specified op_id in this schedule."

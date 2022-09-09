@@ -214,7 +214,8 @@ class GraphicsGraphEvent:  # PyQt5
         """Changes the cursor to ClosedHandCursor when grabbing an object and
         stores the current position in item's parent coordinates. 'event' will
         by default be accepted, and this item is then the mouse grabber. This
-        allows the item to receive future move, release and double-click events."""
+        allows the item to receive future move, release and double-click events.
+        """
         item: GraphicsComponentItem = self.scene().mouseGrabberItem()
         self._signals.component_selected.emit(item.op_id)
         # self.component_selected.emit(item.op_id)
@@ -267,7 +268,8 @@ class GraphicsGraphEvent:  # PyQt5
     ) -> None:
         """Stores the current position in item's parent coordinates. 'event' will
         by default be accepted, and this item is then the mouse grabber. This
-        allows the item to receive future move, release and double-click events."""
+        allows the item to receive future move, release and double-click events.
+        """
         item: GraphicsTimelineItem = self.scene().mouseGrabberItem()
         self._delta_time = 0
         item.set_text(self._delta_time)

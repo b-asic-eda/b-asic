@@ -41,7 +41,8 @@ class GraphicsGraphItem(
     def __init__(
         self, schedule: Schedule, parent: Optional[QGraphicsItem] = None
     ):
-        """Constructs a GraphicsGraphItem. 'parent' is passed to QGraphicsItemGroup's constructor."""
+        """Constructs a GraphicsGraphItem. 'parent' is passed to QGraphicsItemGroup's constructor.
+        """
         # QGraphicsItemGroup.__init__(self, self)
         # GraphicsGraphEvent.__init__(self)
         super().__init__(parent=parent)
@@ -59,7 +60,8 @@ class GraphicsGraphItem(
         self._make_graph()
 
     def clear(self) -> None:
-        """Sets all children's parent to 'None' and delete the children objects."""
+        """Sets all children's parent to 'None' and delete the children objects.
+        """
         self._event_items = []
         for item in self.childItems():
             item.setParentItem(None)

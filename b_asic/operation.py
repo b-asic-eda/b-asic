@@ -251,12 +251,14 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @abstractmethod
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
-        """Get the input indices of all inputs in this operation whose values are required in order to evaluate the output at the given output index."""
+        """Get the input indices of all inputs in this operation whose values are required in order to evaluate the output at the given output index.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def truncate_input(self, index: int, value: Number, bits: int) -> Number:
-        """Truncate the value to be used as input at the given index to a certain bit length."""
+        """Truncate the value to be used as input at the given index to a certain bit length.
+        """
         raise NotImplementedError
 
     @property
@@ -350,7 +352,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         ] = None,
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None
+        execution_time: Optional[int] = None,
     ):
         """Construct an operation with the given input/output count.
 
@@ -399,7 +401,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @abstractmethod
     def evaluate(self, *inputs) -> Any:  # pylint: disable=arguments-differ
-        """Evaluate the operation and generate a list of output values given a list of input values."""
+        """Evaluate the operation and generate a list of output values given a list of input values.
+        """
         raise NotImplementedError
 
     def __add__(self, src: Union[SignalSourceProvider, Number]) -> "Addition":
@@ -743,7 +746,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @property
     def preceding_operations(self) -> Iterable[Operation]:
-        """Returns an Iterable of all Operations that are connected to this Operations input ports."""
+        """Returns an Iterable of all Operations that are connected to this Operations input ports.
+        """
         return [
             signal.source.operation
             for signal in self.input_signals
@@ -752,7 +756,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @property
     def subsequent_operations(self) -> Iterable[Operation]:
-        """Returns an Iterable of all Operations that are connected to this Operations output ports."""
+        """Returns an Iterable of all Operations that are connected to this Operations output ports.
+        """
         return [
             signal.destination.operation
             for signal in self.output_signals
@@ -777,7 +782,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         input_values: Sequence[Number],
         bits_override: Optional[int] = None,
     ) -> Sequence[Number]:
-        """Truncate the values to be used as inputs to the bit lengths specified by the respective signals connected to each input."""
+        """Truncate the values to be used as inputs to the bit lengths specified by the respective signals connected to each input.
+        """
         args = []
         for i, input_port in enumerate(self.inputs):
             value = input_values[i]

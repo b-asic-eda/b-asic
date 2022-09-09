@@ -426,7 +426,8 @@ class ConstantMultiplication(AbstractOperation):
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
-        """Construct a ConstantMultiplication operation with the given value."""
+        """Construct a ConstantMultiplication operation with the given value.
+        """
         super().__init__(
             input_count=1,
             output_count=1,

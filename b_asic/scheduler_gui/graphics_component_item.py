@@ -49,7 +49,8 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         height: float = 0.75,
         parent: Optional[QGraphicsItem] = None,
     ):
-        """Constructs a GraphicsComponentItem. 'parent' is passed to QGraphicsItemGroup's constructor."""
+        """Constructs a GraphicsComponentItem. 'parent' is passed to QGraphicsItemGroup's constructor.
+        """
         super().__init__(parent=parent)
         self._operation = operation
         self._height = height
@@ -155,7 +156,8 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
         ## component path
         def draw_component_path(keys: List[str], reversed: bool) -> None:
-            """Draws component path and also register port positions in self._ports dictionary."""
+            """Draws component path and also register port positions in self._ports dictionary.
+            """
             nonlocal x
             nonlocal y
             nonlocal old_x

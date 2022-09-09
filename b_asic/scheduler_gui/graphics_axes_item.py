@@ -265,7 +265,6 @@ class GraphicsAxesItem(QGraphicsItemGroup):
             self._x_scale[index + 1].setX(self._x_scale[index + 1].x() + 1)
 
     def _make_base(self) -> None:
-
         # x axis
         self._x_axis.setLine(0, 0, self._width_indent + self._width_padding, 0)
         self._x_axis.setPen(self._base_pen)

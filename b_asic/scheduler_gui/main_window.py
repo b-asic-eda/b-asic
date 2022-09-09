@@ -47,6 +47,7 @@ from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.graphics_axes_item import GraphicsAxesItem
 from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
 from b_asic.scheduler_gui.graphics_graph_item import GraphicsGraphItem
+
 sys.path.insert(0, "icons/")  # Needed for *.rc.py files in ui_main_window
 from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
 
@@ -424,7 +425,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def update_statusbar(self, msg: str) -> None:
-        """Takes in an str and write 'msg' to the statusbar with temporarily policy."""
+        """Takes in an str and write 'msg' to the statusbar with temporarily policy.
+        """
         self.statusbar.showMessage(msg)
 
     def _write_settings(self) -> None:
