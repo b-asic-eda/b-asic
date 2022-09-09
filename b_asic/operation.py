@@ -350,6 +350,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         ] = None,
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None
     ):
         """Construct an operation with the given input/output count.
 
