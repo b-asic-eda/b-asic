@@ -8,8 +8,8 @@ Contains the scheduler-gui GraphicsGraphEvent class containing event filters and
 from typing import List, Optional, overload
 
 # QGraphics and QPainter imports
-from qtpy.QtCore import QEvent, QObject, QPointF, Qt, Signal
-from qtpy.QtGui import QCursor, QFocusEvent
+from qtpy.QtCore import QEvent, QObject, QPointF, Signal
+from qtpy.QtGui import QFocusEvent
 from qtpy.QtWidgets import (
     QGraphicsItem,
     QGraphicsSceneContextMenuEvent,
@@ -30,7 +30,7 @@ class GraphicsGraphEvent:  # PyQt5
     """Event filter and handlers for GraphicsGraphItem"""
 
     class Signals(QObject):  # PyQt5
-        """A class respresenting signals."""
+        """A class representing signals."""
 
         component_selected = Signal(str)
         schedule_time_changed = Signal()

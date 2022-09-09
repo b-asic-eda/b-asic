@@ -26,3 +26,5 @@ Table of Contents
 
    self
    api/index
+   GUI
+   scheduler_gui

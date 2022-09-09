@@ -9,6 +9,7 @@ API
     graph_component.rst
     operation.rst
     port.rst
+    process.rst
     schedule.rst
     signal.rst
     signal_flow_graph.rst

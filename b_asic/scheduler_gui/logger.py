@@ -3,7 +3,7 @@
 """B-ASIC Scheduler-gui Logger Module.
 
 Contains a logger that logs to the console and a file using levels. It is based
-on the `logging` module and has predefined levels of logging.
+on the :mod:`logging` module and has predefined levels of logging.
 
 Usage:
 ------
@@ -12,14 +12,31 @@ Usage:
     >>> log = logger.getLogger()
     >>> log.info('This is a log post with level INFO')
 
-| Function call  | Level     | Numeric value |
-|----------------|-----------|---------------|
-| debug(str)     | DEBUG     | 10            |
-| info(str)      | INFO      | 20            |
-| warning(str)   | WARNING   | 30            |
-| error(str)     | ERROR     | 40            |
-| critical(str)  | CRITICAL  | 50            |
-| exception(str) | ERROR     | 40            |
+.. list-table::
+   :widths: 50 25 25
+   :header-rows: 1
+
+   * - Function call
+     - Level
+     - Numeric value
+   * - debug(str)
+     - DEBUG
+     - 10
+   * - info(str)
+     - INFO
+     - 20
+   * - warning(str)
+     - WARNING
+     - 30
+   * - error(str)
+     - ERROR
+     - 40
+   * - critical(str)
+     - CRITICAL
+     - 50
+   * - exception(str)
+     - ERROR
+     - 40
 
 The last `exception(str)` is used to capture exceptions output, that normally
 won't be captured.
