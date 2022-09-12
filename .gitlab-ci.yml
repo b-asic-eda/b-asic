@@ -4,10 +4,10 @@ stages:
 
 before_script:
   - apt-get update --yes
-  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz
+  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz python3-pyqt5 xvfb
   - python -m pip install --upgrade pip
   - python --version
-  - pip install pytest pytest-cov sphinx furo numpydoc
+  - pip install pytest pytest-cov sphinx furo numpydoc pytest-xvfb pytest-qt setuptools_scm
   - pip install .
   - pip show b_asic
 
@@ -37,14 +37,6 @@ run-test-3.9:
 run-test-3.10:
   image: python:3.10
   extends: ".run-test"
-
-run-test-qt:
-  image: python:3.10
-  extends: ".run-test"
-  script:
-    - apt-get install --yes xvfb python3-pyqt5
-    - pip install pytest-xvfb pytest-qt
-    - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
 
 pages:
   stage: deploy
