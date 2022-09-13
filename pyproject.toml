@@ -39,7 +39,7 @@ zip-safe = false
 include = ["b_asic*"]
 
 [build-system]
-requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel"]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel", "oldest-supported-numpy"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
