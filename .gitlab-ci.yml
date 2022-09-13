@@ -7,7 +7,7 @@ before_script:
   - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz python3-pyqt5 xvfb
   - python -m pip install --upgrade pip
   - python --version
-  - pip install pytest pytest-cov sphinx furo numpydoc pytest-xvfb pytest-qt setuptools_scm
+  - pip install pytest pytest-cov sphinx furo numpydoc pytest-xvfb pytest-qt setuptools_scm sphinx-qt-documentation
   - pip install .
   - pip show b_asic
 
