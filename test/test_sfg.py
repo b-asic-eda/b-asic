@@ -78,7 +78,8 @@ class TestPrintSfg:
 
         assert (
             sfg.__str__()
-            == "id: no_id, \tname: SFG1, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
+            == "id: no_id, \tname: SFG1, \tinputs: {0: '-'}, \toutputs: {0:"
+            " '-'}\n"
             + "Internal Operations:\n"
             + "----------------------------------------------------------------------------------------------------\n"
             + str(sfg.find_by_name("INP1")[0])
@@ -103,7 +104,8 @@ class TestPrintSfg:
 
         assert (
             sfg.__str__()
-            == "id: no_id, \tname: mac_sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
+            == "id: no_id, \tname: mac_sfg, \tinputs: {0: '-'}, \toutputs: {0:"
+            " '-'}\n"
             + "Internal Operations:\n"
             + "----------------------------------------------------------------------------------------------------\n"
             + str(sfg.find_by_name("INP1")[0])
@@ -131,7 +133,8 @@ class TestPrintSfg:
 
         assert (
             sfg.__str__()
-            == "id: no_id, \tname: sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
+            == "id: no_id, \tname: sfg, \tinputs: {0: '-'}, \toutputs: {0:"
+            " '-'}\n"
             + "Internal Operations:\n"
             + "----------------------------------------------------------------------------------------------------\n"
             + str(sfg.find_by_name("CONST")[0])
@@ -148,7 +151,8 @@ class TestPrintSfg:
     def test_simple_filter(self, sfg_simple_filter):
         assert (
             sfg_simple_filter.__str__()
-            == "id: no_id, \tname: simple_filter, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
+            == "id: no_id, \tname: simple_filter, \tinputs: {0: '-'},"
+            " \toutputs: {0: '-'}\n"
             + "Internal Operations:\n"
             + "----------------------------------------------------------------------------------------------------\n"
             + str(sfg_simple_filter.find_by_name("IN1")[0])
@@ -620,7 +624,6 @@ class TestFindComponentsWithTypeName:
 
 class TestGetPrecedenceList:
     def test_inputs_delays(self, precedence_sfg_delays):
-
         precedence_list = precedence_sfg_delays.get_precedence_list()
 
         assert len(precedence_list) == 7
@@ -677,7 +680,6 @@ class TestGetPrecedenceList:
     def test_inputs_constants_delays_multiple_outputs(
         self, precedence_sfg_delays_and_constants
     ):
-
         precedence_list = (
             precedence_sfg_delays_and_constants.get_precedence_list()
         )
@@ -955,7 +957,8 @@ class TestConnectExternalSignalsToComponentsSoloComp:
     def test_connect_external_signals_to_components_operation_tree(
         self, operation_tree
     ):
-        """Replaces an SFG with only a operation_tree component with its inner components"""
+        """Replaces an SFG with only a operation_tree component with its inner components
+        """
         sfg1 = SFG(outputs=[Output(operation_tree)])
         out1 = Output(None, "OUT1")
         out1.input(0).connect(sfg1.outputs[0], "S1")
@@ -968,7 +971,8 @@ class TestConnectExternalSignalsToComponentsSoloComp:
     def test_connect_external_signals_to_components_large_operation_tree(
         self, large_operation_tree
     ):
-        """Replaces an SFG with only a large_operation_tree component with its inner components"""
+        """Replaces an SFG with only a large_operation_tree component with its inner components
+        """
         sfg1 = SFG(outputs=[Output(large_operation_tree)])
         out1 = Output(None, "OUT1")
         out1.input(0).connect(sfg1.outputs[0], "S1")
@@ -1030,7 +1034,8 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         assert not test_sfg.connect_external_signals_to_components()
 
     def create_sfg(self, op_tree):
-        """Create a simple SFG with either operation_tree or large_operation_tree"""
+        """Create a simple SFG with either operation_tree or large_operation_tree
+        """
         sfg1 = SFG(outputs=[Output(op_tree)])
 
         inp1 = Input("INP1")
@@ -1050,7 +1055,8 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
     def test_connect_external_signals_to_components_many_op(
         self, large_operation_tree
     ):
-        """Replaces an sfg component in a larger SFG with several component operations"""
+        """Replaces an sfg component in a larger SFG with several component operations
+        """
         inp1 = Input("INP1")
         inp2 = Input("INP2")
         inp3 = Input("INP3")
@@ -1357,20 +1363,21 @@ class TestGetComponentsOfType:
 class TestPrecedenceGraph:
     def test_precedence_graph(self, sfg_simple_filter):
         res = (
-            "digraph {\n\trankdir=LR\n\tsubgraph cluster_0 "
-            '{\n\t\tlabel=N1\n\t\t"in1.0" [label=in1]\n\t\t"t1.0" [label=t1]'
-            '\n\t}\n\tsubgraph cluster_1 {\n\t\tlabel=N2\n\t\t"cmul1.0" '
-            "[label=cmul1]\n\t}\n\tsubgraph cluster_2 "
-            '{\n\t\tlabel=N3\n\t\t"add1.0" [label=add1]\n\t}\n\t"in1.0" '
-            '-> add1\n\tadd1 [label=add1 shape=square]\n\tin1 -> "in1.0"'
-            '\n\tin1 [label=in1 shape=square]\n\t"t1.0" -> cmul1\n\tcmul1 '
-            '[label=cmul1 shape=square]\n\t"t1.0" -> out1\n\tout1 '
-            '[label=out1 shape=square]\n\tt1Out -> "t1.0"\n\tt1Out '
-            '[label=t1 shape=square]\n\t"cmul1.0" -> add1\n\tadd1 '
-            '[label=add1 shape=square]\n\tcmul1 -> "cmul1.0"\n\tcmul1 '
-            '[label=cmul1 shape=square]\n\t"add1.0" -> t1In\n\tt1In '
-            '[label=t1 shape=square]\n\tadd1 -> "add1.0"\n\tadd1 '
-            "[label=add1 shape=square]\n}\n"
+            "digraph {\n\trankdir=LR\n\tsubgraph cluster_0"
+            " {\n\t\tlabel=N1\n\t\t\"in1.0\" [label=in1]\n\t\t\"t1.0\""
+            " [label=t1]\n\t}\n\tsubgraph cluster_1"
+            " {\n\t\tlabel=N2\n\t\t\"cmul1.0\" [label=cmul1]\n\t}\n\tsubgraph"
+            " cluster_2 {\n\t\tlabel=N3\n\t\t\"add1.0\""
+            " [label=add1]\n\t}\n\t\"in1.0\" -> add1\n\tadd1 [label=add1"
+            " shape=square]\n\tin1 -> \"in1.0\"\n\tin1 [label=in1"
+            " shape=square]\n\t\"t1.0\" -> cmul1\n\tcmul1 [label=cmul1"
+            " shape=square]\n\t\"t1.0\" -> out1\n\tout1 [label=out1"
+            " shape=square]\n\tt1Out -> \"t1.0\"\n\tt1Out [label=t1"
+            " shape=square]\n\t\"cmul1.0\" -> add1\n\tadd1 [label=add1"
+            " shape=square]\n\tcmul1 -> \"cmul1.0\"\n\tcmul1 [label=cmul1"
+            " shape=square]\n\t\"add1.0\" -> t1In\n\tt1In [label=t1"
+            " shape=square]\n\tadd1 -> \"add1.0\"\n\tadd1 [label=add1"
+            " shape=square]\n}\n"
         )
 
         assert sfg_simple_filter.precedence_graph().source == res

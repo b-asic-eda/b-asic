@@ -1,13 +1,17 @@
 """Three-point Winograd DFT.
 """
 
-from b_asic.core_operations import Addition, ConstantMultiplication, Subtraction
+from b_asic.core_operations import (
+    Addition,
+    ConstantMultiplication,
+    Subtraction,
+)
 from b_asic.special_operations import Input, Output
 from b_asic.signal_flow_graph import SFG
 from b_asic.schedule import Schedule
 from math import cos, pi, sin
 
-u = -2*pi/3
+u = -2 * pi / 3
 c30 = cos(u) - 1
 c31 = sin(u)
 
@@ -27,8 +31,11 @@ out0 = Output(a2, "X0")
 out1 = Output(a4, "X1")
 out2 = Output(a5, "X2")
 
-sfg = SFG(inputs=[in0, in1, in2], outputs=[out0, out1, out2],
-          name="3-point Winograd DFT")
+sfg = SFG(
+    inputs=[in0, in1, in2],
+    outputs=[out0, out1, out2],
+    name="3-point Winograd DFT",
+)
 
 # Set latencies and exection times
 sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)

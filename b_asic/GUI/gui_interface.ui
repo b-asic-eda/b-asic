@@ -33,11 +33,11 @@
      <bool>false</bool>
     </property>
     <property name="styleSheet">
-     <string notr="true">QGroupBox { 
-     border: 2px solid gray; 
+     <string notr="true">QGroupBox {
+     border: 2px solid gray;
      border-radius: 3px;
-	 margin-top: 0.5em; 
- } 
+	 margin-top: 0.5em;
+ }
 
 QGroupBox::title {
     subcontrol-origin: margin;

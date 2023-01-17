@@ -4,7 +4,7 @@ API
 ===
 .. toctree::
     :maxdepth: 1
-	       
+
     core_operations.rst
     graph_component.rst
     operation.rst

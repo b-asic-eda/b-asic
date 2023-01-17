@@ -17,7 +17,8 @@ from b_asic import (
 
 class TestOperationOverloading:
     def test_addition_overload(self):
-        """Tests addition overloading for both operation and number argument."""
+        """Tests addition overloading for both operation and number argument.
+        """
         add1 = Addition(None, None, "add1")
         add2 = Addition(None, None, "add2")
 
@@ -37,7 +38,8 @@ class TestOperationOverloading:
         assert add5.input(1).signals == add4.output(0).signals
 
     def test_subtraction_overload(self):
-        """Tests subtraction overloading for both operation and number argument."""
+        """Tests subtraction overloading for both operation and number argument.
+        """
         add1 = Addition(None, None, "add1")
         add2 = Addition(None, None, "add2")
 
@@ -57,7 +59,8 @@ class TestOperationOverloading:
         assert sub3.input(1).signals == sub2.output(0).signals
 
     def test_multiplication_overload(self):
-        """Tests multiplication overloading for both operation and number argument."""
+        """Tests multiplication overloading for both operation and number argument.
+        """
         add1 = Addition(None, None, "add1")
         add2 = Addition(None, None, "add2")
 
@@ -77,7 +80,8 @@ class TestOperationOverloading:
         assert mul3.value == 5
 
     def test_division_overload(self):
-        """Tests division overloading for both operation and number argument."""
+        """Tests division overloading for both operation and number argument.
+        """
         add1 = Addition(None, None, "add1")
         add2 = Addition(None, None, "add2")
 

@@ -41,7 +41,7 @@ pybind11_add_module("${TARGET_NAME}"
 	# Main files.
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/simulation.cpp"
-	
+
 	# For DOD simulation.
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/compile.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/simulation/run.cpp"

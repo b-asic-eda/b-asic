@@ -2,6 +2,7 @@ import pytest
 
 from b_asic.process import PlainMemoryVariable
 
+
 def test_PlainMemoryVariable():
     mem = PlainMemoryVariable(3, 0, {4: 1, 5: 2})
     assert mem.write_port == 0
