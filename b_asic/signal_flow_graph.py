@@ -21,8 +21,6 @@ from typing import (
 )
 
 from graphviz import Digraph
-from graphviz.backend import ENGINES as GRAPHVIZ_ENGINES
-from graphviz.backend import FORMATS as GRAPHVIZ_FORMATS
 
 from b_asic.graph_component import (
     GraphComponent,
@@ -1207,9 +1205,7 @@ class SFG(AbstractOperation):
         """
         dg = Digraph()
         dg.attr(rankdir="LR")
-        if engine:
-            assert engine in GRAPHVIZ_ENGINES, "Unknown layout engine"
-            dg.engine = engine
+        dg.engine = 'dot' if engine is None else engine
         for op in self._components_by_id.values():
             if isinstance(op, Signal):
                 if show_id:
@@ -1253,10 +1249,4 @@ class SFG(AbstractOperation):
         """
 
         dg = self.sfg(show_id=show_id)
-        if format:
-            assert format in GRAPHVIZ_FORMATS, "Unknown file format"
-            dg.format = format
-        if engine:
-            assert engine in GRAPHVIZ_ENGINES, "Unknown layout engine"
-            dg.engine = engine
         dg.view()
