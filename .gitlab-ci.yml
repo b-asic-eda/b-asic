@@ -14,7 +14,7 @@ before_script:
 .run-test:
   stage: test
   script:
-    - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test -n auto -v
+    - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
     - sphinx-build -b html docs_sphinx public
   artifacts:
       reports:
