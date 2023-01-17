@@ -7,14 +7,14 @@ before_script:
   - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz python3-pyqt5 xvfb xdg-utils
   - python -m pip install --upgrade pip
   - python --version
-  - pip install pytest pytest-cov sphinx furo numpydoc pytest-xvfb pytest-qt setuptools_scm sphinx-qt-documentation
+  - pip install pytest pytest-cov sphinx furo numpydoc pytest-xvfb pytest-qt setuptools_scm sphinx-qt-documentation pytest-xdist
   - pip install .
   - pip show b_asic
 
 .run-test:
   stage: test
   script:
-    - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
+    - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test -n auto -v
     - sphinx-build -b html docs_sphinx public
   artifacts:
       reports:
