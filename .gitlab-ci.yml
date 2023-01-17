@@ -22,10 +22,6 @@ before_script:
           coverage_format: cobertura
           path: cov.xml
 
-run-test-3.7:
-  image: python:3.7
-  extends: ".run-test"
-
 run-test-3.8:
   image: python:3.8
   extends: ".run-test"
@@ -38,9 +34,13 @@ run-test-3.10:
   image: python:3.10
   extends: ".run-test"
 
+run-test-3.11:
+  image: python:3.11
+  extends: ".run-test"
+
 pages:
   stage: deploy
-  image: python:3.10
+  image: python:3.11
   script:
     - sphinx-build -b html docs_sphinx public
   artifacts:

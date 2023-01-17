@@ -11,8 +11,9 @@ from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import PathPatch
+from matplotlib.path import Path
 from matplotlib.ticker import MaxNLocator
-from scipy import interpolate
 
 from b_asic import OutputPort, Signal
 from b_asic.graph_component import GraphID
@@ -353,13 +354,13 @@ class Schedule:
                 )
         self._remove_delays()
 
-    def _plot_schedule(self):
+    def _plot_schedule(self, ax):
         def _draw_arrow2(start, end):
             if end[0] < start[0]:  # Wrap around
-                plt.plot([start[0], self._schedule_time], [start[1], start[1]])
-                plt.plot([0, end[0]], [end[1], end[1]])
+                ax.plot([start[0], self._schedule_time], [start[1], start[1]])
+                ax.plot([0, end[0]], [end[1], end[1]])
             elif end[0] == start[0]:
-                plt.plot(
+                ax.plot(
                     [
                         start[0],
                         start[0] + 0.2,
@@ -378,7 +379,7 @@ class Schedule:
                     ],
                 )
             else:
-                plt.plot(
+                ax.plot(
                     [
                         start[0],
                         (start[0] + end[0]) / 2,
@@ -388,31 +389,21 @@ class Schedule:
                     [start[1], start[1], end[1], end[1]],
                 )
 
-        def _draw_spline(x, y):
-            l = len(x)
-            t = np.linspace(0, 1, l - 2, endpoint=True)
-            t = np.append([0, 0, 0], t)
-            t = np.append(t, [1, 1, 1])
-            tck = [t, [x, y], 3]
-            u3 = np.linspace(0, 1, 50, endpoint=True)
-            out = interpolate.splev(u3, tck)
-            plt.plot(out[0], out[1], color="black")
-
         def _draw_arrow(start, end, name="", laps=0):
             if end[0] < start[0] or laps > 0:  # Wrap around
-                plt.plot(
+                ax.plot(
                     [start[0], self._schedule_time + 0.2],
                     [start[1], start[1]],
                     color="black",
                 )
-                plt.plot([-0.2, end[0]], [end[1], end[1]], color="black")
-                plt.text(
+                ax.plot([-0.2, end[0]], [end[1], end[1]], color="black")
+                ax.text(
                     self._schedule_time + 0.2,
                     start[1],
                     name,
                     verticalalignment="center",
                 )
-                plt.text(
+                ax.text(
                     -0.2,
                     end[1],
                     "{}: {}".format(name, laps),
@@ -421,34 +412,33 @@ class Schedule:
                 )
 
             elif end[0] == start[0]:
-                _draw_spline(
+                p = Path(
                     [
-                        start[0],
-                        start[0] + 0.2,
-                        start[0] + 0.2,
-                        start[0] - 0.2,
-                        start[0] - 0.2,
-                        start[0],
+                        start,
+                        [start[0] + 0.2, start[1]],
+                        [start[0] + 0.2, (start[1] + end[1]) / 2],
+                        [start[0], (start[1] + end[1]) / 2],
+                        [start[0] - 0.2, (start[1] + end[1]) / 2],
+                        [start[0] - 0.2, end[1]],
+                        end
                     ],
-                    [
-                        start[1],
-                        start[1],
-                        (start[1] + end[1]) / 2,
-                        (start[1] + end[1]) / 2,
-                        end[1],
-                        end[1],
-                    ],
+                    [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CURVE4]
                 )
+                pp = PathPatch(p, fc='none')
+                ax.add_patch(pp)
             else:
-                _draw_spline(
+                p = Path(
                     [
-                        start[0],
-                        (start[0] + end[0]) / 2,
-                        (start[0] + end[0]) / 2,
-                        end[0],
+                        start,
+                        [(start[0] + end[0]) / 2, start[1]],
+                        [(start[0] + end[0]) / 2, end[1]],
+                        end,
                     ],
-                    [start[1], start[1], end[1], end[1]],
-                )
+                    [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4]
+                    )
+                pp = PathPatch(p, fc='none')
+                ax.add_patch(pp)
+
 
         def _draw_offset_arrow(
             start, end, start_offset, end_offset, name="", laps=0
@@ -463,7 +453,7 @@ class Schedule:
         ypos = 0.5
         ytickpositions = []
         yticklabels = []
-        plt.grid(zorder=0.5)
+        ax.grid(zorder=0.5)
         ypositions = {}
         for op_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(op_id)
@@ -471,12 +461,12 @@ class Schedule:
             _x, _y = zip(*latency_coords)
             x = np.array(_x)
             y = np.array(_y)
-            plt.fill(x + op_start_time, y + ypos)
+            ax.fill(x + op_start_time, y + ypos)
             if execution_time_coords:
                 _x, _y = zip(*execution_time_coords)
                 x = np.array(_x)
                 y = np.array(_y)
-                plt.plot(
+                ax.plot(
                     x + op_start_time,
                     y + ypos,
                     color="black",
@@ -512,11 +502,12 @@ class Schedule:
                         laps=self._laps[output_signal.graph_id],
                     )
 
-        plt.yticks(ytickpositions, yticklabels)
-        plt.axis([-1, self._schedule_time + 1, 0, ypos])
-        plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
-        plt.plot([0, 0], [0, ypos], linestyle="--", color="black")
-        plt.plot(
+        ax.set_yticks(ytickpositions)
+        ax.set_yticklabels(yticklabels)
+        ax.axis([-1, self._schedule_time + 1, 0, ypos])
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.plot([0, 0], [0, ypos], linestyle="--", color="black")
+        ax.plot(
             [self._schedule_time, self._schedule_time],
             [0, ypos],
             linestyle="--",
@@ -524,14 +515,14 @@ class Schedule:
         )
 
     def plot_schedule(self) -> None:
-        plt.figure()
-        self._plot_schedule()
-        plt.show()
+        fig, ax = plt.subplots()
+        self._plot_schedule(ax)
+        fig.show()
 
     def _repr_svg_(self):
-        plt.figure()
-        self._plot_schedule()
+        fig, ax = plt.subplots()
+        self._plot_schedule(ax)
         f = io.StringIO()
-        plt.savefig(f, format="svg")
+        fig.savefig(f, format="svg")
 
         return f.getvalue()
