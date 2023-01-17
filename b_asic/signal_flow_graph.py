@@ -496,7 +496,7 @@ class SFG(AbstractOperation):
         Keyword arguments:
         type_name: The type_name of the desired components.
         """
-        reg = "{}[0-9]+".format(type_name)
+        reg = f"{type_name}[0-9]+"
         p = re.compile(reg)
         components = [
             val for key, val in self._components_by_id.items() if p.match(key)

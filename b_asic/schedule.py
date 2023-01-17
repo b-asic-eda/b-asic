@@ -406,7 +406,7 @@ class Schedule:
                 ax.text(
                     -0.2,
                     end[1],
-                    "{}: {}".format(name, laps),
+                    f"{name}: {laps}",
                     verticalalignment="center",
                     horizontalalignment="right",
                 )
