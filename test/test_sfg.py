@@ -1398,9 +1398,9 @@ class TestSFGGraph:
         assert sfg_simple_filter.sfg(show_id=True).source == res
 
     def test_show_sfg_invalid_format(self, sfg_simple_filter):
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             sfg_simple_filter.show_sfg(format="ppddff")
 
     def test_show_sfg_invalid_engine(self, sfg_simple_filter):
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             sfg_simple_filter.show_sfg(engine="ppddff")

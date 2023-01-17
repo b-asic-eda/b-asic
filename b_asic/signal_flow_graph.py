@@ -1205,7 +1205,8 @@ class SFG(AbstractOperation):
         """
         dg = Digraph()
         dg.attr(rankdir="LR")
-        dg.engine = 'dot' if engine is None else engine
+        if engine is not None:
+            dg.engine = engine
         for op in self._components_by_id.values():
             if isinstance(op, Signal):
                 if show_id:
@@ -1249,4 +1250,8 @@ class SFG(AbstractOperation):
         """
 
         dg = self.sfg(show_id=show_id)
+        if engine is not None:
+            dg.engine = engine
+        if format is not None:
+            dg.format = format
         dg.view()
