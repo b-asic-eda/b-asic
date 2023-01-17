@@ -73,7 +73,7 @@ class Schedule:
         return self._start_times[op_id]
 
     def get_max_end_time(self) -> int:
-        """Returnes the current maximum end time among all operations."""
+        """Returns the current maximum end time among all operations."""
         max_end_time = 0
         for op_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(op_id)
@@ -151,7 +151,7 @@ class Schedule:
         assert (
             op_id in self._start_times
         ), "No operation with the specified op_id in this schedule."
-        return (self.backward_slack(op_id), self.forward_slack(op_id))
+        return self.backward_slack(op_id), self.forward_slack(op_id)
 
     def print_slacks(self) -> None:
         raise NotImplementedError
@@ -355,40 +355,6 @@ class Schedule:
         self._remove_delays()
 
     def _plot_schedule(self, ax):
-        def _draw_arrow2(start, end):
-            if end[0] < start[0]:  # Wrap around
-                ax.plot([start[0], self._schedule_time], [start[1], start[1]])
-                ax.plot([0, end[0]], [end[1], end[1]])
-            elif end[0] == start[0]:
-                ax.plot(
-                    [
-                        start[0],
-                        start[0] + 0.2,
-                        start[0] + 0.2,
-                        start[0] - 0.2,
-                        start[0] - 0.2,
-                        start[0],
-                    ],
-                    [
-                        start[1],
-                        start[1],
-                        (start[1] + end[1]) / 2,
-                        (start[1] + end[1]) / 2,
-                        end[1],
-                        end[1],
-                    ],
-                )
-            else:
-                ax.plot(
-                    [
-                        start[0],
-                        (start[0] + end[0]) / 2,
-                        (start[0] + end[0]) / 2,
-                        end[0],
-                    ],
-                    [start[1], start[1], end[1], end[1]],
-                )
-
         def _draw_arrow(start, end, name="", laps=0):
             if end[0] < start[0] or laps > 0:  # Wrap around
                 ax.plot(

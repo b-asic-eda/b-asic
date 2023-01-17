@@ -1,4 +1,5 @@
-"""B-ASIC Signal Flow Graph Module.
+"""
+B-ASIC Signal Flow Graph Module.
 
 Contains the signal flow graph operation.
 """
@@ -72,7 +73,8 @@ class GraphIDGenerator:
 
 
 class SFG(AbstractOperation):
-    """Signal flow graph.
+    """
+    Signal flow graph.
 
     Contains a set of connected operations, forming a new operation.
     Used as a base for simulation, scheduling, etc.
@@ -103,7 +105,8 @@ class SFG(AbstractOperation):
             Sequence[Optional[SignalSourceProvider]]
         ] = None,
     ):
-        """Construct an SFG given its inputs and outputs.
+        """
+        Construct an SFG given its inputs and outputs.
 
         Inputs/outputs may be specified using either Input/Output operations
         directly with the inputs/outputs parameters, or using signals with the
@@ -148,7 +151,7 @@ class SFG(AbstractOperation):
             for input_index, signal in enumerate(input_signals):
                 assert (
                     signal not in self._original_components_to_new
-                ), "Duplicate input signals supplied to SFG construcctor."
+                ), "Duplicate input signals supplied to SFG constructor."
                 new_input_op = self._add_component_unconnected_copy(Input())
                 new_signal = self._add_component_unconnected_copy(signal)
                 new_signal.set_source(new_input_op.output(0))
@@ -165,7 +168,7 @@ class SFG(AbstractOperation):
                 for signal in input_op.output(0).signals:
                     assert signal not in self._original_components_to_new, (
                         "Duplicate input signals connected to input ports"
-                        " supplied to SFG construcctor."
+                        " supplied to SFG constructor."
                     )
                     new_signal = self._add_component_unconnected_copy(signal)
                     new_signal.set_source(new_input_op.output(0))
@@ -295,7 +298,9 @@ class SFG(AbstractOperation):
     def __call__(
         self, *src: Optional[SignalSourceProvider], name: Name = ""
     ) -> "SFG":
-        """Get a new independent SFG instance that is identical to this SFG except without any of its external connections.
+        """
+        Get a new independent SFG instance that is identical to this SFG
+        except without any of its external connections.
         """
         return SFG(
             inputs=self._input_operations,
@@ -377,8 +382,11 @@ class SFG(AbstractOperation):
         return value
 
     def connect_external_signals_to_components(self) -> bool:
-        """Connects any external signals to this SFG's internal operations. This SFG becomes unconnected to the SFG
-        it is a component off, causing it to become invalid afterwards. Returns True if succesful, False otherwise.
+        """
+        Connects any external signals to this SFG's internal operations.
+        This SFG becomes unconnected to the SFG it is a component off,
+        causing it to become invalid afterwards. Returns True if successful,
+        False otherwise.
         """
         if len(self.inputs) != len(self.input_operations):
             raise IndexError(
@@ -541,11 +549,12 @@ class SFG(AbstractOperation):
     def replace_component(
         self, component: Operation, graph_id: GraphID
     ) -> "SFG":
-        """Find and replace all components matching either on GraphID, Type or both.
+        """
+        Find and replace all components matching either on GraphID, Type or both.
         Then return a new deepcopy of the sfg with the replaced component.
 
         Arguments:
-        component: The new component(s), e.g Multiplication
+        component: The new component(s), e.g. Multiplication
         graph_id: The GraphID to match the component to replace.
         """
 
@@ -582,7 +591,7 @@ class SFG(AbstractOperation):
         Then return a new deepcopy of the sfg with the inserted component.
 
         Arguments:
-        component: The new component, e.g Multiplication.
+        component: The new component, e.g. Multiplication.
         output_comp_id: The source operation GraphID to connect from.
         """
 
@@ -760,7 +769,7 @@ class SFG(AbstractOperation):
     def get_operations_topological_order(self) -> Iterable[Operation]:
         """Returns an Iterable of the Operations in the SFG in Topological Order.
         Feedback loops makes an absolutely correct Topological order impossible, so an
-        approximative Topological Order is returned in such cases in this implementation.
+        approximate Topological Order is returned in such cases in this implementation.
         """
         if self._operations_topological_order:
             return self._operations_topological_order
@@ -844,7 +853,7 @@ class SFG(AbstractOperation):
                         )
                     )
 
-                # Else fetch operation with lowest input count that is not zero
+                # Else fetch operation with the lowest input count that is not zero
                 elif seen_but_not_visited_count > 0:
                     for i in it.count(start=1):
                         seen_inputs_queue = seen_with_inputs_dict[i]
@@ -860,7 +869,7 @@ class SFG(AbstractOperation):
                             seen_but_not_visited_count -= 1
                             break
                 else:
-                    raise RuntimeError("Unallowed structure in SFG detected")
+                    raise RuntimeError("Disallowed structure in SFG detected")
 
         self._operations_topological_order = top_order
         return self._operations_topological_order
@@ -1237,9 +1246,9 @@ class SFG(AbstractOperation):
         Parameters
         ----------
         format : string, optional
-            File format of the generated graph. Output formats can be found at https://www.graphviz.org/doc/info/output.html
+            File format of the generated graph. Output formats can be found at
+            https://www.graphviz.org/doc/info/output.html
             Most common are "pdf", "eps", "png", and "svg". Default is None which leads to PDF.
-
 
         show_id : Boolean, optional
             If True, the graph_id:s of signals are shown. The default is False.

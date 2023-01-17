@@ -1,4 +1,5 @@
-"""B-ASIC Port Module.
+"""
+B-ASIC Port Module.
 
 Contains classes for managing the ports of operations.
 """
@@ -15,7 +16,8 @@ if TYPE_CHECKING:
 
 
 class Port(ABC):
-    """Port interface.
+    """
+    Port interface.
 
     Ports serve as connection points for connecting signals between operations.
     They also store information about the latency of the corresponding
@@ -65,14 +67,16 @@ class Port(ABC):
 
     @abstractmethod
     def add_signal(self, signal: Signal) -> None:
-        """Connect this port to the entered signal. If the entered signal isn't connected to
+        """
+        Connect this port to the entered signal. If the entered signal isn't connected to
         this port then connect the entered signal to the port as well.
         """
         raise NotImplementedError
 
     @abstractmethod
     def remove_signal(self, signal: Signal) -> None:
-        """Remove the signal that was entered from the Ports signals.
+        """
+        Remove the signal that was entered from the Ports signals.
         If the entered signal still is connected to this port then disconnect the
         entered signal from the port as well.
 
@@ -88,7 +92,8 @@ class Port(ABC):
 
 
 class AbstractPort(Port):
-    """Generic abstract port base class.
+    """
+    Generic abstract port base class.
 
     Concrete ports should normally derive from this to get the default
     behavior.
@@ -127,7 +132,8 @@ class AbstractPort(Port):
 
 
 class SignalSourceProvider(ABC):
-    """Signal source provider interface.
+    """
+    Signal source provider interface.
 
     Signal source providers give access to a single output port that can be
     used to connect signals from.

@@ -1,4 +1,5 @@
-"""B-ASIC Save/Load Structure Module.
+"""
+B-ASIC Save/Load Structure Module.
 
 Contains functions for saving/loading SFGs to/from strings that can be stored
 as files.

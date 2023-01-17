@@ -1,4 +1,5 @@
-"""B-ASIC Operation Module.
+"""
+B-ASIC Operation Module.
 
 Contains the base for operations that are used by B-ASIC.
 """
@@ -201,12 +202,17 @@ class Operation(GraphComponent, SignalSourceProvider):
         bits_override: Optional[int] = None,
         truncate: bool = True,
     ) -> Number:
-        """Evaluate the output at the given index of this operation with the given input values.
-        The results parameter will be used to store any results (including intermediate results) for caching.
-        The delays parameter will be used to get the current value of any intermediate delays that are encountered, and be updated with their new values.
+        """
+        Evaluate the output at the given index of this operation with the given input values.
+        The results parameter will be used to store any results (including intermediate results)
+        for caching.
+        The delays parameter will be used to get the current value of any intermediate delays
+        that are encountered, and be updated with their new values.
         The prefix parameter will be used as a prefix for the key string when storing results/delays.
-        The bits_override parameter specifies a word length override when truncating inputs which ignores the word length specified by the input signal.
-        The truncate parameter specifies whether input truncation should be enabled in the first place. If set to False, input values will be used driectly without any bit truncation.
+        The bits_override parameter specifies a word length override when truncating inputs
+        which ignores the word length specified by the input signal.
+        The truncate parameter specifies whether input truncation should be enabled in the first
+        place. If set to False, input values will be used driectly without any bit truncation.
         See also: evaluate_outputs, current_output, current_outputs.
         """
         raise NotImplementedError

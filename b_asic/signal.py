@@ -1,4 +1,5 @@
-"""B-ASIC Signal Module.
+"""
+B-ASIC Signal Module.
 
 Contains the class for representing the connections between operations.
 """
@@ -113,14 +114,20 @@ class Signal(AbstractGraphComponent):
 
     @property
     def bits(self) -> Optional[int]:
-        """Get the number of bits that this operations using this signal as an input should truncate received values to.
-        None = unlimited."""
+        """
+        Get the number of bits that this operation using this signal as an
+        input should truncate received values to.
+        None = unlimited.
+        """
         return self.param("bits")
 
     @bits.setter
     def bits(self, bits: Optional[int]) -> None:
-        """Set the number of bits that operations using this signal as an input should truncate received values to.
-        None = unlimited."""
+        """
+        Set the number of bits that operations using this signal as an input
+        should truncate received values to.
+        None = unlimited.
+        """
         assert bits is None or (
             isinstance(bits, int) and bits >= 0
         ), "Bits must be non-negative."
