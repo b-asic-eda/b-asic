@@ -420,9 +420,17 @@ class Schedule:
                         [start[0], (start[1] + end[1]) / 2],
                         [start[0] - 0.2, (start[1] + end[1]) / 2],
                         [start[0] - 0.2, end[1]],
-                        end
+                        end,
                     ],
-                    [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CURVE4]
+                    [
+                        Path.MOVETO,
+                        Path.CURVE4,
+                        Path.CURVE4,
+                        Path.CURVE4,
+                        Path.CURVE4,
+                        Path.CURVE4,
+                        Path.CURVE4,
+                    ],
                 )
                 pp = PathPatch(p, fc='none')
                 ax.add_patch(pp)
@@ -434,11 +442,10 @@ class Schedule:
                         [(start[0] + end[0]) / 2, end[1]],
                         end,
                     ],
-                    [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4]
-                    )
+                    [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4],
+                )
                 pp = PathPatch(p, fc='none')
                 ax.add_patch(pp)
-
 
         def _draw_offset_arrow(
             start, end, start_offset, end_offset, name="", laps=0
