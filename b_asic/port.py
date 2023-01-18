@@ -147,7 +147,8 @@ class SignalSourceProvider(ABC):
 
 
 class InputPort(AbstractPort):
-    """Input port.
+    """
+    Input port.
 
     May have one or zero signals connected to it.
     """
@@ -190,7 +191,8 @@ class InputPort(AbstractPort):
 
     @property
     def connected_source(self) -> Optional["OutputPort"]:
-        """Get the output port that is currently connected to this input port,
+        """
+        Get the output port that is currently connected to this input port,
         or None if it is unconnected.
         """
         return (
@@ -198,7 +200,8 @@ class InputPort(AbstractPort):
         )
 
     def connect(self, src: SignalSourceProvider, name: Name = "") -> Signal:
-        """Connect the provided signal source to this input port by creating a new signal.
+        """
+        Connect the provided signal source to this input port by creating a new signal.
         Returns the new signal.
         """
         assert (
@@ -208,14 +211,16 @@ class InputPort(AbstractPort):
         return Signal(source=src.source, destination=self, name=name)
 
     def __lshift__(self, src: SignalSourceProvider) -> Signal:
-        """Overloads the left shift operator to make it connect the provided signal source to this input port.
-        Returns the new signal.
+        """
+        Overloads the left shift operator to make it connect the provided
+        signal source to this input port. Returns the new signal.
         """
         return self.connect(src)
 
 
 class OutputPort(AbstractPort, SignalSourceProvider):
-    """Output port.
+    """
+    Output port.
 
     May have zero or more signals connected to it.
     """

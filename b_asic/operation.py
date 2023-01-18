@@ -38,7 +38,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     """Operation interface.
 
     Operations are graph components that perform a certain function.
-    They are connected to eachother by signals through their input/output
+    They are connected to each other by signals through their input/output
     ports.
 
     Operations can be evaluated independently using evaluate_output().
@@ -82,7 +82,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Union[Multiplication, ConstantMultiplication]":
         """Overloads the multiplication operator to make it return a new Multiplication operation
-        object that is connected to the self and other objects. If other is a number then
+        object that is connected to the self and other objects. If *src* is a number, then
         returns a ConstantMultiplication operation object instead.
         """
         raise NotImplementedError
@@ -91,8 +91,9 @@ class Operation(GraphComponent, SignalSourceProvider):
     def __rmul__(
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Union[Multiplication, ConstantMultiplication]":
-        """Overloads the multiplication operator to make it return a new Multiplication operation
-        object that is connected to the self and other objects. If other is a number then
+        """
+        Overloads the multiplication operator to make it return a new Multiplication operation
+        object that is connected to the self and other objects. If *src* is a number, then
         returns a ConstantMultiplication operation object instead.
         """
         raise NotImplementedError
@@ -101,7 +102,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     def __truediv__(
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Division":
-        """Overloads the division operator to make it return a new Division operation
+        """
+        Overloads the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -110,14 +112,16 @@ class Operation(GraphComponent, SignalSourceProvider):
     def __rtruediv__(
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Division":
-        """Overloads the division operator to make it return a new Division operation
+        """
+        Overloads the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
 
     @abstractmethod
     def __lshift__(self, src: SignalSourceProvider) -> Signal:
-        """Overloads the left shift operator to make it connect the provided signal source
+        """
+        Overloads the left shift operator to make it connect the provided signal source
         to this operation's input, assuming it has exactly 1 input port.
         Returns the new signal.
         """
@@ -160,7 +164,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     @property
     @abstractmethod
     def input_signals(self) -> Iterable[Signal]:
-        """Get all the signals that are connected to this operation's input ports,
+        """
+        Get all the signals that are connected to this operation's input ports,
         in no particular order.
         """
         raise NotImplementedError
@@ -168,14 +173,16 @@ class Operation(GraphComponent, SignalSourceProvider):
     @property
     @abstractmethod
     def output_signals(self) -> Iterable[Signal]:
-        """Get all the signals that are connected to this operation's output ports,
+        """
+        Get all the signals that are connected to this operation's output ports,
         in no particular order.
         """
         raise NotImplementedError
 
     @abstractmethod
     def key(self, index: int, prefix: str = "") -> ResultKey:
-        """Get the key used to access the output of a certain output of this operation
+        """
+        Get the key used to access the output of a certain output of this operation
         from the output parameter passed to current_output(s) or evaluate_output(s).
         """
         raise NotImplementedError
@@ -184,7 +191,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     def current_output(
         self, index: int, delays: Optional[DelayMap] = None, prefix: str = ""
     ) -> Optional[Number]:
-        """Get the current output at the given index of this operation, if available.
+        """
+        Get the current output at the given index of this operation, if available.
         The delays parameter will be used for lookup.
         The prefix parameter will be used as a prefix for the key string when looking for delays.
         See also: current_outputs, evaluate_output, evaluate_outputs.
@@ -212,7 +220,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         The bits_override parameter specifies a word length override when truncating inputs
         which ignores the word length specified by the input signal.
         The truncate parameter specifies whether input truncation should be enabled in the first
-        place. If set to False, input values will be used driectly without any bit truncation.
+        place. If set to False, input values will be used directly without any bit truncation.
         See also: evaluate_outputs, current_output, current_outputs.
         """
         raise NotImplementedError
@@ -257,20 +265,24 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @abstractmethod
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
-        """Get the input indices of all inputs in this operation whose values are required in order to evaluate the output at the given output index.
+        """
+        Get the input indices of all inputs in this operation whose values are
+        required in order to evaluate the output at the given output index.
         """
         raise NotImplementedError
 
     @abstractmethod
     def truncate_input(self, index: int, value: Number, bits: int) -> Number:
-        """Truncate the value to be used as input at the given index to a certain bit length.
+        """
+        Truncate the value to be used as input at the given index to a certain bit length.
         """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def latency(self) -> int:
-        """Get the latency of the operation, which is the longest time it takes from one of
+        """
+        Get the latency of the operation, which is the longest time it takes from one of
         the operations inputport to one of the operations outputport.
         """
         raise NotImplementedError
@@ -294,7 +306,8 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @abstractmethod
     def set_latency_offsets(self, latency_offsets: Dict[str, int]) -> None:
-        """Sets the latency-offsets for the operations ports specified in the latency_offsets dictionary.
+        """
+        Sets the latency-offsets for the operations ports specified in the latency_offsets dictionary.
         The latency offsets dictionary should be {'in0': 2, 'out1': 4} if you want to set the latency offset
         for the inport port with index 0 to 2, and the latency offset of the output port with index 1 to 4.
         """
@@ -404,6 +417,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             for outp in self.outputs:
                 if outp.latency_offset is None:
                     outp.latency_offset = latency
+
+        self._execution_time = execution_time
 
     @abstractmethod
     def evaluate(self, *inputs) -> Any:  # pylint: disable=arguments-differ
@@ -709,7 +724,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         from b_asic.signal_flow_graph import SFG
         from b_asic.special_operations import Input, Output
 
-        inputs = [Input() for i in range(self.input_count)]
+        inputs = [Input() for _ in range(self.input_count)]
 
         try:
             last_operations = self.evaluate(*inputs)
@@ -788,7 +803,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         input_values: Sequence[Number],
         bits_override: Optional[int] = None,
     ) -> Sequence[Number]:
-        """Truncate the values to be used as inputs to the bit lengths specified by the respective signals connected to each input.
+        """
+        Truncate the values to be used as inputs to the bit lengths specified
+        by the respective signals connected to each input.
         """
         args = []
         for i, input_port in enumerate(self.inputs):
@@ -938,4 +955,4 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             ]
             for k in range(len(self.outputs))
         ]
-        return (input_coords, output_coords)
+        return input_coords, output_coords

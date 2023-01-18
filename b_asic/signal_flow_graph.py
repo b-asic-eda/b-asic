@@ -158,7 +158,7 @@ class SFG(AbstractOperation):
                 self._input_operations.append(new_input_op)
                 self._original_input_signals_to_indices[signal] = input_index
 
-        # Setup input operations, starting from indices ater input signals.
+        # Setup input operations, starting from indices after input signals.
         if inputs is not None:
             for input_index, input_op in enumerate(inputs, input_signal_count):
                 assert (
@@ -204,7 +204,6 @@ class SFG(AbstractOperation):
                 ), "Duplicate output operations supplied to SFG constructor."
                 new_output_op = self._add_component_unconnected_copy(output_op)
                 for signal in output_op.input(0).signals:
-                    new_signal = None
                     if signal in self._original_components_to_new:
                         # Signal was already added when setting up inputs.
                         new_signal = self._original_components_to_new[signal]
@@ -390,13 +389,15 @@ class SFG(AbstractOperation):
         """
         if len(self.inputs) != len(self.input_operations):
             raise IndexError(
-                f"Number of inputs does not match the number of"
-                f" input_operations in SFG."
+                f"Number of inputs ({len(self.inputs)}) does not match the"
+                f" number of input_operations ({len(self.input_operations)})"
+                " in SFG."
             )
         if len(self.outputs) != len(self.output_operations):
             raise IndexError(
-                f"Number of outputs does not match the number of"
-                f" output_operations SFG."
+                f"Number of outputs ({len(self.outputs)}) does not match the"
+                f" number of output_operations ({len(self.output_operations)})"
+                " in SFG."
             )
         if len(self.input_signals) == 0:
             return False
@@ -419,13 +420,15 @@ class SFG(AbstractOperation):
 
     @property
     def input_operations(self) -> Sequence[Operation]:
-        """Get the internal input operations in the same order as their respective input ports.
+        """
+        Get the internal input operations in the same order as their respective input ports.
         """
         return self._input_operations
 
     @property
     def output_operations(self) -> Sequence[Operation]:
-        """Get the internal output operations in the same order as their respective output ports.
+        """
+        Get the internal output operations in the same order as their respective output ports.
         """
         return self._output_operations
 
@@ -498,11 +501,14 @@ class SFG(AbstractOperation):
     def find_by_type_name(
         self, type_name: TypeName
     ) -> Sequence[GraphComponent]:
-        """Find all components in this graph with the specified type name.
+        """
+        Find all components in this graph with the specified type name.
         Returns an empty sequence if no components were found.
 
-        Keyword arguments:
-        type_name: The type_name of the desired components.
+        Parameters
+        ==========
+        type_name : TypeName
+            The TypeName of the desired components.
         """
         reg = f"{type_name}[0-9]+"
         p = re.compile(reg)
@@ -515,8 +521,11 @@ class SFG(AbstractOperation):
         """Find the graph component with the specified ID.
         Returns None if the component was not found.
 
-        Keyword arguments:
-        graph_id: Graph ID of the desired component.
+        Parameters
+        ==========
+
+        graph_id : GraphID
+            Graph ID of the desired component.
         """
         return self._components_by_id.get(graph_id, None)
 
@@ -524,8 +533,11 @@ class SFG(AbstractOperation):
         """Find all graph components with the specified name.
         Returns an empty sequence if no components were found.
 
-        Keyword arguments:
-        name: Name of the desired component(s)
+        Parameters
+        ==========
+
+        name : Name
+            Name of the desired component(s)
         """
         return self._components_by_name.get(name, [])
 
@@ -536,9 +548,13 @@ class SFG(AbstractOperation):
         return a sequence of the keys to use when fetching their results
         from a simulation.
 
-        Keyword arguments:
-        name: Name of the desired component(s)
-        output_index: The desired output index to get the result from
+        Parameters
+        ==========
+
+        name : Name
+            Name of the desired component(s)
+        output_index : int, default: 0
+            The desired output index to get the result from
         """
         keys = []
         for comp in self.find_by_name(name):
@@ -553,9 +569,11 @@ class SFG(AbstractOperation):
         Find and replace all components matching either on GraphID, Type or both.
         Then return a new deepcopy of the sfg with the replaced component.
 
-        Arguments:
-        component: The new component(s), e.g. Multiplication
-        graph_id: The GraphID to match the component to replace.
+        Parameters
+        ==========
+
+        component : The new component(s), e.g. Multiplication
+        graph_id : The GraphID to match the component to replace.
         """
 
         sfg_copy = self()  # Copy to not mess with this SFG.
@@ -586,13 +604,17 @@ class SFG(AbstractOperation):
     def insert_operation(
         self, component: Operation, output_comp_id: GraphID
     ) -> Optional["SFG"]:
-        """Insert an operation in the SFG after a given source operation.
-        The source operation output count must match the input count of the operation as well as the output
+        """
+        Insert an operation in the SFG after a given source operation.
+        The source operation output count must match the input count of the operation
+        as well as the output.
         Then return a new deepcopy of the sfg with the inserted component.
 
-        Arguments:
-        component: The new component, e.g. Multiplication.
-        output_comp_id: The source operation GraphID to connect from.
+        Parameters
+        ==========
+
+        component : The new component, e.g. Multiplication.
+        output_comp_id : The source operation GraphID to connect from.
         """
 
         # Preserve the original SFG by creating a copy.
@@ -621,7 +643,7 @@ class SFG(AbstractOperation):
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
 
-    def remove_operation(self, operation_id: GraphID) -> "SFG":
+    def remove_operation(self, operation_id: GraphID) -> Union["SFG", None]:
         """Returns a version of the SFG where the operation with the specified GraphID removed.
         The operation has to have the same amount of input- and output ports or a ValueError will
         be raised. If no operation with the entered operation_id is found then returns None and does nothing.
@@ -955,7 +977,6 @@ class SFG(AbstractOperation):
         while op_stack:
             original_op = op_stack.pop()
             # Add or get the new copy of the operation.
-            new_op = None
             if original_op not in self._original_components_to_new:
                 new_op = self._add_component_unconnected_copy(original_op)
                 self._components_dfs_order.append(new_op)

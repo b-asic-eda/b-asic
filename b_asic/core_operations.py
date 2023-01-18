@@ -1,4 +1,5 @@
-"""B-ASIC Core Operations Module.
+"""
+B-ASIC Core Operations Module.
 
 Contains some of the most commonly used mathematical operations.
 """
@@ -49,7 +50,7 @@ class Constant(AbstractOperation):
     @value.setter
     def value(self, value: Number) -> None:
         """Set the constant value of this operation."""
-        return self.set_param("value", value)
+        self.set_param("value", value)
 
 
 class Addition(AbstractOperation):
@@ -164,7 +165,7 @@ class AddSub(AbstractOperation):
     @is_add.setter
     def is_add(self, is_add: bool) -> None:
         """Set if operation is add."""
-        return self.set_param("is_add", is_add)
+        self.set_param("is_add", is_add)
 
 
 class Multiplication(AbstractOperation):
@@ -453,7 +454,7 @@ class ConstantMultiplication(AbstractOperation):
     @value.setter
     def value(self, value: Number) -> None:
         """Set the constant value of this operation."""
-        return self.set_param("value", value)
+        self.set_param("value", value)
 
 
 class Butterfly(AbstractOperation):
@@ -571,4 +572,4 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     @value.setter
     def value(self, value: Number) -> None:
         """Set the constant value of this operation."""
-        return self.set_param("value", value)
+        self.set_param("value", value)

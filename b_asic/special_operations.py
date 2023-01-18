@@ -1,4 +1,5 @@
-"""B-ASIC Special Operations Module.
+"""
+B-ASIC Special Operations Module.
 
 Contains operations with special purposes that may be treated differently from
 normal operations in an SFG.
@@ -19,7 +20,8 @@ from b_asic.port import SignalSourceProvider
 
 
 class Input(AbstractOperation):
-    """Input operation.
+    """
+    Input operation.
 
     Marks an input port to an SFG.
     Its value will be updated on each iteration when simulating the SFG.
@@ -83,7 +85,8 @@ class Input(AbstractOperation):
 
 
 class Output(AbstractOperation):
-    """Output operation.
+    """
+    Output operation.
 
     Marks an output port to an SFG.
     The SFG will forward its input to the corresponding output signal
@@ -126,7 +129,8 @@ class Output(AbstractOperation):
 
 
 class Delay(AbstractOperation):
-    """Unit delay operation.
+    """
+    Unit delay operation.
 
     Represents one unit of delay in a circuit, typically a clock cycle.
     Can be thought of as a register or a D flip-flop.

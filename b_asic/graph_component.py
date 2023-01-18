@@ -1,4 +1,5 @@
-"""B-ASIC Graph Component Module.
+"""
+B-ASIC Graph Component Module.
 
 Contains the base for all components with an ID in a signal flow graph.
 """

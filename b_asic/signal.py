@@ -80,8 +80,8 @@ class Signal(AbstractGraphComponent):
         connect to the entered destination InputPort. Also connect the entered
         destination port to the signal if it hasn't already been connected.
 
-        Keywords argments:
-        - dest: InputPort to connect as destination to the signal.
+        Keywords arguments:
+        - dest : InputPort to connect as destination to the signal.
         """
         if dest is not self._destination:
             self.remove_destination()
