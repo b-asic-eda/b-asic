@@ -10,10 +10,11 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
-import numpy as np
+from matplotlib.lines import Line2D
 from matplotlib.patches import PathPatch
 from matplotlib.path import Path
 from matplotlib.ticker import MaxNLocator
+import numpy as np
 
 from b_asic import OutputPort, Signal
 from b_asic.graph_component import GraphID
@@ -357,12 +358,16 @@ class Schedule:
     def _plot_schedule(self, ax):
         def _draw_arrow(start, end, name="", laps=0):
             if end[0] < start[0] or laps > 0:  # Wrap around
-                ax.plot(
-                    [start[0], self._schedule_time + 0.2],
-                    [start[1], start[1]],
-                    color="black",
+                ax.add_line(
+                    Line2D(
+                        [start[0], self._schedule_time + 0.2],
+                        [start[1], start[1]],
+                        color="black",
+                    )
                 )
-                ax.plot([-0.2, end[0]], [end[1], end[1]], color="black")
+                ax.add_line(
+                    Line2D([-0.2, end[0]], [end[1], end[1]], color="black")
+                )
                 ax.text(
                     self._schedule_time + 0.2,
                     start[1],
@@ -479,12 +484,14 @@ class Schedule:
         ax.set_yticklabels(yticklabels)
         ax.axis([-1, self._schedule_time + 1, 0, ypos])
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax.plot([0, 0], [0, ypos], linestyle="--", color="black")
-        ax.plot(
-            [self._schedule_time, self._schedule_time],
-            [0, ypos],
-            linestyle="--",
-            color="black",
+        ax.add_line(Line2D([0, 0], [0, ypos], linestyle="--", color="black"))
+        ax.add_line(
+            Line2D(
+                [self._schedule_time, self._schedule_time],
+                [0, ypos],
+                linestyle="--",
+                color="black",
+            )
         )
 
     def plot_schedule(self) -> None:
