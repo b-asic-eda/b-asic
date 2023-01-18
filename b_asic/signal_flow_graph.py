@@ -1223,7 +1223,7 @@ class SFG(AbstractOperation):
         show_id : Boolean, optional
             If True, the graph_id:s of signals are shown. The default is False.
 
-        engine: string, optional
+        engine : string, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
 
@@ -1274,7 +1274,7 @@ class SFG(AbstractOperation):
         show_id : Boolean, optional
             If True, the graph_id:s of signals are shown. The default is False.
 
-        engine: string, optional
+        engine : string, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
         """

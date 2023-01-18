@@ -80,8 +80,11 @@ class Port(ABC):
         If the entered signal still is connected to this port then disconnect the
         entered signal from the port as well.
 
-        Keyword arguments:
-        - signal: Signal to remove.
+        Parameters
+        ==========
+
+        signal : Signal
+            Signal to remove.
         """
         raise NotImplementedError
 

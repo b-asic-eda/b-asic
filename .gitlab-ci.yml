@@ -34,13 +34,13 @@ run-test-3.10:
   image: python:3.10
   extends: ".run-test"
 
-run-test-3.11:
-  image: python:3.11
-  extends: ".run-test"
+#run-test-3.11:
+#  image: python:3.11
+#  extends: ".run-test"
 
 pages:
   stage: deploy
-  image: python:3.11
+  image: python:3.10
   script:
     - sphinx-build -b html docs_sphinx public
   artifacts:

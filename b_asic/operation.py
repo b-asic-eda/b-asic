@@ -195,7 +195,11 @@ class Operation(GraphComponent, SignalSourceProvider):
         Get the current output at the given index of this operation, if available.
         The delays parameter will be used for lookup.
         The prefix parameter will be used as a prefix for the key string when looking for delays.
-        See also: current_outputs, evaluate_output, evaluate_outputs.
+
+        See also
+        ========
+
+        current_outputs, evaluate_output, evaluate_outputs.
         """
         raise NotImplementedError
 
@@ -422,7 +426,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @abstractmethod
     def evaluate(self, *inputs) -> Any:  # pylint: disable=arguments-differ
-        """Evaluate the operation and generate a list of output values given a list of input values.
+        """
+        Evaluate the operation and generate a list of output values given a list of input values.
         """
         raise NotImplementedError
 

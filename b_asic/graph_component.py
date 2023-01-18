@@ -67,21 +67,24 @@ class GraphComponent(ABC):
 
     @abstractmethod
     def param(self, name: str) -> Any:
-        """Get the value of a parameter.
+        """
+        Get the value of a parameter.
         Returns None if the parameter is not defined.
         """
         raise NotImplementedError
 
     @abstractmethod
     def set_param(self, name: str, value: Any) -> None:
-        """Set the value of a parameter.
+        """
+        Set the value of a parameter.
         Adds the parameter if it is not already defined.
         """
         raise NotImplementedError
 
     @abstractmethod
     def copy_component(self, *args, **kwargs) -> "GraphComponent":
-        """Get a new instance of this graph component type with the same name, id and parameters.
+        """
+        Get a new instance of this graph component type with the same name, id and parameters.
         """
         raise NotImplementedError
 

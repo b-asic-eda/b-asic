@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""B-ASIC Scheduler-gui Resource and Form Compiler Module.
+"""
+B-ASIC Scheduler-gui Resource and Form Compiler Module.
 
 Compiles Qt5 resource and form files. Requires PySide2 or PyQt5 to be installed.
 If no arguments is given, the compiler search for and compiles all form (.ui)
@@ -25,16 +25,20 @@ except ModuleNotFoundError:
 
 
 def _check_filenames(*filenames: str) -> None:
-    """Check if the filename(s) exist, otherwise raise FileNotFoundError
-    exception."""
+    """
+    Check if the filename(s) exist, otherwise raise FileNotFoundError
+    exception.
+    """
     for filename in filenames:
         if not os.path.exists(filename):
             raise FileNotFoundError(filename)
 
 
 def _check_qt_version() -> None:
-    """Check if PySide2 or PyQt5 is installed, otherwise raise AssertionError
-    exception."""
+    """
+    Check if PySide2 or PyQt5 is installed, otherwise raise AssertionError
+    exception.
+    """
     assert uic.PYSIDE2 or uic.PYQT5, "PySide2 or PyQt5 need to be installed"
 
 
@@ -49,7 +53,8 @@ def replace_qt_bindings(filename: str) -> None:
 
 
 def compile_rc(*filenames: str) -> None:
-    """Compile resource file(s) given by 'filenames'. If no arguments are given,
+    """
+    Compile resource file(s) given by 'filenames'. If no arguments are given,
     the compiler will search for resource (.qrc) files and compile accordingly.
     """
     _check_qt_version()
@@ -114,8 +119,10 @@ def compile_rc(*filenames: str) -> None:
 
 
 def compile_ui(*filenames: str) -> None:
-    """Compile form file(s) given by 'filenames'. If no arguments are given, the
-    compiler will search for form (.ui) files and compile accordingly."""
+    """
+    Compile form file(s) given by 'filenames'. If no arguments are given, the
+    compiler will search for form (.ui) files and compile accordingly.
+    """
     _check_qt_version()
 
     def compile(filename: str) -> None:
@@ -178,8 +185,10 @@ def compile_ui(*filenames: str) -> None:
 
 
 def compile_all():
-    """The compiler will search for resource (.qrc) files and form (.ui) files
-    and compile accordingly."""
+    """
+    The compiler will search for resource (.qrc) files and form (.ui) files
+    and compile accordingly.
+    """
     compile_rc()
     compile_ui()
 

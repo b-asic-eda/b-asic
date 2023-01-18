@@ -66,8 +66,11 @@ class Signal(AbstractGraphComponent):
         connect to the entered source OutputPort. Also connect the entered
         source port to the signal if it hasn't already been connected.
 
-        Keyword arguments:
-        - src: OutputPort to connect as source to the signal.
+        Parameters
+        ==========
+
+        src : OutputPort
+            OutputPort to connect as source to the signal.
         """
         if src is not self._source:
             self.remove_source()
@@ -76,12 +79,16 @@ class Signal(AbstractGraphComponent):
                 src.add_signal(self)
 
     def set_destination(self, dest: "InputPort") -> None:
-        """Disconnect the previous destination InputPort of the signal and
+        """
+        Disconnect the previous destination InputPort of the signal and
         connect to the entered destination InputPort. Also connect the entered
         destination port to the signal if it hasn't already been connected.
 
-        Keywords arguments:
-        - dest : InputPort to connect as destination to the signal.
+        Parameters
+        ==========
+
+        dest : InputPort
+            InputPort to connect as destination to the signal.
         """
         if dest is not self._destination:
             self.remove_destination()
@@ -90,7 +97,8 @@ class Signal(AbstractGraphComponent):
                 dest.add_signal(self)
 
     def remove_source(self) -> None:
-        """Disconnect the source OutputPort of the signal. If the source port
+        """
+        Disconnect the source OutputPort of the signal. If the source port
         still is connected to this signal then also disconnect the source port.
         """
         src = self._source
@@ -108,8 +116,10 @@ class Signal(AbstractGraphComponent):
                 dest.remove_signal(self)
 
     def dangling(self) -> bool:
-        """Returns true if the signal is missing either a source or a destination,
-        else false."""
+        """
+        Returns True if the signal is missing either a source or a destination,
+        else False.
+        """
         return self._source is None or self._destination is None
 
     @property
