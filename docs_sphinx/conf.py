@@ -30,8 +30,13 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 autodoc_docstring_signature = True
 
+# nitpicky = True
+
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
+    'graphviz': ('https://graphviz.readthedocs.io/en/stable/', None),
+    'matplotlib': ('https://matplotlib.org/stable/', None),
+    'PyQt5': ("https://www.riverbankcomputing.com/static/Docs/PyQt5", None),
 }
 
 numpydoc_show_class_members = False
