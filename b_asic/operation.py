@@ -414,7 +414,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         if latency is not None:
             # Set the latency of the rest of ports with no latency_offset.
-            assert latency >= 0, "Negative latency entered"
+            if latency < 0:
+                raise ValueError("Latency cannot be negative")
             for inp in self.inputs:
                 if inp.latency_offset is None:
                     inp.latency_offset = 0
@@ -858,7 +859,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return latency_offsets
 
     def set_latency(self, latency: int) -> None:
-        assert latency >= 0, "Negative latency entered."
+        if latency < 0:
+            raise ValueError("Latency cannot be negative")
         for inport in self.inputs:
             inport.latency_offset = 0
         for outport in self.outputs:
@@ -895,9 +897,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @execution_time.setter
     def execution_time(self, execution_time: int) -> None:
-        assert (
-            execution_time is None or execution_time >= 0
-        ), "Negative execution time entered."
+        if execution_time is not None and execution_time < 0:
+            raise ValueError("Execution time cannot be negative")
         self._execution_time = execution_time
 
     def get_plot_coordinates(

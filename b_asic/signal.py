@@ -138,7 +138,6 @@ class Signal(AbstractGraphComponent):
         should truncate received values to.
         None = unlimited.
         """
-        assert bits is None or (
-            isinstance(bits, int) and bits >= 0
-        ), "Bits must be non-negative."
+        if bits is not None and bits < 0:
+            raise ValueError("Bits cannot be negative")
         self.set_param("bits", bits)
