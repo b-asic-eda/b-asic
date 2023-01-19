@@ -624,15 +624,14 @@ class SFG(AbstractOperation):
         if output_comp is None:
             return None
 
-        if isinstance(
-            output_comp, Output
-        ):
+        if isinstance(output_comp, Output):
             raise TypeError("Source operation cannot be an output operation.")
         if len(output_comp.output_signals) != component.input_count:
             raise TypeError(
-            f"Source operation output count ({len(output_comp.output_signals)})"
-            f" does not match input count for component ({component.input_count})."
-        )
+                "Source operation output count"
+                f" ({len(output_comp.output_signals)}) does not match input"
+                f" count for component ({component.input_count})."
+            )
         assert len(output_comp.output_signals) == component.output_count, (
             "Destination operation input count does not match output for"
             " component."

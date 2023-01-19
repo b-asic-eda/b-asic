@@ -250,7 +250,9 @@ class TestEvaluateOutput:
 
     def test_evaluate_output_cycle(self, operation_graph_with_cycle):
         sfg = SFG(outputs=[Output(operation_graph_with_cycle)])
-        with pytest.raises(RuntimeError, match="Direct feedback loop detected"):
+        with pytest.raises(
+            RuntimeError, match="Direct feedback loop detected"
+        ):
             sfg.evaluate_output(0, [])
 
 

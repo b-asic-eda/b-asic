@@ -212,8 +212,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             ).load_module()
         except Exception as e:
             log.exception(
-                "Exception occurred. Could not load module from file '{}'.\n\n{}"
-                .format(abs_path_filename, e)
+                "Exception occurred. Could not load module from file"
+                " '{}'.\n\n{}".format(abs_path_filename, e)
             )
             return
 

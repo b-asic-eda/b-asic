@@ -141,7 +141,8 @@ class Signal(AbstractGraphComponent):
         if bits is not None:
             if not isinstance(bits, int):
                 raise TypeError(
-                    f"Bits must be an int, not {type(bits)}: {bits!r}")
+                    f"Bits must be an int, not {type(bits)}: {bits!r}"
+                )
             if bits < 0:
                 raise ValueError("Bits cannot be negative")
         self.set_param("bits", bits)

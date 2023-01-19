@@ -193,6 +193,7 @@ class GraphicsGraphEvent:  # PyQt5
         translate coordinates of the cursor within the graphic element in the
         coordinate system of the parent object. The object can only move
         horizontally in x-axis scale steps."""
+
         # Qt.DragMoveCursor
         # button = event.button()
         def update_pos(item, delta_x):
@@ -245,6 +246,7 @@ class GraphicsGraphEvent:  # PyQt5
         translate coordinates of the cursor within the graphic element in the
         coordinate system of the parent object. The object can only move
         horizontally in x-axis scale steps."""
+
         # Qt.DragMoveCursor
         # button = event.button()
         def update_pos(item, delta_x):
