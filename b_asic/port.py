@@ -172,9 +172,8 @@ class InputPort(AbstractPort):
         return [] if self._source_signal is None else [self._source_signal]
 
     def add_signal(self, signal: Signal) -> None:
-        assert (
-            self._source_signal is None
-        ), "Input port may have only one signal added."
+        if self._source_signal is not None:
+            raise ValueError("Cannot add to already connected input port.")
         assert (
             signal is not self._source_signal
         ), "Attempted to add already connected signal."
@@ -207,9 +206,8 @@ class InputPort(AbstractPort):
         Connect the provided signal source to this input port by creating a new signal.
         Returns the new signal.
         """
-        assert (
-            self._source_signal is None
-        ), "Attempted to connect already connected input port."
+        if self._source_signal is not None:
+            raise ValueError("Cannot connect already connected input port.")
         # self._source_signal is set by the signal constructor.
         return Signal(source=src.source, destination=self, name=name)
 
