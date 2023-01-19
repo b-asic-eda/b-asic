@@ -16,7 +16,8 @@ from b_asic.port import SignalSourceProvider
 
 
 class Constant(AbstractOperation):
-    """Constant value operation.
+    """
+    Constant value operation.
 
     Gives a specified value that remains constant for every iteration.
 
@@ -54,7 +55,8 @@ class Constant(AbstractOperation):
 
 
 class Addition(AbstractOperation):
-    """Binary addition operation.
+    """
+    Binary addition operation.
 
     Gives the result of adding two inputs.
 
@@ -88,7 +90,8 @@ class Addition(AbstractOperation):
 
 
 class Subtraction(AbstractOperation):
-    """Binary subtraction operation.
+    """
+    Binary subtraction operation.
 
     Gives the result of subtracting the second input from the first one.
 
@@ -122,7 +125,8 @@ class Subtraction(AbstractOperation):
 
 
 class AddSub(AbstractOperation):
-    """Two-input addition or subtraction operation.
+    """
+    Two-input addition or subtraction operation.
 
     Gives the result of adding or subtracting two inputs.
 
@@ -169,7 +173,8 @@ class AddSub(AbstractOperation):
 
 
 class Multiplication(AbstractOperation):
-    """Binary multiplication operation.
+    """
+    Binary multiplication operation.
 
     Gives the result of multiplying two inputs.
 
@@ -203,7 +208,8 @@ class Multiplication(AbstractOperation):
 
 
 class Division(AbstractOperation):
-    """Binary division operation.
+    """
+    Binary division operation.
 
     Gives the result of dividing the first input by the second one.
 
@@ -237,7 +243,8 @@ class Division(AbstractOperation):
 
 
 class Min(AbstractOperation):
-    """Binary min operation.
+    """
+    Binary min operation.
 
     Gives the minimum value of two inputs.
     NOTE: Non-real numbers are not supported.
@@ -268,14 +275,15 @@ class Min(AbstractOperation):
         return "min"
 
     def evaluate(self, a, b):
-        assert not isinstance(a, complex) and not isinstance(
-            b, complex
-        ), "core_operations.Min does not support complex numbers."
+        if isinstance(a, complex) or isinstance(b, complex):
+            raise ValueError(
+                "core_operations.Min does not support complex numbers.")
         return a if a < b else b
 
 
 class Max(AbstractOperation):
-    """Binary max operation.
+    """
+    Binary max operation.
 
     Gives the maximum value of two inputs.
     NOTE: Non-real numbers are not supported.
@@ -306,14 +314,15 @@ class Max(AbstractOperation):
         return "max"
 
     def evaluate(self, a, b):
-        assert not isinstance(a, complex) and not isinstance(
-            b, complex
-        ), "core_operations.Max does not support complex numbers."
+        if isinstance(a, complex) or isinstance(b, complex):
+            raise ValueError(
+                "core_operations.Max does not support complex numbers.")
         return a if a > b else b
 
 
 class SquareRoot(AbstractOperation):
-    """Square root operation.
+    """
+    Square root operation.
 
     Gives the square root of its input.
 
@@ -346,7 +355,8 @@ class SquareRoot(AbstractOperation):
 
 
 class ComplexConjugate(AbstractOperation):
-    """Complex conjugate operation.
+    """
+    Complex conjugate operation.
 
     Gives the complex conjugate of its input.
 
@@ -379,7 +389,8 @@ class ComplexConjugate(AbstractOperation):
 
 
 class Absolute(AbstractOperation):
-    """Absolute value operation.
+    """
+    Absolute value operation.
 
     Gives the absolute value of its input.
 
@@ -412,7 +423,8 @@ class Absolute(AbstractOperation):
 
 
 class ConstantMultiplication(AbstractOperation):
-    """Constant multiplication operation.
+    """
+    Constant multiplication operation.
 
     Gives the result of multiplying its input by a specified value.
 
@@ -458,7 +470,8 @@ class ConstantMultiplication(AbstractOperation):
 
 
 class Butterfly(AbstractOperation):
-    """Butterfly operation.
+    """
+    Butterfly operation.
 
     Gives the result of adding its two inputs, as well as the result of
     subtracting the second input from the first one.
@@ -494,7 +507,8 @@ class Butterfly(AbstractOperation):
 
 
 class MAD(AbstractOperation):
-    """Multiply-add operation.
+    """
+    Multiply-add operation.
 
     Gives the result of multiplying the first input by the second input and
     then adding the third input.
@@ -530,7 +544,8 @@ class MAD(AbstractOperation):
 
 
 class SymmetricTwoportAdaptor(AbstractOperation):
-    """Symmetric twoport-adaptor operation.
+    """
+    Symmetric twoport-adaptor operation.
 
     output(0): input(1) + value*(input(1) - input(0)
     output(1): input(0) + value*(input(1) - input(0)
