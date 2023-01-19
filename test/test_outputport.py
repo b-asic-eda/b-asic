@@ -17,7 +17,7 @@ class TestConnect:
     def test_same_port(self, output_port, input_port):
         """Check error handing."""
         input_port.connect(output_port)
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             input_port.connect(output_port)
 
         assert output_port.signal_count == 1

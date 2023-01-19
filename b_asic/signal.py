@@ -138,6 +138,10 @@ class Signal(AbstractGraphComponent):
         should truncate received values to.
         None = unlimited.
         """
-        if bits is not None and bits < 0:
-            raise ValueError("Bits cannot be negative")
+        if bits is not None:
+            if not isinstance(bits, int):
+                raise TypeError(
+                    f"Bits must be an int, not {type(bits)}: {bits!r}")
+            if bits < 0:
+                raise ValueError("Bits cannot be negative")
         self.set_param("bits", bits)

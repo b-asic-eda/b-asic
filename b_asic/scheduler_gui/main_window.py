@@ -210,10 +210,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             module = SourceFileLoader(
                 module_name, abs_path_filename
             ).load_module()
-        except:
+        except Exception as e:
             log.exception(
-                "Exception occurred. Could not load module from file '{}'."
-                .format(abs_path_filename)
+                "Exception occurred. Could not load module from file '{}'.\n\n{}"
+                .format(abs_path_filename, e)
             )
             return
 

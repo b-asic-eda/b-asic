@@ -250,7 +250,7 @@ class TestEvaluateOutput:
 
     def test_evaluate_output_cycle(self, operation_graph_with_cycle):
         sfg = SFG(outputs=[Output(operation_graph_with_cycle)])
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Direct feedback loop detected"):
             sfg.evaluate_output(0, [])
 
 
@@ -501,7 +501,7 @@ class TestInsertComponent:
 
         # Should raise an exception for not matching input count to output count.
         add4 = Addition()
-        with pytest.raises(Exception):
+        with pytest.raises(TypeError, match="Source operation output count"):
             sfg.insert_operation(add4, "c1")
 
     def test_insert_at_output(self, large_operation_tree):
@@ -509,7 +509,7 @@ class TestInsertComponent:
 
         # Should raise an exception for trying to insert an operation after an output.
         sqrt = SquareRoot()
-        with pytest.raises(Exception):
+        with pytest.raises(TypeError, match="Source operation cannot be an"):
             _ = sfg.insert_operation(sqrt, "out1")
 
     def test_insert_multiple_output_ports(self, butterfly_operation_tree):
@@ -1324,7 +1324,7 @@ class TestSaveLoadSFG:
 
     def test_load_invalid_path(self):
         path_ = self.get_path(existing=False)
-        with pytest.raises(Exception):
+        with pytest.raises(FileNotFoundError):
             python_to_sfg(path_)
 
 
