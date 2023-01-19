@@ -4,23 +4,31 @@ stages:
 
 before_script:
   - apt-get update --yes
-  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz python3-pyqt5 xvfb xdg-utils
+  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz python3-pyqt5 xvfb xdg-utils lcov
   - python -m pip install --upgrade pip
   - python --version
   - pip install pytest pytest-cov sphinx furo numpydoc pytest-xvfb pytest-qt setuptools_scm sphinx-qt-documentation pytest-xdist
-  - pip install .
+  # - export CXXFLAGS='--coverage'
+  - pip install -ve .
+  # Move file, but should be handled by installation
+  - mv _b_asic* b_asic
   - pip show b_asic
 
 .run-test:
   stage: test
   script:
-    - pytest --cov=b_asic --cov-report xml:cov.xml --cov-report term test
-    - sphinx-build -b html docs_sphinx public
+    - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --color=yes test
+    # - lcov --capture --directory . --output-file coverage.info
+    # - lcov --output-file coverage.info --extract coverage.info $PWD/src/'*' $PWD/b_asic/'*'
+    # - lcov --list coverage.info
+    # - find . -name '*.gc*' -delete
   artifacts:
       reports:
         coverage_report:
           coverage_format: cobertura
           path: cov.xml
+  coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
+
 
 run-test-3.8:
   image: python:3.8
@@ -33,6 +41,12 @@ run-test-3.9:
 run-test-3.10:
   image: python:3.10
   extends: ".run-test"
+
+run-doc-test:
+  image: python:3.10
+  stage: test
+  script:
+    - sphinx-build -b html docs_sphinx public
 
 #run-test-3.11:
 #  image: python:3.11

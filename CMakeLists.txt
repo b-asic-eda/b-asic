@@ -93,7 +93,7 @@ endif()
 # Copy binaries to project folder for debugging during development.
 if(NOT ASIC_BUILDING_PYTHON_DISTRIBUTION)
 	add_custom_target(copy_binaries ALL
-		COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${TARGET_NAME}>" "${CMAKE_CURRENT_LIST_DIR}"
-		COMMENT "Copying binaries to ${CMAKE_CURRENT_LIST_DIR}"
+		COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${TARGET_NAME}>" "${CMAKE_CURRENT_LIST_DIR}/${LIBRARY_NAME}"
+		COMMENT "Copying binaries to ${CMAKE_CURRENT_LIST_DIR}/${LIBRARY_NAME}"
 		DEPENDS "${TARGET_NAME}")
 endif()
