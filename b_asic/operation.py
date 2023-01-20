@@ -231,10 +231,10 @@ class Operation(GraphComponent, SignalSourceProvider):
         which ignores the word length specified by the input signal.
         The *truncate* parameter specifies whether input truncation should be enabled in the first
         place. If set to False, input values will be used directly without any bit truncation.
-        
+
         See also
         ========
-        
+
         evaluate_outputs, current_output, current_outputs
         """
         raise NotImplementedError
@@ -931,7 +931,13 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             self._execution_time *= factor
         for port in [*self.inputs, *self.outputs]:
             port.latency_offset *= factor
-            
+
+    def _decrease_time_resolution(self, factor: int):
+        if self._execution_time is not None:
+            self._execution_time = self._execution_time // factor
+        for port in [*self.inputs, *self.outputs]:
+            port.latency_offset = port.latency_offset // factor
+
     def get_plot_coordinates(
         self,
     ) -> Tuple[List[List[Number]], List[List[Number]]]:

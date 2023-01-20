@@ -305,6 +305,7 @@ class TestTimeResolution:
             scheduling_alg="ASAP",
         )
         old_schedule_time = schedule.schedule_time
+        assert schedule.get_possible_time_resolution_decrements() == [1]
 
         schedule.increase_time_resolution(2)
 
@@ -330,6 +331,7 @@ class TestTimeResolution:
         }
 
         assert 2 * old_schedule_time == schedule.schedule_time
+        assert schedule.get_possible_time_resolution_decrements() == [1, 2]
 
     def test_increase_time_resolution_twice(
         self, sfg_two_inputs_two_outputs_independent_with_cmul
@@ -365,3 +367,72 @@ class TestTimeResolution:
         }
 
         assert 6 * old_schedule_time == schedule.schedule_time
+        assert schedule.get_possible_time_resolution_decrements() == [
+            1,
+            2,
+            3,
+            6,
+        ]
+
+    def test_increase_decrease_time_resolution(
+        self, sfg_two_inputs_two_outputs_independent_with_cmul
+    ):
+        schedule = Schedule(
+            sfg_two_inputs_two_outputs_independent_with_cmul,
+            scheduling_alg="ASAP",
+        )
+        old_schedule_time = schedule.schedule_time
+        assert schedule.get_possible_time_resolution_decrements() == [1]
+
+        schedule.increase_time_resolution(6)
+
+        start_times_names = {}
+        for op_id, start_time in schedule._start_times.items():
+            op_name = (
+                sfg_two_inputs_two_outputs_independent_with_cmul.find_by_id(
+                    op_id
+                ).name
+            )
+            start_times_names[op_name] = start_time
+
+        assert start_times_names == {
+            "C1": 0,
+            "IN1": 0,
+            "IN2": 0,
+            "CMUL1": 0,
+            "CMUL2": 30,
+            "ADD1": 0,
+            "CMUL3": 42,
+            "OUT1": 54,
+            "OUT2": 60,
+        }
+
+        with pytest.raises(
+            ValueError, match="Not possible to decrease resolution"
+        ):
+            schedule.decrease_time_resolution(4)
+
+        schedule.decrease_time_resolution(3)
+        start_times_names = {}
+        for op_id, start_time in schedule._start_times.items():
+            op_name = (
+                sfg_two_inputs_two_outputs_independent_with_cmul.find_by_id(
+                    op_id
+                ).name
+            )
+            start_times_names[op_name] = start_time
+
+        assert start_times_names == {
+            "C1": 0,
+            "IN1": 0,
+            "IN2": 0,
+            "CMUL1": 0,
+            "CMUL2": 10,
+            "ADD1": 0,
+            "CMUL3": 14,
+            "OUT1": 18,
+            "OUT2": 20,
+        }
+
+        assert 2 * old_schedule_time == schedule.schedule_time
+        assert schedule.get_possible_time_resolution_decrements() == [1, 2]
