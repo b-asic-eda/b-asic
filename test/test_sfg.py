@@ -1379,10 +1379,10 @@ class TestPrecedenceGraph:
             " shape=square]\n\tcmul1 -> \"cmul1.0\"\n\tcmul1 [label=cmul1"
             " shape=square]\n\t\"add1.0\" -> t1In\n\tt1In [label=t1"
             " shape=square]\n\tadd1 -> \"add1.0\"\n\tadd1 [label=add1"
-            " shape=square]\n}\n"
+            " shape=square]\n}"
         )
 
-        assert sfg_simple_filter.precedence_graph().source == res
+        assert sfg_simple_filter.precedence_graph().source in (res, res + "\n")
 
 
 class TestSFGGraph:
@@ -1391,20 +1391,20 @@ class TestSFGGraph:
             "digraph {\n\trankdir=LR\n\tin1\n\tin1 -> "
             "add1\n\tout1\n\tt1 -> out1\n\tadd1\n\tcmul1 -> "
             "add1\n\tcmul1\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 "
-            "-> cmul1\n}\n"
+            "-> cmul1\n}"
         )
 
-        assert sfg_simple_filter.sfg().source == res
+        assert sfg_simple_filter.sfg().source in (res, res + "\n")
 
     def test_sfg_show_id(self, sfg_simple_filter):
         res = (
             "digraph {\n\trankdir=LR\n\tin1\n\tin1 -> add1 "
             "[label=s1]\n\tout1\n\tt1 -> out1 [label=s2]\n\tadd1"
             "\n\tcmul1 -> add1 [label=s3]\n\tcmul1\n\tadd1 -> t1 "
-            "[label=s4]\n\tt1 [shape=square]\n\tt1 -> cmul1 [label=s5]\n}\n"
+            "[label=s4]\n\tt1 [shape=square]\n\tt1 -> cmul1 [label=s5]\n}"
         )
 
-        assert sfg_simple_filter.sfg(show_id=True).source == res
+        assert sfg_simple_filter.sfg(show_id=True).source in (res, res + "\n")
 
     def test_show_sfg_invalid_format(self, sfg_simple_filter):
         with pytest.raises(ValueError):

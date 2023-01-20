@@ -5,6 +5,7 @@ Contains the schedule class for scheduling operations in an SFG.
 """
 
 import io
+import math
 import sys
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -191,12 +192,61 @@ class Schedule:
         self._start_times = {
             k: factor * v for k, v in self._start_times.items()
         }
-        for op_id, op_start_time in self._start_times.items():
+        for op_id in self._start_times:
             self._sfg.find_by_id(op_id)._increase_time_resolution(factor)
         self._schedule_time *= factor
+        return self
+
+    def _get_all_times(self) -> List[int]:
+        """
+        Return a list of all times for the schedule. Used to check how the
+        resolution can be modified.
+        """
+        # Local values
+        ret = [self._schedule_time, *self._start_times.values()]
+        # Loop over operations
+        for op_id in self._start_times:
+            op = self._sfg.find_by_id(op_id)
+            ret += [op.execution_time, *op.latency_offsets.values()]
+        # Remove not set values (None)
+        ret = [v for v in ret if v is not None]
+        return ret
+
+    def get_possible_time_resolution_decrements(self) -> List[int]:
+        """Return a list with possible factors to reduce time resolution."""
+        vals = self._get_all_times()
+        maxloop = min(val for val in vals if val)
+        if maxloop <= 1:
+            return [1]
+        ret = [1]
+        for candidate in range(2, maxloop + 1):
+            if not any(val % candidate for val in vals):
+                ret.append(candidate)
+        return ret
 
     def decrease_time_resolution(self, factor: int) -> "Schedule":
-        raise NotImplementedError
+        """
+        Decrease time resolution for a schedule.
+
+        Parameters
+        ==========
+
+        factor : int
+            The time resolution decrement.
+        """
+        possible_values = self.get_possible_time_resolution_decrements()
+        if factor not in possible_values:
+            raise ValueError(
+                f"Not possible to decrease resolution with {factor}. Possible"
+                f" values are {possible_values}"
+            )
+        self._start_times = {
+            k: v // factor for k, v in self._start_times.items()
+        }
+        for op_id, _ in self._start_times.items():
+            self._sfg.find_by_id(op_id)._decrease_time_resolution(factor)
+        self._schedule_time = self._schedule_time // factor
+        return self
 
     def move_operation(self, op_id: GraphID, time: int) -> "Schedule":
         assert (
