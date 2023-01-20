@@ -30,14 +30,12 @@ class Schedule:
     _laps: Dict[GraphID, List[int]]
     _schedule_time: int
     _cyclic: bool
-    _resolution: int
 
     def __init__(
         self,
         sfg: SFG,
         schedule_time: Optional[int] = None,
         cyclic: bool = False,
-        resolution: int = 1,
         scheduling_alg: str = "ASAP",
     ):
         """Construct a Schedule from an SFG."""
@@ -45,8 +43,6 @@ class Schedule:
         self._start_times = {}
         self._laps = defaultdict(lambda: 0)
         self._cyclic = cyclic
-        self._resolution = resolution
-
         if scheduling_alg == "ASAP":
             self._schedule_asap()
         else:
@@ -182,12 +178,22 @@ class Schedule:
     def cyclic(self) -> bool:
         return self._cyclic
 
-    @property
-    def resolution(self) -> int:
-        return self._resolution
-
     def increase_time_resolution(self, factor: int) -> "Schedule":
-        raise NotImplementedError
+        """
+        Increase time resolution for a schedule.
+
+        Parameters
+        ==========
+
+        factor : int
+            The time resolution increment.
+        """
+        self._start_times = {
+            k: factor * v for k, v in self._start_times.items()
+        }
+        for op_id, op_start_time in self._start_times.items():
+            self._sfg.find_by_id(op_id)._increase_time_resolution(factor)
+        self._schedule_time *= factor
 
     def decrease_time_resolution(self, factor: int) -> "Schedule":
         raise NotImplementedError
@@ -198,12 +204,8 @@ class Schedule:
         ), "No operation with the specified op_id in this schedule."
 
         (backward_slack, forward_slack) = self.slacks(op_id)
-        if time < 0:
-            if -time > backward_slack:
-                raise ValueError
-        else:
-            if time > forward_slack:
-                raise ValueError
+        if not -backward_slack <= time <= forward_slack:
+            raise ValueError
 
         tmp_start = self._start_times[op_id] + time
         new_start = tmp_start % self._schedule_time

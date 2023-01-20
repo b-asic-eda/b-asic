@@ -21,6 +21,7 @@ class TestInit:
             "cmul1": 0,
             "out1": 0,
         }
+        assert schedule.schedule_time == 9
 
     def test_complicated_single_outputs_normal_latency(
         self, precedence_sfg_delays
@@ -55,6 +56,7 @@ class TestInit:
             "ADD4": 17,
             "OUT1": 21,
         }
+        assert schedule.schedule_time == 21
 
     def test_complicated_single_outputs_complex_latencies(
         self, precedence_sfg_delays
@@ -118,6 +120,8 @@ class TestInit:
             "OUT1": 17,
         }
 
+        assert schedule.schedule_time == 17
+
     def test_independent_sfg(
         self, sfg_two_inputs_two_outputs_independent_with_cmul
     ):
@@ -146,6 +150,7 @@ class TestInit:
             "OUT1": 9,
             "OUT2": 10,
         }
+        assert schedule.schedule_time == 10
 
 
 class TestSlacks:
@@ -289,3 +294,74 @@ class TestRescheduling:
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, 10
             )
+
+
+class TestTimeResolution:
+    def test_increase_time_resolution(
+        self, sfg_two_inputs_two_outputs_independent_with_cmul
+    ):
+        schedule = Schedule(
+            sfg_two_inputs_two_outputs_independent_with_cmul,
+            scheduling_alg="ASAP",
+        )
+        old_schedule_time = schedule.schedule_time
+
+        schedule.increase_time_resolution(2)
+
+        start_times_names = {}
+        for op_id, start_time in schedule._start_times.items():
+            op_name = (
+                sfg_two_inputs_two_outputs_independent_with_cmul.find_by_id(
+                    op_id
+                ).name
+            )
+            start_times_names[op_name] = start_time
+
+        assert start_times_names == {
+            "C1": 0,
+            "IN1": 0,
+            "IN2": 0,
+            "CMUL1": 0,
+            "CMUL2": 10,
+            "ADD1": 0,
+            "CMUL3": 14,
+            "OUT1": 18,
+            "OUT2": 20,
+        }
+
+        assert 2 * old_schedule_time == schedule.schedule_time
+
+    def test_increase_time_resolution_twice(
+        self, sfg_two_inputs_two_outputs_independent_with_cmul
+    ):
+        schedule = Schedule(
+            sfg_two_inputs_two_outputs_independent_with_cmul,
+            scheduling_alg="ASAP",
+        )
+        old_schedule_time = schedule.schedule_time
+
+        schedule.increase_time_resolution(2)
+        schedule.increase_time_resolution(3)
+
+        start_times_names = {}
+        for op_id, start_time in schedule._start_times.items():
+            op_name = (
+                sfg_two_inputs_two_outputs_independent_with_cmul.find_by_id(
+                    op_id
+                ).name
+            )
+            start_times_names[op_name] = start_time
+
+        assert start_times_names == {
+            "C1": 0,
+            "IN1": 0,
+            "IN2": 0,
+            "CMUL1": 0,
+            "CMUL2": 30,
+            "ADD1": 0,
+            "CMUL3": 42,
+            "OUT1": 54,
+            "OUT2": 60,
+        }
+
+        assert 6 * old_schedule_time == schedule.schedule_time

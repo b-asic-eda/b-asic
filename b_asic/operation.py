@@ -916,7 +916,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 )
 
     @property
-    def execution_time(self) -> Optional[int]:
+    def execution_time(self) -> Union[int, None]:
+        """Execution time of operation."""
         return self._execution_time
 
     @execution_time.setter
@@ -925,6 +926,12 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             raise ValueError("Execution time cannot be negative")
         self._execution_time = execution_time
 
+    def _increase_time_resolution(self, factor: int):
+        if self._execution_time is not None:
+            self._execution_time *= factor
+        for port in [*self.inputs, *self.outputs]:
+            port.latency_offset *= factor
+            
     def get_plot_coordinates(
         self,
     ) -> Tuple[List[List[Number]], List[List[Number]]]:
