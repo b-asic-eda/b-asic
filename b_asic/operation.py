@@ -35,7 +35,8 @@ MutableDelayMap = MutableMapping[ResultKey, Number]
 
 
 class Operation(GraphComponent, SignalSourceProvider):
-    """Operation interface.
+    """
+    Operation interface.
 
     Operations are graph components that perform a certain function.
     They are connected to each other by signals through their input/output
@@ -47,14 +48,16 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @abstractmethod
     def __add__(self, src: Union[SignalSourceProvider, Number]) -> "Addition":
-        """Overloads the addition operator to make it return a new Addition operation
+        """
+        Overloads the addition operator to make it return a new Addition operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
 
     @abstractmethod
     def __radd__(self, src: Union[SignalSourceProvider, Number]) -> "Addition":
-        """Overloads the addition operator to make it return a new Addition operation
+        """
+        Overloads the addition operator to make it return a new Addition operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -63,7 +66,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     def __sub__(
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Subtraction":
-        """Overloads the subtraction operator to make it return a new Subtraction operation
+        """
+        Overloads the subtraction operator to make it return a new Subtraction operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -72,7 +76,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     def __rsub__(
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Subtraction":
-        """Overloads the subtraction operator to make it return a new Subtraction operation
+        """
+        Overloads the subtraction operator to make it return a new Subtraction operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -81,7 +86,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     def __mul__(
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Union[Multiplication, ConstantMultiplication]":
-        """Overloads the multiplication operator to make it return a new Multiplication operation
+        """
+        Overloads the multiplication operator to make it return a new Multiplication operation
         object that is connected to the self and other objects. If *src* is a number, then
         returns a ConstantMultiplication operation object instead.
         """
@@ -193,13 +199,13 @@ class Operation(GraphComponent, SignalSourceProvider):
     ) -> Optional[Number]:
         """
         Get the current output at the given index of this operation, if available.
-        The delays parameter will be used for lookup.
-        The prefix parameter will be used as a prefix for the key string when looking for delays.
+        The *delays* parameter will be used for lookup.
+        The *prefix* parameter will be used as a prefix for the key string when looking for delays.
 
         See also
         ========
 
-        current_outputs, evaluate_output, evaluate_outputs.
+        current_outputs, evaluate_output, evaluate_outputs
         """
         raise NotImplementedError
 
@@ -216,16 +222,20 @@ class Operation(GraphComponent, SignalSourceProvider):
     ) -> Number:
         """
         Evaluate the output at the given index of this operation with the given input values.
-        The results parameter will be used to store any results (including intermediate results)
+        The *results* parameter will be used to store any results (including intermediate results)
         for caching.
-        The delays parameter will be used to get the current value of any intermediate delays
+        The *delays* parameter will be used to get the current value of any intermediate delays
         that are encountered, and be updated with their new values.
-        The prefix parameter will be used as a prefix for the key string when storing results/delays.
-        The bits_override parameter specifies a word length override when truncating inputs
+        The *prefix* parameter will be used as a prefix for the key string when storing results/delays.
+        The *bits_override* parameter specifies a word length override when truncating inputs
         which ignores the word length specified by the input signal.
-        The truncate parameter specifies whether input truncation should be enabled in the first
+        The *truncate* parameter specifies whether input truncation should be enabled in the first
         place. If set to False, input values will be used directly without any bit truncation.
-        See also: evaluate_outputs, current_output, current_outputs.
+        
+        See also
+        ========
+        
+        evaluate_outputs, current_output, current_outputs
         """
         raise NotImplementedError
 
@@ -233,7 +243,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     def current_outputs(
         self, delays: Optional[DelayMap] = None, prefix: str = ""
     ) -> Sequence[Optional[Number]]:
-        """Get all current outputs of this operation, if available.
+        """
+        Get all current outputs of this operation, if available.
         See current_output for more information.
         """
         raise NotImplementedError
@@ -248,21 +259,24 @@ class Operation(GraphComponent, SignalSourceProvider):
         bits_override: Optional[int] = None,
         truncate: bool = True,
     ) -> Sequence[Number]:
-        """Evaluate all outputs of this operation given the input values.
+        """
+        Evaluate all outputs of this operation given the input values.
         See evaluate_output for more information.
         """
         raise NotImplementedError
 
     @abstractmethod
     def split(self) -> Iterable["Operation"]:
-        """Split the operation into multiple operations.
+        """
+        Split the operation into multiple operations.
         If splitting is not possible, this may return a list containing only the operation itself.
         """
         raise NotImplementedError
 
     @abstractmethod
     def to_sfg(self) -> "SFG":
-        """Convert the operation into its corresponding SFG.
+        """
+        Convert the operation into its corresponding SFG.
         If the operation is composed by multiple operations, the operation will be split.
         """
         raise NotImplementedError
@@ -302,7 +316,8 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @abstractmethod
     def set_latency(self, latency: int) -> None:
-        """Sets the latency of the operation to the specified integer value  by setting the
+        """
+        Sets the latency of the operation to the specified integer value  by setting the
         latency-offsets of operations input ports to 0 and the latency-offsets of the operations
         output ports to the specified value. The latency cannot be a negative integers.
         """
@@ -320,7 +335,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     @property
     @abstractmethod
     def execution_time(self) -> int:
-        """Get the execution time of the operation, which is the time it takes before the
+        """
+        Get the execution time of the operation, which is the time it takes before the
         processing element implementing the operation can be reused for starting another operation.
         """
         raise NotImplementedError
@@ -328,7 +344,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     @execution_time.setter
     @abstractmethod
     def execution_time(self, latency: int) -> None:
-        """Sets the execution time of the operation to the specified integer
+        """
+        Sets the execution time of the operation to the specified integer
         value. The execution time cannot be a negative integer.
         """
         raise NotImplementedError
@@ -337,7 +354,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     def get_plot_coordinates(
         self,
     ) -> Tuple[List[List[Number]], List[List[Number]]]:
-        """Get a tuple constaining coordinates for the two polygons outlining
+        """
+        Get a tuple constaining coordinates for the two polygons outlining
         the latency and execution time of the operation.
         The polygons are corresponding to a start time of 0 and are of height 1.
         """
@@ -347,7 +365,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     def get_io_coordinates(
         self,
     ) -> Tuple[List[List[Number]], List[List[Number]]]:
-        """Get a tuple constaining coordinates for inputs and outputs, respectively.
+        """
+        Get a tuple constaining coordinates for inputs and outputs, respectively.
         These maps to the polygons and are corresponding to a start time of 0
         and height 1.
         """
@@ -355,7 +374,8 @@ class Operation(GraphComponent, SignalSourceProvider):
 
 
 class AbstractOperation(Operation, AbstractGraphComponent):
-    """Generic abstract operation base class.
+    """
+    Generic abstract operation base class.
 
     Concrete operations should normally derive from this to get the default
     behavior.
@@ -377,7 +397,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         latency_offsets: Optional[Dict[str, int]] = None,
         execution_time: Optional[int] = None,
     ):
-        """Construct an operation with the given input/output count.
+        """
+        Construct an operation with the given input/output count.
 
         A list of input sources may be specified to automatically connect
         to the input ports.
@@ -428,7 +449,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @abstractmethod
     def evaluate(self, *inputs) -> Any:  # pylint: disable=arguments-differ
         """
-        Evaluate the operation and generate a list of output values given a list of input values.
+        Evaluate the operation and generate a list of output values given a
+        list of input values.
         """
         raise NotImplementedError
 
@@ -773,7 +795,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @property
     def preceding_operations(self) -> Iterable[Operation]:
-        """Returns an Iterable of all Operations that are connected to this Operations input ports.
+        """
+        Return an Iterable of all Operations that are connected to this
+        Operations input ports.
         """
         return [
             signal.source.operation
@@ -783,7 +807,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @property
     def subsequent_operations(self) -> Iterable[Operation]:
-        """Returns an Iterable of all Operations that are connected to this Operations output ports.
+        """
+        Return an Iterable of all Operations that are connected to this
+        Operations output ports.
         """
         return [
             signal.destination.operation
