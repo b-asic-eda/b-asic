@@ -12,7 +12,7 @@ dependencies = [
     "pybind11>=2.3.0",
     "pyside2",
     "qtpy",
-    "graphviz",
+    "graphviz>=0.19",
     "matplotlib",
 ]
 classifiers = [

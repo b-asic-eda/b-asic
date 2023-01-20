@@ -1259,8 +1259,8 @@ class SFG(AbstractOperation):
                     dg.node(op.graph_id)
         return dg
 
-    def _repr_svg_(self):
-        return self.sfg()._repr_svg_()
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        return self.sfg()._repr_mimebundle_(include=include, exclude=exclude)
 
     def show_sfg(self, format=None, show_id=False, engine=None) -> None:
         """
