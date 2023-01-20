@@ -890,9 +890,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 )
 
     @property
-    def execution_time(self) -> int:
-        if self._execution_time is None:
-            raise ValueError("No execution time specified.")
+    def execution_time(self) -> Optional[int]:
         return self._execution_time
 
     @execution_time.setter

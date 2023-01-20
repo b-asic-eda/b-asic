@@ -229,7 +229,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         self._label_item.setPos(self._component_item.pos() + center)
 
         ## execution time
-        if self._operation.execution_time:
+        if self._operation.execution_time is not None:
             self._execution_time_item = QGraphicsRectItem(
                 0, 0, self._operation.execution_time, self._height
             )
