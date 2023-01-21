@@ -19,6 +19,7 @@ import numpy as np
 
 from b_asic import OutputPort, Signal
 from b_asic.graph_component import GraphID
+from b_asic.process import MemoryVariable
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Output
 
@@ -243,7 +244,7 @@ class Schedule:
         self._start_times = {
             k: v // factor for k, v in self._start_times.items()
         }
-        for op_id, _ in self._start_times.items():
+        for op_id in self._start_times:
             self._sfg.find_by_id(op_id)._decrease_time_resolution(factor)
         self._schedule_time = self._schedule_time // factor
         return self
@@ -406,6 +407,22 @@ class Schedule:
                     + source_port.latency_offset
                 )
         self._remove_delays()
+
+    def _get_memory_variables_list(self) -> List['Process']:
+        ret = []
+        for op_id, start_time in self._start_times.items():
+            slacks = self._forward_slacks(op_id)
+            for outport, signals in slacks.items():
+                reads = {
+                    signal.destination: slack
+                    for signal, slack in signals.items()
+                }
+                ret.append(
+                    MemoryVariable(
+                        start_time + outport.latency_offset, outport, reads
+                    )
+                )
+        return ret
 
     def _plot_schedule(self, ax):
         def _draw_arrow(start, end, name="", laps=0):
