@@ -108,8 +108,10 @@ class GraphicsAxesItem(QGraphicsItemGroup):
 
     @property
     def width(self) -> int:
-        """Get or set the current x-axis width. Setting the width to a new
-        value will update the axes automatically."""
+        """
+        Get or set the current x-axis width. Setting the width to a new
+        value will update the axes automatically.
+        """
         return self._width
 
     # @width.setter
@@ -119,8 +121,10 @@ class GraphicsAxesItem(QGraphicsItemGroup):
 
     @property
     def height(self) -> int:
-        """Get or set the current y-axis height. Setting the height to a new
-        value will update the axes automatically."""
+        """
+        Get or set the current y-axis height. Setting the height to a new
+        value will update the axes automatically.
+        """
         return self._height
 
     # @height.setter
@@ -140,7 +144,7 @@ class GraphicsAxesItem(QGraphicsItemGroup):
 
     @property
     def event_items(self) -> List[QGraphicsItem]:
-        """Returnes a list of objects, that receives events."""
+        """Return a list of objects, that receives events."""
         return [self._x_ledger[-1]]
 
     def _register_event_item(self, item: QGraphicsItem) -> None:
@@ -150,7 +154,6 @@ class GraphicsAxesItem(QGraphicsItemGroup):
     def set_height(self, height: int) -> "GraphicsAxesItem":
         # TODO: implement, docstring
         raise NotImplementedError
-        return self
 
     def set_width(self, width: int) -> "GraphicsAxesItem":
         # TODO: docstring
@@ -205,7 +208,7 @@ class GraphicsAxesItem(QGraphicsItemGroup):
             index -= 1
             is_timeline = False
 
-        ## make a new x-tick
+        # make a new x-tick
         # x-axis scale line
         self._x_scale.insert(index, QGraphicsLineItem(0, 0, 0, 0.05))
         self._x_scale[index].setPen(self._base_pen)
@@ -249,7 +252,7 @@ class GraphicsAxesItem(QGraphicsItemGroup):
         self.addToGroup(self._x_ledger[index])
         self._x_ledger[index].stackBefore(self._x_axis)
 
-        ## expand x-axis and move arrow,x-axis label, last x-scale, last x-scale-label
+        # expand x-axis and move arrow,x-axis label, last x-scale, last x-scale-label
         if not is_timeline:
             # expand x-axis, move arrow and x-axis label
             self._x_axis.setLine(

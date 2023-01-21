@@ -3,7 +3,7 @@
 """
 B-ASIC Scheduler-gui Graphics Timeline Item Module.
 
-Contains the a scheduler-gui GraphicsTimelineItem class for drawing and
+Contains the scheduler-gui GraphicsTimelineItem class for drawing and
 maintain the timeline in a graph.
 """
 from typing import List, Optional, overload
@@ -114,5 +114,5 @@ class GraphicsTimelineItem(QGraphicsLineItem):
 
     @property
     def event_items(self) -> List[QGraphicsItem]:
-        """Returnes a list of objects, that receives events."""
+        """Return a list of objects that receives events."""
         return [self]

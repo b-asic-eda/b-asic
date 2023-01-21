@@ -84,12 +84,12 @@ class GraphicsGraphItem(
             return False
         if (
             self.schedule.cyclic
-            and new_start_time > self.schedule.schedule_time
+            and new_start_time > self.schedule.schedule_time + 1
         ):
             return False
         if (
             not self.schedule.cyclic
-            and new_start_time + end_time > self.schedule.schedule_time
+            and new_start_time + end_time > self.schedule.schedule_time + 1
         ):
             return False
 
@@ -153,7 +153,7 @@ class GraphicsGraphItem(
 
     @property
     def event_items(self) -> List[QGraphicsItem]:
-        """Returnes a list of objects, that receives events."""
+        """Return a list of objects that receives events."""
         return self._event_items
 
     def _make_graph(self) -> None:
