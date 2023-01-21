@@ -196,12 +196,11 @@ class GraphicsGraphEvent:  # PyQt5
 
         # Qt.DragMoveCursor
         # button = event.button()
-        def update_pos(item, delta_x):
-            pos = item.x() + delta_x
+        def update_pos(item, dx):
+            pos = item.x() + dx
             if self.is_component_valid_pos(item, pos):
-                # self.prepareGeometryChange()
                 item.setX(pos)
-                self._current_pos.setX(self._current_pos.x() + delta_x)
+                self._current_pos.setX(self._current_pos.x() + dx)
                 self._redraw_lines(item)
 
         item: GraphicsComponentItem = self.scene().mouseGrabberItem()
@@ -229,6 +228,11 @@ class GraphicsGraphEvent:  # PyQt5
         item: GraphicsComponentItem = self.scene().mouseGrabberItem()
         self.set_item_inactive(item)
         self.set_new_starttime(item)
+        pos = item.x()
+        if pos > self.schedule.schedule_time:
+            pos = pos % self.schedule.schedule_time
+            item.setX(pos)
+            self._redraw_lines(item)
 
     def comp_mouseDoubleClickEvent(
         self, event: QGraphicsSceneMouseEvent
@@ -249,13 +253,13 @@ class GraphicsGraphEvent:  # PyQt5
 
         # Qt.DragMoveCursor
         # button = event.button()
-        def update_pos(item, delta_x):
-            pos = item.x() + delta_x
-            if self.is_valid_delta_time(self._delta_time + delta_x):
+        def update_pos(item, dx):
+            pos = item.x() + dx
+            if self.is_valid_delta_time(self._delta_time + dx):
                 # self.prepareGeometryChange()
                 item.setX(pos)
-                self._current_pos.setX(self._current_pos.x() + delta_x)
-                self._delta_time += delta_x
+                self._current_pos.setX(self._current_pos.x() + dx)
+                self._delta_time += dx
                 item.set_text(self._delta_time)
 
         item: GraphicsTimelineItem = self.scene().mouseGrabberItem()

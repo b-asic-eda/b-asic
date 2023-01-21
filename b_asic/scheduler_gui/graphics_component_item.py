@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""B-ASIC Scheduler-gui Graphics Component Item Module.
+"""
+B-ASIC Scheduler-gui Graphics Component Item Module.
 
 Contains the scheduler-gui GraphicsComponentItem class for drawing and maintain a component in a graph.
 """
@@ -28,7 +29,7 @@ from b_asic.scheduler_gui._preferences import (
 
 
 class GraphicsComponentItem(QGraphicsItemGroup):
-    """A class to represent an component in a graph."""
+    """Class to represent a component in a graph."""
 
     _scale: float = 1.0
     """Static, changed from MainWindow."""
@@ -49,7 +50,8 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         height: float = 0.75,
         parent: Optional[QGraphicsItem] = None,
     ):
-        """Constructs a GraphicsComponentItem. 'parent' is passed to QGraphicsItemGroup's constructor.
+        """
+        Construct a GraphicsComponentItem. *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)
         self._operation = operation
@@ -80,7 +82,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
     #     return True
 
     def clear(self) -> None:
-        """Sets all children's parent to 'None' and delete the axis."""
+        """Sets all children's parent to None and delete the axis."""
         for item in self.childItems():
             item.setParentItem(None)
             del item
@@ -97,8 +99,10 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     @property
     def height(self) -> float:
-        """Get or set the current component height. Setting the height to a new
-        value will update the component automatically."""
+        """
+        Get or set the current component height. Setting the height to a new
+        value will update the component automatically.
+        """
         return self._height
 
     @height.setter
@@ -115,7 +119,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     @property
     def event_items(self) -> List[QGraphicsItem]:
-        """Returnes a list of objects, that receives events."""
+        """Returns a list of objects, that receives events."""
         return [self]
 
     def get_port_location(self, key) -> QPointF:
@@ -146,7 +150,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         pen2 = QPen(Qt.black)  # used by port outline
         pen2.setWidthF(0)
         # pen2.setCosmetic(True)
-        port_size = 7 / self._scale  # the diameter of an port
+        port_size = 7 / self._scale  # the diameter of a port
 
         execution_time = QColor(OPERATION_EXECUTION_TIME_INACTIVE)
         execution_time.setAlpha(200)  # 0-255
@@ -154,9 +158,10 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         pen3.setColor(execution_time)
         pen3.setWidthF(3 / self._scale)
 
-        ## component path
+        # component path
         def draw_component_path(keys: List[str], reversed: bool) -> None:
-            """Draws component path and also register port positions in self._ports dictionary.
+            """
+            Draws component path and also register port positions in self._ports dictionary.
             """
             nonlocal x
             nonlocal y
@@ -171,7 +176,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
                 y = old_y + neg * (self._height / len(keys))
                 component_path.lineTo(x, y)  # vertical line
                 # register the port pos in dictionary
-                port_x = x  # Port coords is at the center
+                port_x = x  # Port coordinates is at the center
                 port_y = (
                     y - neg * abs(y - old_y) / 2
                 )  # of previous vertical line.
@@ -205,12 +210,12 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         draw_component_path(output_keys, True)  # draw output side
         component_path.closeSubpath()
 
-        ## component item
+        # component item
         self._component_item = QGraphicsPathItem(component_path)
         self._component_item.setPen(pen1)
         self._set_background(Qt.lightGray)  # used by component filling
 
-        ## ports item
+        # ports item
         for port_dict in self._ports.values():
             port_pos = self.mapToParent(port_dict["pos"])
             port = QGraphicsEllipseItem(
@@ -221,14 +226,14 @@ class GraphicsComponentItem(QGraphicsItemGroup):
             port.setPos(port_pos.x(), port_pos.y())
             self._port_items.append(port)
 
-        ## op-id/label
+        # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)
         self._label_item.setScale(self._label_item.scale() / self._scale)
         center = self._component_item.boundingRect().center()
         center -= self._label_item.boundingRect().center() / self._scale
         self._label_item.setPos(self._component_item.pos() + center)
 
-        ## execution time
+        # execution time
         if self._operation.execution_time is not None:
             self._execution_time_item = QGraphicsRectItem(
                 0, 0, self._operation.execution_time, self._height
@@ -236,7 +241,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
             self._execution_time_item.setPen(pen3)
             # self._execution_time_item.setBrush(brush3)
 
-        ## item group, consist of component_item, port_items and execution_time_item
+        # item group, consist of component_item, port_items and execution_time_item
         self.addToGroup(self._component_item)
         for port in self._port_items:
             self.addToGroup(port)

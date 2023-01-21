@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""B-ASIC Scheduler-gui Module.
+"""
+B-ASIC Scheduler-gui Module.
 
 Contains the scheduler-gui MainWindow class for scheduling operations in an SFG.
 
@@ -55,7 +56,7 @@ log = logger.getLogger()
 sys.excepthook = logger.handle_exceptions
 
 
-# Debug struff
+# Debug stuff
 if __debug__:
     log.setLevel("DEBUG")
 
@@ -79,7 +80,7 @@ if __debug__:
 
 
 # The following QCoreApplication values is used for QSettings among others
-QCoreApplication.setOrganizationName("Linöping University")
+QCoreApplication.setOrganizationName("Linköping University")
 QCoreApplication.setOrganizationDomain("liu.se")
 QCoreApplication.setApplicationName("B-ASIC Scheduler")
 # QCoreApplication.setApplicationVersion(__version__)     # TODO: read from packet __version__
@@ -156,9 +157,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Get the current schedule."""
         return self._schedule
 
-    ###############
-    #### Slots ####
-    ###############
+    #########
+    # Slots #
+    #########
     @Slot()
     def _actionTbtn(self) -> None:
         # TODO: remove
@@ -280,8 +281,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def save(self) -> None:
-        """SLOT() for SIGNAL(menu_save.triggered)
-        This method save an schedule."""
+        """
+        SLOT() for SIGNAL(menu_save.triggered)
+        This method save a schedule.
+        """
         # TODO: all
         self._printButtonPressed("save_schedule()")
         self.update_statusbar(self.tr("Schedule saved successfully"))
@@ -289,7 +292,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def save_as(self) -> None:
         """SLOT() for SIGNAL(menu_save_as.triggered)
-        This method save as an schedule."""
+        This method save as a schedule."""
         # TODO: all
         self._printButtonPressed("save_schedule()")
         self.update_statusbar(self.tr("Schedule saved successfully"))
@@ -313,17 +316,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot(bool)
     def hide_exit_dialog(self, checked: bool) -> None:
-        """SLOT(bool) for SIGNAL(menu_exit_dialog.triggered)
+        """
+        SLOT(bool) for SIGNAL(menu_exit_dialog.triggered)
         Takes in a boolean and stores 'checked' in 'hide_exit_dialog' item in
-        settings."""
+        settings.
+        """
         s = QSettings()
         s.setValue("mainwindow/hide_exit_dialog", checked)
 
     @Slot(int, int)
     def _splitter_moved(self, pos: int, index: int) -> None:
-        """SLOT(int, int) for SIGNAL(splitter.splitterMoved)
+        """
+        SLOT(int, int) for SIGNAL(splitter.splitterMoved)
         Callback method used to check if the right widget (info window)
-        has collapsed. Update the checkbutton accordingly."""
+        has collapsed. Update the checkbutton accordingly.
+        """
         width = self.splitter.sizes()[1]
 
         if width == 0:
@@ -336,34 +343,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot(str)
     def info_table_update_component(self, op_id: str) -> None:
-        """SLOT(str) for SIGNAL(_graph._signals.component_selected)
-        Taked in an operator-id, first clears the 'Operator' part of the info
+        """
+        SLOT(str) for SIGNAL(_graph._signals.component_selected)
+        Takes in an operator-id, first clears the 'Operator' part of the info
         table and then fill in the table with new values from the operator
-        associated with 'op_id'."""
+        associated with 'op_id'.
+        """
         self.info_table_clear_component()
         self._info_table_fill_component(op_id)
 
     @Slot()
     def info_table_update_schedule(self) -> None:
-        """SLOT() for SIGNAL(_graph._signals.schedule_time_changed)
-        Updates the 'Schedule' part of the info table."""
+        """
+        SLOT() for SIGNAL(_graph._signals.schedule_time_changed)
+        Updates the 'Schedule' part of the info table.
+        """
         self.info_table.item(1, 1).setText(str(self.schedule.schedule_time))
 
     @Slot(QRectF)
     def shrink_scene_to_min_size(self, rect: QRectF) -> None:
-        """SLOT(QRectF) for SIGNAL(_scene.sceneRectChanged)
+        """
+        SLOT(QRectF) for SIGNAL(_scene.sceneRectChanged)
         Takes in a QRectF (unused) and shrink the scene bounding rectangle to
-        it's minimum size, when the bounding rectangle signals a change in
-        geometry."""
+        its minimum size, when the bounding rectangle signals a change in
+        geometry.
+        """
         self._scene.setSceneRect(self._scene.itemsBoundingRect())
 
-    ################
-    #### Events ####
-    ################
+    ##########
+    # Events #
+    ##########
     def _close_event(self, event: QCloseEvent) -> None:
-        """EVENT: Replaces QMainWindow default closeEvent(QCloseEvent) event. Takes
+        """
+        EVENT: Replaces QMainWindow default closeEvent(QCloseEvent) event. Takes
         in a QCloseEvent and display an exit dialog, depending on
-        'hide_exit_dialog' in settings."""
+        'hide_exit_dialog' in settings.
+        """
         s = QSettings()
         hide_dialog = s.value("mainwindow/hide_exit_dialog", False, bool)
         ret = QMessageBox.StandardButton.Yes
@@ -396,9 +411,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             event.ignore()
 
-    #################################
-    #### Helper member functions ####
-    #################################
+    ###########################
+    # Helper member functions #
+    ###########################
     def _printButtonPressed(self, func_name: str) -> None:
         # TODO: remove
 
@@ -407,7 +422,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         alert.exec_()
 
     def open(self, schedule: Schedule) -> None:
-        """Takes in an Schedule and creates a GraphicsGraphItem object."""
+        """Take a Schedule and create a GraphicsGraphItem object."""
         self.close_schedule()
         self._schedule = deepcopy(schedule)
         self._graph = GraphicsGraphItem(self.schedule)
@@ -425,7 +440,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def update_statusbar(self, msg: str) -> None:
-        """Takes in an str and write 'msg' to the statusbar with temporarily policy.
+        """Take a str and write *msg* to the statusbar with temporarily policy.
         """
         self.statusbar.showMessage(msg)
 
@@ -434,7 +449,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         s = QSettings()
         s.setValue(
             "mainwindow/maximized", self.isMaximized()
-        )  # window: maximized, in X11 - alwas False
+        )  # window: maximized, in X11 - always False
         s.setValue("mainwindow/pos", self.pos())  # window: pos
         s.setValue("mainwindow/size", self.size())  # window: size
         s.setValue(
@@ -474,25 +489,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         log.debug("Settings read from '{}'.".format(s.fileName()))
 
     def info_table_fill_schedule(self, schedule: Schedule) -> None:
-        """Takes in a Schedule and fill in the 'Schedule' part of the info table
-        with values from 'schedule'"""
-        self.info_table.insertRow(1)
+        """
+        Take a Schedule and fill in the 'Schedule' part of the info table
+        with values from *schedule*.
+        """
         self.info_table.insertRow(1)
         self.info_table.insertRow(1)
         self.info_table.setItem(1, 0, QTableWidgetItem("Schedule Time"))
         self.info_table.setItem(2, 0, QTableWidgetItem("Cyclic"))
-        self.info_table.setItem(3, 0, QTableWidgetItem("Resolution"))
         self.info_table.setItem(
             1, 1, QTableWidgetItem(str(schedule.schedule_time))
         )
         self.info_table.setItem(2, 1, QTableWidgetItem(str(schedule.cyclic)))
-        self.info_table.setItem(
-            3, 1, QTableWidgetItem(str(schedule.resolution))
-        )
 
     def _info_table_fill_component(self, op_id: str) -> None:
-        """Taked in an operator-id and fill in the 'Operator' part of the info
-        table with values from the operator associated with 'op_id'."""
+        """
+        Take an operator-id and fill in the 'Operator' part of the info
+        table with values from the operator associated with *op_id*.
+        """
         op: GraphComponent = self.schedule.sfg.find_by_id(op_id)
         si = self.info_table.rowCount()  # si = start index
 
