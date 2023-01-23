@@ -5,7 +5,6 @@ Contains the schedule class for scheduling operations in an SFG.
 """
 
 import io
-import math
 import sys
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -19,7 +18,7 @@ import numpy as np
 
 from b_asic import OutputPort, Signal
 from b_asic.graph_component import GraphID
-from b_asic.process import MemoryVariable
+from b_asic.process import MemoryVariable, Process
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Output
 
