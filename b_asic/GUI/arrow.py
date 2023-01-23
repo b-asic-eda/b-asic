@@ -6,7 +6,24 @@ from b_asic.signal import Signal
 
 
 class Arrow(QGraphicsLineItem):
+    """Arrow/connection in signal flow graph GUI."""
+
     def __init__(self, source, destination, window, signal=None, parent=None):
+        """
+        Parameters
+        ==========
+
+        source :
+            Source operation.
+        destination :
+            Destination operation.
+        window :
+            Window containing signal flow graph.
+        signal : Signal, optional
+            Let arrow represent *signal*.
+        parent : optional
+            Parent.
+        """
         super().__init__(parent)
         self.source = source
         if signal is None:
@@ -19,11 +36,13 @@ class Arrow(QGraphicsLineItem):
         self.destination.moved.connect(self.moveLine)
 
     def contextMenuEvent(self, event):
+        """Open right-click menu."""
         menu = QMenu()
         menu.addAction("Delete", self.remove)
         menu.exec_(self.cursor().pos())
 
     def remove(self):
+        """Remove line and connections to signals etc."""
         self.signal.remove_destination()
         self.signal.remove_source()
         self._window.scene.removeItem(self)
@@ -57,6 +76,9 @@ class Arrow(QGraphicsLineItem):
         del self._window.signalPortDict[self]
 
     def moveLine(self):
+        """
+        Draw a line connecting self.source with self.destination. Used as callback when moving operations.
+        """
         self.setPen(QPen(Qt.black, 3))
         self.setLine(
             QLineF(
