@@ -2,6 +2,7 @@ import pytest
 
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.schedule import Schedule
+
 try:
     import b_asic.scheduler_gui as GUI
 except ImportError:
