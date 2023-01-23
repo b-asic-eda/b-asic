@@ -58,6 +58,31 @@ class TestInit:
         }
         assert schedule.schedule_time == 21
 
+    def test_complicated_single_outputs_normal_latency_from_fixture(
+        self, secondorder_iir_schedule
+    ):
+        start_times_names = {
+            secondorder_iir_schedule.sfg.find_by_id(op_id).name: start_time
+            for op_id, start_time in secondorder_iir_schedule._start_times.items()
+        }
+
+        assert start_times_names == {
+            "IN1": 0,
+            "C0": 0,
+            "B1": 0,
+            "B2": 0,
+            "ADD2": 3,
+            "ADD1": 7,
+            "Q1": 11,
+            "A0": 14,
+            "A1": 0,
+            "A2": 0,
+            "ADD3": 3,
+            "ADD4": 17,
+            "OUT1": 21,
+        }
+        assert secondorder_iir_schedule.schedule_time == 21
+
     def test_complicated_single_outputs_complex_latencies(
         self, precedence_sfg_delays
     ):
@@ -436,3 +461,9 @@ class TestTimeResolution:
 
         assert 2 * old_schedule_time == schedule.schedule_time
         assert schedule.get_possible_time_resolution_decrements() == [1, 2]
+
+
+class TestProcesses:
+    def test__get_memory_variables_list(self, secondorder_iir_schedule):
+        mvl = secondorder_iir_schedule._get_memory_variables_list()
+        assert len(mvl) == 12
