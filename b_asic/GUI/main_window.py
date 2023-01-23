@@ -99,7 +99,7 @@ class MainWindow(QMainWindow):
         self.check_show_names.setChecked(1)
         self.ui.view_menu.addAction(self.check_show_names)
 
-        self.ui.actionShowPC.triggered.connect(self.show_precedence_chart)
+        self.ui.actionShowPC.triggered.connect(self._show_precedence_graph)
         self.ui.actionSimulateSFG.triggered.connect(self.simulate_sfg)
         self.ui.faqBASIC.triggered.connect(self.display_faq_page)
         self.ui.aboutBASIC.triggered.connect(self.display_about_page)
@@ -443,7 +443,7 @@ class MainWindow(QMainWindow):
 
         self.sfg_dict[sfg.name] = sfg
 
-    def show_precedence_chart(self):
+    def _show_precedence_graph(self):
         self.dialog = ShowPCWindow(self)
         self.dialog.add_sfg_to_dialog()
         self.dialog.show()
