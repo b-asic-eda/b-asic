@@ -1,4 +1,5 @@
-"""B-ASIC Drag Button Module.
+"""
+B-ASIC Drag Button Module.
 
 Contains a GUI class for drag buttons.
 """
@@ -16,7 +17,8 @@ from b_asic.GUI.settings import MINBUTTONSIZE
 
 @decorate_class(handle_error)
 class DragButton(QPushButton):
-    """Drag button class.
+    """
+    Drag button class.
 
     This class creates a drag button which can be clicked, dragged and dropped.
     """
@@ -115,9 +117,7 @@ class DragButton(QPushButton):
         path_to_image = os.path.join(
             os.path.dirname(__file__),
             "operation_icons",
-            (
-                f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}"
-            ),
+            f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}",
         )
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
@@ -141,6 +141,7 @@ class DragButton(QPushButton):
             signal.update()
 
     def remove(self):
+        """Remove button/operation from signal flow graph."""
         self._window.logger.info(
             f"Removing operation with name {self.operation.name}."
         )
