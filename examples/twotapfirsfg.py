@@ -2,9 +2,9 @@
 """
 B-ASIC automatically generated SFG file.
 Name: twotapfir
-Last saved: 2023-01-23 11:29:09.423052.
+Last saved: 2023-01-23 12:02:27.343483.
 """
-from b_asic import SFG, Signal, Input, Output, ConstantMultiplication, Delay, Input, Output, Addition
+from b_asic import SFG, Signal, Input, Output, ConstantMultiplication, Addition, Delay, Input, Output
 # Inputs:
 in1 = Input(name="")
 
@@ -32,4 +32,4 @@ twotapfir = SFG(inputs=[in1], outputs=[out1], name='twotapfir')
 
 # SFG Properties:
 prop = {'name':twotapfir}
-positions = {'in1': (-264.0, -202.0), 't1': (-135.0, -204.0), 'out1': (216.0, 92.0), 'cmul1': (-181.0, -67.0), 'cmul2': (-27.0, -66.0), 'add1': (91.0, 93.0)}
+positions = {'cmul1': (-181, -67), 'in1': (-264, -202), 'add1': (91, 93), 'cmul2': (-27, -66), 'out1': (216, 92), 't1': (-135, -204)}

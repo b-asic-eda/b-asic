@@ -191,15 +191,15 @@ class MainWindow(QMainWindow):
         operation_positions = {}
         for op_drag, op_scene in self.dragOperationSceneDict.items():
             operation_positions[op_drag.operation.graph_id] = (
-                op_scene.x(),
-                op_scene.y(),
+                int(op_scene.x()),
+                int(op_scene.y()),
             )
 
         try:
             with open(module, "w+") as file_obj:
                 file_obj.write(
                     sfg_to_python(
-                        sfg, suffix=f"positions = {str(operation_positions)}"
+                        sfg, suffix=f"positions = {operation_positions}"
                     )
                 )
         except Exception as e:
