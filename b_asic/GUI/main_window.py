@@ -35,7 +35,14 @@ from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
 from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
-from b_asic.GUI.settings import GAP, MINBUTTONSIZE, PORTHEIGHT, PORTWIDTH
+from b_asic.GUI.settings import (
+    GAP,
+    MINBUTTONSIZE,
+    PORTHEIGHT,
+    PORTWIDTH,
+    MIN_HEIGHT_SCENE,
+    MIN_WIDTH_SCENE,
+)
 from b_asic.GUI.show_pc_window import ShowPCWindow
 from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
 from b_asic.GUI.utils import decorate_class, handle_error
@@ -47,8 +54,6 @@ from b_asic.signal_flow_graph import SFG
 from b_asic.simulation import Simulation as FastSimulation
 from b_asic.special_operations import Input, Output
 
-MIN_WIDTH_SCENE = 600
-MIN_HEIGHT_SCENE = 520
 logging.basicConfig(level=logging.INFO)
 
 
@@ -453,7 +458,11 @@ class MainWindow(QMainWindow):
         """Determine the distance between each port on the side of an operation.
         The method returns the distance that each port should have from 0.
         """
-        return [(height-PORTHEIGHT) // 2] if ports == 1 else [(PORTHEIGHT+GAP)*i for i in range(ports)]
+        return (
+            [(height - PORTHEIGHT) // 2]
+            if ports == 1
+            else [(PORTHEIGHT + GAP) * i for i in range(ports)]
+        )
 
     def add_ports(self, operation):
         op = operation.operation
@@ -466,18 +475,14 @@ class MainWindow(QMainWindow):
         )
         self.portDict[operation] = []
         for i, dist in enumerate(_input_ports_dist):
-            port = PortButton(
-                ">", operation, op.input(i), self
-            )
+            port = PortButton(">", operation, op.input(i), self)
             self.portDict[operation].append(port)
             operation.ports.append(port)
             port.move(0, dist)
             port.show()
 
         for i, dist in enumerate(_output_ports_dist):
-            port = PortButton(
-                ">", operation, op.output(i), self
-            )
+            port = PortButton(">", operation, op.output(i), self)
             self.portDict[operation].append(port)
             operation.ports.append(port)
             port.move(MINBUTTONSIZE - PORTWIDTH, dist)
@@ -525,7 +530,9 @@ class MainWindow(QMainWindow):
 
     def _get_button_height(self, op):
         max_ports = max(op.input_count, op.output_count)
-        return max(MINBUTTONSIZE, max_ports*PORTHEIGHT + (max_ports-1)*GAP)
+        return max(
+            MINBUTTONSIZE, max_ports * PORTHEIGHT + (max_ports - 1) * GAP
+        )
 
     def create_operation(self, op, position=None):
         try:
@@ -537,7 +544,9 @@ class MainWindow(QMainWindow):
             else:
                 attr_button.move(*position)
 
-            attr_button.setFixedSize(MINBUTTONSIZE, self._get_button_height(op))
+            attr_button.setFixedSize(
+                MINBUTTONSIZE, self._get_button_height(op)
+            )
             attr_button.setStyleSheet(
                 "background-color: white; border-style: solid;"
                 "border-color: black; border-width: 2px"
