@@ -563,9 +563,12 @@ class Schedule:
         )
 
     def plot_schedule(self) -> None:
+        self._get_figure().show()
+
+    def _get_figure(self):
         fig, ax = plt.subplots()
         self._plot_schedule(ax)
-        fig.show()
+        return fig
 
     def _repr_svg_(self):
         fig, ax = plt.subplots()

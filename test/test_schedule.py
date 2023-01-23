@@ -467,3 +467,9 @@ class TestProcesses:
     def test__get_memory_variables_list(self, secondorder_iir_schedule):
         mvl = secondorder_iir_schedule._get_memory_variables_list()
         assert len(mvl) == 12
+
+
+class TestFigureGeneration:
+    @pytest.mark.mpl_image_compare(remove_text=True, style='mpl20')
+    def test__get_figure_no_execution_times(self, secondorder_iir_schedule):
+        return secondorder_iir_schedule._get_figure()
