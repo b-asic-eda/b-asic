@@ -35,6 +35,7 @@ from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
 from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
+from b_asic.GUI.settings import GAP, MINBUTTONSIZE, PORTHEIGHT, PORTWIDTH
 from b_asic.GUI.show_pc_window import ShowPCWindow
 from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
 from b_asic.GUI.utils import decorate_class, handle_error
@@ -448,39 +449,38 @@ class MainWindow(QMainWindow):
         self.dialog.add_sfg_to_dialog()
         self.dialog.show()
 
-    def _determine_port_distance(self, length, ports):
+    def _determine_port_distance(self, height, ports):
         """Determine the distance between each port on the side of an operation.
         The method returns the distance that each port should have from 0.
         """
-        return [length / 2] if ports == 1 else np.linspace(0, length, ports)
+        return [(height-PORTHEIGHT) // 2] if ports == 1 else [(PORTHEIGHT+GAP)*i for i in range(ports)]
 
     def add_ports(self, operation):
+        op = operation.operation
+        height = self._get_button_height(op)
         _output_ports_dist = self._determine_port_distance(
-            55 - 17, operation.operation.output_count
+            height, op.output_count
         )
         _input_ports_dist = self._determine_port_distance(
-            55 - 17, operation.operation.input_count
+            height, op.input_count
         )
         self.portDict[operation] = []
-
-        print(_output_ports_dist)
-        print(_input_ports_dist)
         for i, dist in enumerate(_input_ports_dist):
             port = PortButton(
-                ">", operation, operation.operation.input(i), self
+                ">", operation, op.input(i), self
             )
             self.portDict[operation].append(port)
             operation.ports.append(port)
-            port.move(0, round(dist))
+            port.move(0, dist)
             port.show()
 
         for i, dist in enumerate(_output_ports_dist):
             port = PortButton(
-                ">", operation, operation.operation.output(i), self
+                ">", operation, op.output(i), self
             )
             self.portDict[operation].append(port)
             operation.ports.append(port)
-            port.move(55 - 12, round(dist))
+            port.move(MINBUTTONSIZE - PORTWIDTH, dist)
             port.show()
 
     def get_operations_from_namespace(self, namespace):
@@ -523,6 +523,10 @@ class MainWindow(QMainWindow):
             namespace, self.ui.custom_operations_list
         )
 
+    def _get_button_height(self, op):
+        max_ports = max(op.input_count, op.output_count)
+        return max(MINBUTTONSIZE, max_ports*PORTHEIGHT + (max_ports-1)*GAP)
+
     def create_operation(self, op, position=None):
         try:
             attr_button = DragButton(
@@ -533,7 +537,7 @@ class MainWindow(QMainWindow):
             else:
                 attr_button.move(*position)
 
-            attr_button.setFixedSize(55, 55)
+            attr_button.setFixedSize(MINBUTTONSIZE, self._get_button_height(op))
             attr_button.setStyleSheet(
                 "background-color: white; border-style: solid;"
                 "border-color: black; border-width: 2px"
@@ -552,7 +556,7 @@ class MainWindow(QMainWindow):
                     "custom_operation.png",
                 )
             attr_button.setIcon(QIcon(icon_path))
-            attr_button.setIconSize(QSize(55, 55))
+            attr_button.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
             attr_button.setToolTip("No SFG")
             attr_button.setStyleSheet(
                 """ QToolTip { background-color: white;
@@ -562,7 +566,7 @@ class MainWindow(QMainWindow):
             attr_button_scene = self.scene.addWidget(attr_button)
             if position is None:
                 attr_button_scene.moveBy(
-                    int(self.scene.width() / 2), int(self.scene.height() / 2)
+                    int(self.scene.width() / 4), int(self.scene.height() / 4)
                 )
             attr_button_scene.setFlag(attr_button_scene.ItemIsSelectable, True)
             operation_label = QGraphicsTextItem(op.name, attr_button_scene)

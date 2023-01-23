@@ -11,6 +11,7 @@ from qtpy.QtWidgets import QAction, QMenu, QPushButton
 
 from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.GUI.utils import decorate_class, handle_error
+from b_asic.GUI.settings import MINBUTTONSIZE
 
 
 @decorate_class(handle_error)
@@ -119,7 +120,7 @@ class DragButton(QPushButton):
             ),
         )
         self.setIcon(QIcon(path_to_image))
-        self.setIconSize(QSize(55, 55))
+        self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
 
     def select_button(self, modifiers=None):
         if modifiers != Qt.ControlModifier:
