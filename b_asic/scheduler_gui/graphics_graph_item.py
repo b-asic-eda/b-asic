@@ -79,19 +79,20 @@ class GraphicsGraphItem(
         slacks = self.schedule.slacks(item.op_id)
         op_start_time = self.schedule.start_time_of_operation(item.op_id)
         if not -slacks[0] <= new_start_time - op_start_time <= slacks[1]:
+            # Cannot move due to dependencies
             return False
-        if pos < 0:
-            return False
-        if (
-            self.schedule.cyclic
-            and new_start_time > self.schedule.schedule_time + 1
-        ):
-            return False
-        if (
-            not self.schedule.cyclic
-            and new_start_time + end_time > self.schedule.schedule_time + 1
-        ):
-            return False
+        if self.schedule.cyclic:
+            if new_start_time < -1:
+                # Moving one position before left edge => wrap
+                return False
+            if new_start_time > self.schedule.schedule_time + 1:
+                # Moving one position after schedule_time => wrap
+                return False
+        else:
+            if pos < 0:
+                return False
+            if new_start_time + end_time > self.schedule.schedule_time:
+                return False
 
         return True
 
@@ -137,6 +138,10 @@ class GraphicsGraphItem(
             self.schedule.schedule_time + delta_time
         )
         self._axes.set_width(self._axes.width + delta_time)
+        # Redraw all lines
+        for signals in self._signal_dict.values():
+            for signal in signals:
+                signal.update_path()
 
     @property
     def schedule(self) -> Schedule:

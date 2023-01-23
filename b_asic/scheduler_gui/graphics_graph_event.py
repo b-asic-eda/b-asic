@@ -229,8 +229,14 @@ class GraphicsGraphEvent:  # PyQt5
         self.set_item_inactive(item)
         self.set_new_starttime(item)
         pos = item.x()
+        redraw = False
+        if pos < 0:
+            pos += self.schedule.schedule_time
+            redraw = True
         if pos > self.schedule.schedule_time:
             pos = pos % self.schedule.schedule_time
+            redraw = True
+        if redraw:
             item.setX(pos)
             self._redraw_lines(item)
 
