@@ -877,10 +877,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         latency_offsets = {}
 
         for i, inp in enumerate(self.inputs):
-            latency_offsets["in" + str(i)] = inp.latency_offset
+            latency_offsets[f"in{i}"] = inp.latency_offset
 
         for i, outp in enumerate(self.outputs):
-            latency_offsets["out" + str(i)] = outp.latency_offset
+            latency_offsets[f"out{i}"] = outp.latency_offset
 
         return latency_offsets
 

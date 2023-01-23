@@ -80,7 +80,7 @@ class PropertiesWindow(QDialog):
                     x += 1
                     y = 0
 
-                input_label = QLabel("in" + str(i))
+                input_label = QLabel(f"in{i}")
                 input_layout.addWidget(input_label)
                 input_value = QLineEdit()
                 try:
@@ -93,7 +93,7 @@ class PropertiesWindow(QDialog):
                 int_valid.setBottom(-1)
                 input_value.setValidator(int_valid)
                 input_value.setFixedWidth(50)
-                self.latency_fields["in" + str(i)] = input_value
+                self.latency_fields[f"in{i}"] = input_value
                 input_layout.addWidget(input_value)
                 input_layout.addStretch()
                 input_layout.setSpacing(10)
@@ -119,7 +119,7 @@ class PropertiesWindow(QDialog):
                     x += 1
                     y = 0
 
-                input_label = QLabel("out" + str(i))
+                input_label = QLabel(f"out{i}")
                 input_layout.addWidget(input_label)
                 input_value = QLineEdit()
                 try:
@@ -132,7 +132,7 @@ class PropertiesWindow(QDialog):
                 int_valid.setBottom(-1)
                 input_value.setValidator(int_valid)
                 input_value.setFixedWidth(50)
-                self.latency_fields["out" + str(i)] = input_value
+                self.latency_fields[f"out{i}"] = input_value
                 input_layout.addWidget(input_value)
                 input_layout.addStretch()
                 input_layout.setSpacing(10)

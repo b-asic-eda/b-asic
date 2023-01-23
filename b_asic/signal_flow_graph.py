@@ -289,7 +289,7 @@ class SFG(AbstractOperation):
         string_io.write(line)
 
         for operation in self.get_operations_topological_order():
-            string_io.write(str(operation) + "\n")
+            string_io.write(f"{operation}\n")
 
         string_io.write(line)
 
@@ -720,16 +720,15 @@ class SFG(AbstractOperation):
         # Creates nodes for each output port in the precedence list
         for i in range(len(p_list)):
             ports = p_list[i]
-            with pg.subgraph(name="cluster_" + str(i)) as sub:
-                sub.attr(label="N" + str(i + 1))
+            with pg.subgraph(name=f"cluster_{i}") as sub:
+                sub.attr(label=f"N{i+1}")
                 for port in ports:
+                    portstr = f"{port.operation.graph_id}.{port.index}"
                     if port.operation.output_count > 1:
-                        sub.node(
-                            port.operation.graph_id + "." + str(port.index)
-                        )
+                        sub.node(portstr)
                     else:
                         sub.node(
-                            port.operation.graph_id + "." + str(port.index),
+                            portstr,
                             label=port.operation.graph_id,
                         )
         # Creates edges for each output port and creates nodes for each operation and edges for them as well
@@ -747,7 +746,7 @@ class SFG(AbstractOperation):
                     else:
                         dest_node = signal.destination.operation.graph_id
                     dest_label = signal.destination.operation.graph_id
-                    node_node = port.operation.graph_id + "." + str(port.index)
+                    node_node = f"{port.operation.graph_id}.{port.index}"
                     pg.edge(node_node, dest_node)
                     pg.node(dest_node, label=dest_label, shape="square")
                 if port.operation.type_name() == Delay.type_name():
@@ -755,7 +754,7 @@ class SFG(AbstractOperation):
                 else:
                     source_node = port.operation.graph_id
                 source_label = port.operation.graph_id
-                node_node = port.operation.graph_id + "." + str(port.index)
+                node_node = f"{port.operation.graph_id}.{port.index}"
                 pg.edge(source_node, node_node)
                 pg.node(source_node, label=source_label, shape="square")
 

@@ -80,10 +80,10 @@ class SimulateSFGWindow(QDialog):
                     x += 1
                     y = 0
 
-                input_label = QLabel("in" + str(i))
+                input_label = QLabel(f"in{i}")
                 input_layout.addWidget(input_label)
                 input_value = QLineEdit()
-                input_value.setPlaceholderText("e.g 0, 0, 0")
+                input_value.setPlaceholderText("e.g. 0, 0, 0")
                 input_value.setFixedWidth(100)
                 input_layout.addWidget(input_value)
                 input_layout.addStretch()

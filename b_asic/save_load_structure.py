@@ -89,11 +89,7 @@ def sfg_to_python(sfg: SFG, counter: int = 0, suffix: str = None) -> str:
         "[" + ", ".join(op.graph_id for op in sfg.output_operations) + "]"
     )
     sfg_name = (
-        sfg.name
-        if sfg.name
-        else "sfg" + str(counter)
-        if counter > 0
-        else "sfg"
+        sfg.name if sfg.name else f"sfg{counter}" if counter > 0 else "sfg"
     )
     sfg_name_var = sfg_name.replace(" ", "_")
     result += (
