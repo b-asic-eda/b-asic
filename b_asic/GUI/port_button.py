@@ -25,7 +25,7 @@ class PortButton(QPushButton):
         menu.exec_(self.cursor().pos())
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.select_port(event.modifiers())
 
         super().mousePressEvent(event)
@@ -40,7 +40,7 @@ class PortButton(QPushButton):
         )
 
     def select_port(self, modifiers=None):
-        if modifiers != Qt.ControlModifier:
+        if modifiers != Qt.KeyboardModifier.ControlModifier:
             for port in self._window.pressed_ports:
                 port._toggle_port(port.pressed)
 

@@ -87,12 +87,12 @@ class GraphicsAxesItem(QGraphicsItemGroup):
 
         self._base_pen = QPen()
         self._base_pen.setWidthF(2 / self._scale)
-        self._base_pen.setJoinStyle(Qt.MiterJoin)
-        self._ledger_pen = QPen(Qt.lightGray)
+        self._base_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        self._ledger_pen = QPen(Qt.GlobalColor.lightGray)
         self._ledger_pen.setWidthF(0)  # 0 = cosmetic pen 1px width
-        self._timeline_pen = QPen(Qt.black)
+        self._timeline_pen = QPen(Qt.GlobalColor.black)
         self._timeline_pen.setWidthF(2 / self._scale)
-        self._timeline_pen.setStyle(Qt.DashLine)
+        self._timeline_pen.setStyle(Qt.PenStyle.DashLine)
 
         self._make_base()
 

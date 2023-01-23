@@ -67,10 +67,10 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         self.setFlag(QGraphicsItem.ItemIsSelectable)  # mouse move events
         # self.setAcceptHoverEvents(True)                 # mouse hover events
         self.setAcceptedMouseButtons(
-            Qt.LeftButton
+            Qt.MouseButton.LeftButton
         )  # accepted buttons for movements
         self.setCursor(
-            QCursor(Qt.OpenHandCursor)
+            QCursor(Qt.CursorShape.OpenHandCursor)
         )  # default cursor when hovering over object
 
         self._make_component()
@@ -127,11 +127,11 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     def set_active(self):
         self._set_background(OPERATION_LATENCY_ACTIVE)
-        self.setCursor(QCursor(Qt.ClosedHandCursor))
+        self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
     def set_inactive(self):
         self._set_background(OPERATION_LATENCY_INACTIVE)
-        self.setCursor(QCursor(Qt.OpenHandCursor))
+        self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
     def _set_background(self, color: QColor):
         brush = QBrush(color)
@@ -139,15 +139,15 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     def _make_component(self) -> None:
         """Makes a new component out of the stored attributes."""
-        pen1 = QPen(Qt.black)  # used by component outline
+        pen1 = QPen(Qt.GlobalColor.black)  # used by component outline
         pen1.setWidthF(2 / self._scale)
         # pen1.setCapStyle(Qt.RoundCap)     # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
         pen1.setJoinStyle(
             Qt.RoundJoin
         )  # Qt.MiterJoin, Qt.BevelJoin (default), Qt.RoundJoin, Qt.SvgMiterJoin
 
-        brush2 = QBrush(Qt.black)  # used by port filling
-        pen2 = QPen(Qt.black)  # used by port outline
+        brush2 = QBrush(Qt.GlobalColor.black)  # used by port filling
+        pen2 = QPen(Qt.GlobalColor.black)  # used by port outline
         pen2.setWidthF(0)
         # pen2.setCosmetic(True)
         port_size = 7 / self._scale  # the diameter of a port
@@ -213,7 +213,9 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         # component item
         self._component_item = QGraphicsPathItem(component_path)
         self._component_item.setPen(pen1)
-        self._set_background(Qt.lightGray)  # used by component filling
+        self._set_background(
+            Qt.GlobalColor.lightGray
+        )  # used by component filling
 
         # ports item
         for port_dict in self._ports.values():

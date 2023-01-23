@@ -1,3 +1,6 @@
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QColor
+
 # Buttons/operations/ports
 MINBUTTONSIZE = 57
 PORTHEIGHT = 19
@@ -7,3 +10,6 @@ GAP = MINBUTTONSIZE - 2 * PORTHEIGHT
 # Window
 MIN_WIDTH_SCENE = 600
 MIN_HEIGHT_SCENE = 520
+
+# Interface
+LINECOLOR = QColor(Qt.GlobalColor.black)

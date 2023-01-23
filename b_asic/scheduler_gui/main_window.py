@@ -534,7 +534,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def info_table_clear_schedule(self) -> None:
         """Clears the schedule part of the info table."""
-        row = self.info_table.findItems("Operator", Qt.MatchExactly)
+        row = self.info_table.findItems("Operator", Qt.MatchFlag.MatchExactly)
         if row:
             row = row[0].row()
             if row > 2:
@@ -552,7 +552,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def info_table_clear_component(self) -> None:
         """Clears the component part of the info table."""
-        row = self.info_table.findItems("Operator", Qt.MatchExactly)
+        row = self.info_table.findItems("Operator", Qt.MatchFlag.MatchExactly)
         if row:
             row = row[0].row()
             for _ in range(self.info_table.rowCount() - row + 1):

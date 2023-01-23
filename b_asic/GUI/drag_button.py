@@ -12,7 +12,7 @@ from qtpy.QtWidgets import QAction, QMenu, QPushButton
 
 from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.GUI.utils import decorate_class, handle_error
-from b_asic.GUI.settings import MINBUTTONSIZE
+from b_asic.GUI._preferences import MINBUTTONSIZE
 
 
 @decorate_class(handle_error)
@@ -68,7 +68,7 @@ class DragButton(QPushButton):
         self.label = label
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self._m_press = True
             self._mouse_press_pos = event.pos()
             self._mouse_move_pos = event.pos()
@@ -76,7 +76,7 @@ class DragButton(QPushButton):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.LeftButton and self._m_press:
+        if event.buttons() == Qt.MouseButton.LeftButton and self._m_press:
             self._m_drag = True
             self.move(self.mapToParent(event.pos() - self._mouse_press_pos))
             if self in self._window.pressed_operations:
@@ -123,7 +123,7 @@ class DragButton(QPushButton):
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
 
     def select_button(self, modifiers=None):
-        if modifiers != Qt.ControlModifier:
+        if modifiers != Qt.KeyboardModifier.ControlModifier:
             for button in self._window.pressed_operations:
                 button._toggle_button(button.pressed)
 

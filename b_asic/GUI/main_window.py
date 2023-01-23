@@ -35,7 +35,7 @@ from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
 from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
-from b_asic.GUI.settings import (
+from b_asic.GUI._preferences import (
     GAP,
     MINBUTTONSIZE,
     PORTHEIGHT,
@@ -169,7 +169,7 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
 
     def wheelEvent(self, event):
-        if event.modifiers() == Qt.ControlModifier:
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             old_zoom = self.zoom
             self.zoom += event.angleDelta().y() / 2500
             self.graphic_view.scale(self.zoom, self.zoom)
@@ -620,7 +620,7 @@ class MainWindow(QMainWindow):
         self._create_operation_item(item)
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Delete:
+        if event.key() == Qt.Key.Key_Delete:
             for pressed_op in self.pressed_operations:
                 pressed_op.remove()
                 self.move_button_index -= 1

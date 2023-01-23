@@ -1,7 +1,7 @@
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
 
-SIGNAL_INACTIVE = QColor(Qt.black)
+SIGNAL_INACTIVE = QColor(Qt.GlobalColor.black)
 SIGNAL_ACTIVE = QColor(0, 207, 181)
 SIGNAL_WIDTH = 0.03
 

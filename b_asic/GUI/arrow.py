@@ -2,6 +2,7 @@ from qtpy.QtCore import QLineF, Qt
 from qtpy.QtGui import QPen
 from qtpy.QtWidgets import QGraphicsLineItem, QMenu
 
+from b_asic.GUI._preferences import LINECOLOR
 from b_asic.signal import Signal
 
 
@@ -79,7 +80,7 @@ class Arrow(QGraphicsLineItem):
         """
         Draw a line connecting self.source with self.destination. Used as callback when moving operations.
         """
-        self.setPen(QPen(Qt.black, 3))
+        self.setPen(QPen(LINECOLOR, 3))
         self.setLine(
             QLineF(
                 self.source.operation.x() + self.source.x() + 14,

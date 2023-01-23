@@ -54,10 +54,10 @@ class GraphicsTimelineItem(QGraphicsLineItem):
         self.setFlag(QGraphicsItem.ItemIsMovable)  # mouse move events
         # self.setAcceptHoverEvents(True)                 # mouse hover events
         self.setAcceptedMouseButtons(
-            Qt.LeftButton
+            Qt.MouseButton.LeftButton
         )  # accepted buttons for movements
         self.setCursor(
-            QCursor(Qt.SizeHorCursor)
+            QCursor(Qt.CursorShape.SizeHorCursor)
         )  # default cursor when hovering over object
 
         self._delta_time_label = QGraphicsTextItem()
