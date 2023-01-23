@@ -210,18 +210,22 @@ class MainWindow(QMainWindow):
 
         self.logger.info(f"Saved SFG to path: {module}.")
 
-    def save_work(self):
+    def save_work(self, arg):
+        print("Save: ", arg)
         self.sfg_widget = SelectSFGWindow(self)
         self.sfg_widget.show()
 
         # Wait for input to dialog.
         self.sfg_widget.ok.connect(self._save_work)
 
-    def load_work(self):
+    def load_work(self, arg):
+        print("Load: ", arg)
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
+        self._load_from_file(module)
 
+    def _load_from_file(self, module):
         self.logger.info(f"Loading SFG from path: {module}.")
         try:
             sfg, positions = python_to_sfg(module)
@@ -244,6 +248,12 @@ class MainWindow(QMainWindow):
                 return
 
             sfg.name = name
+        self._load_sfg(sfg, positions)
+        self.logger.info(f"Loaded SFG from path: {module}.")
+
+    def _load_sfg(self, sfg, positions=None):
+        if positions is None:
+            positions = {}
 
         for op in sfg.split():
             self.create_operation(
@@ -285,7 +295,6 @@ class MainWindow(QMainWindow):
             self.opToSFG[self.operationDragDict[op]] = sfg
 
         self.sfg_dict[sfg.name] = sfg
-        self.logger.info(f"Loaded SFG from path: {module}.")
         self.update()
 
     def exit_app(self):
