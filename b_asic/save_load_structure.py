@@ -7,10 +7,10 @@ as files.
 
 from datetime import datetime
 from inspect import signature
-from os import path
 
 from b_asic.graph_component import GraphComponent
 from b_asic.signal_flow_graph import SFG
+from b_asic.special_operations import Input, Output
 
 
 def sfg_to_python(sfg: SFG, counter: int = 0, suffix: str = None) -> str:
@@ -48,6 +48,9 @@ def sfg_to_python(sfg: SFG, counter: int = 0, suffix: str = None) -> str:
             [f"{param[0]}={param[1]}" for param in params.items()]
         )
 
+    # No need to redefined I/Os
+    io_ops = [*sfg._input_operations, *sfg._output_operations]
+
     result += "\n# Inputs:\n"
     for op in sfg._input_operations:
         result += f"{op.graph_id} = Input({kwarg_unpacker(op)})\n"
@@ -58,6 +61,8 @@ def sfg_to_python(sfg: SFG, counter: int = 0, suffix: str = None) -> str:
 
     result += "\n# Operations:\n"
     for op in sfg.split():
+        if op in io_ops:
+            continue
         if isinstance(op, SFG):
             counter += 1
             result = sfg_to_python(op, counter) + result
@@ -114,6 +119,6 @@ def python_to_sfg(path: str) -> SFG:
         exec(code, globals(), locals())
 
     return (
-        locals()["prop"]["name"],
+        locals()["prop"]["name"] if "prop" in locals() else {},
         locals()["positions"] if "positions" in locals() else {},
     )
