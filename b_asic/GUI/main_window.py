@@ -216,16 +216,14 @@ class MainWindow(QMainWindow):
 
         self.logger.info(f"Saved SFG to path: {module}.")
 
-    def save_work(self, arg):
-        print("Save: ", arg)
+    def save_work(self, event=None):
         self.sfg_widget = SelectSFGWindow(self)
         self.sfg_widget.show()
 
         # Wait for input to dialog.
         self.sfg_widget.ok.connect(self._save_work)
 
-    def load_work(self, arg):
-        print("Load: ", arg)
+    def load_work(self, event=None):
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return

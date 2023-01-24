@@ -122,7 +122,7 @@ class DragButton(QPushButton):
         self._window.graphic_view.update()
         super().mouseReleaseEvent(event)
 
-    def _flip(self, event):
+    def _flip(self, event=None):
         self._flipped = not self._flipped
         for pb in self.ports:
             if isinstance(pb.port, InputPort):
