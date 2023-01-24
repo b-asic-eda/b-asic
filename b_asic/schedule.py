@@ -11,16 +11,27 @@ from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from matplotlib.patches import PathPatch
+from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
 from b_asic import OutputPort, Signal
+from b_asic._preferences import (
+    EXECUTION_TIME_COLOR,
+    LATENCY_COLOR,
+    SIGNAL_COLOR,
+    SIGNAL_LINEWIDTH,
+)
 from b_asic.graph_component import GraphID
 from b_asic.process import MemoryVariable, Process
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Output
+
+
+_EXECUTION_TIME_COLOR = tuple(c / 255 for c in EXECUTION_TIME_COLOR)
+_LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
+_SIGNAL_COLOR = tuple(c / 255 for c in SIGNAL_COLOR)
 
 
 class Schedule:
@@ -424,24 +435,31 @@ class Schedule:
         return ret
 
     def _plot_schedule(self, ax):
+        line_cache = []
+
         def _draw_arrow(start, end, name="", laps=0):
             if end[0] < start[0] or laps > 0:  # Wrap around
-                ax.add_line(
-                    Line2D(
+                if start not in line_cache:
+                    line = Line2D(
                         [start[0], self._schedule_time + 0.2],
                         [start[1], start[1]],
-                        color="black",
+                        color=_SIGNAL_COLOR,
+                        lw=SIGNAL_LINEWIDTH,
                     )
+                    ax.add_line(line)
+                    ax.text(
+                        self._schedule_time + 0.2,
+                        start[1],
+                        name,
+                        verticalalignment="center",
+                    )
+                line = Line2D(
+                    [-0.2, end[0]],
+                    [end[1], end[1]],
+                    color=_SIGNAL_COLOR,
+                    lw=SIGNAL_LINEWIDTH,
                 )
-                ax.add_line(
-                    Line2D([-0.2, end[0]], [end[1], end[1]], color="black")
-                )
-                ax.text(
-                    self._schedule_time + 0.2,
-                    start[1],
-                    name,
-                    verticalalignment="center",
-                )
+                ax.add_line(line)
                 ax.text(
                     -0.2,
                     end[1],
@@ -449,6 +467,7 @@ class Schedule:
                     verticalalignment="center",
                     horizontalalignment="right",
                 )
+                line_cache.append(start)
 
             elif end[0] == start[0]:
                 p = Path(
@@ -471,7 +490,13 @@ class Schedule:
                         Path.CURVE4,
                     ],
                 )
-                pp = PathPatch(p, fc='none')
+                pp = PathPatch(
+                    p,
+                    fc='none',
+                    ec=_SIGNAL_COLOR,
+                    lw=SIGNAL_LINEWIDTH,
+                    zorder=10,
+                )
                 ax.add_patch(pp)
             else:
                 p = Path(
@@ -483,7 +508,13 @@ class Schedule:
                     ],
                     [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4],
                 )
-                pp = PathPatch(p, fc='none')
+                pp = PathPatch(
+                    p,
+                    fc='none',
+                    ec=_SIGNAL_COLOR,
+                    lw=SIGNAL_LINEWIDTH,
+                    zorder=10,
+                )
                 ax.add_patch(pp)
 
         def _draw_offset_arrow(
@@ -499,15 +530,19 @@ class Schedule:
         ypos = 0.5
         ytickpositions = []
         yticklabels = []
-        ax.grid(zorder=0.5)
+        ax.set_axisbelow(True)
+        ax.grid()
         ypositions = {}
         for op_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(op_id)
+            # Rewrite to make better use of NumPy
             latency_coords, execution_time_coords = op.get_plot_coordinates()
             _x, _y = zip(*latency_coords)
             x = np.array(_x)
             y = np.array(_y)
-            ax.fill(x + op_start_time, y + ypos)
+            xy = np.stack((x + op_start_time, y + ypos))
+            p = Polygon(xy.T, fc=_LATENCY_COLOR)
+            ax.add_patch(p)
             if execution_time_coords:
                 _x, _y = zip(*execution_time_coords)
                 x = np.array(_x)
@@ -515,9 +550,8 @@ class Schedule:
                 ax.plot(
                     x + op_start_time,
                     y + ypos,
-                    color="black",
+                    color=_EXECUTION_TIME_COLOR,
                     linewidth=3,
-                    alpha=0.5,
                 )
             ytickpositions.append(ypos + 0.5)
             yticklabels.append(self._sfg.find_by_id(op_id).name)
