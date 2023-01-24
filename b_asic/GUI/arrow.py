@@ -1,12 +1,12 @@
-from qtpy.QtCore import QLineF, Qt
-from qtpy.QtGui import QPen
-from qtpy.QtWidgets import QGraphicsLineItem, QMenu
+from qtpy.QtCore import QPointF
+from qtpy.QtGui import QPen, QPolygonF
+from qtpy.QtWidgets import QGraphicsPolygonItem, QMenu
 
-from b_asic.GUI._preferences import LINECOLOR
+from b_asic.GUI._preferences import LINECOLOR, PORTHEIGHT, PORTWIDTH
 from b_asic.signal import Signal
 
 
-class Arrow(QGraphicsLineItem):
+class Arrow(QGraphicsPolygonItem):
     """Arrow/connection in signal flow graph GUI."""
 
     def __init__(self, source, destination, window, signal=None, parent=None):
@@ -81,11 +81,9 @@ class Arrow(QGraphicsLineItem):
         Draw a line connecting self.source with self.destination. Used as callback when moving operations.
         """
         self.setPen(QPen(LINECOLOR, 3))
-        self.setLine(
-            QLineF(
-                self.source.operation.x() + self.source.x() + 14,
-                self.source.operation.y() + self.source.y() + 7.5,
-                self.destination.operation.x() + self.destination.x(),
-                self.destination.operation.y() + self.destination.y() + 7.5,
-            )
-        )
+        x0 = self.source.operation.x() + self.source.x() + PORTWIDTH
+        y0 = self.source.operation.y() + self.source.y() + PORTHEIGHT/2
+        x1 = self.destination.operation.x() + self.destination.x()
+        y1 = self.destination.operation.y() + self.destination.y() + PORTHEIGHT/2
+        p = QPolygonF() << QPointF(x0, y0) << QPointF(x1, y1)
+        self.setPolygon(p)
