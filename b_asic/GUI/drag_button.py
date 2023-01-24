@@ -12,7 +12,7 @@ from qtpy.QtWidgets import QAction, QMenu, QPushButton
 
 from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.GUI.utils import decorate_class, handle_error
-from b_asic.GUI._preferences import MINBUTTONSIZE
+from b_asic.GUI._preferences import GRID, MINBUTTONSIZE
 
 
 @decorate_class(handle_error)
@@ -105,6 +105,15 @@ class DragButton(QPushButton):
         else:
             self.select_button(event.modifiers())
 
+        # Snap
+        point = self.pos()
+        x = point.x()
+        y = point.y()
+        newx = GRID * round(x / GRID)
+        newy = GRID * round(y / GRID)
+        self.move(newx, newy)
+        self._window.scene.update()
+        self._window.graphic_view.update()
         super().mouseReleaseEvent(event)
 
     def _toggle_button(self, pressed=False):
@@ -117,7 +126,9 @@ class DragButton(QPushButton):
         path_to_image = os.path.join(
             os.path.dirname(__file__),
             "operation_icons",
-            f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}",
+            (
+                f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}"
+            ),
         )
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))

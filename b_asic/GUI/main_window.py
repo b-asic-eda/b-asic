@@ -37,6 +37,7 @@ from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
 from b_asic.GUI._preferences import (
     GAP,
+    GRID,
     MINBUTTONSIZE,
     PORTHEIGHT,
     PORTWIDTH,
@@ -540,7 +541,7 @@ class MainWindow(QMainWindow):
                 op.graph_id, op, op.type_name().lower(), True, window=self
             )
             if position is None:
-                attr_button.move(250, 100)
+                attr_button.move(GRID * 3, GRID * 2)
             else:
                 attr_button.move(*position)
 

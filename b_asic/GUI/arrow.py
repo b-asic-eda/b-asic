@@ -1,12 +1,12 @@
 from qtpy.QtCore import QPointF
-from qtpy.QtGui import QPen, QPolygonF
-from qtpy.QtWidgets import QGraphicsPolygonItem, QMenu
+from qtpy.QtGui import QPen, QPainterPath
+from qtpy.QtWidgets import QGraphicsPathItem, QMenu
 
 from b_asic.GUI._preferences import LINECOLOR, PORTHEIGHT, PORTWIDTH
 from b_asic.signal import Signal
 
 
-class Arrow(QGraphicsPolygonItem):
+class Arrow(QGraphicsPathItem):
     """Arrow/connection in signal flow graph GUI."""
 
     def __init__(self, source, destination, window, signal=None, parent=None):
@@ -80,10 +80,29 @@ class Arrow(QGraphicsPolygonItem):
         """
         Draw a line connecting self.source with self.destination. Used as callback when moving operations.
         """
+        ORTHOGONAL = True
+        OFFSET = 2 * PORTWIDTH
         self.setPen(QPen(LINECOLOR, 3))
         x0 = self.source.operation.x() + self.source.x() + PORTWIDTH
-        y0 = self.source.operation.y() + self.source.y() + PORTHEIGHT/2
+        y0 = self.source.operation.y() + self.source.y() + PORTHEIGHT / 2
         x1 = self.destination.operation.x() + self.destination.x()
-        y1 = self.destination.operation.y() + self.destination.y() + PORTHEIGHT/2
-        p = QPolygonF() << QPointF(x0, y0) << QPointF(x1, y1)
-        self.setPolygon(p)
+        y1 = (
+            self.destination.operation.y()
+            + self.destination.y()
+            + PORTHEIGHT / 2
+        )
+        xmid = (x0 + x1) / 2
+        ymid = (y0 + y1) / 2
+        p = QPainterPath(QPointF(x0, y0))
+        if y0 == y1 or not ORTHOGONAL:
+            pass
+        elif abs(x0 - x1) <= OFFSET / 2:
+            p.lineTo(QPointF(x0 + OFFSET, y0))
+            p.lineTo(QPointF(x0 + OFFSET, ymid))
+            p.lineTo(QPointF(x0 - OFFSET, ymid))
+            p.lineTo(QPointF(x0 - OFFSET, y1))
+        else:
+            p.lineTo(QPointF(xmid, y0))
+            p.lineTo(QPointF(xmid, y1))
+        p.lineTo(QPointF(x1, y1))
+        self.setPath(p)
