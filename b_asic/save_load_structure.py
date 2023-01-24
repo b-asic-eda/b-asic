@@ -119,6 +119,6 @@ def python_to_sfg(path: str) -> SFG:
         exec(code, globals(), locals())
 
     return (
-        locals()["prop"]["name"] if "prop" in locals() else {},
+        locals()["prop"]["name"] if "prop" in locals() else [v for k, v in locals().items() if isinstance(v, SFG)][0],
         locals()["positions"] if "positions" in locals() else {},
     )

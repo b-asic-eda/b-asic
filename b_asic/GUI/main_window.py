@@ -449,7 +449,7 @@ class MainWindow(QMainWindow):
 
         self.sfg_dict[sfg.name] = sfg
 
-    def _show_precedence_graph(self):
+    def _show_precedence_graph(self, event=None):
         self.dialog = ShowPCWindow(self)
         self.dialog.add_sfg_to_dialog()
         self.dialog.show()
@@ -729,7 +729,7 @@ class MainWindow(QMainWindow):
                 self.plot = Plot(simulation, sfg, self)
                 self.plot.show()
 
-    def simulate_sfg(self):
+    def simulate_sfg(self, event=None):
         self.dialog = SimulateSFGWindow(self)
 
         for _, sfg in self.sfg_dict.items():
