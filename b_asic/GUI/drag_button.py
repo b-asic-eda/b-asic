@@ -155,7 +155,7 @@ class DragButton(QPushButton):
 
     def is_flipped(self):
         """Return True if the button is flipped (inputs to the right)."""
-        return self._is_flipped
+        return self._flipped
 
     def select_button(self, modifiers=None):
         if modifiers != Qt.KeyboardModifier.ControlModifier:
@@ -175,7 +175,7 @@ class DragButton(QPushButton):
         for signal in self._window.signalList:
             signal.update()
 
-    def remove(self):
+    def remove(self, event=None):
         """Remove button/operation from signal flow graph."""
         self._window.logger.info(
             f"Removing operation with name {self.operation.name}."
