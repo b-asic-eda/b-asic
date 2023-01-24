@@ -2,6 +2,9 @@ stages:
  - test
  - deploy
 
+include:
+  - remote: 'https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml'
+
 before_script:
   - apt-get update --yes
   - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz python3-pyqt5 xvfb xdg-utils lcov
