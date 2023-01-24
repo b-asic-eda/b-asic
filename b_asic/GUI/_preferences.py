@@ -1,5 +1,6 @@
-from qtpy.QtCore import Qt
 from qtpy.QtGui import QColor
+
+from b_asic._preferences import SIGNAL_COLOR
 
 # Buttons/operations/ports
 MINBUTTONSIZE = 57
@@ -12,4 +13,4 @@ MIN_WIDTH_SCENE = 600
 MIN_HEIGHT_SCENE = 520
 
 # Interface
-LINECOLOR = QColor(Qt.GlobalColor.black)
+LINECOLOR = QColor(*SIGNAL_COLOR)
