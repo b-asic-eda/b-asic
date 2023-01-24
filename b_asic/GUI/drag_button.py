@@ -12,7 +12,8 @@ from qtpy.QtWidgets import QAction, QMenu, QPushButton
 
 from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.GUI.utils import decorate_class, handle_error
-from b_asic.GUI._preferences import GRID, MINBUTTONSIZE
+from b_asic.GUI._preferences import GRID, MINBUTTONSIZE, PORTWIDTH
+from b_asic.port import InputPort
 
 
 @decorate_class(handle_error)
@@ -47,6 +48,7 @@ class DragButton(QPushButton):
         self._m_drag = False
         self._mouse_press_pos = None
         self._mouse_move_pos = None
+        self._flipped = False
         super().__init__(parent)
 
     def contextMenuEvent(self, event):
@@ -58,6 +60,10 @@ class DragButton(QPushButton):
         delete = QAction("Delete")
         menu.addAction(delete)
         delete.triggered.connect(self.remove)
+
+        flip = QAction("Flip horizontal")
+        menu.addAction(flip)
+        flip.triggered.connect(self._flip)
         menu.exec_(self.cursor().pos())
 
     def show_properties_window(self, event):
@@ -116,6 +122,20 @@ class DragButton(QPushButton):
         self._window.graphic_view.update()
         super().mouseReleaseEvent(event)
 
+    def _flip(self, event):
+        self._flipped = not self._flipped
+        for pb in self.ports:
+            if isinstance(pb.port, InputPort):
+                newx = MINBUTTONSIZE - PORTWIDTH if self._flipped else 0
+            else:
+                newx = 0 if self._flipped else MINBUTTONSIZE - PORTWIDTH
+            text = "<" if self._flipped else ">"
+            pb.move(newx, pb.pos().y())
+            pb.setText(text)
+
+        self._window.scene.update()
+        self._window.graphic_view.update()
+
     def _toggle_button(self, pressed=False):
         self.pressed = not pressed
         self.setStyleSheet(
@@ -132,6 +152,10 @@ class DragButton(QPushButton):
         )
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
+
+    def is_flipped(self):
+        """Return True if the button is flipped (inputs to the right)."""
+        return self._is_flipped
 
     def select_button(self, modifiers=None):
         if modifiers != Qt.KeyboardModifier.ControlModifier:
