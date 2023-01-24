@@ -10,7 +10,6 @@ import os
 import sys
 from pprint import pprint
 
-import numpy as np
 from qtpy.QtCore import QFileInfo, QSize, Qt
 from qtpy.QtGui import QIcon, QKeySequence, QPainter
 from qtpy.QtWidgets import (
