@@ -2,7 +2,7 @@ from qtpy.QtCore import QPointF
 from qtpy.QtGui import QPen, QPainterPath
 from qtpy.QtWidgets import QGraphicsPathItem, QMenu
 
-from b_asic.GUI._preferences import LINECOLOR, PORTHEIGHT, PORTWIDTH
+from b_asic.GUI._preferences import GRID, LINECOLOR, PORTHEIGHT, PORTWIDTH
 from b_asic.signal import Signal
 
 
@@ -83,9 +83,11 @@ class Arrow(QGraphicsPathItem):
         ORTHOGONAL = True
         OFFSET = 2 * PORTWIDTH
         self.setPen(QPen(LINECOLOR, 3))
-        x0 = self.source.operation.x() + self.source.x() + PORTWIDTH
+        source_flipped = self.source.operation.is_flipped()
+        destination_flipped = self.destination.operation.is_flipped()
+        x0 = self.source.operation.x() + self.source.x() + (PORTWIDTH if not source_flipped else 0)
         y0 = self.source.operation.y() + self.source.y() + PORTHEIGHT / 2
-        x1 = self.destination.operation.x() + self.destination.x()
+        x1 = self.destination.operation.x() + self.destination.x() + (0 if not destination_flipped else PORTWIDTH)
         y1 = (
             self.destination.operation.y()
             + self.destination.y()
@@ -93,16 +95,90 @@ class Arrow(QGraphicsPathItem):
         )
         xmid = (x0 + x1) / 2
         ymid = (y0 + y1) / 2
+        both_flipped = source_flipped and destination_flipped
+        any_flipped = source_flipped or destination_flipped
         p = QPainterPath(QPointF(x0, y0))
-        if y0 == y1 or not ORTHOGONAL:
+        # TODO: Simplify or create a better router
+        if not ORTHOGONAL:
             pass
-        elif abs(x0 - x1) <= OFFSET / 2:
-            p.lineTo(QPointF(x0 + OFFSET, y0))
-            p.lineTo(QPointF(x0 + OFFSET, ymid))
-            p.lineTo(QPointF(x0 - OFFSET, ymid))
-            p.lineTo(QPointF(x0 - OFFSET, y1))
+        elif y0 == y1:
+            if not any_flipped:
+                if x0 <= x1:
+                    pass
+                else:
+                    p.lineTo(QPointF(x0 + OFFSET, y0))
+                    p.lineTo(QPointF(x0 + OFFSET, y0 + OFFSET))
+                    p.lineTo(QPointF(x1 - OFFSET, y0 + OFFSET))
+                    p.lineTo(QPointF(x1 - OFFSET, y0))
+            elif both_flipped:
+                if x1 <= x0:
+                    pass
+                else:
+                    p.lineTo(QPointF(x0 + OFFSET, y0))
+                    p.lineTo(QPointF(x0 + OFFSET, y0 + OFFSET))
+                    p.lineTo(QPointF(x1 - OFFSET, y0 + OFFSET))
+                    p.lineTo(QPointF(x1 - OFFSET, y0))
+            elif source_flipped:
+                if x0 <= x1:
+                    p.lineTo(QPointF(x0 - OFFSET, y0))
+                    p.lineTo(QPointF(x0 - OFFSET, y0 + OFFSET))
+                    p.lineTo(QPointF(xmid, y0 + OFFSET))
+                    p.lineTo(QPointF(xmid, y0))
+                else:
+                    p.lineTo(QPointF(x0 + OFFSET, y0))
+                    p.lineTo(QPointF(x0 + OFFSET, y0 + OFFSET))
+                    p.lineTo(QPointF(xmid, y0 + OFFSET))
+                    p.lineTo(QPointF(xmid, y0))
+            else:
+                if x1 <= x0:
+                    p.lineTo(QPointF(x0 + OFFSET, y0))
+                    p.lineTo(QPointF(x0 + OFFSET, y0 + OFFSET))
+                    p.lineTo(QPointF(xmid, y0 + OFFSET))
+                    p.lineTo(QPointF(xmid, y0))
+                else:
+                    p.lineTo(QPointF(xmid, y0))
+                    p.lineTo(QPointF(xmid, y0 + OFFSET))
+                    p.lineTo(QPointF(x1 + OFFSET, y0 + OFFSET))
+                    p.lineTo(QPointF(x1 + OFFSET, y0))
+
+        elif abs(x0 - x1) <= GRID:
+            if both_flipped or not any_flipped:
+                offset = -OFFSET if both_flipped else OFFSET
+                p.lineTo(QPointF(x0 + offset, y0))
+                p.lineTo(QPointF(x0 + offset, ymid))
+                p.lineTo(QPointF(x0 - offset, ymid))
+                p.lineTo(QPointF(x0 - offset, y1))
+            else:
+                offset = -OFFSET if source_flipped else -OFFSET
+                p.lineTo(QPointF(x0 + offset, y0))
+                p.lineTo(QPointF(x0 + offset, y1))
         else:
-            p.lineTo(QPointF(xmid, y0))
-            p.lineTo(QPointF(xmid, y1))
+            if not any_flipped:
+                if x0 <= x1:
+                    p.lineTo(QPointF(xmid, y0))
+                    p.lineTo(QPointF(xmid, y1))
+                else:
+                    p.lineTo(x0 + OFFSET, y0)
+                    p.lineTo(x0 + OFFSET, ymid)
+                    p.lineTo(x1 - OFFSET, ymid)
+                    p.lineTo(x1 - OFFSET, y1)
+            elif both_flipped:
+                if x0 >= x1:
+                    p.lineTo(QPointF(xmid, y0))
+                    p.lineTo(QPointF(xmid, y1))
+                else:
+                    p.lineTo(x0 - OFFSET, y0)
+                    p.lineTo(x0 - OFFSET, ymid)
+                    p.lineTo(x1 + OFFSET, ymid)
+                    p.lineTo(x1 + OFFSET, y1)
+            elif source_flipped:
+                xmin = min(x0, x1) - OFFSET
+                p.lineTo(QPointF(xmin, y0))
+                p.lineTo(QPointF(xmin, y1))
+            else:
+                xmax = max(x0, x1) + OFFSET
+                p.lineTo(QPointF(xmax, y0))
+                p.lineTo(QPointF(xmax, y1))
+
         p.lineTo(QPointF(x1, y1))
         self.setPath(p)
