@@ -55,3 +55,7 @@ documenation = "https://da.gitlab-pages.liu.se/B-ASIC/"
 skip-string-normalization = true
 preview = true
 line-length = 79
+exclude = [
+    "examples",
+    "test/test_gui"
+]
