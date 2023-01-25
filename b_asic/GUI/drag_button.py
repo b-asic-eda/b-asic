@@ -222,5 +222,8 @@ class DragButton(QPushButton):
         if self in self._window.pressed_operations:
             self._window.pressed_operations.remove(self)
 
-        if self in self._window.dragOperationSceneDict.keys():
+        if self in self._window.dragOperationSceneDict:
             del self._window.dragOperationSceneDict[self]
+
+        if self.operation in self._window.operationDragDict:
+            del self._window.operationDragDict[self.operation]
