@@ -139,49 +139,40 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     def _make_component(self) -> None:
         """Makes a new component out of the stored attributes."""
-        pen1 = QPen(Qt.GlobalColor.black)  # used by component outline
-        pen1.setWidthF(2 / self._scale)
-        # pen1.setCapStyle(Qt.RoundCap)     # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
-        pen1.setJoinStyle(
+        latency_outline_pen = QPen(
+            Qt.GlobalColor.black
+        )  # used by component outline
+        latency_outline_pen.setWidthF(2 / self._scale)
+        # latency_outline_pen.setCapStyle(Qt.RoundCap)     # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
+        latency_outline_pen.setJoinStyle(
             Qt.RoundJoin
         )  # Qt.MiterJoin, Qt.BevelJoin (default), Qt.RoundJoin, Qt.SvgMiterJoin
 
-        brush2 = QBrush(Qt.GlobalColor.black)  # used by port filling
-        pen2 = QPen(Qt.GlobalColor.black)  # used by port outline
-        pen2.setWidthF(0)
-        # pen2.setCosmetic(True)
+        port_filling_brush = QBrush(
+            Qt.GlobalColor.black
+        )  # used by port filling
+        port_outline_pen = QPen(Qt.GlobalColor.black)  # used by port outline
+        port_outline_pen.setWidthF(0)
+        # port_outline_pen.setCosmetic(True)
         port_size = 7 / self._scale  # the diameter of a port
 
-        execution_time = QColor(OPERATION_EXECUTION_TIME_INACTIVE)
-        execution_time.setAlpha(200)  # 0-255
-        pen3 = QPen()  # used by execution time outline
-        pen3.setColor(execution_time)
-        pen3.setWidthF(3 / self._scale)
-
-        # make lists of sorted keys. reverse output port list.
-        input_keys = [
-            key for key in self._ports.keys() if key.lower().startswith("in")
-        ]
-        input_keys = sorted(input_keys)
-        output_keys = [
-            key for key in self._ports.keys() if key.lower().startswith("out")
-        ]
-        output_keys = sorted(output_keys, reverse=True)
+        execution_time_color = QColor(OPERATION_EXECUTION_TIME_INACTIVE)
+        execution_time_color.setAlpha(200)  # 0-255
+        execution_time_pen = QPen()  # used by execution time outline
+        execution_time_pen.setColor(execution_time_color)
+        execution_time_pen.setWidthF(3 / self._scale)
 
         # Set the starting position
 
-        x = old_x = self._ports[input_keys[0]]["latency"] if input_keys else 0
-        y = old_y = 0
-
         latency, execution_time = self._operation.get_plot_coordinates()
         latency_path = QPainterPath(
-            QPointF(x + latency[0][0], y + latency[0][1] * self._height)
+            QPointF(latency[0][0], latency[0][1] * self._height)
         )  # starting point
         for _x, _y in latency[1:]:
-            latency_path.lineTo(x + _x, y + _y * self._height)
+            latency_path.lineTo(_x, _y * self._height)
         latency_path.closeSubpath()
         self._latency_item = QGraphicsPathItem(latency_path)
-        self._latency_item.setPen(pen1)
+        self._latency_item.setPen(latency_outline_pen)
 
         if execution_time:
             execution_time_path = QPainterPath(
@@ -193,52 +184,37 @@ class GraphicsComponentItem(QGraphicsItemGroup):
                 execution_time_path.lineTo(_x, _y * self._height)
             execution_time_path.closeSubpath()
             self._execution_time_item = QGraphicsPathItem(execution_time_path)
-            self._execution_time_item.setPen(pen3)
-
-        # component path
-        def draw_component_path(keys: List[str], reversed: bool) -> None:
-            """
-            Draws component path and also register port positions in self._ports dictionary.
-            """
-            nonlocal y
-            nonlocal old_x
-            nonlocal old_y
-            neg = -1 if reversed else 1
-            for key in keys:
-                # draw 1 or 2 lines
-                x = self._ports[key]["latency"]
-                y = old_y + neg * (self._height / len(keys))
-                # register the port pos in dictionary
-                port_x = x  # Port coordinates is at the center
-                port_y = (
-                    y - neg * abs(y - old_y) / 2
-                )  # of previous vertical line.
-                self._ports[key]["pos"] = QPointF(port_x, port_y)
-                # update last pos
-                old_x = x
-                old_y = y
-
-        # draw the path
-        if input_keys:
-            draw_component_path(input_keys, False)  # draw input side
-        else:
-            y = old_y = self._height
-
-        draw_component_path(output_keys, True)  # draw output side
+            self._execution_time_item.setPen(execution_time_pen)
 
         # component item
         self._set_background(
-            Qt.GlobalColor.lightGray
+            OPERATION_LATENCY_INACTIVE
         )  # used by component filling
 
-        # ports item
-        for port_dict in self._ports.values():
-            port_pos = self.mapToParent(port_dict["pos"])
+        inputs, outputs = self._operation.get_io_coordinates()
+        for i, (x, y) in enumerate(inputs):
+            pos = QPointF(x, y * self._height)
+            key = f"in{i}"
+            self._ports[key]["pos"] = pos
+            port_pos = self.mapToParent(pos)
             port = QGraphicsEllipseItem(
                 -port_size / 2, -port_size / 2, port_size, port_size
-            )  # center of circle is in origo
-            port.setPen(pen2)
-            port.setBrush(brush2)
+            )
+            port.setPen(port_outline_pen)
+            port.setBrush(port_filling_brush)
+            port.setPos(port_pos.x(), port_pos.y())
+            self._port_items.append(port)
+
+        for i, (x, y) in enumerate(outputs):
+            pos = QPointF(x, y * self._height)
+            key = f"out{i}"
+            self._ports[key]["pos"] = pos
+            port_pos = self.mapToParent(pos)
+            port = QGraphicsEllipseItem(
+                -port_size / 2, -port_size / 2, port_size, port_size
+            )
+            port.setPen(port_outline_pen)
+            port.setBrush(port_filling_brush)
             port.setPos(port_pos.x(), port_pos.y())
             self._port_items.append(port)
 
