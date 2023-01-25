@@ -26,22 +26,18 @@ from qtpy.QtWidgets import (
     QShortcut,
 )
 
-import b_asic.core_operations as c_oper
-import b_asic.special_operations as s_oper
+import b_asic.core_operations
+import b_asic.special_operations
 from b_asic.GUI.about_window import AboutWindow, FaqWindow, KeybindsWindow
 from b_asic.GUI.arrow import Arrow
 from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
-from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
 from b_asic.GUI._preferences import (
     GAP,
     GRID,
     MINBUTTONSIZE,
     PORTHEIGHT,
-    PORTWIDTH,
-    MIN_HEIGHT_SCENE,
-    MIN_WIDTH_SCENE,
 )
 from b_asic.GUI.show_pc_window import ShowPCWindow
 from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
@@ -64,7 +60,7 @@ class MainWindow(QMainWindow):
         self.ui = Ui_main_window()
         self.ui.setupUi(self)
         self.setWindowIcon(QIcon("small_logo.png"))
-        self.scene = None
+        self.scene = QGraphicsScene(self)
         self._operations_from_name = {}
         self.zoom = 1
         self.sfg_name_i = 0
@@ -82,10 +78,10 @@ class MainWindow(QMainWindow):
         self.logger = logging.getLogger(__name__)
         self.init_ui()
         self.add_operations_from_namespace(
-            c_oper, self.ui.core_operations_list
+            b_asic.core_operations, self.ui.core_operations_list
         )
         self.add_operations_from_namespace(
-            s_oper, self.ui.special_operations_list
+            b_asic.special_operations, self.ui.special_operations_list
         )
 
         self.shortcut_core = QShortcut(
@@ -143,7 +139,6 @@ class MainWindow(QMainWindow):
         self.create_graphics_view()
 
     def create_graphics_view(self):
-        self.scene = QGraphicsScene(self)
         self.graphic_view = QGraphicsView(self.scene, self)
         self.graphic_view.setRenderHint(QPainter.Antialiasing)
         self.graphic_view.setGeometry(
@@ -334,7 +329,7 @@ class MainWindow(QMainWindow):
         if not accepted:
             return
 
-        if name == "":
+        if not name:
             self.logger.warning("Failed to initialize SFG with empty name.")
             return
 
@@ -452,40 +447,6 @@ class MainWindow(QMainWindow):
         self.dialog.add_sfg_to_dialog()
         self.dialog.show()
 
-    def _determine_port_distance(self, height, ports):
-        """Determine the distance between each port on the side of an operation.
-        The method returns the distance that each port should have from 0.
-        """
-        return (
-            [(height - PORTHEIGHT) // 2]
-            if ports == 1
-            else [(PORTHEIGHT + GAP) * i for i in range(ports)]
-        )
-
-    def add_ports(self, operation):
-        op = operation.operation
-        height = self._get_button_height(op)
-        _output_ports_dist = self._determine_port_distance(
-            height, op.output_count
-        )
-        _input_ports_dist = self._determine_port_distance(
-            height, op.input_count
-        )
-        self.portDict[operation] = []
-        for i, dist in enumerate(_input_ports_dist):
-            port = PortButton(">", operation, op.input(i), self)
-            self.portDict[operation].append(port)
-            operation.ports.append(port)
-            port.move(0, dist)
-            port.show()
-
-        for i, dist in enumerate(_output_ports_dist):
-            port = PortButton(">", operation, op.output(i), self)
-            self.portDict[operation].append(port)
-            operation.ports.append(port)
-            port.move(MINBUTTONSIZE - PORTWIDTH, dist)
-            port.show()
-
     def get_operations_from_namespace(self, namespace):
         self.logger.info(
             f"Fetching operations from namespace: {namespace.__name__}."
@@ -511,7 +472,7 @@ class MainWindow(QMainWindow):
             f"Added operations from namespace: {namespace.__name__}."
         )
 
-    def add_namespace(self):
+    def add_namespace(self, event=None):
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
@@ -526,12 +487,6 @@ class MainWindow(QMainWindow):
             namespace, self.ui.custom_operations_list
         )
 
-    def _get_button_height(self, op):
-        max_ports = max(op.input_count, op.output_count)
-        return max(
-            MINBUTTONSIZE, max_ports * PORTHEIGHT + (max_ports - 1) * GAP
-        )
-
     def create_operation(self, op, position=None):
         try:
             attr_button = DragButton(
@@ -542,14 +497,18 @@ class MainWindow(QMainWindow):
             else:
                 attr_button.move(*position)
 
-            attr_button.setFixedSize(
-                MINBUTTONSIZE, self._get_button_height(op)
+            max_ports = max(op.input_count, op.output_count)
+            button_height = max(
+                MINBUTTONSIZE, max_ports * PORTHEIGHT + (max_ports - 1) * GAP
             )
+
+            attr_button.setFixedSize(MINBUTTONSIZE, button_height)
             attr_button.setStyleSheet(
                 "background-color: white; border-style: solid;"
                 "border-color: black; border-width: 2px"
             )
-            self.add_ports(attr_button)
+            attr_button.add_ports()
+            self.portDict[attr_button] = attr_button.ports
 
             icon_path = os.path.join(
                 os.path.dirname(__file__),
@@ -588,7 +547,7 @@ class MainWindow(QMainWindow):
             self.dragOperationSceneDict[attr_button] = attr_button_scene
         except Exception as e:
             self.logger.error(
-                f"Unexpected error occured while creating operation: {e}."
+                f"Unexpected error occurred while creating operation: {e}."
             )
 
     def _create_operation_item(self, item):
@@ -598,7 +557,7 @@ class MainWindow(QMainWindow):
             self.create_operation(attr_oper)
         except Exception as e:
             self.logger.error(
-                f"Unexpected error occured while creating operation: {e}."
+                f"Unexpected error occurred while creating operation: {e}."
             )
 
     def _refresh_operations_list_from_namespace(self):
@@ -607,10 +566,10 @@ class MainWindow(QMainWindow):
         self.ui.special_operations_list.clear()
 
         self.add_operations_from_namespace(
-            c_oper, self.ui.core_operations_list
+            b_asic.core_operations, self.ui.core_operations_list
         )
         self.add_operations_from_namespace(
-            s_oper, self.ui.special_operations_list
+            b_asic.special_operations, self.ui.special_operations_list
         )
         self.logger.info("Finished refreshing operation list.")
 

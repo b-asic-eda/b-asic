@@ -10,9 +10,16 @@ from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QAction, QMenu, QPushButton
 
+from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.GUI.utils import decorate_class, handle_error
-from b_asic.GUI._preferences import GRID, MINBUTTONSIZE, PORTWIDTH
+from b_asic.GUI._preferences import (
+    GAP,
+    GRID,
+    MINBUTTONSIZE,
+    PORTHEIGHT,
+    PORTWIDTH,
+)
 from b_asic.port import InputPort
 
 
@@ -49,6 +56,8 @@ class DragButton(QPushButton):
         self._mouse_press_pos = None
         self._mouse_move_pos = None
         self._flipped = False
+        self._properties_window = None
+        self.label = None
         super().__init__(parent)
 
     def contextMenuEvent(self, event):
@@ -67,8 +76,8 @@ class DragButton(QPushButton):
         menu.exec_(self.cursor().pos())
 
     def show_properties_window(self, event):
-        self.properties_window = PropertiesWindow(self, self._window)
-        self.properties_window.show()
+        self._properties_window = PropertiesWindow(self, self._window)
+        self._properties_window.show()
 
     def add_label(self, label):
         self.label = label
@@ -146,9 +155,7 @@ class DragButton(QPushButton):
         path_to_image = os.path.join(
             os.path.dirname(__file__),
             "operation_icons",
-            (
-                f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}"
-            ),
+            f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}",
         )
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
@@ -188,9 +195,7 @@ class DragButton(QPushButton):
         for signal, ports in self._window.signalPortDict.items():
             if any(
                 map(
-                    lambda port: set(port).intersection(
-                        set(self._window.portDict[self])
-                    ),
+                    lambda port: set(port).intersection(set(self.ports)),
                     ports,
                 )
             ):
@@ -227,3 +232,31 @@ class DragButton(QPushButton):
 
         if self.operation in self._window.operationDragDict:
             del self._window.operationDragDict[self.operation]
+
+    def add_ports(self):
+        def _determine_port_distance(opheight, ports):
+            """
+            Determine the distance between each port on the side of an operation.
+            The method returns the distance that each port should have from 0.
+            """
+            return (
+                [(opheight - PORTHEIGHT) // 2]
+                if ports == 1
+                else [(PORTHEIGHT + GAP) * no for no in range(ports)]
+            )
+
+        op = self.operation
+        height = self.height()
+        output_ports_dist = _determine_port_distance(height, op.output_count)
+        input_ports_dist = _determine_port_distance(height, op.input_count)
+        for i, dist in enumerate(input_ports_dist):
+            port = PortButton(">", self, op.input(i), self._window)
+            self.ports.append(port)
+            port.move(0, dist)
+            port.show()
+
+        for i, dist in enumerate(output_ports_dist):
+            port = PortButton(">", self, op.output(i), self._window)
+            self.ports.append(port)
+            port.move(MINBUTTONSIZE - PORTWIDTH, dist)
+            port.show()
