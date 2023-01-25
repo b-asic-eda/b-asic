@@ -56,6 +56,23 @@ def test_sfg_invalidated_by_remove_of_operation(qtbot, datadir):
     widget.exit_app()
 
 
+def test_sfg_invalidated_by_deleting_of_operation(qtbot, datadir):
+    widget = GUI.MainWindow()
+    qtbot.addWidget(widget)
+    widget._load_from_file(datadir.join('twotapfir.py'))
+    sfg = widget.sfg_dict['twotapfir']
+    ops_before_remove = len(widget.operationDragDict)
+    op = sfg.find_by_name("cmul2")
+    dragbutton = widget.operationDragDict[op[0]]
+    # Click
+    qtbot.mouseClick(dragbutton, QtCore.Qt.MouseButton.LeftButton)
+    qtbot.keyClick(widget, QtCore.Qt.Key.Key_Delete)
+    assert not widget.sfg_dict
+    assert ops_before_remove - 1 == len(widget.operationDragDict)
+
+    widget.exit_app()
+
+
 def test_select_operation(qtbot, datadir):
     widget = GUI.MainWindow()
     qtbot.addWidget(widget)
