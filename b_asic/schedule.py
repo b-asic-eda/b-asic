@@ -164,7 +164,10 @@ class Schedule:
 
     def set_schedule_time(self, time: int) -> "Schedule":
         if time < self.get_max_end_time():
-            raise ValueError( "New schedule time ({time})to short, minimum: ({self.get_max_end_time()}).")
+            raise ValueError(
+                "New schedule time ({time})to short, minimum:"
+                " ({self.get_max_end_time()})."
+            )
         self._schedule_time = time
         return self
 

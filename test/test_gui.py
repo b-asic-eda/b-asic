@@ -51,7 +51,7 @@ def test_sfg_invalidated_by_remove_of_operation(qtbot, datadir):
     dragbutton = widget.operationDragDict[op[0]]
     dragbutton.remove()
     assert not widget.sfg_dict
-    assert ops_before_remove -1 == len(widget.operationDragDict)
+    assert ops_before_remove - 1 == len(widget.operationDragDict)
 
     widget.exit_app()
 
@@ -90,13 +90,21 @@ def test_select_operation(qtbot, datadir):
     assert len(widget.pressed_operations) == 1
 
     # Control-click first
-    qtbot.mouseClick(dragbutton, QtCore.Qt.MouseButton.LeftButton, QtCore.Qt.KeyboardModifier.ControlModifier)
+    qtbot.mouseClick(
+        dragbutton,
+        QtCore.Qt.MouseButton.LeftButton,
+        QtCore.Qt.KeyboardModifier.ControlModifier,
+    )
     assert dragbutton2.pressed
     assert dragbutton.pressed
     assert len(widget.pressed_operations) == 2
 
     # Control-click second
-    qtbot.mouseClick(dragbutton2, QtCore.Qt.MouseButton.LeftButton, QtCore.Qt.KeyboardModifier.ControlModifier)
+    qtbot.mouseClick(
+        dragbutton2,
+        QtCore.Qt.MouseButton.LeftButton,
+        QtCore.Qt.KeyboardModifier.ControlModifier,
+    )
     assert not dragbutton2.pressed
     assert dragbutton.pressed
     assert len(widget.pressed_operations) == 1

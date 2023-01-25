@@ -85,9 +85,17 @@ class Arrow(QGraphicsPathItem):
         self.setPen(QPen(LINECOLOR, 3))
         source_flipped = self.source.operation.is_flipped()
         destination_flipped = self.destination.operation.is_flipped()
-        x0 = self.source.operation.x() + self.source.x() + (PORTWIDTH if not source_flipped else 0)
+        x0 = (
+            self.source.operation.x()
+            + self.source.x()
+            + (PORTWIDTH if not source_flipped else 0)
+        )
         y0 = self.source.operation.y() + self.source.y() + PORTHEIGHT / 2
-        x1 = self.destination.operation.x() + self.destination.x() + (0 if not destination_flipped else PORTWIDTH)
+        x1 = (
+            self.destination.operation.x()
+            + self.destination.x()
+            + (0 if not destination_flipped else PORTWIDTH)
+        )
         y1 = (
             self.destination.operation.y()
             + self.destination.y()

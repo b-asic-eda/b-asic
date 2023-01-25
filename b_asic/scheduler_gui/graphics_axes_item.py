@@ -63,9 +63,13 @@ class GraphicsAxesItem(QGraphicsItemGroup):
         """
         super().__init__(parent=parent)
         if width < 0:
-            raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")
+            raise ValueError(
+                f"'width' greater or equal to 0 expected, got: {width}."
+            )
         if height < 0:
-            raise ValueError(f"'height' greater or equal to 0 expected, got: {height}.")
+            raise ValueError(
+                f"'height' greater or equal to 0 expected, got: {height}."
+            )
 
         self._width = width
         self._height = height
@@ -152,13 +156,17 @@ class GraphicsAxesItem(QGraphicsItemGroup):
     def set_height(self, height: int) -> "GraphicsAxesItem":
         # TODO: implement, docstring
         if height < 0:
-            raise ValueError(f"'height' greater or equal to 0 expected, got: {height}.")
+            raise ValueError(
+                f"'height' greater or equal to 0 expected, got: {height}."
+            )
         raise NotImplementedError
 
     def set_width(self, width: int) -> "GraphicsAxesItem":
         # TODO: docstring
         if width < 0:
-            raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")
+            raise ValueError(
+                f"'width' greater or equal to 0 expected, got: {width}."
+            )
 
         delta_width = width - self._width
 
