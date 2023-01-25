@@ -39,7 +39,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         str, Dict[str, Union[float, QPointF]]
     ]  # ['port-id']['latency/pos']
     _end_time: int
-    _component_item: QGraphicsPathItem
+    _latency_item: QGraphicsPathItem
     _execution_time_item: QGraphicsRectItem
     _label_item: QGraphicsSimpleTextItem
     _port_items: List[QGraphicsEllipseItem]
@@ -135,7 +135,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     def _set_background(self, color: QColor):
         brush = QBrush(color)
-        self._component_item.setBrush(brush)
+        self._latency_item.setBrush(brush)
 
     def _make_component(self) -> None:
         """Makes a new component out of the stored attributes."""
@@ -172,7 +172,28 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
         x = old_x = self._ports[input_keys[0]]["latency"] if input_keys else 0
         y = old_y = 0
-        component_path = QPainterPath(QPointF(x, y))  # starting point
+
+        latency, execution_time = self._operation.get_plot_coordinates()
+        latency_path = QPainterPath(
+            QPointF(x + latency[0][0], y + latency[0][1] * self._height)
+        )  # starting point
+        for _x, _y in latency[1:]:
+            latency_path.lineTo(x + _x, y + _y * self._height)
+        latency_path.closeSubpath()
+        self._latency_item = QGraphicsPathItem(latency_path)
+        self._latency_item.setPen(pen1)
+
+        if execution_time:
+            execution_time_path = QPainterPath(
+                QPointF(
+                    execution_time[0][0], execution_time[0][1] * self._height
+                )
+            )  # starting point
+            for _x, _y in execution_time[1:]:
+                execution_time_path.lineTo(_x, _y * self._height)
+            execution_time_path.closeSubpath()
+            self._execution_time_item = QGraphicsPathItem(execution_time_path)
+            self._execution_time_item.setPen(pen3)
 
         # component path
         def draw_component_path(keys: List[str], reversed: bool) -> None:
@@ -186,10 +207,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
             for key in keys:
                 # draw 1 or 2 lines
                 x = self._ports[key]["latency"]
-                if x != old_x:  # Draw horizontal line only
-                    component_path.lineTo(x, y)  # if we need to.
                 y = old_y + neg * (self._height / len(keys))
-                component_path.lineTo(x, y)  # vertical line
                 # register the port pos in dictionary
                 port_x = x  # Port coordinates is at the center
                 port_y = (
@@ -207,11 +225,8 @@ class GraphicsComponentItem(QGraphicsItemGroup):
             y = old_y = self._height
 
         draw_component_path(output_keys, True)  # draw output side
-        component_path.closeSubpath()
 
         # component item
-        self._component_item = QGraphicsPathItem(component_path)
-        self._component_item.setPen(pen1)
         self._set_background(
             Qt.GlobalColor.lightGray
         )  # used by component filling
@@ -230,24 +245,16 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)
         self._label_item.setScale(self._label_item.scale() / self._scale)
-        center = self._component_item.boundingRect().center()
+        center = self._latency_item.boundingRect().center()
         center -= self._label_item.boundingRect().center() / self._scale
-        self._label_item.setPos(self._component_item.pos() + center)
-
-        # execution time
-        if self._operation.execution_time is not None:
-            self._execution_time_item = QGraphicsRectItem(
-                0, 0, self._operation.execution_time, self._height
-            )
-            self._execution_time_item.setPen(pen3)
-            # self._execution_time_item.setBrush(brush3)
+        self._label_item.setPos(self._latency_item.pos() + center)
 
         # item group, consist of component_item, port_items and execution_time_item
-        self.addToGroup(self._component_item)
+        self.addToGroup(self._latency_item)
         for port in self._port_items:
             self.addToGroup(port)
         self.addToGroup(self._label_item)
-        if self._operation.execution_time:
+        if execution_time:
             self.addToGroup(self._execution_time_item)
 
         self.set_inactive()
