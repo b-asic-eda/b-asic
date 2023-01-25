@@ -174,16 +174,14 @@ class InputPort(AbstractPort):
     def add_signal(self, signal: Signal) -> None:
         if self._source_signal is not None:
             raise ValueError("Cannot add to already connected input port.")
-        assert (
-            signal is not self._source_signal
-        ), "Attempted to add already connected signal."
+        if signal is self._source_signal:
+            raise ValueError("Cannot add same signal twice")
         self._source_signal = signal
         signal.set_destination(self)
 
     def remove_signal(self, signal: Signal) -> None:
-        assert (
-            signal is self._source_signal
-        ), "Attempted to remove signal that is not connected."
+        if signal is not self._source_signal:
+            raise ValueError("Cannot remove signal that is not connected")
         self._source_signal = None
         signal.remove_destination()
 
@@ -242,16 +240,14 @@ class OutputPort(AbstractPort, SignalSourceProvider):
         return self._destination_signals
 
     def add_signal(self, signal: Signal) -> None:
-        assert (
-            signal not in self._destination_signals
-        ), "Attempted to add already connected signal."
+        if signal in self._destination_signals:
+            raise ValueError("Cannot add same signal twice")
         self._destination_signals.append(signal)
         signal.set_source(self)
 
     def remove_signal(self, signal: Signal) -> None:
-        assert (
-            signal in self._destination_signals
-        ), "Attempted to remove signal that is not connected."
+        if signal not in self._destination_signals:
+            raise ValueError("Cannot remove signal that is not connected")
         self._destination_signals.remove(signal)
         signal.remove_source()
 

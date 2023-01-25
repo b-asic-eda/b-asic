@@ -150,9 +150,8 @@ class SFG(AbstractOperation):
         # Setup input signals.
         if input_signals is not None:
             for input_index, signal in enumerate(input_signals):
-                assert (
-                    signal not in self._original_components_to_new
-                ), "Duplicate input signals supplied to SFG constructor."
+                if signal in self._original_components_to_new:
+                    raise ValueError(f"Duplicate input signal {signal!r} in SFG")
                 new_input_op = self._add_component_unconnected_copy(Input())
                 new_signal = self._add_component_unconnected_copy(signal)
                 new_signal.set_source(new_input_op.output(0))
@@ -162,9 +161,8 @@ class SFG(AbstractOperation):
         # Setup input operations, starting from indices after input signals.
         if inputs is not None:
             for input_index, input_op in enumerate(inputs, input_signal_count):
-                assert (
-                    input_op not in self._original_components_to_new
-                ), "Duplicate input operations supplied to SFG constructor."
+                if input_op in self._original_components_to_new:
+                    raise ValueError(f"Duplicate input operation {input_op!r} in SFG")
                 new_input_op = self._add_component_unconnected_copy(input_op)
                 for signal in input_op.output(0).signals:
                     assert signal not in self._original_components_to_new, (
@@ -200,9 +198,9 @@ class SFG(AbstractOperation):
             for output_index, output_op in enumerate(
                 outputs, output_signal_count
             ):
-                assert (
-                    output_op not in self._original_components_to_new
-                ), "Duplicate output operations supplied to SFG constructor."
+                if output_op in self._original_components_to_new:
+                    raise ValueError(f"Duplicate output operation {output_op!r} in SFG")
+
                 new_output_op = self._add_component_unconnected_copy(output_op)
                 for signal in output_op.input(0).signals:
                     if signal in self._original_components_to_new:

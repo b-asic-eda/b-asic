@@ -74,11 +74,11 @@ class Schedule:
             self._schedule_time = schedule_time
 
     def start_time_of_operation(self, op_id: GraphID) -> int:
-        """Get the start time of the operation with the specified by the op_id.
         """
-        assert (
-            op_id in self._start_times
-        ), "No operation with the specified op_id in this schedule."
+        Get the start time of the operation with the specified by the op_id.
+        """
+        if op_id not in self._start_times:
+            raise ValueError(f"No operation with op_id {op_id} in schedule")
         return self._start_times[op_id]
 
     def get_max_end_time(self) -> int:
@@ -93,9 +93,8 @@ class Schedule:
         return max_end_time
 
     def forward_slack(self, op_id: GraphID) -> int:
-        assert (
-            op_id in self._start_times
-        ), "No operation with the specified op_id in this schedule."
+        if op_id not in self._start_times:
+            raise ValueError(f"No operation with op_id {op_id} in schedule")
         slack = sys.maxsize
         output_slacks = self._forward_slacks(op_id)
         # Make more pythonic
@@ -125,9 +124,8 @@ class Schedule:
         return ret
 
     def backward_slack(self, op_id: GraphID) -> int:
-        assert (
-            op_id in self._start_times
-        ), "No operation with the specified op_id in this schedule."
+        if op_id not in self._start_times:
+            raise ValueError(f"No operation with op_id {op_id} in schedule")
         slack = sys.maxsize
         input_slacks = self._backward_slacks(op_id)
         # Make more pythonic
@@ -157,16 +155,16 @@ class Schedule:
         return ret
 
     def slacks(self, op_id: GraphID) -> Tuple[int, int]:
-        assert (
-            op_id in self._start_times
-        ), "No operation with the specified op_id in this schedule."
+        if op_id not in self._start_times:
+            raise ValueError(f"No operation with op_id {op_id} in schedule")
         return self.backward_slack(op_id), self.forward_slack(op_id)
 
     def print_slacks(self) -> None:
         raise NotImplementedError
 
     def set_schedule_time(self, time: int) -> "Schedule":
-        assert self.get_max_end_time() <= time, "New schedule time to short."
+        if time < self.get_max_end_time():
+            raise ValueError( "New schedule time ({time})to short, minimum: ({self.get_max_end_time()}).")
         self._schedule_time = time
         return self
 
@@ -260,9 +258,8 @@ class Schedule:
         return self
 
     def move_operation(self, op_id: GraphID, time: int) -> "Schedule":
-        assert (
-            op_id in self._start_times
-        ), "No operation with the specified op_id in this schedule."
+        if op_id not in self._start_times:
+            raise ValueError(f"No operation with op_id {op_id} in schedule")
 
         (backward_slack, forward_slack) = self.slacks(op_id)
         if not -backward_slack <= time <= forward_slack:

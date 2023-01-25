@@ -62,12 +62,10 @@ class GraphicsAxesItem(QGraphicsItemGroup):
         *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)
-        assert (
-            width >= 0
-        ), f"'width' greater or equal to 0 expected, got: {width}."
-        assert (
-            height >= 0
-        ), f"'height' greater or equal to 0 expected, got: {height}."
+        if width < 0:
+            raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")
+        if height < 0:
+            raise ValueError(f"'height' greater or equal to 0 expected, got: {height}.")
 
         self._width = width
         self._height = height
@@ -153,13 +151,15 @@ class GraphicsAxesItem(QGraphicsItemGroup):
 
     def set_height(self, height: int) -> "GraphicsAxesItem":
         # TODO: implement, docstring
+        if height < 0:
+            raise ValueError(f"'height' greater or equal to 0 expected, got: {height}.")
         raise NotImplementedError
 
     def set_width(self, width: int) -> "GraphicsAxesItem":
         # TODO: docstring
-        assert (
-            width >= 0
-        ), f"'width' greater or equal to 0 expected, got: {width}."
+        if width < 0:
+            raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")
+
         delta_width = width - self._width
 
         if delta_width > 0:
