@@ -127,3 +127,16 @@ def test_select_operation(qtbot, datadir):
     assert len(widget.pressed_operations) == 1
 
     widget.exit_app()
+
+
+def test_help_dialogs(qtbot):
+    # Smoke test to open up the "help dialogs"
+    # Should really test doing this through the menus an/or closing them
+    widget = GUI.MainWindow()
+    qtbot.addWidget(widget)
+
+    widget.display_faq_page()
+    widget.display_about_page()
+    widget.display_keybinds_page()
+
+    widget.exit_app()

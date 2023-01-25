@@ -739,15 +739,15 @@ class MainWindow(QMainWindow):
         # Kinda buggy because of the separate window in the same thread.
         self.dialog.simulate.connect(self._simulate_sfg)
 
-    def display_faq_page(self):
+    def display_faq_page(self, event=None):
         self.faq_page = FaqWindow(self)
         self.faq_page.scroll_area.show()
 
-    def display_about_page(self):
+    def display_about_page(self, event=None):
         self.about_page = AboutWindow(self)
         self.about_page.show()
 
-    def display_keybinds_page(self):
+    def display_keybinds_page(self, event=None):
         self.keybinds_page = KeybindsWindow(self)
         self.keybinds_page.show()
 
