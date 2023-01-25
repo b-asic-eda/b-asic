@@ -310,3 +310,12 @@ class TestIOCoordinates:
         i_c, o_c = bfly.get_io_coordinates()
         assert i_c == [[2, 0.25], [3, 0.75]]
         assert o_c == [[5, 0.25], [10, 0.75]]
+
+
+class TestSplit:
+    def test_simple_case(self):
+        bfly = Butterfly()
+        split = bfly.split()
+        assert len(split) == 2
+        assert sum(isinstance(op, Addition) for op in split) == 1
+        assert sum(isinstance(op, Subtraction) for op in split) == 1

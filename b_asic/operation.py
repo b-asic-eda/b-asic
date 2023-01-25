@@ -735,7 +735,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         try:
             result = self.evaluate(*([Input()] * self.input_count))
-            if isinstance(result, collections.Sequence) and all(
+            if isinstance(result, collections.abc.Sequence) and all(
                 isinstance(e, Operation) for e in result
             ):
                 return result
