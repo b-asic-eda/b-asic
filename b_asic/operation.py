@@ -24,16 +24,8 @@ from typing import (
 )
 
 from b_asic.graph_component import AbstractGraphComponent, GraphComponent, Name
-from b_asic.core_operations import (
-    Addition,
-    Subtraction,
-    Multiplication,
-    ConstantMultiplication,
-    Division,
-)
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
-from b_asic.signal_flow_graph import SFG
 
 ResultKey = NewType("ResultKey", str)
 ResultMap = Mapping[ResultKey, Optional[Number]]
@@ -55,7 +47,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     """
 
     @abstractmethod
-    def __add__(self, src: Union[SignalSourceProvider, Number]) -> Addition:
+    def __add__(self, src: Union[SignalSourceProvider, Number]) -> "Addition":
         """
         Overloads the addition operator to make it return a new Addition operation
         object that is connected to the self and other objects.
@@ -63,7 +55,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def __radd__(self, src: Union[SignalSourceProvider, Number]) -> Addition:
+    def __radd__(self, src: Union[SignalSourceProvider, Number]) -> "Addition":
         """
         Overloads the addition operator to make it return a new Addition operation
         object that is connected to the self and other objects.
@@ -71,7 +63,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def __sub__(self, src: Union[SignalSourceProvider, Number]) -> Subtraction:
+    def __sub__(self, src: Union[SignalSourceProvider, Number]) -> "Subtraction":
         """
         Overloads the subtraction operator to make it return a new Subtraction operation
         object that is connected to the self and other objects.
@@ -81,7 +73,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __rsub__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> Subtraction:
+    ) -> "Subtraction":
         """
         Overloads the subtraction operator to make it return a new Subtraction operation
         object that is connected to the self and other objects.
@@ -91,7 +83,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __mul__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> Union[Multiplication, ConstantMultiplication]:
+    ) -> Union["Multiplication", "ConstantMultiplication"]:
         """
         Overloads the multiplication operator to make it return a new Multiplication operation
         object that is connected to the self and other objects. If *src* is a number, then
@@ -102,7 +94,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __rmul__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> Union[Multiplication, ConstantMultiplication]:
+    ) -> Union["Multiplication", "ConstantMultiplication"]:
         """
         Overloads the multiplication operator to make it return a new Multiplication operation
         object that is connected to the self and other objects. If *src* is a number, then
@@ -113,7 +105,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __truediv__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> Division:
+    ) -> "Division":
         """
         Overloads the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
@@ -123,7 +115,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __rtruediv__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> Division:
+    ) -> "Division":
         """
         Overloads the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
@@ -280,7 +272,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def to_sfg(self) -> SFG:
+    def to_sfg(self) -> "SFG":
         """
         Convert the operation into its corresponding SFG.
         If the operation is composed by multiple operations, the operation will be split.
@@ -498,7 +490,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def __mul__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> "Union[Multiplication, ConstantMultiplication]":
+    ) -> Union["Multiplication", "ConstantMultiplication"]:
         # Import here to avoid circular imports.
         from b_asic.core_operations import (
             ConstantMultiplication,
@@ -513,7 +505,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def __rmul__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> Union[Multiplication, ConstantMultiplication]:
+    ) -> Union["Multiplication", "ConstantMultiplication"]:
         # Import here to avoid circular imports.
         from b_asic.core_operations import (
             ConstantMultiplication,
@@ -528,7 +520,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def __truediv__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> Division:
+    ) -> "Division":
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Division
 
@@ -538,7 +530,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def __rtruediv__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> Division:
+    ) -> "Division":
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Division
 
@@ -753,7 +745,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             pass
         return [self]
 
-    def to_sfg(self) -> SFG:
+    def to_sfg(self) -> "SFG":
         # Import here to avoid circular imports.
         from b_asic.signal_flow_graph import SFG
         from b_asic.special_operations import Input, Output
