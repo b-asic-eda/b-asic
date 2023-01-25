@@ -158,12 +158,27 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         pen3.setColor(execution_time)
         pen3.setWidthF(3 / self._scale)
 
+        # make lists of sorted keys. reverse output port list.
+        input_keys = [
+            key for key in self._ports.keys() if key.lower().startswith("in")
+        ]
+        input_keys = sorted(input_keys)
+        output_keys = [
+            key for key in self._ports.keys() if key.lower().startswith("out")
+        ]
+        output_keys = sorted(output_keys, reverse=True)
+
+        # Set the starting position
+
+        x = old_x = self._ports[input_keys[0]]["latency"] if input_keys else 0
+        y = old_y = 0
+        component_path = QPainterPath(QPointF(x, y))  # starting point
+
         # component path
         def draw_component_path(keys: List[str], reversed: bool) -> None:
             """
             Draws component path and also register port positions in self._ports dictionary.
             """
-            nonlocal x
             nonlocal y
             nonlocal old_x
             nonlocal old_y
@@ -184,22 +199,6 @@ class GraphicsComponentItem(QGraphicsItemGroup):
                 # update last pos
                 old_x = x
                 old_y = y
-
-        # make lists of sorted keys. reverse output port list.
-        input_keys = [
-            key for key in self._ports.keys() if key.lower().startswith("in")
-        ]
-        input_keys = sorted(input_keys)
-        output_keys = [
-            key for key in self._ports.keys() if key.lower().startswith("out")
-        ]
-        output_keys = sorted(output_keys, reverse=True)
-
-        # Set the starting position
-
-        x = old_x = self._ports[input_keys[0]]["latency"] if input_keys else 0
-        y = old_y = 0
-        component_path = QPainterPath(QPointF(x, y))  # starting point
 
         # draw the path
         if input_keys:
