@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
 
     def create_toolbar_view(self):
         self.toolbar = self.addToolBar("Toolbar")
-        self.toolbar.addAction("Create SFG", self.create_SFG_from_toolbar)
+        self.toolbar.addAction("Create SFG", self.create_sfg_from_toolbar)
         self.toolbar.addAction("Clear workspace", self.clear_workspace)
 
     def resizeEvent(self, event):
@@ -188,7 +188,7 @@ class MainWindow(QMainWindow):
         if not accepted:
             return
 
-        self.logger.info(f"Saving SFG to path: {module}.")
+        self.logger.info("Saving SFG to path: " + str(module))
         operation_positions = {}
         for op_drag, op_scene in self.dragOperationSceneDict.items():
             operation_positions[op_drag.operation.graph_id] = (
@@ -209,7 +209,7 @@ class MainWindow(QMainWindow):
             )
             return
 
-        self.logger.info(f"Saved SFG to path: {module}.")
+        self.logger.info("Saved SFG to path: " + str(module))
 
     def save_work(self, event=None):
         self.sfg_widget = SelectSFGWindow(self)
@@ -225,7 +225,7 @@ class MainWindow(QMainWindow):
         self._load_from_file(module)
 
     def _load_from_file(self, module):
-        self.logger.info(f"Loading SFG from path: {module}.")
+        self.logger.info("Loading SFG from path: " + str(module))
         try:
             sfg, positions = python_to_sfg(module)
         except ImportError as e:
@@ -248,7 +248,7 @@ class MainWindow(QMainWindow):
 
             sfg.name = name
         self._load_sfg(sfg, positions)
-        self.logger.info(f"Loaded SFG from path: {module}.")
+        self.logger.info("Loaded SFG from path: " + str(module))
 
     def _load_sfg(self, sfg, positions=None):
         if positions is None:
@@ -314,7 +314,7 @@ class MainWindow(QMainWindow):
         self.scene.clear()
         self.logger.info("Workspace cleared.")
 
-    def create_SFG_from_toolbar(self):
+    def create_sfg_from_toolbar(self):
         inputs = []
         outputs = []
         for op in self.pressed_operations:
@@ -334,12 +334,12 @@ class MainWindow(QMainWindow):
             return
 
         self.logger.info(
-            f"Creating SFG with name: {name} from selected operations."
+            "Creating SFG with name: %s from selected operations." % name
         )
 
         sfg = SFG(inputs=inputs, outputs=outputs, name=name)
         self.logger.info(
-            f"Created SFG with name: {name} from selected operations."
+            "Created SFG with name: %s from selected operations." % name
         )
 
         def check_equality(signal, signal_2):
@@ -449,7 +449,7 @@ class MainWindow(QMainWindow):
 
     def get_operations_from_namespace(self, namespace):
         self.logger.info(
-            f"Fetching operations from namespace: {namespace.__name__}."
+            "Fetching operations from namespace: " + str(namespace.__name__)
         )
         return [
             comp
@@ -469,7 +469,7 @@ class MainWindow(QMainWindow):
                 pass
 
         self.logger.info(
-            f"Added operations from namespace: {namespace.__name__}."
+            "Added operations from namespace: " + str(namespace.__name__)
         )
 
     def add_namespace(self, event=None):
@@ -545,17 +545,17 @@ class MainWindow(QMainWindow):
             self.dragOperationSceneDict[attr_button] = attr_button_scene
         except Exception as e:
             self.logger.error(
-                f"Unexpected error occurred while creating operation: {e}."
+                "Unexpected error occurred while creating operation: " + str(e)
             )
 
     def _create_operation_item(self, item):
-        self.logger.info(f"Creating operation of type: {item.text()}.")
+        self.logger.info("Creating operation of type: " + str(item.text()))
         try:
             attr_oper = self._operations_from_name[item.text()]()
             self.create_operation(attr_oper)
         except Exception as e:
             self.logger.error(
-                f"Unexpected error occurred while creating operation: {e}."
+                "Unexpected error occurred while creating operation: " + str(e)
             )
 
     def _refresh_operations_list_from_namespace(self):
@@ -607,9 +607,11 @@ class MainWindow(QMainWindow):
 
             if type(source.port) == type(destination.port):
                 self.logger.warning(
-                    "Cannot connect port of type:"
-                    f" {type(source.port).__name__} to port of type:"
-                    f" {type(destination.port).__name__}."
+                    "Cannot connect port of type: %s to port of type: %s."
+                    % (
+                        type(source.port).__name__,
+                        type(destination.port).__name__,
+                    )
                 )
                 continue
 
@@ -659,7 +661,7 @@ class MainWindow(QMainWindow):
 
     def _simulate_sfg(self):
         for sfg, properties in self.dialog.properties.items():
-            self.logger.info(f"Simulating SFG with name: {sfg.name}.")
+            self.logger.info(f"Simulating SFG with name: " + str(sfg.name))
             simulation = FastSimulation(
                 sfg, input_providers=properties["input_values"]
             )
@@ -676,7 +678,7 @@ class MainWindow(QMainWindow):
 
             if properties["show_plot"]:
                 self.logger.info(
-                    f"Opening plot for SFG with name: {sfg.name}."
+                    "Opening plot for SFG with name: " + str(sfg.name)
                 )
                 self.logger.info(
                     "To save the plot press 'Ctrl+S' when the plot is focused."

@@ -8,8 +8,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
 )
 
-from b_asic.signal_flow_graph import SFG
-
 
 class ShowPCWindow(QDialog):
     pc = Signal()

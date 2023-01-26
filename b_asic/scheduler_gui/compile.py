@@ -62,18 +62,18 @@ def compile_rc(*filenames: str) -> None:
     def compile(filename: str = None) -> None:
         outfile = f"{os.path.splitext(filename)[0]}_rc.py"
         rcc = shutil.which("pyside2-rcc")
-        args = f"-g python -o {outfile} {filename}"
+        arguments = f"-g python -o {outfile} {filename}"
 
         if rcc is None:
             rcc = shutil.which("rcc")
         if rcc is None:
             rcc = shutil.which("pyrcc5")
-            args = f"-o {outfile} {filename}"
+            arguments = f"-o {outfile} {filename}"
         assert rcc, "PySide2 compiler failed, can't find rcc"
 
         os_ = sys.platform
         if os_.startswith("linux"):  # Linux
-            cmd = f"{rcc} {args}"
+            cmd = f"{rcc} {arguments}"
             subprocess.call(cmd.split())
 
         elif os_.startswith("win32"):  # Windows
@@ -126,25 +126,25 @@ def compile_ui(*filenames: str) -> None:
     _check_qt_version()
 
     def compile(filename: str) -> None:
-        dir, file = os.path.split(filename)
+        directory, file = os.path.split(filename)
         file = os.path.splitext(file)[0]
-        dir = dir if dir else "."
-        outfile = f"{dir}/ui_{file}.py"
+        directory = directory if directory else "."
+        outfile = f"{directory}/ui_{file}.py"
 
         if uic.PYSIDE2:
             uic_ = shutil.which("pyside2-uic")
-            args = f"-g python -o {outfile} {filename}"
+            arguments = f"-g python -o {outfile} {filename}"
 
             if uic_ is None:
                 uic_ = shutil.which("uic")
             if uic_ is None:
                 uic_ = shutil.which("pyuic5")
-                args = f"-o {outfile} {filename}"
+                arguments = f"-o {outfile} {filename}"
             assert uic_, "PySide2 compiler failed, can't find uic"
 
             os_ = sys.platform
             if os_.startswith("linux"):  # Linux
-                cmd = f"{uic_} {args}"
+                cmd = f"{uic_} {arguments}"
                 subprocess.call(cmd.split())
 
             elif os_.startswith("win32"):  # Windows

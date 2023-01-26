@@ -26,7 +26,7 @@ QUESTIONS = {
         "the selection box will then be selected."
     ),
     "Selecting multiple operations using without dragging": (
-        "To select mutliple operations using without dragging, \n"
+        "To select multiple operations using without dragging, \n"
         "press 'Ctrl+LMouseButton' on any operation."
     ),
     "Remove operations": (
@@ -70,7 +70,7 @@ class KeybindsWindow(QDialog):
         super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
-        self.setWindowTitle("B-ASIC Keybinds")
+        self.setWindowTitle("B-ASIC Keybindings")
 
         self.dialog_layout = QVBoxLayout()
         self.setLayout(self.dialog_layout)
@@ -81,7 +81,7 @@ class KeybindsWindow(QDialog):
         information_layout = QVBoxLayout()
 
         title_label = QLabel("B-ASIC / Better ASIC Toolbox")
-        subtitle_label = QLabel("Keybinds in the GUI.")
+        subtitle_label = QLabel("Keybindings in the GUI.")
 
         frame = QFrame()
         frame.setFrameShape(QFrame.HLine)

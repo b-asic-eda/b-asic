@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
 )
 
 # B-ASIC
-from b_asic.graph_component import GraphComponent
+from b_asic.operation import Operation
 from b_asic.scheduler_gui._preferences import (
     OPERATION_EXECUTION_TIME_INACTIVE,
     OPERATION_LATENCY_ACTIVE,
@@ -33,7 +33,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     _scale: float = 1.0
     """Static, changed from MainWindow."""
-    _operation: GraphComponent
+    _operation: Operation
     _height: float
     _ports: Dict[
         str, Dict[str, Union[float, QPointF]]
@@ -46,7 +46,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
 
     def __init__(
         self,
-        operation: GraphComponent,
+        operation: Operation,
         height: float = 0.75,
         parent: Optional[QGraphicsItem] = None,
     ):
@@ -93,7 +93,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         return self._operation.graph_id
 
     @property
-    def operation(self) -> GraphComponent:
+    def operation(self) -> Operation:
         """Get the operation."""
         return self._operation
 

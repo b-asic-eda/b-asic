@@ -67,7 +67,6 @@ class SimulateSFGWindow(QDialog):
         }
 
         if sfg.input_count > 0:
-            input_label = QHBoxLayout()
             input_label = QLabel("Input values:")
             options_layout.addRow(input_label)
 

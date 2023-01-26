@@ -78,7 +78,7 @@ class Arrow(QGraphicsPathItem):
 
     def moveLine(self):
         """
-        Draw a line connecting self.source with self.destination. Used as callback when moving operations.
+        Draw a line connecting ``self.source`` with ``self.destination``. Used as callback when moving operations.
         """
         ORTHOGONAL = True
         OFFSET = 2 * PORTWIDTH
