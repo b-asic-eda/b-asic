@@ -11,13 +11,16 @@ from io import StringIO
 from numbers import Number
 from queue import PriorityQueue
 from typing import (
+    cast,
     DefaultDict,
+    Deque,
     Dict,
     Iterable,
     List,
     MutableSet,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Union,
 )
@@ -38,7 +41,7 @@ from b_asic.operation import (
     Operation,
     ResultKey,
 )
-from b_asic.port import OutputPort, SignalSourceProvider
+from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 
@@ -50,7 +53,7 @@ class GraphIDGenerator:
 
     _next_id_number: DefaultDict[TypeName, GraphIDNumber]
 
-    def __init__(self, id_number_offset: GraphIDNumber = 0):
+    def __init__(self, id_number_offset: GraphIDNumber = GraphIDNumber(0)):
         """Construct a GraphIDGenerator."""
         self._next_id_number = defaultdict(lambda: id_number_offset)
 
@@ -89,10 +92,11 @@ class SFG(AbstractOperation):
     _graph_id_generator: GraphIDGenerator
     _input_operations: List[Input]
     _output_operations: List[Output]
-    _original_components_to_new: MutableSet[GraphComponent]
+    _original_components_to_new: Dict[GraphComponent, GraphComponent]
     _original_input_signals_to_indices: Dict[Signal, int]
     _original_output_signals_to_indices: Dict[Signal, int]
     _precedence_list: Optional[List[List[OutputPort]]]
+    _used_ids: Set[GraphID] = set()
 
     def __init__(
         self,
@@ -100,8 +104,8 @@ class SFG(AbstractOperation):
         outputs: Optional[Sequence[Output]] = None,
         input_signals: Optional[Sequence[Signal]] = None,
         output_signals: Optional[Sequence[Signal]] = None,
-        id_number_offset: GraphIDNumber = 0,
-        name: Name = "",
+        id_number_offset: GraphIDNumber = GraphIDNumber(0),
+        name: Name = Name(""),
         input_sources: Optional[
             Sequence[Optional[SignalSourceProvider]]
         ] = None,
@@ -139,7 +143,9 @@ class SFG(AbstractOperation):
         self._components_dfs_order = []
         self._operations_dfs_order = []
         self._operations_topological_order = []
-        self._graph_id_generator = GraphIDGenerator(id_number_offset)
+        self._graph_id_generator = GraphIDGenerator(
+            GraphIDNumber(id_number_offset)
+        )
         self._input_operations = []
         self._output_operations = []
         self._original_components_to_new = {}
@@ -154,8 +160,8 @@ class SFG(AbstractOperation):
                     raise ValueError(
                         f"Duplicate input signal {signal!r} in SFG"
                     )
-                new_input_op = self._add_component_unconnected_copy(Input())
-                new_signal = self._add_component_unconnected_copy(signal)
+                new_input_op = cast(Input, self._add_component_unconnected_copy(Input()))
+                new_signal = cast(Signal, self._add_component_unconnected_copy(signal))
                 new_signal.set_source(new_input_op.output(0))
                 self._input_operations.append(new_input_op)
                 self._original_input_signals_to_indices[signal] = input_index
@@ -184,14 +190,14 @@ class SFG(AbstractOperation):
         # Setup output signals.
         if output_signals is not None:
             for output_index, signal in enumerate(output_signals):
-                new_output_op = self._add_component_unconnected_copy(Output())
+                new_output_op = cast(Output, self._add_component_unconnected_copy(Output()))
                 if signal in self._original_components_to_new:
                     # Signal was already added when setting up inputs.
-                    new_signal = self._original_components_to_new[signal]
+                    new_signal = cast(Signal, self._original_components_to_new[signal])
                     new_signal.set_destination(new_output_op.input(0))
                 else:
                     # New signal has to be created.
-                    new_signal = self._add_component_unconnected_copy(signal)
+                    new_signal = cast(Signal, self._add_component_unconnected_copy(signal))
                     new_signal.set_destination(new_output_op.input(0))
 
                 self._output_operations.append(new_output_op)
@@ -207,7 +213,7 @@ class SFG(AbstractOperation):
                         f"Duplicate output operation {output_op!r} in SFG"
                     )
 
-                new_output_op = self._add_component_unconnected_copy(output_op)
+                new_output_op = cast(Output, self._add_component_unconnected_copy(output_op))
                 for signal in output_op.input(0).signals:
                     if signal in self._original_components_to_new:
                         # Signal was already added when setting up inputs.
@@ -233,7 +239,7 @@ class SFG(AbstractOperation):
             input_index,
         ) in self._original_input_signals_to_indices.items():
             # Check if already added destination.
-            new_signal = self._original_components_to_new[signal]
+            new_signal = cast(Signal, self._original_components_to_new[signal])
             if new_signal.destination is None:
                 if signal.destination is None:
                     raise ValueError(
@@ -412,6 +418,8 @@ class SFG(AbstractOperation):
         # For each input_signal, connect it to the corresponding operation
         for port, input_operation in zip(self.inputs, self.input_operations):
             dest = input_operation.output(0).signals[0].destination
+            if dest is None:
+                raise ValueError("Missing destination in signal.")
             dest.clear()
             port.signals[0].set_destination(dest)
         # For each output_signal, connect it to the corresponding operation
@@ -419,19 +427,21 @@ class SFG(AbstractOperation):
             self.outputs, self.output_operations
         ):
             src = output_operation.input(0).signals[0].source
+            if src is None:
+                raise ValueError("Missing soruce in signal.")
             src.clear()
             port.signals[0].set_source(src)
         return True
 
     @property
-    def input_operations(self) -> Iterable[Operation]:
+    def input_operations(self) -> Sequence[Operation]:
         """
         Get the internal input operations in the same order as their respective input ports.
         """
         return self._input_operations
 
     @property
-    def output_operations(self) -> Iterable[Operation]:
+    def output_operations(self) -> Sequence[Operation]:
         """
         Get the internal output operations in the same order as their respective output ports.
         """
@@ -456,8 +466,8 @@ class SFG(AbstractOperation):
             for index, input_op in enumerate(self._input_operations)
         }
         output_op = self._output_operations[output_index]
-        queue = deque([output_op])
-        visited = {output_op}
+        queue: Deque[Operation] = deque([output_op])
+        visited: Set[Operation] = {output_op}
         while queue:
             op = queue.popleft()
             if isinstance(op, Input):
@@ -494,12 +504,12 @@ class SFG(AbstractOperation):
         return self._graph_id_generator.id_number_offset
 
     @property
-    def components(self) -> Iterable[GraphComponent]:
+    def components(self) -> List[GraphComponent]:
         """Get all components of this graph in depth-first order."""
         return self._components_dfs_order
 
     @property
-    def operations(self) -> Iterable[Operation]:
+    def operations(self) -> List[Operation]:
         """Get all operations of this graph in depth-first order."""
         return self._operations_dfs_order
 
@@ -624,7 +634,7 @@ class SFG(AbstractOperation):
 
         # Preserve the original SFG by creating a copy.
         sfg_copy = self()
-        output_comp = sfg_copy.find_by_id(output_comp_id)
+        output_comp = cast(Operation, sfg_copy.find_by_id(output_comp_id))
         if output_comp is None:
             return None
 
@@ -642,7 +652,7 @@ class SFG(AbstractOperation):
         )
 
         for index, signal_in in enumerate(output_comp.output_signals):
-            destination = signal_in.destination
+            destination = cast(InputPort, signal_in.destination)
             signal_in.set_destination(component.input(index))
             destination.connect(component.output(index))
 
@@ -655,7 +665,7 @@ class SFG(AbstractOperation):
         be raised. If no operation with the entered operation_id is found then returns None and does nothing.
         """
         sfg_copy = self()
-        operation = sfg_copy.find_by_id(operation_id)
+        operation = cast(Operation, sfg_copy.find_by_id(operation_id))
         if operation is None:
             return None
 
@@ -672,7 +682,7 @@ class SFG(AbstractOperation):
                     and operation.input(i).signals[0].source is not None
                 ):
                     in_sig = operation.input(i).signals[0]
-                    source_port = in_sig.source
+                    source_port = cast(OutputPort, in_sig.source)
                     source_port.remove_signal(in_sig)
                     operation.input(i).remove_signal(in_sig)
                     for out_sig in outport.signals.copy():
@@ -809,7 +819,7 @@ class SFG(AbstractOperation):
         }
 
         # Maps number of input counts to a queue of seen objects with such a size.
-        seen_with_inputs_dict = defaultdict(deque)
+        seen_with_inputs_dict: Dict[int, Deque] = defaultdict(deque)
         seen = set()
         top_order = []
 
@@ -904,7 +914,7 @@ class SFG(AbstractOperation):
     def set_latency_of_type(self, type_name: TypeName, latency: int) -> None:
         """Set the latency of all components with the given type name."""
         for op in self.find_by_type_name(type_name):
-            op.set_latency(latency)
+            cast(Operation, op).set_latency(latency)
 
     def set_execution_time_of_type(
         self, type_name: TypeName, execution_time: int
@@ -912,7 +922,7 @@ class SFG(AbstractOperation):
         """Set the execution time of all components with the given type name.
         """
         for op in self.find_by_type_name(type_name):
-            op.execution_time = execution_time
+            cast(Operation, op).execution_time = execution_time
 
     def set_latency_offsets_of_type(
         self, type_name: TypeName, latency_offsets: Dict[str, int]
@@ -920,7 +930,7 @@ class SFG(AbstractOperation):
         """Set the latency offset of all components with the given type name.
         """
         for op in self.find_by_type_name(type_name):
-            op.set_latency_offsets(latency_offsets)
+            cast(Operation, op).set_latency_offsets(latency_offsets)
 
     def _traverse_for_precedence_list(
         self, first_iter_ports: List[OutputPort]
@@ -983,11 +993,11 @@ class SFG(AbstractOperation):
             original_op = op_stack.pop()
             # Add or get the new copy of the operation.
             if original_op not in self._original_components_to_new:
-                new_op = self._add_component_unconnected_copy(original_op)
+                new_op = cast(Operation, self._add_component_unconnected_copy(original_op))
                 self._components_dfs_order.append(new_op)
                 self._operations_dfs_order.append(new_op)
             else:
-                new_op = self._original_components_to_new[original_op]
+                new_op = cast(Operation, self._original_components_to_new[original_op])
 
             # Connect input ports to new signals.
             for original_input_port in original_op.inputs:
@@ -1001,18 +1011,20 @@ class SFG(AbstractOperation):
                         in self._original_input_signals_to_indices
                     ):
                         # New signal already created during first step of constructor.
-                        new_signal = self._original_components_to_new[
+                        new_signal = cast(Signal, self._original_components_to_new[
                             original_signal
-                        ]
+                        ])
+
                         new_signal.set_destination(
                             new_op.input(original_input_port.index)
                         )
 
+                        source = cast(OutputPort, new_signal.source)
                         self._components_dfs_order.extend(
-                            [new_signal, new_signal.source.operation]
+                            [new_signal, source.operation]
                         )
                         self._operations_dfs_order.append(
-                            new_signal.source.operation
+                            source.operation
                         )
 
                     # Check if the signal has not been added before.
@@ -1024,9 +1036,10 @@ class SFG(AbstractOperation):
                                 "Dangling signal without source in SFG"
                             )
 
-                        new_signal = self._add_component_unconnected_copy(
+                        new_signal = cast(Signal, self._add_component_unconnected_copy(
                             original_signal
-                        )
+                        ))
+
                         new_signal.set_destination(
                             new_op.input(original_input_port.index)
                         )
@@ -1041,15 +1054,16 @@ class SFG(AbstractOperation):
                             original_connected_op
                             in self._original_components_to_new
                         ):
+                            component = cast(Operation, self._original_components_to_new[
+                                original_connected_op
+                            ])
                             # Set source to the already added operations port.
                             new_signal.set_source(
-                                self._original_components_to_new[
-                                    original_connected_op
-                                ].output(original_signal.source.index)
+                                component.output(original_signal.source.index)
                             )
                         else:
                             # Create new operation, set signal source to it.
-                            new_connected_op = (
+                            new_connected_op = cast(Operation,
                                 self._add_component_unconnected_copy(
                                     original_connected_op
                                 )
@@ -1075,18 +1089,20 @@ class SFG(AbstractOperation):
                         in self._original_output_signals_to_indices
                     ):
                         # New signal already created during first step of constructor.
-                        new_signal = self._original_components_to_new[
+                        new_signal = cast(Signal, self._original_components_to_new[
                             original_signal
-                        ]
+                        ])
+
                         new_signal.set_source(
                             new_op.output(original_output_port.index)
                         )
 
+                        destination = cast(InputPort, new_signal.destination)
                         self._components_dfs_order.extend(
-                            [new_signal, new_signal.destination.operation]
+                            [new_signal, destination.operation]
                         )
                         self._operations_dfs_order.append(
-                            new_signal.destination.operation
+                            destination.operation
                         )
 
                     # Check if signal has not been added before.
@@ -1110,6 +1126,10 @@ class SFG(AbstractOperation):
                         original_connected_op = (
                             original_signal.destination.operation
                         )
+                        if original_connected_op is None:
+                            raise ValueError(
+                                "Signal without destination in SFG"
+                            )
                         # Check if connected operation has been added.
                         if (
                             original_connected_op

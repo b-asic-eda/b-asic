@@ -52,7 +52,13 @@ class OperatorProcess(Process):
         -------
         object
         """
-        super().__init__(start_time, operation.execution_time)
+        execution_time = operation.execution_time
+        if execution_time is None:
+            raise ValueError(
+                "Operation {operation!r} does not have an execution time"
+                " specified!"
+            )
+        super().__init__(start_time, execution_time)
         self._operation = operation
 
 
@@ -75,11 +81,11 @@ class MemoryVariable(Process):
         )
 
     @property
-    def life_times(self) -> Tuple[int]:
+    def life_times(self) -> Tuple[int, ...]:
         return self._life_times
 
     @property
-    def read_ports(self) -> Tuple[InputPort]:
+    def read_ports(self) -> Tuple[InputPort, ...]:
         return self._read_ports
 
     @property
@@ -108,11 +114,11 @@ class PlainMemoryVariable(Process):
         )
 
     @property
-    def life_times(self) -> Tuple[int]:
+    def life_times(self) -> Tuple[int, ...]:
         return self._life_times
 
     @property
-    def read_ports(self) -> Tuple[int]:
+    def read_ports(self) -> Tuple[int, ...]:
         return self._read_ports
 
     @property

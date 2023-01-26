@@ -158,7 +158,7 @@ class Delay(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "t"
+        return TypeName("t")
 
     def evaluate(self, a):
         return self.param("initial_value")

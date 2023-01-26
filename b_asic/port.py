@@ -6,7 +6,7 @@ Contains classes for managing the ports of operations.
 
 from abc import ABC, abstractmethod
 from copy import copy
-from typing import TYPE_CHECKING, Iterable, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from b_asic.graph_component import Name
 from b_asic.signal import Signal
@@ -61,7 +61,7 @@ class Port(ABC):
 
     @property
     @abstractmethod
-    def signals(self) -> Iterable[Signal]:
+    def signals(self) -> Sequence[Signal]:
         """Return all connected signals."""
         raise NotImplementedError
 
@@ -168,7 +168,7 @@ class InputPort(AbstractPort):
         return 0 if self._source_signal is None else 1
 
     @property
-    def signals(self) -> Iterable[Signal]:
+    def signals(self) -> Sequence[Signal]:
         return [] if self._source_signal is None else [self._source_signal]
 
     def add_signal(self, signal: Signal) -> None:
@@ -238,7 +238,7 @@ class OutputPort(AbstractPort, SignalSourceProvider):
         return len(self._destination_signals)
 
     @property
-    def signals(self) -> Iterable[Signal]:
+    def signals(self) -> Sequence[Signal]:
         return self._destination_signals
 
     def add_signal(self, signal: Signal) -> None:

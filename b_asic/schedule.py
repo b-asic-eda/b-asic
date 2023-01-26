@@ -7,7 +7,7 @@ Contains the schedule class for scheduling operations in an SFG.
 import io
 import sys
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import cast, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -16,7 +16,7 @@ from matplotlib.path import Path
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
-from b_asic import OutputPort, Signal
+from b_asic import Signal
 from b_asic._preferences import (
     EXECUTION_TIME_COLOR,
     LATENCY_COLOR,
@@ -24,6 +24,8 @@ from b_asic._preferences import (
     SIGNAL_LINEWIDTH,
 )
 from b_asic.graph_component import GraphID
+from b_asic.operation import Operation
+from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, Process
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Output
@@ -39,7 +41,7 @@ class Schedule:
 
     _sfg: SFG
     _start_times: Dict[GraphID, int]
-    _laps: Dict[GraphID, List[int]]
+    _laps: Dict[GraphID, int]
     _schedule_time: int
     _cyclic: bool
 
@@ -85,10 +87,10 @@ class Schedule:
         """Returns the current maximum end time among all operations."""
         max_end_time = 0
         for op_id, op_start_time in self._start_times.items():
-            op = self._sfg.find_by_id(op_id)
+            op = cast(Operation, self._sfg.find_by_id(op_id))
             for outport in op.outputs:
                 max_end_time = max(
-                    max_end_time, op_start_time + outport.latency_offset
+                    max_end_time, op_start_time + cast(int, outport.latency_offset)
                 )
         return max_end_time
 
@@ -108,15 +110,16 @@ class Schedule:
     ) -> Dict["OutputPort", Dict["Signal", int]]:
         ret = {}
         start_time = self._start_times[op_id]
-        op = self._sfg.find_by_id(op_id)
+        op = cast(Operation, self._sfg.find_by_id(op_id))
         for output_port in op.outputs:
             output_slacks = {}
-            available_time = start_time + output_port.latency_offset
+            available_time = start_time + cast(int, output_port.latency_offset)
 
             for signal in output_port.signals:
+                destination = cast(InputPort, signal.destination)
                 usage_time = (
-                    signal.destination.latency_offset
-                    + self._start_times[signal.destination.operation.graph_id]
+                    cast(int, destination.latency_offset)
+                    + self._start_times[destination.operation.graph_id]
                     + self._schedule_time * self._laps[signal.graph_id]
                 )
                 output_slacks[signal] = usage_time - available_time
@@ -136,18 +139,19 @@ class Schedule:
 
     def _backward_slacks(
         self, op_id: GraphID
-    ) -> Dict[OutputPort, Dict[Signal, int]]:
+    ) -> Dict[InputPort, Dict[Signal, int]]:
         ret = {}
         start_time = self._start_times[op_id]
-        op = self._sfg.find_by_id(op_id)
+        op = cast(Operation, self._sfg.find_by_id(op_id))
         for input_port in op.inputs:
             input_slacks = {}
-            usage_time = start_time + input_port.latency_offset
+            usage_time = start_time + cast(int, input_port.latency_offset)
 
             for signal in input_port.signals:
+                source = cast(OutputPort, signal.source)
                 available_time = (
-                    signal.source.latency_offset
-                    + self._start_times[signal.source.operation.graph_id]
+                    cast(int, source.latency_offset)
+                    + self._start_times[source.operation.graph_id]
                     - self._schedule_time * self._laps[signal.graph_id]
                 )
                 input_slacks[signal] = usage_time - available_time
@@ -180,7 +184,7 @@ class Schedule:
         return self._start_times
 
     @property
-    def laps(self) -> Dict[GraphID, List[int]]:
+    def laps(self) -> Dict[GraphID, int]:
         return self._laps
 
     @property
@@ -205,7 +209,7 @@ class Schedule:
             k: factor * v for k, v in self._start_times.items()
         }
         for op_id in self._start_times:
-            self._sfg.find_by_id(op_id)._increase_time_resolution(factor)
+            cast(Operation, self._sfg.find_by_id(op_id))._increase_time_resolution(factor)
         self._schedule_time *= factor
         return self
 
@@ -218,8 +222,8 @@ class Schedule:
         ret = [self._schedule_time, *self._start_times.values()]
         # Loop over operations
         for op_id in self._start_times:
-            op = self._sfg.find_by_id(op_id)
-            ret += [op.execution_time, *op.latency_offsets.values()]
+            op = cast(Operation, self._sfg.find_by_id(op_id))
+            ret += [cast(int, op.execution_time), *op.latency_offsets.values()]
         # Remove not set values (None)
         ret = [v for v in ret if v is not None]
         return ret
@@ -256,7 +260,7 @@ class Schedule:
             k: v // factor for k, v in self._start_times.items()
         }
         for op_id in self._start_times:
-            self._sfg.find_by_id(op_id)._decrease_time_resolution(factor)
+            cast(Operation, self._sfg.find_by_id(op_id))._decrease_time_resolution(factor)
         self._schedule_time = self._schedule_time // factor
         return self
 
@@ -274,7 +278,7 @@ class Schedule:
         # Update input laps
         input_slacks = self._backward_slacks(op_id)
         for in_port, signal_slacks in input_slacks.items():
-            tmp_usage = tmp_start + in_port.latency_offset
+            tmp_usage = tmp_start + cast(int, in_port.latency_offset)
             new_usage = tmp_usage % self._schedule_time
             for signal, signal_slack in signal_slacks.items():
                 new_slack = signal_slack + time

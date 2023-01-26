@@ -187,7 +187,7 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @property
     @abstractmethod
-    def input_signals(self) -> Iterable[Signal]:
+    def input_signals(self) -> Sequence[Signal]:
         """
         Get all the signals that are connected to this operation's input ports,
         in no particular order.
@@ -196,7 +196,7 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @property
     @abstractmethod
-    def output_signals(self) -> Iterable[Signal]:
+    def output_signals(self) -> Sequence[Signal]:
         """
         Get all the signals that are connected to this operation's output ports,
         in no particular order.
@@ -390,6 +390,15 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
 
+    @abstractmethod
+    def _increase_time_resolution(self, factor: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _decrease_time_resolution(self, factor: int) -> None:
+        raise NotImplementedError
+
+
 class AbstractOperation(Operation, AbstractGraphComponent):
     """
     Generic abstract operation base class.
@@ -440,18 +449,20 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 if src is not None:
                     self._input_ports[i].connect(src.source)
 
+        # Set specific latency_offsets
+        if latency_offsets is not None:
+            self.set_latency_offsets(latency_offsets)
+
         if latency is not None:
             # Set the latency for all ports initially.
             if latency < 0:
                 raise ValueError("Latency cannot be negative")
             for inp in self.inputs:
-                inp.latency_offset = 0
+                if inp.latency_offset is None:
+                    inp.latency_offset = 0
             for outp in self.outputs:
-                outp.latency_offset = latency
-
-        # Set specific latency_offsets
-        if latency_offsets is not None:
-            self.set_latency_offsets(latency_offsets)
+                if outp.latency_offset is None:
+                    outp.latency_offset = latency
 
         self._execution_time = execution_time
 
@@ -626,7 +637,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return self._output_ports
 
     @property
-    def input_signals(self) -> Iterable[Signal]:
+    def input_signals(self) -> Sequence[Signal]:
         result = []
         for p in self.inputs:
             for s in p.signals:
@@ -634,7 +645,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return result
 
     @property
-    def output_signals(self) -> Iterable[Signal]:
+    def output_signals(self) -> Sequence[Signal]:
         result = []
         for p in self.outputs:
             for s in p.signals:

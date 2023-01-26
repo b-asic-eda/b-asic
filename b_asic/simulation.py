@@ -130,7 +130,7 @@ class Simulation:
         Run the simulation until its iteration is greater than or equal to the given iteration
         and return the output values of the last iteration.
         """
-        result = []
+        result: Sequence[Number] = []
         while self._iteration < iteration:
             input_values = [
                 self._input_functions[i](self._iteration)
