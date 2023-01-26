@@ -27,10 +27,10 @@ class Signal(AbstractGraphComponent):
         source: Optional["OutputPort"] = None,
         destination: Optional["InputPort"] = None,
         bits: Optional[int] = None,
-        name: Name = "",
+        name: Name = Name(""),
     ):
         """Construct a Signal."""
-        super().__init__(name)
+        super().__init__(Name(name))
         self._source = None
         self._destination = None
         if source is not None:
@@ -41,7 +41,7 @@ class Signal(AbstractGraphComponent):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "s"
+        return TypeName("s")
 
     @property
     def neighbors(self) -> Iterable[GraphComponent]:

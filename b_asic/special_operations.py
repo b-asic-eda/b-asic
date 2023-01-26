@@ -14,7 +14,6 @@ from b_asic.operation import (
     DelayMap,
     MutableDelayMap,
     MutableResultMap,
-    ResultKey,
 )
 from b_asic.port import SignalSourceProvider
 
@@ -29,19 +28,19 @@ class Input(AbstractOperation):
 
     _execution_time = 0
 
-    def __init__(self, name: Name = ""):
+    def __init__(self, name: Name = Name("")):
         """Construct an Input operation."""
         super().__init__(
             input_count=0,
             output_count=1,
-            name=name,
+            name=Name(name),
             latency_offsets={"out0": 0},
         )
         self.set_param("value", 0)
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "in"
+        return TypeName("in")
 
     def evaluate(self):
         return self.param("value")
@@ -58,7 +57,8 @@ class Input(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[List[List[Number]], List[List[Number]]]:
+    ) -> Tuple[List[List[float]], List[List[float]]]:
+        # Doc-string inherited
         return (
             [
                 [-0.5, 0],
@@ -80,7 +80,8 @@ class Input(AbstractOperation):
 
     def get_io_coordinates(
         self,
-    ) -> Tuple[List[List[Number]], List[List[Number]]]:
+    ) -> Tuple[List[List[float]], List[List[float]]]:
+        # Doc-string inherited
         return ([], [[0, 0.5]])
 
 
@@ -96,27 +97,30 @@ class Output(AbstractOperation):
     _execution_time = 0
 
     def __init__(
-        self, src0: Optional[SignalSourceProvider] = None, name: Name = ""
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = Name(""),
     ):
         """Construct an Output operation."""
         super().__init__(
             input_count=1,
             output_count=0,
-            name=name,
+            name=Name(name),
             input_sources=[src0],
             latency_offsets={"in0": 0},
         )
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "out"
+        return TypeName("out")
 
     def evaluate(self, _):
         return None
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[List[List[Number]], List[List[Number]]]:
+    ) -> Tuple[List[List[float]], List[List[float]]]:
+        # Doc-string inherited
         return (
             [[0, 0], [0, 1], [0.25, 1], [0.5, 0.5], [0.25, 0], [0, 0]],
             [[0, 0], [0, 1], [0.25, 1], [0.5, 0.5], [0.25, 0], [0, 0]],
@@ -124,7 +128,8 @@ class Output(AbstractOperation):
 
     def get_io_coordinates(
         self,
-    ) -> Tuple[List[List[Number]], List[List[Number]]]:
+    ) -> Tuple[List[List[float]], List[List[float]]]:
+        # Doc-string inherited
         return ([[0, 0.5]], [])
 
 
@@ -140,11 +145,14 @@ class Delay(AbstractOperation):
         self,
         src0: Optional[SignalSourceProvider] = None,
         initial_value: Number = 0,
-        name: Name = "",
+        name: Name = Name(""),
     ):
         """Construct a Delay operation."""
         super().__init__(
-            input_count=1, output_count=1, name=name, input_sources=[src0]
+            input_count=1,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0],
         )
         self.set_param("initial_value", initial_value)
 

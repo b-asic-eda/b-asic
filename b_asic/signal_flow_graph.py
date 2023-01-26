@@ -63,12 +63,12 @@ class GraphIDGenerator:
         while new_id in used_ids:
             self._next_id_number[type_name] += 1
             new_id = type_name + str(self._next_id_number[type_name])
-        return new_id
+        return GraphID(new_id)
 
     @property
     def id_number_offset(self) -> GraphIDNumber:
         """Get the graph id number offset of this generator."""
-        return (
+        return GraphIDNumber(
             self._next_id_number.default_factory()
         )  # pylint: disable=not-callable
 
@@ -300,7 +300,7 @@ class SFG(AbstractOperation):
         return string_io.getvalue()
 
     def __call__(
-        self, *src: Optional[SignalSourceProvider], name: Name = ""
+        self, *src: Optional[SignalSourceProvider], name: Name = Name("")
     ) -> "SFG":
         """
         Get a new independent SFG instance that is identical to this SFG
@@ -310,13 +310,13 @@ class SFG(AbstractOperation):
             inputs=self._input_operations,
             outputs=self._output_operations,
             id_number_offset=self.id_number_offset,
-            name=name,
+            name=Name(name),
             input_sources=src if src else None,
         )
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "sfg"
+        return TypeName("sfg")
 
     def evaluate(self, *args):
         result = self.evaluate_outputs(args)
@@ -424,14 +424,14 @@ class SFG(AbstractOperation):
         return True
 
     @property
-    def input_operations(self) -> Sequence[Operation]:
+    def input_operations(self) -> Iterable[Operation]:
         """
         Get the internal input operations in the same order as their respective input ports.
         """
         return self._input_operations
 
     @property
-    def output_operations(self) -> Sequence[Operation]:
+    def output_operations(self) -> Iterable[Operation]:
         """
         Get the internal output operations in the same order as their respective output ports.
         """

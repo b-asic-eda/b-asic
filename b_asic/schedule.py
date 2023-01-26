@@ -136,7 +136,7 @@ class Schedule:
 
     def _backward_slacks(
         self, op_id: GraphID
-    ) -> Dict["OutputPort", Dict["Signal", int]]:
+    ) -> Dict[OutputPort, Dict[Signal, int]]:
         ret = {}
         start_time = self._start_times[op_id]
         op = self._sfg.find_by_id(op_id)
