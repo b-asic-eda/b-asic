@@ -90,7 +90,8 @@ class Schedule:
             op = cast(Operation, self._sfg.find_by_id(op_id))
             for outport in op.outputs:
                 max_end_time = max(
-                    max_end_time, op_start_time + cast(int, outport.latency_offset)
+                    max_end_time,
+                    op_start_time + cast(int, outport.latency_offset),
                 )
         return max_end_time
 
@@ -209,7 +210,9 @@ class Schedule:
             k: factor * v for k, v in self._start_times.items()
         }
         for op_id in self._start_times:
-            cast(Operation, self._sfg.find_by_id(op_id))._increase_time_resolution(factor)
+            cast(
+                Operation, self._sfg.find_by_id(op_id)
+            )._increase_time_resolution(factor)
         self._schedule_time *= factor
         return self
 
@@ -260,7 +263,9 @@ class Schedule:
             k: v // factor for k, v in self._start_times.items()
         }
         for op_id in self._start_times:
-            cast(Operation, self._sfg.find_by_id(op_id))._decrease_time_resolution(factor)
+            cast(
+                Operation, self._sfg.find_by_id(op_id)
+            )._decrease_time_resolution(factor)
         self._schedule_time = self._schedule_time // factor
         return self
 

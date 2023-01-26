@@ -38,7 +38,6 @@ class DragButton(QPushButton):
         self,
         name,
         operation,
-        operation_path_name,
         is_show_name,
         window,
         parent=None,
@@ -48,7 +47,6 @@ class DragButton(QPushButton):
         self.is_show_name = is_show_name
         self._window = window
         self.operation = operation
-        self.operation_path_name = operation_path_name
         self.clicked = 0
         self.pressed = False
         self._m_press = False
@@ -75,7 +73,7 @@ class DragButton(QPushButton):
         flip.triggered.connect(self._flip)
         menu.exec_(self.cursor().pos())
 
-    def show_properties_window(self, event):
+    def show_properties_window(self, event=None):
         self._properties_window = PropertiesWindow(self, self._window)
         self._properties_window.show()
 
@@ -155,7 +153,9 @@ class DragButton(QPushButton):
         path_to_image = os.path.join(
             os.path.dirname(__file__),
             "operation_icons",
-            f"{self.operation_path_name}{'_grey.png' if self.pressed else '.png'}",
+            (
+                f"{self.operation.type_name().lower()}{'_grey.png' if self.pressed else '.png'}"
+            ),
         )
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))

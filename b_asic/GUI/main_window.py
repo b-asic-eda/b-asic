@@ -489,9 +489,7 @@ class MainWindow(QMainWindow):
 
     def create_operation(self, op, position=None):
         try:
-            attr_button = DragButton(
-                op.graph_id, op, op.type_name().lower(), True, window=self
-            )
+            attr_button = DragButton(op.graph_id, op, True, window=self)
             if position is None:
                 attr_button.move(GRID * 3, GRID * 2)
             else:

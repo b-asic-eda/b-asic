@@ -160,8 +160,12 @@ class SFG(AbstractOperation):
                     raise ValueError(
                         f"Duplicate input signal {signal!r} in SFG"
                     )
-                new_input_op = cast(Input, self._add_component_unconnected_copy(Input()))
-                new_signal = cast(Signal, self._add_component_unconnected_copy(signal))
+                new_input_op = cast(
+                    Input, self._add_component_unconnected_copy(Input())
+                )
+                new_signal = cast(
+                    Signal, self._add_component_unconnected_copy(signal)
+                )
                 new_signal.set_source(new_input_op.output(0))
                 self._input_operations.append(new_input_op)
                 self._original_input_signals_to_indices[signal] = input_index
@@ -190,14 +194,20 @@ class SFG(AbstractOperation):
         # Setup output signals.
         if output_signals is not None:
             for output_index, signal in enumerate(output_signals):
-                new_output_op = cast(Output, self._add_component_unconnected_copy(Output()))
+                new_output_op = cast(
+                    Output, self._add_component_unconnected_copy(Output())
+                )
                 if signal in self._original_components_to_new:
                     # Signal was already added when setting up inputs.
-                    new_signal = cast(Signal, self._original_components_to_new[signal])
+                    new_signal = cast(
+                        Signal, self._original_components_to_new[signal]
+                    )
                     new_signal.set_destination(new_output_op.input(0))
                 else:
                     # New signal has to be created.
-                    new_signal = cast(Signal, self._add_component_unconnected_copy(signal))
+                    new_signal = cast(
+                        Signal, self._add_component_unconnected_copy(signal)
+                    )
                     new_signal.set_destination(new_output_op.input(0))
 
                 self._output_operations.append(new_output_op)
@@ -213,7 +223,9 @@ class SFG(AbstractOperation):
                         f"Duplicate output operation {output_op!r} in SFG"
                     )
 
-                new_output_op = cast(Output, self._add_component_unconnected_copy(output_op))
+                new_output_op = cast(
+                    Output, self._add_component_unconnected_copy(output_op)
+                )
                 for signal in output_op.input(0).signals:
                     if signal in self._original_components_to_new:
                         # Signal was already added when setting up inputs.
@@ -993,11 +1005,16 @@ class SFG(AbstractOperation):
             original_op = op_stack.pop()
             # Add or get the new copy of the operation.
             if original_op not in self._original_components_to_new:
-                new_op = cast(Operation, self._add_component_unconnected_copy(original_op))
+                new_op = cast(
+                    Operation,
+                    self._add_component_unconnected_copy(original_op),
+                )
                 self._components_dfs_order.append(new_op)
                 self._operations_dfs_order.append(new_op)
             else:
-                new_op = cast(Operation, self._original_components_to_new[original_op])
+                new_op = cast(
+                    Operation, self._original_components_to_new[original_op]
+                )
 
             # Connect input ports to new signals.
             for original_input_port in original_op.inputs:
@@ -1011,9 +1028,10 @@ class SFG(AbstractOperation):
                         in self._original_input_signals_to_indices
                     ):
                         # New signal already created during first step of constructor.
-                        new_signal = cast(Signal, self._original_components_to_new[
-                            original_signal
-                        ])
+                        new_signal = cast(
+                            Signal,
+                            self._original_components_to_new[original_signal],
+                        )
 
                         new_signal.set_destination(
                             new_op.input(original_input_port.index)
@@ -1023,9 +1041,7 @@ class SFG(AbstractOperation):
                         self._components_dfs_order.extend(
                             [new_signal, source.operation]
                         )
-                        self._operations_dfs_order.append(
-                            source.operation
-                        )
+                        self._operations_dfs_order.append(source.operation)
 
                     # Check if the signal has not been added before.
                     elif (
@@ -1036,9 +1052,12 @@ class SFG(AbstractOperation):
                                 "Dangling signal without source in SFG"
                             )
 
-                        new_signal = cast(Signal, self._add_component_unconnected_copy(
-                            original_signal
-                        ))
+                        new_signal = cast(
+                            Signal,
+                            self._add_component_unconnected_copy(
+                                original_signal
+                            ),
+                        )
 
                         new_signal.set_destination(
                             new_op.input(original_input_port.index)
@@ -1054,19 +1073,23 @@ class SFG(AbstractOperation):
                             original_connected_op
                             in self._original_components_to_new
                         ):
-                            component = cast(Operation, self._original_components_to_new[
-                                original_connected_op
-                            ])
+                            component = cast(
+                                Operation,
+                                self._original_components_to_new[
+                                    original_connected_op
+                                ],
+                            )
                             # Set source to the already added operations port.
                             new_signal.set_source(
                                 component.output(original_signal.source.index)
                             )
                         else:
                             # Create new operation, set signal source to it.
-                            new_connected_op = cast(Operation,
+                            new_connected_op = cast(
+                                Operation,
                                 self._add_component_unconnected_copy(
                                     original_connected_op
-                                )
+                                ),
                             )
                             new_signal.set_source(
                                 new_connected_op.output(
@@ -1089,9 +1112,10 @@ class SFG(AbstractOperation):
                         in self._original_output_signals_to_indices
                     ):
                         # New signal already created during first step of constructor.
-                        new_signal = cast(Signal, self._original_components_to_new[
-                            original_signal
-                        ])
+                        new_signal = cast(
+                            Signal,
+                            self._original_components_to_new[original_signal],
+                        )
 
                         new_signal.set_source(
                             new_op.output(original_output_port.index)

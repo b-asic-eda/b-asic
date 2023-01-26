@@ -138,5 +138,46 @@ def test_help_dialogs(qtbot):
     widget.display_faq_page()
     widget.display_about_page()
     widget.display_keybinds_page()
+    qtbot.wait(100)
+    widget.faq_page.close()
+    widget.about_page.close()
+    widget.keybinds_page.close()
+
+    widget.exit_app()
+
+
+def test_properties_window_smoke_test(qtbot, datadir):
+    # Smoke test to open up the properties window
+    # Should really check that the contents are correct and changes works etc
+    widget = GUI.MainWindow()
+    qtbot.addWidget(widget)
+    widget._load_from_file(datadir.join('twotapfir.py'))
+    sfg = widget.sfg_dict['twotapfir']
+    op = sfg.find_by_name("cmul2")[0]
+    dragbutton = widget.operationDragDict[op]
+    dragbutton.show_properties_window()
+    assert dragbutton._properties_window.operation == dragbutton
+    qtbot.mouseClick(dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton)
+    widget.exit_app()
+
+
+def test_properties_window_change_name(qtbot, datadir):
+    # Smoke test to open up the properties window
+    # Should really check that the contents are correct and changes works etc
+    widget = GUI.MainWindow()
+    qtbot.addWidget(widget)
+    widget._load_from_file(datadir.join('twotapfir.py'))
+    sfg = widget.sfg_dict['twotapfir']
+    op = sfg.find_by_name("cmul2")[0]
+    dragbutton = widget.operationDragDict[op]
+    assert dragbutton.name == "cmul2"
+    assert dragbutton.operation.name == "cmul2"
+    dragbutton.show_properties_window()
+    assert dragbutton._properties_window.edit_name.text() == "cmul2"
+    dragbutton._properties_window.edit_name.setText("cmul73")
+    qtbot.mouseClick(dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton)
+    dragbutton._properties_window.save_properties()
+    assert dragbutton.name == "cmul73"
+    assert dragbutton.operation.name == "cmul73"
 
     widget.exit_app()

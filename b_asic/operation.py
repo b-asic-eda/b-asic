@@ -389,7 +389,6 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         raise NotImplementedError
 
-
     @abstractmethod
     def _increase_time_resolution(self, factor: int) -> None:
         raise NotImplementedError

@@ -23,7 +23,9 @@ class PropertiesWindow(QDialog):
         self.name_layout = QHBoxLayout()
         self.name_layout.setSpacing(50)
         self.name_label = QLabel("Name:")
-        self.edit_name = QLineEdit(self.operation.operation_path_name)
+        self.edit_name = QLineEdit(
+            self.operation.name or self.operation.type_name
+        )
         self.name_layout.addWidget(self.name_label)
         self.name_layout.addWidget(self.edit_name)
         self.latency_fields = {}
