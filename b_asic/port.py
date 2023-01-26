@@ -42,7 +42,7 @@ class Port(ABC):
 
     @property
     @abstractmethod
-    def latency_offset(self) -> int:
+    def latency_offset(self) -> Optional[int]:
         """Get the latency_offset of the port."""
         raise NotImplementedError
 
@@ -126,7 +126,7 @@ class AbstractPort(Port):
         return self._index
 
     @property
-    def latency_offset(self) -> int:
+    def latency_offset(self) -> Optional[int]:
         return self._latency_offset
 
     @latency_offset.setter
@@ -199,7 +199,9 @@ class InputPort(AbstractPort):
             None if self._source_signal is None else self._source_signal.source
         )
 
-    def connect(self, src: SignalSourceProvider, name: Name = "") -> Signal:
+    def connect(
+        self, src: SignalSourceProvider, name: Name = Name("")
+    ) -> Signal:
         """
         Connect the provided signal source to this input port by creating a new signal.
         Returns the new signal.
@@ -207,7 +209,7 @@ class InputPort(AbstractPort):
         if self._source_signal is not None:
             raise ValueError("Cannot connect already connected input port.")
         # self._source_signal is set by the signal constructor.
-        return Signal(source=src.source, destination=self, name=name)
+        return Signal(source=src.source, destination=self, name=Name(name))
 
     def __lshift__(self, src: SignalSourceProvider) -> Signal:
         """

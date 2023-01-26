@@ -113,10 +113,10 @@ class AbstractGraphComponent(GraphComponent):
     _graph_id: GraphID
     _parameters: Dict[str, Any]
 
-    def __init__(self, name: Name = ""):
+    def __init__(self, name: Name = Name("")):
         """Construct a graph component."""
-        self._name = name
-        self._graph_id = ""
+        self._name = Name(name)
+        self._graph_id = GraphID("")
         self._parameters = {}
 
     def __str__(self) -> str:

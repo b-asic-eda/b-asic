@@ -26,19 +26,19 @@ class Constant(AbstractOperation):
 
     _execution_time = 0
 
-    def __init__(self, value: Number = 0, name: Name = ""):
+    def __init__(self, value: Number = 0, name: Name = Name("")):
         """Construct a Constant operation with the given value."""
         super().__init__(
             input_count=0,
             output_count=1,
-            name=name,
+            name=Name(name),
             latency_offsets={"out0": 0},
         )
         self.set_param("value", value)
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "c"
+        return TypeName("c")
 
     def evaluate(self):
         return self.param("value")
@@ -67,7 +67,7 @@ class Addition(AbstractOperation):
         self,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -75,7 +75,7 @@ class Addition(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -83,7 +83,7 @@ class Addition(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "add"
+        return TypeName("add")
 
     def evaluate(self, a, b):
         return a + b
@@ -102,7 +102,7 @@ class Subtraction(AbstractOperation):
         self,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -110,7 +110,7 @@ class Subtraction(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -118,7 +118,7 @@ class Subtraction(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "sub"
+        return TypeName("sub")
 
     def evaluate(self, a, b):
         return a - b
@@ -139,7 +139,7 @@ class AddSub(AbstractOperation):
         is_add: bool = True,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -147,7 +147,7 @@ class AddSub(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -156,7 +156,7 @@ class AddSub(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "addsub"
+        return TypeName("addsub")
 
     def evaluate(self, a, b):
         return a + b if self.is_add else a - b
@@ -185,7 +185,7 @@ class Multiplication(AbstractOperation):
         self,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -193,7 +193,7 @@ class Multiplication(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -201,7 +201,7 @@ class Multiplication(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "mul"
+        return TypeName("mul")
 
     def evaluate(self, a, b):
         return a * b
@@ -220,7 +220,7 @@ class Division(AbstractOperation):
         self,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -228,7 +228,7 @@ class Division(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -236,7 +236,7 @@ class Division(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "div"
+        return TypeName("div")
 
     def evaluate(self, a, b):
         return a / b
@@ -256,7 +256,7 @@ class Min(AbstractOperation):
         self,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -264,7 +264,7 @@ class Min(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -272,7 +272,7 @@ class Min(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "min"
+        return TypeName("min")
 
     def evaluate(self, a, b):
         if isinstance(a, complex) or isinstance(b, complex):
@@ -296,7 +296,7 @@ class Max(AbstractOperation):
         self,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -304,7 +304,7 @@ class Max(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -312,7 +312,7 @@ class Max(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "max"
+        return TypeName("max")
 
     def evaluate(self, a, b):
         if isinstance(a, complex) or isinstance(b, complex):
@@ -334,7 +334,7 @@ class SquareRoot(AbstractOperation):
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -342,7 +342,7 @@ class SquareRoot(AbstractOperation):
         super().__init__(
             input_count=1,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -350,7 +350,7 @@ class SquareRoot(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "sqrt"
+        return TypeName("sqrt")
 
     def evaluate(self, a):
         return sqrt(complex(a))
@@ -368,7 +368,7 @@ class ComplexConjugate(AbstractOperation):
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -376,7 +376,7 @@ class ComplexConjugate(AbstractOperation):
         super().__init__(
             input_count=1,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -384,7 +384,7 @@ class ComplexConjugate(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "conj"
+        return TypeName("conj")
 
     def evaluate(self, a):
         return conjugate(a)
@@ -402,7 +402,7 @@ class Absolute(AbstractOperation):
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -410,7 +410,7 @@ class Absolute(AbstractOperation):
         super().__init__(
             input_count=1,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -418,7 +418,7 @@ class Absolute(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "abs"
+        return TypeName("abs")
 
     def evaluate(self, a):
         return np_abs(a)
@@ -437,7 +437,7 @@ class ConstantMultiplication(AbstractOperation):
         self,
         value: Number = 0,
         src0: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -446,7 +446,7 @@ class ConstantMultiplication(AbstractOperation):
         super().__init__(
             input_count=1,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -455,7 +455,7 @@ class ConstantMultiplication(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "cmul"
+        return TypeName("cmul")
 
     def evaluate(self, a):
         return a * self.param("value")
@@ -486,7 +486,7 @@ class Butterfly(AbstractOperation):
         self,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -494,7 +494,7 @@ class Butterfly(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=2,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -502,7 +502,7 @@ class Butterfly(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "bfly"
+        return TypeName("bfly")
 
     def evaluate(self, a, b):
         return a + b, a - b
@@ -523,7 +523,7 @@ class MAD(AbstractOperation):
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
         src2: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -531,7 +531,7 @@ class MAD(AbstractOperation):
         super().__init__(
             input_count=3,
             output_count=1,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1, src2],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -539,7 +539,7 @@ class MAD(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "mad"
+        return TypeName("mad")
 
     def evaluate(self, a, b, c):
         return a * b + c
@@ -558,7 +558,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         value: Number = 0,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
-        name: Name = "",
+        name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
     ):
@@ -566,7 +566,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         super().__init__(
             input_count=2,
             output_count=2,
-            name=name,
+            name=Name(name),
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
@@ -575,7 +575,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return "sym2p"
+        return TypeName("sym2p")
 
     def evaluate(self, a, b):
         tmp = self.value * (b - a)
