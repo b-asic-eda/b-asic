@@ -26,8 +26,8 @@ The following packages are required in order to build the library:
     -   pybind11
     -   pyside2
     -   qtpy
-    -   scipy
     -   setuptools
+    -   setuptools_scm
 
 To build a binary distribution, the following additional packages are required:
 
@@ -36,13 +36,20 @@ To build a binary distribution, the following additional packages are required:
 
 To run the test suite, the following additional packages are required:
 
--   Python:
+-   Python (install with `pip install -r requirements_test.txt`):
     -   pytest
+    -   pytest-qt
+    -   pytest-mpl
     -   pytest-cov (for testing with coverage)
+    -   pytest-xvfb (for testing without showing windows on Linux)
+    -   pytest-xdist (for parallel testing)
 
 To generate the documentation, the following additional packages are required:
 
--   doxygen
+-   Python (install with `pip install -r requirements_doc.txt`):
+    -   sphinx
+    -   furo
+    -   numpydoc
 
 ### Using CMake directly
 
@@ -147,18 +154,25 @@ pytest
 #### Test with coverage
 
 ```
-pytest --cov=b_asic --cov-report html test
+pytest --cov=b_asic --cov-report=html test
 ```
+
+#### Test including plots
+
+```
+pytest --mpl
+```
+
 
 ### Generating documentation
 
-In `B-ASIC`:
+In `B-ASIC/docs_sphinx`:
 
 ```
-doxygen
+make html
 ```
 
-The output gets written to `B-ASIC/doc`.
+The output gets written to `B-ASIC/docs_sphinx/_build`.
 
 ## Usage
 
@@ -167,7 +181,7 @@ How to build and use the library as a user.
 ### Installation
 
 ```
-pip install b_asic
+pip install .
 ```
 
 ### Importing
