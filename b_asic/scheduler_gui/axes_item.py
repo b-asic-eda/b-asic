@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """B-ASIC Scheduler-gui Graphics Axes Item Module.
 
-Contains the scheduler-gui GraphicsAxesItem class for drawing and maintain the
+Contains the scheduler-gui AxesItem class for drawing and maintain the
 axes in a graph.
 """
 from math import pi, sin
@@ -20,10 +20,10 @@ from qtpy.QtWidgets import (
 )
 
 # B-ASIC
-from b_asic.scheduler_gui.graphics_timeline_item import GraphicsTimelineItem
+from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 
-class GraphicsAxesItem(QGraphicsItemGroup):
+class AxesItem(QGraphicsItemGroup):
     """A class to represent axes in a graph."""
 
     _scale: float = 1.0
@@ -39,7 +39,7 @@ class GraphicsAxesItem(QGraphicsItemGroup):
     _x_arrow: QGraphicsPolygonItem
     _x_scale: List[QGraphicsLineItem]
     _x_scale_labels: List[QGraphicsSimpleTextItem]
-    _x_ledger: List[Union[QGraphicsLineItem, GraphicsTimelineItem]]
+    _x_ledger: List[Union[QGraphicsLineItem, TimelineItem]]
     _x_label_offset: float
     _y_axis: QGraphicsLineItem
     _event_items: List[QGraphicsItem]
@@ -58,7 +58,7 @@ class GraphicsAxesItem(QGraphicsItemGroup):
         parent: Optional[QGraphicsItem] = None,
     ):
         """
-        Constructs a GraphicsAxesItem.
+        Constructs a AxesItem.
         *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)
@@ -153,7 +153,7 @@ class GraphicsAxesItem(QGraphicsItemGroup):
         """Register an object that receives events."""
         self._event_items.append(item)
 
-    def set_height(self, height: int) -> "GraphicsAxesItem":
+    def set_height(self, height: int) -> "AxesItem":
         # TODO: implement, docstring
         if height < 0:
             raise ValueError(
@@ -161,7 +161,7 @@ class GraphicsAxesItem(QGraphicsItemGroup):
             )
         raise NotImplementedError
 
-    def set_width(self, width: int) -> "GraphicsAxesItem":
+    def set_width(self, width: int) -> "AxesItem":
         # TODO: docstring
         if width < 0:
             raise ValueError(
@@ -241,7 +241,7 @@ class GraphicsAxesItem(QGraphicsItemGroup):
 
         self._x_ledger.insert(
             index,
-            GraphicsTimelineItem(
+            TimelineItem(
                 0,
                 0,
                 0,

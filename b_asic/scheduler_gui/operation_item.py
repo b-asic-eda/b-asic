@@ -3,7 +3,7 @@
 """
 B-ASIC Scheduler-gui Graphics Component Item Module.
 
-Contains the scheduler-gui GraphicsComponentItem class for drawing and maintain a component in a graph.
+Contains the scheduler-gui OperationItem class for drawing and maintain a component in a graph.
 """
 from typing import Dict, List, Optional, Union
 
@@ -28,7 +28,7 @@ from b_asic.scheduler_gui._preferences import (
 )
 
 
-class GraphicsComponentItem(QGraphicsItemGroup):
+class OperationItem(QGraphicsItemGroup):
     """Class to represent a component in a graph."""
 
     _scale: float = 1.0
@@ -51,7 +51,7 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         parent: Optional[QGraphicsItem] = None,
     ):
         """
-        Construct a GraphicsComponentItem. *parent* is passed to QGraphicsItemGroup's constructor.
+        Construct a OperationItem. *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)
         self._operation = operation

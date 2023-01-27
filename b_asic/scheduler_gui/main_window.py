@@ -45,9 +45,9 @@ from qtpy.QtWidgets import (
 import b_asic.scheduler_gui.logger as logger
 from b_asic.graph_component import GraphComponent
 from b_asic.schedule import Schedule
-from b_asic.scheduler_gui.graphics_axes_item import GraphicsAxesItem
-from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
-from b_asic.scheduler_gui.graphics_graph_item import GraphicsGraphItem
+from b_asic.scheduler_gui.axes_item import AxesItem
+from b_asic.scheduler_gui.operation_item import OperationItem
+from b_asic.scheduler_gui.scheduler_item import SchedulerItem
 
 sys.path.insert(0, "icons/")  # Needed for *.rc.py files in ui_main_window
 from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
@@ -91,7 +91,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     _scene: QGraphicsScene
     _schedule: Union[Schedule, None]
-    _graph: Union[GraphicsGraphItem, None]
+    _graph: Union[SchedulerItem, None]
     _scale: float
     _debug_rects: QGraphicsItemGroup
     _splitter_pos: int
@@ -148,8 +148,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )  # dummy rect to be able to setPos() graph
         self.view.setScene(self._scene)
         self.view.scale(self._scale, self._scale)
-        GraphicsComponentItem._scale = self._scale
-        GraphicsAxesItem._scale = self._scale
+        OperationItem._scale = self._scale
+        AxesItem._scale = self._scale
         self._scene.sceneRectChanged.connect(self.shrink_scene_to_min_size)
 
     @property
@@ -422,10 +422,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         alert.exec_()
 
     def open(self, schedule: Schedule) -> None:
-        """Take a Schedule and create a GraphicsGraphItem object."""
+        """Take a Schedule and create a SchedulerItem object."""
         self.close_schedule()
         self._schedule = deepcopy(schedule)
-        self._graph = GraphicsGraphItem(self.schedule)
+        self._graph = SchedulerItem(self.schedule)
         self._graph.setPos(1 / self._scale, 1 / self._scale)
         self.menu_close_schedule.setEnabled(True)
         self._scene.addItem(self._graph)

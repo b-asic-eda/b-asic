@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """B-ASIC Scheduler-gui Graphics Graph Event Module.
 
-Contains the scheduler-gui GraphicsGraphEvent class containing event filters and handlers for GraphicsGraphItem objects.
+Contains the scheduler-gui SchedulerEvent class containing event filters and handlers for SchedulerItem objects.
 """
 
 from typing import List, Optional, overload
@@ -19,15 +19,15 @@ from qtpy.QtWidgets import (
     QGraphicsSceneWheelEvent,
 )
 
-from b_asic.scheduler_gui.graphics_axes_item import GraphicsAxesItem
-from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
-from b_asic.scheduler_gui.graphics_timeline_item import GraphicsTimelineItem
+from b_asic.scheduler_gui.axes_item import AxesItem
+from b_asic.scheduler_gui.operation_item import OperationItem
+from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 
 # sys.settrace
-# class GraphicsGraphEvent(QGraphicsItemGroup, QObject):          # PySide2
-class GraphicsGraphEvent:  # PyQt5
-    """Event filter and handlers for GraphicsGraphItem"""
+# class SchedulerEvent(QGraphicsItemGroup, QObject):          # PySide2
+class SchedulerEvent:  # PyQt5
+    """Event filter and handlers for SchedulerItem"""
 
     class Signals(QObject):  # PyQt5
         """A class representing signals."""
@@ -35,7 +35,7 @@ class GraphicsGraphEvent:  # PyQt5
         component_selected = Signal(str)
         schedule_time_changed = Signal()
 
-    _axes: GraphicsAxesItem
+    _axes: AxesItem
     _current_pos: QPointF
     _delta_time: int
     _signals: Signals  # PyQt5
@@ -43,9 +43,7 @@ class GraphicsGraphEvent:  # PyQt5
     # schedule_time_changed = Signal()  # PySide2
 
     # @overload
-    def is_component_valid_pos(
-        self, item: GraphicsComponentItem, pos: float
-    ) -> bool:
+    def is_component_valid_pos(self, item: OperationItem, pos: float) -> bool:
         ...
 
     # @overload
@@ -83,7 +81,7 @@ class GraphicsGraphEvent:  # PyQt5
         """Installs an event filter for 'filterItems' on 'self', causing all events
         for 'filterItems' to first pass through 'self's sceneEventFilter()
         function. 'filterItems' can be one object or a list of objects."""
-        item: GraphicsComponentItem
+        item: OperationItem
         for item in filterItems:
             item.installSceneEventFilter(self)
 
@@ -100,7 +98,7 @@ class GraphicsGraphEvent:  # PyQt5
     def removeSceneEventFilters(self, filterItems) -> None:
         """Removes an event filter on 'filterItems' from 'self'. 'filterItems' can
         be one object or a list of objects."""
-        item: GraphicsComponentItem
+        item: OperationItem
         for item in filterItems:
             item.removeSceneEventFilter(self)
 
@@ -110,7 +108,7 @@ class GraphicsGraphEvent:  # PyQt5
         the event chain."""
         handler = None
 
-        if isinstance(item, GraphicsComponentItem):  # one component
+        if isinstance(item, OperationItem):  # one component
             switch = {
                 # QEvent.FocusIn:                         self.comp_focusInEvent,
                 # QEvent.GraphicsSceneContextMenu:        self.comp_contextMenuEvent,
@@ -129,7 +127,7 @@ class GraphicsGraphEvent:  # PyQt5
             }
             handler = switch.get(event.type())
 
-        elif isinstance(item, GraphicsTimelineItem):  # the timeline
+        elif isinstance(item, TimelineItem):  # the timeline
             switch = {
                 # QEvent.GraphicsSceneHoverEnter:         self.timeline_hoverEnterEvent,
                 # QEvent.GraphicsSceneHoverLeave:         self.timeline_hoverLeaveEvent,
@@ -157,7 +155,7 @@ class GraphicsGraphEvent:  # PyQt5
     #     return False
 
     ###############################################
-    #### Event Handlers: GraphicsComponentItem ####
+    #### Event Handlers: OperationItem ####
     ###############################################
     def comp_focusInEvent(self, event: QFocusEvent) -> None:
         ...
@@ -203,7 +201,7 @@ class GraphicsGraphEvent:  # PyQt5
                 self._current_pos.setX(self._current_pos.x() + dx)
                 self._redraw_lines(item)
 
-        item: GraphicsComponentItem = self.scene().mouseGrabberItem()
+        item: OperationItem = self.scene().mouseGrabberItem()
         delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
         if delta_x > 0.505:
             update_pos(item, 1)
@@ -216,7 +214,7 @@ class GraphicsGraphEvent:  # PyQt5
         by default be accepted, and this item is then the mouse grabber. This
         allows the item to receive future move, release and double-click events.
         """
-        item: GraphicsComponentItem = self.scene().mouseGrabberItem()
+        item: OperationItem = self.scene().mouseGrabberItem()
         self._signals.component_selected.emit(item.op_id)
         # self.component_selected.emit(item.op_id)
         self._current_pos = item.mapToParent(event.pos())
@@ -225,7 +223,7 @@ class GraphicsGraphEvent:  # PyQt5
 
     def comp_mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """Changes the cursor to OpenHandCursor when releasing an object."""
-        item: GraphicsComponentItem = self.scene().mouseGrabberItem()
+        item: OperationItem = self.scene().mouseGrabberItem()
         self.set_item_inactive(item)
         self.set_new_starttime(item)
         pos = item.x()
@@ -268,7 +266,7 @@ class GraphicsGraphEvent:  # PyQt5
                 self._delta_time += dx
                 item.set_text(self._delta_time)
 
-        item: GraphicsTimelineItem = self.scene().mouseGrabberItem()
+        item: TimelineItem = self.scene().mouseGrabberItem()
         delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
         if delta_x > 0.505:
             update_pos(item, 1)
@@ -282,7 +280,7 @@ class GraphicsGraphEvent:  # PyQt5
         by default be accepted, and this item is then the mouse grabber. This
         allows the item to receive future move, release and double-click events.
         """
-        item: GraphicsTimelineItem = self.scene().mouseGrabberItem()
+        item: TimelineItem = self.scene().mouseGrabberItem()
         self._delta_time = 0
         item.set_text(self._delta_time)
         item.show_label()
@@ -293,7 +291,7 @@ class GraphicsGraphEvent:  # PyQt5
         self, event: QGraphicsSceneMouseEvent
     ) -> None:
         """Updates the schedule time."""
-        item: GraphicsTimelineItem = self.scene().mouseGrabberItem()
+        item: TimelineItem = self.scene().mouseGrabberItem()
         item.hide_label()
         if self._delta_time != 0:
             self.set_schedule_time(self._delta_time)

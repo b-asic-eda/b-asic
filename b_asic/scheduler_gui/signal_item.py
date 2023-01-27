@@ -9,24 +9,24 @@ from b_asic.scheduler_gui._preferences import (
     SIGNAL_INACTIVE,
     SIGNAL_WIDTH,
 )
-from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
+from b_asic.scheduler_gui.operation_item import OperationItem
 
 # B-ASIC
 from b_asic.signal import Signal
 
 
-class GraphicsSignal(QGraphicsPathItem):
+class SignalItem(QGraphicsPathItem):
     _path: Optional[QPainterPath] = None
-    _src_operation: GraphicsComponentItem
-    _dest_operation: GraphicsComponentItem
+    _src_operation: OperationItem
+    _dest_operation: OperationItem
     _signal: Signal
     _active_pen: QPen
     _inactive_pen: QPen
 
     def __init__(
         self,
-        src_operation: GraphicsComponentItem,
-        dest_operation: GraphicsComponentItem,
+        src_operation: OperationItem,
+        dest_operation: OperationItem,
         signal: Signal,
         parent: Optional[QGraphicsItem] = None,
     ):

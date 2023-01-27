@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """B-ASIC Scheduler-gui Graphics Graph Item Module.
 
-Contains the scheduler-gui GraphicsGraphItem class for drawing and
+Contains the scheduler-gui SchedulerItem class for drawing and
 maintain a component in a graph.
 """
 from collections import defaultdict
@@ -15,36 +15,34 @@ from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
 
 # B-ASIC
 from b_asic.schedule import Schedule
-from b_asic.scheduler_gui.graphics_axes_item import GraphicsAxesItem
-from b_asic.scheduler_gui.graphics_component_item import GraphicsComponentItem
-from b_asic.scheduler_gui.graphics_graph_event import GraphicsGraphEvent
-from b_asic.scheduler_gui.graphics_signal import GraphicsSignal
+from b_asic.scheduler_gui.axes_item import AxesItem
+from b_asic.scheduler_gui.operation_item import OperationItem
+from b_asic.scheduler_gui.scheduler_event import SchedulerEvent
+from b_asic.scheduler_gui.signal_item import SignalItem
 
 
-class GraphicsGraphItem(
-    GraphicsGraphEvent, QGraphicsItemGroup
-):  # PySide2 / PyQt5
-    # class GraphicsGraphItem(QGraphicsItemGroup, GraphicsGraphEvent):      # PyQt5
+class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
+    # class SchedulerItem(QGraphicsItemGroup, SchedulerEvent):      # PyQt5
     """A class to represent a graph in a QGraphicsScene. This class is a
     subclass of QGraphicsItemGroup and contains the objects, axes from
-    GraphicsAxesItem, as well as components from GraphicsComponentItem. It
-    also inherits from GraphicsGraphEvent, which acts as a filter for events
-    to GraphicsComponentItem objects."""
+    AxesItem, as well as components from OperationItem. It
+    also inherits from SchedulerEvent, which acts as a filter for events
+    to OperationItem objects."""
     _schedule: Schedule
-    _axes: GraphicsAxesItem
-    _components: List[GraphicsComponentItem]
+    _axes: AxesItem
+    _components: List[OperationItem]
     _components_height: float
     _x_axis_indent: float
     _event_items: List[QGraphicsItem]
-    _signal_dict: Dict[GraphicsComponentItem, Set[GraphicsSignal]]
+    _signal_dict: Dict[OperationItem, Set[SignalItem]]
 
     def __init__(
         self, schedule: Schedule, parent: Optional[QGraphicsItem] = None
     ):
-        """Constructs a GraphicsGraphItem. 'parent' is passed to QGraphicsItemGroup's constructor.
+        """Constructs a SchedulerItem. 'parent' is passed to QGraphicsItemGroup's constructor.
         """
         # QGraphicsItemGroup.__init__(self, self)
-        # GraphicsGraphEvent.__init__(self)
+        # SchedulerEvent.__init__(self)
         super().__init__(parent=parent)
         # if isinstance(parent, QGraphicsItem):
         #     super().__init__(parent=parent)
@@ -67,9 +65,7 @@ class GraphicsGraphItem(
             item.setParentItem(None)
             del item
 
-    def is_component_valid_pos(
-        self, item: GraphicsComponentItem, pos: float
-    ) -> bool:
+    def is_component_valid_pos(self, item: OperationItem, pos: float) -> bool:
         """Takes in a component position and returns true if the component's new
         position is valid, false otherwise."""
         # TODO: implement
@@ -96,22 +92,22 @@ class GraphicsGraphItem(
 
         return True
 
-    def _redraw_lines(self, item: GraphicsComponentItem):
+    def _redraw_lines(self, item: OperationItem):
         """Update lines connected to *item*."""
         for signal in self._signal_dict[item]:
             signal.update_path()
 
-    def set_item_active(self, item: GraphicsComponentItem):
+    def set_item_active(self, item: OperationItem):
         item.set_active()
         for signal in self._signal_dict[item]:
             signal.set_active()
 
-    def set_item_inactive(self, item: GraphicsComponentItem):
+    def set_item_inactive(self, item: OperationItem):
         item.set_inactive()
         for signal in self._signal_dict[item]:
             signal.set_inactive()
 
-    def set_new_starttime(self, item: GraphicsComponentItem) -> None:
+    def set_new_starttime(self, item: OperationItem) -> None:
         """Set new starttime for *item*."""
         pos = item.x()
         op_start_time = self.schedule.start_time_of_operation(item.op_id)
@@ -149,11 +145,11 @@ class GraphicsGraphItem(
         return self._schedule
 
     @property
-    def axes(self) -> GraphicsAxesItem:
+    def axes(self) -> AxesItem:
         return self._axes
 
     @property
-    def components(self) -> List[GraphicsComponentItem]:
+    def components(self) -> List[OperationItem]:
         return self._components
 
     @property
@@ -172,7 +168,7 @@ class GraphicsGraphItem(
 
             #            if not isinstance(op, (Input, Output)):
             self._components_height += spacing
-            component = GraphicsComponentItem(operation, parent=self)
+            component = OperationItem(operation, parent=self)
             component.setPos(
                 self._x_axis_indent + op_start_time, self._components_height
             )
@@ -184,9 +180,7 @@ class GraphicsGraphItem(
 
         # build axes
         schedule_time = self.schedule.schedule_time
-        self._axes = GraphicsAxesItem(
-            schedule_time, self._components_height - spacing
-        )
+        self._axes = AxesItem(schedule_time, self._components_height - spacing)
         self._axes.setPos(0, self._components_height + spacing * 2)
         self._event_items += self._axes.event_items
         # self._axes.width = schedule_time
@@ -205,7 +199,7 @@ class GraphicsGraphItem(
                     dest_component = _components_dict[
                         signal.destination.operation
                     ]
-                    gui_signal = GraphicsSignal(
+                    gui_signal = SignalItem(
                         component, dest_component, signal, parent=self
                     )
                     self.addToGroup(gui_signal)
@@ -213,4 +207,4 @@ class GraphicsGraphItem(
                     self._signal_dict[dest_component].add(gui_signal)
 
 
-pprint(GraphicsGraphItem.__mro__)
+pprint(SchedulerItem.__mro__)

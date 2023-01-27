@@ -3,7 +3,7 @@
 """
 B-ASIC Scheduler-gui Graphics Timeline Item Module.
 
-Contains the scheduler-gui GraphicsTimelineItem class for drawing and
+Contains the scheduler-gui TimelineItem class for drawing and
 maintain the timeline in a graph.
 """
 from typing import List, Optional, overload
@@ -14,8 +14,8 @@ from qtpy.QtGui import QCursor
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsLineItem, QGraphicsTextItem
 
 
-class GraphicsTimelineItem(QGraphicsLineItem):
-    """A class to represent the timeline in GraphicsAxesItem."""
+class TimelineItem(QGraphicsLineItem):
+    """A class to represent the timeline in AxesItem."""
 
     # _scale:             float
     _delta_time_label: QGraphicsTextItem
@@ -25,13 +25,13 @@ class GraphicsTimelineItem(QGraphicsLineItem):
         self, line: QLineF, parent: Optional[QGraphicsItem] = None
     ) -> None:
         """
-        Constructs a GraphicsTimelineItem out of 'line'. 'parent' is passed to
+        Constructs a TimelineItem out of 'line'. 'parent' is passed to
         QGraphicsLineItem's constructor.
         """
 
     @overload
     def __init__(self, parent: Optional[QGraphicsItem] = None) -> None:
-        """Constructs a GraphicsTimelineItem. 'parent' is passed to
+        """Constructs a TimelineItem. 'parent' is passed to
         QGraphicsLineItem's constructor."""
 
     @overload
@@ -44,7 +44,7 @@ class GraphicsTimelineItem(QGraphicsLineItem):
         parent: Optional[QGraphicsItem] = None,
     ) -> None:
         """
-        Constructs a GraphicsTimelineItem from (x1, y1) to (x2, y2). 'parent'
+        Constructs a TimelineItem from (x1, y1) to (x2, y2). 'parent'
         is passed to QGraphicsLineItem's constructor.
         """
 
