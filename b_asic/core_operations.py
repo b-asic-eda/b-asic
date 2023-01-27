@@ -16,12 +16,21 @@ from b_asic.port import SignalSourceProvider
 
 
 class Constant(AbstractOperation):
-    """
+    r"""
     Constant value operation.
 
     Gives a specified value that remains constant for every iteration.
 
-    output(0): self.param("value")
+    .. math:: y = \text{value}
+
+    Parameters
+    ==========
+
+    value : Number, default: 0
+        The constant value.
+    name : Name, optional
+        Operation name.
+
     """
 
     _execution_time = 0
@@ -60,7 +69,31 @@ class Addition(AbstractOperation):
 
     Gives the result of adding two inputs.
 
-    output(0): input(0) + input(1)
+    .. math:: y = x_0 + x_1
+
+    Parameters
+    ==========
+
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to add.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times, e.g.,
+        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
+        time unit later than *src0*. If not provided and *latency* is
+        provided, set to zero if not explicitly provided. So the previous
+        example can be written as ``{"in1": 1}`` only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be
+        reused).
+
+    See also
+    ========
+    AddSub
+
     """
 
     def __init__(
@@ -70,8 +103,11 @@ class Addition(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
-        """Construct an Addition operation."""
+        """
+        Construct an Addition operation.
+        """
         super().__init__(
             input_count=2,
             output_count=1,
@@ -79,6 +115,7 @@ class Addition(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -95,7 +132,30 @@ class Subtraction(AbstractOperation):
 
     Gives the result of subtracting the second input from the first one.
 
-    output(0): input(0) - input(1)
+    .. math:: y = x_0 - x_1
+
+    Parameters
+    ==========
+
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to subtract.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times, e.g.,
+        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
+        time unit later than *src0*. If not provided and *latency* is
+        provided, set to zero if not explicitly provided. So the previous
+        example can be written as ``{"in1": 1}`` only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be
+        reused).
+
+    See also
+    ========
+    AddSub
     """
 
     def __init__(
@@ -105,6 +165,7 @@ class Subtraction(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a Subtraction operation."""
         super().__init__(
@@ -114,6 +175,7 @@ class Subtraction(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -125,13 +187,44 @@ class Subtraction(AbstractOperation):
 
 
 class AddSub(AbstractOperation):
-    """
+    r"""
     Two-input addition or subtraction operation.
 
     Gives the result of adding or subtracting two inputs.
 
-    output(0): input(0) + input(1) if is_add = True
-    output(0): input(0) - input(1) if is_add = False
+    .. math::
+        y = \begin{cases}
+        x_0 + x_1,& \text{is_add} = \text{True}\\
+        x_0 - x_1,& \text{is_add} = \text{False}
+        \end{cases}
+
+    This is used to later map additions and subtractions to the same
+    operator.
+
+    Parameters
+    ==========
+
+    is_add : bool, default: True
+        If True, the operation is an addition, if False, a subtraction.
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to add or subtract.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times, e.g.,
+        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
+        time unit later than *src0*. If not provided and *latency* is
+        provided, set to zero if not explicitly provided. So the previous
+        example can be written as ``{"in1": 1}`` only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be
+        reused).
+
+    See also
+    ========
+    Addition, Subtraction
     """
 
     def __init__(
@@ -142,8 +235,9 @@ class AddSub(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
-        """Construct an Addition operation."""
+        """Construct an Addition/Subtraction operation."""
         super().__init__(
             input_count=2,
             output_count=1,
@@ -151,6 +245,7 @@ class AddSub(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
         self.set_param("is_add", is_add)
 
@@ -173,12 +268,32 @@ class AddSub(AbstractOperation):
 
 
 class Multiplication(AbstractOperation):
-    """
+    r"""
     Binary multiplication operation.
 
     Gives the result of multiplying two inputs.
 
-    output(0): input(0) * input(1)
+    .. math:: y = x_0 \times x_1
+
+    Parameters
+    ==========
+
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to multiply.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times, e.g.,
+        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
+        time unit later than *src0*. If not provided and *latency* is
+        provided, set to zero if not explicitly provided. So the previous
+        example can be written as ``{"in1": 1}`` only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be
+        reused).
+
     """
 
     def __init__(
@@ -188,6 +303,7 @@ class Multiplication(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a Multiplication operation."""
         super().__init__(
@@ -197,6 +313,7 @@ class Multiplication(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -208,12 +325,13 @@ class Multiplication(AbstractOperation):
 
 
 class Division(AbstractOperation):
-    """
+    r"""
     Binary division operation.
 
     Gives the result of dividing the first input by the second one.
 
-    output(0): input(0) / input(1)
+    .. math:: y = \frac{x_0}{x_1}
+
     """
 
     def __init__(
@@ -223,6 +341,7 @@ class Division(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a Division operation."""
         super().__init__(
@@ -232,6 +351,7 @@ class Division(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -243,13 +363,14 @@ class Division(AbstractOperation):
 
 
 class Min(AbstractOperation):
-    """
+    r"""
     Binary min operation.
 
     Gives the minimum value of two inputs.
-    NOTE: Non-real numbers are not supported.
 
-    output(0): min(input(0), input(1))
+    .. math:: y = \min\{x_0 , x_1\}
+
+    .. note:: Only real-valued numbers are supported.
     """
 
     def __init__(
@@ -259,6 +380,7 @@ class Min(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a Min operation."""
         super().__init__(
@@ -268,6 +390,7 @@ class Min(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -283,13 +406,14 @@ class Min(AbstractOperation):
 
 
 class Max(AbstractOperation):
-    """
+    r"""
     Binary max operation.
 
     Gives the maximum value of two inputs.
-    NOTE: Non-real numbers are not supported.
 
-    output(0): max(input(0), input(1))
+    .. math:: y = \max\{x_0 , x_1\}
+
+    .. note:: Only real-valued numbers are supported.
     """
 
     def __init__(
@@ -299,6 +423,7 @@ class Max(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a Max operation."""
         super().__init__(
@@ -308,6 +433,7 @@ class Max(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -323,12 +449,12 @@ class Max(AbstractOperation):
 
 
 class SquareRoot(AbstractOperation):
-    """
+    r"""
     Square root operation.
 
     Gives the square root of its input.
 
-    output(0): sqrt(input(0))
+    .. math:: y = \sqrt{x}
     """
 
     def __init__(
@@ -337,6 +463,7 @@ class SquareRoot(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a SquareRoot operation."""
         super().__init__(
@@ -346,6 +473,7 @@ class SquareRoot(AbstractOperation):
             input_sources=[src0],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -362,7 +490,7 @@ class ComplexConjugate(AbstractOperation):
 
     Gives the complex conjugate of its input.
 
-    output(0): conj(input(0))
+    .. math:: y = x^*
     """
 
     def __init__(
@@ -371,6 +499,7 @@ class ComplexConjugate(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a ComplexConjugate operation."""
         super().__init__(
@@ -380,6 +509,7 @@ class ComplexConjugate(AbstractOperation):
             input_sources=[src0],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -396,7 +526,7 @@ class Absolute(AbstractOperation):
 
     Gives the absolute value of its input.
 
-    output(0): abs(input(0))
+    .. math:: y = |x|
     """
 
     def __init__(
@@ -405,6 +535,7 @@ class Absolute(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct an Absolute operation."""
         super().__init__(
@@ -414,6 +545,7 @@ class Absolute(AbstractOperation):
             input_sources=[src0],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -425,12 +557,12 @@ class Absolute(AbstractOperation):
 
 
 class ConstantMultiplication(AbstractOperation):
-    """
+    r"""
     Constant multiplication operation.
 
     Gives the result of multiplying its input by a specified value.
 
-    output(0): self.param("value") * input(0)
+    .. math:: y = x_0 \times \text{value}
     """
 
     def __init__(
@@ -440,6 +572,7 @@ class ConstantMultiplication(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a ConstantMultiplication operation with the given value.
         """
@@ -450,6 +583,7 @@ class ConstantMultiplication(AbstractOperation):
             input_sources=[src0],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
         self.set_param("value", value)
 
@@ -472,14 +606,17 @@ class ConstantMultiplication(AbstractOperation):
 
 
 class Butterfly(AbstractOperation):
-    """
-    Butterfly operation.
+    r"""
+    Radix-2 Butterfly operation.
 
     Gives the result of adding its two inputs, as well as the result of
     subtracting the second input from the first one.
 
-    output(0): input(0) + input(1)
-    output(1): input(0) - input(1)
+    .. math::
+        \begin{eqnarray}
+        y_0 = x_0 + x_1\\
+        y_1 = x_0 - x_1
+        \end{eqnarray}
     """
 
     def __init__(
@@ -489,6 +626,7 @@ class Butterfly(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a Butterfly operation."""
         super().__init__(
@@ -498,6 +636,7 @@ class Butterfly(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -509,13 +648,13 @@ class Butterfly(AbstractOperation):
 
 
 class MAD(AbstractOperation):
-    """
+    r"""
     Multiply-add operation.
 
     Gives the result of multiplying the first input by the second input and
     then adding the third input.
 
-    output(0): (input(0) * input(1)) + input(2)
+    .. math:: y = x_0 \times x_1 + x_2
     """
 
     def __init__(
@@ -526,6 +665,7 @@ class MAD(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a MAD operation."""
         super().__init__(
@@ -535,6 +675,7 @@ class MAD(AbstractOperation):
             input_sources=[src0, src1, src2],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
 
     @classmethod
@@ -546,11 +687,14 @@ class MAD(AbstractOperation):
 
 
 class SymmetricTwoportAdaptor(AbstractOperation):
-    """
+    r"""
     Symmetric twoport-adaptor operation.
 
-    output(0): input(1) + value*(input(1) - input(0)
-    output(1): input(0) + value*(input(1) - input(0)
+    .. math::
+        \begin{eqnarray}
+        y_0 = x_1 + \text{value}\times\left(x_1 - x_0\right)\\
+        y_1 = x_0 + \text{value}\times\left(x_1 - x_0\right)
+        \end{eqnarray}
     """
 
     def __init__(
@@ -561,6 +705,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         name: Name = Name(""),
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
     ):
         """Construct a Butterfly operation."""
         super().__init__(
@@ -570,6 +715,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
             input_sources=[src0, src1],
             latency=latency,
             latency_offsets=latency_offsets,
+            execution_time=execution_time,
         )
         self.set_param("value", value)
 
