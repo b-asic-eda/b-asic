@@ -162,27 +162,24 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         execution_time_pen.setColor(execution_time_color)
         execution_time_pen.setWidthF(3 / self._scale)
 
+        def generate_path(points):
+            path = QPainterPath(
+                QPointF(points[0][0], points[0][1] * self._height)
+            )  # starting point
+            for _x, _y in points[1:]:
+                path.lineTo(_x, _y * self._height)
+            path.closeSubpath()
+            return path
+
         # Set the starting position
 
         latency, execution_time = self._operation.get_plot_coordinates()
-        latency_path = QPainterPath(
-            QPointF(latency[0][0], latency[0][1] * self._height)
-        )  # starting point
-        for _x, _y in latency[1:]:
-            latency_path.lineTo(_x, _y * self._height)
-        latency_path.closeSubpath()
+        latency_path = generate_path(latency)
         self._latency_item = QGraphicsPathItem(latency_path)
         self._latency_item.setPen(latency_outline_pen)
 
         if execution_time:
-            execution_time_path = QPainterPath(
-                QPointF(
-                    execution_time[0][0], execution_time[0][1] * self._height
-                )
-            )  # starting point
-            for _x, _y in execution_time[1:]:
-                execution_time_path.lineTo(_x, _y * self._height)
-            execution_time_path.closeSubpath()
+            execution_time_path = generate_path(execution_time)
             self._execution_time_item = QGraphicsPathItem(execution_time_path)
             self._execution_time_item.setPen(execution_time_pen)
 
@@ -192,31 +189,23 @@ class GraphicsComponentItem(QGraphicsItemGroup):
         )  # used by component filling
 
         inputs, outputs = self._operation.get_io_coordinates()
-        for i, (x, y) in enumerate(inputs):
-            pos = QPointF(x, y * self._height)
-            key = f"in{i}"
-            self._ports[key]["pos"] = pos
-            port_pos = self.mapToParent(pos)
-            port = QGraphicsEllipseItem(
-                -port_size / 2, -port_size / 2, port_size, port_size
-            )
-            port.setPen(port_outline_pen)
-            port.setBrush(port_filling_brush)
-            port.setPos(port_pos.x(), port_pos.y())
-            self._port_items.append(port)
 
-        for i, (x, y) in enumerate(outputs):
-            pos = QPointF(x, y * self._height)
-            key = f"out{i}"
-            self._ports[key]["pos"] = pos
-            port_pos = self.mapToParent(pos)
-            port = QGraphicsEllipseItem(
-                -port_size / 2, -port_size / 2, port_size, port_size
-            )
-            port.setPen(port_outline_pen)
-            port.setBrush(port_filling_brush)
-            port.setPos(port_pos.x(), port_pos.y())
-            self._port_items.append(port)
+        def create_ports(io_coordinates, prefix):
+            for i, (x, y) in enumerate(io_coordinates):
+                pos = QPointF(x, y * self._height)
+                key = f"{prefix}{i}"
+                self._ports[key]["pos"] = pos
+                port_pos = self.mapToParent(pos)
+                port = QGraphicsEllipseItem(
+                    -port_size / 2, -port_size / 2, port_size, port_size
+                )
+                port.setPen(port_outline_pen)
+                port.setBrush(port_filling_brush)
+                port.setPos(port_pos.x(), port_pos.y())
+                self._port_items.append(port)
+
+        create_ports(inputs, "in")
+        create_ports(outputs, "out")
 
         # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)
