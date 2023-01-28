@@ -4,10 +4,12 @@ B-ASIC test suit for the signal module which consists of the Signal class.
 
 import pytest
 
-from b_asic import InputPort, OutputPort, Signal
+from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
+from b_asic.port import InputPort, OutputPort
+from b_asic.signal import Signal
 
 
-def test_signal_creation_and_disconnction_and_connection_changing():
+def test_signal_creation_and_disconnection_and_connection_changing():
     in_port = InputPort(None, 0)
     out_port = OutputPort(None, 1)
     s = Signal(out_port, in_port)
@@ -87,3 +89,60 @@ class TestBits:
         signal.bits = 10
         signal.bits = None
         assert signal.bits is None
+
+
+def test_create_from_single_input_single_output():
+    cm1 = ConstantMultiplication(0.5, name="Foo")
+    cm2 = ConstantMultiplication(1.5, name="Bar")
+    signal = Signal(cm1, cm2)
+    assert signal.destination.operation.name == "Bar"
+    assert signal.source.operation.name == "Foo"
+
+    add1 = Addition(name="Zig")
+
+    signal.set_source(add1)
+
+    assert signal.source.operation.name == "Zig"
+
+
+def test_signal_errors():
+    cm1 = ConstantMultiplication(0.5, name="Foo")
+    add1 = Addition(name="Zig")
+    with pytest.raises(
+        TypeError,
+        match=(
+            "Can only connect operations with a single input. add has 2"
+            " outputs."
+        ),
+    ):
+        _ = Signal(cm1, add1)
+
+    bf = Butterfly()
+    with pytest.raises(
+        TypeError,
+        match=(
+            "Can only connect operations with a single output. bfly has 2"
+            " outputs."
+        ),
+    ):
+        _ = Signal(bf, cm1)
+
+    cm2 = ConstantMultiplication(1.5, name="Bar")
+    signal = Signal(cm1, cm2)
+    with pytest.raises(
+        TypeError,
+        match=(
+            "Can only connect operations with a single input. add has 2"
+            " outputs."
+        ),
+    ):
+        signal.set_destination(add1)
+
+    with pytest.raises(
+        TypeError,
+        match=(
+            "Can only connect operations with a single output. bfly has 2"
+            " outputs."
+        ),
+    ):
+        signal.set_source(bf)
