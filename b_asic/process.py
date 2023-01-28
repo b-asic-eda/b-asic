@@ -1,6 +1,10 @@
+"""
+B-ASIC classes representing resource usage.
+"""
+
 from typing import Dict, Tuple
 
-from b_asic.operation import AbstractOperation
+from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 
 
@@ -9,17 +13,16 @@ class Process:
     Object for use in resource allocation. Has a start time and an execution
     time. Subclasses will in many cases contain additional information for
     resource assignment.
+
+    Parameters
+    ==========
+    start_time : int
+        Start time of process.
+    execution_time : int
+        Execution time (lifetime) of process.
     """
 
     def __init__(self, start_time: int, execution_time: int):
-        """
-        Parameters
-        ----------
-        start_time : int
-            Start time of process.
-        execution_time : int
-            Execution time (lifetime) of process.
-        """
         self._start_time = start_time
         self._execution_time = execution_time
 
@@ -43,15 +46,16 @@ class Process:
 class OperatorProcess(Process):
     """
     Object that corresponds to usage of an operator.
+
+    Parameters
+    ==========
+    start_time : int
+        Start time of process.
+    operation : Operation
+        Operation that the process corresponds to.
     """
 
-    def __init__(self, start_time: int, operation: AbstractOperation):
-        """
-
-        Returns
-        -------
-        object
-        """
+    def __init__(self, start_time: int, operation: Operation):
         execution_time = operation.execution_time
         if execution_time is None:
             raise ValueError(
@@ -65,6 +69,17 @@ class OperatorProcess(Process):
 class MemoryVariable(Process):
     """
     Object that corresponds to a memory variable.
+
+    Parameters
+    ==========
+
+    write_time : int
+        Time when the memory variable is written.
+    write_port : OutputPort
+        The OutputPort that the memory variable originates from.
+    reads : {InputPort: int, ...}
+        Dictionary with the InputPorts that reads the memory variable and
+        for how long after the *write_time* they will read.
     """
 
     def __init__(
@@ -98,6 +113,16 @@ class PlainMemoryVariable(Process):
     Object that corresponds to a memory variable which only use numbers for
     ports. This can be useful when only a plain memory variable is wanted with
     no connection to a schedule.
+
+    Parameters
+    ==========
+    write_time : int
+        The time the memory variable is written.
+    write_port : int
+        Identifier for the source of the memory variable.
+    reads : {int: int, ...}
+        Dictionary where the key is the destination identifier and the value
+        is the time after *write_time* that the memory variable is read.
     """
 
     def __init__(

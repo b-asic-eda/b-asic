@@ -14,7 +14,19 @@ from b_asic.special_operations import Input, Output
 
 
 def sfg_to_python(sfg: SFG, counter: int = 0, suffix: str = None) -> str:
-    """Given an SFG structure try to serialize it for saving to a file."""
+    """
+    Given an SFG structure try to serialize it for saving to a file.
+
+    Parameters
+    ==========
+    sfg : SFG
+        The SFG to serialize
+    counter : int, default: 0
+        Number used for naming the SFG. Enables SFGs in SFGs.
+    suffix : str, optional
+        String to append at the end of the result.
+
+    """
     result = (
         '\n"""\nB-ASIC automatically generated SFG file.\n'
         + "Name: "
@@ -112,7 +124,13 @@ def sfg_to_python(sfg: SFG, counter: int = 0, suffix: str = None) -> str:
 
 
 def python_to_sfg(path: str) -> SFG:
-    """Given a serialized file try to deserialize it and load it to the library.
+    """
+    Given a serialized file try to deserialize it and load it to the library.
+
+    Parameters
+    ==========
+    path : str
+        Path to file to read and deserialize.
     """
     with open(path) as f:
         code = compile(f.read(), path, "exec")

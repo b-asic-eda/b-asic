@@ -70,7 +70,7 @@ scheduler\_gui.timeline\_item module
    :show-inheritance:
 
 Helper module
-=============
+-------------
 
 scheduler\_gui.compile module
 -----------------------------
