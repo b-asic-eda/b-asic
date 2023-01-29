@@ -10,9 +10,6 @@ from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QAction, QMenu, QPushButton
 
-from b_asic.GUI.port_button import PortButton
-from b_asic.GUI.properties_window import PropertiesWindow
-from b_asic.GUI.utils import decorate_class, handle_error
 from b_asic.GUI._preferences import (
     GAP,
     GRID,
@@ -20,6 +17,9 @@ from b_asic.GUI._preferences import (
     PORTHEIGHT,
     PORTWIDTH,
 )
+from b_asic.GUI.port_button import PortButton
+from b_asic.GUI.properties_window import PropertiesWindow
+from b_asic.GUI.utils import decorate_class, handle_error
 from b_asic.port import InputPort
 
 
@@ -153,9 +153,7 @@ class DragButton(QPushButton):
         path_to_image = os.path.join(
             os.path.dirname(__file__),
             "operation_icons",
-            (
-                f"{self.operation.type_name().lower()}{'_grey.png' if self.pressed else '.png'}"
-            ),
+            f"{self.operation.type_name().lower()}{'_grey.png' if self.pressed else '.png'}",
         )
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))

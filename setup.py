@@ -1,7 +1,8 @@
 import os
-import sys
 import shutil
 import subprocess
+import sys
+
 import setuptools
 from setuptools import Extension
 from setuptools.command.build_ext import build_ext

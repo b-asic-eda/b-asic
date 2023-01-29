@@ -12,10 +12,9 @@ IN1>--->C0>--->ADD1>----------+--->A0>--->ADD4>--->OUT1
 """
 
 from b_asic.core_operations import Addition, ConstantMultiplication
-from b_asic.special_operations import Delay, Input, Output
-from b_asic.signal_flow_graph import SFG
 from b_asic.schedule import Schedule
-
+from b_asic.signal_flow_graph import SFG
+from b_asic.special_operations import Delay, Input, Output
 
 in1 = Input("IN1")
 c0 = ConstantMultiplication(5, in1, "C0")

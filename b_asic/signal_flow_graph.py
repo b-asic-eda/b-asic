@@ -11,7 +11,6 @@ from io import StringIO
 from numbers import Number
 from queue import PriorityQueue
 from typing import (
-    cast,
     DefaultDict,
     Deque,
     Dict,
@@ -23,6 +22,7 @@ from typing import (
     Set,
     Tuple,
     Union,
+    cast,
 )
 
 from graphviz import Digraph

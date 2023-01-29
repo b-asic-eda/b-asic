@@ -56,6 +56,13 @@ skip-string-normalization = true
 preview = true
 line-length = 79
 exclude = [
-    "examples",
+    "test/test_gui"
+]
+
+[tool.isort]
+profile = "black"
+line_length = 79
+src_paths = ["b_asic", "test"]
+skip = [
     "test/test_gui"
 ]

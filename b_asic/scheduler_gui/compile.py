@@ -7,12 +7,13 @@ If no arguments is given, the compiler search for and compiles all form (.ui)
 files.
 """
 
-from qtpy import uic
-import sys
+import argparse
 import os
 import shutil
 import subprocess
-import argparse
+import sys
+
+from qtpy import uic
 from setuptools_scm import get_version
 
 try:

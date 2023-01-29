@@ -2,10 +2,10 @@
 Small bireciprocal lattice wave digital filter.
 """
 from b_asic.core_operations import Addition, SymmetricTwoportAdaptor
-from b_asic.special_operations import Delay, Input, Output
+from b_asic.schedule import Schedule
 from b_asic.signal_flow_graph import SFG
 from b_asic.simulation import Simulation
-from b_asic.schedule import Schedule
+from b_asic.special_operations import Delay, Input, Output
 
 in0 = Input("x")
 D0 = Delay(in0)
@@ -31,8 +31,8 @@ import scipy.signal
 
 w, h = scipy.signal.freqz(sim.results['0'])
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 plt.plot(w, 20 * np.log10(np.abs(h) / 2))
 

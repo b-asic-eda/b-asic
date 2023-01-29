@@ -1,6 +1,6 @@
-import pytest
-
 from test.fixtures.signal_flow_graph import precedence_sfg_delays
+
+import pytest
 
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.schedule import Schedule

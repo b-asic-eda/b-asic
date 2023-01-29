@@ -1,11 +1,10 @@
+import os
+from distutils import dir_util
 from test.fixtures.operation_tree import *
 from test.fixtures.port import *
 from test.fixtures.schedule import *
 from test.fixtures.signal import signal, signals
 from test.fixtures.signal_flow_graph import *
-
-from distutils import dir_util
-import os
 
 import pytest
 

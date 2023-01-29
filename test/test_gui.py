@@ -1,7 +1,5 @@
-from qtpy import QtCore
-
-
 import pytest
+from qtpy import QtCore
 
 try:
     import b_asic.GUI as GUI
@@ -157,7 +155,9 @@ def test_properties_window_smoke_test(qtbot, datadir):
     dragbutton = widget.operationDragDict[op]
     dragbutton.show_properties_window()
     assert dragbutton._properties_window.operation == dragbutton
-    qtbot.mouseClick(dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton)
+    qtbot.mouseClick(
+        dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton
+    )
     widget.exit_app()
 
 
@@ -175,7 +175,9 @@ def test_properties_window_change_name(qtbot, datadir):
     dragbutton.show_properties_window()
     assert dragbutton._properties_window.edit_name.text() == "cmul2"
     dragbutton._properties_window.edit_name.setText("cmul73")
-    qtbot.mouseClick(dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton)
+    qtbot.mouseClick(
+        dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton
+    )
     dragbutton._properties_window.save_properties()
     assert dragbutton.name == "cmul73"
     assert dragbutton.operation.name == "cmul73"

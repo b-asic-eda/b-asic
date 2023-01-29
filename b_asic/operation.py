@@ -9,6 +9,7 @@ import itertools as it
 from abc import abstractmethod
 from numbers import Number
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Iterable,
@@ -20,7 +21,6 @@ from typing import (
     Sequence,
     Tuple,
     Union,
-    TYPE_CHECKING,
 )
 
 from b_asic.graph_component import (
@@ -32,15 +32,14 @@ from b_asic.graph_component import (
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 
-
 if TYPE_CHECKING:
     # Conditionally imported to avoid circular imports
     from b_asic.core_operations import (
         Addition,
-        Subtraction,
-        Multiplication,
         ConstantMultiplication,
         Division,
+        Multiplication,
+        Subtraction,
     )
     from b_asic.signal_flow_graph import SFG
 

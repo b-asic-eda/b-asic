@@ -1,5 +1,5 @@
 from qtpy.QtCore import QPointF
-from qtpy.QtGui import QPen, QPainterPath
+from qtpy.QtGui import QPainterPath, QPen
 from qtpy.QtWidgets import QGraphicsPathItem, QMenu
 
 from b_asic.GUI._preferences import GRID, LINECOLOR, PORTHEIGHT, PORTWIDTH

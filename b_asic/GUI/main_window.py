@@ -28,17 +28,12 @@ from qtpy.QtWidgets import (
 
 import b_asic.core_operations
 import b_asic.special_operations
+from b_asic.GUI._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
 from b_asic.GUI.about_window import AboutWindow, FaqWindow, KeybindsWindow
 from b_asic.GUI.arrow import Arrow
 from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
-from b_asic.GUI._preferences import (
-    GAP,
-    GRID,
-    MINBUTTONSIZE,
-    PORTHEIGHT,
-)
 from b_asic.GUI.show_pc_window import ShowPCWindow
 from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
 from b_asic.GUI.utils import decorate_class, handle_error

@@ -1,15 +1,16 @@
 """Three-point Winograd DFT.
 """
 
+from math import cos, pi, sin
+
 from b_asic.core_operations import (
     Addition,
     ConstantMultiplication,
     Subtraction,
 )
-from b_asic.special_operations import Input, Output
-from b_asic.signal_flow_graph import SFG
 from b_asic.schedule import Schedule
-from math import cos, pi, sin
+from b_asic.signal_flow_graph import SFG
+from b_asic.special_operations import Input, Output
 
 u = -2 * pi / 3
 c30 = cos(u) - 1

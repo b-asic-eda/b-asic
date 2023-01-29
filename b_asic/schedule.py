@@ -7,14 +7,14 @@ Contains the schedule class for scheduling operations in an SFG.
 import io
 import sys
 from collections import defaultdict
-from typing import cast, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.lines import Line2D
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
 from matplotlib.ticker import MaxNLocator
-import numpy as np
 
 from b_asic import Signal
 from b_asic._preferences import (
@@ -29,7 +29,6 @@ from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, Process
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Output
-
 
 _EXECUTION_TIME_COLOR = tuple(c / 255 for c in EXECUTION_TIME_COLOR)
 _LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
