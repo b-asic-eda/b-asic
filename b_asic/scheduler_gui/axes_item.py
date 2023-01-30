@@ -49,8 +49,8 @@ class AxesItem(QGraphicsItemGroup):
 
     def __init__(
         self,
-        width: int,
-        height: int,
+        width: float,
+        height: float,
         width_indent: float = 0.2,
         height_indent: float = 0.2,
         width_padding: float = 0.6,

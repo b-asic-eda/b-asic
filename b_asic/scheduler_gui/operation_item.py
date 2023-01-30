@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (
 )
 
 # B-ASIC
+from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.scheduler_gui._preferences import (
     OPERATION_EXECUTION_TIME_INACTIVE,
@@ -56,8 +57,9 @@ class OperationItem(QGraphicsItemGroup):
         super().__init__(parent=parent)
         self._operation = operation
         self._height = height
+        operation._check_all_latencies_set()
         self._ports = {
-            k: {"latency": float(v)}
+            k: {"latency": float(v) if v is not None else None}
             for k, v in operation.latency_offsets.items()
         }
         self._end_time = max(operation.latency_offsets.values())
@@ -88,7 +90,7 @@ class OperationItem(QGraphicsItemGroup):
             del item
 
     @property
-    def op_id(self) -> str:
+    def op_id(self) -> GraphID:
         """Get the op-id."""
         return self._operation.graph_id
 

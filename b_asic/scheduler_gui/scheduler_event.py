@@ -35,7 +35,7 @@ class SchedulerEvent:  # PyQt5
         component_selected = Signal(str)
         schedule_time_changed = Signal()
 
-    _axes: AxesItem
+    _axes: Optional[AxesItem]
     _current_pos: QPointF
     _delta_time: int
     _signals: Signals  # PyQt5

@@ -8,12 +8,14 @@ maintain a component in a graph.
 from collections import defaultdict
 from math import floor
 from pprint import pprint
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, cast
 
 # QGraphics and QPainter imports
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
 
 # B-ASIC
+from b_asic.operation import Operation
+from b_asic.port import InputPort
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
@@ -29,7 +31,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     also inherits from SchedulerEvent, which acts as a filter for events
     to OperationItem objects."""
     _schedule: Schedule
-    _axes: AxesItem
+    _axes: Optional[AxesItem]
     _components: List[OperationItem]
     _components_height: float
     _x_axis_indent: float
@@ -129,6 +131,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def set_schedule_time(self, delta_time: int) -> None:
         """Set the schedule time and redraw the graph."""
+        if self._axes is None:
+            raise RuntimeError("No AxesItem!")
         assert self.schedule is not None, "No schedule installed."
         self.schedule.set_schedule_time(
             self.schedule.schedule_time + delta_time
@@ -145,7 +149,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         return self._schedule
 
     @property
-    def axes(self) -> AxesItem:
+    def axes(self) -> Optional[AxesItem]:
         return self._axes
 
     @property
@@ -164,7 +168,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         _components_dict = {}
         # print('Start times:')
         for op_id, op_start_time in self.schedule.start_times.items():
-            operation = self.schedule.sfg.find_by_id(op_id)
+            operation = cast(Operation, self.schedule.sfg.find_by_id(op_id))
 
             #            if not isinstance(op, (Input, Output)):
             self._components_height += spacing
@@ -196,9 +200,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         for component in self._components:
             for output_port in component.operation.outputs:
                 for signal in output_port.signals:
-                    dest_component = _components_dict[
-                        signal.destination.operation
-                    ]
+                    destination = cast(InputPort, signal.destination)
+                    dest_component = _components_dict[destination.operation]
                     gui_signal = SignalItem(
                         component, dest_component, signal, parent=self
                     )

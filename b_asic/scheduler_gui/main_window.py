@@ -12,7 +12,7 @@ import os
 import sys
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
-from typing import Union
+from typing import Optional, Union, cast
 
 # Qt/qtpy
 import qtpy
@@ -43,7 +43,7 @@ from qtpy.QtWidgets import (
 
 # B-ASIC
 import b_asic.scheduler_gui.logger as logger
-from b_asic.graph_component import GraphComponent
+from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
@@ -64,7 +64,7 @@ if __debug__:
     # Print some system version information
     from qtpy import QtCore
 
-    QT_API = os.environ.get("QT_API")
+    QT_API = os.environ.get("QT_API", "")
     log.debug("Qt version (runtime):     {}".format(QtCore.qVersion()))
     log.debug("Qt version (compiletime): {}".format(QtCore.__version__))
     log.debug("QT_API:                   {}".format(QT_API))
@@ -153,7 +153,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._scene.sceneRectChanged.connect(self.shrink_scene_to_min_size)
 
     @property
-    def schedule(self) -> Schedule:
+    def schedule(self) -> Optional[Schedule]:
         """Get the current schedule."""
         return self._schedule
 
@@ -163,8 +163,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def _actionTbtn(self) -> None:
         # TODO: remove
+        if self.schedule is None:
+            return
         self.schedule.plot_schedule()
-        print(f"filtersChildEvents(): {self._graph.filtersChildEvents()}")
+        if self._graph is not None:
+            print(f"filtersChildEvents(): {self._graph.filtersChildEvents()}")
         # self._printButtonPressed('callback_pushButton()')
 
     @Slot()
@@ -342,7 +345,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._splitter_pos = width
 
     @Slot(str)
-    def info_table_update_component(self, op_id: str) -> None:
+    def info_table_update_component(self, op_id: GraphID) -> None:
         """
         SLOT(str) for SIGNAL(_graph._signals.component_selected)
         Takes in an operator-id, first clears the 'Operator' part of the info
@@ -358,7 +361,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         SLOT() for SIGNAL(_graph._signals.schedule_time_changed)
         Updates the 'Schedule' part of the info table.
         """
-        self.info_table.item(1, 1).setText(str(self.schedule.schedule_time))
+        if self.schedule is not None:
+            self.info_table.item(1, 1).setText(
+                str(self.schedule.schedule_time)
+            )
 
     @Slot(QRectF)
     def shrink_scene_to_min_size(self, rect: QRectF) -> None:
@@ -425,7 +431,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Take a Schedule and create a SchedulerItem object."""
         self.close_schedule()
         self._schedule = deepcopy(schedule)
-        self._graph = SchedulerItem(self.schedule)
+        self._graph = SchedulerItem(self._schedule)
         self._graph.setPos(1 / self._scale, 1 / self._scale)
         self.menu_close_schedule.setEnabled(True)
         self._scene.addItem(self._graph)
@@ -436,7 +442,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._graph._signals.schedule_time_changed.connect(
             self.info_table_update_schedule
         )
-        self.info_table_fill_schedule(self.schedule)
+        self.info_table_fill_schedule(self._schedule)
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def update_statusbar(self, msg: str) -> None:
@@ -502,12 +508,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
         self.info_table.setItem(2, 1, QTableWidgetItem(str(schedule.cyclic)))
 
-    def _info_table_fill_component(self, op_id: str) -> None:
+    def _info_table_fill_component(self, op_id: GraphID) -> None:
         """
         Take an operator-id and fill in the 'Operator' part of the info
         table with values from the operator associated with *op_id*.
         """
-        op: GraphComponent = self.schedule.sfg.find_by_id(op_id)
+        if self.schedule is None:
+            return
+        op: GraphComponent = cast(
+            GraphComponent, self.schedule.sfg.find_by_id(op_id)
+        )
         si = self.info_table.rowCount()  # si = start index
 
         if op.graph_id:

@@ -397,6 +397,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     def _decrease_time_resolution(self, factor: int) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    def _check_all_latencies_set(self) -> None:
+        raise NotImplementedError
+
 
 class AbstractOperation(Operation, AbstractGraphComponent):
     """
@@ -987,7 +991,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         ]
 
     def _check_all_latencies_set(self):
-        if any(val is None for _, val in self.latency_offsets.items()):
+        if any(val is None for val in self.latency_offsets.values()):
             raise ValueError(
                 f"All latencies must be set: {self.latency_offsets}"
             )
