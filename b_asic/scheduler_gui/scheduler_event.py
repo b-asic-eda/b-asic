@@ -19,13 +19,12 @@ from qtpy.QtWidgets import (
     QGraphicsSceneWheelEvent,
 )
 
+from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 
-# sys.settrace
-# class SchedulerEvent(QGraphicsItemGroup, QObject):          # PySide2
 class SchedulerEvent:  # PyQt5
     """Event filter and handlers for SchedulerItem"""
 
@@ -39,30 +38,26 @@ class SchedulerEvent:  # PyQt5
     _current_pos: QPointF
     _delta_time: int
     _signals: Signals  # PyQt5
-    # component_selected = Signal(str)  # PySide2
-    # schedule_time_changed = Signal()  # PySide2
-
-    # @overload
-    def is_component_valid_pos(self, item: OperationItem, pos: float) -> bool:
-        ...
-
-    # @overload
-    def is_valid_delta_time(self, delta_time: int) -> bool:
-        ...
-
-    # @overload
-    def set_schedule_time(self, delta_time: int) -> None:
-        ...
-
-    # def __init__(self, parent: Optional[QGraphicsItem] = None):     # PySide2
-    #     QObject.__init__(self)
-    #     QGraphicsItemGroup.__init__(self, parent)
+    _schedule: Schedule
 
     def __init__(self, parent: Optional[QGraphicsItem] = None):  # PyQt5
-        # QGraphicsItemGroup.__init__(self, parent)
-        # QObject.__init__(self)
         super().__init__(parent=parent)
         self._signals = self.Signals()
+
+    def is_component_valid_pos(self, item: OperationItem, pos: float) -> bool:
+        raise NotImplementedError
+
+    def is_valid_delta_time(self, delta_time: int) -> bool:
+        raise NotImplementedError
+
+    def set_schedule_time(self, delta_time: int) -> None:
+        raise NotImplementedError
+
+    def set_item_active(self, item: OperationItem) -> None:
+        raise NotImplementedError
+
+    def set_item_inactive(self, item: OperationItem) -> None:
+        raise NotImplementedError
 
     #################
     #### Filters ####
@@ -78,9 +73,11 @@ class SchedulerEvent:  # PyQt5
         ...
 
     def installSceneEventFilters(self, filterItems) -> None:
-        """Installs an event filter for 'filterItems' on 'self', causing all events
-        for 'filterItems' to first pass through 'self's sceneEventFilter()
-        function. 'filterItems' can be one object or a list of objects."""
+        """
+        Installs an event filter for *filterItems* on 'self', causing all events
+        for *filterItems* to first pass through 'self's ``sceneEventFilter()``
+        method. *filterItems* can be one object or a list of objects.
+        """
         item: OperationItem
         for item in filterItems:
             item.installSceneEventFilter(self)
@@ -103,9 +100,11 @@ class SchedulerEvent:  # PyQt5
             item.removeSceneEventFilter(self)
 
     def sceneEventFilter(self, item: QGraphicsItem, event: QEvent) -> bool:
-        """Returns true if the event was filtered (i.e. stopped), otherwise false.
-        If false is returned, the event is forwarded to the appropriate child in
-        the event chain."""
+        """
+        Returns True if the event was filtered (i.e. stopped), otherwise False.
+        If False is returned, the event is forwarded to the appropriate child in
+        the event chain.
+        """
         handler = None
 
         if isinstance(item, OperationItem):  # one component
@@ -187,13 +186,13 @@ class SchedulerEvent:  # PyQt5
         ...
 
     def comp_mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-        """Set the position of the graphical element in the graphic scene,
+        """
+        Set the position of the graphical element in the graphic scene,
         translate coordinates of the cursor within the graphic element in the
         coordinate system of the parent object. The object can only move
-        horizontally in x-axis scale steps."""
+        horizontally in x-axis scale steps.
+        """
 
-        # Qt.DragMoveCursor
-        # button = event.button()
         def update_pos(item, dx):
             pos = item.x() + dx
             if self.is_component_valid_pos(item, pos):
@@ -209,30 +208,30 @@ class SchedulerEvent:  # PyQt5
             update_pos(item, -1)
 
     def comp_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-        """Changes the cursor to ClosedHandCursor when grabbing an object and
+        """
+        Changes the cursor to ClosedHandCursor when grabbing an object and
         stores the current position in item's parent coordinates. 'event' will
         by default be accepted, and this item is then the mouse grabber. This
         allows the item to receive future move, release and double-click events.
         """
         item: OperationItem = self.scene().mouseGrabberItem()
         self._signals.component_selected.emit(item.op_id)
-        # self.component_selected.emit(item.op_id)
         self._current_pos = item.mapToParent(event.pos())
         self.set_item_active(item)
         event.accept()
 
     def comp_mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-        """Changes the cursor to OpenHandCursor when releasing an object."""
+        """Change the cursor to OpenHandCursor when releasing an object."""
         item: OperationItem = self.scene().mouseGrabberItem()
         self.set_item_inactive(item)
         self.set_new_starttime(item)
         pos = item.x()
         redraw = False
         if pos < 0:
-            pos += self.schedule.schedule_time
+            pos += self._schedule.schedule_time
             redraw = True
-        if pos > self.schedule.schedule_time:
-            pos = pos % self.schedule.schedule_time
+        if pos > self._schedule.schedule_time:
+            pos = pos % self._schedule.schedule_time
             redraw = True
         if redraw:
             item.setX(pos)
@@ -250,17 +249,16 @@ class SchedulerEvent:  # PyQt5
     #### Event Handlers: GraphicsLineTem       ####
     ###############################################
     def timeline_mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-        """Set the position of the graphical element in the graphic scene,
+        """
+        Set the position of the graphical element in the graphic scene,
         translate coordinates of the cursor within the graphic element in the
         coordinate system of the parent object. The object can only move
-        horizontally in x-axis scale steps."""
+        horizontally in x-axis scale steps.
+        """
 
-        # Qt.DragMoveCursor
-        # button = event.button()
         def update_pos(item, dx):
             pos = item.x() + dx
             if self.is_valid_delta_time(self._delta_time + dx):
-                # self.prepareGeometryChange()
                 item.setX(pos)
                 self._current_pos.setX(self._current_pos.x() + dx)
                 self._delta_time += dx
@@ -276,7 +274,7 @@ class SchedulerEvent:  # PyQt5
     def timeline_mousePressEvent(
         self, event: QGraphicsSceneMouseEvent
     ) -> None:
-        """Stores the current position in item's parent coordinates. 'event' will
+        """Store the current position in item's parent coordinates. 'event' will
         by default be accepted, and this item is then the mouse grabber. This
         allows the item to receive future move, release and double-click events.
         """

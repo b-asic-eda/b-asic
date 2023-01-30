@@ -24,13 +24,14 @@ from b_asic.scheduler_gui.signal_item import SignalItem
 
 
 class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
-    # class SchedulerItem(QGraphicsItemGroup, SchedulerEvent):      # PyQt5
-    """A class to represent a graph in a QGraphicsScene. This class is a
+    """
+    A class to represent a graph in a QGraphicsScene. This class is a
     subclass of QGraphicsItemGroup and contains the objects, axes from
     AxesItem, as well as components from OperationItem. It
     also inherits from SchedulerEvent, which acts as a filter for events
-    to OperationItem objects."""
-    _schedule: Schedule
+    to OperationItem objects.
+    """
+
     _axes: Optional[AxesItem]
     _components: List[OperationItem]
     _components_height: float
@@ -184,7 +185,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
         # build axes
         schedule_time = self.schedule.schedule_time
-        self._axes = AxesItem(schedule_time, self._components_height - spacing)
+        self._axes = AxesItem(
+            schedule_time, int(self._components_height - spacing)
+        )
         self._axes.setPos(0, self._components_height + spacing * 2)
         self._event_items += self._axes.event_items
         # self._axes.width = schedule_time
