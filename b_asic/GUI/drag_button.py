@@ -249,12 +249,14 @@ class DragButton(QPushButton):
         input_ports_dist = _determine_port_distance(height, op.input_count)
         for i, dist in enumerate(input_ports_dist):
             port = PortButton(">", self, op.input(i), self._window)
-            self.ports.append(port)
+            port.setFixedSize(PORTWIDTH, PORTHEIGHT)
             port.move(0, dist)
             port.show()
+            self.ports.append(port)
 
         for i, dist in enumerate(output_ports_dist):
             port = PortButton(">", self, op.output(i), self._window)
-            self.ports.append(port)
+            port.setFixedSize(PORTWIDTH, PORTHEIGHT)
             port.move(MINBUTTONSIZE - PORTWIDTH, dist)
             port.show()
+            self.ports.append(port)

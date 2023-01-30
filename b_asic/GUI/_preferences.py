@@ -5,7 +5,7 @@ from b_asic._preferences import SIGNAL_COLOR
 # Buttons/operations/ports
 MINBUTTONSIZE = 57
 PORTHEIGHT = 19
-PORTWIDTH = 15
+PORTWIDTH = 19
 GAP = MINBUTTONSIZE - 2 * PORTHEIGHT
 
 # Window
