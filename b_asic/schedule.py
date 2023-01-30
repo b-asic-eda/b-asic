@@ -309,7 +309,7 @@ class Schedule:
         # Update output laps
         output_slacks = self._forward_slacks(op_id)
         for out_port, signal_slacks in output_slacks.items():
-            tmp_available = tmp_start + out_port.latency_offset
+            tmp_available = tmp_start + cast(int, out_port.latency_offset)
             new_available = tmp_available % self._schedule_time
             for signal, signal_slack in signal_slacks.items():
                 new_slack = signal_slack - time
@@ -329,12 +329,14 @@ class Schedule:
     def _remove_delays(self) -> None:
         delay_list = self._sfg.find_by_type_name(Delay.type_name())
         while delay_list:
-            delay_op = delay_list[0]
+            delay_op = cast(Delay, delay_list[0])
             delay_input_id = delay_op.input(0).signals[0].graph_id
             delay_output_ids = [
                 sig.graph_id for sig in delay_op.output(0).signals
             ]
-            self._sfg = self._sfg.remove_operation(delay_op.graph_id)
+            self._sfg = cast(
+                SFG, self._sfg.remove_operation(delay_op.graph_id)
+            )
             for output_id in delay_output_ids:
                 self._laps[output_id] += 1 + self._laps[delay_input_id]
             del self._laps[delay_input_id]
@@ -396,17 +398,17 @@ class Schedule:
                                 f"   {source_port.operation.graph_id} has no"
                                 " latency-offset."
                             )
-                            assert inport.latency_offset is not None, (
-                                f"Input port: {inport.index} of operation:    "
-                                "                                "
-                                f" {inport.operation.graph_id} has no"
-                                " latency-offset."
-                            )
 
                             source_end_time = (
                                 source_op_time + source_port.latency_offset
                             )
 
+                        assert inport.latency_offset is not None, (
+                            f"Input port: {inport.index} of operation:    "
+                            "                                "
+                            f" {inport.operation.graph_id} has no"
+                            " latency-offset."
+                        )
                         op_start_time_from_in = (
                             source_end_time - inport.latency_offset
                         )
@@ -416,28 +418,30 @@ class Schedule:
 
                     self._start_times[op.graph_id] = op_start_time
         for output in self._sfg.find_by_type_name(Output.type_name()):
-            source_port = output.inputs[0].signals[0].source
+            output = cast(Output, output)
+            source_port = cast(OutputPort, output.inputs[0].signals[0].source)
             if source_port.operation.graph_id in non_schedulable_ops:
                 self._start_times[output.graph_id] = 0
             else:
-                self._start_times[output.graph_id] = (
-                    self._start_times[source_port.operation.graph_id]
-                    + source_port.latency_offset
-                )
+                self._start_times[output.graph_id] = self._start_times[
+                    source_port.operation.graph_id
+                ] + cast(int, source_port.latency_offset)
         self._remove_delays()
 
     def _get_memory_variables_list(self) -> List['Process']:
-        ret = []
+        ret: List['Process'] = []
         for op_id, start_time in self._start_times.items():
             slacks = self._forward_slacks(op_id)
             for outport, signals in slacks.items():
                 reads = {
-                    signal.destination: slack
+                    cast(InputPort, signal.destination): slack
                     for signal, slack in signals.items()
                 }
                 ret.append(
                     MemoryVariable(
-                        start_time + outport.latency_offset, outport, reads
+                        start_time + cast(int, outport.latency_offset),
+                        outport,
+                        reads,
                     )
                 )
         return ret
