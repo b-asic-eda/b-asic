@@ -51,10 +51,10 @@ class AxesItem(QGraphicsItemGroup):
         self,
         width: int,
         height: int,
-        width_indent: Optional[float] = 0.2,
-        height_indent: Optional[float] = 0.2,
-        width_padding: Optional[float] = 0.6,
-        height_padding: Optional[float] = 0.5,
+        width_indent: float = 0.2,
+        height_indent: float = 0.2,
+        width_padding: float = 0.6,
+        height_padding: float = 0.5,
         parent: Optional[QGraphicsItem] = None,
     ):
         """
