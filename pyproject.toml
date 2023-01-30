@@ -66,3 +66,9 @@ src_paths = ["b_asic", "test"]
 skip = [
     "test/test_gui"
 ]
+
+
+[tool.mypy]
+packages = ["b_asic", "test"]
+no_site_packages = true
+ignore_missing_imports = true

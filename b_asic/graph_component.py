@@ -7,7 +7,7 @@ Contains the base for all components with an ID in a signal flow graph.
 from abc import ABC, abstractmethod
 from collections import deque
 from copy import copy, deepcopy
-from typing import Any, Dict, Generator, Iterable, Mapping, NewType
+from typing import Any, Dict, Generator, Iterable, Mapping, NewType, cast
 
 Name = NewType("Name", str)
 TypeName = NewType("TypeName", str)
@@ -176,6 +176,7 @@ class AbstractGraphComponent(GraphComponent):
             component = fontier.popleft()
             yield component
             for neighbor in component.neighbors:
+                neighbor = cast(AbstractGraphComponent, neighbor)
                 if neighbor not in visited:
                     visited.add(neighbor)
                     fontier.append(neighbor)
