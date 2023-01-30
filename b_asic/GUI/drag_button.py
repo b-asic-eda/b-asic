@@ -83,8 +83,9 @@ class DragButton(QPushButton):
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self._m_press = True
-            self._mouse_press_pos = event.pos()
-            self._mouse_move_pos = event.pos()
+            pos = event.pos()
+            self._mouse_press_pos = pos
+            self._mouse_move_pos = pos
 
         super().mousePressEvent(event)
 

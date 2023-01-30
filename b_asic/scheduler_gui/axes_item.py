@@ -9,7 +9,7 @@ from math import pi, sin
 from typing import List, Optional, Union
 
 # QGraphics and QPainter imports
-from qtpy.QtCore import QPoint, QPointF, Qt
+from qtpy.QtCore import QPointF, Qt
 from qtpy.QtGui import QBrush, QPen, QPolygonF
 from qtpy.QtWidgets import (
     QGraphicsItem,
@@ -318,7 +318,7 @@ class AxesItem(QGraphicsItemGroup):
             self._append_x_tick()
         pos = self._x_ledger[-1].pos()
         self._x_ledger[-1].setPos(
-            pos + QPoint(self._width, 0)
+            pos + QPointF(self._width, 0)
         )  # move timeline
 
         # y-axis

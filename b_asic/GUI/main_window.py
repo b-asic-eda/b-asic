@@ -16,6 +16,7 @@ from qtpy.QtWidgets import (
     QAction,
     QApplication,
     QFileDialog,
+    QGraphicsItem,
     QGraphicsScene,
     QGraphicsTextItem,
     QGraphicsView,
@@ -527,7 +528,7 @@ class MainWindow(QMainWindow):
                 attr_button_scene.moveBy(
                     int(self.scene.width() / 4), int(self.scene.height() / 4)
                 )
-            attr_button_scene.setFlag(attr_button_scene.ItemIsSelectable, True)
+            attr_button_scene.setFlag(QGraphicsItem.ItemIsSelectable, True)
             operation_label = QGraphicsTextItem(op.name, attr_button_scene)
             if not self.is_show_names:
                 operation_label.setOpacity(0)

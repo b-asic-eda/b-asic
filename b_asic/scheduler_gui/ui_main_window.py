@@ -55,8 +55,7 @@ class Ui_MainWindow(object):
             QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop
         )
         self.view.setRenderHints(
-            QtGui.QPainter.HighQualityAntialiasing
-            | QtGui.QPainter.TextAntialiasing
+            QtGui.QPainter.Antialiasing | QtGui.QPainter.TextAntialiasing
         )
         self.view.setViewportUpdateMode(
             QtWidgets.QGraphicsView.FullViewportUpdate
@@ -89,7 +88,6 @@ class Ui_MainWindow(object):
         item = QtWidgets.QTableWidgetItem()
         font = QtGui.QFont()
         font.setBold(True)
-        font.setWeight(75)
         item.setFont(font)
         brush = QtGui.QBrush(QtGui.QColor(160, 160, 164))
         brush.setStyle(QtCore.Qt.SolidPattern)
@@ -108,7 +106,6 @@ class Ui_MainWindow(object):
         item = QtWidgets.QTableWidgetItem()
         font = QtGui.QFont()
         font.setBold(True)
-        font.setWeight(75)
         item.setFont(font)
         brush = QtGui.QBrush(QtGui.QColor(160, 160, 164))
         brush.setStyle(QtCore.Qt.SolidPattern)
