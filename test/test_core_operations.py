@@ -33,6 +33,12 @@ class TestConstant:
         test_operation = Constant(3 + 4j)
         assert test_operation.evaluate_output(0, []) == 3 + 4j
 
+    def test_constant_change_value(self):
+        test_operation = Constant(3)
+        assert test_operation.value == 3
+        test_operation.value = 4
+        assert test_operation.value == 4
+
 
 class TestAddition:
     """Tests for Addition class."""
