@@ -43,6 +43,7 @@ class Schedule:
     _laps: Dict[GraphID, int]
     _schedule_time: int
     _cyclic: bool
+    _y_locations: Dict[GraphID, Optional[int]]
 
     def __init__(
         self,
@@ -56,6 +57,7 @@ class Schedule:
         self._start_times = {}
         self._laps = defaultdict(lambda: 0)
         self._cyclic = cyclic
+        self._y_locations = defaultdict(lambda: None)
         if scheduling_alg == "ASAP":
             self._schedule_asap()
         else:
@@ -449,6 +451,11 @@ class Schedule:
     def _plot_schedule(self, ax):
         line_cache = []
 
+        y_location = 0
+        for op_id, op_start_time in self._start_times.items():
+            self._y_locations[op_id] = y_location
+            y_location += 1
+
         def _draw_arrow(start, end, name="", laps=0):
             if end[0] < start[0] or laps > 0:  # Wrap around
                 if start not in line_cache:
@@ -539,13 +546,16 @@ class Schedule:
                 laps=laps,
             )
 
-        ypos = 0.5
         ytickpositions = []
         yticklabels = []
         ax.set_axisbelow(True)
         ax.grid()
         ypositions = {}
         for op_id, op_start_time in self._start_times.items():
+            y_location = self._y_locations[op_id]
+            if y_location is None:
+                raise RuntimeError(f"No y-location for operation {op_id}")
+            ypos = -0.5 - y_location * 1.5
             op = self._sfg.find_by_id(op_id)
             # Rewrite to make better use of NumPy
             latency_coords, execution_time_coords = op.get_plot_coordinates()
@@ -568,7 +578,6 @@ class Schedule:
             ytickpositions.append(ypos + 0.5)
             yticklabels.append(self._sfg.find_by_id(op_id).name)
             ypositions[op_id] = ypos
-            ypos += 1.5
 
         for op_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(op_id)
@@ -596,17 +605,23 @@ class Schedule:
 
         ax.set_yticks(ytickpositions)
         ax.set_yticklabels(yticklabels)
-        ax.axis([-1, self._schedule_time + 1, 0, ypos])
+        yposmin = min(ypositions.values()) - 0.5
+        ax.axis([-1, self._schedule_time + 1, yposmin, 1])
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax.add_line(Line2D([0, 0], [0, ypos], linestyle="--", color="black"))
+        ax.add_line(
+            Line2D([0, 0], [yposmin, 1], linestyle="--", color="black")
+        )
         ax.add_line(
             Line2D(
                 [self._schedule_time, self._schedule_time],
-                [0, ypos],
+                [yposmin, 1],
                 linestyle="--",
                 color="black",
             )
         )
+
+    def _reset_y_locations(self):
+        self._y_locations = self._y_locations = defaultdict(lambda: None)
 
     def plot_schedule(self) -> None:
         self._get_figure().show()
