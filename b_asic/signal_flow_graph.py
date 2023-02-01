@@ -1141,7 +1141,8 @@ class SFG(AbstractOperation):
                     ):
                         if original_signal.source is None:
                             raise ValueError(
-                                "Dangling signal without source in SFG"
+                                "Dangling signal ({original_signal}) without"
+                                " source in SFG"
                             )
 
                         new_signal = cast(
@@ -1158,10 +1159,17 @@ class SFG(AbstractOperation):
                         original_destination = cast(
                             InputPort, original_signal.destination
                         )
+                        if original_destination is None:
+                            raise ValueError(
+                                f"Signal ({original_signal}) without"
+                                " destination in SFG"
+                            )
+
                         original_connected_op = original_destination.operation
                         if original_connected_op is None:
                             raise ValueError(
-                                "Signal without destination in SFG"
+                                "Signal with empty destination port"
+                                f" ({original_destination}) in SFG"
                             )
                         # Check if connected operation has been added.
                         if (

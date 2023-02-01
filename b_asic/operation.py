@@ -468,7 +468,11 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 )
             for i, src in enumerate(input_sources):
                 if src is not None:
-                    self._input_ports[i].connect(src.source)
+                    if isinstance(src, Signal):
+                        # Already existing signal
+                        src.set_destination(self._input_ports[i])
+                    else:
+                        self._input_ports[i].connect(src.source)
 
         # Set specific latency_offsets
         if latency_offsets is not None:

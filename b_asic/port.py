@@ -209,6 +209,9 @@ class InputPort(AbstractPort):
         """
         if self._source_signal is not None:
             raise ValueError("Cannot connect already connected input port.")
+        if isinstance(src, Signal):
+            src.set_destination(self)
+            return src
         # self._source_signal is set by the signal constructor.
         return Signal(source=src.source, destination=self, name=Name(name))
 

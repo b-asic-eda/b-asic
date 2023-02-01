@@ -707,7 +707,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         latency_offsets: Optional[Dict[str, int]] = None,
         execution_time: Optional[int] = None,
     ):
-        """Construct a Butterfly operation."""
+        """Construct a SymmetricTwoportAdaptor operation."""
         super().__init__(
             input_count=2,
             output_count=2,
