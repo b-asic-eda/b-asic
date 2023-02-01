@@ -610,6 +610,8 @@ class Schedule:
 
         ax.set_yticks(ytickpositions)
         ax.set_yticklabels(yticklabels)
+
+        # Get operation with maximum position
         max_pos_op_id = max(self._y_locations, key=self._y_locations.get)
         yposmin = -self._get_y_position(max_pos_op_id) - OPERATION_GAP
         ax.axis([-1, self._schedule_time + 1, yposmin, 1])

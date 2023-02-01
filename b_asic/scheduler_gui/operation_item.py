@@ -48,7 +48,7 @@ class OperationItem(QGraphicsItemGroup):
     def __init__(
         self,
         operation: Operation,
-        height: float = 0.75,
+        height: float = 1.0,
         parent: Optional[QGraphicsItem] = None,
     ):
         """

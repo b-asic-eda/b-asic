@@ -14,6 +14,7 @@ from typing import Dict, List, Optional, Set, cast
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
 
 # B-ASIC
+from b_asic._preferences import OPERATION_GAP
 from b_asic.operation import Operation
 from b_asic.port import InputPort
 from b_asic.schedule import Schedule
@@ -34,7 +35,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     _axes: Optional[AxesItem]
     _components: List[OperationItem]
-    _components_height: float
     _x_axis_indent: float
     _event_items: List[QGraphicsItem]
     _signal_dict: Dict[OperationItem, Set[SignalItem]]
@@ -54,7 +54,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         self._schedule = schedule
         self._axes = None
         self._components = []
-        self._components_height = 0.0
         self._x_axis_indent = 0.2
         self._event_items = []
         self._signal_dict = defaultdict(set)
@@ -165,36 +164,33 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     def _make_graph(self) -> None:
         """Makes a new graph out of the stored attributes."""
         # build components
-        spacing = 0.2
         _components_dict = {}
         # print('Start times:')
         for op_id, op_start_time in self.schedule.start_times.items():
             operation = cast(Operation, self.schedule.sfg.find_by_id(op_id))
-
-            #            if not isinstance(op, (Input, Output)):
-            self._components_height += spacing
             component = OperationItem(operation, parent=self)
             component.setPos(
-                self._x_axis_indent + op_start_time, self._components_height
+                self._x_axis_indent + op_start_time,
+                self.schedule._get_y_position(op_id),
             )
             self._components.append(component)
             _components_dict[operation] = component
-            self._components_height += component.height
             self._event_items += component.event_items
-        # self._components_height += spacing
 
         # build axes
         schedule_time = self.schedule.schedule_time
-        self._axes = AxesItem(
-            schedule_time, int(self._components_height - spacing)
+        max_pos_op_id = max(
+            self.schedule._y_locations, key=self.schedule._y_locations.get
         )
-        self._axes.setPos(0, self._components_height + spacing * 2)
+        yposmin = self.schedule._get_y_position(max_pos_op_id)
+
+        self._axes = AxesItem(schedule_time, yposmin + 0.5)
+        self._axes.setPos(0, yposmin + 1 + OPERATION_GAP)
         self._event_items += self._axes.event_items
         # self._axes.width = schedule_time
 
         # add axes and components
         self.addToGroup(self._axes)
-        # self._axes.update_axes(schedule_time - 2, self._components_height, self._x_axis_indent)
         for component in self._components:
             self.addToGroup(component)
         # self.addToGroup(self._components)
