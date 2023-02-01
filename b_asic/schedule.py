@@ -20,6 +20,7 @@ from b_asic import Signal
 from b_asic._preferences import (
     EXECUTION_TIME_COLOR,
     LATENCY_COLOR,
+    OPERATION_GAP,
     SIGNAL_COLOR,
     SIGNAL_LINEWIDTH,
 )
@@ -30,6 +31,7 @@ from b_asic.process import MemoryVariable, Process
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Output
 
+# Need RGB from 0 to 1
 _EXECUTION_TIME_COLOR = tuple(c / 255 for c in EXECUTION_TIME_COLOR)
 _LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
 _SIGNAL_COLOR = tuple(c / 255 for c in SIGNAL_COLOR)
@@ -448,13 +450,20 @@ class Schedule:
                 )
         return ret
 
+    def _get_y_position(self, op_id):
+        y_location = self._y_locations[op_id]
+        if y_location == None:
+            # Assign the lowest row number not yet in use
+            used = set(
+                loc for loc in self._y_locations.values() if loc is not None
+            )
+            possible = set(range(len(self._start_times))) - used
+            y_location = min(possible)
+            self._y_locations[op_id] = y_location
+        return OPERATION_GAP + y_location * (1 + OPERATION_GAP)
+
     def _plot_schedule(self, ax):
         line_cache = []
-
-        y_location = 0
-        for op_id, op_start_time in self._start_times.items():
-            self._y_locations[op_id] = y_location
-            y_location += 1
 
         def _draw_arrow(start, end, name="", laps=0):
             if end[0] < start[0] or laps > 0:  # Wrap around
@@ -550,12 +559,8 @@ class Schedule:
         yticklabels = []
         ax.set_axisbelow(True)
         ax.grid()
-        ypositions = {}
         for op_id, op_start_time in self._start_times.items():
-            y_location = self._y_locations[op_id]
-            if y_location is None:
-                raise RuntimeError(f"No y-location for operation {op_id}")
-            ypos = -0.5 - y_location * 1.5
+            ypos = -self._get_y_position(op_id)
             op = self._sfg.find_by_id(op_id)
             # Rewrite to make better use of NumPy
             latency_coords, execution_time_coords = op.get_plot_coordinates()
@@ -577,17 +582,17 @@ class Schedule:
                 )
             ytickpositions.append(ypos + 0.5)
             yticklabels.append(self._sfg.find_by_id(op_id).name)
-            ypositions[op_id] = ypos
 
         for op_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(op_id)
             _, out_coords = op.get_io_coordinates()
-            source_ypos = ypositions[op_id]
+            source_ypos = -self._get_y_position(op_id)
+
             for output_port in op.outputs:
                 for output_signal in output_port.signals:
                     dest_op = output_signal.destination.operation
                     dest_start_time = self._start_times[dest_op.graph_id]
-                    dest_ypos = ypositions[dest_op.graph_id]
+                    dest_ypos = -self._get_y_position(dest_op.graph_id)
                     (
                         dest_in_coords,
                         _,
@@ -605,7 +610,8 @@ class Schedule:
 
         ax.set_yticks(ytickpositions)
         ax.set_yticklabels(yticklabels)
-        yposmin = min(ypositions.values()) - 0.5
+        max_pos_op_id = max(self._y_locations, key=self._y_locations.get)
+        yposmin = -self._get_y_position(max_pos_op_id) - OPERATION_GAP
         ax.axis([-1, self._schedule_time + 1, yposmin, 1])
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.add_line(
