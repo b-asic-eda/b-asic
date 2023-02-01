@@ -4,20 +4,22 @@ stages:
 
 before_script:
   - apt-get update --yes
-  - apt-get install --yes build-essential cmake libfmt-dev pybind11-dev graphviz python3-pyqt5 xvfb xdg-utils lcov
+  - apt-get install --yes build-essential cmake graphviz python3-pyqt5 xvfb xdg-utils lcov
   - python -m pip install --upgrade pip
   - python --version
   - pip install -r requirements.txt
-  - pip install -r requirements_doc.txt
-  - pip install -r requirements_test.txt
   - pip install $QT_API
-  - export PYTEST_QT_API=$QT_API
-  - export QT_API=$QT_API
+  - git fetch --tags
   # - export CXXFLAGS='--coverage'
-  - pip install -ve .
+  # Install without dependencies to make sure that requirements.txt is up-to-date
+  - pip install --no-deps -ve .
   # Move file, but should be handled by installation
   - mv _b_asic* b_asic
   - pip show b_asic
+  - export QT_API=$QT_API
+  # Install test dependencies
+  - pip install -r requirements_test.txt
+  - export PYTEST_QT_API=$QT_API
 
 .run-test:
   stage: test
@@ -106,6 +108,7 @@ run-doc-test:
   image: python:3.10
   stage: test
   script:
+    - pip install -r requirements_doc.txt
     - sphinx-build -b html docs_sphinx public
 
 pages:
@@ -114,6 +117,7 @@ pages:
   stage: deploy
   image: python:3.10
   script:
+    - pip install -r requirements_doc.txt
     - sphinx-build -b html docs_sphinx public
   artifacts:
     paths:

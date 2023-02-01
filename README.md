@@ -14,20 +14,22 @@ How to build and debug the library during development.
 
 The following packages are required in order to build the library:
 
--   cmake 3.8+
--   gcc 7+/clang 7+/msvc 16+
--   fmtlib
--   pybind11 2.3.0+
--   python 3.6+
--   Python:
-    -   graphviz
-    -   matplotlib
-    -   numpy
-    -   pybind11
-    -   pyside2
-    -   qtpy
-    -   setuptools
-    -   setuptools_scm
+-   [CMake](https://cmake.org/) 3.8+
+-   gcc 7+/clang 7+/msvc 16+ (C++ 17 support)
+-   [Python](https://python.org/) 3.8+
+-   Python dependencies (install with `pip install -r requirements.txt` or they will be installed as part of the
+    installation process):
+    -   [Graphviz](https://graphviz.org/)
+    -   [Matplotlib](https://matplotlib.org/)
+    -   [NumPy](https://numpy.org/)
+    -   [QtPy](https://github.com/spyder-ide/qtpy)
+-   Qt 5 or 6, with Python bindings, one of:
+    - pyside2
+    - pyqt5
+    - pyside6
+    - pyqt6
+
+During the compilation process, [fmtlib](https://github.com/fmtlib/fmt) and [pybind11](https://pybind11.readthedocs.io/) are used.
 
 To build a binary distribution, the following additional packages are required:
 
@@ -37,19 +39,19 @@ To build a binary distribution, the following additional packages are required:
 To run the test suite, the following additional packages are required:
 
 -   Python (install with `pip install -r requirements_test.txt`):
-    -   pytest
-    -   pytest-qt
-    -   pytest-mpl
-    -   pytest-cov (for testing with coverage)
-    -   pytest-xvfb (for testing without showing windows on Linux)
-    -   pytest-xdist (for parallel testing)
+    -   [pytest](https://pytest.org/)
+    -   [pytest-qt](https://pytest-qt.readthedocs.io/)
+    -   [pytest-mpl](https://github.com/matplotlib/pytest-mpl/)
+    -   [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/) (for testing with coverage)
+    -   [pytest-xvfb](https://github.com/The-Compiler/pytest-xvfb) (for testing without showing windows on Linux, you will also need to install [xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml))
+    -   [pytest-xdist](https://pytest-xdist.readthedocs.io/) (for parallel testing)
 
 To generate the documentation, the following additional packages are required:
 
 -   Python (install with `pip install -r requirements_doc.txt`):
-    -   sphinx
-    -   furo
-    -   numpydoc
+    -   [Sphinx](https://www.sphinx-doc.org/)
+    -   [Furo](https://pradyunsg.me/furo/)
+    -   [numpydoc](https://numpydoc.readthedocs.io/)
 
 ### Using CMake directly
 

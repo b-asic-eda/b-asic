@@ -9,7 +9,7 @@ license = { file = "LICENSE" }
 requires-python = ">=3.8"
 dependencies = [
     "numpy",
-    "pybind11>=2.3.0",
+    "pybind11>=2.10.1",
     # "pyside2",
     "qtpy",
     "graphviz>=0.19",
