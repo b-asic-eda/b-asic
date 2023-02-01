@@ -389,6 +389,24 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def source(self) -> OutputPort:
+        """
+        Return the OutputPort if there is only one output port.
+        If not, raise a TypeError.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def destination(self) -> InputPort:
+        """
+        Return the InputPort if there is only one input port.
+        If not, raise a TypeError.
+        """
+        raise NotImplementedError
+
     @abstractmethod
     def _increase_time_resolution(self, factor: int) -> None:
         raise NotImplementedError
@@ -848,9 +866,19 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             diff = "more" if self.output_count > 1 else "less"
             raise TypeError(
                 f"{self.__class__.__name__} cannot be used as an input source"
-                f" because it has {diff} than 1 output"
+                f" because it has {diff} than one output"
             )
         return self.output(0)
+
+    @property
+    def destination(self) -> OutputPort:
+        if self.input_count != 1:
+            diff = "more" if self.input_count > 1 else "less"
+            raise TypeError(
+                f"{self.__class__.__name__} cannot be used as an output"
+                f" destination because it has {diff} than one input"
+            )
+        return self.input(0)
 
     def truncate_input(self, index: int, value: Number, bits: int) -> Number:
         return int(value) & ((2**bits) - 1)

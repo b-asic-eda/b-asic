@@ -13,8 +13,8 @@ from b_asic.graph_component import (
 )
 
 if TYPE_CHECKING:
-    from b_asic.port import InputPort, OutputPort
     from b_asic.operation import Operation
+    from b_asic.port import InputPort, OutputPort
 
 
 class Signal(AbstractGraphComponent):
@@ -24,14 +24,18 @@ class Signal(AbstractGraphComponent):
     Parameters
     ==========
 
-    source : OutputPort or Operation, optional
-        OutputPort or Operation to connect as source to the signal.
-    destination : InputPort or Operation, optional
-        InputPort or Operation to connect as destination to the signal.
+    source : OutputPort, Signal, or Operation, optional
+        OutputPort, Signal, or Operation to connect as source to the signal.
+    destination : InputPort, Signal, or Operation, optional
+        InputPort, Signal, or Operation to connect as destination to the signal.
     bits : int, optional
         The word length of the signal.
     name : Name, default: ""
         The signal name.
+
+    .. note:: If a Signal is provided as *source* or *destination*, the
+              connected port is used. Hence, if the argument signal is later
+              changed, it will not affect the current Signal.
 
     See also
     ========
@@ -43,8 +47,10 @@ class Signal(AbstractGraphComponent):
 
     def __init__(
         self,
-        source: Optional[Union["OutputPort", "Operation"]] = None,
-        destination: Optional[Union["InputPort", "Operation"]] = None,
+        source: Optional[Union["OutputPort", "Signal", "Operation"]] = None,
+        destination: Optional[
+            Union["InputPort", "Signal", "Operation"]
+        ] = None,
         bits: Optional[int] = None,
         name: Name = Name(""),
     ):
@@ -80,7 +86,9 @@ class Signal(AbstractGraphComponent):
         """The destination InputPort of the signal."""
         return self._destination
 
-    def set_source(self, source: Union["OutputPort", "Operation"]) -> None:
+    def set_source(
+        self, source: Union["OutputPort", "Signal", "Operation"]
+    ) -> None:
         """
         Disconnect the previous source OutputPort of the signal and
         connect to the entered source OutputPort. Also connect the entered
@@ -89,21 +97,16 @@ class Signal(AbstractGraphComponent):
         Parameters
         ==========
 
-        source : OutputPort or Operation, optional
-            OutputPort or Operation to connect as source to the signal. If
-            Operation, it must have a single output, otherwise a TypeError is
+        source : OutputPort, Signal, or Operation, optional
+            OutputPort, Signal, or Operation to connect as source to the signal.
+            If Signal, it will connect to the source of the signal, so later on
+            changing the source of the argument Signal will not affect this Signal.
+            If Operation, it must have a single output, otherwise a TypeError is
             raised. That output is used to extract the OutputPort.
         """
-        from b_asic.operation import Operation
-
-        if isinstance(source, Operation):
-            if source.output_count != 1:
-                raise TypeError(
-                    "Can only connect operations with a single output."
-                    f" {source.type_name()} has {source.output_count} outputs."
-                    " Use the output port directly instead."
-                )
-            source = source.output(0)
+        if hasattr(source, "source"):
+            # Signal or Operation
+            source = source.source
 
         if source is not self._source:
             self.remove_source()
@@ -111,7 +114,9 @@ class Signal(AbstractGraphComponent):
             if self not in source.signals:
                 source.add_signal(self)
 
-    def set_destination(self, destination: "InputPort") -> None:
+    def set_destination(
+        self, destination: Union["InputPort", "Signal", "Operation"]
+    ) -> None:
         """
         Disconnect the previous destination InputPort of the signal and
         connect to the entered destination InputPort. Also connect the entered
@@ -120,23 +125,17 @@ class Signal(AbstractGraphComponent):
         Parameters
         ==========
 
-        destination : InputPort or Operation
-            InputPort or Operation to connect as destination to the signal.
+        destination : InputPort, Signal, or Operation
+            InputPort, Signal, or Operation to connect as destination to the signal.
+            If Signal, it will connect to the destination of the signal, so later on
+            changing the destination of the argument Signal will not affect this Signal.
             If Operation, it must have a single input, otherwise a TypeError
             is raised.
 
         """
-        from b_asic.operation import Operation
-
-        if isinstance(destination, Operation):
-            if destination.input_count != 1:
-                raise TypeError(
-                    "Can only connect operations with a single input."
-                    f" {destination.type_name()} has"
-                    f" {destination.input_count} outputs. Use the input port"
-                    " directly instead."
-                )
-            destination = destination.input(0)
+        if hasattr(destination, "destination"):
+            # Signal or Operation
+            destination = destination.destination
 
         if destination is not self._destination:
             self.remove_destination()

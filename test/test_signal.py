@@ -111,8 +111,8 @@ def test_signal_errors():
     with pytest.raises(
         TypeError,
         match=(
-            "Can only connect operations with a single input. add has 2"
-            " outputs."
+            "Addition cannot be used as an output destination because it has"
+            " more than one input"
         ),
     ):
         _ = Signal(cm1, add1)
@@ -121,8 +121,8 @@ def test_signal_errors():
     with pytest.raises(
         TypeError,
         match=(
-            "Can only connect operations with a single output. bfly has 2"
-            " outputs."
+            "Butterfly cannot be used as an input source because it has more"
+            " than one output"
         ),
     ):
         _ = Signal(bf, cm1)
@@ -132,8 +132,8 @@ def test_signal_errors():
     with pytest.raises(
         TypeError,
         match=(
-            "Can only connect operations with a single input. add has 2"
-            " outputs."
+            "Addition cannot be used as an output destination because it has"
+            " more than one input"
         ),
     ):
         signal.set_destination(add1)
@@ -141,8 +141,8 @@ def test_signal_errors():
     with pytest.raises(
         TypeError,
         match=(
-            "Can only connect operations with a single output. bfly has 2"
-            " outputs."
+            "Butterfly cannot be used as an input source because it has more"
+            " than one output"
         ),
     ):
         signal.set_source(bf)
