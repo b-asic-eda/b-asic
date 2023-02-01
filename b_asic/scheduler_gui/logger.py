@@ -39,7 +39,7 @@ Usage:
      - 40
 
 The last `exception(str)` is used to capture exceptions output, that normally
-won't be captured.
+will not be captured.
 See https://docs.python.org/3/howto/logging.html for more information.
 
 Log Uncaught Exceptions:
@@ -50,12 +50,9 @@ import logging
 import logging.handlers
 import os
 import sys
-import traceback
 from logging import Logger
 from types import TracebackType
-from typing import Optional, Type, Union
-
-from qtpy import QtCore, QtWidgets
+from typing import Type, Union
 
 
 def getLogger(

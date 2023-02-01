@@ -68,8 +68,9 @@ class Port(ABC):
     @abstractmethod
     def add_signal(self, signal: Signal) -> None:
         """
-        Connect this port to the entered signal. If the entered signal isn't connected to
-        this port then connect the entered signal to the port as well.
+        Connect this port to the entered signal. If the entered signal is not
+        connected to this port then connect the entered signal to the port as
+        well.
         """
         raise NotImplementedError
 

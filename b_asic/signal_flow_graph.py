@@ -971,7 +971,7 @@ class SFG(AbstractOperation):
             for outport in curr_iter_ports:
                 for signal in outport.signals:
                     new_inport = signal.destination
-                    # Don't traverse over delays.
+                    # Do not traverse over delays.
                     if new_inport is not None and not isinstance(
                         new_inport.operation, Delay
                     ):

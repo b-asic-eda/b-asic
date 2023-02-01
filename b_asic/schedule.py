@@ -369,7 +369,7 @@ class Schedule:
             for outport in outports:
                 op = outport.operation
                 if op.graph_id not in self._start_times:
-                    # Schedule the operation if it doesn't have a start time yet.
+                    # Schedule the operation if it does not have a start time yet.
                     op_start_time = 0
                     for inport in op.inputs:
                         assert (

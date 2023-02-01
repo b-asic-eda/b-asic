@@ -70,7 +70,10 @@ def compile_rc(*filenames: str) -> None:
         if rcc is None:
             rcc = shutil.which("pyrcc5")
             arguments = f"-o {outfile} {filename}"
-        assert rcc, "PySide2 compiler failed, can't find rcc"
+        assert rcc, (
+            "Qt Resource compiler failed, cannot find pyside2-rcc, rcc, or"
+            " pyrcc5"
+        )
 
         os_ = sys.platform
         if os_.startswith("linux"):  # Linux
@@ -141,7 +144,10 @@ def compile_ui(*filenames: str) -> None:
             if uic_ is None:
                 uic_ = shutil.which("pyuic5")
                 arguments = f"-o {outfile} {filename}"
-            assert uic_, "PySide2 compiler failed, can't find uic"
+            assert uic_, (
+                "Qt User Interface Compiler failed, cannot find pyside2-uic,"
+                " uic, or pyuic5"
+            )
 
             os_ = sys.platform
             if os_.startswith("linux"):  # Linux

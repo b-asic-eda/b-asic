@@ -404,7 +404,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             buttons: list[QAbstractButton] = box.buttons()
             buttons[0].setText(self.tr("&Exit"))
             buttons[1].setText(self.tr("&Cancel"))
-            checkbox = QCheckBox(self.tr("Don't ask again"))
+            checkbox = QCheckBox(self.tr("Do not ask again"))
             box.setCheckBox(checkbox)
             ret = box.exec_()
 
