@@ -10,6 +10,7 @@ Start main-window with start_gui().
 import inspect
 import os
 import sys
+import webbrowser
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
 from typing import Optional, Union, cast
@@ -123,8 +124,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.menu_quit.triggered.connect(self.close)
         self.menu_node_info.triggered.connect(self.show_info_table)
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
+        self.actionReorder.triggered.connect(self._actionReorder)
         self.actionT.triggered.connect(self._actionTbtn)
         self.splitter.splitterMoved.connect(self._splitter_moved)
+        self.actionDocumentation.triggered.connect(self._open_documentation)
 
         # Setup event member functions
         self.closeEvent = self._close_event
@@ -168,6 +171,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.schedule.plot_schedule()
         if self._graph is not None:
             print(f"filtersChildEvents(): {self._graph.filtersChildEvents()}")
+        # self._printButtonPressed('callback_pushButton()')
+
+    @Slot()
+    def _open_documentation(self) -> None:
+        webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
+
+    @Slot()
+    def _actionReorder(self) -> None:
+        # TODO: remove
+        if self.schedule is None:
+            return
+        if self._graph is not None:
+            self._graph._redraw_from_start()
         # self._printButtonPressed('callback_pushButton()')
 
     @Slot()
@@ -345,15 +361,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._splitter_pos = width
 
     @Slot(str)
-    def info_table_update_component(self, op_id: GraphID) -> None:
+    def info_table_update_component(self, graph_id: GraphID) -> None:
         """
         SLOT(str) for SIGNAL(_graph._signals.component_selected)
         Takes in an operator-id, first clears the 'Operator' part of the info
         table and then fill in the table with new values from the operator
-        associated with 'op_id'.
+        associated with *graph_id*.
         """
         self.info_table_clear_component()
-        self._info_table_fill_component(op_id)
+        self._info_table_fill_component(graph_id)
 
     @Slot()
     def info_table_update_schedule(self) -> None:
@@ -508,15 +524,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
         self.info_table.setItem(2, 1, QTableWidgetItem(str(schedule.cyclic)))
 
-    def _info_table_fill_component(self, op_id: GraphID) -> None:
+    def _info_table_fill_component(self, graph_id: GraphID) -> None:
         """
         Take an operator-id and fill in the 'Operator' part of the info
-        table with values from the operator associated with *op_id*.
+        table with values from the operator associated with *graph_id*.
         """
         if self.schedule is None:
             return
         op: GraphComponent = cast(
-            GraphComponent, self.schedule.sfg.find_by_id(op_id)
+            GraphComponent, self.schedule.sfg.find_by_id(graph_id)
         )
         si = self.info_table.rowCount()  # si = start index
 

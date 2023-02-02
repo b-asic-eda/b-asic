@@ -215,7 +215,7 @@ class SchedulerEvent:  # PyQt5
         allows the item to receive future move, release and double-click events.
         """
         item: OperationItem = self.scene().mouseGrabberItem()
-        self._signals.component_selected.emit(item.op_id)
+        self._signals.component_selected.emit(item.graph_id)
         self._current_pos = item.mapToParent(event.pos())
         self.set_item_active(item)
         event.accept()

@@ -90,7 +90,7 @@ class OperationItem(QGraphicsItemGroup):
             del item
 
     @property
-    def op_id(self) -> GraphID:
+    def graph_id(self) -> GraphID:
         """Get the op-id."""
         return self._operation.graph_id
 

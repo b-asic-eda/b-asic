@@ -34,7 +34,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     """
 
     _axes: Optional[AxesItem]
-    _components: List[OperationItem]
+    _operation_items: Dict[str, OperationItem]
     _x_axis_indent: float
     _event_items: List[QGraphicsItem]
     _signal_dict: Dict[OperationItem, Set[SignalItem]]
@@ -53,7 +53,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         #     super().__init__(parent=self)
         self._schedule = schedule
         self._axes = None
-        self._components = []
+        self._operation_items = {}
         self._x_axis_indent = 0.2
         self._event_items = []
         self._signal_dict = defaultdict(set)
@@ -74,8 +74,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         assert self.schedule is not None, "No schedule installed."
         end_time = item.end_time
         new_start_time = floor(pos) - floor(self._x_axis_indent)
-        slacks = self.schedule.slacks(item.op_id)
-        op_start_time = self.schedule.start_time_of_operation(item.op_id)
+        slacks = self.schedule.slacks(item.graph_id)
+        op_start_time = self.schedule.start_time_of_operation(item.graph_id)
         if not -slacks[0] <= new_start_time - op_start_time <= slacks[1]:
             # Cannot move due to dependencies
             return False
@@ -93,6 +93,13 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
                 return False
 
         return True
+
+    def _redraw_all_lines(self):
+        s = set()
+        for signals in self._signal_dict.values():
+            s.update(signals)
+        for signal in s:
+            signal.update_path()
 
     def _redraw_lines(self, item: OperationItem):
         """Update lines connected to *item*."""
@@ -112,11 +119,11 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     def set_new_starttime(self, item: OperationItem) -> None:
         """Set new starttime for *item*."""
         pos = item.x()
-        op_start_time = self.schedule.start_time_of_operation(item.op_id)
+        op_start_time = self.schedule.start_time_of_operation(item.graph_id)
         new_start_time = floor(pos) - floor(self._x_axis_indent)
         move_time = new_start_time - op_start_time
         if move_time:
-            self.schedule.move_operation(item.op_id, move_time)
+            self.schedule.move_operation(item.graph_id, move_time)
 
     def is_valid_delta_time(self, delta_time: int) -> bool:
         """Takes in a delta time and returns true if the new schedule time is
@@ -139,9 +146,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         )
         self._axes.set_width(self._axes.width + delta_time)
         # Redraw all lines
-        for signals in self._signal_dict.values():
-            for signal in signals:
-                signal.update_path()
+        self._redraw_all_lines()
 
     @property
     def schedule(self) -> Schedule:
@@ -154,53 +159,72 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     @property
     def components(self) -> List[OperationItem]:
-        return self._components
+        return list(component for component in self._operation_items.values())
 
     @property
     def event_items(self) -> List[QGraphicsItem]:
         """Return a list of objects that receives events."""
         return self._event_items
 
+    def _set_position(self, graph_id) -> None:
+        op_item = self._operation_items[graph_id]
+        op_item.setPos(
+            self._x_axis_indent + self.schedule.start_times[graph_id],
+            self.schedule._get_y_position(graph_id),
+        )
+
+    def _redraw_from_start(self) -> None:
+        self.schedule._reset_y_locations()
+        for graph_id in {
+            k: v
+            for k, v in sorted(
+                self.schedule.start_times.items(), key=lambda item: item[1]
+            )
+        }:
+            self._set_position(graph_id)
+        self._redraw_all_lines()
+
+    def _update_axes(self, build=False):
+        # build axes
+        schedule_time = self.schedule.schedule_time
+        max_pos_graph_id = max(
+            self.schedule._y_locations, key=self.schedule._y_locations.get
+        )
+        yposmin = self.schedule._get_y_position(max_pos_graph_id)
+
+        if self._axes is None or build:
+            self._axes = AxesItem(schedule_time, yposmin + 0.5)
+            self._event_items += self._axes.event_items
+        else:
+            self._axes.set_height(yposmin + 0.5)
+        self._axes.setPos(0, yposmin + 1 + OPERATION_GAP)
+
     def _make_graph(self) -> None:
         """Makes a new graph out of the stored attributes."""
         # build components
-        _components_dict = {}
-        # print('Start times:')
-        for op_id, op_start_time in self.schedule.start_times.items():
-            operation = cast(Operation, self.schedule.sfg.find_by_id(op_id))
+        for graph_id in self.schedule.start_times.keys():
+            operation = cast(Operation, self.schedule.sfg.find_by_id(graph_id))
             component = OperationItem(operation, parent=self)
-            component.setPos(
-                self._x_axis_indent + op_start_time,
-                self.schedule._get_y_position(op_id),
-            )
-            self._components.append(component)
-            _components_dict[operation] = component
+            self._operation_items[graph_id] = component
+            self._set_position(graph_id)
             self._event_items += component.event_items
 
-        # build axes
-        schedule_time = self.schedule.schedule_time
-        max_pos_op_id = max(
-            self.schedule._y_locations, key=self.schedule._y_locations.get
-        )
-        yposmin = self.schedule._get_y_position(max_pos_op_id)
-
-        self._axes = AxesItem(schedule_time, yposmin + 0.5)
-        self._axes.setPos(0, yposmin + 1 + OPERATION_GAP)
-        self._event_items += self._axes.event_items
         # self._axes.width = schedule_time
 
         # add axes and components
+        self._update_axes(build=True)
         self.addToGroup(self._axes)
-        for component in self._components:
+        for component in self.components:
             self.addToGroup(component)
-        # self.addToGroup(self._components)
 
         # add signals
-        for component in self._components:
+        for component in self.components:
             for output_port in component.operation.outputs:
                 for signal in output_port.signals:
                     destination = cast(InputPort, signal.destination)
-                    dest_component = _components_dict[destination.operation]
+                    dest_component = self._operation_items[
+                        destination.operation.graph_id
+                    ]
                     gui_signal = SignalItem(
                         component, dest_component, signal, parent=self
                     )

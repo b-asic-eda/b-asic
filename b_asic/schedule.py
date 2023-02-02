@@ -78,19 +78,21 @@ class Schedule:
         else:
             self._schedule_time = schedule_time
 
-    def start_time_of_operation(self, op_id: GraphID) -> int:
+    def start_time_of_operation(self, graph_id: GraphID) -> int:
         """
-        Get the start time of the operation with the specified by the op_id.
+        Get the start time of the operation with the specified by *graph_id*.
         """
-        if op_id not in self._start_times:
-            raise ValueError(f"No operation with op_id {op_id} in schedule")
-        return self._start_times[op_id]
+        if graph_id not in self._start_times:
+            raise ValueError(
+                f"No operation with graph_id {graph_id} in schedule"
+            )
+        return self._start_times[graph_id]
 
     def get_max_end_time(self) -> int:
         """Returns the current maximum end time among all operations."""
         max_end_time = 0
-        for op_id, op_start_time in self._start_times.items():
-            op = cast(Operation, self._sfg.find_by_id(op_id))
+        for graph_id, op_start_time in self._start_times.items():
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
             for outport in op.outputs:
                 max_end_time = max(
                     max_end_time,
@@ -98,11 +100,13 @@ class Schedule:
                 )
         return max_end_time
 
-    def forward_slack(self, op_id: GraphID) -> int:
-        if op_id not in self._start_times:
-            raise ValueError(f"No operation with op_id {op_id} in schedule")
+    def forward_slack(self, graph_id: GraphID) -> int:
+        if graph_id not in self._start_times:
+            raise ValueError(
+                f"No operation with graph_id {graph_id} in schedule"
+            )
         slack = sys.maxsize
-        output_slacks = self._forward_slacks(op_id)
+        output_slacks = self._forward_slacks(graph_id)
         # Make more pythonic
         for signal_slacks in output_slacks.values():
             for signal_slack in signal_slacks.values():
@@ -110,11 +114,11 @@ class Schedule:
         return slack
 
     def _forward_slacks(
-        self, op_id: GraphID
+        self, graph_id: GraphID
     ) -> Dict["OutputPort", Dict["Signal", int]]:
         ret = {}
-        start_time = self._start_times[op_id]
-        op = cast(Operation, self._sfg.find_by_id(op_id))
+        start_time = self._start_times[graph_id]
+        op = cast(Operation, self._sfg.find_by_id(graph_id))
         for output_port in op.outputs:
             output_slacks = {}
             available_time = start_time + cast(int, output_port.latency_offset)
@@ -130,11 +134,13 @@ class Schedule:
             ret[output_port] = output_slacks
         return ret
 
-    def backward_slack(self, op_id: GraphID) -> int:
-        if op_id not in self._start_times:
-            raise ValueError(f"No operation with op_id {op_id} in schedule")
+    def backward_slack(self, graph_id: GraphID) -> int:
+        if graph_id not in self._start_times:
+            raise ValueError(
+                f"No operation with graph_id {graph_id} in schedule"
+            )
         slack = sys.maxsize
-        input_slacks = self._backward_slacks(op_id)
+        input_slacks = self._backward_slacks(graph_id)
         # Make more pythonic
         for signal_slacks in input_slacks.values():
             for signal_slack in signal_slacks.values():
@@ -142,11 +148,11 @@ class Schedule:
         return slack
 
     def _backward_slacks(
-        self, op_id: GraphID
+        self, graph_id: GraphID
     ) -> Dict[InputPort, Dict[Signal, int]]:
         ret = {}
-        start_time = self._start_times[op_id]
-        op = cast(Operation, self._sfg.find_by_id(op_id))
+        start_time = self._start_times[graph_id]
+        op = cast(Operation, self._sfg.find_by_id(graph_id))
         for input_port in op.inputs:
             input_slacks = {}
             usage_time = start_time + cast(int, input_port.latency_offset)
@@ -162,10 +168,12 @@ class Schedule:
             ret[input_port] = input_slacks
         return ret
 
-    def slacks(self, op_id: GraphID) -> Tuple[int, int]:
-        if op_id not in self._start_times:
-            raise ValueError(f"No operation with op_id {op_id} in schedule")
-        return self.backward_slack(op_id), self.forward_slack(op_id)
+    def slacks(self, graph_id: GraphID) -> Tuple[int, int]:
+        if graph_id not in self._start_times:
+            raise ValueError(
+                f"No operation with graph_id {graph_id} in schedule"
+            )
+        return self.backward_slack(graph_id), self.forward_slack(graph_id)
 
     def print_slacks(self) -> None:
         raise NotImplementedError
@@ -212,9 +220,9 @@ class Schedule:
         self._start_times = {
             k: factor * v for k, v in self._start_times.items()
         }
-        for op_id in self._start_times:
+        for graph_id in self._start_times:
             cast(
-                Operation, self._sfg.find_by_id(op_id)
+                Operation, self._sfg.find_by_id(graph_id)
             )._increase_time_resolution(factor)
         self._schedule_time *= factor
         return self
@@ -227,8 +235,8 @@ class Schedule:
         # Local values
         ret = [self._schedule_time, *self._start_times.values()]
         # Loop over operations
-        for op_id in self._start_times:
-            op = cast(Operation, self._sfg.find_by_id(op_id))
+        for graph_id in self._start_times:
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
             ret += [cast(int, op.execution_time), *op.latency_offsets.values()]
         # Remove not set values (None)
         ret = [v for v in ret if v is not None]
@@ -265,26 +273,28 @@ class Schedule:
         self._start_times = {
             k: v // factor for k, v in self._start_times.items()
         }
-        for op_id in self._start_times:
+        for graph_id in self._start_times:
             cast(
-                Operation, self._sfg.find_by_id(op_id)
+                Operation, self._sfg.find_by_id(graph_id)
             )._decrease_time_resolution(factor)
         self._schedule_time = self._schedule_time // factor
         return self
 
-    def move_operation(self, op_id: GraphID, time: int) -> "Schedule":
-        if op_id not in self._start_times:
-            raise ValueError(f"No operation with op_id {op_id} in schedule")
+    def move_operation(self, graph_id: GraphID, time: int) -> "Schedule":
+        if graph_id not in self._start_times:
+            raise ValueError(
+                f"No operation with graph_id {graph_id} in schedule"
+            )
 
-        (backward_slack, forward_slack) = self.slacks(op_id)
+        (backward_slack, forward_slack) = self.slacks(graph_id)
         if not -backward_slack <= time <= forward_slack:
             raise ValueError
 
-        tmp_start = self._start_times[op_id] + time
+        tmp_start = self._start_times[graph_id] + time
         new_start = tmp_start % self._schedule_time
 
         # Update input laps
-        input_slacks = self._backward_slacks(op_id)
+        input_slacks = self._backward_slacks(graph_id)
         for in_port, signal_slacks in input_slacks.items():
             tmp_usage = tmp_start + cast(int, in_port.latency_offset)
             new_usage = tmp_usage % self._schedule_time
@@ -311,7 +321,7 @@ class Schedule:
                 self._laps[signal.graph_id] = laps
 
         # Update output laps
-        output_slacks = self._forward_slacks(op_id)
+        output_slacks = self._forward_slacks(graph_id)
         for out_port, signal_slacks in output_slacks.items():
             tmp_available = tmp_start + cast(int, out_port.latency_offset)
             new_available = tmp_available % self._schedule_time
@@ -327,7 +337,7 @@ class Schedule:
                 self._laps[signal.graph_id] = laps
 
         # Set new start time
-        self._start_times[op_id] = new_start
+        self._start_times[graph_id] = new_start
         return self
 
     def _remove_delays(self) -> None:
@@ -434,8 +444,8 @@ class Schedule:
 
     def _get_memory_variables_list(self) -> List['Process']:
         ret: List['Process'] = []
-        for op_id, start_time in self._start_times.items():
-            slacks = self._forward_slacks(op_id)
+        for graph_id, start_time in self._start_times.items():
+            slacks = self._forward_slacks(graph_id)
             for outport, signals in slacks.items():
                 reads = {
                     cast(InputPort, signal.destination): slack
@@ -450,8 +460,8 @@ class Schedule:
                 )
         return ret
 
-    def _get_y_position(self, op_id):
-        y_location = self._y_locations[op_id]
+    def _get_y_position(self, graph_id):
+        y_location = self._y_locations[graph_id]
         if y_location == None:
             # Assign the lowest row number not yet in use
             used = set(
@@ -459,7 +469,7 @@ class Schedule:
             )
             possible = set(range(len(self._start_times))) - used
             y_location = min(possible)
-            self._y_locations[op_id] = y_location
+            self._y_locations[graph_id] = y_location
         return OPERATION_GAP + y_location * (1 + OPERATION_GAP)
 
     def _plot_schedule(self, ax):
@@ -559,9 +569,9 @@ class Schedule:
         yticklabels = []
         ax.set_axisbelow(True)
         ax.grid()
-        for op_id, op_start_time in self._start_times.items():
-            ypos = -self._get_y_position(op_id)
-            op = self._sfg.find_by_id(op_id)
+        for graph_id, op_start_time in self._start_times.items():
+            ypos = -self._get_y_position(graph_id)
+            op = self._sfg.find_by_id(graph_id)
             # Rewrite to make better use of NumPy
             latency_coords, execution_time_coords = op.get_plot_coordinates()
             _x, _y = zip(*latency_coords)
@@ -581,12 +591,12 @@ class Schedule:
                     linewidth=3,
                 )
             ytickpositions.append(ypos + 0.5)
-            yticklabels.append(self._sfg.find_by_id(op_id).name)
+            yticklabels.append(self._sfg.find_by_id(graph_id).name)
 
-        for op_id, op_start_time in self._start_times.items():
-            op = self._sfg.find_by_id(op_id)
+        for graph_id, op_start_time in self._start_times.items():
+            op = self._sfg.find_by_id(graph_id)
             _, out_coords = op.get_io_coordinates()
-            source_ypos = -self._get_y_position(op_id)
+            source_ypos = -self._get_y_position(graph_id)
 
             for output_port in op.outputs:
                 for output_signal in output_port.signals:
@@ -604,7 +614,7 @@ class Schedule:
                         dest_in_coords[output_signal.destination.index],
                         [op_start_time, source_ypos],
                         [dest_start_time, dest_ypos],
-                        name=op_id,
+                        name=graph_id,
                         laps=self._laps[output_signal.graph_id],
                     )
 
@@ -612,8 +622,8 @@ class Schedule:
         ax.set_yticklabels(yticklabels)
 
         # Get operation with maximum position
-        max_pos_op_id = max(self._y_locations, key=self._y_locations.get)
-        yposmin = -self._get_y_position(max_pos_op_id) - OPERATION_GAP
+        max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
+        yposmin = -self._get_y_position(max_pos_graph_id) - OPERATION_GAP
         ax.axis([-1, self._schedule_time + 1, yposmin, 1])
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.add_line(

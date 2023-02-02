@@ -18,7 +18,7 @@
    </sizepolicy>
   </property>
   <property name="windowIcon">
-   <iconset resource="icons/basic.qrc">
+   <iconset>
     <normaloff>:/icons/basic/small_logo.png</normaloff>:/icons/basic/small_logo.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -108,6 +108,12 @@
         <property name="text">
          <string>Property</string>
         </property>
+        <property name="font">
+         <font>
+          <weight>50</weight>
+          <bold>false</bold>
+         </font>
+        </property>
         <property name="textAlignment">
          <set>AlignLeading|AlignVCenter</set>
         </property>
@@ -126,7 +132,9 @@
         </property>
         <property name="font">
          <font>
-          <bold>true</bold>
+          <weight>50</weight>
+          <bold>false</bold>
+          <kerning>true</kerning>
          </font>
         </property>
         <property name="background">
@@ -157,7 +165,8 @@
         </property>
         <property name="font">
          <font>
-          <bold>true</bold>
+          <weight>50</weight>
+          <bold>false</bold>
          </font>
         </property>
         <property name="background">
@@ -224,10 +233,19 @@
     </property>
     <addaction name="menu_exit_dialog"/>
    </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="actionDocumentation"/>
+    <addaction name="separator"/>
+    <addaction name="actionAbout"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menu_Edit"/>
    <addaction name="menuView"/>
    <addaction name="menuWindow"/>
+   <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QToolBar" name="toolBar">
@@ -246,6 +264,7 @@
    <addaction name="separator"/>
    <addaction name="menu_node_info"/>
    <addaction name="actionT"/>
+   <addaction name="actionReorder"/>
   </widget>
   <action name="menu_load_from_file">
    <property name="icon">
@@ -291,7 +310,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="icons/misc.qrc">
+    <iconset>
      <normaloff>:/icons/misc/right_panel.svg</normaloff>
      <normalon>:/icons/misc/right_filled_panel.svg</normalon>:/icons/misc/right_panel.svg</iconset>
    </property>
@@ -364,6 +383,25 @@
     <string>&amp;Close Schedule</string>
    </property>
   </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+  <action name="actionDocumentation">
+   <property name="text">
+    <string>Documentation</string>
+   </property>
+  </action>
+  <action name="actionReorder">
+   <property name="text">
+    <string>Reorder</string>
+   </property>
+   <property name="toolTip">
+    <string>Reorder schedule based on start time</string>
+   </property>
+  </action>
  </widget>
+ <resources/>
  <connections/>
 </ui>

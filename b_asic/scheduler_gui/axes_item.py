@@ -129,10 +129,10 @@ class AxesItem(QGraphicsItemGroup):
         """
         return self._height
 
-    # @height.setter
-    # def height(self, height: int) -> None:
-    #     if self._height != height:
-    #         self.update_axes(height = height)
+    @height.setter
+    def height(self, height: int) -> None:
+        if self._height != height:
+            self.update_axes(height=height)
 
     # @property
     # def width_indent(self) -> float:
@@ -154,12 +154,13 @@ class AxesItem(QGraphicsItemGroup):
         self._event_items.append(item)
 
     def set_height(self, height: int) -> "AxesItem":
-        # TODO: implement, docstring
+        # TODO: docstring
         if height < 0:
             raise ValueError(
                 f"'height' greater or equal to 0 expected, got: {height}."
             )
-        raise NotImplementedError
+        self._height = height
+        self._update_yaxis()
 
     def set_width(self, width: int) -> "AxesItem":
         # TODO: docstring
@@ -275,6 +276,20 @@ class AxesItem(QGraphicsItemGroup):
             self._x_scale_labels[index + 1].setText(str(index + 1))
             self._x_scale[index + 1].setX(self._x_scale[index + 1].x() + 1)
 
+    def _update_yaxis(self) -> None:
+        self._y_axis.setLine(
+            0,
+            0,
+            0,
+            -(
+                self._height_indent
+                + self._height
+                + self._height_padding
+                + 0.05
+            ),
+        )
+        self._y_axis.setPen(self._base_pen)
+
     def _make_base(self) -> None:
         # x axis
         self._x_axis.setLine(0, 0, self._width_indent + self._width_padding, 0)
@@ -322,16 +337,5 @@ class AxesItem(QGraphicsItemGroup):
         )  # move timeline
 
         # y-axis
-        self._y_axis.setLine(
-            0,
-            0,
-            0,
-            -(
-                self._height_indent
-                + self._height
-                + self._height_padding
-                + 0.05
-            ),
-        )
-        self._y_axis.setPen(self._base_pen)
+        self._update_yaxis()
         self.addToGroup(self._y_axis)
