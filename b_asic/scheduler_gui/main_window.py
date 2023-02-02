@@ -97,6 +97,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     _debug_rects: QGraphicsItemGroup
     _splitter_pos: int
     _splitter_min: int
+    _zoom: float
 
     def __init__(self):
         """Initialize Scheduler-gui."""
@@ -105,6 +106,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._graph = None
         self._scale = 75.0
         self._debug_rects = None
+        self._zoom = 1.0
 
         self.setupUi(self)
         self._read_settings()
@@ -185,6 +187,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self._graph is not None:
             self._graph._redraw_from_start()
         # self._printButtonPressed('callback_pushButton()')
+
+    def wheelEvent(self, event):
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            old_zoom = self._zoom
+            self._zoom += event.angleDelta().y() / 2500
+            self.view.scale(self._zoom, self._zoom)
+            self._zoom = old_zoom
 
     @Slot()
     def _load_schedule_from_pyfile(self) -> None:
