@@ -460,7 +460,11 @@ class Schedule:
                 )
         return ret
 
-    def _get_y_position(self, graph_id):
+    def _get_y_position(
+        self, graph_id, operation_height=1.0, operation_gap=None
+    ):
+        if operation_gap is None:
+            operation_gap = OPERATION_GAP
         y_location = self._y_locations[graph_id]
         if y_location == None:
             # Assign the lowest row number not yet in use
@@ -470,9 +474,9 @@ class Schedule:
             possible = set(range(len(self._start_times))) - used
             y_location = min(possible)
             self._y_locations[graph_id] = y_location
-        return OPERATION_GAP + y_location * (1 + OPERATION_GAP)
+        return operation_gap + y_location * (operation_height + operation_gap)
 
-    def _plot_schedule(self, ax):
+    def _plot_schedule(self, ax, operation_gap=None):
         line_cache = []
 
         def _draw_arrow(start, end, name="", laps=0):
@@ -570,7 +574,7 @@ class Schedule:
         ax.set_axisbelow(True)
         ax.grid()
         for graph_id, op_start_time in self._start_times.items():
-            ypos = -self._get_y_position(graph_id)
+            ypos = -self._get_y_position(graph_id, operation_gap=operation_gap)
             op = self._sfg.find_by_id(graph_id)
             # Rewrite to make better use of NumPy
             latency_coords, execution_time_coords = op.get_plot_coordinates()
@@ -596,13 +600,17 @@ class Schedule:
         for graph_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(graph_id)
             _, out_coords = op.get_io_coordinates()
-            source_ypos = -self._get_y_position(graph_id)
+            source_ypos = -self._get_y_position(
+                graph_id, operation_gap=operation_gap
+            )
 
             for output_port in op.outputs:
                 for output_signal in output_port.signals:
                     dest_op = output_signal.destination.operation
                     dest_start_time = self._start_times[dest_op.graph_id]
-                    dest_ypos = -self._get_y_position(dest_op.graph_id)
+                    dest_ypos = -self._get_y_position(
+                        dest_op.graph_id, operation_gap=operation_gap
+                    )
                     (
                         dest_in_coords,
                         _,
@@ -623,7 +631,9 @@ class Schedule:
 
         # Get operation with maximum position
         max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
-        yposmin = -self._get_y_position(max_pos_graph_id) - OPERATION_GAP
+        yposmin = -self._get_y_position(
+            max_pos_graph_id, operation_gap=operation_gap
+        ) - (OPERATION_GAP if operation_gap is None else operation_gap)
         ax.axis([-1, self._schedule_time + 1, yposmin, 1])
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.add_line(
@@ -641,12 +651,12 @@ class Schedule:
     def _reset_y_locations(self):
         self._y_locations = self._y_locations = defaultdict(lambda: None)
 
-    def plot_schedule(self) -> None:
-        self._get_figure().show()
+    def plot_schedule(self, operation_gap=None) -> None:
+        self._get_figure(operation_gap=operation_gap).show()
 
-    def _get_figure(self):
+    def _get_figure(self, operation_gap=None) -> None:
         fig, ax = plt.subplots()
-        self._plot_schedule(ax)
+        self._plot_schedule(ax, operation_gap=operation_gap)
         return fig
 
     def _repr_svg_(self):

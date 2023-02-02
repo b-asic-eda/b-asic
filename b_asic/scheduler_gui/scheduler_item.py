@@ -14,10 +14,10 @@ from typing import Dict, List, Optional, Set, cast
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
 
 # B-ASIC
-from b_asic._preferences import OPERATION_GAP
 from b_asic.operation import Operation
 from b_asic.port import InputPort
 from b_asic.schedule import Schedule
+from b_asic.scheduler_gui._preferences import OPERATION_GAP, OPERATION_HEIGHT
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.scheduler_event import SchedulerEvent
@@ -31,6 +31,15 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     AxesItem, as well as components from OperationItem. It
     also inherits from SchedulerEvent, which acts as a filter for events
     to OperationItem objects.
+
+    Parameters
+    ==========
+
+    schedule : Schedule
+        The Schedule to draw.
+
+    parent : QGraphicsItem, optional
+        The parent. Passed to the constructor of QGraphicsItemGroup
     """
 
     _axes: Optional[AxesItem]
@@ -42,7 +51,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     def __init__(
         self, schedule: Schedule, parent: Optional[QGraphicsItem] = None
     ):
-        """Constructs a SchedulerItem. 'parent' is passed to QGraphicsItemGroup's constructor.
+        """Constructs a SchedulerItem. *parent* is passed to QGraphicsItemGroup's constructor.
         """
         # QGraphicsItemGroup.__init__(self, self)
         # SchedulerEvent.__init__(self)
@@ -60,7 +69,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         self._make_graph()
 
     def clear(self) -> None:
-        """Sets all children's parent to 'None' and delete the children objects.
+        """
+        Sets all children's parent to 'None' and delete the children objects.
         """
         self._event_items = []
         for item in self.childItems():
@@ -68,8 +78,19 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
             del item
 
     def is_component_valid_pos(self, item: OperationItem, pos: float) -> bool:
-        """Takes in a component position and returns true if the component's new
-        position is valid, false otherwise."""
+        """
+        Takes in a component position and returns true if the component's new
+        position is valid, false otherwise.
+
+        Parameters
+        ==========
+
+        item : OperationItem
+            The component.
+
+        pos : float
+            The x-position to check.
+        """
         # TODO: implement
         assert self.schedule is not None, "No schedule installed."
         end_time = item.end_time
@@ -94,24 +115,43 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
         return True
 
-    def _redraw_all_lines(self):
+    def _redraw_all_lines(self) -> None:
+        """Redraw all lines in schedule."""
         s = set()
         for signals in self._signal_dict.values():
             s.update(signals)
         for signal in s:
             signal.update_path()
 
-    def _redraw_lines(self, item: OperationItem):
+    def _redraw_lines(self, item: OperationItem) -> None:
         """Update lines connected to *item*."""
         for signal in self._signal_dict[item]:
             signal.update_path()
 
-    def set_item_active(self, item: OperationItem):
+    def set_item_active(self, item: OperationItem) -> None:
+        """
+        Set an item as active, i.e., draw it and connecting signals in special colors.
+
+        Parameters
+        ----------
+        item : OperationItem
+            The item to set as active.
+
+        """
         item.set_active()
         for signal in self._signal_dict[item]:
             signal.set_active()
 
-    def set_item_inactive(self, item: OperationItem):
+    def set_item_inactive(self, item: OperationItem) -> None:
+        """
+        Set an item as inactive, i.e., draw it and connecting signals in standard colors.
+
+        Parameters
+        ----------
+        item : OperationItem
+            The item to set as active.
+
+        """
         item.set_inactive()
         for signal in self._signal_dict[item]:
             signal.set_inactive()
@@ -126,8 +166,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
             self.schedule.move_operation(item.graph_id, move_time)
 
     def is_valid_delta_time(self, delta_time: int) -> bool:
-        """Takes in a delta time and returns true if the new schedule time is
-        valid, false otherwise."""
+        """
+        Takes in a delta time and returns True if the schedule time can be changed by *delta_time*. False otherwise.
+        """
         # TODO: implement
         # item = self.scene().mouseGrabberItem()
         assert self.schedule is not None, "No schedule installed."
@@ -137,7 +178,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         )
 
     def set_schedule_time(self, delta_time: int) -> None:
-        """Set the schedule time and redraw the graph."""
+        """Change the schedule time by *delta_time* and redraw the graph."""
         if self._axes is None:
             raise RuntimeError("No AxesItem!")
         assert self.schedule is not None, "No schedule installed."
@@ -170,7 +211,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         op_item = self._operation_items[graph_id]
         op_item.setPos(
             self._x_axis_indent + self.schedule.start_times[graph_id],
-            self.schedule._get_y_position(graph_id),
+            self.schedule._get_y_position(
+                graph_id, OPERATION_HEIGHT, OPERATION_GAP
+            ),
         )
 
     def _redraw_from_start(self) -> None:
@@ -190,21 +233,25 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         max_pos_graph_id = max(
             self.schedule._y_locations, key=self.schedule._y_locations.get
         )
-        yposmin = self.schedule._get_y_position(max_pos_graph_id)
+        yposmin = self.schedule._get_y_position(
+            max_pos_graph_id, OPERATION_HEIGHT, OPERATION_GAP
+        )
 
         if self._axes is None or build:
             self._axes = AxesItem(schedule_time, yposmin + 0.5)
             self._event_items += self._axes.event_items
         else:
             self._axes.set_height(yposmin + 0.5)
-        self._axes.setPos(0, yposmin + 1 + OPERATION_GAP)
+        self._axes.setPos(0, yposmin + OPERATION_HEIGHT + OPERATION_GAP)
 
     def _make_graph(self) -> None:
         """Makes a new graph out of the stored attributes."""
         # build components
         for graph_id in self.schedule.start_times.keys():
             operation = cast(Operation, self.schedule.sfg.find_by_id(graph_id))
-            component = OperationItem(operation, parent=self)
+            component = OperationItem(
+                operation, height=OPERATION_HEIGHT, parent=self
+            )
             self._operation_items[graph_id] = component
             self._set_position(graph_id)
             self._event_items += component.event_items
