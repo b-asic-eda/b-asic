@@ -450,7 +450,7 @@ class SFG(AbstractOperation):
         ):
             src = output_operation.input(0).signals[0].source
             if src is None:
-                raise ValueError("Missing soruce in signal.")
+                raise ValueError("Missing source in signal.")
             src.clear()
             output_port.signals[0].set_source(src)
         return True
@@ -555,7 +555,8 @@ class SFG(AbstractOperation):
         return components
 
     def find_by_id(self, graph_id: GraphID) -> Optional[GraphComponent]:
-        """Find the graph component with the specified ID.
+        """
+        Find the graph component with the specified ID.
         Returns None if the component was not found.
 
         Parameters
@@ -567,7 +568,8 @@ class SFG(AbstractOperation):
         return self._components_by_id.get(graph_id, None)
 
     def find_by_name(self, name: Name) -> Sequence[GraphComponent]:
-        """Find all graph components with the specified name.
+        """
+        Find all graph components with the specified name.
         Returns an empty sequence if no components were found.
 
         Parameters
@@ -581,7 +583,8 @@ class SFG(AbstractOperation):
     def find_result_keys_by_name(
         self, name: Name, output_index: int = 0
     ) -> Sequence[ResultKey]:
-        """Find all graph components with the specified name and
+        """
+        Find all graph components with the specified name and
         return a sequence of the keys to use when fetching their results
         from a simulation.
 
@@ -609,8 +612,10 @@ class SFG(AbstractOperation):
         Parameters
         ==========
 
-        component : The new component(s), e.g. Multiplication
-        graph_id : The GraphID to match the component to replace.
+        component : Operation
+            The new component(s), e.g. Multiplication
+        graph_id : GraphID
+            The GraphID to match the component to replace.
         """
 
         sfg_copy = self()  # Copy to not mess with this SFG.
@@ -650,8 +655,10 @@ class SFG(AbstractOperation):
         Parameters
         ==========
 
-        component : The new component, e.g. Multiplication.
-        output_comp_id : The source operation GraphID to connect from.
+        component : Operation
+            The new component, e.g. Multiplication.
+        output_comp_id : GraphID
+            The source operation GraphID to connect from.
         """
 
         # Preserve the original SFG by creating a copy.
@@ -682,9 +689,17 @@ class SFG(AbstractOperation):
         return sfg_copy()
 
     def remove_operation(self, operation_id: GraphID) -> Union["SFG", None]:
-        """Returns a version of the SFG where the operation with the specified GraphID removed.
+        """
+        Returns a version of the SFG where the operation with the specified GraphID removed.
         The operation has to have the same amount of input- and output ports or a ValueError will
         be raised. If no operation with the entered operation_id is found then returns None and does nothing.
+
+        Parameters
+        ==========
+
+        operation_id : GraphID
+            The GraphID of the operation to remove.
+
         """
         sfg_copy = self()
         operation = cast(Operation, sfg_copy.find_by_id(operation_id))
@@ -720,9 +735,12 @@ class SFG(AbstractOperation):
         return sfg_copy()
 
     def get_precedence_list(self) -> Sequence[Sequence[OutputPort]]:
-        """Returns a Precedence list of the SFG where each element in n:th the list consists
-        of elements that are executed in the n:th step. If the precedence list already has been
-        calculated for the current SFG then returns the cached version."""
+        """
+        Returns a precedence list of the SFG where each element in n:th the
+        list consists of elements that are executed in the n:th step. If the
+        precedence list already has been calculated for the current SFG then
+        return the cached version.
+        """
         if self._precedence_list:
             return self._precedence_list
 
@@ -793,9 +811,12 @@ class SFG(AbstractOperation):
         return pg
 
     def print_precedence_graph(self) -> None:
-        """Prints a representation of the SFG's precedence list to the standard out.
-        If the precedence list already has been calculated then it uses the cached version,
-        otherwise it calculates the precedence list and then prints it."""
+        """
+        Print a representation of the SFG's precedence list to the standard out.
+        If the precedence list already has been calculated then it uses the
+        cached version, otherwise it calculates the precedence list and then
+        prints it.
+        """
         precedence_list = self.get_precedence_list()
 
         line = "-" * 120
@@ -822,9 +843,11 @@ class SFG(AbstractOperation):
         print(out_str.getvalue())
 
     def get_operations_topological_order(self) -> Iterable[Operation]:
-        """Returns an Iterable of the Operations in the SFG in Topological Order.
-        Feedback loops makes an absolutely correct Topological order impossible, so an
-        approximate Topological Order is returned in such cases in this implementation.
+        """
+        Return an Iterable of the Operations in the SFG in topological order.
+        Feedback loops makes an absolutely correct topological order impossible,
+        so an approximate topological Order is returned in such cases in this
+        implementation.
         """
         if self._operations_topological_order:
             return self._operations_topological_order
@@ -841,9 +864,8 @@ class SFG(AbstractOperation):
         seen = set()
         top_order = []
 
-        assert (
-            len(no_inputs_queue) > 0
-        ), "Illegal SFG state, dangling signals in SFG."
+        if len(no_inputs_queue) == 0:
+            raise ValueError("Illegal SFG state, dangling signals in SFG.")
 
         first_op = no_inputs_queue.popleft()
         visited = {first_op}
