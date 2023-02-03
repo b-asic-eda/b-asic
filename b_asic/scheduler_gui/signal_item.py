@@ -5,6 +5,7 @@ from qtpy.QtGui import QPainterPath, QPen
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsPathItem
 
 from b_asic.scheduler_gui._preferences import (
+    SCHEDULE_INDENT,
     SIGNAL_ACTIVE,
     SIGNAL_INACTIVE,
     SIGNAL_WIDTH,
@@ -58,7 +59,7 @@ class SignalItem(QGraphicsPathItem):
             dest_x - source_x <= -0.1
             or self.parentItem().schedule._laps[self._signal.graph_id]
         ):
-            offset = 0.2  # TODO: Get from parent/axes...
+            offset = SCHEDULE_INDENT  # TODO: Get from parent/axes...
             laps = self.parentItem().schedule._laps[self._signal.graph_id]
             path.lineTo(
                 self.parentItem().schedule.schedule_time + offset, source_y

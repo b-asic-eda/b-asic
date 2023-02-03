@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (
 )
 
 # B-ASIC
+from b_asic.scheduler_gui._preferences import SCHEDULE_INDENT
 from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 
@@ -51,8 +52,8 @@ class AxesItem(QGraphicsItemGroup):
         self,
         width: int,
         height: int,
-        width_indent: float = 0.2,
-        height_indent: float = 0.2,
+        width_indent: float = SCHEDULE_INDENT,
+        height_indent: float = SCHEDULE_INDENT,
         width_padding: float = 0.6,
         height_padding: float = 0.5,
         parent: Optional[QGraphicsItem] = None,

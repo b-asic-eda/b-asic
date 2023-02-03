@@ -21,8 +21,10 @@ from b_asic._preferences import (
     EXECUTION_TIME_COLOR,
     LATENCY_COLOR,
     OPERATION_GAP,
+    SCHEDULE_OFFSET,
     SIGNAL_COLOR,
     SIGNAL_LINEWIDTH,
+    SPLINE_OFFSET,
 )
 from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
@@ -483,27 +485,27 @@ class Schedule:
             if end[0] < start[0] or laps > 0:  # Wrap around
                 if start not in line_cache:
                     line = Line2D(
-                        [start[0], self._schedule_time + 0.2],
+                        [start[0], self._schedule_time + SCHEDULE_OFFSET],
                         [start[1], start[1]],
                         color=_SIGNAL_COLOR,
                         lw=SIGNAL_LINEWIDTH,
                     )
                     ax.add_line(line)
                     ax.text(
-                        self._schedule_time + 0.2,
+                        self._schedule_time + SCHEDULE_OFFSET,
                         start[1],
                         name,
                         verticalalignment="center",
                     )
                 line = Line2D(
-                    [-0.2, end[0]],
+                    [-SCHEDULE_OFFSET, end[0]],
                     [end[1], end[1]],
                     color=_SIGNAL_COLOR,
                     lw=SIGNAL_LINEWIDTH,
                 )
                 ax.add_line(line)
                 ax.text(
-                    -0.2,
+                    -SCHEDULE_OFFSET,
                     end[1],
                     f"{name}: {laps}",
                     verticalalignment="center",
@@ -515,11 +517,11 @@ class Schedule:
                 p = Path(
                     [
                         start,
-                        [start[0] + 0.2, start[1]],
-                        [start[0] + 0.2, (start[1] + end[1]) / 2],
+                        [start[0] + SPLINE_OFFSET, start[1]],
+                        [start[0] + SPLINE_OFFSET, (start[1] + end[1]) / 2],
                         [start[0], (start[1] + end[1]) / 2],
-                        [start[0] - 0.2, (start[1] + end[1]) / 2],
-                        [start[0] - 0.2, end[1]],
+                        [start[0] - SPLINE_OFFSET, (start[1] + end[1]) / 2],
+                        [start[0] - SPLINE_OFFSET, end[1]],
                         end,
                     ],
                     [

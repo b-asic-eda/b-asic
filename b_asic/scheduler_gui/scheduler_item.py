@@ -17,7 +17,11 @@ from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
 from b_asic.operation import Operation
 from b_asic.port import InputPort
 from b_asic.schedule import Schedule
-from b_asic.scheduler_gui._preferences import OPERATION_GAP, OPERATION_HEIGHT
+from b_asic.scheduler_gui._preferences import (
+    OPERATION_GAP,
+    OPERATION_HEIGHT,
+    SCHEDULE_INDENT,
+)
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.scheduler_event import SchedulerEvent
@@ -63,7 +67,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         self._schedule = schedule
         self._axes = None
         self._operation_items = {}
-        self._x_axis_indent = 0.2
+        self._x_axis_indent = SCHEDULE_INDENT
         self._event_items = []
         self._signal_dict = defaultdict(set)
         self._make_graph()
