@@ -1,5 +1,6 @@
 import io
 import random
+import re
 import string
 import sys
 from os import path, remove
@@ -627,9 +628,15 @@ class TestFindComponentsWithTypeName:
 
 class TestGetPrecedenceList:
     def test_inputs_delays(self, precedence_sfg_delays):
+        # No cached precedence list
+        assert precedence_sfg_delays._precedence_list is None
+
         precedence_list = precedence_sfg_delays.get_precedence_list()
 
         assert len(precedence_list) == 7
+
+        # Cached precedence list
+        assert len(precedence_sfg_delays._precedence_list) == 7
 
         assert set(
             [
@@ -679,6 +686,11 @@ class TestGetPrecedenceList:
                 for port in precedence_list[6]
             ]
         ) == {"ADD4"}
+
+        # Trigger cache
+        precedence_list = precedence_sfg_delays.get_precedence_list()
+
+        assert len(precedence_list) == 7
 
     def test_inputs_constants_delays_multiple_outputs(
         self, precedence_sfg_delays_and_constants
@@ -1510,3 +1522,43 @@ class TestSFGErrors:
         signal = Signal(adaptor.output(1))
         # Should raise?
         SFG([in1, in2], [out1], output_signals=[signal, signal])
+
+    def test_dangling_input_signal(self):
+        in1 = Input()
+        signal = Signal()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, signal)
+        out1 = Output(adaptor.output(0))
+        out2 = Output(adaptor.output(1))
+        with pytest.raises(
+            ValueError, match="Dangling signal without source in SFG"
+        ):
+            SFG([in1], [out1, out2])
+
+    def test_remove_signal_with_different_number_of_inputs_and_outputs(self):
+        in1 = Input()
+        in2 = Input()
+        add1 = Addition(in1, in2, name="addition")
+        out1 = Output(add1)
+        sfg = SFG([in1, in2], [out1])
+        # Try to remove non-existent operation
+        sfg1 = sfg.remove_operation("foo")
+        assert sfg1 is None
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Different number of input and output ports of operation with"
+            ),
+        ):
+            sfg.remove_operation('add1')
+
+    def test_inputs_required_for_output(self):
+        in1 = Input()
+        in2 = Input()
+        add1 = Addition(in1, in2, name="addition")
+        out1 = Output(add1)
+        sfg = SFG([in1, in2], [out1])
+        with pytest.raises(
+            IndexError,
+            match=re.escape("Output index out of range (expected 0-0, got 1)"),
+        ):
+            sfg.inputs_required_for_output(1)
