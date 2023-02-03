@@ -14,5 +14,6 @@ API
     sfg_generator.rst
     signal.rst
     signal_flow_graph.rst
+    signal_generator.rst
     simulation.rst
     special_operations.rst
