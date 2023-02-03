@@ -20,6 +20,7 @@ from b_asic.core_operations import (
     Multiplication,
     SquareRoot,
     Subtraction,
+    SymmetricTwoportAdaptor,
 )
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 
@@ -1413,3 +1414,99 @@ class TestSFGGraph:
     def test_show_sfg_invalid_engine(self, sfg_simple_filter):
         with pytest.raises(ValueError):
             sfg_simple_filter.show_sfg(engine="ppddff")
+
+
+class TestSFGErrors:
+    def test_dangling_output(self):
+        in1 = Input()
+        in2 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
+        out1 = Output(adaptor.output(0))
+        # No error, maybe should be?
+        _ = SFG([in1, in2], [out1])
+
+    def test_unconnected_input_port(self):
+        in1 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1)
+        out1 = Output(adaptor.output(0))
+        with pytest.raises(ValueError, match="Unconnected input port in SFG"):
+            SFG([in1], [out1])
+
+    def test_unconnected_output(self):
+        in1 = Input()
+        in2 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
+        out1 = Output(adaptor.output(0))
+        out2 = Output()
+        # No error, should be
+        SFG([in1, in2], [out1, out2])
+
+    def test_unconnected_input(self):
+        in1 = Input()
+        in2 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1)
+        out1 = Output(adaptor.output(0))
+        out2 = Output(adaptor.output(1))
+        # Correct error?
+        with pytest.raises(ValueError, match="Unconnected input port in SFG"):
+            SFG([in1, in2], [out1, out2])
+
+    def test_duplicate_input(self):
+        in1 = Input()
+        in2 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
+        out1 = Output(adaptor.output(0))
+        out2 = Output(adaptor.output(1))
+        with pytest.raises(ValueError, match="Duplicate input operation"):
+            SFG([in1, in1], [out1, out2])
+
+    def test_duplicate_output(self):
+        in1 = Input()
+        in2 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
+        out1 = Output(adaptor.output(0))
+        out2 = Output(adaptor.output(1))
+        with pytest.raises(ValueError, match="Duplicate output operation"):
+            SFG([in1, in2], [out1, out1])
+
+    def test_unconnected_input_signal(self):
+        in1 = Input()
+        in2 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
+        out1 = Output(adaptor.output(0))
+        out2 = Output(adaptor.output(1))
+        signal = Signal()
+        with pytest.raises(
+            ValueError, match="Input signal #0 is missing destination in SFG"
+        ):
+            SFG([in1, in2], [out1, out2], [signal])
+
+    def test_unconnected_output_signal(self):
+        in1 = Input()
+        in2 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
+        out1 = Output(adaptor.output(0))
+        out2 = Output(adaptor.output(1))
+        signal = Signal()
+        with pytest.raises(
+            ValueError, match="Output signal #0 is missing source in SFG"
+        ):
+            SFG([in1, in2], [out1, out2], output_signals=[signal])
+
+    def test_duplicate_input_signal(self):
+        in1 = Input()
+        signal = Signal()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, signal)
+        out1 = Output(adaptor.output(0))
+        out2 = Output(adaptor.output(1))
+        with pytest.raises(ValueError, match="Duplicate input signal"):
+            SFG([in1], [out1, out2], [signal, signal])
+
+    def test_duplicate_output_signal(self):
+        in1 = Input()
+        in2 = Input()
+        adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
+        out1 = Output(adaptor.output(0))
+        signal = Signal(adaptor.output(1))
+        # Should raise?
+        SFG([in1, in2], [out1], output_signals=[signal, signal])
