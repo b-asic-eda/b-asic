@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (
 )
 
 from b_asic.schedule import Schedule
+from b_asic.scheduler_gui._preferences import OPERATION_GAP, OPERATION_HEIGHT
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.timeline_item import TimelineItem
@@ -193,19 +194,28 @@ class SchedulerEvent:  # PyQt5
         horizontally in x-axis scale steps.
         """
 
-        def update_pos(item, dx):
-            pos = item.x() + dx
-            if self.is_component_valid_pos(item, pos):
-                item.setX(pos)
+        def update_pos(item, dx, dy):
+            posx = item.x() + dx
+            posy = item.y() + dy * (OPERATION_GAP + OPERATION_HEIGHT)
+            if self.is_component_valid_pos(item, posx):
+                item.setX(posx)
+                item.setY(posy)
                 self._current_pos.setX(self._current_pos.x() + dx)
+                self._current_pos.setY(self._current_pos.y() + dy)
                 self._redraw_lines(item)
+                self._schedule._y_locations[item.operation.graph_id] += dy
 
         item: OperationItem = self.scene().mouseGrabberItem()
         delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
+        delta_y = (item.mapToParent(event.pos()) - self._current_pos).y()
+
+        delta_y_steps = round(delta_y / (OPERATION_GAP + OPERATION_HEIGHT))
         if delta_x > 0.505:
-            update_pos(item, 1)
+            update_pos(item, 1, delta_y_steps)
         elif delta_x < -0.505:
-            update_pos(item, -1)
+            update_pos(item, -1, delta_y_steps)
+        elif delta_y_steps != 0:
+            update_pos(item, 0, delta_y_steps)
 
     def comp_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
@@ -225,16 +235,16 @@ class SchedulerEvent:  # PyQt5
         item: OperationItem = self.scene().mouseGrabberItem()
         self.set_item_inactive(item)
         self.set_new_starttime(item)
-        pos = item.x()
+        posx = item.x()
         redraw = False
-        if pos < 0:
-            pos += self._schedule.schedule_time
+        if posx < 0:
+            posx += self._schedule.schedule_time
             redraw = True
-        if pos > self._schedule.schedule_time:
-            pos = pos % self._schedule.schedule_time
+        if posx > self._schedule.schedule_time:
+            posx = posx % self._schedule.schedule_time
             redraw = True
         if redraw:
-            item.setX(pos)
+            item.setX(posx)
             self._redraw_lines(item)
 
     def comp_mouseDoubleClickEvent(
