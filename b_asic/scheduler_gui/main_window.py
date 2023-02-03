@@ -255,35 +255,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self,
                 self.tr("File not found"),
                 self.tr(
-                    "Could not find any Schedule object in file '{}'."
+                    "Cannot find any Schedule object in file '{}'."
                 ).format(os.path.basename(abs_path_filename)),
             )
             log.info(
-                "Could not find any Schedule object in file '{}'.".format(
+                "Cannot find any Schedule object in file '{}'.".format(
                     os.path.basename(abs_path_filename)
                 )
             )
             del module
             return
 
-        ret_tuple = QInputDialog.getItem(
-            self,
-            self.tr("Load object"),
-            self.tr(
-                "Found the following Schedule object(s) in file.\n\n"
-                "Select an object to proceed:"
-            ),
-            schedule_obj_list.keys(),
-            0,
-            False,
-        )
+        if len(schedule_obj_list) == 1:
+            schedule = [val for val in schedule_obj_list.values()][0]
+        else:
+            ret_tuple = QInputDialog.getItem(
+                self,
+                self.tr("Load object"),
+                self.tr(
+                    "Found the following Schedule objects in file.\n\n"
+                    "Select an object to proceed:"
+                ),
+                schedule_obj_list.keys(),
+                0,
+                False,
+            )
 
-        if not ret_tuple[1]:  # User canceled the operation
-            log.debug("Load schedule operation: user canceled")
-            del module
-            return
+            if not ret_tuple[1]:  # User canceled the operation
+                log.debug("Load schedule operation: user canceled")
+                del module
+                return
+            schedule = schedule_obj_list[ret_tuple[0]]
 
-        self.open(schedule_obj_list[ret_tuple[0]])
+        self.open(schedule)
         del module
         settings.setValue("mainwindow/last_opened_file", abs_path_filename)
 
