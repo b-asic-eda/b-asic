@@ -1,14 +1,8 @@
-"""A sfg with delays and interesting layout for precedence list generation.
-     .                                          .
-IN1>--->C0>--->ADD1>----------+--->A0>--->ADD4>--->OUT1
-     .           ^            |            ^    .
-     .           |            T1           |    .
-     .           |            |            |    .
-     .         ADD2<---<B1<---+--->A1>--->ADD3  .
-     .           ^            |            ^    .
-     .           |            T2           |    .
-     .           |            |            |    .
-     .           +-----<B2<---+--->A2>-----+    .
+"""
+=====================================
+Second-order IIR Filter with Schedule
+=====================================
+
 """
 
 from b_asic.core_operations import Addition, ConstantMultiplication
@@ -37,10 +31,15 @@ sfg = SFG(
     inputs=[in1], outputs=[out1], name="Second-order direct form IIR filter"
 )
 
-# Set latencies and exection times
+# %%
+# Set latencies and execution times
 sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
 sfg.set_latency_of_type(Addition.type_name(), 1)
 sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
 sfg.set_execution_time_of_type(Addition.type_name(), 1)
 
+# %%
+# Create schedule
+
 schedule = Schedule(sfg, cyclic=True)
+schedule.plot_schedule()

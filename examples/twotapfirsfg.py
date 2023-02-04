@@ -1,7 +1,7 @@
 """
-B-ASIC automatically generated SFG file.
-Name: twotapfir
-Last saved: 2023-01-24 14:38:17.654639.
+==================
+Two-tap FIR filter
+==================
 """
 from b_asic import (
     SFG,

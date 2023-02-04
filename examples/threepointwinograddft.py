@@ -1,4 +1,7 @@
-"""Three-point Winograd DFT.
+"""
+========================
+Three-point Winograd DFT
+========================
 """
 
 from math import cos, pi, sin
@@ -38,7 +41,8 @@ sfg = SFG(
     name="3-point Winograd DFT",
 )
 
-# Set latencies and exection times
+# %%
+# Set latencies and execution times
 sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
 sfg.set_latency_of_type(Addition.type_name(), 1)
 sfg.set_latency_of_type(Subtraction.type_name(), 1)
@@ -46,4 +50,7 @@ sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
 sfg.set_execution_time_of_type(Addition.type_name(), 1)
 sfg.set_execution_time_of_type(Subtraction.type_name(), 1)
 
+# %%
+# Generate schedule
 schedule = Schedule(sfg, cyclic=True)
+schedule.plot_schedule()

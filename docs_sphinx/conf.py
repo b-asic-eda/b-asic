@@ -22,7 +22,8 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.intersphinx',
-    'numpydoc',
+    'sphinx_gallery.gen_gallery',
+    'numpydoc',  # Needs to be loaded *after* autodoc.
 ]
 
 templates_path = ['_templates']
@@ -50,3 +51,13 @@ graphviz_dot = shutil.which('dot')
 
 html_theme = 'furo'
 html_static_path = ['_static']
+
+# -- Options for sphinx-gallery --
+sphinx_gallery_conf = {
+    'examples_dirs': '../examples',  # path to your example scripts
+    'gallery_dirs': 'examples',  # path to where to save gallery generated output
+    'plot_gallery': 'True',  # sphinx-gallery/913
+    'filename_pattern': '.',
+    'doc_module': ('b_asic',),
+    'reference_url': {'b_asic': None},
+}

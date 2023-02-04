@@ -1,3 +1,5 @@
 sphinx
 furo
 numpydoc
+sphinx-gallery
+scipy

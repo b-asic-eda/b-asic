@@ -53,6 +53,8 @@ To generate the documentation, the following additional packages are required:
     -   [Sphinx](https://www.sphinx-doc.org/)
     -   [Furo](https://pradyunsg.me/furo/)
     -   [numpydoc](https://numpydoc.readthedocs.io/)
+    -   [Sphinx-Gallery](https://sphinx-gallery.github.io/)
+    -   [SciPy](https://scipy.org/)
 
 ### Using CMake directly
 

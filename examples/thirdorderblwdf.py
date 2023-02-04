@@ -1,4 +1,8 @@
 """
+=============================
+Third-order Bireciprocal LWDF
+=============================
+
 Small bireciprocal lattice wave digital filter.
 """
 from b_asic.core_operations import Addition, SymmetricTwoportAdaptor

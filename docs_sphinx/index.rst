@@ -22,9 +22,10 @@ Indices and tables
 Table of Contents
 ^^^^^^^^^^^^^^^^^
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    self
    api/index
    GUI
    scheduler_gui
+   examples/index
