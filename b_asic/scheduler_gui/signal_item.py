@@ -54,7 +54,7 @@ class SignalItem(QGraphicsPathItem):
         self.set_inactive()
         self.update_path()
 
-    def update_path(self):
+    def update_path(self) -> None:
         """
         Create a new path after moving connected operations.
         """
@@ -93,7 +93,7 @@ class SignalItem(QGraphicsPathItem):
             path.cubicTo(ctrl_point1, ctrl_point2, dest_point)
         self.setPath(path)
 
-    def refresh_pens(self):
+    def refresh_pens(self) -> None:
         """Create pens."""
         pen = QPen(SIGNAL_ACTIVE)
         pen.setWidthF(SIGNAL_WIDTH)
@@ -102,11 +102,12 @@ class SignalItem(QGraphicsPathItem):
         pen.setWidthF(SIGNAL_WIDTH)
         self._inactive_pen = pen
 
-    def set_active(self):
-        """Set the signal color to represent that a connected operation is selected.
+    def set_active(self) -> None:
+        """
+        Set the signal color to represent that a connected operation is selected.
         """
         self.setPen(self._active_pen)
 
-    def set_inactive(self):
+    def set_inactive(self) -> None:
         """Set the signal color to the default color."""
         self.setPen(self._inactive_pen)

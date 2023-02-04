@@ -25,7 +25,19 @@ from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 
 class AxesItem(QGraphicsItemGroup):
-    """A class to represent axes in a graph."""
+    """
+    A class to represent axes in a graph.
+
+    Parameters
+    ----------
+    width
+    height
+    width_indent
+    height_indent
+    width_padding
+    height_padding
+    parent
+    """
 
     _scale: float = 1.0
     """Static, changed from MainWindow."""
@@ -59,7 +71,7 @@ class AxesItem(QGraphicsItemGroup):
         parent: Optional[QGraphicsItem] = None,
     ):
         """
-        Construct an AxesItem.
+        Class for an AxesItem.
         *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)

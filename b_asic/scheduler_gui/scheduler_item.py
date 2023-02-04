@@ -56,7 +56,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     def __init__(
         self, schedule: Schedule, parent: Optional[QGraphicsItem] = None
     ):
-        """Constructs a SchedulerItem. *parent* is passed to QGraphicsItemGroup's constructor.
+        """
+        Construct a SchedulerItem. *parent* is passed to QGraphicsItemGroup's constructor.
         """
         # QGraphicsItemGroup.__init__(self, self)
         # SchedulerEvent.__init__(self)
@@ -75,7 +76,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def clear(self) -> None:
         """
-        Sets all children's parent to 'None' and delete the children objects.
+        Set all children's parent to 'None' and delete the children objects.
         """
         self._event_items = []
         for item in self.childItems():
@@ -84,8 +85,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def is_component_valid_pos(self, item: OperationItem, pos: float) -> bool:
         """
-        Takes in a component position and returns true if the component's new
-        position is valid, false otherwise.
+        Take in a component position and return True if the component's new
+        position is valid, False otherwise.
 
         Parameters
         ==========
@@ -161,8 +162,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         for signal in self._signal_dict[item]:
             signal.set_inactive()
 
-    def set_new_starttime(self, item: OperationItem) -> None:
-        """Set new starttime for *item*."""
+    def set_new_start_time(self, item: OperationItem) -> None:
+        """Set new start time for *item*."""
         pos = item.x()
         op_start_time = self.schedule.start_time_of_operation(item.graph_id)
         new_start_time = floor(pos) - floor(self._x_axis_indent)
@@ -232,25 +233,25 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
             self._set_position(graph_id)
         self._redraw_all_lines()
 
-    def _update_axes(self, build=False):
+    def _update_axes(self, build=False) -> None:
         # build axes
         schedule_time = self.schedule.schedule_time
         max_pos_graph_id = max(
             self.schedule._y_locations, key=self.schedule._y_locations.get
         )
-        yposmin = self.schedule._get_y_position(
+        y_pos_min = self.schedule._get_y_position(
             max_pos_graph_id, OPERATION_HEIGHT, OPERATION_GAP
         )
 
         if self._axes is None or build:
-            self._axes = AxesItem(schedule_time, yposmin + 0.5)
+            self._axes = AxesItem(schedule_time, y_pos_min + 0.5)
             self._event_items += self._axes.event_items
         else:
-            self._axes.set_height(yposmin + 0.5)
-        self._axes.setPos(0, yposmin + OPERATION_HEIGHT + OPERATION_GAP)
+            self._axes.set_height(y_pos_min + 0.5)
+        self._axes.setPos(0, y_pos_min + OPERATION_HEIGHT + OPERATION_GAP)
 
     def _make_graph(self) -> None:
-        """Makes a new graph out of the stored attributes."""
+        """Make a new graph out of the stored attributes."""
         # build components
         for graph_id in self.schedule.start_times.keys():
             operation = cast(Operation, self.schedule.sfg.find_by_id(graph_id))
@@ -274,15 +275,15 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
             for output_port in component.operation.outputs:
                 for signal in output_port.signals:
                     destination = cast(InputPort, signal.destination)
-                    dest_component = self._operation_items[
+                    destination_component = self._operation_items[
                         destination.operation.graph_id
                     ]
                     gui_signal = SignalItem(
-                        component, dest_component, signal, parent=self
+                        component, destination_component, signal, parent=self
                     )
                     self.addToGroup(gui_signal)
                     self._signal_dict[component].add(gui_signal)
-                    self._signal_dict[dest_component].add(gui_signal)
+                    self._signal_dict[destination_component].add(gui_signal)
 
 
 pprint(SchedulerItem.__mro__)

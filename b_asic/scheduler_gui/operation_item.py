@@ -30,7 +30,15 @@ from b_asic.scheduler_gui._preferences import (
 
 
 class OperationItem(QGraphicsItemGroup):
-    """Class to represent a component in a graph."""
+    """
+    Class to represent an operation in a graph.
+
+    Parameters
+    ----------
+    operation : Operation
+    height : float, default: 1.0
+    parent : QGraphicsItem, optional
+    """
 
     _scale: float = 1.0
     """Static, changed from MainWindow."""
@@ -91,12 +99,12 @@ class OperationItem(QGraphicsItemGroup):
 
     @property
     def graph_id(self) -> GraphID:
-        """Get the op-id."""
+        """The graph-id of the operation that the item corresponds to."""
         return self._operation.graph_id
 
     @property
     def operation(self) -> Operation:
-        """Get the operation."""
+        """The operation that the item corresponds to."""
         return self._operation
 
     @property
@@ -116,26 +124,40 @@ class OperationItem(QGraphicsItemGroup):
 
     @property
     def end_time(self) -> int:
-        """Get the relative end time."""
+        """The relative end time."""
         return self._end_time
 
     @property
     def event_items(self) -> List[QGraphicsItem]:
-        """Returns a list of objects, that receives events."""
+        """List of objects that receives events."""
         return [self]
 
-    def get_port_location(self, key) -> QPointF:
+    def get_port_location(self, key: str) -> QPointF:
+        """
+        Return the location specified by *key*.
+
+        Parameters
+        ----------
+        key : str
+            The port key.
+
+        Returns
+        -------
+            The location as a QPointF.
+        """
         return self.mapToParent(self._ports[key]["pos"])
 
-    def set_active(self):
+    def set_active(self) -> None:
+        """Set the item as active, i.e., draw it in special colors."""
         self._set_background(OPERATION_LATENCY_ACTIVE)
         self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
-    def set_inactive(self):
+    def set_inactive(self) -> None:
+        """Set the item as inactive, i.e., draw it in standard colors."""
         self._set_background(OPERATION_LATENCY_INACTIVE)
         self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
-    def _set_background(self, color: QColor):
+    def _set_background(self, color: QColor) -> None:
         brush = QBrush(color)
         self._latency_item.setBrush(brush)
 
@@ -198,13 +220,13 @@ class OperationItem(QGraphicsItemGroup):
                 key = f"{prefix}{i}"
                 self._ports[key]["pos"] = pos
                 port_pos = self.mapToParent(pos)
-                port = QGraphicsEllipseItem(
+                new_port = QGraphicsEllipseItem(
                     -port_size / 2, -port_size / 2, port_size, port_size
                 )
-                port.setPen(port_outline_pen)
-                port.setBrush(port_filling_brush)
-                port.setPos(port_pos.x(), port_pos.y())
-                self._port_items.append(port)
+                new_port.setPen(port_outline_pen)
+                new_port.setBrush(port_filling_brush)
+                new_port.setPos(port_pos.x(), port_pos.y())
+                self._port_items.append(new_port)
 
         create_ports(inputs, "in")
         create_ports(outputs, "out")

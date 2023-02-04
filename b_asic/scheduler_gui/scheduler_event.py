@@ -68,9 +68,9 @@ class SchedulerEvent:  # PyQt5
     def set_item_inactive(self, item: OperationItem) -> None:
         raise NotImplementedError
 
-    #################
-    #### Filters ####
-    #################
+    ###########
+    # Filters #
+    ###########
     @overload
     def installSceneEventFilters(self, filterItems: QGraphicsItem) -> None:
         ...
@@ -116,24 +116,23 @@ class SchedulerEvent:  # PyQt5
         If False is returned, the event is forwarded to the appropriate child in
         the event chain.
         """
-        handler = None
 
         if isinstance(item, OperationItem):  # one component
             switch = {
-                # QEvent.FocusIn:                         self.comp_focusInEvent,
-                # QEvent.GraphicsSceneContextMenu:        self.comp_contextMenuEvent,
-                # QEvent.GraphicsSceneDragEnter:          self.comp_dragEnterEvent,
-                # QEvent.GraphicsSceneDragMove:           self.comp_dragMoveEvent,
-                # QEvent.GraphicsSceneDragLeave:          self.comp_dragLeaveEvent,
-                # QEvent.GraphicsSceneDrop:               self.comp_dropEvent,
-                # QEvent.GraphicsSceneHoverEnter:         self.comp_hoverEnterEvent,
-                # QEvent.GraphicsSceneHoverMove:          self.comp_hoverMoveEvent,
-                # QEvent.GraphicsSceneHoverLeave:         self.comp_hoverLeaveEvent,
-                QEvent.GraphicsSceneMouseMove: self.comp_mouseMoveEvent,
-                QEvent.GraphicsSceneMousePress: self.comp_mousePressEvent,
-                QEvent.GraphicsSceneMouseRelease: self.comp_mouseReleaseEvent,
-                # QEvent.GraphicsSceneMouseDoubleClick:   self.comp_mouseDoubleClickEvent,
-                # QEvent.GraphicsSceneWheel:              self.comp_wheelEvent
+                # QEvent.FocusIn:                         self.operation_focusInEvent,
+                # QEvent.GraphicsSceneContextMenu:        self.operation_contextMenuEvent,
+                # QEvent.GraphicsSceneDragEnter:          self.operation_dragEnterEvent,
+                # QEvent.GraphicsSceneDragMove:           self.operation_dragMoveEvent,
+                # QEvent.GraphicsSceneDragLeave:          self.operation_dragLeaveEvent,
+                # QEvent.GraphicsSceneDrop:               self.operation_dropEvent,
+                # QEvent.GraphicsSceneHoverEnter:         self.operation_hoverEnterEvent,
+                # QEvent.GraphicsSceneHoverMove:          self.operation_hoverMoveEvent,
+                # QEvent.GraphicsSceneHoverLeave:         self.operation_hoverLeaveEvent,
+                QEvent.GraphicsSceneMouseMove: self.operation_mouseMoveEvent,
+                QEvent.GraphicsSceneMousePress: self.operation_mousePressEvent,
+                QEvent.GraphicsSceneMouseRelease: self.operation_mouseReleaseEvent,
+                # QEvent.GraphicsSceneMouseDoubleClick:   self.operation_mouseDoubleClickEvent,
+                # QEvent.GraphicsSceneWheel:              self.operation_wheelEvent
             }
             handler = switch.get(event.type())
 
@@ -153,67 +152,76 @@ class SchedulerEvent:  # PyQt5
                 f"from an '{type(item).__name__}' object."
             )
 
-        if handler is not None:
-            handler(event)
-            return True
-        return False  # returns False if event is ignored and pass through event to its child
+        handler(event)
+        return True
 
-    # def sceneEvent(self, event: QEvent) -> bool:
-    #     print(f'sceneEvent() --> {event.type()}')
-    #     # event.accept()
-    #     # QApplication.sendEvent(self.scene(), event)
-    #     return False
-
-    ###############################################
-    #### Event Handlers: OperationItem ####
-    ###############################################
-    def comp_focusInEvent(self, event: QFocusEvent) -> None:
+    #################################
+    # Event Handlers: OperationItem #
+    #################################
+    def operation_focusInEvent(self, event: QFocusEvent) -> None:
         ...
 
-    def comp_contextMenuEvent(
+    def operation_contextMenuEvent(
         self, event: QGraphicsSceneContextMenuEvent
     ) -> None:
         ...
 
-    def comp_dragEnterEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
+    def operation_dragEnterEvent(
+        self, event: QGraphicsSceneDragDropEvent
+    ) -> None:
         ...
 
-    def comp_dragMoveEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
+    def operation_dragMoveEvent(
+        self, event: QGraphicsSceneDragDropEvent
+    ) -> None:
         ...
 
-    def comp_dragLeaveEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
+    def operation_dragLeaveEvent(
+        self, event: QGraphicsSceneDragDropEvent
+    ) -> None:
         ...
 
-    def comp_dropEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
+    def operation_dropEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
         ...
 
-    def comp_hoverEnterEvent(self, event: QGraphicsSceneHoverEvent) -> None:
+    def operation_hoverEnterEvent(
+        self, event: QGraphicsSceneHoverEvent
+    ) -> None:
         ...
 
-    def comp_hoverMoveEvent(self, event: QGraphicsSceneHoverEvent) -> None:
+    def operation_hoverMoveEvent(
+        self, event: QGraphicsSceneHoverEvent
+    ) -> None:
         ...
 
-    def comp_hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent) -> None:
+    def operation_hoverLeaveEvent(
+        self, event: QGraphicsSceneHoverEvent
+    ) -> None:
         ...
 
-    def comp_mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+    def operation_mouseMoveEvent(
+        self, event: QGraphicsSceneMouseEvent
+    ) -> None:
         """
         Set the position of the graphical element in the graphic scene,
         translate coordinates of the cursor within the graphic element in the
-        coordinate system of the parent object. The object can only move
-        horizontally in x-axis scale steps.
+        coordinate system of the parent object.
         """
 
-        def update_pos(item, dx, dy):
-            posx = item.x() + dx
-            posy = item.y() + dy * (OPERATION_GAP + OPERATION_HEIGHT)
-            if self.is_component_valid_pos(item, posx):
-                item.setX(posx)
-                item.setY(posy)
+        def update_pos(operation_item, dx, dy):
+            pos_x = operation_item.x() + dx
+            pos_y = operation_item.y() + dy * (
+                OPERATION_GAP + OPERATION_HEIGHT
+            )
+            if self.is_component_valid_pos(operation_item, pos_x):
+                operation_item.setX(pos_x)
+                operation_item.setY(pos_y)
                 self._current_pos.setX(self._current_pos.x() + dx)
                 self._current_pos.setY(self._current_pos.y() + dy)
-                self._redraw_lines(item)
-                self._schedule._y_locations[item.operation.graph_id] += dy
+                self._redraw_lines(operation_item)
+                self._schedule._y_locations[
+                    operation_item.operation.graph_id
+                ] += dy
 
         item: OperationItem = self.scene().mouseGrabberItem()
         delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
@@ -227,7 +235,9 @@ class SchedulerEvent:  # PyQt5
         elif delta_y_steps != 0:
             update_pos(item, 0, delta_y_steps)
 
-    def comp_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+    def operation_mousePressEvent(
+        self, event: QGraphicsSceneMouseEvent
+    ) -> None:
         """
         Changes the cursor to ClosedHandCursor when grabbing an object and
         stores the current position in item's parent coordinates. *event* will
@@ -240,34 +250,36 @@ class SchedulerEvent:  # PyQt5
         self.set_item_active(item)
         event.accept()
 
-    def comp_mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+    def operation_mouseReleaseEvent(
+        self, event: QGraphicsSceneMouseEvent
+    ) -> None:
         """Change the cursor to OpenHandCursor when releasing an object."""
         item: OperationItem = self.scene().mouseGrabberItem()
         self.set_item_inactive(item)
         self.set_new_starttime(item)
-        posx = item.x()
+        pos_x = item.x()
         redraw = False
-        if posx < 0:
-            posx += self._schedule.schedule_time
+        if pos_x < 0:
+            pos_x += self._schedule.schedule_time
             redraw = True
-        if posx > self._schedule.schedule_time:
-            posx = posx % self._schedule.schedule_time
+        if pos_x > self._schedule.schedule_time:
+            pos_x = pos_x % self._schedule.schedule_time
             redraw = True
         if redraw:
-            item.setX(posx)
+            item.setX(pos_x)
             self._redraw_lines(item)
 
-    def comp_mouseDoubleClickEvent(
+    def operation_mouseDoubleClickEvent(
         self, event: QGraphicsSceneMouseEvent
     ) -> None:
         ...
 
-    def comp_wheelEvent(self, event: QGraphicsSceneWheelEvent) -> None:
+    def operation_wheelEvent(self, event: QGraphicsSceneWheelEvent) -> None:
         ...
 
-    ###############################################
-    #### Event Handlers: GraphicsLineTem       ####
-    ###############################################
+    ###################################
+    # Event Handlers: GraphicsLineTem #
+    ###################################
     def timeline_mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
         Set the position of the graphical element in the graphic scene,
@@ -276,13 +288,13 @@ class SchedulerEvent:  # PyQt5
         horizontally in x-axis scale steps.
         """
 
-        def update_pos(item, dx):
-            pos = item.x() + dx
+        def update_pos(timeline_item, dx):
+            pos = timeline_item.x() + dx
             if self.is_valid_delta_time(self._delta_time + dx):
-                item.setX(pos)
+                timeline_item.setX(pos)
                 self._current_pos.setX(self._current_pos.x() + dx)
                 self._delta_time += dx
-                item.set_text(self._delta_time)
+                timeline_item.set_text(self._delta_time)
 
         item: TimelineItem = self.scene().mouseGrabberItem()
         delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()

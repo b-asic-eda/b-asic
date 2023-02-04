@@ -21,6 +21,10 @@ class Signal(AbstractGraphComponent):
     """
     A connection between two ports.
 
+    .. note:: If a Signal is provided as *source* or *destination*, the
+              connected port is used. Hence, if the argument signal is later
+              changed, it will not affect the current Signal.
+
     Parameters
     ==========
 
@@ -32,10 +36,6 @@ class Signal(AbstractGraphComponent):
         The word length of the signal.
     name : Name, default: ""
         The signal name.
-
-    .. note:: If a Signal is provided as *source* or *destination*, the
-              connected port is used. Hence, if the argument signal is later
-              changed, it will not affect the current Signal.
 
     See also
     ========

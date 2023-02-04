@@ -44,6 +44,7 @@ from qtpy.QtWidgets import (
 
 # B-ASIC
 import b_asic.scheduler_gui.logger as logger
+from b_asic._version import __version__
 from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.axes_item import AxesItem
@@ -66,9 +67,9 @@ if __debug__:
     from qtpy import QtCore
 
     QT_API = os.environ.get("QT_API", "")
-    log.debug("Qt version (runtime):     {}".format(QtCore.qVersion()))
-    log.debug("Qt version (compiletime): {}".format(QtCore.__version__))
-    log.debug("QT_API:                   {}".format(QT_API))
+    log.debug("Qt version (runtime):      {}".format(QtCore.qVersion()))
+    log.debug("Qt version (compile time): {}".format(QtCore.__version__))
+    log.debug("QT_API:                    {}".format(QT_API))
     if QT_API.lower().startswith("pyside"):
         import PySide2
 
@@ -84,7 +85,9 @@ if __debug__:
 QCoreApplication.setOrganizationName("Linköping University")
 QCoreApplication.setOrganizationDomain("liu.se")
 QCoreApplication.setApplicationName("B-ASIC Scheduler")
-# QCoreApplication.setApplicationVersion(__version__)     # TODO: read from packet __version__
+QCoreApplication.setApplicationVersion(
+    __version__
+)  # TODO: read from packet __version__
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -94,7 +97,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     _schedule: Union[Schedule, None]
     _graph: Union[SchedulerItem, None]
     _scale: float
-    _debug_rects: QGraphicsItemGroup
+    _debug_rectangles: QGraphicsItemGroup
     _splitter_pos: int
     _splitter_min: int
     _zoom: float
@@ -105,7 +108,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._schedule = None
         self._graph = None
         self._scale = 75.0
-        self._debug_rects = None
+        self._debug_rectangles = None
         self._zoom = 1.0
 
         self.setupUi(self)
@@ -159,7 +162,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @property
     def schedule(self) -> Optional[Schedule]:
-        """Get the current schedule."""
+        """The current schedule."""
         return self._schedule
 
     #########
@@ -173,7 +176,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.schedule.plot()
         if self._graph is not None:
             print(f"filtersChildEvents(): {self._graph.filtersChildEvents()}")
-        # self._printButtonPressed('callback_pushButton()')
+        # self._print_button_pressed('callback_pushButton()')
 
     @Slot()
     def _open_documentation(self) -> None:
@@ -181,14 +184,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _actionReorder(self) -> None:
-        # TODO: remove
+        """Callback to reorder all operations vertically based on start time.
+        """
         if self.schedule is None:
             return
         if self._graph is not None:
             self._graph._redraw_from_start()
-        # self._printButtonPressed('callback_pushButton()')
 
-    def wheelEvent(self, event):
+    def wheelEvent(self, event) -> None:
+        """Zoom in or out using mouse wheel if control is pressed."""
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             old_zoom = self._zoom
             self._zoom += event.angleDelta().y() / 2500
@@ -197,12 +201,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _load_schedule_from_pyfile(self) -> None:
-        """SLOT() for SIGNAL(menu_load_from_file.triggered)
+        """
+        SLOT() for SIGNAL(menu_load_from_file.triggered)
         Load a python script as a module and search for a Schedule object. If
-        found, opens it."""
+        found, opens it.
+        """
         settings = QSettings()
         last_file = settings.value(
-            "mainwindow/last_opened_file",
+            "scheduler/last_opened_file",
             QStandardPaths.standardLocations(QStandardPaths.HomeLocation)[0],
             str,
         )
@@ -289,12 +295,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.open(schedule)
         del module
-        settings.setValue("mainwindow/last_opened_file", abs_path_filename)
+        settings.setValue("scheduler/last_opened_file", abs_path_filename)
 
     @Slot()
     def close_schedule(self) -> None:
-        """SLOT() for SIGNAL(menu_close_schedule.triggered)
-        Closes current schedule."""
+        """
+        SLOT() for SIGNAL(menu_close_schedule.triggered)
+        Closes current schedule.
+        """
         if self._graph:
             self._graph._signals.component_selected.disconnect(
                 self.info_table_update_component
@@ -318,22 +326,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         This method save a schedule.
         """
         # TODO: all
-        self._printButtonPressed("save_schedule()")
+        self._print_button_pressed("save_schedule()")
         self.update_statusbar(self.tr("Schedule saved successfully"))
 
     @Slot()
     def save_as(self) -> None:
-        """SLOT() for SIGNAL(menu_save_as.triggered)
-        This method save as a schedule."""
+        """
+        SLOT() for SIGNAL(menu_save_as.triggered)
+        This method save as a schedule.
+        """
         # TODO: all
-        self._printButtonPressed("save_schedule()")
+        self._print_button_pressed("save_schedule()")
         self.update_statusbar(self.tr("Schedule saved successfully"))
 
     @Slot(bool)
     def show_info_table(self, checked: bool) -> None:
-        """SLOT(bool) for SIGNAL(menu_node_info.triggered)
+        """
+        SLOT(bool) for SIGNAL(menu_node_info.triggered)
         Takes in a boolean and hide or show the info table accordingly with
-        'checked'."""
+        'checked'.
+        """
         # Note: splitter handler index 0 is a hidden splitter handle far most left, use index 1
         # settings = QSettings()
         _, max_ = self.splitter.getRange(1)  # tuple(min, max)
@@ -353,8 +365,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Takes in a boolean and stores 'checked' in 'hide_exit_dialog' item in
         settings.
         """
-        s = QSettings()
-        s.setValue("mainwindow/hide_exit_dialog", checked)
+        settings = QSettings()
+        settings.setValue("scheduler/hide_exit_dialog", checked)
 
     @Slot(int, int)
     def _splitter_moved(self, pos: int, index: int) -> None:
@@ -414,8 +426,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         in a QCloseEvent and display an exit dialog, depending on
         'hide_exit_dialog' in settings.
         """
-        s = QSettings()
-        hide_dialog = s.value("mainwindow/hide_exit_dialog", False, bool)
+        settings = QSettings()
+        hide_dialog = settings.value("scheduler/hide_exit_dialog", False, bool)
         ret = QMessageBox.StandardButton.Yes
 
         if not hide_dialog:
@@ -439,7 +451,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if ret == QMessageBox.StandardButton.Yes:
             if not hide_dialog:
-                s.setValue("mainwindow/hide_exit_dialog", checkbox.isChecked())
+                settings.setValue(
+                    "scheduler/hide_exit_dialog", checkbox.isChecked()
+                )
             self._write_settings()
             log.info("Exit: {}".format(os.path.basename(__file__)))
             event.accept()
@@ -449,7 +463,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     ###########################
     # Helper member functions #
     ###########################
-    def _printButtonPressed(self, func_name: str) -> None:
+    def _print_button_pressed(self, func_name: str) -> None:
         # TODO: remove
 
         alert = QMessageBox(self)
@@ -475,53 +489,63 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def update_statusbar(self, msg: str) -> None:
-        """Take a str and write *msg* to the statusbar with temporarily policy.
+        """
+        Write *msg* to the statusbar with temporarily policy.
+
+        Parameters
+        ----------
+        msg : str
+            The message to write.
         """
         self.statusbar.showMessage(msg)
 
     def _write_settings(self) -> None:
         """Write settings from MainWindow to Settings."""
-        s = QSettings()
-        s.setValue(
-            "mainwindow/maximized", self.isMaximized()
+        settings = QSettings()
+        settings.setValue(
+            "scheduler/maximized", self.isMaximized()
         )  # window: maximized, in X11 - always False
-        s.setValue("mainwindow/pos", self.pos())  # window: pos
-        s.setValue("mainwindow/size", self.size())  # window: size
-        s.setValue(
-            "mainwindow/state", self.saveState()
+        settings.setValue("scheduler/pos", self.pos())  # window: pos
+        settings.setValue("scheduler/size", self.size())  # window: size
+        settings.setValue(
+            "scheduler/state", self.saveState()
         )  # toolbars, dockwidgets: pos, size
-        s.setValue(
-            "mainwindow/menu/node_info", self.menu_node_info.isChecked()
+        settings.setValue(
+            "scheduler/menu/node_info", self.menu_node_info.isChecked()
         )
-        s.setValue("mainwindow/splitter/state", self.splitter.saveState())
-        s.setValue("mainwindow/splitter/pos", self.splitter.sizes()[1])
+        settings.setValue(
+            "scheduler/splitter/state", self.splitter.saveState()
+        )
+        settings.setValue("scheduler/splitter/pos", self.splitter.sizes()[1])
 
-        if s.isWritable():
-            log.debug("Settings written to '{}'.".format(s.fileName()))
+        if settings.isWritable():
+            log.debug("Settings written to '{}'.".format(settings.fileName()))
         else:
             log.warning("Settings cant be saved to file, read-only.")
 
     def _read_settings(self) -> None:
         """Read settings from Settings to MainWindow."""
-        s = QSettings()
-        if s.value("mainwindow/maximized", defaultValue=False, type=bool):
+        settings = QSettings()
+        if settings.value(
+            "scheduler/maximized", defaultValue=False, type=bool
+        ):
             self.showMaximized()
         else:
-            self.move(s.value("mainwindow/pos", self.pos()))
-            self.resize(s.value("mainwindow/size", self.size()))
-        self.restoreState(s.value("mainwindow/state", QByteArray()))
+            self.move(settings.value("scheduler/pos", self.pos()))
+            self.resize(settings.value("scheduler/size", self.size()))
+        self.restoreState(settings.value("scheduler/state", QByteArray()))
         self.menu_node_info.setChecked(
-            s.value("mainwindow/menu/node_info", True, bool)
+            settings.value("scheduler/menu/node_info", True, bool)
         )
         self.splitter.restoreState(
-            s.value("mainwindow/splitter/state", QByteArray())
+            settings.value("scheduler/splitter/state", QByteArray())
         )
-        self._splitter_pos = s.value("mainwindow/splitter/pos", 200, int)
+        self._splitter_pos = settings.value("scheduler/splitter/pos", 200, int)
         self.menu_exit_dialog.setChecked(
-            s.value("mainwindow/hide_exit_dialog", False, bool)
+            settings.value("scheduler/hide_exit_dialog", False, bool)
         )
 
-        log.debug("Settings read from '{}'.".format(s.fileName()))
+        log.debug("Settings read from '{}'.".format(settings.fileName()))
 
     def info_table_fill_schedule(self, schedule: Schedule) -> None:
         """
@@ -584,7 +608,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 "'Operator' not found in info table. It may have been renamed."
             )
 
-    def exit_app(self):
+    def exit_app(self) -> None:
         """Exit application."""
         log.info("Exiting the application.")
         QApplication.quit()
@@ -602,7 +626,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
 
 
-def start_gui():
+def start_gui() -> None:
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
