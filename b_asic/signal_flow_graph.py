@@ -78,10 +78,37 @@ class GraphIDGenerator:
 
 class SFG(AbstractOperation):
     """
-    Signal flow graph.
+    Construct an SFG given its inputs and outputs.
 
     Contains a set of connected operations, forming a new operation.
     Used as a base for simulation, scheduling, etc.
+
+    Inputs/outputs may be specified using either Input/Output operations
+    directly with the *inputs*/*outputs* parameters, or using signals with the
+    *input_signals*/*output_signals parameters*. If signals are used, the
+    corresponding Input/Output operations will be created automatically.
+
+    The *id_number_offset* parameter specifies what number graph IDs will be
+    offset by for each new graph component type. IDs start at 1 by default,
+    so the default offset of 0 will result in IDs like "c1", "c2", etc.
+    while an offset of 3 will result in "c4", "c5", etc.
+
+    Parameters
+    ----------
+    inputs : array of Input, optional
+
+    outputs : array of Output, optional
+
+    input_signals : array of Signal, optional
+
+    output_signals : array of Signal, optional
+
+    id_number_offset : GraphIDNumber, optional
+
+    name : Name, optional
+
+    input_sources :
+
     """
 
     _components_by_id: Dict[GraphID, GraphComponent]
@@ -110,20 +137,6 @@ class SFG(AbstractOperation):
             Sequence[Optional[SignalSourceProvider]]
         ] = None,
     ):
-        """
-        Construct an SFG given its inputs and outputs.
-
-        Inputs/outputs may be specified using either Input/Output operations
-        directly with the inputs/outputs parameters, or using signals with the
-        input_signals/output_signals parameters. If signals are used, the
-        corresponding Input/Output operations will be created automatically.
-
-        The id_number_offset parameter specifies what number graph IDs will be
-        offset by for each new graph component type. IDs start at 1 by default,
-        so the default offset of 0 will result in IDs like "c1", "c2", etc.
-        while an offset of 3 will result in "c4", "c5", etc.
-        """
-
         input_signal_count = 0 if input_signals is None else len(input_signals)
         input_operation_count = 0 if inputs is None else len(inputs)
         output_signal_count = (
@@ -311,7 +324,7 @@ class SFG(AbstractOperation):
                     )
 
     def __str__(self) -> str:
-        """Get a string representation of this SFG."""
+        """Return a string representation of this SFG."""
         string_io = StringIO()
         string_io.write(super().__str__() + "\n")
         string_io.write("Internal Operations:\n")
@@ -329,7 +342,7 @@ class SFG(AbstractOperation):
         self, *src: Optional[SignalSourceProvider], name: Name = Name("")
     ) -> "SFG":
         """
-        Get a new independent SFG instance that is identical to this SFG
+        Return a new independent SFG instance that is identical to this SFG
         except without any of its external connections.
         """
         return SFG(
@@ -342,6 +355,7 @@ class SFG(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
+        # doc-string inherited.
         return TypeName("sfg")
 
     def evaluate(self, *args):
@@ -359,6 +373,7 @@ class SFG(AbstractOperation):
         bits_override: Optional[int] = None,
         truncate: bool = True,
     ) -> Number:
+        # doc-string inherited
         if index < 0 or index >= self.output_count:
             raise IndexError(
                 "Output index out of range (expected"
@@ -476,6 +491,18 @@ class SFG(AbstractOperation):
         return self
 
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
+        """
+        Return which inputs that the output depends on.
+
+        Parameters
+        ----------
+        output_index : int
+            The output index.
+
+        Returns
+        -------
+            A  list of inputs that are required to compute the output with the given *output_index*.
+        """
         if output_index < 0 or output_index >= self.output_count:
             raise IndexError(
                 "Output index out of range (expected"
@@ -521,7 +548,8 @@ class SFG(AbstractOperation):
 
     @property
     def id_number_offset(self) -> GraphIDNumber:
-        """Get the graph id number offset of the graph id generator for this SFG.
+        """
+        Get the graph id number offset of the graph id generator for this SFG.
         """
         return self._graph_id_generator.id_number_offset
 
@@ -763,7 +791,7 @@ class SFG(AbstractOperation):
 
         return self._precedence_list
 
-    def show_precedence_graph(self) -> None:
+    def show(self) -> None:
         self.precedence_graph().view()
 
     def precedence_graph(self) -> Digraph:
@@ -952,14 +980,32 @@ class SFG(AbstractOperation):
         return self._operations_topological_order
 
     def set_latency_of_type(self, type_name: TypeName, latency: int) -> None:
-        """Set the latency of all components with the given type name."""
+        """
+        Set the latency of all components with the given type name.
+
+        Parameters
+        ----------
+        type_name : TypeName
+            The type name of the operation. For example, obtained as ``Addition.type_name()``.
+        latency : int
+            The latency of the operation.
+
+        """
         for op in self.find_by_type_name(type_name):
             cast(Operation, op).set_latency(latency)
 
     def set_execution_time_of_type(
         self, type_name: TypeName, execution_time: int
     ) -> None:
-        """Set the execution time of all components with the given type name.
+        """
+        Set the execution time of all operations with the given type name.
+
+        Parameters
+        ----------
+        type_name : TypeName
+            The type name of the operation. For example, obtained as ``Addition.type_name()``.
+        execution_time : int
+            The execution time of the operation.
         """
         for op in self.find_by_type_name(type_name):
             cast(Operation, op).execution_time = execution_time
@@ -967,7 +1013,15 @@ class SFG(AbstractOperation):
     def set_latency_offsets_of_type(
         self, type_name: TypeName, latency_offsets: Dict[str, int]
     ) -> None:
-        """Set the latency offset of all components with the given type name.
+        """
+        Set the latency offsets of all operations with the given type name.
+
+        Parameters
+        ----------
+        type_name : TypeName
+            The type name of the operation. For example, obtained as ``Addition.type_name()``.
+        latency_offsets : {"in1": int, ...}
+            The latency offsets of the inputs and outputs.
         """
         for op in self.find_by_type_name(type_name):
             cast(Operation, op).set_latency_offsets(latency_offsets)

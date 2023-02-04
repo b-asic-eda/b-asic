@@ -53,4 +53,4 @@ sfg.set_execution_time_of_type(Subtraction.type_name(), 1)
 # %%
 # Generate schedule
 schedule = Schedule(sfg, cyclic=True)
-schedule.plot_schedule()
+schedule.plot()

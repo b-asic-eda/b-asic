@@ -42,4 +42,4 @@ sfg.set_execution_time_of_type(Addition.type_name(), 1)
 # Create schedule
 
 schedule = Schedule(sfg, cyclic=True)
-schedule.plot_schedule()
+schedule.plot()

@@ -170,7 +170,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # TODO: remove
         if self.schedule is None:
             return
-        self.schedule.plot_schedule()
+        self.schedule.plot()
         if self._graph is not None:
             print(f"filtersChildEvents(): {self._graph.filtersChildEvents()}")
         # self._printButtonPressed('callback_pushButton()')

@@ -11,6 +11,8 @@ from typing import Dict, List, Optional, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
@@ -40,7 +42,20 @@ _SIGNAL_COLOR = tuple(c / 255 for c in SIGNAL_COLOR)
 
 
 class Schedule:
-    """Schedule of an SFG with scheduled Operations."""
+    """
+    Schedule of an SFG with scheduled Operations.
+
+    Parameters
+    ----------
+    sfg : SFG
+        The signal flow graph to schedule.
+    schedule_time : int, optional
+        The schedule time. If not provided, it will be determined by the scheduling algorithm.
+    cyclic : bool, default: False
+        If the schedule is cyclic.
+    scheduling_alg : {'ASAP'}, optional
+        The scheduling algorithm to use. Currently, only "ASAP" is supported.
+    """
 
     _sfg: SFG
     _start_times: Dict[GraphID, int]
@@ -82,7 +97,7 @@ class Schedule:
 
     def start_time_of_operation(self, graph_id: GraphID) -> int:
         """
-        Get the start time of the operation with the specified by *graph_id*.
+        Return the start time of the operation with the specified by *graph_id*.
         """
         if graph_id not in self._start_times:
             raise ValueError(
@@ -91,7 +106,7 @@ class Schedule:
         return self._start_times[graph_id]
 
     def get_max_end_time(self) -> int:
-        """Returns the current maximum end time among all operations."""
+        """Return the current maximum end time among all operations."""
         max_end_time = 0
         for graph_id, op_start_time in self._start_times.items():
             op = cast(Operation, self._sfg.find_by_id(graph_id))
@@ -103,6 +118,16 @@ class Schedule:
         return max_end_time
 
     def forward_slack(self, graph_id: GraphID) -> int:
+        """
+
+        Parameters
+        ----------
+        graph_id
+
+        Returns
+        -------
+            The number of time steps the operation with *graph_id* can ba moved forward in time.
+        """
         if graph_id not in self._start_times:
             raise ValueError(
                 f"No operation with graph_id {graph_id} in schedule"
@@ -137,6 +162,16 @@ class Schedule:
         return ret
 
     def backward_slack(self, graph_id: GraphID) -> int:
+        """
+
+        Parameters
+        ----------
+        graph_id
+
+        Returns
+        -------
+            The number of time steps the operation with *graph_id* can ba moved backward in time.
+        """
         if graph_id not in self._start_times:
             raise ValueError(
                 f"No operation with graph_id {graph_id} in schedule"
@@ -181,6 +216,18 @@ class Schedule:
         raise NotImplementedError
 
     def set_schedule_time(self, time: int) -> "Schedule":
+        """
+        Set a new schedule time.
+
+        Parameters
+        ----------
+        time : int
+            The new schedule time. If it is too short, a ValueError will be raised.
+
+        See also
+        --------
+        get_max_time
+        """
         if time < self.get_max_end_time():
             raise ValueError(
                 "New schedule time ({time})to short, minimum:"
@@ -359,6 +406,7 @@ class Schedule:
             delay_list = self._sfg.find_by_type_name(Delay.type_name())
 
     def _schedule_asap(self) -> None:
+        """Schedule the operations using as-soon-as-possible scheduling."""
         pl = self._sfg.get_precedence_list()
 
         if len(pl) < 2:
@@ -479,9 +527,11 @@ class Schedule:
         return operation_gap + y_location * (operation_height + operation_gap)
 
     def _plot_schedule(self, ax, operation_gap=None):
+        """Draw the schedule."""
         line_cache = []
 
         def _draw_arrow(start, end, name="", laps=0):
+            """Draw an arrow from *start* to *end*."""
             if end[0] < start[0] or laps > 0:  # Wrap around
                 if start not in line_cache:
                     line = Line2D(
@@ -564,6 +614,7 @@ class Schedule:
         def _draw_offset_arrow(
             start, end, start_offset, end_offset, name="", laps=0
         ):
+            """Draw an arrow from *start* to *end*, but with an offset."""
             _draw_arrow(
                 [start[0] + start_offset[0], start[1] + start_offset[1]],
                 [end[0] + end_offset[0], end[1] + end_offset[1]],
@@ -576,7 +627,7 @@ class Schedule:
         ax.set_axisbelow(True)
         ax.grid()
         for graph_id, op_start_time in self._start_times.items():
-            ypos = -self._get_y_position(graph_id, operation_gap=operation_gap)
+            ypos = self._get_y_position(graph_id, operation_gap=operation_gap)
             op = self._sfg.find_by_id(graph_id)
             # Rewrite to make better use of NumPy
             latency_coords, execution_time_coords = op.get_plot_coordinates()
@@ -602,7 +653,7 @@ class Schedule:
         for graph_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(graph_id)
             _, out_coords = op.get_io_coordinates()
-            source_ypos = -self._get_y_position(
+            source_ypos = self._get_y_position(
                 graph_id, operation_gap=operation_gap
             )
 
@@ -610,7 +661,7 @@ class Schedule:
                 for output_signal in output_port.signals:
                     dest_op = output_signal.destination.operation
                     dest_start_time = self._start_times[dest_op.graph_id]
-                    dest_ypos = -self._get_y_position(
+                    dest_ypos = self._get_y_position(
                         dest_op.graph_id, operation_gap=operation_gap
                     )
                     (
@@ -633,35 +684,73 @@ class Schedule:
 
         # Get operation with maximum position
         max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
-        yposmin = -self._get_y_position(
-            max_pos_graph_id, operation_gap=operation_gap
-        ) - (OPERATION_GAP if operation_gap is None else operation_gap)
-        ax.axis([-1, self._schedule_time + 1, yposmin, 1])
+        yposmax = (
+            self._get_y_position(max_pos_graph_id, operation_gap=operation_gap)
+            + 1
+            + (OPERATION_GAP if operation_gap is None else operation_gap)
+        )
+        ax.axis([-1, self._schedule_time + 1, yposmax, 0])  # Inverted y-axis
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.add_line(
-            Line2D([0, 0], [yposmin, 1], linestyle="--", color="black")
+            Line2D([0, 0], [0, yposmax], linestyle="--", color="black")
         )
         ax.add_line(
             Line2D(
                 [self._schedule_time, self._schedule_time],
-                [yposmin, 1],
+                [0, yposmax],
                 linestyle="--",
                 color="black",
             )
         )
 
     def _reset_y_locations(self):
+        """Reset all the y-locations in the schedule to None"""
         self._y_locations = self._y_locations = defaultdict(lambda: None)
 
-    def plot_schedule(self, operation_gap=None) -> None:
+    def plot_in_axes(self, ax: Axes, operation_gap: float = None) -> None:
+        """
+        Plot the schedule in a :class:`matplotlib.axes.Axes` or subclass.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The :class:`matplotlib.axes.Axes` to plot in.
+        operation_gap : float, optional
+            The vertical distance between operations in the schedule. The height of the operation is always 1.
+        """
+
+    def plot(self, operation_gap: float = None) -> None:
+        """
+        Plot the schedule. Will display based on the current Matplotlib backend.
+
+        Parameters
+        ----------
+        operation_gap : float, optional
+            The vertical distance between operations in the schedule. The height of the operation is always 1.
+        """
         self._get_figure(operation_gap=operation_gap).show()
 
-    def _get_figure(self, operation_gap=None) -> None:
+    def _get_figure(self, operation_gap: float = None) -> Figure:
+        """
+        Create a Figure and an Axes and plot schedule in the Axes.
+
+        Parameters
+        ----------
+        operation_gap : float, optional
+            The vertical distance between operations in the schedule. The height of the operation is always 1.
+
+        Returns
+        -------
+            The Matplotlib Figure.
+        """
         fig, ax = plt.subplots()
         self._plot_schedule(ax, operation_gap=operation_gap)
         return fig
 
     def _repr_svg_(self):
+        """
+        Generate an SVG of the schedule. This is automatically displayed in e.g. Jupyter Qt console.
+        """
         fig, ax = plt.subplots()
         self._plot_schedule(ax)
         f = io.StringIO()
