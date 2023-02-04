@@ -46,6 +46,8 @@ inheritance_node_attrs = dict(fontsize=16)
 
 graphviz_dot = shutil.which('dot')
 
+html_favicon = '_static/icon_logo.png'
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
