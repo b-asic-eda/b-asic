@@ -1,8 +1,23 @@
+"""
+B-ASIC port button module.
+"""
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QMenu, QPushButton
 
 
 class PortButton(QPushButton):
+    """
+    A button corresponding to a port.
+
+    Parameters
+    ----------
+    name
+    operation
+    port
+    window
+    parent
+    """
+
     connectionRequested = Signal(QPushButton)
     moved = Signal()
 

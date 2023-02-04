@@ -28,7 +28,15 @@ class DragButton(QPushButton):
     """
     Drag button class.
 
-    This class creates a drag button which can be clicked, dragged and dropped.
+    This class creates a button which can be clicked, dragged and dropped.
+
+    Parameters
+    ----------
+    name
+    operation
+    is_show_name
+    window
+    parent
     """
 
     connectionRequested = Signal(QPushButton)

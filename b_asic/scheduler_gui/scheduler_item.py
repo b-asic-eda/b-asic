@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""B-ASIC Scheduler-gui Graphics Graph Item Module.
+"""
+B-ASIC Scheduler-gui Graphics Graph Item Module.
 
 Contains the scheduler-gui SchedulerItem class for drawing and
 maintain a component in a graph.

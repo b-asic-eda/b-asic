@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""B-ASIC Scheduler-gui Graphics Graph Event Module.
+"""
+B-ASIC Scheduler-gui Graphics Graph Event Module.
 
 Contains the scheduler-gui SchedulerEvent class containing event filters and handlers for SchedulerItem objects.
 """
@@ -27,7 +28,14 @@ from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 
 class SchedulerEvent:  # PyQt5
-    """Event filter and handlers for SchedulerItem"""
+    """
+    Event filter and handlers for SchedulerItem.
+
+    Parameters
+    ----------
+    parent : QGraphicsItem, optional
+        The parent QGraphicsItem.
+    """
 
     class Signals(QObject):  # PyQt5
         """A class representing signals."""
@@ -94,8 +102,10 @@ class SchedulerEvent:  # PyQt5
         ...
 
     def removeSceneEventFilters(self, filterItems) -> None:
-        """Removes an event filter on 'filterItems' from 'self'. 'filterItems' can
-        be one object or a list of objects."""
+        """
+        Removes an event filter on *filterItems* from *self*. *filterItems* can
+        be one object or a list of objects.
+        """
         item: OperationItem
         for item in filterItems:
             item.removeSceneEventFilter(self)
@@ -220,7 +230,7 @@ class SchedulerEvent:  # PyQt5
     def comp_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
         Changes the cursor to ClosedHandCursor when grabbing an object and
-        stores the current position in item's parent coordinates. 'event' will
+        stores the current position in item's parent coordinates. *event* will
         by default be accepted, and this item is then the mouse grabber. This
         allows the item to receive future move, release and double-click events.
         """
@@ -284,7 +294,8 @@ class SchedulerEvent:  # PyQt5
     def timeline_mousePressEvent(
         self, event: QGraphicsSceneMouseEvent
     ) -> None:
-        """Store the current position in item's parent coordinates. 'event' will
+        """
+        Store the current position in item's parent coordinates. *event* will
         by default be accepted, and this item is then the mouse grabber. This
         allows the item to receive future move, release and double-click events.
         """

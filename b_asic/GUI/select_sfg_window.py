@@ -1,3 +1,7 @@
+"""
+B-ASIC select SFG window.
+"""
+
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QComboBox, QDialog, QPushButton, QVBoxLayout
 

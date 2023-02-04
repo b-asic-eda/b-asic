@@ -17,6 +17,21 @@ from b_asic.signal import Signal
 
 
 class SignalItem(QGraphicsPathItem):
+    """
+    Class representing a signal in the scheduler GUI.
+
+    Parameters
+    ----------
+    src_operation : OperationItem
+        The operation that the signal is drawn from.
+    dest_operation : OperationItem
+        The operation that the signal is drawn to.
+    signal : Signal
+        The signal on the SFG level.
+    parent : QGraphicsItem, optional
+        The parent QGraphicsItem.
+    """
+
     _path: Optional[QPainterPath] = None
     _src_operation: OperationItem
     _dest_operation: OperationItem
@@ -79,6 +94,7 @@ class SignalItem(QGraphicsPathItem):
         self.setPath(path)
 
     def refresh_pens(self):
+        """Create pens."""
         pen = QPen(SIGNAL_ACTIVE)
         pen.setWidthF(SIGNAL_WIDTH)
         self._active_pen = pen
@@ -87,7 +103,10 @@ class SignalItem(QGraphicsPathItem):
         self._inactive_pen = pen
 
     def set_active(self):
+        """Set the signal color to represent that a connected operation is selected.
+        """
         self.setPen(self._active_pen)
 
     def set_inactive(self):
+        """Set the signal color to the default color."""
         self.setPen(self._inactive_pen)

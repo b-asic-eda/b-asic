@@ -59,7 +59,7 @@ class AxesItem(QGraphicsItemGroup):
         parent: Optional[QGraphicsItem] = None,
     ):
         """
-        Constructs a AxesItem.
+        Construct an AxesItem.
         *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)
