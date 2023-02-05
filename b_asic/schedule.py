@@ -337,7 +337,10 @@ class Schedule:
 
         (backward_slack, forward_slack) = self.slacks(graph_id)
         if not -backward_slack <= time <= forward_slack:
-            raise ValueError
+            raise ValueError(
+                f"Operation {graph_id} got incorrect move: {time}. Must be"
+                f" between {-backward_slack} and {forward_slack}."
+            )
 
         tmp_start = self._start_times[graph_id] + time
         new_start = tmp_start % self._schedule_time
@@ -354,9 +357,16 @@ class Schedule:
                 prev_available = tmp_prev_available % self._schedule_time
                 laps = new_slack // self._schedule_time
                 if new_usage < prev_available:
+                    print("Incrementing input laps 1")
+                    laps += 1
+                if prev_available == 0 and new_usage == 0:
+                    print("Incrementing input laps 2")
                     laps += 1
                 print(
                     [
+                        "Input",
+                        time,
+                        tmp_start,
                         signal_slack,
                         new_slack,
                         old_laps,
@@ -381,8 +391,23 @@ class Schedule:
                 laps = new_slack // self._schedule_time
                 if next_usage < new_available:
                     laps += 1
-                if new_available == 0 and new_slack > 0:
+                    print("Incrementing output laps 1")
+                if new_available == 0 and (new_slack > 0 or next_usage == 0):
+                    print("Incrementing output laps 2")
                     laps += 1
+                print(
+                    [
+                        "Output",
+                        signal_slack,
+                        new_slack,
+                        old_laps,
+                        laps,
+                        new_available,
+                        next_usage,
+                        tmp_available,
+                        tmp_next_usage,
+                    ]
+                )
                 self._laps[signal.graph_id] = laps
 
         # Set new start time

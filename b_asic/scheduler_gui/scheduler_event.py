@@ -42,6 +42,7 @@ class SchedulerEvent:  # PyQt5
 
         component_selected = Signal(str)
         schedule_time_changed = Signal()
+        component_moved = Signal(str)
 
     _axes: Optional[AxesItem]
     _current_pos: QPointF
@@ -152,8 +153,10 @@ class SchedulerEvent:  # PyQt5
                 f"from an '{type(item).__name__}' object."
             )
 
-        handler(event)
-        return True
+        if handler is not None:
+            handler(event)
+            return True
+        return False
 
     #################################
     # Event Handlers: OperationItem #
@@ -256,7 +259,7 @@ class SchedulerEvent:  # PyQt5
         """Change the cursor to OpenHandCursor when releasing an object."""
         item: OperationItem = self.scene().mouseGrabberItem()
         self.set_item_inactive(item)
-        self.set_new_starttime(item)
+        self.set_new_start_time(item)
         pos_x = item.x()
         redraw = False
         if pos_x < 0:
@@ -268,6 +271,7 @@ class SchedulerEvent:  # PyQt5
         if redraw:
             item.setX(pos_x)
             self._redraw_lines(item)
+        self._signals.component_moved.emit(item.graph_id)
 
     def operation_mouseDoubleClickEvent(
         self, event: QGraphicsSceneMouseEvent

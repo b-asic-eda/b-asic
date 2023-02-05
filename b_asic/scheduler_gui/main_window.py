@@ -482,6 +482,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._graph._signals.component_selected.connect(
             self.info_table_update_component
         )
+        self._graph._signals.component_moved.connect(
+            self.info_table_update_component
+        )
         self._graph._signals.schedule_time_changed.connect(
             self.info_table_update_schedule
         )
@@ -589,6 +592,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.info_table.setItem(si, 0, QTableWidgetItem(key))
             self.info_table.setItem(si, 1, QTableWidgetItem(str(value)))
             si += 1
+
+        self.info_table.insertRow(si)
+        self.info_table.setItem(si, 0, QTableWidgetItem("Forward slack"))
+        self.info_table.setItem(
+            si, 1, QTableWidgetItem(str(self.schedule.forward_slack(graph_id)))
+        )
+        si += 1
+
+        self.info_table.insertRow(si)
+        self.info_table.setItem(si, 0, QTableWidgetItem("Backward slack"))
+        self.info_table.setItem(
+            si,
+            1,
+            QTableWidgetItem(str(self.schedule.backward_slack(graph_id))),
+        )
+        si += 1
 
     def info_table_clear(self) -> None:
         """Clears the info table."""
