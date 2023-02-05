@@ -590,7 +590,7 @@ class Schedule:
         if operation_gap is None:
             operation_gap = OPERATION_GAP
         y_location = self._y_locations[graph_id]
-        if y_location == None:
+        if y_location is None:
             # Assign the lowest row number not yet in use
             used = set(
                 loc for loc in self._y_locations.values() if loc is not None
@@ -701,54 +701,60 @@ class Schedule:
         ax.set_axisbelow(True)
         ax.grid()
         for graph_id, op_start_time in self._start_times.items():
-            ypos = self._get_y_position(graph_id, operation_gap=operation_gap)
+            y_pos = self._get_y_position(graph_id, operation_gap=operation_gap)
             op = self._sfg.find_by_id(graph_id)
             # Rewrite to make better use of NumPy
-            latency_coords, execution_time_coords = op.get_plot_coordinates()
-            _x, _y = zip(*latency_coords)
+            (
+                latency_coordinates,
+                execution_time_coordinates,
+            ) = op.get_plot_coordinates()
+            _x, _y = zip(*latency_coordinates)
             x = np.array(_x)
             y = np.array(_y)
-            xy = np.stack((x + op_start_time, y + ypos))
-            p = Polygon(xy.T, fc=_LATENCY_COLOR)
-            ax.add_patch(p)
-            if execution_time_coords:
-                _x, _y = zip(*execution_time_coords)
+            xy = np.stack((x + op_start_time, y + y_pos))
+            ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
+            if execution_time_coordinates:
+                _x, _y = zip(*execution_time_coordinates)
                 x = np.array(_x)
                 y = np.array(_y)
                 ax.plot(
                     x + op_start_time,
-                    y + ypos,
+                    y + y_pos,
                     color=_EXECUTION_TIME_COLOR,
                     linewidth=3,
                 )
-            ytickpositions.append(ypos + 0.5)
+            ytickpositions.append(y_pos + 0.5)
             yticklabels.append(self._sfg.find_by_id(graph_id).name)
 
         for graph_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(graph_id)
-            _, out_coords = op.get_io_coordinates()
-            source_ypos = self._get_y_position(
+            _, out_coordinates = op.get_io_coordinates()
+            source_y_pos = self._get_y_position(
                 graph_id, operation_gap=operation_gap
             )
 
             for output_port in op.outputs:
                 for output_signal in output_port.signals:
-                    dest_op = output_signal.destination.operation
-                    dest_start_time = self._start_times[dest_op.graph_id]
-                    dest_ypos = self._get_y_position(
-                        dest_op.graph_id, operation_gap=operation_gap
+                    destination_op = output_signal.destination.operation
+                    destination_start_time = self._start_times[
+                        destination_op.graph_id
+                    ]
+                    destination_y_pos = self._get_y_position(
+                        destination_op.graph_id, operation_gap=operation_gap
                     )
                     (
-                        dest_in_coords,
+                        destination_in_coordinates,
                         _,
                     ) = (
                         output_signal.destination.operation.get_io_coordinates()
                     )
                     _draw_offset_arrow(
-                        out_coords[output_port.index],
-                        dest_in_coords[output_signal.destination.index],
-                        [op_start_time, source_ypos],
-                        [dest_start_time, dest_ypos],
+                        out_coordinates[output_port.index],
+                        destination_in_coordinates[
+                            output_signal.destination.index
+                        ],
+                        [op_start_time, source_y_pos],
+                        [destination_start_time, destination_y_pos],
                         name=graph_id,
                         laps=self._laps[output_signal.graph_id],
                     )
@@ -758,23 +764,24 @@ class Schedule:
 
         # Get operation with maximum position
         max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
-        yposmax = (
+        y_position_max = (
             self._get_y_position(max_pos_graph_id, operation_gap=operation_gap)
             + 1
             + (OPERATION_GAP if operation_gap is None else operation_gap)
         )
-        ax.axis([-1, self._schedule_time + 1, yposmax, 0])  # Inverted y-axis
+        ax.axis(
+            [-1, self._schedule_time + 1, y_position_max, 0]
+        )  # Inverted y-axis
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax.add_line(
-            Line2D([0, 0], [0, yposmax], linestyle="--", color="black")
+        ax.axvline(
+            0,
+            linestyle="--",
+            color="black",
         )
-        ax.add_line(
-            Line2D(
-                [self._schedule_time, self._schedule_time],
-                [0, yposmax],
-                linestyle="--",
-                color="black",
-            )
+        ax.axvline(
+            self._schedule_time,
+            linestyle="--",
+            color="black",
         )
 
     def _reset_y_locations(self):
