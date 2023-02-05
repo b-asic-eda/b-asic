@@ -119,14 +119,21 @@ class Schedule:
 
     def forward_slack(self, graph_id: GraphID) -> int:
         """
+        Return how much an operation can be moved forward in time.
 
         Parameters
         ----------
-        graph_id
+        graph_id : GraphID
+            The graph id of the operation.
 
         Returns
         -------
             The number of time steps the operation with *graph_id* can ba moved forward in time.
+
+        See also
+        --------
+        backward_slack
+        slacks
         """
         if graph_id not in self._start_times:
             raise ValueError(
@@ -163,14 +170,24 @@ class Schedule:
 
     def backward_slack(self, graph_id: GraphID) -> int:
         """
+        Return how much an operation can be moved backward in time.
 
         Parameters
         ----------
-        graph_id
+        graph_id : GraphID
+            The graph id of the operation.
 
         Returns
         -------
             The number of time steps the operation with *graph_id* can ba moved backward in time.
+
+        .. note:: The backward slack is positive, but a call to :func:`move_operation` should be negative to move
+                  the operation backward.
+
+        See also
+        --------
+        forward_slack
+        slacks
         """
         if graph_id not in self._start_times:
             raise ValueError(
@@ -206,6 +223,28 @@ class Schedule:
         return ret
 
     def slacks(self, graph_id: GraphID) -> Tuple[int, int]:
+        """
+        Return the backward and forward slacks of operation *graph_id*. That is, how much
+        the operation can be moved backward and forward in time.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The graph id of the operation.
+
+        Returns
+        -------
+            A tuple as ``(backward_slack, forward_slack)``.
+
+        .. note:: The backward slack is positive, but a call to :func:`move_operation` should be negative to move
+                  the operation backward.
+
+        See also
+        --------
+        backward_slack
+        forward_slack
+
+        """
         if graph_id not in self._start_times:
             raise ValueError(
                 f"No operation with graph_id {graph_id} in schedule"
@@ -330,6 +369,16 @@ class Schedule:
         return self
 
     def move_operation(self, graph_id: GraphID, time: int) -> "Schedule":
+        """
+        Move an operation in the schedule.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The graph id of the operation to move.
+        time : int
+            The time to move. If positive move forward, if negative move backward.
+        """
         if graph_id not in self._start_times:
             raise ValueError(
                 f"No operation with graph_id {graph_id} in schedule"
