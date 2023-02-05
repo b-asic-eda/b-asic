@@ -12,6 +12,7 @@ from b_asic import (
     Max,
     Min,
     Multiplication,
+    Reciprocal,
     SquareRoot,
     Subtraction,
     SymmetricTwoportAdaptor,
@@ -259,6 +260,22 @@ class TestSymmetricTwoportAdaptor:
         assert (
             test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == 2.5 - 0.5j
         )
+
+
+class TestReciprocal:
+    """Tests for Absolute class."""
+
+    def test_reciprocal_positive(self):
+        test_operation = Reciprocal()
+        assert test_operation.evaluate_output(0, [2]) == 0.5
+
+    def test_reciprocal_negative(self):
+        test_operation = Reciprocal()
+        assert test_operation.evaluate_output(0, [-5]) == -0.2
+
+    def test_reciprocal_complex(self):
+        test_operation = Reciprocal()
+        assert test_operation.evaluate_output(0, [1 + 1j]) == 0.5 - 0.5j
 
 
 class TestDepends:

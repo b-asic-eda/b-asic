@@ -10,6 +10,7 @@ from b_asic import (
     ConstantMultiplication,
     Division,
     Multiplication,
+    Reciprocal,
     SquareRoot,
     Subtraction,
 )
@@ -99,6 +100,10 @@ class TestOperationOverloading:
         assert isinstance(div3, Division)
         assert div3.input(0).signals[0].source.operation.value == 5
         assert div3.input(1).signals == div2.output(0).signals
+
+        div4 = 1 / div3
+        assert isinstance(div4, Reciprocal)
+        assert div4.input(0).signals == div3.output(0).signals
 
 
 class TestTraverse:

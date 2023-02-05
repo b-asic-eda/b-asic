@@ -40,6 +40,7 @@ if TYPE_CHECKING:
         ConstantMultiplication,
         Division,
         Multiplication,
+        Reciprocal,
         Subtraction,
     )
     from b_asic.signal_flow_graph import SFG
@@ -135,7 +136,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __rtruediv__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> "Division":
+    ) -> Union["Division", "Reciprocal"]:
         """
         Overloads the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
@@ -387,7 +388,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         self,
     ) -> Tuple[List[List[float]], List[List[float]]]:
         """
-        Get a tuple constaining coordinates for the two polygons outlining
+        Return a tuple containing coordinates for the two polygons outlining
         the latency and execution time of the operation.
         The polygons are corresponding to a start time of 0 and are of height 1.
         """
@@ -398,7 +399,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         self,
     ) -> Tuple[List[List[float]], List[List[float]]]:
         """
-        Get a tuple constaining coordinates for inputs and outputs, respectively.
+        Return a tuple containing coordinates for inputs and outputs, respectively.
         These maps to the polygons and are corresponding to a start time of 0
         and height 1.
         """
@@ -500,9 +501,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             for inp in self.inputs:
                 if inp.latency_offset is None:
                     inp.latency_offset = 0
-            for outp in self.outputs:
-                if outp.latency_offset is None:
-                    outp.latency_offset = latency
+            for output in self.outputs:
+                if output.latency_offset is None:
+                    output.latency_offset = latency
 
         self._execution_time = execution_time
 
@@ -592,13 +593,16 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def __rtruediv__(
         self, src: Union[SignalSourceProvider, Number]
-    ) -> "Division":
+    ) -> Union["Division", "Reciprocal"]:
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Division
+        from b_asic.core_operations import Constant, Division, Reciprocal
 
-        return Division(
-            Constant(src) if isinstance(src, Number) else src, self
-        )
+        if isinstance(src, Number):
+            if src == 1:
+                return Reciprocal(self)
+            else:
+                return Division(Constant(src), self)
+        return Division(src, self)
 
     def __lshift__(self, src: SignalSourceProvider) -> Signal:
         if self.input_count != 1:
@@ -835,10 +839,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         new_component: Operation = cast(
             Operation, super().copy_component(*args, **kwargs)
         )
-        for i, inp in enumerate(self.inputs):
-            new_component.input(i).latency_offset = inp.latency_offset
-        for i, outp in enumerate(self.outputs):
-            new_component.output(i).latency_offset = outp.latency_offset
+        for i, input in enumerate(self.inputs):
+            new_component.input(i).latency_offset = input.latency_offset
+        for i, output in enumerate(self.outputs):
+            new_component.output(i).latency_offset = output.latency_offset
         new_component.execution_time = self._execution_time
         return new_component
 
@@ -930,7 +934,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @property
     def latency(self) -> int:
         if None in [inp.latency_offset for inp in self.inputs] or None in [
-            outp.latency_offset for outp in self.outputs
+            output.latency_offset for output in self.outputs
         ]:
             raise ValueError(
                 "All native offsets have to set to a non-negative value to"
@@ -940,10 +944,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return max(
             (
                 (
-                    cast(int, outp.latency_offset)
-                    - cast(int, inp.latency_offset)
+                    cast(int, output.latency_offset)
+                    - cast(int, input.latency_offset)
                 )
-                for outp, inp in it.product(self.outputs, self.inputs)
+                for output, input in it.product(self.outputs, self.inputs)
             )
         )
 
@@ -951,11 +955,11 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def latency_offsets(self) -> Dict[str, Optional[int]]:
         latency_offsets = {}
 
-        for i, inp in enumerate(self.inputs):
-            latency_offsets[f"in{i}"] = inp.latency_offset
+        for i, input in enumerate(self.inputs):
+            latency_offsets[f"in{i}"] = input.latency_offset
 
-        for i, outp in enumerate(self.outputs):
-            latency_offsets[f"out{i}"] = outp.latency_offset
+        for i, output in enumerate(self.outputs):
+            latency_offsets[f"out{i}"] = output.latency_offset
 
         return latency_offsets
 
@@ -1072,18 +1076,18 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     ) -> Tuple[List[List[float]], List[List[float]]]:
         # Doc-string inherited
         self._check_all_latencies_set()
-        input_coords = [
+        input_coordinates = [
             [
                 self.inputs[k].latency_offset,
                 (1 + 2 * k) / (2 * len(self.inputs)),
             ]
             for k in range(len(self.inputs))
         ]
-        output_coords = [
+        output_coordinates = [
             [
                 self.outputs[k].latency_offset,
                 (1 + 2 * k) / (2 * len(self.outputs)),
             ]
             for k in range(len(self.outputs))
         ]
-        return input_coords, output_coords
+        return input_coordinates, output_coordinates

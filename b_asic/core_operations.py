@@ -614,8 +614,8 @@ class Butterfly(AbstractOperation):
 
     .. math::
         \begin{eqnarray}
-        y_0 = x_0 + x_1\\
-        y_1 = x_0 - x_1
+        y_0 & = & x_0 + x_1\\
+        y_1 & = & x_0 - x_1
         \end{eqnarray}
     """
 
@@ -692,8 +692,8 @@ class SymmetricTwoportAdaptor(AbstractOperation):
 
     .. math::
         \begin{eqnarray}
-        y_0 = x_1 + \text{value}\times\left(x_1 - x_0\right)\\
-        y_1 = x_0 + \text{value}\times\left(x_1 - x_0\right)
+        y_0 & = & x_1 + \text{value}\times\left(x_1 - x_0\right)\\
+        y_1 & = & x_0 + \text{value}\times\left(x_1 - x_0\right)
         \end{eqnarray}
     """
 
@@ -736,3 +736,39 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     def value(self, value: Number) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
+
+
+class Reciprocal(AbstractOperation):
+    r"""
+    Reciprocal operation.
+
+    Gives the reciprocal of its input.
+
+    .. math:: y = \frac{1}{x}
+    """
+
+    def __init__(
+        self,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = Name(""),
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
+    ):
+        """Construct an Reciprocal operation."""
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("rec")
+
+    def evaluate(self, a):
+        return 1 / a
