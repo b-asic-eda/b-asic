@@ -12,11 +12,15 @@ def test_impulse():
     assert g(1) == 0
     assert g(2) == 0
 
+    assert str(g) == "Impulse()"
+
     g = Impulse(1)
     assert g(-1) == 0
     assert g(0) == 0
     assert g(1) == 1
     assert g(2) == 0
+
+    assert str(g) == "Impulse(1)"
 
 
 def test_step():
@@ -26,11 +30,15 @@ def test_step():
     assert g(1) == 1
     assert g(2) == 1
 
+    assert str(g) == "Step()"
+
     g = Step(1)
     assert g(-1) == 0
     assert g(0) == 0
     assert g(1) == 1
     assert g(2) == 1
+
+    assert str(g) == "Step(1)"
 
 
 def test_constant():
@@ -40,11 +48,15 @@ def test_constant():
     assert g(1) == 1
     assert g(2) == 1
 
+    assert str(g) == "1.0"
+
     g = Constant(0.5)
     assert g(-1) == 0.5
     assert g(0) == 0.5
     assert g(1) == 0.5
     assert g(2) == 0.5
+
+    assert str(g) == "0.5"
 
 
 def test_zeropad():
@@ -54,6 +66,8 @@ def test_zeropad():
     assert g(1) == 0.6
     assert g(2) == 0
 
+    assert str(g) == "ZeroPad([0.4, 0.6])"
+
 
 def test_sinusoid():
     g = Sinusoid(0.5)
@@ -62,11 +76,15 @@ def test_sinusoid():
     assert g(2) == pytest.approx(0)
     assert g(3) == -1
 
+    assert str(g) == "Sinusoid(0.5)"
+
     g = Sinusoid(0.5, 0.25)
     assert g(0) == pytest.approx(sqrt(2) / 2)
     assert g(1) == pytest.approx(sqrt(2) / 2)
     assert g(2) == pytest.approx(-sqrt(2) / 2)
     assert g(3) == pytest.approx(-sqrt(2) / 2)
+
+    assert str(g) == "Sinusoid(0.5, 0.25)"
 
 
 def test_addition():
@@ -77,19 +95,25 @@ def test_addition():
     assert g(2) == 1
     assert g(3) == 0
 
-    g = 1 + Impulse(2)
+    assert str(g) == "Impulse() + Impulse(2)"
+
+    g = 1.0 + Impulse(2)
     assert g(-1) == 1
     assert g(0) == 1
     assert g(1) == 1
     assert g(2) == 2
     assert g(3) == 1
 
-    g = Impulse(1) + 1
+    assert str(g) == "Impulse(2) + 1.0"
+
+    g = Impulse(1) + 1.0
     assert g(-1) == 1
     assert g(0) == 1
     assert g(1) == 2
     assert g(2) == 1
     assert g(3) == 1
+
+    assert str(g) == "Impulse(1) + 1.0"
 
 
 def test_subtraction():
@@ -100,19 +124,25 @@ def test_subtraction():
     assert g(2) == -1
     assert g(3) == 0
 
-    g = 1 - Impulse(2)
+    assert str(g) == "Impulse() - Impulse(2)"
+
+    g = 1.0 - Impulse(2)
     assert g(-1) == 1
     assert g(0) == 1
     assert g(1) == 1
     assert g(2) == 0
     assert g(3) == 1
 
-    g = Impulse(2) - 1
+    assert str(g) == "1.0 - Impulse(2)"
+
+    g = Impulse(2) - 1.0
     assert g(-1) == -1
     assert g(0) == -1
     assert g(1) == -1
     assert g(2) == 0
     assert g(3) == -1
+
+    assert str(g) == "Impulse(2) - 1.0"
 
 
 def test_multiplication():
@@ -122,17 +152,23 @@ def test_multiplication():
     assert g(1) == 0
     assert g(2) == 0
 
+    assert str(g) == "Impulse() * 0.5"
+
     g = 2 * Sinusoid(0.5, 0.25)
     assert g(0) == pytest.approx(sqrt(2))
     assert g(1) == pytest.approx(sqrt(2))
     assert g(2) == pytest.approx(-sqrt(2))
     assert g(3) == pytest.approx(-sqrt(2))
 
-    g = Step(1) * Sinusoid(0.5, 0.25)
+    assert str(g) == "Sinusoid(0.5, 0.25) * 2"
+
+    g = Step(1) * (Sinusoid(0.5, 0.25) + 1.0)
     assert g(0) == 0
-    assert g(1) == pytest.approx(sqrt(2) / 2)
-    assert g(2) == pytest.approx(-sqrt(2) / 2)
-    assert g(3) == pytest.approx(-sqrt(2) / 2)
+    assert g(1) == pytest.approx(sqrt(2) / 2 + 1)
+    assert g(2) == pytest.approx(-sqrt(2) / 2 + 1)
+    assert g(3) == pytest.approx(-sqrt(2) / 2 + 1)
+
+    assert str(g) == "Step(1) * (Sinusoid(0.5, 0.25) + 1.0)"
 
 
 def test_division():
@@ -142,13 +178,19 @@ def test_division():
     assert g(1) == 0.5
     assert g(2) == 0.5
 
+    assert str(g) == "Step() / 2"
+
     g = 0.5 / Step()
     assert g(0) == 0.5
     assert g(1) == 0.5
     assert g(2) == 0.5
+
+    assert str(g) == "0.5 / Step()"
 
     g = Sinusoid(0.5, 0.25) / (0.5 * Step())
     assert g(0) == pytest.approx(sqrt(2))
     assert g(1) == pytest.approx(sqrt(2))
     assert g(2) == pytest.approx(-sqrt(2))
     assert g(3) == pytest.approx(-sqrt(2))
+
+    assert str(g) == "Sinusoid(0.5, 0.25) / (Step() * 0.5)"

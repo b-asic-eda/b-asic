@@ -76,6 +76,9 @@ class Impulse(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return 1 if time == self._delay else 0
 
+    def __repr__(self):
+        return f"Impulse({self._delay})" if self._delay else "Impulse()"
+
 
 class Step(SignalGenerator):
     """
@@ -93,6 +96,9 @@ class Step(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return 1 if time >= self._delay else 0
 
+    def __repr__(self):
+        return f"Step({self._delay})" if self._delay else "Step()"
+
 
 class Constant(SignalGenerator):
     """
@@ -109,6 +115,9 @@ class Constant(SignalGenerator):
 
     def __call__(self, time: int) -> complex:
         return self._constant
+
+    def __str__(self):
+        return f"{self._constant}"
 
 
 class ZeroPad(SignalGenerator):
@@ -129,6 +138,9 @@ class ZeroPad(SignalGenerator):
         if 0 <= time < self._len:
             return self._data[time]
         return 0.0
+
+    def __repr__(self):
+        return f"ZeroPad({self._data})"
 
 
 class Sinusoid(SignalGenerator):
@@ -153,6 +165,13 @@ class Sinusoid(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return sin(pi * (self._frequency * time + self._phase))
 
+    def __repr__(self):
+        return (
+            f"Sinusoid({self._frequency}, {self._phase})"
+            if self._phase
+            else f"Sinusoid({self._frequency})"
+        )
+
 
 class AddGenerator:
     """
@@ -167,6 +186,9 @@ class AddGenerator:
 
     def __call__(self, time: int) -> complex:
         return self._a(time) + self._b(time)
+
+    def __str__(self):
+        return f"{self._a} + {self._b}"
 
 
 class SubGenerator:
@@ -183,6 +205,9 @@ class SubGenerator:
     def __call__(self, time: int) -> complex:
         return self._a(time) - self._b(time)
 
+    def __str__(self):
+        return f"{self._a} - {self._b}"
+
 
 class MultGenerator:
     """
@@ -198,6 +223,19 @@ class MultGenerator:
     def __call__(self, time: int) -> complex:
         return self._a(time) * self._b(time)
 
+    def __str__(self):
+        a = (
+            f"({self._a})"
+            if isinstance(self._a, (AddGenerator, SubGenerator))
+            else f"{self._a}"
+        )
+        b = (
+            f"({self._b})"
+            if isinstance(self._b, (AddGenerator, SubGenerator))
+            else f"{self._b}"
+        )
+        return f"{a} * {b}"
+
 
 class DivGenerator:
     """
@@ -212,3 +250,19 @@ class DivGenerator:
 
     def __call__(self, time: int) -> complex:
         return self._a(time) / self._b(time)
+
+    def __str__(self):
+        a = (
+            f"({self._a})"
+            if isinstance(self._a, (AddGenerator, SubGenerator))
+            else f"{self._a}"
+        )
+        b = (
+            f"({self._b})"
+            if isinstance(
+                self._b,
+                (AddGenerator, SubGenerator, MultGenerator, DivGenerator),
+            )
+            else f"{self._b}"
+        )
+        return f"{a} / {b}"
