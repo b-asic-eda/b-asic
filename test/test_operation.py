@@ -1,6 +1,9 @@
 """
 B-ASIC test suite for the AbstractOperation class.
 """
+import re
+
+import pytest
 
 from b_asic import (
     MAD,
@@ -217,18 +220,6 @@ class TestLatency:
             "out1": 9,
         }
 
-    def test_set_latency_offsets(self):
-        bfly = Butterfly()
-
-        bfly.set_latency_offsets({"in0": 3, "out1": 5})
-
-        assert bfly.latency_offsets == {
-            "in0": 3,
-            "in1": None,
-            "out0": None,
-            "out1": 5,
-        }
-
 
 class TestExecutionTime:
     def test_execution_time_constructor(self):
@@ -239,6 +230,13 @@ class TestExecutionTime:
         bfly.execution_time = 3
 
         assert bfly.execution_time == 3
+
+    def test_set_execution_time_negative(self):
+        bfly = Butterfly()
+        with pytest.raises(
+            ValueError, match="Execution time cannot be negative"
+        ):
+            bfly.execution_time = -1
 
 
 class TestCopyOperation:
@@ -324,3 +322,47 @@ class TestSplit:
         assert len(split) == 2
         assert sum(isinstance(op, Addition) for op in split) == 1
         assert sum(isinstance(op, Subtraction) for op in split) == 1
+
+
+class TestLatencyOffset:
+    def test_set_latency_offsets(self):
+        bfly = Butterfly()
+
+        bfly.set_latency_offsets({"in0": 3, "out1": 5})
+
+        assert bfly.latency_offsets == {
+            "in0": 3,
+            "in1": None,
+            "out0": None,
+            "out1": 5,
+        }
+
+    def test_set_latency_offsets_error(self):
+        bfly = Butterfly()
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "Incorrectly formatted index in string, expected 'in' + index,"
+                " got: 'ina'"
+            ),
+        ):
+            bfly.set_latency_offsets({"ina": 3, "out1": 5})
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "Incorrectly formatted index in string, expected 'out' +"
+                " index, got: 'outb'"
+            ),
+        ):
+            bfly.set_latency_offsets({"in1": 3, "outb": 5})
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "Incorrectly formatted string, expected 'in' + index or 'out'"
+                " + index, got: 'foo'"
+            ),
+        ):
+            bfly.set_latency_offsets({"foo": 3, "out2": 5})

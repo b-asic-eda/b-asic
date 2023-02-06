@@ -294,6 +294,10 @@ class Multiplication(AbstractOperation):
         Operation execution time (time units before operator can be
         reused).
 
+    See also
+    ========
+    ConstantMultiplication
+
     """
 
     def __init__(
@@ -332,6 +336,9 @@ class Division(AbstractOperation):
 
     .. math:: y = \frac{x_0}{x_1}
 
+    See also
+    ========
+    Reciprocal
     """
 
     def __init__(
@@ -371,6 +378,10 @@ class Min(AbstractOperation):
     .. math:: y = \min\{x_0 , x_1\}
 
     .. note:: Only real-valued numbers are supported.
+
+    See also
+    ========
+    Max
     """
 
     def __init__(
@@ -414,6 +425,10 @@ class Max(AbstractOperation):
     .. math:: y = \max\{x_0 , x_1\}
 
     .. note:: Only real-valued numbers are supported.
+
+    See also
+    ========
+    Min
     """
 
     def __init__(
@@ -745,6 +760,10 @@ class Reciprocal(AbstractOperation):
     Gives the reciprocal of its input.
 
     .. math:: y = \frac{1}{x}
+
+    See also
+    ========
+    Division
     """
 
     def __init__(

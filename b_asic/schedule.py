@@ -53,7 +53,7 @@ class Schedule:
         The schedule time. If not provided, it will be determined by the scheduling algorithm.
     cyclic : bool, default: False
         If the schedule is cyclic.
-    scheduling_alg : {'ASAP'}, optional
+    scheduling_algorithm : {'ASAP'}, optional
         The scheduling algorithm to use. Currently, only "ASAP" is supported.
     """
 
@@ -69,7 +69,7 @@ class Schedule:
         sfg: SFG,
         schedule_time: Optional[int] = None,
         cyclic: bool = False,
-        scheduling_alg: str = "ASAP",
+        scheduling_algorithm: str = "ASAP",
     ):
         """Construct a Schedule from an SFG."""
         self._sfg = sfg
@@ -77,11 +77,11 @@ class Schedule:
         self._laps = defaultdict(lambda: 0)
         self._cyclic = cyclic
         self._y_locations = defaultdict(lambda: None)
-        if scheduling_alg == "ASAP":
+        if scheduling_algorithm == "ASAP":
             self._schedule_asap()
         else:
             raise NotImplementedError(
-                f"No algorithm with name: {scheduling_alg} defined."
+                f"No algorithm with name: {scheduling_algorithm} defined."
             )
 
         max_end_time = self.get_max_end_time()
@@ -269,8 +269,8 @@ class Schedule:
         """
         if time < self.get_max_end_time():
             raise ValueError(
-                "New schedule time ({time})to short, minimum:"
-                " ({self.get_max_end_time()})."
+                f"New schedule time ({time}) too short, minimum:"
+                f" {self.get_max_end_time()}."
             )
         self._schedule_time = time
         return self
@@ -510,13 +510,16 @@ class Schedule:
                     # Schedule the operation if it does not have a start time yet.
                     op_start_time = 0
                     for inport in op.inputs:
-                        assert (
-                            len(inport.signals) == 1
-                        ), "Error in scheduling, dangling input port detected."
-                        assert inport.signals[0].source is not None, (
-                            "Error in scheduling, signal with no source"
-                            " detected."
-                        )
+                        if len(inport.signals) != 1:
+                            raise ValueError(
+                                "Error in scheduling, dangling input port"
+                                " detected."
+                            )
+                        if inport.signals[0].source is None:
+                            raise ValueError(
+                                "Error in scheduling, signal with no source"
+                                " detected."
+                            )
                         source_port = inport.signals[0].source
 
                         source_end_time = None
@@ -530,23 +533,24 @@ class Schedule:
                                 source_port.operation.graph_id
                             ]
 
-                            assert source_port.latency_offset is not None, (
-                                f"Output port: {source_port.index} of"
-                                " operation:                                  "
-                                f"   {source_port.operation.graph_id} has no"
-                                " latency-offset."
-                            )
+                            if source_port.latency_offset is None:
+                                raise ValueError(
+                                    f"Output port {source_port.index} of"
+                                    " operation"
+                                    f" {source_port.operation.graph_id} has no"
+                                    " latency-offset."
+                                )
 
                             source_end_time = (
                                 source_op_time + source_port.latency_offset
                             )
 
-                        assert inport.latency_offset is not None, (
-                            f"Input port: {inport.index} of operation:    "
-                            "                                "
-                            f" {inport.operation.graph_id} has no"
-                            " latency-offset."
-                        )
+                        if inport.latency_offset is None:
+                            raise ValueError(
+                                f"Input port {inport.index} of operation"
+                                f" {inport.operation.graph_id} has no"
+                                " latency-offset."
+                            )
                         op_start_time_from_in = (
                             source_end_time - inport.latency_offset
                         )
@@ -561,6 +565,12 @@ class Schedule:
             if source_port.operation.graph_id in non_schedulable_ops:
                 self._start_times[output.graph_id] = 0
             else:
+                if source_port.latency_offset is None:
+                    raise ValueError(
+                        f"Output port {source_port.index} of operation"
+                        f" {source_port.operation.graph_id} has no"
+                        " latency-offset."
+                    )
                 self._start_times[output.graph_id] = self._start_times[
                     source_port.operation.graph_id
                 ] + cast(int, source_port.latency_offset)

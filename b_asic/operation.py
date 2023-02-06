@@ -976,17 +976,19 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             port_str = port_str.lower()
             if port_str.startswith("in"):
                 index_str = port_str[2:]
-                assert index_str.isdigit(), (
-                    "Incorrectly formatted index in string, expected 'in' +"
-                    f" index, got: {port_str!r}"
-                )
+                if not index_str.isdigit():
+                    raise ValueError(
+                        "Incorrectly formatted index in string, expected 'in'"
+                        f" + index, got: {port_str!r}"
+                    )
                 self.input(int(index_str)).latency_offset = latency_offset
             elif port_str.startswith("out"):
                 index_str = port_str[3:]
-                assert index_str.isdigit(), (
-                    "Incorrectly formatted index in string, expected 'out' +"
-                    f" index, got: {port_str!r}"
-                )
+                if not index_str.isdigit():
+                    raise ValueError(
+                        "Incorrectly formatted index in string, expected"
+                        f" 'out' + index, got: {port_str!r}"
+                    )
                 self.output(int(index_str)).latency_offset = latency_offset
             else:
                 raise ValueError(

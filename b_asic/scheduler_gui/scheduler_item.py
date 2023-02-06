@@ -98,7 +98,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
             The x-position to check.
         """
         # TODO: implement
-        assert self.schedule is not None, "No schedule installed."
+        if self.schedule is None:
+            raise ValueError("No schedule installed.")
         end_time = item.end_time
         new_start_time = floor(pos) - floor(self._x_axis_indent)
         slacks = self.schedule.slacks(item.graph_id)
@@ -177,7 +178,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         """
         # TODO: implement
         # item = self.scene().mouseGrabberItem()
-        assert self.schedule is not None, "No schedule installed."
+        if self.schedule is None:
+            raise ValueError("No schedule installed.")
         return (
             self.schedule.schedule_time + delta_time
             >= self.schedule.get_max_end_time()
@@ -187,7 +189,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         """Change the schedule time by *delta_time* and redraw the graph."""
         if self._axes is None:
             raise RuntimeError("No AxesItem!")
-        assert self.schedule is not None, "No schedule installed."
+        if self.schedule is None:
+            raise ValueError("No schedule installed.")
         self.schedule.set_schedule_time(
             self.schedule.schedule_time + delta_time
         )

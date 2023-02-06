@@ -329,27 +329,24 @@ class TestReplaceComponents:
         sfg = SFG(outputs=[Output(large_operation_tree)])
         component_id = "addd1"
 
-        try:
+        with pytest.raises(
+            ValueError, match="No operation matching the criteria found"
+        ):
             sfg = sfg.replace_component(
                 Multiplication(name="Multi"), graph_id=component_id
             )
-        except AssertionError:
-            assert True
-        else:
-            assert False
 
     def test_not_equal_input(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
         component_id = "c1"
 
-        try:
+        with pytest.raises(
+            TypeError,
+            match="The input count may not differ between the operations",
+        ):
             sfg = sfg.replace_component(
                 Multiplication(name="Multi"), graph_id=component_id
             )
-        except AssertionError:
-            assert True
-        else:
-            assert False
 
 
 class TestConstructSFG:

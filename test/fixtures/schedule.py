@@ -13,5 +13,5 @@ def secondorder_iir_schedule(precedence_sfg_delays):
         ConstantMultiplication.type_name(), 3
     )
 
-    schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+    schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
     return schedule

@@ -1,9 +1,14 @@
 """
 B-ASIC test suite for the schedule module and Schedule class.
 """
+import re
+
 import pytest
 
-from b_asic import Addition, ConstantMultiplication, Schedule
+from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
+from b_asic.schedule import Schedule
+from b_asic.signal_flow_graph import SFG
+from b_asic.special_operations import Input, Output
 
 
 class TestInit:
@@ -31,7 +36,7 @@ class TestInit:
             ConstantMultiplication.type_name(), 3
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
 
         for op in schedule._sfg.get_operations_topological_order():
             print(op.latency_offsets)
@@ -122,7 +127,7 @@ class TestInit:
             {"in0": 6, "in1": 7, "out0": 9}
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
 
         start_times_names = {}
         for op_id, start_time in schedule._start_times.items():
@@ -152,7 +157,7 @@ class TestInit:
     ):
         schedule = Schedule(
             sfg_two_inputs_two_outputs_independent_with_cmul,
-            scheduling_alg="ASAP",
+            scheduling_algorithm="ASAP",
         )
 
         start_times_names = {}
@@ -187,7 +192,7 @@ class TestSlacks:
             ConstantMultiplication.type_name(), 3
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
         assert (
             schedule.forward_slack(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id
@@ -220,7 +225,7 @@ class TestSlacks:
             ConstantMultiplication.type_name(), 3
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
         assert schedule.slacks(
             precedence_sfg_delays.find_by_name("ADD3")[0].graph_id
         ) == (0, 7)
@@ -236,7 +241,7 @@ class TestRescheduling:
             ConstantMultiplication.type_name(), 3
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
 
         schedule.move_operation(
             precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, 4
@@ -274,7 +279,7 @@ class TestRescheduling:
             ConstantMultiplication.type_name(), 3
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
         add3_id = precedence_sfg_delays.find_by_name("ADD3")[0].graph_id
         schedule.move_operation(add3_id, 4)
         assert schedule.forward_slack(add3_id) == 3
@@ -300,7 +305,7 @@ class TestRescheduling:
             ConstantMultiplication.type_name(), 3
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
         with pytest.raises(ValueError):
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, -4
@@ -314,7 +319,7 @@ class TestRescheduling:
             ConstantMultiplication.type_name(), 3
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_alg="ASAP")
+        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
         with pytest.raises(ValueError):
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, 10
@@ -327,7 +332,7 @@ class TestTimeResolution:
     ):
         schedule = Schedule(
             sfg_two_inputs_two_outputs_independent_with_cmul,
-            scheduling_alg="ASAP",
+            scheduling_algorithm="ASAP",
         )
         old_schedule_time = schedule.schedule_time
         assert schedule.get_possible_time_resolution_decrements() == [1]
@@ -363,7 +368,7 @@ class TestTimeResolution:
     ):
         schedule = Schedule(
             sfg_two_inputs_two_outputs_independent_with_cmul,
-            scheduling_alg="ASAP",
+            scheduling_algorithm="ASAP",
         )
         old_schedule_time = schedule.schedule_time
 
@@ -404,7 +409,7 @@ class TestTimeResolution:
     ):
         schedule = Schedule(
             sfg_two_inputs_two_outputs_independent_with_cmul,
-            scheduling_alg="ASAP",
+            scheduling_algorithm="ASAP",
         )
         old_schedule_time = schedule.schedule_time
         assert schedule.get_possible_time_resolution_decrements() == [1]
@@ -473,3 +478,72 @@ class TestFigureGeneration:
     @pytest.mark.mpl_image_compare(remove_text=True, style='mpl20')
     def test__get_figure_no_execution_times(self, secondorder_iir_schedule):
         return secondorder_iir_schedule._get_figure()
+
+
+class TestErrors:
+    def test_no_latency(self, sfg_simple_filter):
+        with pytest.raises(
+            ValueError,
+            match="Input port 0 of operation add1 has no latency-offset.",
+        ):
+            Schedule(sfg_simple_filter)
+
+    def test_no_output_latency(self):
+        in1 = Input()
+        in2 = Input()
+        bfly = Butterfly(
+            in1, in2, latency_offsets={"in0": 4, "in1": 2, "out0": 10}
+        )
+        out1 = Output(bfly.output(0))
+        out2 = Output(bfly.output(1))
+        sfg = SFG([in1, in2], [out1, out2])
+        with pytest.raises(
+            ValueError,
+            match="Output port 1 of operation bfly1 has no latency-offset.",
+        ):
+            Schedule(sfg)
+        in1 = Input()
+        in2 = Input()
+        bfly1 = Butterfly(
+            in1, in2, latency_offsets={"in0": 4, "in1": 2, "out1": 10}
+        )
+        bfly2 = Butterfly(
+            bfly1.output(0),
+            bfly1.output(1),
+            latency_offsets={"in0": 4, "in1": 2, "out0": 10, "out1": 8},
+        )
+        out1 = Output(bfly2.output(0))
+        out2 = Output(bfly2.output(1))
+        sfg = SFG([in1, in2], [out1, out2])
+        with pytest.raises(
+            ValueError,
+            match="Output port 0 of operation bfly1 has no latency-offset.",
+        ):
+            Schedule(sfg)
+
+    def test_too_short_schedule_time(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 5)
+        sfg_simple_filter.set_latency_of_type(
+            ConstantMultiplication.type_name(), 4
+        )
+        with pytest.raises(
+            ValueError, match="Too short schedule time. Minimum is 9."
+        ):
+            Schedule(sfg_simple_filter, schedule_time=3)
+
+        schedule = Schedule(sfg_simple_filter)
+        with pytest.raises(
+            ValueError,
+            match=re.escape("New schedule time (3) too short, minimum: 9."),
+        ):
+            schedule.set_schedule_time(3)
+
+    def test_incorrect_scheduling_algorithm(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type(
+            ConstantMultiplication.type_name(), 2
+        )
+        with pytest.raises(
+            NotImplementedError, match="No algorithm with name: foo defined."
+        ):
+            Schedule(sfg_simple_filter, scheduling_algorithm="foo")

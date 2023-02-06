@@ -194,10 +194,11 @@ class SFG(AbstractOperation):
                     Input, self._add_component_unconnected_copy(input_op)
                 )
                 for signal in input_op.output(0).signals:
-                    assert signal not in self._original_components_to_new, (
-                        "Duplicate input signals connected to input ports"
-                        " supplied to SFG constructor."
-                    )
+                    if signal in self._original_components_to_new:
+                        raise ValueError(
+                            "Duplicate input signals connected to input ports"
+                            " supplied to SFG constructor."
+                        )
                     new_signal = cast(
                         Signal, self._add_component_unconnected_copy(signal)
                     )
@@ -649,15 +650,16 @@ class SFG(AbstractOperation):
         sfg_copy = self()  # Copy to not mess with this SFG.
         component_copy = sfg_copy.find_by_id(graph_id)
 
-        assert component_copy is not None and isinstance(
-            component_copy, Operation
-        ), "No operation matching the criteria found"
-        assert (
-            component_copy.output_count == component.output_count
-        ), "The output count may not differ between the operations"
-        assert (
-            component_copy.input_count == component.input_count
-        ), "The input count may not differ between the operations"
+        if component_copy is None or not isinstance(component_copy, Operation):
+            raise ValueError("No operation matching the criteria found")
+        if component_copy.output_count != component.output_count:
+            raise TypeError(
+                "The output count may not differ between the operations"
+            )
+        if component_copy.input_count != component.input_count:
+            raise TypeError(
+                "The input count may not differ between the operations"
+            )
 
         for index_in, inp in enumerate(component_copy.inputs):
             for signal in inp.signals:
@@ -703,10 +705,11 @@ class SFG(AbstractOperation):
                 f" ({len(output_comp.output_signals)}) does not match input"
                 f" count for component ({component.input_count})."
             )
-        assert len(output_comp.output_signals) == component.output_count, (
-            "Destination operation input count does not match output for"
-            " component."
-        )
+        if len(output_comp.output_signals) != component.output_count:
+            raise TypeError(
+                "Destination operation input count does not match output for"
+                " component."
+            )
 
         for index, signal_in in enumerate(output_comp.output_signals):
             destination = cast(InputPort, signal_in.destination)
@@ -1063,9 +1066,8 @@ class SFG(AbstractOperation):
     def _add_component_unconnected_copy(
         self, original_component: GraphComponent
     ) -> GraphComponent:
-        assert (
-            original_component not in self._original_components_to_new
-        ), "Tried to add duplicate SFG component"
+        if original_component in self._original_components_to_new:
+            raise ValueError("Tried to add duplicate SFG component")
         new_component = original_component.copy_component()
         self._original_components_to_new[original_component] = new_component
         if (
