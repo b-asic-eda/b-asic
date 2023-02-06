@@ -127,3 +127,28 @@ def test_multiplication():
     assert g(1) == pytest.approx(sqrt(2))
     assert g(2) == pytest.approx(-sqrt(2))
     assert g(3) == pytest.approx(-sqrt(2))
+
+    g = Step(1) * Sinusoid(0.5, 0.25)
+    assert g(0) == 0
+    assert g(1) == pytest.approx(sqrt(2) / 2)
+    assert g(2) == pytest.approx(-sqrt(2) / 2)
+    assert g(3) == pytest.approx(-sqrt(2) / 2)
+
+
+def test_division():
+    g = Step() / 2
+    assert g(-1) == 0.0
+    assert g(0) == 0.5
+    assert g(1) == 0.5
+    assert g(2) == 0.5
+
+    g = 0.5 / Step()
+    assert g(0) == 0.5
+    assert g(1) == 0.5
+    assert g(2) == 0.5
+
+    g = Sinusoid(0.5, 0.25) / (0.5 * Step())
+    assert g(0) == pytest.approx(sqrt(2))
+    assert g(1) == pytest.approx(sqrt(2))
+    assert g(2) == pytest.approx(-sqrt(2))
+    assert g(3) == pytest.approx(-sqrt(2))

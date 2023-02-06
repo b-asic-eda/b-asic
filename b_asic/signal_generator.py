@@ -49,6 +49,16 @@ class SignalGenerator:
             return MultGenerator(self, Constant(other))
         return MultGenerator(self, other)
 
+    def __truediv__(self, other) -> "MulGenerator":
+        if isinstance(other, Number):
+            return DivGenerator(self, Constant(other))
+        return DivGenerator(self, other)
+
+    def __rtruediv__(self, other) -> "MulGenerator":
+        if isinstance(other, Number):
+            return DivGenerator(Constant(other), self)
+        return DivGenerator(other, self)
+
 
 class Impulse(SignalGenerator):
     """
@@ -187,3 +197,18 @@ class MultGenerator:
 
     def __call__(self, time: int) -> complex:
         return self._a(time) * self._b(time)
+
+
+class DivGenerator:
+    """
+    Signal generator that divides two signals.
+    """
+
+    def __init__(
+        self, a: SignalGenerator, b: SignalGenerator
+    ) -> Callable[[int], complex]:
+        self._a = a
+        self._b = b
+
+    def __call__(self, time: int) -> complex:
+        return self._a(time) / self._b(time)
