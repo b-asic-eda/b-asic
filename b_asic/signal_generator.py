@@ -20,7 +20,8 @@ class SignalGenerator:
     """
     Base class for signal generators.
 
-    Handles operator overloading and defined the ``__call__`` method that should be overridden.
+    Handles operator overloading and defined the ``__call__`` method that should
+    be overridden.
     """
 
     def __call__(self, time: int) -> complex:

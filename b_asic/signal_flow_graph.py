@@ -474,14 +474,16 @@ class SFG(AbstractOperation):
     @property
     def input_operations(self) -> Sequence[Operation]:
         """
-        Get the internal input operations in the same order as their respective input ports.
+        Get the internal input operations in the same order as their respective input
+        ports.
         """
         return self._input_operations
 
     @property
     def output_operations(self) -> Sequence[Operation]:
         """
-        Get the internal output operations in the same order as their respective output ports.
+        Get the internal output operations in the same order as their respective output
+        ports.
         """
         return self._output_operations
 
@@ -502,7 +504,8 @@ class SFG(AbstractOperation):
 
         Returns
         -------
-            A  list of inputs that are required to compute the output with the given *output_index*.
+            A  list of inputs that are required to compute the output with the given
+            *output_index*.
         """
         if output_index < 0 or output_index >= self.output_count:
             raise IndexError(
@@ -678,6 +681,7 @@ class SFG(AbstractOperation):
     ) -> Optional["SFG"]:
         """
         Insert an operation in the SFG after a given source operation.
+
         The source operation output count must match the input count of the operation
         as well as the output.
         Then return a new deepcopy of the sfg with the inserted component.
@@ -721,9 +725,12 @@ class SFG(AbstractOperation):
 
     def remove_operation(self, operation_id: GraphID) -> Union["SFG", None]:
         """
-        Returns a version of the SFG where the operation with the specified GraphID removed.
-        The operation has to have the same amount of input- and output ports or a ValueError will
-        be raised. If no operation with the entered operation_id is found then returns None and does nothing.
+        Returns a version of the SFG where the operation with the specified GraphID
+        removed.
+
+        The operation must have the same amount of input- and output ports or a
+        ValueError is raised. If no operation with the entered operation_id is found
+        then returns None and does nothing.
 
         Parameters
         ==========
@@ -816,7 +823,8 @@ class SFG(AbstractOperation):
                             portstr,
                             label=port.operation.graph_id,
                         )
-        # Creates edges for each output port and creates nodes for each operation and edges for them as well
+        # Creates edges for each output port and creates nodes for each operation
+        # and edges for them as well
         for i in range(len(p_list)):
             ports = p_list[i]
             for port in ports:
@@ -948,7 +956,8 @@ class SFG(AbstractOperation):
                                 neighbor_op
                             )
 
-            # Check if have to fetch Operations from somewhere else since p_queue is empty
+            # Check if have to fetch Operations from somewhere else since p_queue
+            # is empty
             if operations_left > 0:
                 # First check if can fetch from Operations with no input ports
                 if no_inputs_queue:
@@ -989,7 +998,8 @@ class SFG(AbstractOperation):
         Parameters
         ----------
         type_name : TypeName
-            The type name of the operation. For example, obtained as ``Addition.type_name()``.
+            The type name of the operation. For example, obtained as
+            ``Addition.type_name()``.
         latency : int
             The latency of the operation.
 
@@ -1006,7 +1016,8 @@ class SFG(AbstractOperation):
         Parameters
         ----------
         type_name : TypeName
-            The type name of the operation. For example, obtained as ``Addition.type_name()``.
+            The type name of the operation. For example, obtained as
+            ``Addition.type_name()``.
         execution_time : int
             The execution time of the operation.
         """
@@ -1022,7 +1033,8 @@ class SFG(AbstractOperation):
         Parameters
         ----------
         type_name : TypeName
-            The type name of the operation. For example, obtained as ``Addition.type_name()``.
+            The type name of the operation. For example, obtained as
+            ``Addition.type_name()``.
         latency_offsets : {"in1": int, ...}
             The latency offsets of the inputs and outputs.
         """
@@ -1282,7 +1294,8 @@ class SFG(AbstractOperation):
                             self._components_dfs_order.append(new_connected_op)
                             self._operations_dfs_order.append(new_connected_op)
 
-                            # Add connected operation to the queue of operations to visit.
+                            # Add connected operation to the queue of operations
+                            # to visit.
                             op_stack.append(original_connected_op)
 
     def _evaluate_source(
@@ -1421,7 +1434,8 @@ class SFG(AbstractOperation):
         format : string, optional
             File format of the generated graph. Output formats can be found at
             https://www.graphviz.org/doc/info/output.html
-            Most common are "pdf", "eps", "png", and "svg". Default is None which leads to PDF.
+            Most common are "pdf", "eps", "png", and "svg". Default is None which
+            leads to PDF.
 
         show_id : Boolean, optional
             If True, the graph_id:s of signals are shown. The default is False.

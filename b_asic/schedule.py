@@ -50,7 +50,8 @@ class Schedule:
     sfg : SFG
         The signal flow graph to schedule.
     schedule_time : int, optional
-        The schedule time. If not provided, it will be determined by the scheduling algorithm.
+        The schedule time. If not provided, it will be determined by the scheduling
+        algorithm.
     cyclic : bool, default: False
         If the schedule is cyclic.
     scheduling_algorithm : {'ASAP'}, optional
@@ -128,7 +129,8 @@ class Schedule:
 
         Returns
         -------
-            The number of time steps the operation with *graph_id* can ba moved forward in time.
+            The number of time steps the operation with *graph_id* can ba moved
+            forward in time.
 
         See also
         --------
@@ -179,10 +181,11 @@ class Schedule:
 
         Returns
         -------
-            The number of time steps the operation with *graph_id* can ba moved backward in time.
+            The number of time steps the operation with *graph_id* can ba moved
+            backward in time.
 
-        .. note:: The backward slack is positive, but a call to :func:`move_operation` should be negative to move
-                  the operation backward.
+        .. note:: The backward slack is positive, but a call to :func:`move_operation`
+                  should be negative to move the operation backward.
 
         See also
         --------
@@ -224,8 +227,8 @@ class Schedule:
 
     def slacks(self, graph_id: GraphID) -> Tuple[int, int]:
         """
-        Return the backward and forward slacks of operation *graph_id*. That is, how much
-        the operation can be moved backward and forward in time.
+        Return the backward and forward slacks of operation *graph_id*. That is, how
+        much the operation can be moved backward and forward in time.
 
         Parameters
         ----------
@@ -236,8 +239,8 @@ class Schedule:
         -------
             A tuple as ``(backward_slack, forward_slack)``.
 
-        .. note:: The backward slack is positive, but a call to :func:`move_operation` should be negative to move
-                  the operation backward.
+        .. note:: The backward slack is positive, but a call to :func:`move_operation`
+                  should be negative to move the operation backward.
 
         See also
         --------
@@ -351,6 +354,10 @@ class Schedule:
 
         factor : int
             The time resolution decrement.
+
+        See also
+        ========
+        get_possible_time_resolution_decrements
         """
         possible_values = self.get_possible_time_resolution_decrements()
         if factor not in possible_values:
@@ -807,7 +814,8 @@ class Schedule:
         ax : matplotlib.axes.Axes
             The :class:`matplotlib.axes.Axes` to plot in.
         operation_gap : float, optional
-            The vertical distance between operations in the schedule. The height of the operation is always 1.
+            The vertical distance between operations in the schedule. The height of
+            the operation is always 1.
         """
 
     def plot(self, operation_gap: float = None) -> None:
@@ -817,7 +825,8 @@ class Schedule:
         Parameters
         ----------
         operation_gap : float, optional
-            The vertical distance between operations in the schedule. The height of the operation is always 1.
+            The vertical distance between operations in the schedule. The height of
+            the operation is always 1.
         """
         self._get_figure(operation_gap=operation_gap).show()
 
@@ -828,7 +837,8 @@ class Schedule:
         Parameters
         ----------
         operation_gap : float, optional
-            The vertical distance between operations in the schedule. The height of the operation is always 1.
+            The vertical distance between operations in the schedule. The height of
+            the operation is always 1.
 
         Returns
         -------
@@ -840,7 +850,8 @@ class Schedule:
 
     def _repr_svg_(self):
         """
-        Generate an SVG of the schedule. This is automatically displayed in e.g. Jupyter Qt console.
+        Generate an SVG of the schedule. This is automatically displayed in e.g.
+        Jupyter Qt console.
         """
         fig, ax = plt.subplots()
         self._plot_schedule(ax)

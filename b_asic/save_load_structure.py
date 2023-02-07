@@ -98,8 +98,10 @@ def sfg_to_python(
                 destination = cast(InputPort, signal.destination)
                 dest_op = destination.operation
                 connection = (
-                    f"\nSignal(source={op.graph_id}.output({op.outputs.index(signal.source)}),"
-                    f" destination={dest_op.graph_id}.input({dest_op.inputs.index(destination)}))"
+                    f"\nSignal(source={op.graph_id}."
+                    f"output({op.outputs.index(signal.source)}),"
+                    f" destination={dest_op.graph_id}."
+                    f"input({dest_op.inputs.index(destination)}))"
                 )
                 if connection in connections:
                     continue

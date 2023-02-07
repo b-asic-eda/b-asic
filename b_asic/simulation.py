@@ -8,9 +8,6 @@ from collections import defaultdict
 from numbers import Number
 from typing import (
     Callable,
-    DefaultDict,
-    Dict,
-    List,
     Mapping,
     MutableMapping,
     MutableSequence,
@@ -21,12 +18,7 @@ from typing import (
 
 import numpy as np
 
-from b_asic.operation import (
-    MutableDelayMap,
-    MutableResultMap,
-    ResultKey,
-    ResultMap,
-)
+from b_asic.operation import MutableDelayMap, ResultKey
 from b_asic.signal_flow_graph import SFG
 
 ResultArrayMap = Mapping[ResultKey, Sequence[Number]]
@@ -127,8 +119,8 @@ class Simulation:
         truncate: bool = True,
     ) -> Sequence[Number]:
         """
-        Run the simulation until its iteration is greater than or equal to the given iteration
-        and return the output values of the last iteration.
+        Run the simulation until its iteration is greater than or equal to the given
+        iteration and return the output values of the last iteration.
         """
         result: Sequence[Number] = []
         while self._iteration < iteration:
@@ -191,9 +183,10 @@ class Simulation:
     def results(self) -> ResultArrayMap:
         """
         Get a mapping from result keys to numpy arrays containing all results, including
-        intermediate values, calculated for each iteration up until now that was run with
-        save_results enabled.
-        The mapping is indexed using the key() method of Operation with the appropriate output index.
+        intermediate values, calculated for each iteration up until now that was run
+        with save_results enabled.
+        The mapping is indexed using the key() method of Operation with the appropriate
+        output index.
         Example result after 3 iterations::
 
             {"c1": [3, 6, 7], "c2": [4, 5, 5], "bfly1.0": [7, 0, 0], "bfly1.1": [-1, 0, 2], "0": [7, -2, -1]}

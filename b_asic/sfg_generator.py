@@ -24,7 +24,8 @@ def wdf_allpass(
     execution_time: Optional[int] = None,
 ) -> SFG:
     """
-    Generate a signal flow graph of a WDF allpass section based on symmetric two-port adaptors.
+    Generate a signal flow graph of a WDF allpass section based on symmetric two-port
+    adaptors.
 
     Parameters
     ----------

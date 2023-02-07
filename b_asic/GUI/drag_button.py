@@ -162,7 +162,8 @@ class DragButton(QPushButton):
         path_to_image = os.path.join(
             os.path.dirname(__file__),
             "operation_icons",
-            f"{self.operation.type_name().lower()}{'_grey.png' if self.pressed else '.png'}",
+            f"{self.operation.type_name().lower()}"
+            f"{'_grey.png' if self.pressed else '.png'}",
         )
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))

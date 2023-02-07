@@ -86,8 +86,8 @@ class Operation(GraphComponent, SignalSourceProvider):
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Subtraction":
         """
-        Overloads the subtraction operator to make it return a new Subtraction operation
-        object that is connected to the self and other objects.
+        Overloads the subtraction operator to make it return a new Subtraction
+        operation object that is connected to the self and other objects.
         """
         raise NotImplementedError
 
@@ -96,8 +96,8 @@ class Operation(GraphComponent, SignalSourceProvider):
         self, src: Union[SignalSourceProvider, Number]
     ) -> "Subtraction":
         """
-        Overloads the subtraction operator to make it return a new Subtraction operation
-        object that is connected to the self and other objects.
+        Overloads the subtraction operator to make it return a new Subtraction
+        operation object that is connected to the self and other objects.
         """
         raise NotImplementedError
 
@@ -106,9 +106,11 @@ class Operation(GraphComponent, SignalSourceProvider):
         self, src: Union[SignalSourceProvider, Number]
     ) -> Union["Multiplication", "ConstantMultiplication"]:
         """
-        Overloads the multiplication operator to make it return a new Multiplication operation
-        object that is connected to the self and other objects. If *src* is a number, then
-        returns a ConstantMultiplication operation object instead.
+        Overloads the multiplication operator to make it return a new Multiplication
+        operation object that is connected to the self and other objects.
+
+        If *src* is a number, then returns a ConstantMultiplication operation object
+        instead.
         """
         raise NotImplementedError
 
@@ -117,9 +119,11 @@ class Operation(GraphComponent, SignalSourceProvider):
         self, src: Union[SignalSourceProvider, Number]
     ) -> Union["Multiplication", "ConstantMultiplication"]:
         """
-        Overloads the multiplication operator to make it return a new Multiplication operation
-        object that is connected to the self and other objects. If *src* is a number, then
-        returns a ConstantMultiplication operation object instead.
+        Overloads the multiplication operator to make it return a new Multiplication
+        operation object that is connected to the self and other objects.
+
+        If *src* is a number, then returns a ConstantMultiplication operation object
+        instead.
         """
         raise NotImplementedError
 
@@ -218,8 +222,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     ) -> Optional[Number]:
         """
         Get the current output at the given index of this operation, if available.
+
         The *delays* parameter will be used for lookup.
-        The *prefix* parameter will be used as a prefix for the key string when looking for delays.
+        The *prefix* parameter will be used as a prefix for the key string when looking
+        for delays.
 
         See also
         ========
@@ -240,7 +246,8 @@ class Operation(GraphComponent, SignalSourceProvider):
         truncate: bool = True,
     ) -> Number:
         """
-        Evaluate the output at the given index of this operation with the given input values.
+        Evaluate the output at the given index of this operation with the given input
+        values.
 
         Parameters
         ----------
@@ -261,7 +268,8 @@ class Operation(GraphComponent, SignalSourceProvider):
             which ignores the word length specified by the input signal.
         truncate : bool, default: True
             Specifies whether input truncation should be enabled in the first
-            place. If set to False, input values will be used directly without any bit truncation.
+            place. If set to False, input values will be used directly without any
+            bit truncation.
 
         See also
         ========
@@ -303,7 +311,9 @@ class Operation(GraphComponent, SignalSourceProvider):
     def split(self) -> Iterable["Operation"]:
         """
         Split the operation into multiple operations.
-        If splitting is not possible, this may return a list containing only the operation itself.
+
+        If splitting is not possible, this may return a list containing only the
+        operation itself.
         """
         raise NotImplementedError
 
@@ -311,7 +321,9 @@ class Operation(GraphComponent, SignalSourceProvider):
     def to_sfg(self) -> "SFG":
         """
         Convert the operation into its corresponding SFG.
-        If the operation is composed by multiple operations, the operation will be split.
+
+        If the operation is composed by multiple operations, the operation will be
+        split.
         """
         raise NotImplementedError
 
@@ -326,7 +338,8 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def truncate_input(self, index: int, value: Number, bits: int) -> Number:
         """
-        Truncate the value to be used as input at the given index to a certain bit length.
+        Truncate the value to be used as input at the given index to a certain bit
+        length.
         """
         raise NotImplementedError
 
@@ -350,18 +363,24 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def set_latency(self, latency: int) -> None:
         """
-        Sets the latency of the operation to the specified integer value  by setting the
-        latency-offsets of operations input ports to 0 and the latency-offsets of the operations
-        output ports to the specified value. The latency cannot be a negative integers.
+        Sets the latency of the operation to the specified integer value.
+
+        This is done by setting the latency-offsets of operations input ports to 0
+        and the latency-offsets of the operations output ports to the specified value.
+
+        The latency cannot be a negative integer.
         """
         raise NotImplementedError
 
     @abstractmethod
     def set_latency_offsets(self, latency_offsets: Dict[str, int]) -> None:
         """
-        Sets the latency-offsets for the operations ports specified in the latency_offsets dictionary.
-        The latency offsets dictionary should be {'in0': 2, 'out1': 4} if you want to set the latency offset
-        for the inport port with index 0 to 2, and the latency offset of the output port with index 1 to 4.
+        Sets the latency-offsets for the operations ports specified in the
+        latency_offsets dictionary.
+
+        The latency offsets dictionary should be {'in0': 2, 'out1': 4} if you want to
+        set the latency offset for the inport port with index 0 to 2, and the latency
+        offset of the output port with index 1 to 4.
         """
         raise NotImplementedError
 
@@ -369,8 +388,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def execution_time(self) -> Optional[int]:
         """
-        Get the execution time of the operation, which is the time it takes before the
-        processing element implementing the operation can be reused for starting another operation.
+        Get the execution time of the operation.
+
+        This is the time it takes before the processing element implementing the
+        operation can be reused for starting another operation.
         """
         raise NotImplementedError
 

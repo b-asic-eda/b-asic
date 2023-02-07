@@ -16,7 +16,8 @@ GraphIDNumber = NewType("GraphIDNumber", int)
 
 
 class GraphComponent(ABC):
-    """Graph component interface.
+    """
+    Graph component interface.
 
     Each graph component has a type name, a name and a unique ID.
     Graph components also contain parameters and provide an interface for
@@ -54,9 +55,12 @@ class GraphComponent(ABC):
     @graph_id.setter
     @abstractmethod
     def graph_id(self, graph_id: GraphID) -> None:
-        """Set the graph id of this graph component to the given id.
-        Note that this id will be ignored if this component is used to create a new graph,
-        and that a new local id will be generated for it instead."""
+        """
+        Set the graph id of this graph component to the given id.
+
+        Note that this id will be ignored if this component is used to create a new
+        graph, and that a new local id will be generated for it instead.
+        """
         raise NotImplementedError
 
     @property
@@ -84,7 +88,8 @@ class GraphComponent(ABC):
     @abstractmethod
     def copy_component(self, *args, **kwargs) -> "GraphComponent":
         """
-        Get a new instance of this graph component type with the same name, id and parameters.
+        Get a new instance of this graph component type with the same name, id and
+        parameters.
         """
         raise NotImplementedError
 
@@ -96,14 +101,17 @@ class GraphComponent(ABC):
 
     @abstractmethod
     def traverse(self) -> Generator["GraphComponent", None, None]:
-        """Get a generator that recursively iterates through all components that are connected to this operation,
+        """
+        Get a generator that recursively iterates through all components that
+        are connected to this operation,
         as well as the ones that they are connected to.
         """
         raise NotImplementedError
 
 
 class AbstractGraphComponent(GraphComponent):
-    """Generic abstract graph component base class.
+    """
+    Generic abstract graph component base class.
 
     Concrete graph components should normally derive from this to get the
     default behavior.

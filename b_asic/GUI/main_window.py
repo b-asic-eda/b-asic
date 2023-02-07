@@ -519,8 +519,7 @@ class MainWindow(QMainWindow):
             attr_button.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
             attr_button.setToolTip("No SFG")
             attr_button.setStyleSheet(
-                """ QToolTip { background-color: white;
-            color: black }"""
+                "QToolTip { background-color: white; color: black }"
             )
             attr_button.setParent(None)
             attr_button_scene = self.scene.addWidget(attr_button)
@@ -545,7 +544,7 @@ class MainWindow(QMainWindow):
             )
 
     def _create_operation_item(self, item):
-        self.logger.info("Creating operation of type: " + str(item.text()))
+        self.logger.info("Creating operation of type: %s" % str(item.text()))
         try:
             attr_oper = self._operations_from_name[item.text()]()
             self.create_operation(attr_oper)
@@ -601,7 +600,7 @@ class MainWindow(QMainWindow):
                 self.logger.warning("Cannot connect to the same port")
                 continue
 
-            if type(source.port) == type(destination.port):
+            if isinstance(source.port, type(destination.port)):
                 self.logger.warning(
                     "Cannot connect port of type: %s to port of type: %s."
                     % (
@@ -623,8 +622,11 @@ class MainWindow(QMainWindow):
             if signal.destination is destination.port
         )
         self.logger.info(
-            f"Connecting: {source.operation.operation.type_name()} "
-            f"-> {destination.operation.operation.type_name()}."
+            "Connecting: %s -> %s."
+            % (
+                source.operation.operation.type_name(),
+                destination.operation.operation.type_name(),
+            )
         )
         try:
             line = Arrow(source, destination, self, signal=next(signal_exists))
@@ -657,7 +659,7 @@ class MainWindow(QMainWindow):
 
     def _simulate_sfg(self):
         for sfg, properties in self.dialog.properties.items():
-            self.logger.info(f"Simulating SFG with name: " + str(sfg.name))
+            self.logger.info("Simulating SFG with name: %s" % str(sfg.name))
             simulation = FastSimulation(
                 sfg, input_providers=properties["input_values"]
             )
