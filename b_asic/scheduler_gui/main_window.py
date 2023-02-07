@@ -346,7 +346,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Takes in a boolean and hide or show the info table accordingly with
         'checked'.
         """
-        # Note: splitter handler index 0 is a hidden splitter handle far most left, use index 1
+        # Note: splitter handler index 0 is a hidden splitter handle far most left,
+        # use index 1
         # settings = QSettings()
         _, max_ = self.splitter.getRange(1)  # tuple(min, max)
 

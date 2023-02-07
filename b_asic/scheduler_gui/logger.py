@@ -58,14 +58,21 @@ from typing import Type, Union
 def getLogger(
     filename: str = "scheduler-gui.log", loglevel: str = "INFO"
 ) -> Logger:
-    """This function creates console- and filehandler and from those, creates a logger object.
+    """
+    This function creates console- and filehandler and from those, creates a logger
+    object.
 
-    Args:
-        filename (str, optional): Output filename. Defaults to 'scheduler-gui.log'.
-        loglevel (str, optional): The minimum level that the logger will log. Defaults to 'INFO'.
+    Parameters
+    ==========
 
-    Returns:
-        Logger: 'logging.Logger' object.
+        filename : str optional
+            Output filename. Defaults to 'scheduler-gui.log'.
+        loglevel : str, optional
+            The minimum level that the logger will log. Defaults to 'INFO'.
+
+    Returns
+    =======
+        Logger : 'logging.Logger' object.
     """
 
     # logger = logging.getLogger(name)

@@ -57,7 +57,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         self, schedule: Schedule, parent: Optional[QGraphicsItem] = None
     ):
         """
-        Construct a SchedulerItem. *parent* is passed to QGraphicsItemGroup's constructor.
+        Construct a SchedulerItem. *parent* is passed to QGraphicsItemGroup's
+        constructor.
         """
         # QGraphicsItemGroup.__init__(self, self)
         # SchedulerEvent.__init__(self)
@@ -151,7 +152,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def set_item_inactive(self, item: OperationItem) -> None:
         """
-        Set an item as inactive, i.e., draw it and connecting signals in standard colors.
+        Set an item as inactive, i.e., draw it and connecting signals in standard
+        colors.
 
         Parameters
         ----------
@@ -174,7 +176,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def is_valid_delta_time(self, delta_time: int) -> bool:
         """
-        Takes in a delta time and returns True if the schedule time can be changed by *delta_time*. False otherwise.
+        Takes in a delta time and returns True if the schedule time can be changed by
+        *delta_time*. False otherwise.
         """
         # TODO: implement
         # item = self.scene().mouseGrabberItem()

@@ -3,7 +3,8 @@
 """
 B-ASIC Scheduler-gui Graphics Component Item Module.
 
-Contains the scheduler-gui OperationItem class for drawing and maintain a component in a graph.
+Contains the scheduler-gui OperationItem class for drawing and maintain a component
+in a graph.
 """
 from typing import Dict, List, Optional, Union
 
@@ -60,7 +61,8 @@ class OperationItem(QGraphicsItemGroup):
         parent: Optional[QGraphicsItem] = None,
     ):
         """
-        Construct a OperationItem. *parent* is passed to QGraphicsItemGroup's constructor.
+        Construct a OperationItem. *parent* is passed to QGraphicsItemGroup's
+        constructor.
         """
         super().__init__(parent=parent)
         self._operation = operation
@@ -167,7 +169,8 @@ class OperationItem(QGraphicsItemGroup):
             Qt.GlobalColor.black
         )  # used by component outline
         latency_outline_pen.setWidthF(2 / self._scale)
-        # latency_outline_pen.setCapStyle(Qt.RoundCap)     # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
+        # latency_outline_pen.setCapStyle(Qt.RoundCap)
+        # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
         latency_outline_pen.setJoinStyle(
             Qt.RoundJoin
         )  # Qt.MiterJoin, Qt.BevelJoin (default), Qt.RoundJoin, Qt.SvgMiterJoin

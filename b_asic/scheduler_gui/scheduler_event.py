@@ -3,7 +3,8 @@
 """
 B-ASIC Scheduler-gui Graphics Graph Event Module.
 
-Contains the scheduler-gui SchedulerEvent class containing event filters and handlers for SchedulerItem objects.
+Contains the scheduler-gui SchedulerEvent class containing event filters and
+handlers for SchedulerItem objects.
 """
 
 from typing import List, Optional, overload
@@ -121,18 +122,19 @@ class SchedulerEvent:  # PyQt5
         if isinstance(item, OperationItem):  # one component
             switch = {
                 # QEvent.FocusIn:                         self.operation_focusInEvent,
-                # QEvent.GraphicsSceneContextMenu:        self.operation_contextMenuEvent,
+                # QEvent.GraphicsSceneContextMenu:    self.operation_contextMenuEvent,
                 # QEvent.GraphicsSceneDragEnter:          self.operation_dragEnterEvent,
                 # QEvent.GraphicsSceneDragMove:           self.operation_dragMoveEvent,
                 # QEvent.GraphicsSceneDragLeave:          self.operation_dragLeaveEvent,
                 # QEvent.GraphicsSceneDrop:               self.operation_dropEvent,
-                # QEvent.GraphicsSceneHoverEnter:         self.operation_hoverEnterEvent,
+                # QEvent.GraphicsSceneHoverEnter:        self.operation_hoverEnterEvent,
                 # QEvent.GraphicsSceneHoverMove:          self.operation_hoverMoveEvent,
-                # QEvent.GraphicsSceneHoverLeave:         self.operation_hoverLeaveEvent,
+                # QEvent.GraphicsSceneHoverLeave:        self.operation_hoverLeaveEvent,
                 QEvent.GraphicsSceneMouseMove: self.operation_mouseMoveEvent,
                 QEvent.GraphicsSceneMousePress: self.operation_mousePressEvent,
                 QEvent.GraphicsSceneMouseRelease: self.operation_mouseReleaseEvent,
-                # QEvent.GraphicsSceneMouseDoubleClick:   self.operation_mouseDoubleClickEvent,
+                # QEvent.GraphicsSceneMouseDoubleClick:
+                #    self.operation_mouseDoubleClickEvent,
                 # QEvent.GraphicsSceneWheel:              self.operation_wheelEvent
             }
             handler = switch.get(event.type())
