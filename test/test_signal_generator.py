@@ -2,7 +2,17 @@ from math import sqrt
 
 import pytest
 
-from b_asic.signal_generator import Constant, Impulse, Sinusoid, Step, ZeroPad
+from b_asic.signal_generator import (
+    Constant,
+    Impulse,
+    Sinusoid,
+    Step,
+    ZeroPad,
+    _AddGenerator,
+    _DivGenerator,
+    _MulGenerator,
+    _SubGenerator,
+)
 
 
 def test_impulse():
@@ -96,6 +106,7 @@ def test_addition():
     assert g(3) == 0
 
     assert str(g) == "Impulse() + Impulse(2)"
+    assert isinstance(g, _AddGenerator)
 
     g = 1.0 + Impulse(2)
     assert g(-1) == 1
@@ -104,7 +115,8 @@ def test_addition():
     assert g(2) == 2
     assert g(3) == 1
 
-    assert str(g) == "Impulse(2) + 1.0"
+    assert str(g) == "1.0 + Impulse(2)"
+    assert isinstance(g, _AddGenerator)
 
     g = Impulse(1) + 1.0
     assert g(-1) == 1
@@ -114,6 +126,7 @@ def test_addition():
     assert g(3) == 1
 
     assert str(g) == "Impulse(1) + 1.0"
+    assert isinstance(g, _AddGenerator)
 
 
 def test_subtraction():
@@ -125,6 +138,7 @@ def test_subtraction():
     assert g(3) == 0
 
     assert str(g) == "Impulse() - Impulse(2)"
+    assert isinstance(g, _SubGenerator)
 
     g = 1.0 - Impulse(2)
     assert g(-1) == 1
@@ -134,6 +148,7 @@ def test_subtraction():
     assert g(3) == 1
 
     assert str(g) == "1.0 - Impulse(2)"
+    assert isinstance(g, _SubGenerator)
 
     g = Impulse(2) - 1.0
     assert g(-1) == -1
@@ -143,6 +158,7 @@ def test_subtraction():
     assert g(3) == -1
 
     assert str(g) == "Impulse(2) - 1.0"
+    assert isinstance(g, _SubGenerator)
 
 
 def test_multiplication():
@@ -153,6 +169,7 @@ def test_multiplication():
     assert g(2) == 0
 
     assert str(g) == "Impulse() * 0.5"
+    assert isinstance(g, _MulGenerator)
 
     g = 2 * Sinusoid(0.5, 0.25)
     assert g(0) == pytest.approx(sqrt(2))
@@ -160,7 +177,8 @@ def test_multiplication():
     assert g(2) == pytest.approx(-sqrt(2))
     assert g(3) == pytest.approx(-sqrt(2))
 
-    assert str(g) == "Sinusoid(0.5, 0.25) * 2"
+    assert str(g) == "2 * Sinusoid(0.5, 0.25)"
+    assert isinstance(g, _MulGenerator)
 
     g = Step(1) * (Sinusoid(0.5, 0.25) + 1.0)
     assert g(0) == 0
@@ -169,6 +187,7 @@ def test_multiplication():
     assert g(3) == pytest.approx(-sqrt(2) / 2 + 1)
 
     assert str(g) == "Step(1) * (Sinusoid(0.5, 0.25) + 1.0)"
+    assert isinstance(g, _MulGenerator)
 
 
 def test_division():
@@ -179,6 +198,7 @@ def test_division():
     assert g(2) == 0.5
 
     assert str(g) == "Step() / 2"
+    assert isinstance(g, _DivGenerator)
 
     g = 0.5 / Step()
     assert g(0) == 0.5
@@ -186,6 +206,7 @@ def test_division():
     assert g(2) == 0.5
 
     assert str(g) == "0.5 / Step()"
+    assert isinstance(g, _DivGenerator)
 
     g = Sinusoid(0.5, 0.25) / (0.5 * Step())
     assert g(0) == pytest.approx(sqrt(2))
@@ -193,4 +214,5 @@ def test_division():
     assert g(2) == pytest.approx(-sqrt(2))
     assert g(3) == pytest.approx(-sqrt(2))
 
-    assert str(g) == "Sinusoid(0.5, 0.25) / (Step() * 0.5)"
+    assert str(g) == "Sinusoid(0.5, 0.25) / (0.5 * Step())"
+    assert isinstance(g, _DivGenerator)

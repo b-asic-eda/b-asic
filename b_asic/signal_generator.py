@@ -19,45 +19,53 @@ class SignalGenerator:
     def __call__(self, time: int) -> complex:
         raise NotImplementedError
 
-    def __add__(self, other) -> "AddGenerator":
+    def __add__(self, other) -> "_AddGenerator":
         if isinstance(other, Number):
-            return AddGenerator(self, Constant(other))
-        return AddGenerator(self, other)
+            return _AddGenerator(self, Constant(other))
+        if isinstance(other, SignalGenerator):
+            return _AddGenerator(self, other)
+        raise TypeError(f"Cannot add {other!r} to {type(self)}")
 
-    def __radd__(self, other) -> "AddGenerator":
+    def __radd__(self, other) -> "_AddGenerator":
         if isinstance(other, Number):
-            return AddGenerator(self, Constant(other))
-        return AddGenerator(self, other)
+            return _AddGenerator(Constant(other), self)
+        raise TypeError(f"Cannot add {type(self)} to {other!r}")
 
-    def __sub__(self, other) -> "SubGenerator":
+    def __sub__(self, other) -> "_SubGenerator":
         if isinstance(other, Number):
-            return SubGenerator(self, Constant(other))
-        return SubGenerator(self, other)
+            return _SubGenerator(self, Constant(other))
+        if isinstance(other, SignalGenerator):
+            return _SubGenerator(self, other)
+        raise TypeError(f"Cannot subtract {other!r} from {type(self)}")
 
-    def __rsub__(self, other) -> "SubGenerator":
+    def __rsub__(self, other) -> "_SubGenerator":
         if isinstance(other, Number):
-            return SubGenerator(Constant(other), self)
-        return SubGenerator(other, self)
+            return _SubGenerator(Constant(other), self)
+        raise TypeError(f"Cannot subtract {type(self)} from {other!r}")
 
-    def __mul__(self, other) -> "MulGenerator":
+    def __mul__(self, other) -> "_MulGenerator":
         if isinstance(other, Number):
-            return MultGenerator(self, Constant(other))
-        return MultGenerator(self, other)
+            return _MulGenerator(self, Constant(other))
+        if isinstance(other, SignalGenerator):
+            return _MulGenerator(self, other)
+        raise TypeError(f"Cannot multiply {type(self)} with {other!r}")
 
-    def __rmul__(self, other) -> "MulGenerator":
+    def __rmul__(self, other) -> "_MulGenerator":
         if isinstance(other, Number):
-            return MultGenerator(self, Constant(other))
-        return MultGenerator(self, other)
+            return _MulGenerator(Constant(other), self)
+        raise TypeError(f"Cannot multiply {other!r} with {type(self)}")
 
-    def __truediv__(self, other) -> "MulGenerator":
+    def __truediv__(self, other) -> "_DivGenerator":
         if isinstance(other, Number):
-            return DivGenerator(self, Constant(other))
-        return DivGenerator(self, other)
+            return _DivGenerator(self, Constant(other))
+        if isinstance(other, SignalGenerator):
+            return _DivGenerator(self, other)
+        raise TypeError(f"Cannot divide {type(self)} with {other!r}")
 
-    def __rtruediv__(self, other) -> "MulGenerator":
+    def __rtruediv__(self, other) -> "_DivGenerator":
         if isinstance(other, Number):
-            return DivGenerator(Constant(other), self)
-        return DivGenerator(other, self)
+            return _DivGenerator(Constant(other), self)
+        raise TypeError(f"Cannot divide {other!r} with {type(self)}")
 
 
 class Impulse(SignalGenerator):
@@ -70,7 +78,7 @@ class Impulse(SignalGenerator):
         The delay before the signal goes to 1 for one sample.
     """
 
-    def __init__(self, delay: int = 0) -> Callable[[int], complex]:
+    def __init__(self, delay: int = 0) -> None:
         self._delay = delay
 
     def __call__(self, time: int) -> complex:
@@ -90,7 +98,7 @@ class Step(SignalGenerator):
         The delay before the signal goes to 1.
     """
 
-    def __init__(self, delay: int = 0) -> Callable[[int], complex]:
+    def __init__(self, delay: int = 0) -> None:
         self._delay = delay
 
     def __call__(self, time: int) -> complex:
@@ -110,7 +118,7 @@ class Constant(SignalGenerator):
         The constant.
     """
 
-    def __init__(self, constant: complex = 1.0) -> Callable[[int], complex]:
+    def __init__(self, constant: complex = 1.0) -> None:
         self._constant = constant
 
     def __call__(self, time: int) -> complex:
@@ -130,7 +138,7 @@ class ZeroPad(SignalGenerator):
         The data that should be padded.
     """
 
-    def __init__(self, data: Sequence[complex]) -> Callable[[int], complex]:
+    def __init__(self, data: Sequence[complex]) -> None:
         self._data = data
         self._len = len(data)
 
@@ -156,9 +164,7 @@ class Sinusoid(SignalGenerator):
         The normalized phase offset.
     """
 
-    def __init__(
-        self, frequency: float, phase: float = 0.0
-    ) -> Callable[[int], complex]:
+    def __init__(self, frequency: float, phase: float = 0.0) -> None:
         self._frequency = frequency
         self._phase = phase
 
@@ -173,95 +179,87 @@ class Sinusoid(SignalGenerator):
         )
 
 
-class AddGenerator:
+class _AddGenerator(SignalGenerator):
     """
     Signal generator that adds two signals.
     """
 
-    def __init__(
-        self, a: SignalGenerator, b: SignalGenerator
-    ) -> Callable[[int], complex]:
+    def __init__(self, a: SignalGenerator, b: SignalGenerator) -> None:
         self._a = a
         self._b = b
 
     def __call__(self, time: int) -> complex:
         return self._a(time) + self._b(time)
 
-    def __str__(self):
+    def __repr__(self):
         return f"{self._a} + {self._b}"
 
 
-class SubGenerator:
+class _SubGenerator(SignalGenerator):
     """
     Signal generator that subtracts two signals.
     """
 
-    def __init__(
-        self, a: SignalGenerator, b: SignalGenerator
-    ) -> Callable[[int], complex]:
+    def __init__(self, a: SignalGenerator, b: SignalGenerator) -> None:
         self._a = a
         self._b = b
 
     def __call__(self, time: int) -> complex:
         return self._a(time) - self._b(time)
 
-    def __str__(self):
+    def __repr__(self):
         return f"{self._a} - {self._b}"
 
 
-class MultGenerator:
+class _MulGenerator(SignalGenerator):
     """
     Signal generator that multiplies two signals.
     """
 
-    def __init__(
-        self, a: SignalGenerator, b: SignalGenerator
-    ) -> Callable[[int], complex]:
+    def __init__(self, a: SignalGenerator, b: SignalGenerator) -> None:
         self._a = a
         self._b = b
 
     def __call__(self, time: int) -> complex:
         return self._a(time) * self._b(time)
 
-    def __str__(self):
+    def __repr__(self):
         a = (
             f"({self._a})"
-            if isinstance(self._a, (AddGenerator, SubGenerator))
+            if isinstance(self._a, (_AddGenerator, _SubGenerator))
             else f"{self._a}"
         )
         b = (
             f"({self._b})"
-            if isinstance(self._b, (AddGenerator, SubGenerator))
+            if isinstance(self._b, (_AddGenerator, _SubGenerator))
             else f"{self._b}"
         )
         return f"{a} * {b}"
 
 
-class DivGenerator:
+class _DivGenerator(SignalGenerator):
     """
     Signal generator that divides two signals.
     """
 
-    def __init__(
-        self, a: SignalGenerator, b: SignalGenerator
-    ) -> Callable[[int], complex]:
+    def __init__(self, a: SignalGenerator, b: SignalGenerator) -> None:
         self._a = a
         self._b = b
 
     def __call__(self, time: int) -> complex:
         return self._a(time) / self._b(time)
 
-    def __str__(self):
+    def __repr__(self):
         a = (
             f"({self._a})"
-            if isinstance(self._a, (AddGenerator, SubGenerator))
+            if isinstance(self._a, (_AddGenerator, _SubGenerator))
             else f"{self._a}"
         )
         b = (
             f"({self._b})"
             if isinstance(
                 self._b,
-                (AddGenerator, SubGenerator, MultGenerator, DivGenerator),
+                (_AddGenerator, _SubGenerator, _MulGenerator, _DivGenerator),
             )
             else f"{self._b}"
         )
