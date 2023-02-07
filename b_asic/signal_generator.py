@@ -2,11 +2,18 @@
 B-ASIC signal generators
 
 These can be used as input to Simulation to algorithmically provide signal values.
+Especially, all classes defined here will act as a callable which accepts an integer
+time index and returns the value at that time.
+
+It is worth noting that the standard basic arithmetic operations do work on these,
+so one can, e.g., write ``0.5 * Step()`` to get a step input with height 0.5.
+This is handled by a number of private generator classes. Check out the source code
+if you want more information.
 """
 
 from math import pi, sin
 from numbers import Number
-from typing import Callable, Sequence
+from typing import Sequence
 
 
 class SignalGenerator:
