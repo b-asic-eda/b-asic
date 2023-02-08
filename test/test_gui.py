@@ -1,10 +1,14 @@
 import pytest
 from qtpy import QtCore
+from qtpy.QtWidgets import QInputDialog
 
 try:
     import b_asic.GUI as GUI
 except ImportError:
     pytestmark = pytest.mark.skip("Qt not setup")
+
+from b_asic.core_operations import SquareRoot
+from b_asic.special_operations import Input, Output
 
 
 def test_start(qtbot):
@@ -181,5 +185,90 @@ def test_properties_window_change_name(qtbot, datadir):
     dragbutton._properties_window.save_properties()
     assert dragbutton.name == "cmul73"
     assert dragbutton.operation.name == "cmul73"
+
+    widget.exit_app()
+
+
+def test_add_operation_and_create_sfg(qtbot, monkeypatch):
+    widget = GUI.MainWindow()
+    qtbot.addWidget(widget)
+    in1 = Input()
+    sqrt = SquareRoot()
+    out1 = Output()
+    # Create operations
+    widget.create_operation(in1)
+    widget.create_operation(sqrt)
+    widget.create_operation(out1)
+    # Should be three operations
+    assert len(widget.operationDragDict) == 3
+    # These particular three
+    for op in (in1, sqrt, out1):
+        assert op in widget.operationDragDict
+    # No signals
+    assert not widget.signalList
+
+    # Click on first port
+    in1_port = widget.portDict[widget.operationDragDict[in1]][0]
+    qtbot.mouseClick(
+        in1_port,
+        QtCore.Qt.MouseButton.LeftButton,
+    )
+    assert len(widget.pressed_ports) == 1
+
+    # Click on second port
+    sqrt_in_port = widget.portDict[widget.operationDragDict[sqrt]][0]
+    qtbot.mouseClick(
+        sqrt_in_port,
+        QtCore.Qt.MouseButton.LeftButton,
+        QtCore.Qt.KeyboardModifier.ControlModifier,
+    )
+    assert len(widget.pressed_ports) == 2
+
+    # Connect ports
+    widget._connect_button()
+    # Not sure why this won't work
+    # qtbot.keyClick(widget, QtCore.Qt.Key.Key_Space, delay=10)
+    # Still one selected!?
+    assert len(widget.signalList) == 1
+
+    # Click on first port
+    sqrt_out_port = widget.portDict[widget.operationDragDict[sqrt]][1]
+    qtbot.mouseClick(
+        sqrt_out_port,
+        QtCore.Qt.MouseButton.LeftButton,
+    )
+    # Click on second port
+    out1_port = widget.portDict[widget.operationDragDict[out1]][0]
+    qtbot.mouseClick(
+        out1_port,
+        QtCore.Qt.MouseButton.LeftButton,
+        QtCore.Qt.KeyboardModifier.ControlModifier,
+    )
+    # Connect
+    widget._connect_button()
+    assert len(widget.signalList) == 2
+
+    # Select input op
+    qtbot.mouseClick(
+        widget.operationDragDict[in1],
+        QtCore.Qt.MouseButton.LeftButton,
+    )
+
+    # And output op
+    qtbot.mouseClick(
+        widget.operationDragDict[out1],
+        QtCore.Qt.MouseButton.LeftButton,
+        QtCore.Qt.KeyboardModifier.ControlModifier,
+    )
+
+    # Monkey patch dialog to return the expected thing
+    monkeypatch.setattr(QInputDialog, "getText", lambda *args: ("foo", True))
+
+    # Create SFG
+    widget.create_sfg_from_toolbar()
+
+    # Should be in sfg_dict now
+    assert "foo" in widget.sfg_dict
+    assert len(widget.sfg_dict) == 1
 
     widget.exit_app()
