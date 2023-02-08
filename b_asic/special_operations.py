@@ -57,32 +57,36 @@ class Input(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[List[List[float]], List[List[float]]]:
+    ) -> Tuple[
+        Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]
+    ]:
         # Doc-string inherited
         return (
-            [
-                [-0.5, 0],
-                [-0.5, 1],
-                [-0.25, 1],
-                [0, 0.5],
-                [-0.25, 0],
-                [-0.5, 0],
-            ],
-            [
-                [-0.5, 0],
-                [-0.5, 1],
-                [-0.25, 1],
-                [0, 0.5],
-                [-0.25, 0],
-                [-0.5, 0],
-            ],
+            (
+                (-0.5, 0),
+                (-0.5, 1),
+                (-0.25, 1),
+                (0, 0.5),
+                (-0.25, 0),
+                (-0.5, 0),
+            ),
+            (
+                (-0.5, 0),
+                (-0.5, 1),
+                (-0.25, 1),
+                (0, 0.5),
+                (-0.25, 0),
+                (-0.5, 0),
+            ),
         )
 
-    def get_io_coordinates(
-        self,
-    ) -> Tuple[List[List[float]], List[List[float]]]:
-        # Doc-string inherited
-        return ([], [[0, 0.5]])
+    def get_input_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+        # doc-string inherited
+        return tuple()
+
+    def get_output_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+        # doc-string inherited
+        return ((0, 0.5),)
 
 
 class Output(AbstractOperation):
@@ -119,18 +123,22 @@ class Output(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[List[List[float]], List[List[float]]]:
+    ) -> Tuple[
+        Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]
+    ]:
         # Doc-string inherited
         return (
-            [[0, 0], [0, 1], [0.25, 1], [0.5, 0.5], [0.25, 0], [0, 0]],
-            [[0, 0], [0, 1], [0.25, 1], [0.5, 0.5], [0.25, 0], [0, 0]],
+            ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
+            ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
         )
 
-    def get_io_coordinates(
-        self,
-    ) -> Tuple[List[List[float]], List[List[float]]]:
-        # Doc-string inherited
-        return ([[0, 0.5]], [])
+    def get_input_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+        # doc-string inherited
+        return ((0, 0.5),)
+
+    def get_output_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+        # doc-string inherited
+        return tuple()
 
 
 class Delay(AbstractOperation):

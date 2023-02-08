@@ -745,7 +745,7 @@ class Schedule:
 
         for graph_id, op_start_time in self._start_times.items():
             op = self._sfg.find_by_id(graph_id)
-            _, out_coordinates = op.get_io_coordinates()
+            out_coordinates = op.get_output_coordinates()
             source_y_pos = self._get_y_position(
                 graph_id, operation_gap=operation_gap
             )
@@ -759,11 +759,8 @@ class Schedule:
                     destination_y_pos = self._get_y_position(
                         destination_op.graph_id, operation_gap=operation_gap
                     )
-                    (
-                        destination_in_coordinates,
-                        _,
-                    ) = (
-                        output_signal.destination.operation.get_io_coordinates()
+                    destination_in_coordinates = (
+                        output_signal.destination.operation.get_input_coordinates()
                     )
                     _draw_offset_arrow(
                         out_coordinates[output_port.index],

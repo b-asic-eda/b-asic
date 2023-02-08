@@ -47,10 +47,8 @@ class Signal(AbstractGraphComponent):
 
     def __init__(
         self,
-        source: Optional[Union["OutputPort", "Signal", "Operation"]] = None,
-        destination: Optional[
-            Union["InputPort", "Signal", "Operation"]
-        ] = None,
+        source: Optional["OutputPort"] = None,
+        destination: Optional["InputPort"] = None,
         bits: Optional[int] = None,
         name: Name = Name(""),
     ):
@@ -104,7 +102,10 @@ class Signal(AbstractGraphComponent):
             If Operation, it must have a single output, otherwise a TypeError is
             raised. That output is used to extract the OutputPort.
         """
-        if hasattr(source, "source"):
+        # import here to avoid cyclic imports
+        from b_asic.operation import Operation
+
+        if isinstance(source, (Signal, Operation)):
             # Signal or Operation
             source = source.source
 

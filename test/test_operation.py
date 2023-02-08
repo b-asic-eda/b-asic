@@ -270,8 +270,8 @@ class TestPlotCoordinates:
         cmult.set_latency(3)
 
         lat, exe = cmult.get_plot_coordinates()
-        assert lat == [[0, 0], [0, 1], [3, 1], [3, 0], [0, 0]]
-        assert exe == [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]
+        assert lat == ((0, 0), (0, 1), (3, 1), (3, 0), (0, 0))
+        assert exe == ((0, 0), (0, 1), (1, 1), (1, 0), (0, 0))
 
     def test_complicated_case(self):
         bfly = Butterfly(
@@ -280,18 +280,18 @@ class TestPlotCoordinates:
         bfly.execution_time = 7
 
         lat, exe = bfly.get_plot_coordinates()
-        assert lat == [
-            [2, 0],
-            [2, 0.5],
-            [3, 0.5],
-            [3, 1],
-            [10, 1],
-            [10, 0.5],
-            [5, 0.5],
-            [5, 0],
-            [2, 0],
-        ]
-        assert exe == [[0, 0], [0, 1], [7, 1], [7, 0], [0, 0]]
+        assert lat == (
+            (2, 0),
+            (2, 0.5),
+            (3, 0.5),
+            (3, 1),
+            (10, 1),
+            (10, 0.5),
+            (5, 0.5),
+            (5, 0),
+            (2, 0),
+        )
+        assert exe == ((0, 0), (0, 1), (7, 1), (7, 0), (0, 0))
 
 
 class TestIOCoordinates:
@@ -301,8 +301,8 @@ class TestIOCoordinates:
         cmult.set_latency(3)
 
         i_c, o_c = cmult.get_io_coordinates()
-        assert i_c == [[0, 0.5]]
-        assert o_c == [[3, 0.5]]
+        assert i_c == ((0, 0.5),)
+        assert o_c == ((3, 0.5),)
 
     def test_complicated_case(self):
         bfly = Butterfly(
@@ -311,8 +311,15 @@ class TestIOCoordinates:
         bfly.execution_time = 7
 
         i_c, o_c = bfly.get_io_coordinates()
-        assert i_c == [[2, 0.25], [3, 0.75]]
-        assert o_c == [[5, 0.25], [10, 0.75]]
+        assert i_c == ((2, 0.25), (3, 0.75))
+        assert o_c == ((5, 0.25), (10, 0.75))
+
+    def test_io_coordinates_error(self):
+        bfly = Butterfly()
+
+        bfly.set_latency_offsets({"in0": 3, "out1": 5})
+        with pytest.raises(ValueError, match="All latencies must be set:"):
+            bfly.get_io_coordinates()
 
 
 class TestSplit:
