@@ -47,8 +47,10 @@ class Signal(AbstractGraphComponent):
 
     def __init__(
         self,
-        source: Optional["OutputPort"] = None,
-        destination: Optional["InputPort"] = None,
+        source: Optional[Union["OutputPort", "Signal", "Operation"]] = None,
+        destination: Optional[
+            Union["InputPort", "Signal", "Operation"]
+        ] = None,
         bits: Optional[int] = None,
         name: Name = Name(""),
     ):
@@ -95,7 +97,7 @@ class Signal(AbstractGraphComponent):
         Parameters
         ==========
 
-        source : OutputPort, Signal, or Operation, optional
+        source : OutputPort, Signal, or Operation
             OutputPort, Signal, or Operation to connect as source to the signal.
             If Signal, it will connect to the source of the signal, so later on
             changing the source of the argument Signal will not affect this Signal.
@@ -107,13 +109,15 @@ class Signal(AbstractGraphComponent):
 
         if isinstance(source, (Signal, Operation)):
             # Signal or Operation
-            source = source.source
+            new_source = source.source
+        else:
+            new_source = source
 
-        if source is not self._source:
+        if new_source is not self._source:
             self.remove_source()
-            self._source = source
-            if self not in source.signals:
-                source.add_signal(self)
+            self._source = new_source
+            if self not in new_source.signals:
+                new_source.add_signal(self)
 
     def set_destination(
         self, destination: Union["InputPort", "Signal", "Operation"]
@@ -134,15 +138,20 @@ class Signal(AbstractGraphComponent):
             is raised.
 
         """
-        if hasattr(destination, "destination"):
-            # Signal or Operation
-            destination = destination.destination
+        # import here to avoid cyclic imports
+        from b_asic.operation import Operation
 
-        if destination is not self._destination:
+        if isinstance(destination, (Signal, Operation)):
+            # Signal or Operation
+            new_destination = destination.destination
+        else:
+            new_destination = destination
+
+        if new_destination is not self._destination:
             self.remove_destination()
-            self._destination = destination
-            if self not in destination.signals:
-                destination.add_signal(self)
+            self._destination = new_destination
+            if self not in new_destination.signals:
+                new_destination.add_signal(self)
 
     def remove_source(self) -> None:
         """

@@ -617,7 +617,7 @@ class Schedule:
             self._y_locations[graph_id] = y_location
         return operation_gap + y_location * (operation_height + operation_gap)
 
-    def _plot_schedule(self, ax, operation_gap=None):
+    def _plot_schedule(self, ax, operation_gap: Optional[float] = None):
         """Draw the schedule."""
         line_cache = []
 
@@ -719,7 +719,7 @@ class Schedule:
         ax.grid()
         for graph_id, op_start_time in self._start_times.items():
             y_pos = self._get_y_position(graph_id, operation_gap=operation_gap)
-            op = self._sfg.find_by_id(graph_id)
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
             # Rewrite to make better use of NumPy
             (
                 latency_coordinates,
@@ -741,10 +741,12 @@ class Schedule:
                     linewidth=3,
                 )
             ytickpositions.append(y_pos + 0.5)
-            yticklabels.append(self._sfg.find_by_id(graph_id).name)
+            yticklabels.append(
+                cast(Operation, self._sfg.find_by_id(graph_id)).name
+            )
 
         for graph_id, op_start_time in self._start_times.items():
-            op = self._sfg.find_by_id(graph_id)
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
             out_coordinates = op.get_output_coordinates()
             source_y_pos = self._get_y_position(
                 graph_id, operation_gap=operation_gap
@@ -752,7 +754,8 @@ class Schedule:
 
             for output_port in op.outputs:
                 for output_signal in output_port.signals:
-                    destination_op = output_signal.destination.operation
+                    destination = cast(InputPort, output_signal.destination)
+                    destination_op = destination.operation
                     destination_start_time = self._start_times[
                         destination_op.graph_id
                     ]
@@ -760,13 +763,11 @@ class Schedule:
                         destination_op.graph_id, operation_gap=operation_gap
                     )
                     destination_in_coordinates = (
-                        output_signal.destination.operation.get_input_coordinates()
+                        destination.operation.get_input_coordinates()
                     )
                     _draw_offset_arrow(
                         out_coordinates[output_port.index],
-                        destination_in_coordinates[
-                            output_signal.destination.index
-                        ],
+                        destination_in_coordinates[destination.index],
                         [op_start_time, source_y_pos],
                         [destination_start_time, destination_y_pos],
                         name=graph_id,
@@ -798,11 +799,13 @@ class Schedule:
             color="black",
         )
 
-    def _reset_y_locations(self):
+    def _reset_y_locations(self) -> None:
         """Reset all the y-locations in the schedule to None"""
         self._y_locations = self._y_locations = defaultdict(lambda: None)
 
-    def plot_in_axes(self, ax: Axes, operation_gap: float = None) -> None:
+    def plot_in_axes(
+        self, ax: Axes, operation_gap: Optional[float] = None
+    ) -> None:
         """
         Plot the schedule in a :class:`matplotlib.axes.Axes` or subclass.
 
@@ -815,7 +818,7 @@ class Schedule:
             the operation is always 1.
         """
 
-    def plot(self, operation_gap: float = None) -> None:
+    def plot(self, operation_gap: Optional[float] = None) -> None:
         """
         Plot the schedule. Will display based on the current Matplotlib backend.
 
@@ -827,7 +830,7 @@ class Schedule:
         """
         self._get_figure(operation_gap=operation_gap).show()
 
-    def _get_figure(self, operation_gap: float = None) -> Figure:
+    def _get_figure(self, operation_gap: Optional[float] = None) -> Figure:
         """
         Create a Figure and an Axes and plot schedule in the Axes.
 

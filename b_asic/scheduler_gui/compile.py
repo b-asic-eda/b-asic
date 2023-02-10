@@ -60,7 +60,7 @@ def compile_rc(*filenames: str) -> None:
     """
     _check_qt_version()
 
-    def compile(filename: str = None) -> None:
+    def compile(filename: str) -> None:
         outfile = f"{os.path.splitext(filename)[0]}_rc.py"
         rcc = shutil.which("pyside2-rcc")
         arguments = f"-g python -o {outfile} {filename}"
@@ -191,7 +191,7 @@ def compile_ui(*filenames: str) -> None:
             compile(filename)
 
 
-def compile_all():
+def compile_all() -> None:
     """
     The compiler will search for resource (.qrc) files and form (.ui) files
     and compile accordingly.

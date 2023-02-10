@@ -54,9 +54,8 @@ def wdf_allpass(
     -------
         Signal flow graph
     """
-    np.asarray(coefficients)
-    coefficients = np.squeeze(coefficients)
-    if coefficients.ndim != 1:
+    np_coefficients = np.squeeze(np.asarray(coefficients))
+    if np_coefficients.ndim != 1:
         raise TypeError("coefficients must be a 1D-array")
     if input_op is None:
         input_op = Input()
@@ -64,11 +63,11 @@ def wdf_allpass(
         output = Output()
     if name is None:
         name = "WDF allpass section"
-    order = len(coefficients)
+    order = len(np_coefficients)
     odd_order = order % 2
     if odd_order:
         # First-order section
-        coeff = coefficients[0]
+        coeff = np_coefficients[0]
         adaptor0 = SymmetricTwoportAdaptor(
             coeff,
             input_op,
@@ -87,7 +86,7 @@ def wdf_allpass(
     offset1, offset2 = (1, 2) if odd_order else (0, 1)
     for n in range(sos_count):
         adaptor1 = SymmetricTwoportAdaptor(
-            coefficients[2 * n + offset1],
+            np_coefficients[2 * n + offset1],
             signal_out,
             latency=latency,
             latency_offsets=latency_offsets,
@@ -97,7 +96,7 @@ def wdf_allpass(
         delay1 = Delay(adaptor1.output(1))
         delay2 = Delay()
         adaptor2 = SymmetricTwoportAdaptor(
-            coefficients[2 * n + offset2],
+            np_coefficients[2 * n + offset2],
             delay1,
             delay2,
             latency=latency,
