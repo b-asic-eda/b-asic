@@ -8,7 +8,7 @@
 import shutil
 
 project = 'B-ASIC'
-copyright = '2020-2022, Oscar Gustafsson et al'
+copyright = '2020-2023, Oscar Gustafsson et al'
 author = 'Oscar Gustafsson et al'
 html_logo = "../logo_tiny.png"
 
@@ -37,6 +37,7 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'graphviz': ('https://graphviz.readthedocs.io/en/stable/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
     'PyQt5': ("https://www.riverbankcomputing.com/static/Docs/PyQt5", None),
 }
 

@@ -170,7 +170,7 @@ class Sinusoid(SignalGenerator):
     frequency : float
         The normalized frequency of the sinusoid. Should normally be in the
         interval [0, 1], where 1 corresponds to half the sample rate.
-    phase : float, default: 0
+    phase : float, default: 0.0
         The normalized phase offset.
     """
 
@@ -193,15 +193,15 @@ class Gaussian(SignalGenerator):
     """
     Signal generator with Gaussian noise.
 
-    See :class:`numpy.random.Generator.normal` for further details.
+    See :py:meth:`numpy.random.Generator.normal` for further details.
 
     Parameters
     ----------
     seed : int, optional
         The seed of the random number generator.
-    scale : float, default: 1
+    scale : float, default: 1.0
         The standard deviation of the noise.
-    loc : float, default: 0
+    loc : float, default: 0.0
         The average value of the noise.
     """
 
@@ -232,16 +232,16 @@ class Uniform(SignalGenerator):
     """
     Signal generator with uniform noise.
 
-    See :class:`numpy.random.Generator.normal` for further details.
+    See :py:meth:`numpy.random.Generator.normal` for further details.
 
 
     Parameters
     ----------
     seed : int, optional
         The seed of the random number generator.
-    low : float, default: -1
+    low : float, default: -1.0
         The lower value of the uniform range.
-    high : float, default: 1
+    high : float, default: 1.0
         The upper value of the uniform range.
     """
 
