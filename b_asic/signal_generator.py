@@ -13,7 +13,9 @@ if you want more information.
 
 from math import pi, sin
 from numbers import Number
-from typing import Sequence
+from typing import Optional, Sequence
+
+import numpy as np
 
 
 class SignalGenerator:
@@ -185,6 +187,85 @@ class Sinusoid(SignalGenerator):
             if self._phase
             else f"Sinusoid({self._frequency})"
         )
+
+
+class Gaussian(SignalGenerator):
+    """
+    Signal generator with Gaussian noise.
+
+    See :class:`numpy.random.Generator.normal` for further details.
+
+    Parameters
+    ----------
+    seed : int, optional
+        The seed of the random number generator.
+    scale : float, default: 1
+        The standard deviation of the noise.
+    loc : float, default: 0
+        The average value of the noise.
+    """
+
+    def __init__(
+        self, seed: Optional[int] = None, loc: float = 0.0, scale: float = 1.0
+    ) -> None:
+        self._rng = np.random.default_rng(seed)
+        self._seed = seed
+        self._loc = loc
+        self._scale = scale
+
+    def __call__(self, time: int) -> complex:
+        return self._rng.normal(self._loc, self._scale)
+
+    def __repr__(self):
+        ret_list = []
+        if self._seed is not None:
+            ret_list.append(f"seed={self._seed}")
+        if self._loc:
+            ret_list.append(f"loc={self._loc}")
+        if self._scale != 1.0:
+            ret_list.append(f"scale={self._scale}")
+        args = ", ".join(ret_list)
+        return f"Gaussian({args})"
+
+
+class Uniform(SignalGenerator):
+    """
+    Signal generator with uniform noise.
+
+    See :class:`numpy.random.Generator.normal` for further details.
+
+
+    Parameters
+    ----------
+    seed : int, optional
+        The seed of the random number generator.
+    low : float, default: -1
+        The lower value of the uniform range.
+    high : float, default: 1
+        The upper value of the uniform range.
+    """
+
+    def __init__(
+        self, seed: Optional[int] = None, low: float = -1.0, high: float = 1.0
+    ) -> None:
+        self._rng = np.random.default_rng(seed)
+        self._seed = seed
+        self._low = low
+        self._high = high
+
+    def __call__(self, time: int) -> complex:
+        return self._rng.uniform(self._low, self._high)
+
+    def __repr__(self):
+        ret_list = []
+        if self._seed is not None:
+            ret_list.append(f"seed={self._seed}")
+        if self._low != -1.0:
+            ret_list.append(f"low={self._low}")
+        if self._high != 1.0:
+            ret_list.append(f"high={self._high}")
+        args = ", ".join(ret_list)
+        return f"Uniform({args})"
 
 
 class _AddGenerator(SignalGenerator):

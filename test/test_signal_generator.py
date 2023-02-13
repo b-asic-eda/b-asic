@@ -4,9 +4,11 @@ import pytest
 
 from b_asic.signal_generator import (
     Constant,
+    Gaussian,
     Impulse,
     Sinusoid,
     Step,
+    Uniform,
     ZeroPad,
     _AddGenerator,
     _DivGenerator,
@@ -95,6 +97,40 @@ def test_sinusoid():
     assert g(3) == pytest.approx(-sqrt(2) / 2)
 
     assert str(g) == "Sinusoid(0.5, 0.25)"
+
+
+def test_gaussian():
+    g = Gaussian(1234)
+    assert g(0) == pytest.approx(-1.6038368053963015)
+    assert g(1) == pytest.approx(0.06409991400376411)
+
+    assert str(g) == "Gaussian(seed=1234)"
+
+    # Check same seed gives same sequence
+    g1 = Gaussian(12345)
+    g2 = Gaussian(12345)
+
+    for n in range(100):
+        assert g1(n) == g2(n)
+
+    assert str(Gaussian(1234, 1, 2)) == "Gaussian(seed=1234, loc=1, scale=2)"
+
+
+def test_uniform():
+    g = Uniform(1234)
+    assert g(0) == pytest.approx(0.9533995333962844)
+    assert g(1) == pytest.approx(-0.23960852996076443)
+
+    assert str(g) == "Uniform(seed=1234)"
+
+    # Check same seed gives same sequence
+    g1 = Uniform(12345)
+    g2 = Uniform(12345)
+
+    for n in range(100):
+        assert g1(n) == g2(n)
+
+    assert str(Uniform(1234, 1, 2)) == "Uniform(seed=1234, low=1, high=2)"
 
 
 def test_addition():
