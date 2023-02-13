@@ -34,7 +34,7 @@ from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, Process
 from b_asic.resources import ProcessCollection
 from b_asic.signal_flow_graph import SFG
-from b_asic.special_operations import Delay, Output
+from b_asic.special_operations import Delay, Input, Output
 
 # Need RGB from 0 to 1
 _EXECUTION_TIME_COLOR = tuple(c / 255 for c in EXECUTION_TIME_COLOR)
@@ -91,9 +91,7 @@ class Schedule:
         if schedule_time is None:
             self._schedule_time = max_end_time
         elif schedule_time < max_end_time:
-            raise ValueError(
-                f"Too short schedule time. Minimum is {max_end_time}."
-            )
+            raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
         else:
             self._schedule_time = schedule_time
 
@@ -102,9 +100,7 @@ class Schedule:
         Return the start time of the operation with the specified by *graph_id*.
         """
         if graph_id not in self._start_times:
-            raise ValueError(
-                f"No operation with graph_id {graph_id} in schedule"
-            )
+            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
         return self._start_times[graph_id]
 
     def get_max_end_time(self) -> int:
@@ -139,9 +135,7 @@ class Schedule:
         slacks
         """
         if graph_id not in self._start_times:
-            raise ValueError(
-                f"No operation with graph_id {graph_id} in schedule"
-            )
+            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
         slack = sys.maxsize
         output_slacks = self._forward_slacks(graph_id)
         # Make more pythonic
@@ -194,9 +188,7 @@ class Schedule:
         slacks
         """
         if graph_id not in self._start_times:
-            raise ValueError(
-                f"No operation with graph_id {graph_id} in schedule"
-            )
+            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
         slack = sys.maxsize
         input_slacks = self._backward_slacks(graph_id)
         # Make more pythonic
@@ -205,9 +197,7 @@ class Schedule:
                 slack = min(slack, signal_slack)
         return slack
 
-    def _backward_slacks(
-        self, graph_id: GraphID
-    ) -> Dict[InputPort, Dict[Signal, int]]:
+    def _backward_slacks(self, graph_id: GraphID) -> Dict[InputPort, Dict[Signal, int]]:
         ret = {}
         start_time = self._start_times[graph_id]
         op = cast(Operation, self._sfg.find_by_id(graph_id))
@@ -250,9 +240,7 @@ class Schedule:
 
         """
         if graph_id not in self._start_times:
-            raise ValueError(
-                f"No operation with graph_id {graph_id} in schedule"
-            )
+            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
         return self.backward_slack(graph_id), self.forward_slack(graph_id)
 
     def print_slacks(self) -> None:
@@ -309,13 +297,11 @@ class Schedule:
         factor : int
             The time resolution increment.
         """
-        self._start_times = {
-            k: factor * v for k, v in self._start_times.items()
-        }
+        self._start_times = {k: factor * v for k, v in self._start_times.items()}
         for graph_id in self._start_times:
-            cast(
-                Operation, self._sfg.find_by_id(graph_id)
-            )._increase_time_resolution(factor)
+            cast(Operation, self._sfg.find_by_id(graph_id))._increase_time_resolution(
+                factor
+            )
         self._schedule_time *= factor
         return self
 
@@ -366,13 +352,11 @@ class Schedule:
                 f"Not possible to decrease resolution with {factor}. Possible"
                 f" values are {possible_values}"
             )
-        self._start_times = {
-            k: v // factor for k, v in self._start_times.items()
-        }
+        self._start_times = {k: v // factor for k, v in self._start_times.items()}
         for graph_id in self._start_times:
-            cast(
-                Operation, self._sfg.find_by_id(graph_id)
-            )._decrease_time_resolution(factor)
+            cast(Operation, self._sfg.find_by_id(graph_id))._decrease_time_resolution(
+                factor
+            )
         self._schedule_time = self._schedule_time // factor
         return self
 
@@ -388,9 +372,7 @@ class Schedule:
             The time to move. If positive move forward, if negative move backward.
         """
         if graph_id not in self._start_times:
-            raise ValueError(
-                f"No operation with graph_id {graph_id} in schedule"
-            )
+            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
 
         (backward_slack, forward_slack) = self.slacks(graph_id)
         if not -backward_slack <= time <= forward_slack:
@@ -413,15 +395,25 @@ class Schedule:
                 tmp_prev_available = tmp_usage - new_slack
                 prev_available = tmp_prev_available % self._schedule_time
                 laps = new_slack // self._schedule_time
+                source_op = signal.source.operation
                 if new_usage < prev_available:
                     print("Incrementing input laps 1")
                     laps += 1
-                if prev_available == 0 and new_usage == 0:
+                if (
+                    prev_available == 0
+                    and new_usage == 0
+                    and (
+                        tmp_prev_available > 0
+                        or tmp_prev_available == 0
+                        and not isinstance(source_op, Input)
+                    )
+                ):
                     print("Incrementing input laps 2")
                     laps += 1
                 print(
                     [
                         "Input",
+                        signal.source.operation,
                         time,
                         tmp_start,
                         signal_slack,
@@ -476,12 +468,8 @@ class Schedule:
         while delay_list:
             delay_op = cast(Delay, delay_list[0])
             delay_input_id = delay_op.input(0).signals[0].graph_id
-            delay_output_ids = [
-                sig.graph_id for sig in delay_op.output(0).signals
-            ]
-            self._sfg = cast(
-                SFG, self._sfg.remove_operation(delay_op.graph_id)
-            )
+            delay_output_ids = [sig.graph_id for sig in delay_op.output(0).signals]
+            self._sfg = cast(SFG, self._sfg.remove_operation(delay_op.graph_id))
             for output_id in delay_output_ids:
                 self._laps[output_id] += 1 + self._laps[delay_input_id]
             del self._laps[delay_input_id]
@@ -520,21 +508,16 @@ class Schedule:
                     for inport in op.inputs:
                         if len(inport.signals) != 1:
                             raise ValueError(
-                                "Error in scheduling, dangling input port"
-                                " detected."
+                                "Error in scheduling, dangling input port detected."
                             )
                         if inport.signals[0].source is None:
                             raise ValueError(
-                                "Error in scheduling, signal with no source"
-                                " detected."
+                                "Error in scheduling, signal with no source detected."
                             )
                         source_port = inport.signals[0].source
 
                         source_end_time = None
-                        if (
-                            source_port.operation.graph_id
-                            in non_schedulable_ops
-                        ):
+                        if source_port.operation.graph_id in non_schedulable_ops:
                             source_end_time = 0
                         else:
                             source_op_time = self._start_times[
@@ -559,12 +542,8 @@ class Schedule:
                                 f" {inport.operation.graph_id} has no"
                                 " latency-offset."
                             )
-                        op_start_time_from_in = (
-                            source_end_time - inport.latency_offset
-                        )
-                        op_start_time = max(
-                            op_start_time, op_start_time_from_in
-                        )
+                        op_start_time_from_in = source_end_time - inport.latency_offset
+                        op_start_time = max(op_start_time, op_start_time_from_in)
 
                     self._start_times[op.graph_id] = op_start_time
         for output in self._sfg.find_by_type_name(Output.type_name()):
@@ -625,17 +604,13 @@ class Schedule:
         y_location = self._y_locations[graph_id]
         if y_location is None:
             # Assign the lowest row number not yet in use
-            used = set(
-                loc for loc in self._y_locations.values() if loc is not None
-            )
+            used = set(loc for loc in self._y_locations.values() if loc is not None)
             possible = set(range(len(self._start_times))) - used
             y_location = min(possible)
             self._y_locations[graph_id] = y_location
         return operation_gap + y_location * (operation_height + operation_gap)
 
-    def _plot_schedule(
-        self, ax: Axes, operation_gap: Optional[float] = None
-    ) -> None:
+    def _plot_schedule(self, ax: Axes, operation_gap: Optional[float] = None) -> None:
         """Draw the schedule."""
         line_cache = []
 
@@ -722,9 +697,7 @@ class Schedule:
                 )
                 ax.add_patch(pp)
 
-        def _draw_offset_arrow(
-            start, end, start_offset, end_offset, name="", laps=0
-        ):
+        def _draw_offset_arrow(start, end, start_offset, end_offset, name="", laps=0):
             """Draw an arrow from *start* to *end*, but with an offset."""
             _draw_arrow(
                 [start[0] + start_offset[0], start[1] + start_offset[1]],
@@ -761,24 +734,18 @@ class Schedule:
                     linewidth=3,
                 )
             ytickpositions.append(y_pos + 0.5)
-            yticklabels.append(
-                cast(Operation, self._sfg.find_by_id(graph_id)).name
-            )
+            yticklabels.append(cast(Operation, self._sfg.find_by_id(graph_id)).name)
 
         for graph_id, op_start_time in self._start_times.items():
             op = cast(Operation, self._sfg.find_by_id(graph_id))
             out_coordinates = op.get_output_coordinates()
-            source_y_pos = self._get_y_position(
-                graph_id, operation_gap=operation_gap
-            )
+            source_y_pos = self._get_y_position(graph_id, operation_gap=operation_gap)
 
             for output_port in op.outputs:
                 for output_signal in output_port.signals:
                     destination = cast(InputPort, output_signal.destination)
                     destination_op = destination.operation
-                    destination_start_time = self._start_times[
-                        destination_op.graph_id
-                    ]
+                    destination_start_time = self._start_times[destination_op.graph_id]
                     destination_y_pos = self._get_y_position(
                         destination_op.graph_id, operation_gap=operation_gap
                     )
@@ -804,9 +771,7 @@ class Schedule:
             + 1
             + (OPERATION_GAP if operation_gap is None else operation_gap)
         )
-        ax.axis(
-            [-1, self._schedule_time + 1, y_position_max, 0]
-        )  # Inverted y-axis
+        ax.axis([-1, self._schedule_time + 1, y_position_max, 0])  # Inverted y-axis
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.axvline(
             0,
@@ -823,9 +788,7 @@ class Schedule:
         """Reset all the y-locations in the schedule to None"""
         self._y_locations = self._y_locations = defaultdict(lambda: None)
 
-    def plot_in_axes(
-        self, ax: Axes, operation_gap: Optional[float] = None
-    ) -> None:
+    def plot_in_axes(self, ax: Axes, operation_gap: Optional[float] = None) -> None:
         """
         Plot the schedule in a :class:`matplotlib.axes.Axes` or subclass.
 

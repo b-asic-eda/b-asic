@@ -54,14 +54,14 @@ documentation = "https://da.gitlab-pages.liu.se/B-ASIC/"
 [tool.black]
 skip-string-normalization = true
 preview = true
-line-length = 79
+line-length = 88
 exclude = [
     "test/test_gui", "b_asic/scheduler_gui/ui_main_window.py"
 ]
 
 [tool.isort]
 profile = "black"
-line_length = 79
+line_length = 88
 src_paths = ["b_asic", "test"]
 skip = [
     "test/test_gui", "b_asic/scheduler_gui/ui_main_window.py"
