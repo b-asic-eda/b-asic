@@ -4,7 +4,6 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
-from numbers import Number
 from typing import Dict, Optional
 
 from numpy import abs as np_abs
@@ -13,6 +12,7 @@ from numpy import conjugate, sqrt
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
+from b_asic.types import Num
 
 
 class Constant(AbstractOperation):
@@ -35,12 +35,12 @@ class Constant(AbstractOperation):
 
     _execution_time = 0
 
-    def __init__(self, value: Number = 0, name: Name = Name("")):
+    def __init__(self, value: Num = 0, name: Name = ""):
         """Construct a Constant operation with the given value."""
         super().__init__(
             input_count=0,
             output_count=1,
-            name=Name(name),
+            name=name,
             latency_offsets={"out0": 0},
         )
         self.set_param("value", value)
@@ -53,12 +53,12 @@ class Constant(AbstractOperation):
         return self.param("value")
 
     @property
-    def value(self) -> Number:
+    def value(self) -> Num:
         """Get the constant value of this operation."""
         return self.param("value")
 
     @value.setter
-    def value(self, value: Number) -> None:
+    def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
 
@@ -257,7 +257,7 @@ class AddSub(AbstractOperation):
         return a + b if self.is_add else a - b
 
     @property
-    def is_add(self) -> Number:
+    def is_add(self) -> Num:
         """Get if operation is add."""
         return self.param("is_add")
 
@@ -582,7 +582,7 @@ class ConstantMultiplication(AbstractOperation):
 
     def __init__(
         self,
-        value: Number = 0,
+        value: Num = 0,
         src0: Optional[SignalSourceProvider] = None,
         name: Name = Name(""),
         latency: Optional[int] = None,
@@ -610,12 +610,12 @@ class ConstantMultiplication(AbstractOperation):
         return a * self.param("value")
 
     @property
-    def value(self) -> Number:
+    def value(self) -> Num:
         """Get the constant value of this operation."""
         return self.param("value")
 
     @value.setter
-    def value(self, value: Number) -> None:
+    def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
 
@@ -714,7 +714,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
 
     def __init__(
         self,
-        value: Number = 0,
+        value: Num = 0,
         src0: Optional[SignalSourceProvider] = None,
         src1: Optional[SignalSourceProvider] = None,
         name: Name = Name(""),
@@ -743,12 +743,12 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         return b + tmp, a + tmp
 
     @property
-    def value(self) -> Number:
+    def value(self) -> Num:
         """Get the constant value of this operation."""
         return self.param("value")
 
     @value.setter
-    def value(self, value: Number) -> None:
+    def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
 

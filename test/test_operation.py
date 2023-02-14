@@ -318,7 +318,9 @@ class TestIOCoordinates:
         bfly = Butterfly()
 
         bfly.set_latency_offsets({"in0": 3, "out1": 5})
-        with pytest.raises(ValueError, match="All latencies must be set:"):
+        with pytest.raises(
+            ValueError, match="Missing latencies for inputs \\[1\\]"
+        ):
             bfly.get_io_coordinates()
 
 

@@ -5,7 +5,6 @@ Contains operations with special purposes that may be treated differently from
 normal operations in an SFG.
 """
 
-from numbers import Number
 from typing import List, Optional, Sequence, Tuple
 
 from b_asic.graph_component import Name, TypeName
@@ -16,6 +15,7 @@ from b_asic.operation import (
     MutableResultMap,
 )
 from b_asic.port import SignalSourceProvider
+from b_asic.types import Name, Num, TypeName
 
 
 class Input(AbstractOperation):
@@ -28,12 +28,12 @@ class Input(AbstractOperation):
 
     _execution_time = 0
 
-    def __init__(self, name: Name = Name("")):
+    def __init__(self, name: Name = ""):
         """Construct an Input operation."""
         super().__init__(
             input_count=0,
             output_count=1,
-            name=Name(name),
+            name=name,
             latency_offsets={"out0": 0},
         )
         self.set_param("value", 0)
@@ -46,12 +46,12 @@ class Input(AbstractOperation):
         return self.param("value")
 
     @property
-    def value(self) -> Number:
+    def value(self) -> Num:
         """Get the current value of this input."""
         return self.param("value")
 
     @value.setter
-    def value(self, value: Number) -> None:
+    def value(self, value: Num) -> None:
         """Set the current value of this input."""
         self.set_param("value", value)
 
@@ -152,7 +152,7 @@ class Delay(AbstractOperation):
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
-        initial_value: Number = 0,
+        initial_value: Num = 0,
         name: Name = Name(""),
     ):
         """Construct a Delay operation."""
@@ -173,7 +173,7 @@ class Delay(AbstractOperation):
 
     def current_output(
         self, index: int, delays: Optional[DelayMap] = None, prefix: str = ""
-    ) -> Optional[Number]:
+    ) -> Optional[Num]:
         if delays is not None:
             return delays.get(
                 self.key(index, prefix), self.param("initial_value")
@@ -183,13 +183,13 @@ class Delay(AbstractOperation):
     def evaluate_output(
         self,
         index: int,
-        input_values: Sequence[Number],
+        input_values: Sequence[Num],
         results: Optional[MutableResultMap] = None,
         delays: Optional[MutableDelayMap] = None,
         prefix: str = "",
         bits_override: Optional[int] = None,
         truncate: bool = True,
-    ) -> Number:
+    ) -> Num:
         if index != 0:
             raise IndexError(
                 f"Output index out of range (expected 0-0, got {index})"
@@ -214,11 +214,11 @@ class Delay(AbstractOperation):
         return value
 
     @property
-    def initial_value(self) -> Number:
+    def initial_value(self) -> Num:
         """Get the initial value of this delay."""
         return self.param("initial_value")
 
     @initial_value.setter
-    def initial_value(self, value: Number) -> None:
+    def initial_value(self, value: Num) -> None:
         """Set the initial value of this delay."""
         self.set_param("initial_value", value)

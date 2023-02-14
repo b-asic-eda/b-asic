@@ -7,12 +7,9 @@ Contains the base for all components with an ID in a signal flow graph.
 from abc import ABC, abstractmethod
 from collections import deque
 from copy import copy, deepcopy
-from typing import Any, Dict, Generator, Iterable, Mapping, NewType, cast
+from typing import Any, Dict, Generator, Iterable, Mapping, cast
 
-Name = NewType("Name", str)
-TypeName = NewType("TypeName", str)
-GraphID = NewType("GraphID", str)
-GraphIDNumber = NewType("GraphIDNumber", int)
+from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
 
 
 class GraphComponent(ABC):

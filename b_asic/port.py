@@ -131,7 +131,7 @@ class AbstractPort(Port):
         return self._latency_offset
 
     @latency_offset.setter
-    def latency_offset(self, latency_offset: int):
+    def latency_offset(self, latency_offset: Optional[int]):
         self._latency_offset = latency_offset
 
 
