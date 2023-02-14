@@ -171,8 +171,10 @@ pytest --mpl
 
 ### Generating documentation
 
-In `B-ASIC/docs_sphinx`:
-
+```
+sphinx-build -b html docs_sphinx docs_sphinx/_build
+```
+or in `B-ASIC/docs_sphinx`:
 ```
 make html
 ```

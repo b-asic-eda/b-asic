@@ -1425,6 +1425,19 @@ class SFG(AbstractOperation):
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self.sfg()._repr_mimebundle_(include=include, exclude=exclude)
 
+    def _repr_jpeg_(self):
+        return self.sfg()._repr_mimebundle_(include=["image/jpeg"])[
+            "image/jpeg"
+        ]
+
+    def _repr_png_(self):
+        return self.sfg()._repr_mimebundle_(include=["image/png"])["image/png"]
+
+    def _repr_html_(self):
+        return self.sfg()._repr_mimebundle_(include=["image/svg+xml"])[
+            "image/svg+xlm"
+        ]
+
     def show_sfg(self, format=None, show_id=False, engine=None) -> None:
         """
         Shows a visual representation of the SFG using the default system viewer.
