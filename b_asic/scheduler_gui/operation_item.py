@@ -6,7 +6,7 @@ B-ASIC Scheduler-gui Graphics Component Item Module.
 Contains the scheduler-gui OperationItem class for drawing and maintain a component
 in a graph.
 """
-from typing import Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Union, cast
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import QPointF, Qt
@@ -16,7 +16,6 @@ from qtpy.QtWidgets import (
     QGraphicsItem,
     QGraphicsItemGroup,
     QGraphicsPathItem,
-    QGraphicsRectItem,
     QGraphicsSimpleTextItem,
 )
 
@@ -25,9 +24,13 @@ from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.scheduler_gui._preferences import (
     OPERATION_EXECUTION_TIME_INACTIVE,
+    OPERATION_HEIGHT,
     OPERATION_LATENCY_ACTIVE,
     OPERATION_LATENCY_INACTIVE,
 )
+
+if TYPE_CHECKING:
+    from b_asic.scheduler_gui.scheduler_item import SchedulerItem
 
 
 class OperationItem(QGraphicsItemGroup):
@@ -36,9 +39,9 @@ class OperationItem(QGraphicsItemGroup):
 
     Parameters
     ----------
-    operation : Operation
+    operation : :class:`~b_asic.operation.Operation`
+    parent : :class:`~b_asic.scheduler_gui.scheduler_item.SchedulerItem`
     height : float, default: 1.0
-    parent : QGraphicsItem, optional
     """
 
     _scale: float = 1.0
@@ -50,15 +53,15 @@ class OperationItem(QGraphicsItemGroup):
     ]  # ['port-id']['latency/pos']
     _end_time: int
     _latency_item: QGraphicsPathItem
-    _execution_time_item: QGraphicsRectItem
+    _execution_time_item: QGraphicsPathItem
     _label_item: QGraphicsSimpleTextItem
     _port_items: List[QGraphicsEllipseItem]
 
     def __init__(
         self,
         operation: Operation,
-        height: float = 1.0,
-        parent: Optional[QGraphicsItem] = None,
+        parent: "SchedulerItem",
+        height: float = OPERATION_HEIGHT,
     ):
         """
         Construct a OperationItem. *parent* is passed to QGraphicsItemGroup's
@@ -68,11 +71,11 @@ class OperationItem(QGraphicsItemGroup):
         self._operation = operation
         self._height = height
         operation._check_all_latencies_set()
+        latency_offsets = cast(Dict[str, int], operation.latency_offsets)
         self._ports = {
-            k: {"latency": float(v) if v is not None else None}
-            for k, v in operation.latency_offsets.items()
+            k: {"latency": float(v)} for k, v in latency_offsets.items()
         }
-        self._end_time = max(operation.latency_offsets.values())
+        self._end_time = max(latency_offsets.values())
         self._port_items = []
 
         self.setFlag(QGraphicsItem.ItemIsMovable)  # mouse move events

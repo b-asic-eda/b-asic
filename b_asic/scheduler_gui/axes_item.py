@@ -44,7 +44,7 @@ class AxesItem(QGraphicsItemGroup):
     _width: int
     _width_indent: float
     _width_padding: float
-    _height: int
+    _height: float
     _height_indent: float
     _height_padding: float
     _x_axis: QGraphicsLineItem
@@ -63,7 +63,7 @@ class AxesItem(QGraphicsItemGroup):
     def __init__(
         self,
         width: int,
-        height: int,
+        height: float,
         width_indent: float = SCHEDULE_INDENT,
         height_indent: float = SCHEDULE_INDENT,
         width_padding: float = 0.6,
@@ -135,7 +135,7 @@ class AxesItem(QGraphicsItemGroup):
     #         self.update_axes(width = width)
 
     @property
-    def height(self) -> int:
+    def height(self) -> float:
         """
         Get or set the current y-axis height. Setting the height to a new
         value will update the axes automatically.
@@ -143,9 +143,10 @@ class AxesItem(QGraphicsItemGroup):
         return self._height
 
     @height.setter
-    def height(self, height: int) -> None:
+    def height(self, height: float) -> None:
         if self._height != height:
-            self.update_axes(height=height)
+            self._height = height
+            self._update_yaxis()
 
     # @property
     # def width_indent(self) -> float:
@@ -166,7 +167,7 @@ class AxesItem(QGraphicsItemGroup):
         """Register an object that receives events."""
         self._event_items.append(item)
 
-    def set_height(self, height: int) -> "AxesItem":
+    def set_height(self, height: float) -> None:
         # TODO: docstring
         if height < 0:
             raise ValueError(
@@ -175,7 +176,7 @@ class AxesItem(QGraphicsItemGroup):
         self._height = height
         self._update_yaxis()
 
-    def set_width(self, width: int) -> "AxesItem":
+    def set_width(self, width: int) -> None:
         # TODO: docstring
         if width < 0:
             raise ValueError(
@@ -192,8 +193,6 @@ class AxesItem(QGraphicsItemGroup):
             for _ in range(abs(delta_width)):
                 self._pop_x_tick()
                 self._width -= 1
-
-        return self
 
     def _pop_x_tick(self) -> None:
         # TODO: docstring

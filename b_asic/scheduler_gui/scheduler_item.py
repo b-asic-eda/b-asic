@@ -285,7 +285,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
                         destination.operation.graph_id
                     ]
                     gui_signal = SignalItem(
-                        component, destination_component, signal, parent=self
+                        component, destination_component, signal, self
                     )
                     self.addToGroup(gui_signal)
                     self._signal_dict[component].add(gui_signal)

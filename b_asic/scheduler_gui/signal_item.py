@@ -1,9 +1,10 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from qtpy.QtCore import QPointF
 from qtpy.QtGui import QPainterPath, QPen
-from qtpy.QtWidgets import QGraphicsItem, QGraphicsPathItem
+from qtpy.QtWidgets import QGraphicsPathItem
 
+# B-ASIC
 from b_asic.scheduler_gui._preferences import (
     SCHEDULE_INDENT,
     SIGNAL_ACTIVE,
@@ -11,9 +12,10 @@ from b_asic.scheduler_gui._preferences import (
     SIGNAL_WIDTH,
 )
 from b_asic.scheduler_gui.operation_item import OperationItem
-
-# B-ASIC
 from b_asic.signal import Signal
+
+if TYPE_CHECKING:
+    from b_asic.scheduler_gui.scheduler_item import SchedulerItem
 
 
 class SignalItem(QGraphicsPathItem):
@@ -44,7 +46,7 @@ class SignalItem(QGraphicsPathItem):
         src_operation: OperationItem,
         dest_operation: OperationItem,
         signal: Signal,
-        parent: Optional[QGraphicsItem] = None,
+        parent: "SchedulerItem",
     ):
         super().__init__(parent=parent)
         self._src_operation = src_operation
@@ -70,15 +72,11 @@ class SignalItem(QGraphicsPathItem):
         source_y = source_point.y()
         dest_x = dest_point.x()
         dest_y = dest_point.y()
-        if (
-            dest_x - source_x <= -0.1
-            or self.parentItem().schedule._laps[self._signal.graph_id]
-        ):
+        schedule = cast("SchedulerItem", self.parentItem()).schedule
+        if dest_x - source_x <= -0.1 or schedule._laps[self._signal.graph_id]:
             offset = SCHEDULE_INDENT  # TODO: Get from parent/axes...
-            laps = self.parentItem().schedule._laps[self._signal.graph_id]
-            path.lineTo(
-                self.parentItem().schedule.schedule_time + offset, source_y
-            )
+            laps = schedule._laps[self._signal.graph_id]
+            path.lineTo(schedule.schedule_time + offset, source_y)
             path.moveTo(0 + offset, dest_y)
             path.lineTo(dest_x, dest_y)
         else:
