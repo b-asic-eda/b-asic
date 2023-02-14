@@ -1559,3 +1559,12 @@ class TestSFGErrors:
             match=re.escape("Output index out of range (expected 0-0, got 1)"),
         ):
             sfg.inputs_required_for_output(1)
+
+
+class TestCriticalPath:
+    def test_single_accumulator(self, sfg_simple_accumulator: SFG):
+        sfg_simple_accumulator.set_latency_of_type(Addition.type_name(), 5)
+        assert sfg_simple_accumulator.critical_path() == 5
+
+        sfg_simple_accumulator.set_latency_of_type(Addition.type_name(), 6)
+        assert sfg_simple_accumulator.critical_path() == 6

@@ -1451,3 +1451,9 @@ class SFG(AbstractOperation):
         if format is not None:
             dg.format = format
         dg.view()
+
+    def critical_path(self):
+        # Import here needed to avoid circular imports
+        from b_asic.schedule import Schedule
+
+        return Schedule(self, scheduling_algorithm="ASAP").schedule_time
