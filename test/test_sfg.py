@@ -1398,18 +1398,18 @@ class TestPrecedenceGraph:
 class TestSFGGraph:
     def test_sfg(self, sfg_simple_filter):
         res = (
-            "digraph {\n\trankdir=LR\n\tin1\n\tin1 -> "
-            "add1\n\tout1\n\tt1 -> out1\n\tadd1\n\tcmul1 -> "
+            "digraph {\n\trankdir=LR\n\tin1 [shape=cds]\n\tin1 -> "
+            "add1\n\tout1 [shape=cds]\n\tt1 -> out1\n\tadd1\n\tcmul1 -> "
             "add1\n\tcmul1\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 "
             "-> cmul1\n}"
         )
-
+        print(sfg_simple_filter.sfg().source)
         assert sfg_simple_filter.sfg().source in (res, res + "\n")
 
     def test_sfg_show_id(self, sfg_simple_filter):
         res = (
-            "digraph {\n\trankdir=LR\n\tin1\n\tin1 -> add1 "
-            "[label=s1]\n\tout1\n\tt1 -> out1 [label=s2]\n\tadd1"
+            "digraph {\n\trankdir=LR\n\tin1 [shape=cds]\n\tin1 -> add1 "
+            "[label=s1]\n\tout1 [shape=cds]\n\tt1 -> out1 [label=s2]\n\tadd1"
             "\n\tcmul1 -> add1 [label=s3]\n\tcmul1\n\tadd1 -> t1 "
             "[label=s4]\n\tt1 [shape=square]\n\tt1 -> cmul1 [label=s5]\n}"
         )

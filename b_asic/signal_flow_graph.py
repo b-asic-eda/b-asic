@@ -1416,8 +1416,10 @@ class SFG(AbstractOperation):
                         destination.operation.graph_id,
                     )
             else:
-                if op.type_name() == Delay.type_name():
+                if isinstance(op, Delay):
                     dg.node(op.graph_id, shape="square")
+                elif isinstance(op, (Input, Output)):
+                    dg.node(op.graph_id, shape="cds")
                 else:
                     dg.node(op.graph_id)
         return dg
