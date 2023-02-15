@@ -58,9 +58,18 @@ def sfg_to_python(
                 else f'"{getattr(comp, attr)}"'
                 for attr in params_filtered
             }
+            params = {k: v for k, v in params.items() if v}
+            if params.get("latency_offsets", None) is not None:
+                params["latency_offsets"] = {
+                    k: v
+                    for k, v in params["latency_offsets"].items()
+                    if v is not None
+                }
+                if not params["latency_offsets"]:
+                    del params["latency_offsets"]
 
         return ", ".join(
-            [f"{param[0]}={param[1]}" for param in params.items()]
+            [f"{param}={value}" for param, value in params.items()]
         )
 
     # No need to redefined I/Os
