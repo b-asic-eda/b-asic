@@ -30,14 +30,15 @@ from qtpy.QtWidgets import (
 import b_asic.core_operations
 import b_asic.special_operations
 from b_asic.GUI._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
-from b_asic.GUI.about_window import AboutWindow, FaqWindow, KeybindsWindow
 from b_asic.GUI.arrow import Arrow
 from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
 from b_asic.GUI.show_pc_window import ShowPCWindow
 from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
+from b_asic.GUI.util_dialogs import FaqWindow, KeybindsWindow
 from b_asic.GUI.utils import decorate_class, handle_error
+from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.port import OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 from b_asic.signal_flow_graph import SFG

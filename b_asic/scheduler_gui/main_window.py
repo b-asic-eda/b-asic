@@ -46,6 +46,7 @@ from qtpy.QtWidgets import (
 import b_asic.scheduler_gui.logger as logger
 from b_asic._version import __version__
 from b_asic.graph_component import GraphComponent, GraphID
+from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
@@ -133,6 +134,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionT.triggered.connect(self._actionTbtn)
         self.splitter.splitterMoved.connect(self._splitter_moved)
         self.actionDocumentation.triggered.connect(self._open_documentation)
+        self.actionAbout.triggered.connect(self._open_about_window)
 
         # Setup event member functions
         self.closeEvent = self._close_event
@@ -460,6 +462,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def _open_about_window(self, event=None):
+        self.about_page = AboutWindow(self)
+        self.about_page.show()
 
     ###########################
     # Helper member functions #

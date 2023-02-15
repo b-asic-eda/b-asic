@@ -12,10 +12,10 @@ Module contents
 Submodules
 ----------
 
-GUI.about\_window module
-------------------------
+GUI.main\_window module
+-----------------------
 
-.. automodule:: b_asic.GUI.about_window
+.. automodule:: b_asic.GUI.main_window
    :members:
    :undoc-members:
    :show-inheritance:
@@ -40,14 +40,6 @@ GUI.gui\_interface module
 -------------------------
 
 .. automodule:: b_asic.GUI.gui_interface
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-GUI.main\_window module
------------------------
-
-.. automodule:: b_asic.GUI.main_window
    :members:
    :undoc-members:
    :show-inheritance:
@@ -88,6 +80,14 @@ GUI.simulate\_sfg\_window module
 --------------------------------
 
 .. automodule:: b_asic.GUI.simulate_sfg_window
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+GUI.util\_dialogs module
+------------------------
+
+.. automodule:: b_asic.GUI.util_dialogs
    :members:
    :undoc-members:
    :show-inheritance:
