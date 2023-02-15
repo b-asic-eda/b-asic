@@ -28,4 +28,6 @@ Table of Contents
    api/index
    GUI
    scheduler_gui
+   gui_utils
    examples/index
+   research
