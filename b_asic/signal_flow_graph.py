@@ -801,7 +801,7 @@ class SFG(AbstractOperation):
 
         return self._precedence_list
 
-    def show(self) -> None:
+    def show_precedence_graph(self) -> None:
         self.precedence_graph().view()
 
     def precedence_graph(self) -> Digraph:
@@ -1377,7 +1377,7 @@ class SFG(AbstractOperation):
         results[key] = value
         return value
 
-    def sfg(self, show_id=False, engine=None) -> Digraph:
+    def sfg_digraph(self, show_id=False, engine=None) -> Digraph:
         """
         Returns a Digraph of the SFG. Can be directly displayed in IPython.
 
@@ -1425,22 +1425,21 @@ class SFG(AbstractOperation):
         return dg
 
     def _repr_mimebundle_(self, include=None, exclude=None):
-        return self.sfg()._repr_mimebundle_(include=include, exclude=exclude)
+        return self.sfg_digraph()._repr_mimebundle_(
+            include=include, exclude=exclude
+        )
 
     def _repr_jpeg_(self):
-        return self.sfg()._repr_mimebundle_(include=["image/jpeg"])[
+        return self.sfg_digraph()._repr_mimebundle_(include=["image/jpeg"])[
             "image/jpeg"
         ]
 
     def _repr_png_(self):
-        return self.sfg()._repr_mimebundle_(include=["image/png"])["image/png"]
-
-    def _repr_html_(self):
-        return self.sfg()._repr_mimebundle_(include=["image/svg+xml"])[
-            "image/svg+xlm"
+        return self.sfg_digraph()._repr_mimebundle_(include=["image/png"])[
+            "image/png"
         ]
 
-    def show_sfg(self, format=None, show_id=False, engine=None) -> None:
+    def show(self, format=None, show_id=False, engine=None) -> None:
         """
         Shows a visual representation of the SFG using the default system viewer.
 
@@ -1460,7 +1459,7 @@ class SFG(AbstractOperation):
             Most common are "dot" and "neato". Default is None leading to dot.
         """
 
-        dg = self.sfg(show_id=show_id)
+        dg = self.sfg_digraph(show_id=show_id)
         if engine is not None:
             dg.engine = engine
         if format is not None:

@@ -1403,8 +1403,7 @@ class TestSFGGraph:
             "add1\n\tcmul1\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 "
             "-> cmul1\n}"
         )
-        print(sfg_simple_filter.sfg().source)
-        assert sfg_simple_filter.sfg().source in (res, res + "\n")
+        assert sfg_simple_filter.sfg_digraph().source in (res, res + "\n")
 
     def test_sfg_show_id(self, sfg_simple_filter):
         res = (
@@ -1414,15 +1413,18 @@ class TestSFGGraph:
             "[label=s4]\n\tt1 [shape=square]\n\tt1 -> cmul1 [label=s5]\n}"
         )
 
-        assert sfg_simple_filter.sfg(show_id=True).source in (res, res + "\n")
+        assert sfg_simple_filter.sfg_digraph(show_id=True).source in (
+            res,
+            res + "\n",
+        )
 
     def test_show_sfg_invalid_format(self, sfg_simple_filter):
         with pytest.raises(ValueError):
-            sfg_simple_filter.show_sfg(format="ppddff")
+            sfg_simple_filter.show(format="ppddff")
 
     def test_show_sfg_invalid_engine(self, sfg_simple_filter):
         with pytest.raises(ValueError):
-            sfg_simple_filter.show_sfg(engine="ppddff")
+            sfg_simple_filter.show(engine="ppddff")
 
 
 class TestSFGErrors:
