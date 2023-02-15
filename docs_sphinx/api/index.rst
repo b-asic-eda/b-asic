@@ -11,7 +11,7 @@ API
     port.rst
     process.rst
     schedule.rst
-    sfg_generator.rst
+    sfg_generators.rst
     signal.rst
     signal_flow_graph.rst
     signal_generator.rst
