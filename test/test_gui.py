@@ -225,7 +225,7 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     assert len(widget.pressed_ports) == 2
 
     # Connect ports
-    widget._connect_button()
+    widget._connect_callback()
     # Not sure why this won't work
     # qtbot.keyClick(widget, QtCore.Qt.Key.Key_Space, delay=10)
     # Still one selected!?
@@ -245,7 +245,7 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
         QtCore.Qt.KeyboardModifier.ControlModifier,
     )
     # Connect
-    widget._connect_button()
+    widget._connect_callback()
     assert len(widget.signalList) == 2
 
     # Select input op

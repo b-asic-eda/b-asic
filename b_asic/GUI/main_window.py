@@ -33,13 +33,14 @@ from b_asic.GUI._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
 from b_asic.GUI.arrow import Arrow
 from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
+from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
 from b_asic.GUI.show_pc_window import ShowPCWindow
 from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
 from b_asic.GUI.util_dialogs import FaqWindow, KeybindsWindow
 from b_asic.GUI.utils import decorate_class, handle_error
 from b_asic.gui_utils.about_window import AboutWindow
-from b_asic.port import OutputPort
+from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 from b_asic.signal_flow_graph import SFG
 
@@ -125,7 +126,7 @@ class MainWindow(QMainWindow):
         self.shortcut_help = QShortcut(QKeySequence("Ctrl+?"), self)
         self.shortcut_help.activated.connect(self.display_faq_page)
         self.shortcut_signal = QShortcut(QKeySequence(Qt.Key_Space), self)
-        self.shortcut_signal.activated.connect(self._connect_button)
+        self.shortcut_signal.activated.connect(self._connect_callback)
 
         self.logger.info("Finished setting up GUI")
         self.logger.info(
@@ -288,7 +289,7 @@ class MainWindow(QMainWindow):
                     ]
 
                     if source and destination:
-                        self.connect_button(source[0], destination[0])
+                        self._connect_button(source[0], destination[0])
 
             for port in self.pressed_ports:
                 port.select_port()
@@ -494,7 +495,7 @@ class MainWindow(QMainWindow):
             namespace, self.ui.custom_operations_list
         )
 
-    def create_operation(self, op, position=None, is_flipped=False):
+    def create_operation(self, op, position=None, is_flipped: bool = False):
         try:
             if op in self.operationDragDict:
                 self.logger.warning(
@@ -600,7 +601,7 @@ class MainWindow(QMainWindow):
             self.pressed_operations.clear()
         super().keyPressEvent(event)
 
-    def _connect_button(self, *event):
+    def _connect_callback(self, *event):
         if len(self.pressed_ports) < 2:
             self.logger.warning(
                 "Cannot connect less than two ports. Please select at least"
@@ -608,37 +609,45 @@ class MainWindow(QMainWindow):
             )
             return
 
-        for i in range(len(self.pressed_ports) - 1):
-            source = (
-                self.pressed_ports[i]
-                if isinstance(self.pressed_ports[i].port, OutputPort)
-                else self.pressed_ports[i + 1]
-            )
-            destination = (
-                self.pressed_ports[i + 1]
-                if source is not self.pressed_ports[i + 1]
-                else self.pressed_ports[i]
-            )
-            if source.port.operation is destination.port.operation:
-                self.logger.warning("Cannot connect to the same port")
-                continue
+        pressed_op_inports = [
+            pressed
+            for pressed in self.pressed_ports
+            if isinstance(pressed.port, InputPort)
+        ]
+        pressed_op_outports = [
+            pressed
+            for pressed in self.pressed_ports
+            if isinstance(pressed.port, OutputPort)
+        ]
 
-            if isinstance(source.port, type(destination.port)):
-                self.logger.warning(
-                    "Cannot connect port of type: %s to port of type: %s."
-                    % (
-                        type(source.port).__name__,
-                        type(destination.port).__name__,
-                    )
-                )
-                continue
+        if len(pressed_op_outports) != 1:
+            raise ValueError("Exactly one output port must be selected!")
 
-            self.connect_button(source, destination)
+        pressed_op_outport = pressed_op_outports[0]
+        for pressed_op_inport in pressed_op_inports:
+            self._connect_button(pressed_op_outport, pressed_op_inport)
 
         for port in self.pressed_ports:
             port.select_port()
 
-    def connect_button(self, source, destination):
+    def _connect_button(
+        self, source: PortButton, destination: PortButton
+    ) -> None:
+        """
+        Connect two PortButtons with an Arrow.
+
+        Parameters
+        ----------
+        source : PortButton
+            The PortButton to start the signal at.
+        destination : PortButton
+            The PortButton to end the signal at.
+
+        Returns
+        -------
+        None.
+
+        """
         signal_exists = (
             signal
             for signal in source.port.signals
