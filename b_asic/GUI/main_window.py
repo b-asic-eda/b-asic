@@ -65,6 +65,8 @@ class MainWindow(QMainWindow):
         self.operationDragDict = {}
         self.operationItemSceneList = []
         self.signalList = []
+        self.mouse_pressed = False
+        self.mouse_draggin = False
         self.pressed_operations = []
         self.portDict = {}
         self.signalPortDict = {}
@@ -191,6 +193,7 @@ class MainWindow(QMainWindow):
             operation_positions[op_drag.operation.graph_id] = (
                 int(op_scene.x()),
                 int(op_scene.y()),
+                op_drag.is_flipped(),
             )
 
         try:
@@ -251,10 +254,17 @@ class MainWindow(QMainWindow):
         if positions is None:
             positions = {}
 
+        # print(sfg)
         for op in sfg.split():
+            # print(op)
             self.create_operation(
                 op,
-                positions[op.graph_id] if op.graph_id in positions else None,
+                positions[op.graph_id][0:2]
+                if op.graph_id in positions
+                else None,
+                positions[op.graph_id][-1]
+                if op.graph_id in positions
+                else None,
             )
 
         def connect_ports(ports):
@@ -484,8 +494,14 @@ class MainWindow(QMainWindow):
             namespace, self.ui.custom_operations_list
         )
 
-    def create_operation(self, op, position=None):
+    def create_operation(self, op, position=None, is_flipped=False):
         try:
+            if op in self.operationDragDict:
+                self.logger.warning(
+                    "Multiple instances of operation with same name"
+                )
+                return
+
             attr_button = DragButton(op.graph_id, op, True, window=self)
             if position is None:
                 attr_button.move(GRID * 3, GRID * 2)
@@ -537,8 +553,14 @@ class MainWindow(QMainWindow):
             )
             operation_label.moveBy(10, -20)
             attr_button.add_label(operation_label)
+
+            if isinstance(is_flipped, bool):
+                if is_flipped:
+                    attr_button._flip()
+
             self.operationDragDict[op] = attr_button
             self.dragOperationSceneDict[attr_button] = attr_button_scene
+
         except Exception as e:
             self.logger.error(
                 "Unexpected error occurred while creating operation: " + str(e)

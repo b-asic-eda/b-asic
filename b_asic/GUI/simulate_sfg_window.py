@@ -1,6 +1,7 @@
 """
 B-ASIC window to simulate an SFG.
 """
+import numpy as np
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
 )
@@ -9,6 +10,7 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QKeySequence
 from qtpy.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QFileDialog,
     QFormLayout,
@@ -23,6 +25,8 @@ from qtpy.QtWidgets import (
     QSpinBox,
     QVBoxLayout,
 )
+
+from b_asic.signal_generator import Impulse, Step, ZeroPad
 
 
 class SimulateSFGWindow(QDialog):
@@ -42,6 +46,8 @@ class SimulateSFGWindow(QDialog):
         self.simulate_btn.clicked.connect(self.save_properties)
         self.dialog_layout.addWidget(self.simulate_btn)
         self.setLayout(self.dialog_layout)
+        self.input_grid = QGridLayout()
+        self.input_files = {}
 
     def add_sfg_to_dialog(self, sfg):
         sfg_layout = QVBoxLayout()
@@ -66,36 +72,37 @@ class SimulateSFGWindow(QDialog):
             "iteration_count": spin_box,
             "show_plot": check_box_plot,
             "all_results": check_box_all,
-            "input_values": [],
         }
 
         if sfg.input_count > 0:
             input_label = QLabel("Input values:")
             options_layout.addRow(input_label)
 
-            input_grid = QGridLayout()
             x, y = 0, 0
             for i in range(sfg.input_count):
-                input_layout = QHBoxLayout()
-                input_layout.addStretch()
                 if i % 2 == 0 and i > 0:
                     x += 1
                     y = 0
 
                 input_label = QLabel(f"in{i}")
-                input_layout.addWidget(input_label)
-                input_value = QLineEdit()
-                input_value.setPlaceholderText("e.g. 0, 0, 0")
-                input_value.setFixedWidth(100)
-                input_layout.addWidget(input_value)
-                input_layout.addStretch()
-                input_layout.setSpacing(10)
-                input_grid.addLayout(input_layout, x, y)
+                self.input_grid.addWidget(input_label, i, 0)
 
-                self.input_fields[sfg]["input_values"].append(input_value)
+                input_dropdown = QComboBox()
+                input_dropdown.insertItems(
+                    0, ["Impulse", "Step", "Input", "File"]
+                )
+                input_dropdown.currentTextChanged.connect(
+                    lambda text, i=i: self.change_input_format(i, text)
+                )
+                self.input_grid.addWidget(
+                    input_dropdown, i, 1, alignment=Qt.AlignLeft
+                )
+
+                self.change_input_format(i, "Impulse")
+
                 y += 1
 
-            sfg_layout.addLayout(input_grid)
+            sfg_layout.addLayout(self.input_grid)
 
         frame = QFrame()
         frame.setFrameShape(QFrame.HLine)
@@ -104,6 +111,59 @@ class SimulateSFGWindow(QDialog):
 
         self.sfg_to_layout[sfg] = sfg_layout
         self.dialog_layout.addLayout(sfg_layout)
+
+    def change_input_format(self, i, text):
+        grid = self.input_grid.itemAtPosition(i, 2)
+        if grid:
+            for j in reversed(range(grid.count())):
+                item = grid.itemAt(j)
+                widget = item.widget()
+                if widget:
+                    widget.hide()
+            self.input_grid.removeItem(grid)
+
+        param_grid = QGridLayout()
+
+        if text == "Impulse":
+            delay_label = QLabel("Delay")
+            param_grid.addWidget(delay_label, 0, 0)
+            delay_spin_box = QSpinBox()
+            delay_spin_box.setRange(0, 2147483647)
+            param_grid.addWidget(delay_spin_box, 0, 1)
+        elif text == "Step":
+            delay_label = QLabel("Delay")
+            param_grid.addWidget(delay_label, 0, 0)
+            delay_spin_box = QSpinBox()
+            delay_spin_box.setRange(0, 2147483647)
+            param_grid.addWidget(delay_spin_box, 0, 1)
+        elif text == "Input":
+            input_label = QLabel("Input")
+            param_grid.addWidget(input_label, 0, 0)
+            input_sequence = QLineEdit()
+            param_grid.addWidget(input_sequence, 0, 1)
+            zpad_label = QLabel("Zpad")
+            param_grid.addWidget(zpad_label, 1, 0)
+            zpad_button = QCheckBox()
+            param_grid.addWidget(zpad_button, 1, 1)
+        elif text == "File":
+            file_label = QLabel("Browse")
+            param_grid.addWidget(file_label, 0, 0)
+            file_browser = QPushButton("No file selected")
+            file_browser.clicked.connect(
+                lambda i=i: self.get_input_file(i, file_browser)
+            )
+            param_grid.addWidget(file_browser, 0, 1)
+        else:
+            raise Exception("Input selection is not implemented")
+
+        self.input_grid.addLayout(param_grid, i, 2)
+
+        return
+
+    def get_input_file(self, i, file_browser):
+        module, accepted = QFileDialog().getOpenFileName()
+        file_browser.setText(module)
+        return
 
     def parse_input_values(self, input_values):
         _input_values = []
@@ -128,15 +188,60 @@ class SimulateSFGWindow(QDialog):
 
     def save_properties(self):
         for sfg, _properties in self.input_fields.items():
-            input_values = self.parse_input_values(
-                [
-                    widget.text().split(",") if widget.text() else [0]
-                    for widget in self.input_fields[sfg]["input_values"]
-                ]
-            )
+            ic_value = self.input_fields[sfg]["iteration_count"].value()
+            if ic_value == 0:
+                self._window.logger.error("Iteration count is set to zero.")
+
+            tmp = []
+
+            for i in range(self.input_grid.rowCount()):
+                in_format = (
+                    self.input_grid.itemAtPosition(i, 1).widget().currentText()
+                )
+                in_param = self.input_grid.itemAtPosition(i, 2)
+
+                tmp2 = []
+
+                if in_format == "Impulse":
+                    g = Impulse(in_param.itemAtPosition(0, 1).widget().value())
+                    for j in range(ic_value):
+                        tmp2.append(str(g(j)))
+
+                elif in_format == "Step":
+                    g = Step(in_param.itemAtPosition(0, 1).widget().value())
+                    for j in range(ic_value):
+                        tmp2.append(str(g(j)))
+
+                elif in_format == "Input":
+                    widget = in_param.itemAtPosition(0, 1).widget()
+                    tmp3 = widget.text().split(",")
+                    if in_param.itemAtPosition(1, 1).widget().isChecked():
+                        g = ZeroPad(tmp3)
+                        for j in range(ic_value):
+                            tmp2.append(str(g(j)))
+                    else:
+                        tmp2 = tmp3
+
+                elif in_format == "File":
+                    widget = in_param.itemAtPosition(0, 1).widget()
+                    path = widget.text()
+                    try:
+                        tmp2 = np.loadtxt(path, dtype=str).tolist()
+                    except FileNotFoundError:
+                        self._window.logger.error(
+                            f"Selected input file not found."
+                        )
+                        continue
+                else:
+                    raise Exception("Input selection is not implemented")
+
+                tmp.append(tmp2)
+
+            input_values = self.parse_input_values(tmp)
+
             max_len = max(len(list_) for list_ in input_values)
             min_len = min(len(list_) for list_ in input_values)
-            ic_value = self.input_fields[sfg]["iteration_count"].value()
+
             if max_len != min_len:
                 self._window.logger.error(
                     "Minimum length of input lists are not equal to maximum "
