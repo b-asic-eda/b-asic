@@ -1595,3 +1595,9 @@ class TestCriticalPath:
 
         sfg_simple_accumulator.set_latency_of_type(Addition.type_name(), 6)
         assert sfg_simple_accumulator.critical_path() == 6
+
+
+class TestUnroll:
+    def unrolling_by_factor_0_raises(self, sfg_simple_filter: SFG):
+        with pytest.raises(ValueError):
+            sfg_simple_filter.unfold(0)

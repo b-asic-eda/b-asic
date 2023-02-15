@@ -17,18 +17,18 @@ from b_asic import (
 in1 = Input(name="in1")
 
 # Outputs:
-out1 = Output(name="")
+out1 = Output(name="out1")
 
 # Operations:
-t1 = Delay(initial_value=0, name="")
+t1 = Delay(initial_value=0, name="t1")
 cmul1 = ConstantMultiplication(
-    value=0.5, name="cmul2", latency_offsets={'in0': None, 'out0': None}
+    value=0.5, name="cmul1", latency_offsets={'in0': None, 'out0': None}
 )
 add1 = Addition(
-    name="", latency_offsets={'in0': None, 'in1': None, 'out0': None}
+    name="add1", latency_offsets={'in0': None, 'in1': None, 'out0': None}
 )
 cmul2 = ConstantMultiplication(
-    value=0.5, name="cmul", latency_offsets={'in0': None, 'out0': None}
+    value=0.5, name="cmul2", latency_offsets={'in0': None, 'out0': None}
 )
 
 # Signals:
