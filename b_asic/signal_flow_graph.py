@@ -48,6 +48,16 @@ from b_asic.special_operations import Delay, Input, Output
 DelayQueue = List[Tuple[str, ResultKey, OutputPort]]
 
 
+_OPERATION_SHAPE: DefaultDict[TypeName, str] = defaultdict(lambda: "ellipse")
+_OPERATION_SHAPE.update(
+    {
+        Input.type_name(): "cds",
+        Output.type_name(): "cds",
+        Delay.type_name(): "square",
+    }
+)
+
+
 class GraphIDGenerator:
     """Generates Graph IDs for objects."""
 
@@ -813,7 +823,7 @@ class SFG(AbstractOperation):
         for i in range(len(p_list)):
             ports = p_list[i]
             with pg.subgraph(name=f"cluster_{i}") as sub:
-                sub.attr(label=f"N{i+1}")
+                sub.attr(label=f"N{i}")
                 for port in ports:
                     portstr = f"{port.operation.graph_id}.{port.index}"
                     if port.operation.output_count > 1:
@@ -821,7 +831,10 @@ class SFG(AbstractOperation):
                     else:
                         sub.node(
                             portstr,
+                            shape='rectangle',
                             label=port.operation.graph_id,
+                            height="0.1",
+                            width="0.1",
                         )
         # Creates edges for each output port and creates nodes for each operation
         # and edges for them as well
@@ -830,14 +843,20 @@ class SFG(AbstractOperation):
             for port in ports:
                 for signal in port.signals:
                     destination = cast(InputPort, signal.destination)
-                    if destination.operation.type_name() == Delay.type_name():
+                    if isinstance(destination.operation, Delay):
                         dest_node = destination.operation.graph_id + "In"
                     else:
                         dest_node = destination.operation.graph_id
                     dest_label = destination.operation.graph_id
                     node_node = f"{port.operation.graph_id}.{port.index}"
                     pg.edge(node_node, dest_node)
-                    pg.node(dest_node, label=dest_label, shape="square")
+                    pg.node(
+                        dest_node,
+                        label=dest_label,
+                        shape=_OPERATION_SHAPE[
+                            destination.operation.type_name()
+                        ],
+                    )
                 if port.operation.type_name() == Delay.type_name():
                     source_node = port.operation.graph_id + "Out"
                 else:
@@ -845,7 +864,11 @@ class SFG(AbstractOperation):
                 source_label = port.operation.graph_id
                 node_node = f"{port.operation.graph_id}.{port.index}"
                 pg.edge(source_node, node_node)
-                pg.node(source_node, label=source_label, shape="square")
+                pg.node(
+                    source_node,
+                    label=source_label,
+                    shape=_OPERATION_SHAPE[port.operation.type_name()],
+                )
 
         return pg
 
@@ -1417,12 +1440,7 @@ class SFG(AbstractOperation):
                         destination.operation.graph_id,
                     )
             else:
-                if isinstance(op, Delay):
-                    dg.node(op.graph_id, shape="square")
-                elif isinstance(op, (Input, Output)):
-                    dg.node(op.graph_id, shape="cds")
-                else:
-                    dg.node(op.graph_id)
+                dg.node(op.graph_id, shape=_OPERATION_SHAPE[op.type_name()])
         return dg
 
     def _repr_mimebundle_(self, include=None, exclude=None):

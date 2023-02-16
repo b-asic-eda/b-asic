@@ -1376,21 +1376,23 @@ class TestGetComponentsOfType:
 class TestPrecedenceGraph:
     def test_precedence_graph(self, sfg_simple_filter):
         res = (
-            "digraph {\n\trankdir=LR\n\tsubgraph cluster_0"
-            " {\n\t\tlabel=N1\n\t\t\"in1.0\" [label=in1]\n\t\t\"t1.0\""
-            " [label=t1]\n\t}\n\tsubgraph cluster_1"
-            " {\n\t\tlabel=N2\n\t\t\"cmul1.0\" [label=cmul1]\n\t}\n\tsubgraph"
-            " cluster_2 {\n\t\tlabel=N3\n\t\t\"add1.0\""
-            " [label=add1]\n\t}\n\t\"in1.0\" -> add1\n\tadd1 [label=add1"
-            " shape=square]\n\tin1 -> \"in1.0\"\n\tin1 [label=in1"
-            " shape=square]\n\t\"t1.0\" -> cmul1\n\tcmul1 [label=cmul1"
-            " shape=square]\n\t\"t1.0\" -> out1\n\tout1 [label=out1"
-            " shape=square]\n\tt1Out -> \"t1.0\"\n\tt1Out [label=t1"
-            " shape=square]\n\t\"cmul1.0\" -> add1\n\tadd1 [label=add1"
-            " shape=square]\n\tcmul1 -> \"cmul1.0\"\n\tcmul1 [label=cmul1"
-            " shape=square]\n\t\"add1.0\" -> t1In\n\tt1In [label=t1"
-            " shape=square]\n\tadd1 -> \"add1.0\"\n\tadd1 [label=add1"
-            " shape=square]\n}"
+            'digraph {\n\trankdir=LR\n\tsubgraph cluster_0'
+            ' {\n\t\tlabel=N0\n\t\t"in1.0" [label=in1 height=0.1'
+            ' shape=rectangle width=0.1]\n\t\t"t1.0" [label=t1 height=0.1'
+            ' shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_1'
+            ' {\n\t\tlabel=N1\n\t\t"cmul1.0" [label=cmul1 height=0.1'
+            ' shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_2'
+            ' {\n\t\tlabel=N2\n\t\t"add1.0" [label=add1 height=0.1'
+            ' shape=rectangle width=0.1]\n\t}\n\t"in1.0" -> add1\n\tadd1'
+            ' [label=add1 shape=ellipse]\n\tin1 -> "in1.0"\n\tin1 [label=in1'
+            ' shape=cds]\n\t"t1.0" -> cmul1\n\tcmul1 [label=cmul1'
+            ' shape=ellipse]\n\t"t1.0" -> out1\n\tout1 [label=out1'
+            ' shape=cds]\n\tt1Out -> "t1.0"\n\tt1Out [label=t1'
+            ' shape=square]\n\t"cmul1.0" -> add1\n\tadd1 [label=add1'
+            ' shape=ellipse]\n\tcmul1 -> "cmul1.0"\n\tcmul1 [label=cmul1'
+            ' shape=ellipse]\n\t"add1.0" -> t1In\n\tt1In [label=t1'
+            ' shape=square]\n\tadd1 -> "add1.0"\n\tadd1 [label=add1'
+            ' shape=ellipse]\n}'
         )
 
         assert sfg_simple_filter.precedence_graph().source in (res, res + "\n")
@@ -1399,19 +1401,20 @@ class TestPrecedenceGraph:
 class TestSFGGraph:
     def test_sfg(self, sfg_simple_filter):
         res = (
-            "digraph {\n\trankdir=LR\n\tin1 [shape=cds]\n\tin1 -> "
-            "add1\n\tout1 [shape=cds]\n\tt1 -> out1\n\tadd1\n\tcmul1 -> "
-            "add1\n\tcmul1\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 "
-            "-> cmul1\n}"
+            'digraph {\n\trankdir=LR\n\tin1 [shape=cds]\n\tin1 -> add1\n\tout1'
+            ' [shape=cds]\n\tt1 -> out1\n\tadd1 [shape=ellipse]\n\tcmul1 ->'
+            ' add1\n\tcmul1 [shape=ellipse]\n\tadd1 -> t1\n\tt1'
+            ' [shape=square]\n\tt1 -> cmul1\n}'
         )
         assert sfg_simple_filter.sfg_digraph().source in (res, res + "\n")
 
     def test_sfg_show_id(self, sfg_simple_filter):
         res = (
-            "digraph {\n\trankdir=LR\n\tin1 [shape=cds]\n\tin1 -> add1 "
-            "[label=s1]\n\tout1 [shape=cds]\n\tt1 -> out1 [label=s2]\n\tadd1"
-            "\n\tcmul1 -> add1 [label=s3]\n\tcmul1\n\tadd1 -> t1 "
-            "[label=s4]\n\tt1 [shape=square]\n\tt1 -> cmul1 [label=s5]\n}"
+            'digraph {\n\trankdir=LR\n\tin1 [shape=cds]\n\tin1 -> add1'
+            ' [label=s1]\n\tout1 [shape=cds]\n\tt1 -> out1 [label=s2]\n\tadd1'
+            ' [shape=ellipse]\n\tcmul1 -> add1 [label=s3]\n\tcmul1'
+            ' [shape=ellipse]\n\tadd1 -> t1 [label=s4]\n\tt1'
+            ' [shape=square]\n\tt1 -> cmul1 [label=s5]\n}'
         )
 
         assert sfg_simple_filter.sfg_digraph(show_id=True).source in (
