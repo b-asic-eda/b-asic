@@ -1,3 +1,4 @@
+import pathlib
 import sys  # ONLY FOR DEBUG
 
 from qtpy.QtCore import Qt
@@ -43,13 +44,18 @@ class AboutWindow(QDialog):
         # |3 links     |4  OK  |  <- layout34
 
         label1 = QLabel(
-            "# B-ASIC / Better ASIC Toolbox\n*Construct, simulate and analyze"
-            " components of an ASIC.*\n\nB-ASIC is an open source tool using"
-            " the B-ASIC library to construct, simulate and analyze"
-            " ASICs.\n\nB-ASIC is developed under the MIT-license and any"
-            " extension to the program should follow that same license.\n\nTo"
-            " read more about how the GUI works please refer to the FAQ under"
-            f" 'Help'.\n\n*Version: {__version__}*"
+            "# B-ASIC\n__Better ASIC and FPGA Signal Processing"
+            " Toolbox__\n\n*Construct, simulate and analyze signal processing"
+            " algorithms aimed at implementation on an ASIC or"
+            " FPGA.*\n\nB-ASIC is developed by the <a"
+            " href=\"https://liu.se/en/organisation/liu/isy/da\">Division of"
+            " Computer Engineering</a> at <a"
+            " href=\"https://liu.se/?l=en\">Linköping University</a>,"
+            " Sweden.\n\nB-ASIC is released under the <a"
+            " href=\"https://gitlab.liu.se/da/B-ASIC/-/blob/master/LICENSE\">MIT-license</a>"
+            " and any extension to the program should follow that same"
+            f" license.\n\n*Version: {__version__}*\n\nCopyright 2020-2023,"
+            " Oscar Gustafsson et al."
         )
         label1.setTextFormat(Qt.MarkdownText)
         label1.setWordWrap(True)
@@ -58,15 +64,17 @@ class AboutWindow(QDialog):
 
         self.logo2 = QLabel(self)
         self.logo2.setPixmap(
-            QPixmap("../../small_logo.png").scaledToWidth(100)
+            QPixmap(
+                str(pathlib.Path(__file__).parent.resolve())
+                + "/../../logos/small_logo.png"
+            ).scaledToWidth(100)
         )
         self.logo2.setFixedWidth(100)
 
         label3 = QLabel(
-            """See: <a href="https://da.gitlab-pages.liu.se/B-ASIC/">documentation</a>,"""
-            """ <a href="https://gitlab.liu.se/da/B-ASIC/">git</a>,"""
-            """ <a href="https://www.liu.se/?l=en">liu.se</a>,"""
-            """ <a href="https://liu.se/organisation/liu/isy/da">Computer Engineering</a>."""
+            """Additional resources: <a href="https://da.gitlab-pages.liu.se/B-ASIC/">documentation</a>,"""
+            """ <a href="https://gitlab.liu.se/da/B-ASIC/">git repository</a>,"""
+            """ <a href="https://gitlab.liu.se/da/B-ASIC/-/issues">report issues and suggestions</a>."""
         )
         label3.setOpenExternalLinks(True)
         label3.linkHovered.connect(self.hoverText)

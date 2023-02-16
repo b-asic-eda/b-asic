@@ -10,7 +10,7 @@ import shutil
 project = 'B-ASIC'
 copyright = '2020-2023, Oscar Gustafsson et al'
 author = 'Oscar Gustafsson et al'
-html_logo = "../logo_tiny.png"
+html_logo = "../logos/logo_tiny.png"
 
 pygments_style = 'sphinx'
 

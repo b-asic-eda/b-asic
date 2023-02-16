@@ -1,4 +1,4 @@
-<img src="logo.png" width="278" height="100">
+<img src="logos/logo.png" width="278" height="100">
 
 # B-ASIC - Better ASIC Toolbox
 
