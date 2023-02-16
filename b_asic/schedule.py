@@ -603,7 +603,7 @@ class Schedule:
 
     def _get_y_position(
         self, graph_id, operation_height=1.0, operation_gap=None
-    ):
+    ) -> float:
         if operation_gap is None:
             operation_gap = OPERATION_GAP
         y_location = self._y_locations[graph_id]
@@ -617,11 +617,15 @@ class Schedule:
             self._y_locations[graph_id] = y_location
         return operation_gap + y_location * (operation_height + operation_gap)
 
-    def _plot_schedule(self, ax, operation_gap: Optional[float] = None):
+    def _plot_schedule(
+        self, ax: Axes, operation_gap: Optional[float] = None
+    ) -> None:
         """Draw the schedule."""
         line_cache = []
 
-        def _draw_arrow(start, end, name="", laps=0):
+        def _draw_arrow(
+            start: List[float], end: List[float], name: str = "", laps: int = 0
+        ):
             """Draw an arrow from *start* to *end*."""
             if end[0] < start[0] or laps > 0:  # Wrap around
                 if start not in line_cache:
@@ -848,7 +852,7 @@ class Schedule:
         self._plot_schedule(ax, operation_gap=operation_gap)
         return fig
 
-    def _repr_svg_(self):
+    def _repr_svg_(self) -> str:
         """
         Generate an SVG of the schedule. This is automatically displayed in e.g.
         Jupyter Qt console.

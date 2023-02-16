@@ -27,13 +27,7 @@ from typing import (
 
 from graphviz import Digraph
 
-from b_asic.graph_component import (
-    GraphComponent,
-    GraphID,
-    GraphIDNumber,
-    Name,
-    TypeName,
-)
+from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
     AbstractOperation,
     MutableDelayMap,
@@ -44,6 +38,7 @@ from b_asic.operation import (
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
 
 DelayQueue = List[Tuple[str, ResultKey, OutputPort]]
 
@@ -377,7 +372,7 @@ class SFG(AbstractOperation):
     def evaluate_output(
         self,
         index: int,
-        input_values: Sequence[Number],
+        input_values: Sequence[Num],
         results: Optional[MutableResultMap] = None,
         delays: Optional[MutableDelayMap] = None,
         prefix: str = "",
@@ -465,11 +460,11 @@ class SFG(AbstractOperation):
         for input_port, input_operation in zip(
             self.inputs, self.input_operations
         ):
-            dest = input_operation.output(0).signals[0].destination
-            if dest is None:
+            destination = input_operation.output(0).signals[0].destination
+            if destination is None:
                 raise ValueError("Missing destination in signal.")
-            dest.clear()
-            input_port.signals[0].set_destination(dest)
+            destination.clear()
+            input_port.signals[0].set_destination(destination)
         # For each output_signal, connect it to the corresponding operation
         for output_port, output_operation in zip(
             self.outputs, self.output_operations
@@ -825,12 +820,12 @@ class SFG(AbstractOperation):
             with pg.subgraph(name=f"cluster_{i}") as sub:
                 sub.attr(label=f"N{i}")
                 for port in ports:
-                    portstr = f"{port.operation.graph_id}.{port.index}"
+                    port_string = f"{port.operation.graph_id}.{port.index}"
                     if port.operation.output_count > 1:
-                        sub.node(portstr)
+                        sub.node(port_string)
                     else:
                         sub.node(
-                            portstr,
+                            port_string,
                             shape='rectangle',
                             label=port.operation.graph_id,
                             height="0.1",
@@ -841,28 +836,29 @@ class SFG(AbstractOperation):
         for i in range(len(p_list)):
             ports = p_list[i]
             for port in ports:
+                source_label = port.operation.graph_id
+                node_node = f"{source_label}.{port.index}"
                 for signal in port.signals:
                     destination = cast(InputPort, signal.destination)
-                    if isinstance(destination.operation, Delay):
-                        dest_node = destination.operation.graph_id + "In"
-                    else:
-                        dest_node = destination.operation.graph_id
-                    dest_label = destination.operation.graph_id
-                    node_node = f"{port.operation.graph_id}.{port.index}"
-                    pg.edge(node_node, dest_node)
+                    destination_label = destination.operation.graph_id
+                    destination_node = (
+                        destination_label + "In"
+                        if isinstance(destination.operation, Delay)
+                        else destination_label
+                    )
+                    pg.edge(node_node, destination_node)
                     pg.node(
-                        dest_node,
-                        label=dest_label,
+                        destination_node,
+                        label=destination_label,
                         shape=_OPERATION_SHAPE[
                             destination.operation.type_name()
                         ],
                     )
-                if port.operation.type_name() == Delay.type_name():
-                    source_node = port.operation.graph_id + "Out"
-                else:
-                    source_node = port.operation.graph_id
-                source_label = port.operation.graph_id
-                node_node = f"{port.operation.graph_id}.{port.index}"
+                source_node = (
+                    source_label + "Out"
+                    if port.operation.type_name() == Delay.type_name()
+                    else source_label
+                )
                 pg.edge(source_node, node_node)
                 pg.node(
                     source_node,
@@ -887,8 +883,8 @@ class SFG(AbstractOperation):
 
         printed_ops = set()
 
-        for iter_num, iter in enumerate(precedence_list, start=1):
-            for outport_num, outport in enumerate(iter, start=1):
+        for iter_num, iterable in enumerate(precedence_list, start=1):
+            for outport_num, outport in enumerate(iterable, start=1):
                 if outport not in printed_ops:
                     # Only print once per operation, even if it has multiple outports
                     out_str.write("\n")
@@ -1160,7 +1156,7 @@ class SFG(AbstractOperation):
                         self._components_dfs_order.extend(
                             [new_signal, source.operation]
                         )
-                        if not source.operation in self._operations_dfs_order:
+                        if source.operation not in self._operations_dfs_order:
                             self._operations_dfs_order.append(source.operation)
 
                     # Check if the signal has not been added before.
@@ -1331,7 +1327,7 @@ class SFG(AbstractOperation):
         bits_override: Optional[int],
         truncate: bool,
         deferred_delays: DelayQueue,
-    ) -> Number:
+    ) -> Num:
         key_base = (
             (prefix + "." + src.operation.graph_id)
             if prefix
@@ -1376,7 +1372,7 @@ class SFG(AbstractOperation):
         bits_override: Optional[int],
         truncate: bool,
         deferred_delays: DelayQueue,
-    ) -> Number:
+    ) -> Num:
         input_values = [
             self._evaluate_source(
                 input_port.signals[0].source,
@@ -1458,13 +1454,13 @@ class SFG(AbstractOperation):
             "image/png"
         ]
 
-    def show(self, format=None, show_id=False, engine=None) -> None:
+    def show(self, fmt=None, show_id=False, engine=None) -> None:
         """
         Shows a visual representation of the SFG using the default system viewer.
 
         Parameters
         ----------
-        format : string, optional
+        fmt : string, optional
             File format of the generated graph. Output formats can be found at
             https://www.graphviz.org/doc/info/output.html
             Most common are "pdf", "eps", "png", and "svg". Default is None which
@@ -1481,8 +1477,8 @@ class SFG(AbstractOperation):
         dg = self.sfg_digraph(show_id=show_id)
         if engine is not None:
             dg.engine = engine
-        if format is not None:
-            dg.format = format
+        if fmt is not None:
+            dg.format = fmt
         dg.view()
 
     def critical_path(self):

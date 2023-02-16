@@ -8,6 +8,7 @@ from collections import defaultdict
 from numbers import Number
 from typing import (
     Callable,
+    List,
     Mapping,
     MutableMapping,
     MutableSequence,
@@ -20,11 +21,12 @@ import numpy as np
 
 from b_asic.operation import MutableDelayMap, ResultKey
 from b_asic.signal_flow_graph import SFG
+from b_asic.types import Num
 
-ResultArrayMap = Mapping[ResultKey, Sequence[Number]]
-MutableResultArrayMap = MutableMapping[ResultKey, MutableSequence[Number]]
-InputFunction = Callable[[int], Number]
-InputProvider = Union[Number, Sequence[Number], InputFunction]
+ResultArrayMap = Mapping[ResultKey, Sequence[Num]]
+MutableResultArrayMap = MutableMapping[ResultKey, MutableSequence[Num]]
+InputFunction = Callable[[int], Num]
+InputProvider = Union[Num, Sequence[Num], InputFunction]
 
 
 class Simulation:
@@ -39,7 +41,7 @@ class Simulation:
     _results: MutableResultArrayMap
     _delays: MutableDelayMap
     _iteration: int
-    _input_functions: Sequence[InputFunction]
+    _input_functions: List[InputFunction]
     _input_length: Optional[int]
 
     def __init__(
@@ -105,7 +107,7 @@ class Simulation:
         save_results: bool = True,
         bits_override: Optional[int] = None,
         truncate: bool = True,
-    ) -> Sequence[Number]:
+    ) -> Sequence[Num]:
         """
         Run one iteration of the simulation and return the resulting output values.
         """
@@ -117,12 +119,12 @@ class Simulation:
         save_results: bool = True,
         bits_override: Optional[int] = None,
         truncate: bool = True,
-    ) -> Sequence[Number]:
+    ) -> Sequence[Num]:
         """
         Run the simulation until its iteration is greater than or equal to the given
         iteration and return the output values of the last iteration.
         """
-        result: Sequence[Number] = []
+        result: Sequence[Num] = []
         while self._iteration < iteration:
             input_values = [
                 self._input_functions[i](self._iteration)
@@ -149,7 +151,7 @@ class Simulation:
         save_results: bool = True,
         bits_override: Optional[int] = None,
         truncate: bool = True,
-    ) -> Sequence[Number]:
+    ) -> Sequence[Num]:
         """
         Run a given number of iterations of the simulation and return the output
         values of the last iteration.
@@ -163,7 +165,7 @@ class Simulation:
         save_results: bool = True,
         bits_override: Optional[int] = None,
         truncate: bool = True,
-    ) -> Sequence[Number]:
+    ) -> Sequence[Num]:
         """
         Run the simulation until the end of its input arrays and return the output
         values of the last iteration.

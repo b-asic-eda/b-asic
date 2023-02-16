@@ -35,7 +35,7 @@ def draw_exclusion_graph_coloring(
     ] = None,
 ):
     """
-    Use matplotlib.pyplot and networkx to draw a colored exclusion graph from the memory assigment
+    Use matplotlib.pyplot and networkx to draw a colored exclusion graph from the memory assignment
 
     .. code-block:: python
 
@@ -77,7 +77,6 @@ def draw_exclusion_graph_coloring(
         '#aa00aa',
         '#00aaaa',
     ]
-    node_color_dict = {}
     if color_list is None:
         node_color_dict = {k: COLOR_LIST[v] for k, v in color_dict.items()}
     else:
@@ -137,8 +136,8 @@ class ProcessCollection:
         Parameters
         ----------
         ax : :class:`matplotlib.axes.Axes`, optional
-            Matplotlib Axes object to draw this lifetime chart onto. If not provided (i.e., set to None), this method will
-            return a new axes object on return.
+            Matplotlib Axes object to draw this lifetime chart onto. If not provided (i.e., set to None),
+            this method will return a new axes object on return.
         show_name : bool, default: True
             Show name of all processes in the lifetime chart.
 
@@ -147,7 +146,7 @@ class ProcessCollection:
             ax: Associated Matplotlib Axes (or array of Axes) object
         """
 
-        # Setup the Axes object
+        # Set up the Axes object
         if ax is None:
             _, _ax = plt.subplots()
         else:
@@ -159,7 +158,7 @@ class ProcessCollection:
             process.execution_time for process in self._collection
         )
         if max_execution_time > self._schedule_time:
-            # Schedule time needs to be greater than or equal to the maximum process life time
+            # Schedule time needs to be greater than or equal to the maximum process lifetime
             raise KeyError(
                 f'Error: Schedule time: {self._schedule_time} < Max execution'
                 f' time: {max_execution_time}'
@@ -222,7 +221,7 @@ class ProcessCollection:
         self, add_name: bool = True
     ) -> nx.Graph:
         """
-        Generate exclusion graph based on processes overlaping in time
+        Generate exclusion graph based on processes overlapping in time
 
         Parameters
         ----------
@@ -270,20 +269,20 @@ class ProcessCollection:
         Parameters
         ----------
         heuristic : str, default: "graph_color"
-            The heuristic used when spliting this ProcessCollection.
+            The heuristic used when splitting this ProcessCollection.
             Valid options are:
                 * "graph_color"
                 * "..."
         read_ports : int, optional
-            The number of read ports used when spliting process collection based on memory variable access.
+            The number of read ports used when splitting process collection based on memory variable access.
         write_ports : int, optional
-            The number of write ports used when spliting process collection based on memory variable access.
+            The number of write ports used when splitting process collection based on memory variable access.
         total_ports : int, optional
-            The total number of ports used when spliting process collection based on memory variable access.
+            The total number of ports used when splitting process collection based on memory variable access.
 
         Returns
         -------
-        A set of new ProcessColleciton objects with the process spliting.
+        A set of new ProcessCollection objects with the process splitting.
         """
         if total_ports is None:
             if read_ports is None or write_ports is None:
@@ -308,20 +307,20 @@ class ProcessCollection:
         Parameters
         ----------
         read_ports : int, optional
-            The number of read ports used when spliting process collection based on memory variable access.
+            The number of read ports used when splitting process collection based on memory variable access.
         write_ports : int, optional
-            The number of write ports used when spliting process collection based on memory variable access.
+            The number of write ports used when splitting process collection based on memory variable access.
         total_ports : int, optional
-            The total number of ports used when spliting process collection based on memory variable access.
+            The total number of ports used when splitting process collection based on memory variable access.
         """
         if read_ports != 1 or write_ports != 1:
             raise ValueError(
-                "Spliting with read and write ports not equal to one with the"
+                "Splitting with read and write ports not equal to one with the"
                 " graph coloring heuristic does not make sense."
             )
         if total_ports not in (1, 2):
             raise ValueError(
-                "Total ports should be either 1 (non-concurent reads/writes)"
+                "Total ports should be either 1 (non-concurrent reads/writes)"
                 " or 2 (concurrent read/writes) for graph coloring heuristic."
             )
 

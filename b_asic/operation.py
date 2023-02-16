@@ -11,7 +11,6 @@ from abc import abstractmethod
 from numbers import Number
 from typing import (
     TYPE_CHECKING,
-    Any,
     Dict,
     Iterable,
     List,
@@ -34,7 +33,7 @@ from b_asic.graph_component import (
 )
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
-from b_asic.types import Num, NumRuntime
+from b_asic.types import Num
 
 if TYPE_CHECKING:
     # Conditionally imported to avoid circular imports
@@ -593,7 +592,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         # Import here to avoid circular imports.
         from b_asic.core_operations import Addition, Constant
 
-        if isinstance(src, NumRuntime):
+        if isinstance(src, Number):
             return Addition(self, Constant(src))
         else:
             return Addition(self, src)
@@ -603,7 +602,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         from b_asic.core_operations import Addition, Constant
 
         return Addition(
-            Constant(src) if isinstance(src, NumRuntime) else src, self
+            Constant(src) if isinstance(src, Number) else src, self
         )
 
     def __sub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
@@ -611,7 +610,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         from b_asic.core_operations import Constant, Subtraction
 
         return Subtraction(
-            self, Constant(src) if isinstance(src, NumRuntime) else src
+            self, Constant(src) if isinstance(src, Number) else src
         )
 
     def __rsub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
@@ -619,7 +618,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         from b_asic.core_operations import Constant, Subtraction
 
         return Subtraction(
-            Constant(src) if isinstance(src, NumRuntime) else src, self
+            Constant(src) if isinstance(src, Number) else src, self
         )
 
     def __mul__(
@@ -633,7 +632,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return (
             ConstantMultiplication(src, self)
-            if isinstance(src, NumRuntime)
+            if isinstance(src, Number)
             else Multiplication(self, src)
         )
 
@@ -648,7 +647,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return (
             ConstantMultiplication(src, self)
-            if isinstance(src, NumRuntime)
+            if isinstance(src, Number)
             else Multiplication(src, self)
         )
 
@@ -657,7 +656,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         from b_asic.core_operations import Constant, Division
 
         return Division(
-            self, Constant(src) if isinstance(src, NumRuntime) else src
+            self, Constant(src) if isinstance(src, Number) else src
         )
 
     def __rtruediv__(
@@ -666,7 +665,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Division, Reciprocal
 
-        if isinstance(src, NumRuntime):
+        if isinstance(src, Number):
             if src == 1:
                 return Reciprocal(self)
             else:

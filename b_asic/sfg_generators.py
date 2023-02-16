@@ -72,9 +72,8 @@ def wdf_allpass(
     odd_order = order % 2
     if odd_order:
         # First-order section
-        coeff = np_coefficients[0]
         adaptor0 = SymmetricTwoportAdaptor(
-            coeff,
+            np_coefficients[0],
             input_op,
             latency=latency,
             latency_offsets=latency_offsets,
@@ -185,10 +184,11 @@ def direct_form_fir(
     prev_add = None
     for i, coeff in enumerate(np_coefficients):
         tmp_mul = ConstantMultiplication(coeff, prev_delay, **mult_properties)
-        if prev_add is None:
-            prev_add = tmp_mul
-        else:
-            prev_add = Addition(tmp_mul, prev_add, **add_properties)
+        prev_add = (
+            tmp_mul
+            if prev_add is None
+            else Addition(tmp_mul, prev_add, **add_properties)
+        )
         if i < taps - 1:
             prev_delay = Delay(prev_delay)
 
@@ -266,10 +266,11 @@ def transposed_direct_form_fir(
     prev_add = None
     for i, coeff in enumerate(reversed(np_coefficients)):
         tmp_mul = ConstantMultiplication(coeff, input_op, **mult_properties)
-        if prev_delay is None:
-            tmp_add = tmp_mul
-        else:
-            tmp_add = Addition(tmp_mul, prev_delay, **add_properties)
+        tmp_add = (
+            tmp_mul
+            if prev_delay is None
+            else Addition(tmp_mul, prev_delay, **add_properties)
+        )
         if i < taps - 1:
             prev_delay = Delay(tmp_add)
 

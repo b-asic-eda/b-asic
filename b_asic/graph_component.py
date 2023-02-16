@@ -9,7 +9,7 @@ from collections import deque
 from copy import copy, deepcopy
 from typing import Any, Dict, Generator, Iterable, Mapping, cast
 
-from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
+from b_asic.types import GraphID, Name, TypeName
 
 
 class GraphComponent(ABC):

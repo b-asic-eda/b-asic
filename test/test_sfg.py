@@ -1424,7 +1424,7 @@ class TestSFGGraph:
 
     def test_show_sfg_invalid_format(self, sfg_simple_filter):
         with pytest.raises(ValueError):
-            sfg_simple_filter.show(format="ppddff")
+            sfg_simple_filter.show(fmt="ppddff")
 
     def test_show_sfg_invalid_engine(self, sfg_simple_filter):
         with pytest.raises(ValueError):

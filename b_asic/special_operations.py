@@ -5,9 +5,8 @@ Contains operations with special purposes that may be treated differently from
 normal operations in an SFG.
 """
 
-from typing import List, Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
-from b_asic.graph_component import Name, TypeName
 from b_asic.operation import (
     AbstractOperation,
     DelayMap,

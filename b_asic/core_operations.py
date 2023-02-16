@@ -258,12 +258,12 @@ class AddSub(AbstractOperation):
 
     @property
     def is_add(self) -> Num:
-        """Get if operation is add."""
+        """Get if operation is an addition."""
         return self.param("is_add")
 
     @is_add.setter
     def is_add(self, is_add: bool) -> None:
-        """Set if operation is add."""
+        """Set if operation is an addition."""
         self.set_param("is_add", is_add)
 
 
@@ -774,7 +774,7 @@ class Reciprocal(AbstractOperation):
         latency_offsets: Optional[Dict[str, int]] = None,
         execution_time: Optional[int] = None,
     ):
-        """Construct an Reciprocal operation."""
+        """Construct a Reciprocal operation."""
         super().__init__(
             input_count=1,
             output_count=1,
