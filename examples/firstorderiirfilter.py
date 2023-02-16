@@ -64,10 +64,87 @@ firstorderiir = SFG([input], [output])
 firstorderiir
 
 # %%
+# This will look something like
+#
+# .. graphviz::
+#
+#     digraph {
+#     	rankdir=LR
+#     	in1 [shape=cds]
+#     	in1 -> add1
+#     	out1 [shape=cds]
+#     	add2 -> out1
+#     	add1 [shape=ellipse]
+#     	cmul1 -> add1
+#     	cmul1 [shape=ellipse]
+#     	add1 -> t1
+#     	t1 [shape=square]
+#     	add1 -> add2
+#     	add2 [shape=ellipse]
+#     	cmul2 -> add2
+#     	cmul2 [shape=ellipse]
+#     	t1 -> cmul2
+#     	t1 -> cmul1
+#     }
+#
 # For now, we can print the precendence relations of the SFG
 firstorderiir.print_precedence_graph()
 
 # %%
+# Executing ``firstorderiir.precedence_graph()`` will show something like
+#
+# .. graphviz::
+#
+#     digraph {
+#     	rankdir=LR
+#     	subgraph cluster_0 {
+#     		label=N0
+#     		"in1.0" [label=in1 height=0.1 shape=rectangle width=0.1]
+#     		"t1.0" [label=t1 height=0.1 shape=rectangle width=0.1]
+#     	}
+#     	subgraph cluster_1 {
+#     		label=N1
+#     		"cmul2.0" [label=cmul2 height=0.1 shape=rectangle width=0.1]
+#     		"cmul1.0" [label=cmul1 height=0.1 shape=rectangle width=0.1]
+#     	}
+#     	subgraph cluster_2 {
+#     		label=N2
+#     		"add1.0" [label=add1 height=0.1 shape=rectangle width=0.1]
+#     	}
+#     	subgraph cluster_3 {
+#     		label=N3
+#     		"add2.0" [label=add2 height=0.1 shape=rectangle width=0.1]
+#     	}
+#     	"in1.0" -> add1
+#     	add1 [label=add1 shape=ellipse]
+#     	in1 -> "in1.0"
+#     	in1 [label=in1 shape=cds]
+#     	"t1.0" -> cmul2
+#     	cmul2 [label=cmul2 shape=ellipse]
+#     	"t1.0" -> cmul1
+#     	cmul1 [label=cmul1 shape=ellipse]
+#     	t1Out -> "t1.0"
+#     	t1Out [label=t1 shape=square]
+#     	"cmul2.0" -> add2
+#     	add2 [label=add2 shape=ellipse]
+#     	cmul2 -> "cmul2.0"
+#     	cmul2 [label=cmul2 shape=ellipse]
+#     	"cmul1.0" -> add1
+#     	add1 [label=add1 shape=ellipse]
+#     	cmul1 -> "cmul1.0"
+#     	cmul1 [label=cmul1 shape=ellipse]
+#     	"add1.0" -> t1In
+#     	t1In [label=t1 shape=square]
+#     	"add1.0" -> add2
+#     	add2 [label=add2 shape=ellipse]
+#     	add1 -> "add1.0"
+#     	add1 [label=add1 shape=ellipse]
+#     	"add2.0" -> out1
+#     	out1 [label=out1 shape=cds]
+#     	add2 -> "add2.0"
+#     	add2 [label=add2 shape=ellipse]
+#     }
+#
 # As seen, each operation has an id, in addition to the optional name. This can be used to access the operation.
 # For example,
 firstorderiir.find_by_id('cmul1')
