@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Set, Tuple, TypeVar, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -8,9 +8,16 @@ from matplotlib.ticker import MaxNLocator
 
 from b_asic.process import Process
 
+#
+# Human-intuitive sorting:
+# https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
+#
+# Typing '_T' to help Pyright propagate type-information
+#
+_T = TypeVar('_T')
 
-# From https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
-def _sorted_nicely(to_be_sorted):
+
+def _sorted_nicely(to_be_sorted: Iterable[_T]) -> List[_T]:
     """Sort the given iterable in the way that humans expect."""
     convert = lambda text: int(text) if text.isdigit() else text
     alphanum_key = lambda key: [
@@ -92,7 +99,7 @@ class ProcessCollection:
     ----------
     collection : set of :class:`~b_asic.process.Process` objects
         The Process objects forming this ProcessCollection.
-    schedule_time : int, default: 0
+    schedule_time : int
         Length of the time-axis in the generated graph.
     cyclic : bool, default: False
         If the processes operates cyclically, i.e., if time 0 == time *schedule_time*.
@@ -130,7 +137,7 @@ class ProcessCollection:
         Parameters
         ----------
         ax : :class:`matplotlib.axes.Axes`, optional
-            Matplotlib Axes object to draw this lifetime chart onto. If not provided (i.e., set to None), this will
+            Matplotlib Axes object to draw this lifetime chart onto. If not provided (i.e., set to None), this method will
             return a new axes object on return.
         show_name : bool, default: True
             Show name of all processes in the lifetime chart.
@@ -146,7 +153,7 @@ class ProcessCollection:
         else:
             _ax = ax
 
-        # Draw the lifetime chart
+        # Lifetime chart left and right padding
         PAD_L, PAD_R = 0.05, 0.05
         max_execution_time = max(
             process.execution_time for process in self._collection
@@ -157,12 +164,17 @@ class ProcessCollection:
                 f'Error: Schedule time: {self._schedule_time} < Max execution'
                 f' time: {max_execution_time}'
             )
+
+        # Generate the life-time chart
         for i, process in enumerate(_sorted_nicely(self._collection)):
             bar_start = process.start_time % self._schedule_time
             bar_end = (
                 process.start_time + process.execution_time
             ) % self._schedule_time
-            if bar_end > bar_start:
+            if process.execution_time == 0:
+                # Process has no execution time, draw a tick
+                _ax.scatter(x=bar_start, y=i + 1, marker='X', color='blue')
+            elif bar_end > bar_start:
                 _ax.broken_barh(
                     [(PAD_L + bar_start, bar_end - bar_start - PAD_L - PAD_R)],
                     (i + 0.55, 0.9),
