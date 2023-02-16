@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -6,6 +7,16 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
 
 from b_asic.process import Process
+
+
+# From https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
+def _sorted_nicely(to_be_sorted):
+    """Sort the given iterable in the way that humans expect."""
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [
+        convert(c) for c in re.split('([0-9]+)', str(key))
+    ]
+    return sorted(to_be_sorted, key=alphanum_key)
 
 
 def draw_exclusion_graph_coloring(
@@ -79,14 +90,23 @@ class ProcessCollection:
 
     Parameters
     ----------
-    collection : set of :class:`~b_asic.process.Process` objects, optional
+    collection : set of :class:`~b_asic.process.Process` objects
+        The Process objects forming this ProcessCollection.
+    schedule_time : int, default: 0
+        Length of the time-axis in the generated graph.
+    cyclic : bool, default: False
+        If the processes operates cyclically, i.e., if time 0 == time *schedule_time*.
     """
 
-    def __init__(self, collection: Optional[Set[Process]] = None):
-        if collection is None:
-            self._collection: Set[Process] = set()
-        else:
-            self._collection = collection
+    def __init__(
+        self,
+        collection: Set[Process],
+        schedule_time: int,
+        cyclic: bool = False,
+    ):
+        self._collection = collection
+        self._schedule_time = schedule_time
+        self._cyclic = cyclic
 
     def add_process(self, process: Process):
         """
@@ -101,7 +121,6 @@ class ProcessCollection:
 
     def draw_lifetime_chart(
         self,
-        schedule_time: int = 0,
         ax: Optional[Axes] = None,
         show_name: bool = True,
     ):
@@ -110,9 +129,6 @@ class ProcessCollection:
 
         Parameters
         ----------
-        schedule_time : int, default: 0
-            Length of the time-axis in the generated graph. The time axis will span [0, schedule_time-1].
-            If set to zero (which is the default), the ...
         ax : :class:`matplotlib.axes.Axes`, optional
             Matplotlib Axes object to draw this lifetime chart onto. If not provided (i.e., set to None), this will
             return a new axes object on return.
@@ -133,26 +149,19 @@ class ProcessCollection:
         # Draw the lifetime chart
         PAD_L, PAD_R = 0.05, 0.05
         max_execution_time = max(
-            [process.execution_time for process in self._collection]
+            process.execution_time for process in self._collection
         )
-        schedule_time = (
-            schedule_time
-            if schedule_time
-            else max(p.start_time + p.execution_time for p in self._collection)
-        )
-        if max_execution_time > schedule_time:
+        if max_execution_time > self._schedule_time:
             # Schedule time needs to be greater than or equal to the maximum process life time
             raise KeyError(
-                f'Error: Schedule time: {schedule_time} < Max execution time:'
-                f' {max_execution_time}'
+                f'Error: Schedule time: {self._schedule_time} < Max execution'
+                f' time: {max_execution_time}'
             )
-        for i, process in enumerate(
-            sorted(self._collection, key=lambda p: str(p))
-        ):
-            bar_start = process.start_time % schedule_time
+        for i, process in enumerate(_sorted_nicely(self._collection)):
+            bar_start = process.start_time % self._schedule_time
             bar_end = (
                 process.start_time + process.execution_time
-            ) % schedule_time
+            ) % self._schedule_time
             if bar_end > bar_start:
                 _ax.broken_barh(
                     [(PAD_L + bar_start, bar_end - bar_start - PAD_L - PAD_R)],
@@ -164,7 +173,7 @@ class ProcessCollection:
                         [
                             (
                                 PAD_L + bar_start,
-                                schedule_time - bar_start - PAD_L,
+                                self._schedule_time - bar_start - PAD_L,
                             )
                         ],
                         (i + 0.55, 0.9),
@@ -175,7 +184,10 @@ class ProcessCollection:
                         [
                             (
                                 PAD_L + bar_start,
-                                schedule_time - bar_start - PAD_L - PAD_R,
+                                self._schedule_time
+                                - bar_start
+                                - PAD_L
+                                - PAD_R,
                             )
                         ],
                         (i + 0.55, 0.9),
@@ -190,6 +202,8 @@ class ProcessCollection:
 
         _ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         _ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        _ax.set_xlim(0, self._schedule_time)
+        _ax.set_ylim(0.25, len(self._collection) + 0.75)
         return _ax
 
     def create_exclusion_graph_from_overlap(
@@ -332,12 +346,14 @@ class ProcessCollection:
         coloring = nx.coloring.greedy_color(exclusion_graph)
         draw_exclusion_graph_coloring(exclusion_graph, coloring)
         # process_collection_list = [ProcessCollection()]*(max(coloring.values()) + 1)
-        process_collection_list = [
-            ProcessCollection() for _ in range(max(coloring.values()) + 1)
+        process_collection_set_list = [
+            set() for _ in range(max(coloring.values()) + 1)
         ]
         for process, color in coloring.items():
-            process_collection_list[color].add_process(process)
+            process_collection_set_list[color].add(process)
         return {
-            process_collection
-            for process_collection in process_collection_list
+            ProcessCollection(
+                process_collection_set, self._schedule_time, self._cyclic
+            )
+            for process_collection_set in process_collection_set_list
         }

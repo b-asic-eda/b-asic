@@ -16,12 +16,13 @@ def simple_collection():
             PlainMemoryVariable(0, NO_PORT, {NO_PORT: 3}),
             PlainMemoryVariable(0, NO_PORT, {NO_PORT: 2}),
             PlainMemoryVariable(0, NO_PORT, {NO_PORT: 6}),
-        }
+        },
+        8,
     )
 
 
 @pytest.fixture()
-def collection():
+def cyclic_simple_collection():
     NO_PORT = 0
     return ProcessCollection(
         {
@@ -32,5 +33,7 @@ def collection():
             PlainMemoryVariable(0, NO_PORT, {NO_PORT: 3}),
             PlainMemoryVariable(0, NO_PORT, {NO_PORT: 2}),
             PlainMemoryVariable(0, NO_PORT, {NO_PORT: 6}),
-        }
+        },
+        6,
+        True,
     )

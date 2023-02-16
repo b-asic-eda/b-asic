@@ -20,11 +20,20 @@ class Process:
         Start time of process.
     execution_time : int
         Execution time (lifetime) of process.
+    name : str, optional
+        The name of the process. If not provided, generate a name.
     """
 
-    def __init__(self, start_time: int, execution_time: int):
+    def __init__(
+        self, start_time: int, execution_time: int, name: Optional[str] = None
+    ):
         self._start_time = start_time
         self._execution_time = execution_time
+        if name is None:
+            self._name = f"Proc. {PlainMemoryVariable._name_cnt}"
+            PlainMemoryVariable._name_cnt += 1
+        else:
+            self._name = name
 
     def __lt__(self, other):
         return self._start_time < other.start_time or (
@@ -42,6 +51,16 @@ class Process:
         """Return the execution time."""
         return self._execution_time
 
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def __str__(self) -> str:
+        return self._name
+
+    # Static counter for default names
+    _name_cnt = 0
+
 
 class OperatorProcess(Process):
     """
@@ -53,16 +72,27 @@ class OperatorProcess(Process):
         Start time of process.
     operation : Operation
         Operation that the process corresponds to.
+    name : str, optional
+        The name of the process.
     """
 
-    def __init__(self, start_time: int, operation: Operation):
+    def __init__(
+        self,
+        start_time: int,
+        operation: Operation,
+        name: Optional[str] = None,
+    ):
         execution_time = operation.execution_time
         if execution_time is None:
             raise ValueError(
                 "Operation {operation!r} does not have an execution time"
                 " specified!"
             )
-        super().__init__(start_time, execution_time)
+        super().__init__(
+            start_time,
+            execution_time,
+            name=name,
+        )
         self._operation = operation
 
 
@@ -80,6 +110,8 @@ class MemoryVariable(Process):
     reads : {InputPort: int, ...}
         Dictionary with the InputPorts that reads the memory variable and
         for how long after the *write_time* they will read.
+    name : str, optional
+        The name of the process.
     """
 
     def __init__(
@@ -87,12 +119,15 @@ class MemoryVariable(Process):
         write_time: int,
         write_port: OutputPort,
         reads: Dict[InputPort, int],
+        name: Optional[str] = None,
     ):
         self._read_ports = tuple(reads.keys())
         self._life_times = tuple(reads.values())
         self._write_port = write_port
         super().__init__(
-            start_time=write_time, execution_time=max(self._life_times)
+            start_time=write_time,
+            execution_time=max(self._life_times),
+            name=name,
         )
 
     @property
@@ -123,6 +158,8 @@ class PlainMemoryVariable(Process):
     reads : {int: int, ...}
         Dictionary where the key is the destination identifier and the value
         is the time after *write_time* that the memory variable is read.
+    name : str, optional
+        The name of the process.
     """
 
     def __init__(
@@ -135,11 +172,10 @@ class PlainMemoryVariable(Process):
         self._read_ports = tuple(reads.keys())
         self._life_times = tuple(reads.values())
         self._write_port = write_port
-        if name is None:
-            self._name = str(PlainMemoryVariable._name_cnt)
-            PlainMemoryVariable._name_cnt += 1
         super().__init__(
-            start_time=write_time, execution_time=max(self._life_times)
+            start_time=write_time,
+            execution_time=max(self._life_times),
+            name=name,
         )
 
     @property
@@ -153,13 +189,3 @@ class PlainMemoryVariable(Process):
     @property
     def write_port(self) -> int:
         return self._write_port
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    def __str__(self) -> str:
-        return self._name
-
-    # Static counter for default names
-    _name_cnt = 0

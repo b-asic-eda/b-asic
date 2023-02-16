@@ -6,6 +6,7 @@ import random
 from typing import Optional, Set
 
 from b_asic.process import PlainMemoryVariable
+from b_asic.resources import ProcessCollection
 
 
 def _insert_delays(inputorder, outputorder, min_lifetime, cyclic):
@@ -14,9 +15,7 @@ def _insert_delays(inputorder, outputorder, min_lifetime, cyclic):
     outputorder = [o - maxdiff + min_lifetime for o in outputorder]
     maxdelay = max(outputorder[i] - inputorder[i] for i in range(size))
     if cyclic:
-        if maxdelay < size:
-            outputorder = [o % size for o in outputorder]
-        else:
+        if maxdelay >= size:
             inputorder = inputorder + [i + size for i in inputorder]
             outputorder = outputorder + [o + size for o in outputorder]
     return inputorder, outputorder
@@ -24,7 +23,7 @@ def _insert_delays(inputorder, outputorder, min_lifetime, cyclic):
 
 def generate_random_interleaver(
     size: int, min_lifetime: int = 0, cyclic: bool = True
-) -> Set[PlainMemoryVariable]:
+) -> ProcessCollection:
     """
     Generate a ProcessCollection with memory variable corresponding to a random
     interleaver with length *size*.
@@ -48,15 +47,19 @@ def generate_random_interleaver(
     inputorder = list(range(size))
     outputorder = inputorder[:]
     random.shuffle(outputorder)
-    print(inputorder, outputorder)
     inputorder, outputorder = _insert_delays(
         inputorder, outputorder, min_lifetime, cyclic
     )
-    print(inputorder, outputorder)
-    return {
-        PlainMemoryVariable(inputorder[i], 0, {0: outputorder[i]})
-        for i in range(size)
-    }
+    return ProcessCollection(
+        {
+            PlainMemoryVariable(
+                inputorder[i], 0, {0: outputorder[i] - inputorder[i]}
+            )
+            for i in range(len(inputorder))
+        },
+        len(inputorder),
+        cyclic,
+    )
 
 
 def generate_matrix_transposer(
@@ -64,7 +67,7 @@ def generate_matrix_transposer(
     width: Optional[int] = None,
     min_lifetime: int = 0,
     cyclic: bool = True,
-) -> Set[PlainMemoryVariable]:
+) -> ProcessCollection:
     r"""
     Generate a ProcessCollection with memory variable corresponding to transposing a
     matrix of size *height* :math:`\times` *width*. If *width* is not provided, a
@@ -101,12 +104,19 @@ def generate_matrix_transposer(
         for col in range(height):
             outputorder.append(col * width + row)
 
-    print(inputorder, outputorder)
     inputorder, outputorder = _insert_delays(
         inputorder, outputorder, min_lifetime, cyclic
     )
-    print(inputorder, outputorder)
-    return {
-        PlainMemoryVariable(inputorder[i], 0, {0: outputorder[i]})
-        for i in range(width * height)
-    }
+    return ProcessCollection(
+        {
+            PlainMemoryVariable(
+                inputorder[i],
+                0,
+                {0: outputorder[i] - inputorder[i]},
+                name=f"{inputorder[i]}",
+            )
+            for i in range(len(inputorder))
+        },
+        len(inputorder),
+        cyclic,
+    )
