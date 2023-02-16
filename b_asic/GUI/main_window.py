@@ -11,7 +11,7 @@ import sys
 from pprint import pprint
 
 from qtpy.QtCore import QFileInfo, QSize, Qt
-from qtpy.QtGui import QIcon, QKeySequence, QPainter
+from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
 from qtpy.QtWidgets import (
     QAction,
     QApplication,
@@ -67,7 +67,8 @@ class MainWindow(QMainWindow):
         self.operationItemSceneList = []
         self.signalList = []
         self.mouse_pressed = False
-        self.mouse_draggin = False
+        self.mouse_dragging = False
+        self.starting_port = []
         self.pressed_operations = []
         self.portDict = {}
         self.signalPortDict = {}
@@ -133,6 +134,8 @@ class MainWindow(QMainWindow):
             "For questions please refer to 'Ctrl+?', or visit the 'Help' "
             "section on the toolbar."
         )
+
+        self.cursor = QCursor()
 
     def init_ui(self):
         self.create_toolbar_view()
