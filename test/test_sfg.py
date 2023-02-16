@@ -24,6 +24,7 @@ from b_asic.core_operations import (
     SymmetricTwoportAdaptor,
 )
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.special_operations import Delay
 
 
 class TestInit:
@@ -1561,6 +1562,27 @@ class TestSFGErrors:
             match=re.escape("Output index out of range (expected 0-0, got 1)"),
         ):
             sfg.inputs_required_for_output(1)
+
+
+class TestInputDuplicationBug:
+    def test_input_is_not_duplicated_in_operation_list(self):
+        # Inputs:
+        in1 = Input(name="in1")
+        out1 = Output(name="out1")
+
+        # Operations:
+        t1 = Delay(initial_value=0, name="")
+        t1.inputs[0].connect(in1)
+        add1 = t1 + in1
+
+        out1.inputs[0].connect(add1)
+
+        twotapfir = SFG(inputs=[in1], outputs=[out1], name='twotapfir')
+
+        assert (
+            len([op for op in twotapfir.operations if isinstance(op, Input)])
+            == 1
+        )
 
 
 class TestCriticalPath:

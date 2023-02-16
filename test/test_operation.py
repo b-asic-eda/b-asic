@@ -156,7 +156,7 @@ class TestToSfg:
 
         assert but1.evaluate(1, 1)[0] == but1_sfg.evaluate(1, 1)[0]
         assert but1.evaluate(1, 1)[1] == but1_sfg.evaluate(1, 1)[1]
-        assert len(but1_sfg.operations) == 8
+        assert len(but1_sfg.operations) == 6
 
     def test_add_to_sfg(self):
         add1 = Addition()

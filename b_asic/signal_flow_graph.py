@@ -565,7 +565,7 @@ class SFG(AbstractOperation):
     @property
     def operations(self) -> List[Operation]:
         """Get all operations of this graph in depth-first order."""
-        return self._operations_dfs_order
+        return list(self._operations_dfs_order)
 
     def find_by_type_name(
         self, type_name: TypeName
@@ -1137,7 +1137,8 @@ class SFG(AbstractOperation):
                         self._components_dfs_order.extend(
                             [new_signal, source.operation]
                         )
-                        self._operations_dfs_order.append(source.operation)
+                        if not source.operation in self._operations_dfs_order:
+                            self._operations_dfs_order.append(source.operation)
 
                     # Check if the signal has not been added before.
                     elif (
