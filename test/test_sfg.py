@@ -1597,7 +1597,10 @@ class TestCriticalPath:
         assert sfg_simple_accumulator.critical_path() == 6
 
 
-class TestUnroll:
-    def unrolling_by_factor_0_raises(self, sfg_simple_filter: SFG):
+class TestUnfold:
+    # QUESTION: Is it possible to run a test on *all* fixtures?
+    def test_unfolding_by_factor_0_raises(self, sfg_simple_filter: SFG):
         with pytest.raises(ValueError):
             sfg_simple_filter.unfold(0)
+
+    # TODO: Add more tests
