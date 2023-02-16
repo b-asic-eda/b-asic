@@ -1,6 +1,5 @@
 # TODO's:
 # * Solve the legend update. That isn't working at all.
-# * Change labels "All" and "None" into buttons.
 # * Make it work with the main_window
 
 import re
@@ -15,13 +14,12 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QKeySequence
 
 # Intereme imports for the Plot class:
-from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,
+from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,; QLabel,
     QApplication,
     QCheckBox,
     QDialog,
     QFileDialog,
     QHBoxLayout,
-    QLabel,
     QListWidget,
     QListWidgetItem,
     QPushButton,
@@ -38,7 +36,7 @@ class PlotCanvas(FigureCanvas):
         super().__init__(fig)
         self.axes = fig.add_subplot(111)
         self.axes.xaxis.set_major_locator(MaxNLocator(integer=True))
-        self.legend = self.axes.legend()
+        self.legend = None
         self.logger = logger
 
         FigureCanvas.updateGeometry(self)
@@ -76,7 +74,13 @@ class PlotWindow(QDialog):
     ):
         super().__init__()
         self._window = window
-        self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        self.setWindowFlags(
+            Qt.WindowTitleHint
+            | Qt.WindowCloseButtonHint
+            | Qt.WindowMinimizeButtonHint
+            | Qt.WindowMaximizeButtonHint
+            | Qt.WindowStaysOnTopHint
+        )
         self.setWindowTitle("Simulation result")
         self.sim_result = sim_result
         self._auto_redraw = False
@@ -124,17 +128,18 @@ class PlotWindow(QDialog):
                 sim_result[key], visible=False, label=key
             )
             self._lines[key] = line
+        self.plotcanvas.legend = self.plotcanvas.axes.legend()
 
         ########### List layout: ##############
 
-        # Add two labels for selecting all/none:
+        # Add two buttons for selecting all/none:
         hlayout = QHBoxLayout()
-        labelAll = QLabel("All")
-        labelAll.mousePressEvent = self._label_all_click
-        labelNone = QLabel("None")
-        labelNone.mousePressEvent = self._label_none_click
-        hlayout.addWidget(labelAll)
-        hlayout.addWidget(labelNone)
+        button_all = QPushButton("&All")
+        button_all.clicked.connect(self._button_all_click)
+        hlayout.addWidget(button_all)
+        button_none = QPushButton("&None")
+        button_none.clicked.connect(self._button_none_click)
+        hlayout.addWidget(button_none)
         listlayout.addLayout(hlayout)
 
         # Add the entire list
@@ -155,11 +160,15 @@ class PlotWindow(QDialog):
         self.checklist.setFixedWidth(150)
         listlayout.addWidget(self.checklist)
 
-        # Add a "legend" checkbox, connected to the plot.
+        # Add additional checkboxes
         self.legend_checkbox = QCheckBox("&Legend")
         self.legend_checkbox.stateChanged.connect(self._legend_checkbox_change)
         self.legend_checkbox.setCheckState(Qt.CheckState.Checked)
         listlayout.addWidget(self.legend_checkbox)
+        # self.ontop_checkbox = QCheckBox("&On top")
+        # self.ontop_checkbox.stateChanged.connect(self._ontop_checkbox_change)
+        # self.ontop_checkbox.setCheckState(Qt.CheckState.Unchecked)
+        # listlayout.addWidget(self.ontop_checkbox)
 
         # Add "Close" buttons
         buttonClose = QPushButton("&Close", self)
@@ -178,19 +187,27 @@ class PlotWindow(QDialog):
             if checkState == Qt.CheckState.Checked:
                 self.plotcanvas.legend = self.plotcanvas.axes.legend()
             self.plotcanvas.draw()
-            # self.plotcanvas.legend
-        # if checkState == Qt.CheckState.Checked:
-        #    print('legend on')
-        # else:
-        #    print('legend off')
 
-    def _label_all_click(self, event):
+    # def _ontop_checkbox_change(self, checkState):
+    # Bugg: It seems the window closes if you change the WindowStaysOnTopHint.
+    # (Nothing happens if "changing" from False to False or True to True)
+    # self.setWindowFlag(Qt.WindowStaysOnTopHint, on = (checkState == Qt.CheckState.Checked))
+    # self.setWindowFlag(Qt.WindowStaysOnTopHint, on = True)
+    # print("_ontop_checkbox_change")
+
+    def _button_all_click(self, event):
+        self._auto_redraw = False
         for x in range(self.checklist.count()):
             self.checklist.item(x).setCheckState(Qt.CheckState.Checked)
+        self._auto_redraw = True
+        self.plotcanvas.draw()
 
-    def _label_none_click(self, event):
+    def _button_none_click(self, event):
+        self._auto_redraw = False
         for x in range(self.checklist.count()):
             self.checklist.item(x).setCheckState(Qt.CheckState.Unchecked)
+        self._auto_redraw = True
+        self.plotcanvas.draw()
 
     def _item_change(self, listitem):
         key = listitem.text()
@@ -201,8 +218,6 @@ class PlotWindow(QDialog):
             if self.legend_checkbox.checkState == Qt.CheckState.Checked:
                 self.plotcanvas.legend = self.plotcanvas.axes.legend()
             self.plotcanvas.draw()
-        # print(f"lines[{key}].set(visible={listitem.checkState() == Qt.CheckState.Checked}). autodraw={self._auto_redraw}")
-        # print("Arg:", listitem)
 
 
 # Simple test of the dialog
