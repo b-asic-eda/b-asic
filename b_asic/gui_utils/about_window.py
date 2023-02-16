@@ -18,6 +18,8 @@ from b_asic._version import __version__
 
 
 class AboutWindow(QDialog):
+    """About window."""
+
     def __init__(self, window):
         super().__init__()
         self._window = window
@@ -27,16 +29,16 @@ class AboutWindow(QDialog):
         self.dialog_layout = QVBoxLayout()
         self.setLayout(self.dialog_layout)
 
-        self.add_information_to_layout()
+        self._add_information_to_layout()
 
-    def hoverText(self, url):
+    def _hover_text(self, url):
         # self.setWindowTitle(url) # When removing mouse, the title gets "B-ASIC Scheduler". Where does THAT come from?
         if url:
             QToolTip.showText(QCursor.pos(), url)
         else:
             QToolTip.hideText()
 
-    def add_information_to_layout(self):
+    def _add_information_to_layout(self):
         # |1 Title   |2        |
         # |  License |  Logo   |  <- layout12
         # |  Version |         |
@@ -60,7 +62,7 @@ class AboutWindow(QDialog):
         label1.setTextFormat(Qt.MarkdownText)
         label1.setWordWrap(True)
         label1.setOpenExternalLinks(True)
-        label1.linkHovered.connect(self.hoverText)
+        label1.linkHovered.connect(self._hover_text)
 
         self.logo2 = QLabel(self)
         self.logo2.setPixmap(
@@ -77,7 +79,7 @@ class AboutWindow(QDialog):
             """ <a href="https://gitlab.liu.se/da/B-ASIC/-/issues">report issues and suggestions</a>."""
         )
         label3.setOpenExternalLinks(True)
-        label3.linkHovered.connect(self.hoverText)
+        label3.linkHovered.connect(self._hover_text)
 
         button4 = QPushButton()
         button4.setText("OK")
@@ -105,7 +107,8 @@ class AboutWindow(QDialog):
 # ONLY FOR DEBUG below
 
 
-def start_about_window():
+def show_about_window():
+    """Simply show the about window."""
     app = QApplication(sys.argv)
     window = AboutWindow(QDialog)
     window.show()
@@ -113,4 +116,4 @@ def start_about_window():
 
 
 if __name__ == "__main__":
-    start_about_window()
+    show_about_window()
