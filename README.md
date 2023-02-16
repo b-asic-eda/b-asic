@@ -24,6 +24,7 @@ The following packages are required in order to build the library:
     -   [NumPy](https://numpy.org/)
     -   [QtPy](https://github.com/spyder-ide/qtpy)
     -   [setuptools_scm](https://github.com/pypa/setuptools_scm/)
+    -   [NetworkX](https://networkx.org/)
 -   Qt 5 or 6, with Python bindings, one of:
     - pyside2
     - pyqt5

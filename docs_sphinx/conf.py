@@ -39,6 +39,7 @@ intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
     'PyQt5': ("https://www.riverbankcomputing.com/static/Docs/PyQt5", None),
+    'networkx': ('https://networkx.org/documentation/stable', None),
 }
 
 numpydoc_show_class_members = False

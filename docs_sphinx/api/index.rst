@@ -10,6 +10,7 @@ API
     operation.rst
     port.rst
     process.rst
+    resources.rst
     schedule.rst
     sfg_generators.rst
     signal.rst

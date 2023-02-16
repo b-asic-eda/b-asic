@@ -2,7 +2,7 @@
 B-ASIC classes representing resource usage.
 """
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -130,10 +130,14 @@ class PlainMemoryVariable(Process):
         write_time: int,
         write_port: int,
         reads: Dict[int, int],
+        name: Optional[str] = None,
     ):
         self._read_ports = tuple(reads.keys())
         self._life_times = tuple(reads.values())
         self._write_port = write_port
+        if name is None:
+            self._name = str(PlainMemoryVariable._name_cnt)
+            PlainMemoryVariable._name_cnt += 1
         super().__init__(
             start_time=write_time, execution_time=max(self._life_times)
         )
@@ -149,3 +153,13 @@ class PlainMemoryVariable(Process):
     @property
     def write_port(self) -> int:
         return self._write_port
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def __str__(self) -> str:
+        return self._name
+
+    # Static counter for default names
+    _name_cnt = 0

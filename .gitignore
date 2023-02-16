@@ -115,3 +115,4 @@ TODO.txt
 *.log
 b_asic/_version.py
 docs_sphinx/_build/
+docs_sphinx/examples
