@@ -76,6 +76,18 @@ GUI.show\_pc\_window module
    :undoc-members:
    :show-inheritance:
 
+GUI.signal\_generator\_input module
+-----------------------------------
+
+.. inheritance-diagram:: b_asic.GUI.signal_generator_input
+   :parts: 1
+   :top-classes: b_asic.GUI.signal_generator_input.SignalGeneratorInput
+
+.. automodule:: b_asic.GUI.signal_generator_input
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 GUI.simulate\_sfg\_window module
 --------------------------------
 

@@ -2,9 +2,7 @@
 B-ASIC window to simulate an SFG.
 """
 import numpy as np
-from matplotlib.backends.backend_qt5agg import (
-    FigureCanvasQTAgg as FigureCanvas,
-)
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QKeySequence
@@ -26,7 +24,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
 )
 
-from b_asic.signal_generator import Impulse, Step, ZeroPad
+from b_asic.GUI.signal_generator_input import _GENERATOR_MAPPING
 
 
 class SimulateSFGWindow(QDialog):
@@ -58,12 +56,15 @@ class SimulateSFGWindow(QDialog):
 
         spin_box = QSpinBox()
         spin_box.setRange(0, 2147483647)
+        spin_box.setValue(100)
         options_layout.addRow("Iteration count: ", spin_box)
 
         check_box_plot = QCheckBox()
+        check_box_plot.setCheckState(Qt.CheckState.Checked)
         options_layout.addRow("Plot results: ", check_box_plot)
 
         check_box_all = QCheckBox()
+        check_box_all.setCheckState(Qt.CheckState.Checked)
         options_layout.addRow("Get all results: ", check_box_all)
 
         sfg_layout.addLayout(options_layout)
@@ -89,14 +90,12 @@ class SimulateSFGWindow(QDialog):
 
                 input_dropdown = QComboBox()
                 input_dropdown.insertItems(
-                    0, ["Impulse", "Step", "Input", "File"]
+                    0, list(_GENERATOR_MAPPING.keys()) + ["File"]
                 )
                 input_dropdown.currentTextChanged.connect(
                     lambda text, i=i: self.change_input_format(i, text)
                 )
-                self.input_grid.addWidget(
-                    input_dropdown, i, 1, alignment=Qt.AlignLeft
-                )
+                self.input_grid.addWidget(input_dropdown, i, 1, alignment=Qt.AlignLeft)
 
                 self.change_input_format(i, "Impulse")
 
@@ -124,27 +123,8 @@ class SimulateSFGWindow(QDialog):
 
         param_grid = QGridLayout()
 
-        if text == "Impulse":
-            delay_label = QLabel("Delay")
-            param_grid.addWidget(delay_label, 0, 0)
-            delay_spin_box = QSpinBox()
-            delay_spin_box.setRange(0, 2147483647)
-            param_grid.addWidget(delay_spin_box, 0, 1)
-        elif text == "Step":
-            delay_label = QLabel("Delay")
-            param_grid.addWidget(delay_label, 0, 0)
-            delay_spin_box = QSpinBox()
-            delay_spin_box.setRange(0, 2147483647)
-            param_grid.addWidget(delay_spin_box, 0, 1)
-        elif text == "Input":
-            input_label = QLabel("Input")
-            param_grid.addWidget(input_label, 0, 0)
-            input_sequence = QLineEdit()
-            param_grid.addWidget(input_sequence, 0, 1)
-            zpad_label = QLabel("Zpad")
-            param_grid.addWidget(zpad_label, 1, 0)
-            zpad_button = QCheckBox()
-            param_grid.addWidget(zpad_button, 1, 1)
+        if text in _GENERATOR_MAPPING:
+            param_grid = _GENERATOR_MAPPING[text](self._window.logger)
         elif text == "File":
             file_label = QLabel("Browse")
             param_grid.addWidget(file_label, 0, 0)
@@ -177,9 +157,7 @@ class SimulateSFGWindow(QDialog):
 
                     _list_values.append(complex(val))
                 except ValueError:
-                    self._window.logger.warning(
-                        f"Skipping value: {val}, not a digit."
-                    )
+                    self._window.logger.warning(f"Skipping value: {val}, not a digit.")
                     continue
 
             _input_values.append(_list_values)
@@ -192,89 +170,40 @@ class SimulateSFGWindow(QDialog):
             if ic_value == 0:
                 self._window.logger.error("Iteration count is set to zero.")
 
-            tmp = []
+            input_values = []
 
             for i in range(self.input_grid.rowCount()):
-                in_format = (
-                    self.input_grid.itemAtPosition(i, 1).widget().currentText()
-                )
+                in_format = self.input_grid.itemAtPosition(i, 1).widget().currentText()
                 in_param = self.input_grid.itemAtPosition(i, 2)
 
-                tmp2 = []
-
-                if in_format == "Impulse":
-                    g = Impulse(in_param.itemAtPosition(0, 1).widget().value())
-                    for j in range(ic_value):
-                        tmp2.append(str(g(j)))
-
-                elif in_format == "Step":
-                    g = Step(in_param.itemAtPosition(0, 1).widget().value())
-                    for j in range(ic_value):
-                        tmp2.append(str(g(j)))
-
-                elif in_format == "Input":
-                    widget = in_param.itemAtPosition(0, 1).widget()
-                    tmp3 = widget.text().split(",")
-                    if in_param.itemAtPosition(1, 1).widget().isChecked():
-                        g = ZeroPad(tmp3)
-                        for j in range(ic_value):
-                            tmp2.append(str(g(j)))
-                    else:
-                        tmp2 = tmp3
-
+                if in_format in _GENERATOR_MAPPING:
+                    tmp2 = in_param.get_generator()
                 elif in_format == "File":
                     widget = in_param.itemAtPosition(0, 1).widget()
                     path = widget.text()
                     try:
-                        tmp2 = np.loadtxt(path, dtype=str).tolist()
-                    except FileNotFoundError:
-                        self._window.logger.error(
-                            f"Selected input file not found."
+                        tmp2 = self.parse_input_values(
+                            np.loadtxt(path, dtype=str).tolist()
                         )
+                    except FileNotFoundError:
+                        self._window.logger.error(f"Selected input file not found.")
                         continue
                 else:
                     raise Exception("Input selection is not implemented")
 
-                tmp.append(tmp2)
+                input_values.append(tmp2)
 
-            input_values = self.parse_input_values(tmp)
+            self.properties[sfg] = {
+                "iteration_count": ic_value,
+                "show_plot": self.input_fields[sfg]["show_plot"].isChecked(),
+                "all_results": self.input_fields[sfg]["all_results"].isChecked(),
+                "input_values": input_values,
+            }
 
-            max_len = max(len(list_) for list_ in input_values)
-            min_len = min(len(list_) for list_ in input_values)
-
-            if max_len != min_len:
-                self._window.logger.error(
-                    "Minimum length of input lists are not equal to maximum "
-                    f"length of input lists: {max_len} != {min_len}."
-                )
-            elif ic_value > min_len:
-                self._window.logger.error(
-                    "Minimum length of input lists are less than the "
-                    f"iteration count: {ic_value} > {min_len}."
-                )
-            else:
-                self.properties[sfg] = {
-                    "iteration_count": ic_value,
-                    "show_plot": self.input_fields[sfg][
-                        "show_plot"
-                    ].isChecked(),
-                    "all_results": self.input_fields[sfg][
-                        "all_results"
-                    ].isChecked(),
-                    "input_values": input_values,
-                }
-
-                # If we plot we should also print the entire data,
-                # since you cannot really interact with the graph.
-                if self.properties[sfg]["show_plot"]:
-                    self.properties[sfg]["all_results"] = True
-
-                continue
-
-            self._window.logger.info(
-                f"Skipping simulation of SFG with name: {sfg.name}, "
-                "due to previous errors."
-            )
+            # If we plot we should also print the entire data,
+            # since you cannot really interact with the graph.
+            if self.properties[sfg]["show_plot"]:
+                self.properties[sfg]["all_results"] = True
 
         self.accept()
         self.simulate.emit()
@@ -296,9 +225,7 @@ class Plot(FigureCanvas):
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
 
-        FigureCanvas.setSizePolicy(
-            self, QSizePolicy.Expanding, QSizePolicy.Expanding
-        )
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.save_figure = QShortcut(QKeySequence("Ctrl+S"), self)
         self.save_figure.activated.connect(self._save_plot_figure)
@@ -307,18 +234,14 @@ class Plot(FigureCanvas):
     def _save_plot_figure(self):
         self._window.logger.info(f"Saving plot of figure: {self.sfg.name}.")
         file_choices = "PNG (*.png)|*.png"
-        path, ext = QFileDialog.getSaveFileName(
-            self, "Save file", "", file_choices
-        )
+        path, ext = QFileDialog.getSaveFileName(self, "Save file", "", file_choices)
         path = path.encode("utf-8")
         if not path[-4:] == file_choices[-4:].encode("utf-8"):
             path += file_choices[-4:].encode("utf-8")
 
         if path:
             self.print_figure(path.decode(), dpi=self.dpi)
-            self._window.logger.info(
-                f"Saved plot: {self.sfg.name} to path: {path}."
-            )
+            self._window.logger.info(f"Saved plot: {self.sfg.name} to path: {path}.")
 
     def _plot_values_sfg(self):
         x_axis = list(range(len(self.simulation.results["0"])))
