@@ -6,7 +6,11 @@ import networkx as nx
 from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
 
+from b_asic._preferences import LATENCY_COLOR
 from b_asic.process import Process
+
+# Default latency coloring RGB tuple
+_LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
 
 #
 # Human-intuitive sorting:
@@ -129,6 +133,11 @@ class ProcessCollection:
         self,
         ax: Optional[Axes] = None,
         show_name: bool = True,
+        bar_color: Union[str, Tuple[float, ...]] = _LATENCY_COLOR,
+        marker_color: Union[str, Tuple[float, ...]] = "black",
+        marker_read: str = "X",
+        marker_write: str = "o",
+        show_markers: bool = True,
     ):
         """
         Use matplotlib.pyplot to generate a process variable lifetime chart from this process collection.
@@ -140,6 +149,16 @@ class ProcessCollection:
             this method will return a new axes object on return.
         show_name : bool, default: True
             Show name of all processes in the lifetime chart.
+        bar_color : color, optional
+            Bar color in lifetime chart.
+        marker_color : color, default 'black'
+            Color for read and write marker.
+        marker_write : str, default 'x'
+            Marker at write time in the lifetime chart.
+        marker_read : str, default 'o'
+            Marker at read time in the lifetime chart.
+        show_markers : bool, default True
+            Show markers at read and write times.
 
         Returns
         -------
@@ -170,39 +189,42 @@ class ProcessCollection:
             bar_end = (
                 process.start_time + process.execution_time
             ) % self._schedule_time
-            if process.execution_time == 0:
-                # Process has no execution time, draw a tick
-                _ax.scatter(x=bar_start, y=i + 1, marker='X', color='blue')
-            elif bar_end > bar_start:
+            bar_end = self._schedule_time if bar_end == 0 else bar_end
+            if show_markers:
+                _ax.scatter(
+                    x=bar_start,
+                    y=i + 1,
+                    marker=marker_write,
+                    color=marker_color,
+                    zorder=10,
+                )
+                _ax.scatter(
+                    x=bar_end,
+                    y=i + 1,
+                    marker=marker_read,
+                    color=marker_color,
+                    zorder=10,
+                )
+            if bar_end >= bar_start:
                 _ax.broken_barh(
                     [(PAD_L + bar_start, bar_end - bar_start - PAD_L - PAD_R)],
                     (i + 0.55, 0.9),
+                    color=bar_color,
                 )
             else:  # bar_end < bar_start
-                if bar_end != 0:
-                    _ax.broken_barh(
-                        [
-                            (
-                                PAD_L + bar_start,
-                                self._schedule_time - bar_start - PAD_L,
-                            )
-                        ],
-                        (i + 0.55, 0.9),
-                    )
-                    _ax.broken_barh([(0, bar_end - PAD_R)], (i + 0.55, 0.9))
-                else:
-                    _ax.broken_barh(
-                        [
-                            (
-                                PAD_L + bar_start,
-                                self._schedule_time
-                                - bar_start
-                                - PAD_L
-                                - PAD_R,
-                            )
-                        ],
-                        (i + 0.55, 0.9),
-                    )
+                _ax.broken_barh(
+                    [
+                        (
+                            PAD_L + bar_start,
+                            self._schedule_time - bar_start - PAD_L,
+                        )
+                    ],
+                    (i + 0.55, 0.9),
+                    color=bar_color,
+                )
+                _ax.broken_barh(
+                    [(0, bar_end - PAD_R)], (i + 0.55, 0.9), color=bar_color
+                )
             if show_name:
                 _ax.annotate(
                     str(process),

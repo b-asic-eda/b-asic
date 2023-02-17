@@ -13,7 +13,7 @@ class TestProcessCollectionPlainMemoryVariable:
     @pytest.mark.mpl_image_compare(style='mpl20')
     def test_draw_process_collection(self, simple_collection):
         fig, ax = plt.subplots()
-        simple_collection.draw_lifetime_chart(ax=ax)
+        simple_collection.draw_lifetime_chart(ax=ax, show_markers=False)
         return fig
 
     def test_draw_proces_collection(self, simple_collection):
