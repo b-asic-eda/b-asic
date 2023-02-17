@@ -1,6 +1,6 @@
 # TODO's:
 # * Solve the legend update. That isn't working at all.
-# * Make it work with the main_window
+# * Zoom etc. Might need to change FigureCanvas. Or just something very little.
 
 import re
 import sys
