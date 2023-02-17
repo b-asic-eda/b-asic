@@ -39,19 +39,7 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_generate_random_interleaver(self):
         for _ in range(10):
             for size in range(5, 20, 5):
-                assert (
-                    len(
-                        generate_random_interleaver(size).split_ports(
-                            read_ports=1, write_ports=1
-                        )
-                    )
-                    == 1
-                )
-                assert (
-                    len(
-                        generate_random_interleaver(size).split_ports(
-                            total_ports=1
-                        )
-                    )
-                    == 2
-                )
+                collection = generate_random_interleaver(size)
+                assert len(collection.split_ports(read_ports=1, write_ports=1)) == 1
+                if any(var.execution_time for var in collection.collection):
+                    assert len(collection.split_ports(total_ports=1)) == 2
