@@ -1,3 +1,4 @@
+import io
 import re
 from typing import Dict, Iterable, List, Optional, Set, Tuple, TypeVar, Union
 
@@ -390,3 +391,15 @@ class ProcessCollection:
             )
             for process_collection_set in process_collection_set_list
         }
+
+    def _repr_svg_(self) -> str:
+        """
+        Generate an SVG_ of the resource collection. This is automatically displayed in e.g.
+        Jupyter Qt console.
+        """
+        fig, ax = plt.subplots()
+        self.draw_lifetime_chart(ax, show_markers=False)
+        f = io.StringIO()
+        fig.savefig(f, format="svg")
+
+        return f.getvalue()

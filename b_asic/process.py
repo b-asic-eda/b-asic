@@ -58,6 +58,11 @@ class Process:
     def __str__(self) -> str:
         return self._name
 
+    def __repr__(self) -> str:
+        return (
+            f"Process({self.start_time}, {self.execution_time}, {self.name})"
+        )
+
     # Static counter for default names
     _name_cnt = 0
 
@@ -142,6 +147,13 @@ class MemoryVariable(Process):
     def write_port(self) -> OutputPort:
         return self._write_port
 
+    def __repr__(self) -> str:
+        reads = {k: v for k, v in zip(self._read_ports, self._life_times)}
+        return (
+            f"MemoryVariable({self.start_time}, {self.write_port},"
+            f" {reads!r}, {self.name!r})"
+        )
+
 
 class PlainMemoryVariable(Process):
     """
@@ -189,3 +201,10 @@ class PlainMemoryVariable(Process):
     @property
     def write_port(self) -> int:
         return self._write_port
+
+    def __repr__(self) -> str:
+        reads = {k: v for k, v in zip(self._read_ports, self._life_times)}
+        return (
+            f"PlainMemoryVariable({self.start_time}, {self.write_port},"
+            f" {reads!r}, {self.name!r})"
+        )

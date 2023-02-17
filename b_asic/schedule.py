@@ -32,6 +32,7 @@ from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, Process
+from b_asic.resources import ProcessCollection
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Output
 
@@ -583,8 +584,8 @@ class Schedule:
                 ] + cast(int, source_port.latency_offset)
         self._remove_delays()
 
-    def _get_memory_variables_list(self) -> List['Process']:
-        ret: List['Process'] = []
+    def _get_memory_variables_list(self) -> List['MemoryVariable']:
+        ret: List['MemoryVariable'] = []
         for graph_id, start_time in self._start_times.items():
             slacks = self._forward_slacks(graph_id)
             for outport, signals in slacks.items():
@@ -597,9 +598,24 @@ class Schedule:
                         start_time + cast(int, outport.latency_offset),
                         outport,
                         reads,
+                        outport.operation.graph_id,
                     )
                 )
         return ret
+
+    def get_memory_variables(self) -> ProcessCollection:
+        """
+        Return a :class:`~b_asic.resources.ProcessCollection` containing all
+        memory variables.
+
+        Returns
+        -------
+        ProcessCollection
+
+        """
+        return ProcessCollection(
+            set(self._get_memory_variables_list()), self.schedule_time
+        )
 
     def _get_y_position(
         self, graph_id, operation_height=1.0, operation_gap=None
