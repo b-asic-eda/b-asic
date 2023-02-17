@@ -35,6 +35,15 @@ class Simulation:
 
     Use FastSimulation (from the C++ extension module) for a more effective
     simulation when running many iterations.
+
+    Parameters
+    ----------
+    sfg : SFG
+        The signal flow graph to simulate.
+    input_providers : list, optional
+        Input values, one list item per input. Each list item can be an array of values,
+        a callable taking a time index and returning the value, or a
+        number (constant input). If a value is not provided for an input, it will be 0.
     """
 
     _sfg: SFG
@@ -50,23 +59,28 @@ class Simulation:
         input_providers: Optional[Sequence[Optional[InputProvider]]] = None,
     ):
         """Construct a Simulation of an SFG."""
-        self._sfg = (
-            sfg()
-        )  # Copy the SFG to make sure it's not modified from the outside.
+        # Copy the SFG to make sure it's not modified from the outside.
+        self._sfg = sfg()
         self._results = defaultdict(list)
         self._delays = {}
         self._iteration = 0
-        self._input_functions = [
-            lambda _: 0 for _ in range(self._sfg.input_count)
-        ]
+        self._input_functions = [lambda _: 0 for _ in range(self._sfg.input_count)]
         self._input_length = None
         if input_providers is not None:
             self.set_inputs(input_providers)
 
     def set_input(self, index: int, input_provider: InputProvider) -> None:
         """
-        Set the input function used to get values for the specific input at the
+        Set the input used to get values for the specific input at the
         given index to the internal SFG.
+
+        Parameters
+        ----------
+        index : int
+            The input index.
+        input_provider : list, callable, or number
+            Can be an array of values, a callable taking a time index and returning the value, or a
+            number (constant input).
         """
         if index < 0 or index >= len(self._input_functions):
             raise IndexError(
@@ -87,9 +101,7 @@ class Simulation:
                 )
             self._input_functions[index] = lambda n: input_provider[n]
 
-    def set_inputs(
-        self, input_providers: Sequence[Optional[InputProvider]]
-    ) -> None:
+    def set_inputs(self, input_providers: Sequence[Optional[InputProvider]]) -> None:
         """
         Set the input functions used to get values for the inputs to the internal SFG.
         """
@@ -172,9 +184,7 @@ class Simulation:
         """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")
-        return self.run_until(
-            self._input_length, save_results, bits_override, truncate
-        )
+        return self.run_until(self._input_length, save_results, bits_override, truncate)
 
     @property
     def iteration(self) -> int:
