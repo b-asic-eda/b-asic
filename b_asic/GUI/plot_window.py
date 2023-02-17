@@ -64,16 +64,16 @@ class PlotWindow(QDialog):
     def __init__(
         self,
         sim_result,
-        sfg_name="{sfg_name}",
-        window=None,
+        # sfg_name="{sfg_name}",
+        # window=None,
         logger=print,
         parent=None,
-        width=5,
-        height=4,
-        dpi=100,
+        # width=5,
+        # height=4,
+        # dpi=100,
     ):
-        super().__init__()
-        self._window = window
+        super().__init__(parent=parent)
+        # self._window = window
         self.setWindowFlags(
             Qt.WindowTitleHint
             | Qt.WindowCloseButtonHint
@@ -233,7 +233,8 @@ if __name__ == "__main__":
         't1': [0, 1, 0, 0],
     }
     win = PlotWindow(
-        window=None, sim_result=sim_res, sfg_name="hej", logger=print
+        # window=None, sim_result=sim_res, sfg_name="hej", logger=print
+        sim_result=sim_res,
     )
     win.exec_()
     # win.show()
