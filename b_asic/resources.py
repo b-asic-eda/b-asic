@@ -187,10 +187,12 @@ class ProcessCollection:
         # Generate the life-time chart
         for i, process in enumerate(_sorted_nicely(self._collection)):
             bar_start = process.start_time % self._schedule_time
+            bar_end = process.start_time + process.execution_time
             bar_end = (
-                process.start_time + process.execution_time
-            ) % self._schedule_time
-            bar_end = self._schedule_time if bar_end == 0 else bar_end
+                bar_end
+                if bar_end == self._schedule_time
+                else bar_end % self._schedule_time
+            )
             if show_markers:
                 _ax.scatter(
                     x=bar_start,
@@ -240,16 +242,84 @@ class ProcessCollection:
         _ax.set_ylim(0.25, len(self._collection) + 0.75)
         return _ax
 
-    def create_exclusion_graph_from_overlap(
-        self, add_name: bool = True
+    def create_exclusion_graph_from_ports(
+        self,
+        read_ports: Optional[int] = None,
+        write_ports: Optional[int] = None,
+        total_ports: Optional[int] = None,
     ) -> nx.Graph:
         """
-        Generate exclusion graph based on processes overlapping in time
+        Create an exclusion graph from a ProcessCollection based on a number of read/write ports
 
         Parameters
         ----------
-        add_name : bool, default: True
-            Add name of all processes as a node attribute in the exclusion graph.
+        read_ports : int
+            The number of read ports used when splitting process collection based on memory variable access.
+        write_ports : int
+            The number of write ports used when splitting process collection based on memory variable access.
+        total_ports : int
+            The total number of ports used when splitting process collection based on memory variable access.
+
+        Returns
+        -------
+        nx.Graph
+
+        """
+        if total_ports is None:
+            if read_ports is None or write_ports is None:
+                raise ValueError(
+                    "If total_ports is unset, both read_ports and write_ports"
+                    " must be provided."
+                )
+            else:
+                total_ports = read_ports + write_ports
+        else:
+            read_ports = total_ports if read_ports is None else read_ports
+            write_ports = total_ports if write_ports is None else write_ports
+
+        # Guard for proper read/write port settings
+        if read_ports != 1 or write_ports != 1:
+            raise ValueError(
+                "Splitting with read and write ports not equal to one with the"
+                " graph coloring heuristic does not make sense."
+            )
+        if total_ports not in (1, 2):
+            raise ValueError(
+                "Total ports should be either 1 (non-concurrent reads/writes)"
+                " or 2 (concurrent read/writes) for graph coloring heuristic."
+            )
+
+        # Create new exclusion graph. Nodes are Processes
+        exclusion_graph = nx.Graph()
+        exclusion_graph.add_nodes_from(self._collection)
+        for node1 in exclusion_graph:
+            for node2 in exclusion_graph:
+                if node1 == node2:
+                    continue
+                else:
+                    node1_stop_time = node1.start_time + node1.execution_time
+                    node2_stop_time = node2.start_time + node2.execution_time
+                    if total_ports == 1:
+                        # Single-port assignment
+                        if node1.start_time == node2.start_time:
+                            exclusion_graph.add_edge(node1, node2)
+                        elif node1_stop_time == node2_stop_time:
+                            exclusion_graph.add_edge(node1, node2)
+                        elif node1.start_time == node2_stop_time:
+                            exclusion_graph.add_edge(node1, node2)
+                        elif node1_stop_time == node2.start_time:
+                            exclusion_graph.add_edge(node1, node2)
+                    else:
+                        # Dual-port assignment
+                        if node1.start_time == node2.start_time:
+                            exclusion_graph.add_edge(node1, node2)
+                        elif node1_stop_time == node2_stop_time:
+                            exclusion_graph.add_edge(node1, node2)
+        return exclusion_graph
+
+    def create_exclusion_graph_from_execution_time(self) -> nx.Graph:
+        """
+        Generate exclusion graph based on processes overlapping in time
 
         Returns
         -------
@@ -279,7 +349,47 @@ class ProcessCollection:
                         exclusion_graph.add_edge(process1, process2)
         return exclusion_graph
 
-    def split(
+    def split_execution_time(
+        self, heuristic: str = "graph_color", coloring_strategy: str = "DSATUR"
+    ) -> Set["ProcessCollection"]:
+        """
+        Split a ProcessCollection based on overlapping execution time.
+
+        Parameters
+        ----------
+        heuristic : str, default: 'graph_color'
+            The heuristic used when splitting based on execution times.
+            One of: 'graph_color', 'left_edge'.
+        coloring_strategy: str, default: 'DSATUR'
+            Node ordering strategy passed to nx.coloring.greedy_color() if the heuristic is set to 'graph_color'. This
+            parameter is only considered if heuristic is set to graph_color.
+            One of
+               * `'largest_first'`
+               * `'random_sequential'`
+               * `'smallest_last'`
+               * `'independent_set'`
+               * `'connected_sequential_bfs'`
+               * `'connected_sequential_dfs'`
+               * `'connected_sequential'` (alias for the previous strategy)
+               * `'saturation_largest_first'`
+               * `'DSATUR'` (alias for the saturation_largest_first strategy)
+
+        Returns
+        -------
+        A set of new ProcessCollection objects with the process splitting.
+        """
+        if heuristic == "graph_color":
+            exclusion_graph = self.create_exclusion_graph_from_execution_time()
+            coloring = nx.coloring.greedy_color(
+                exclusion_graph, strategy=coloring_strategy
+            )
+            return self._split_from_graph_coloring(coloring)
+        elif heuristic == "left_edge":
+            raise NotImplementedError()
+        else:
+            raise ValueError(f"Invalid heuristic '{heuristic}'")
+
+    def split_ports(
         self,
         heuristic: str = "graph_color",
         read_ports: Optional[int] = None,
@@ -309,77 +419,79 @@ class ProcessCollection:
         """
         if total_ports is None:
             if read_ports is None or write_ports is None:
-                raise ValueError("inteligent quote")
+                raise ValueError(
+                    "If total_ports is unset, both read_ports and write_ports"
+                    " must be provided."
+                )
             else:
                 total_ports = read_ports + write_ports
         else:
             read_ports = total_ports if read_ports is None else read_ports
             write_ports = total_ports if write_ports is None else write_ports
-
         if heuristic == "graph_color":
-            return self._split_graph_color(
+            return self._split_ports_graph_color(
                 read_ports, write_ports, total_ports
             )
         else:
-            raise ValueError("Invalid heuristic provided")
+            raise ValueError("Invalid heuristic provided.")
 
-    def _split_graph_color(
-        self, read_ports: int, write_ports: int, total_ports: int
+    def _split_ports_graph_color(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        coloring_strategy: str = "DSATUR",
     ) -> Set["ProcessCollection"]:
         """
         Parameters
         ----------
-        read_ports : int, optional
+        read_ports : int
             The number of read ports used when splitting process collection based on memory variable access.
-        write_ports : int, optional
+        write_ports : int
             The number of write ports used when splitting process collection based on memory variable access.
-        total_ports : int, optional
+        total_ports : int
             The total number of ports used when splitting process collection based on memory variable access.
+        coloring_strategy: str, default: 'DSATUR'
+            Node ordering strategy passed to nx.coloring.greedy_color()
+            One of
+               * `'largest_first'`
+               * `'random_sequential'`
+               * `'smallest_last'`
+               * `'independent_set'`
+               * `'connected_sequential_bfs'`
+               * `'connected_sequential_dfs'`
+               * `'connected_sequential'` (alias for the previous strategy)
+               * `'saturation_largest_first'`
+               * `'DSATUR'` (alias for the saturation_largest_first strategy)
         """
-        if read_ports != 1 or write_ports != 1:
-            raise ValueError(
-                "Splitting with read and write ports not equal to one with the"
-                " graph coloring heuristic does not make sense."
-            )
-        if total_ports not in (1, 2):
-            raise ValueError(
-                "Total ports should be either 1 (non-concurrent reads/writes)"
-                " or 2 (concurrent read/writes) for graph coloring heuristic."
-            )
-
         # Create new exclusion graph. Nodes are Processes
-        exclusion_graph = nx.Graph()
-        exclusion_graph.add_nodes_from(self._collection)
+        exclusion_graph = self.create_exclusion_graph_from_ports(
+            read_ports, write_ports, total_ports
+        )
 
-        # Add exclusions (arcs) between processes in the exclusion graph
-        for node1 in exclusion_graph:
-            for node2 in exclusion_graph:
-                if node1 == node2:
-                    continue
-                else:
-                    node1_stop_time = node1.start_time + node1.execution_time
-                    node2_stop_time = node2.start_time + node2.execution_time
-                    if total_ports == 1:
-                        # Single-port assignment
-                        if node1.start_time == node2.start_time:
-                            exclusion_graph.add_edge(node1, node2)
-                        elif node1_stop_time == node2_stop_time:
-                            exclusion_graph.add_edge(node1, node2)
-                        elif node1.start_time == node2_stop_time:
-                            exclusion_graph.add_edge(node1, node2)
-                        elif node1_stop_time == node2.start_time:
-                            exclusion_graph.add_edge(node1, node2)
-                    else:
-                        # Dual-port assignment
-                        if node1.start_time == node2.start_time:
-                            exclusion_graph.add_edge(node1, node2)
-                        elif node1_stop_time == node2_stop_time:
-                            exclusion_graph.add_edge(node1, node2)
+        # Perform assignment from coloring and return result
+        coloring = nx.coloring.greedy_color(
+            exclusion_graph, strategy=coloring_strategy
+        )
+        return self._split_from_graph_coloring(coloring)
 
-        # Perform assignment
-        coloring = nx.coloring.greedy_color(exclusion_graph)
-        draw_exclusion_graph_coloring(exclusion_graph, coloring)
-        # process_collection_list = [ProcessCollection()]*(max(coloring.values()) + 1)
+    def _split_from_graph_coloring(
+        self,
+        coloring: Dict[Process, int],
+    ) -> Set["ProcessCollection"]:
+        """
+        Split :class:`Process` objects into a set of :class:`ProcessesCollection` objects based on a provided graph coloring.
+        Resulting :class:`ProcessCollection` will have the same schedule time and cyclic propoery as self.
+
+        Parameters
+        ----------
+        coloring : Dict[Process, int]
+            Process->int (color) mappings
+
+        Returns
+        -------
+        A set of new ProcessCollections.
+        """
         process_collection_set_list = [
             set() for _ in range(max(coloring.values()) + 1)
         ]
