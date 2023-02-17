@@ -60,6 +60,9 @@ def wdf_allpass(
         Signal flow graph
     """
     np_coefficients = np.squeeze(np.asarray(coefficients))
+    order = len(np_coefficients)
+    if not order:
+        raise ValueError("Coefficients cannot be empty")
     if np_coefficients.ndim != 1:
         raise TypeError("coefficients must be a 1D-array")
     if input_op is None:
@@ -68,7 +71,6 @@ def wdf_allpass(
         output = Output()
     if name is None:
         name = "WDF allpass section"
-    order = len(np_coefficients)
     odd_order = order % 2
     if odd_order:
         # First-order section
@@ -120,12 +122,8 @@ def direct_form_fir(
     input_op: Optional[Union[Input, Signal, InputPort]] = None,
     output: Optional[Union[Output, Signal, OutputPort]] = None,
     name: Optional[str] = None,
-    mult_properties: Optional[
-        Union[Dict[str, int], Dict[str, Dict[str, int]]]
-    ] = None,
-    add_properties: Optional[
-        Union[Dict[str, int], Dict[str, Dict[str, int]]]
-    ] = None,
+    mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+    add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
 ):
     r"""
     Generate a signal flow graph of a direct form FIR filter. The *coefficients* parameter is a
@@ -166,6 +164,9 @@ def direct_form_fir(
     transposed_direct_form_fir
     """
     np_coefficients = np.squeeze(np.asarray(coefficients))
+    taps = len(np_coefficients)
+    if not taps:
+        raise ValueError("Coefficients cannot be empty")
     if np_coefficients.ndim != 1:
         raise TypeError("coefficients must be a 1D-array")
     if input_op is None:
@@ -179,7 +180,6 @@ def direct_form_fir(
     if add_properties is None:
         add_properties = {}
 
-    taps = len(np_coefficients)
     prev_delay = input_op
     prev_add = None
     for i, coeff in enumerate(np_coefficients):
@@ -202,12 +202,8 @@ def transposed_direct_form_fir(
     input_op: Optional[Union[Input, Signal, InputPort]] = None,
     output: Optional[Union[Output, Signal, OutputPort]] = None,
     name: Optional[str] = None,
-    mult_properties: Optional[
-        Union[Dict[str, int], Dict[str, Dict[str, int]]]
-    ] = None,
-    add_properties: Optional[
-        Union[Dict[str, int], Dict[str, Dict[str, int]]]
-    ] = None,
+    mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+    add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
 ):
     r"""
     Generate a signal flow graph of a transposed direct form FIR filter. The *coefficients* parameter is a
@@ -248,6 +244,9 @@ def transposed_direct_form_fir(
     direct_form_fir
     """
     np_coefficients = np.squeeze(np.asarray(coefficients))
+    taps = len(np_coefficients)
+    if not taps:
+        raise ValueError("Coefficients cannot be empty")
     if np_coefficients.ndim != 1:
         raise TypeError("coefficients must be a 1D-array")
     if input_op is None:
@@ -261,9 +260,7 @@ def transposed_direct_form_fir(
     if add_properties is None:
         add_properties = {}
 
-    taps = len(np_coefficients)
     prev_delay = None
-    prev_add = None
     for i, coeff in enumerate(reversed(np_coefficients)):
         tmp_mul = ConstantMultiplication(coeff, input_op, **mult_properties)
         tmp_add = (
