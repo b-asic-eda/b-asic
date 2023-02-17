@@ -26,6 +26,7 @@ from typing import (
 )
 
 from graphviz import Digraph
+from matplotlib.axes import itertools
 
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
@@ -1115,11 +1116,6 @@ class SFG(AbstractOperation):
         return new_component
 
     def _add_operation_connected_tree_copy(self, start_op: Operation) -> None:
-        print(
-            "Running _add_operation_connected_tree_copy with"
-            f" {self._operations_dfs_order}"
-        )
-        print(f"Start op: {start_op}")
         op_stack = deque([start_op])
         while op_stack:
             original_op = op_stack.pop()
@@ -1169,8 +1165,14 @@ class SFG(AbstractOperation):
                         original_signal not in self._original_components_to_new
                     ):
                         if original_signal.source is None:
+                            dest = (
+                                original_signal.destination.operation.name
+                                if original_signal.destination is not None
+                                else "None"
+                            )
                             raise ValueError(
                                 "Dangling signal without source in SFG"
+                                f" (destination: {dest})"
                             )
 
                         new_signal = cast(
@@ -1493,6 +1495,19 @@ class SFG(AbstractOperation):
         return Schedule(self, scheduling_algorithm="ASAP").schedule_time
 
     def unfold(self, factor: int) -> "SFG":
+        """
+        Unfolds the SFG `factor` times. Returns a new SFG without modifying the original
+
+        Inputs and outputs are ordered with early inputs first. I.e. for an sfg
+        with n inputs, the first n inputs are the inputs at time t, the next n
+        inputs are the inputs at time t+1, the next n at t+2 and so on.
+
+        Parameters
+        ----------
+        factor : string, optional
+            Number of times to unfold
+        """
+
         if factor == 0:
             raise ValueError("Unrollnig 0 times removes the SFG")
 
@@ -1508,23 +1523,36 @@ class SFG(AbstractOperation):
 
         # The rest of the process is easier if we clear the connections of the inputs
         # and outputs of all operations
-        for list in new_ops:
-            for op in list:
+        for layer, op_list in enumerate(new_ops):
+            for op_idx, op in enumerate(op_list):
                 for input in op.inputs:
                     input.clear()
                 for output in op.outputs:
                     output.clear()
 
+                suffix = layer
+
+                new_ops[layer][
+                    op_idx
+                ].name = f"{new_ops[layer][op_idx].name}_{suffix}"
+                # NOTE: Since these IDs are what show up when printing the graph, it
+                # is helpful to set them. However, this can cause name collisions when
+                # names in a graph are already suffixed with _n
+                new_ops[layer][op_idx].graph_id = GraphID(
+                    f"{new_ops[layer][op_idx].graph_id}_{suffix}"
+                )
+
+        def sanity_check():
+            all_ops = [op for op_list in new_ops for op in op_list]
+            cmul201 = [
+                op for op in all_ops if op.graph_id == GraphID("cmul2_0_1")
+            ]
+            if cmul201:
+                print(f"NOW:     {cmul201[0]}")
+
         # Walk through the operations, replacing delay nodes with connections
         for layer in range(factor):
             for op_idx, op in enumerate(self.operations):
-                new_ops[layer][
-                    op_idx
-                ].name = f"{new_ops[layer][op_idx].name}_{factor-layer}"
-                # NOTE: These are overwritten later, but it's useful to debug with them
-                new_ops[layer][op_idx].graph_id = GraphID(
-                    f"{new_ops[layer][op_idx].graph_id}_{factor-layer}"
-                )
                 if isinstance(op, Delay):
                     # Port of the operation feeding into this delay
                     source_port = op.inputs[0].connected_source
@@ -1553,7 +1581,6 @@ class SFG(AbstractOperation):
                     else:
                         # The new output port we should connect to
                         new_source_port = source_op_output
-                        new_source_port.clear()
 
                     for out_signal in op.outputs[0].signals:
                         sink_port = out_signal.destination
@@ -1570,7 +1597,6 @@ class SFG(AbstractOperation):
                         new_destination = new_dest_op.inputs[
                             sink_op_output_index
                         ]
-                        new_destination.clear()
                         new_destination.connect(new_source_port)
                 else:
                     # Other opreations need to be re-targeted to the corresponding output in the
@@ -1599,8 +1625,52 @@ class SFG(AbstractOperation):
                                 target_output
                             )
 
+                            print(
+                                f"Connecting {new_ops[layer][op_idx].name} <-"
+                                f" {target_output.operation.name} ({target_output.operation.graph_id})"
+                            )
+                            print(f"  |>{new_ops[layer][op_idx]}")
+                            print(f"  |<{target_output.operation}")
+                sanity_check()
+
         all_ops = [op for op_list in new_ops for op in op_list]
-        all_inputs = [op for op in all_ops if isinstance(op, Input)]
-        all_outputs = [op for op in all_ops if isinstance(op, Output)]
+
+        # To get the input order correct, we need to know the input order in the original
+        # sfg and which operations they correspond to
+        input_ids = [op.graph_id for op in self.input_operations]
+        output_ids = [op.graph_id for op in self.output_operations]
+
+        # Re-order the inputs to the correct order. Internal order of the inputs should
+        # be preserved, i.e. for a graph with 2 inputs (in1, in2), in1 must occur before in2,
+        # but the "time" order should be reversed. I.e. the input from layer `factor-1` is the
+        # first input
+        all_inputs = list(
+            itertools.chain.from_iterable(
+                [
+                    [ops[id_idx_map[input_id]] for input_id in input_ids]
+                    for ops in new_ops
+                ]
+            )
+        )
+
+        # Outputs are not reversed, but need the same treatment
+        all_outputs = list(
+            itertools.chain.from_iterable(
+                [
+                    [ops[id_idx_map[output_id]] for output_id in output_ids]
+                    for ops in new_ops
+                ]
+            )
+        )
+
+        print("All ops: ")
+        print(*all_ops, sep="\n")
+
+        print("All outputs: ")
+        print(*all_outputs, sep="\n")
+
+        # Sanity check to ensure that no duplicate graph IDs have been created
+        ids = [op.graph_id for op in all_ops]
+        assert len(ids) == len(set(ids))
 
         return SFG(inputs=all_inputs, outputs=all_outputs)

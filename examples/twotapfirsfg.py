@@ -14,7 +14,7 @@ from b_asic import (
 )
 
 # Inputs:
-in1 = Input(name="in1")
+in1 = Input(name="in_1")
 
 # Outputs:
 out1 = Output(name="out1")

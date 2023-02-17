@@ -1,9 +1,11 @@
 import io
+import itertools
 import random
 import re
 import string
 import sys
 from os import path, remove
+from typing import Counter, Dict, Type
 
 import pytest
 
@@ -23,7 +25,9 @@ from b_asic.core_operations import (
     Subtraction,
     SymmetricTwoportAdaptor,
 )
+from b_asic.operation import ResultKey
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
 
 
@@ -1598,9 +1602,123 @@ class TestCriticalPath:
 
 
 class TestUnfold:
-    # QUESTION: Is it possible to run a test on *all* fixtures?
-    def test_unfolding_by_factor_0_raises(self, sfg_simple_filter: SFG):
-        with pytest.raises(ValueError):
-            sfg_simple_filter.unfold(0)
+    def count_kinds(self, sfg: SFG) -> Dict[Type, int]:
+        return Counter([type(op) for op in sfg.operations])
 
-    # TODO: Add more tests
+    # Checks that the number of each kind of operation in sfg2 is multiple*count
+    # of the same operation in sfg1.
+    # Filters out delay delays
+    def assert_counts_is_correct(self, sfg1: SFG, sfg2: SFG, multiple: int):
+        count1 = self.count_kinds(sfg1)
+        count2 = self.count_kinds(sfg2)
+
+        # Delays should not be duplicated. Check that and then clear them
+        # Using get to avoid issues if there are no delays in the sfg
+        assert count1.get(Delay) == count2.get(Delay)
+        count1[Delay] = 0
+        count2[Delay] = 0
+
+        # Ensure that we aren't missing any keys, or have any extras
+        assert count1.keys() == count2.keys()
+
+        for k in count1.keys():
+            assert count1[k] * multiple == count2[k]
+
+    # This is horrifying, but I can't figure out a way to run the test on multiple fixtures,
+    # so this is an ugly hack until someone that knows pytest comes along
+    def test_two_inputs_two_outputs(self, sfg_two_inputs_two_outputs: SFG):
+        self.do_tests(sfg_two_inputs_two_outputs)
+
+    def test_twotapfir(self, sfg_two_tap_fir: SFG):
+        self.do_tests(sfg_two_tap_fir)
+
+    def test_delay(self, sfg_delay: SFG):
+        self.do_tests(sfg_delay)
+
+    def test_sfg_two_inputs_two_outputs_independent(
+        self, sfg_two_inputs_two_outputs_independent: SFG
+    ):
+        self.do_tests(sfg_two_inputs_two_outputs_independent)
+
+    def do_tests(self, sfg: SFG):
+        for factor in range(2, 4):
+            # Ensure that the correct number of operations get created
+            unfolded = sfg.unfold(factor)
+
+            self.assert_counts_is_correct(sfg, unfolded, factor)
+
+            double_unfolded = sfg.unfold(factor).unfold(factor)
+
+            self.assert_counts_is_correct(
+                sfg, double_unfolded, factor * factor
+            )
+
+            NUM_TESTS = 5
+            # Evaluate with some random values
+            # To avoid problems with missing inputs at the end of the sequence,
+            # we generate i*(some large enough) number
+            input_list = [
+                [random.random() for _ in range(0, NUM_TESTS * factor)]
+                for _ in sfg.inputs
+            ]
+
+            print("In: ")
+            print(input_list)
+
+            sim = Simulation(sfg, input_list)
+            sim.run()
+            ref = sim.results
+
+            print("out: ")
+            print(list(ref[ResultKey("0")]))
+
+            # We have i copies of the inputs, each sourcing their input from the orig
+            unfolded_input_lists = [
+                [] for _ in range(len(sfg.inputs) * factor)
+            ]
+            for t in range(0, NUM_TESTS):
+                for n in range(0, factor):
+                    for k in range(0, len(sfg.inputs)):
+                        unfolded_input_lists[k + n * len(sfg.inputs)].append(
+                            input_list[k][t * factor + n]
+                        )
+
+            sim = Simulation(unfolded, unfolded_input_lists)
+            sim.run()
+            unfolded_results = sim.results
+
+            print("ref out: ")
+            print("0: ", unfolded_results[ResultKey("0")])
+            print("1: ", unfolded_results[ResultKey("1")])
+
+            for n, _ in enumerate(sfg.outputs):
+                # Outputs for an original output
+                ref_values = list(ref[ResultKey(f"{n}")])
+
+                # Output n will be split into `factor` output ports, compute the
+                # indicies where we find the outputs
+                out_indices = [n + k * len(sfg.outputs) for k in range(factor)]
+                print("out indices: ", out_indices)
+                u_values = [
+                    [
+                        unfolded_results[ResultKey(f"{idx}")][k]
+                        for idx in out_indices
+                    ]
+                    for k in range(int(NUM_TESTS))
+                ]
+
+                print("u_values: ", u_values)
+
+                flat_u_values = list(itertools.chain.from_iterable(u_values))
+
+                print("ref_values:    ", ref_values)
+                print("flat u_values: ", flat_u_values)
+
+                assert flat_u_values == ref_values
+
+    def test_value_error(self, sfg_two_inputs_two_outputs: SFG):
+        sfg = sfg_two_inputs_two_outputs
+        with pytest.raises(
+            ValueError, match="Unrollnig 0 times removes the SFG"
+        ):
+            sfg.unfold(0)

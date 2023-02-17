@@ -13,6 +13,7 @@ from b_asic import (
     Input,
     Name,
     Output,
+    Signal,
     SignalSourceProvider,
     TypeName,
 )
@@ -274,3 +275,34 @@ def precedence_sfg_delays_and_constants():
     Output(bfly1.output(1), "OUT2")
 
     return SFG(inputs=[in1], outputs=[out1], name="SFG")
+
+
+@pytest.fixture
+def sfg_two_tap_fir():
+    # Inputs:
+    in1 = Input(name="in1")
+
+    # Outputs:
+    out1 = Output(name="out1")
+
+    # Operations:
+    t1 = Delay(initial_value=0, name="t1")
+    cmul1 = ConstantMultiplication(
+        value=0.5, name="cmul1", latency_offsets={'in0': None, 'out0': None}
+    )
+    add1 = Addition(
+        name="add1", latency_offsets={'in0': None, 'in1': None, 'out0': None}
+    )
+    cmul2 = ConstantMultiplication(
+        value=0.5, name="cmul2", latency_offsets={'in0': None, 'out0': None}
+    )
+
+    # Signals:
+
+    Signal(source=t1.output(0), destination=cmul1.input(0))
+    Signal(source=in1.output(0), destination=t1.input(0))
+    Signal(source=in1.output(0), destination=cmul2.input(0))
+    Signal(source=cmul1.output(0), destination=add1.input(0))
+    Signal(source=add1.output(0), destination=out1.input(0))
+    Signal(source=cmul2.output(0), destination=add1.input(1))
+    return SFG(inputs=[in1], outputs=[out1], name='twotapfir')
