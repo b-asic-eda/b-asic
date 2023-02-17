@@ -85,8 +85,7 @@ class TestPrintSfg:
 
         assert (
             sfg.__str__()
-            == "id: no_id, \tname: SFG1, \tinputs: {0: '-'}, \toutputs: {0:"
-            " '-'}\n"
+            == "id: no_id, \tname: SFG1, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
             + "Internal Operations:\n"
             + "----------------------------------------------------------------------------------------------------\n"
             + str(sfg.find_by_name("INP1")[0])
@@ -111,8 +110,7 @@ class TestPrintSfg:
 
         assert (
             sfg.__str__()
-            == "id: no_id, \tname: mac_sfg, \tinputs: {0: '-'}, \toutputs: {0:"
-            " '-'}\n"
+            == "id: no_id, \tname: mac_sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
             + "Internal Operations:\n"
             + "----------------------------------------------------------------------------------------------------\n"
             + str(sfg.find_by_name("INP1")[0])
@@ -140,8 +138,7 @@ class TestPrintSfg:
 
         assert (
             sfg.__str__()
-            == "id: no_id, \tname: sfg, \tinputs: {0: '-'}, \toutputs: {0:"
-            " '-'}\n"
+            == "id: no_id, \tname: sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
             + "Internal Operations:\n"
             + "----------------------------------------------------------------------------------------------------\n"
             + str(sfg.find_by_name("CONST")[0])
@@ -257,9 +254,7 @@ class TestEvaluateOutput:
 
     def test_evaluate_output_cycle(self, operation_graph_with_cycle):
         sfg = SFG(outputs=[Output(operation_graph_with_cycle)])
-        with pytest.raises(
-            RuntimeError, match="Direct feedback loop detected"
-        ):
+        with pytest.raises(RuntimeError, match="Direct feedback loop detected"):
             sfg.evaluate_output(0, [])
 
 
@@ -306,9 +301,7 @@ class TestReplaceComponents:
         sfg = SFG(outputs=[Output(operation_tree)])
         component_id = "add1"
 
-        sfg = sfg.replace_component(
-            Multiplication(name="Multi"), graph_id=component_id
-        )
+        sfg = sfg.replace_component(Multiplication(name="Multi"), graph_id=component_id)
         assert component_id not in sfg._components_by_id.keys()
         assert "Multi" in sfg._components_by_name.keys()
 
@@ -316,9 +309,7 @@ class TestReplaceComponents:
         sfg = SFG(outputs=[Output(large_operation_tree)])
         component_id = "add3"
 
-        sfg = sfg.replace_component(
-            Multiplication(name="Multi"), graph_id=component_id
-        )
+        sfg = sfg.replace_component(Multiplication(name="Multi"), graph_id=component_id)
         assert "Multi" in sfg._components_by_name.keys()
         assert component_id not in sfg._components_by_id.keys()
 
@@ -381,9 +372,7 @@ class TestConstructSFG:
         for _ in range(499):
             prev_op_sub = Subtraction(prev_op_sub, Constant(2))
         butterfly = Butterfly(prev_op_add, prev_op_sub)
-        sfg = SFG(
-            outputs=[Output(butterfly.output(0)), Output(butterfly.output(1))]
-        )
+        sfg = SFG(outputs=[Output(butterfly.output(0)), Output(butterfly.output(1))])
         sim = FastSimulation(sfg)
         sim.step()
         assert sim.results["0"][0].real == 0
@@ -467,21 +456,14 @@ class TestInsertComponent:
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
         sqrt = SquareRoot()
 
-        _sfg = sfg.insert_operation(
-            sqrt, sfg.find_by_name("constant4")[0].graph_id
-        )
+        _sfg = sfg.insert_operation(sqrt, sfg.find_by_name("constant4")[0].graph_id)
         assert _sfg.evaluate() != sfg.evaluate()
 
         assert any([isinstance(comp, SquareRoot) for comp in _sfg.operations])
-        assert not any(
-            [isinstance(comp, SquareRoot) for comp in sfg.operations]
-        )
+        assert not any([isinstance(comp, SquareRoot) for comp in sfg.operations])
 
         assert not isinstance(
-            sfg.find_by_name("constant4")[0]
-            .output(0)
-            .signals[0]
-            .destination.operation,
+            sfg.find_by_name("constant4")[0].output(0).signals[0].destination.operation,
             SquareRoot,
         )
         assert isinstance(
@@ -529,17 +511,11 @@ class TestInsertComponent:
 
         # Correctly connected old output -> new input
         assert (
-            _sfg.find_by_name("bfly3")[0]
-            .output(0)
-            .signals[0]
-            .destination.operation
+            _sfg.find_by_name("bfly3")[0].output(0).signals[0].destination.operation
             is _sfg.find_by_name("n_bfly")[0]
         )
         assert (
-            _sfg.find_by_name("bfly3")[0]
-            .output(1)
-            .signals[0]
-            .destination.operation
+            _sfg.find_by_name("bfly3")[0].output(1).signals[0].destination.operation
             is _sfg.find_by_name("n_bfly")[0]
         )
 
@@ -555,17 +531,11 @@ class TestInsertComponent:
 
         # Correctly connected new output -> next input
         assert (
-            _sfg.find_by_name("n_bfly")[0]
-            .output(0)
-            .signals[0]
-            .destination.operation
+            _sfg.find_by_name("n_bfly")[0].output(0).signals[0].destination.operation
             is _sfg.find_by_name("bfly2")[0]
         )
         assert (
-            _sfg.find_by_name("n_bfly")[0]
-            .output(1)
-            .signals[0]
-            .destination.operation
+            _sfg.find_by_name("n_bfly")[0].output(1).signals[0].destination.operation
             is _sfg.find_by_name("bfly2")[0]
         )
 
@@ -600,28 +570,24 @@ class TestFindComponentsWithTypeName:
 
         mac_sfg = SFG(inputs=[inp1, inp2], outputs=[out1], name="mac_sfg")
 
-        assert {
-            comp.name for comp in mac_sfg.find_by_type_name(inp1.type_name())
-        } == {
+        assert {comp.name for comp in mac_sfg.find_by_type_name(inp1.type_name())} == {
             "INP1",
             "INP2",
             "INP3",
         }
 
-        assert {
-            comp.name for comp in mac_sfg.find_by_type_name(add1.type_name())
-        } == {
+        assert {comp.name for comp in mac_sfg.find_by_type_name(add1.type_name())} == {
             "ADD1",
             "ADD2",
         }
 
-        assert {
-            comp.name for comp in mac_sfg.find_by_type_name(mul1.type_name())
-        } == {"MUL1"}
+        assert {comp.name for comp in mac_sfg.find_by_type_name(mul1.type_name())} == {
+            "MUL1"
+        }
 
-        assert {
-            comp.name for comp in mac_sfg.find_by_type_name(out1.type_name())
-        } == {"OUT1"}
+        assert {comp.name for comp in mac_sfg.find_by_type_name(out1.type_name())} == {
+            "OUT1"
+        }
 
         assert {
             comp.name for comp in mac_sfg.find_by_type_name(Signal.type_name())
@@ -697,9 +663,7 @@ class TestGetPrecedenceList:
     def test_inputs_constants_delays_multiple_outputs(
         self, precedence_sfg_delays_and_constants
     ):
-        precedence_list = (
-            precedence_sfg_delays_and_constants.get_precedence_list()
-        )
+        precedence_list = precedence_sfg_delays_and_constants.get_precedence_list()
 
         assert len(precedence_list) == 7
 
@@ -914,25 +878,15 @@ class TestPrintPrecedence:
 
 class TestDepends:
     def test_depends_sfg(self, sfg_two_inputs_two_outputs):
-        assert set(
-            sfg_two_inputs_two_outputs.inputs_required_for_output(0)
-        ) == {0, 1}
-        assert set(
-            sfg_two_inputs_two_outputs.inputs_required_for_output(1)
-        ) == {0, 1}
+        assert set(sfg_two_inputs_two_outputs.inputs_required_for_output(0)) == {0, 1}
+        assert set(sfg_two_inputs_two_outputs.inputs_required_for_output(1)) == {0, 1}
 
-    def test_depends_sfg_independent(
-        self, sfg_two_inputs_two_outputs_independent
-    ):
+    def test_depends_sfg_independent(self, sfg_two_inputs_two_outputs_independent):
         assert set(
-            sfg_two_inputs_two_outputs_independent.inputs_required_for_output(
-                0
-            )
+            sfg_two_inputs_two_outputs_independent.inputs_required_for_output(0)
         ) == {0}
         assert set(
-            sfg_two_inputs_two_outputs_independent.inputs_required_for_output(
-                1
-            )
+            sfg_two_inputs_two_outputs_independent.inputs_required_for_output(1)
         ) == {1}
 
 
@@ -1051,8 +1005,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         assert not test_sfg.connect_external_signals_to_components()
 
     def create_sfg(self, op_tree):
-        """Create a simple SFG with either operation_tree or large_operation_tree
-        """
+        """Create a simple SFG with either operation_tree or large_operation_tree"""
         sfg1 = SFG(outputs=[Output(op_tree)])
 
         inp1 = Input("INP1")
@@ -1069,9 +1022,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
 
         return SFG(inputs=[inp1, inp2], outputs=[out1])
 
-    def test_connect_external_signals_to_components_many_op(
-        self, large_operation_tree
-    ):
+    def test_connect_external_signals_to_components_many_op(self, large_operation_tree):
         """Replaces an sfg component in a larger SFG with several component operations
         """
         inp1 = Input("INP1")
@@ -1103,9 +1054,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
 
 class TestTopologicalOrderOperations:
     def test_feedback_sfg(self, sfg_simple_filter):
-        topological_order = (
-            sfg_simple_filter.get_operations_topological_order()
-        )
+        topological_order = sfg_simple_filter.get_operations_topological_order()
 
         assert [comp.name for comp in topological_order] == [
             "IN1",
@@ -1115,9 +1064,7 @@ class TestTopologicalOrderOperations:
             "OUT1",
         ]
 
-    def test_multiple_independent_inputs(
-        self, sfg_two_inputs_two_outputs_independent
-    ):
+    def test_multiple_independent_inputs(self, sfg_two_inputs_two_outputs_independent):
         topological_order = (
             sfg_two_inputs_two_outputs_independent.get_operations_topological_order()
         )
@@ -1132,9 +1079,7 @@ class TestTopologicalOrderOperations:
         ]
 
     def test_complex_graph(self, precedence_sfg_delays):
-        topological_order = (
-            precedence_sfg_delays.get_operations_topological_order()
-        )
+        topological_order = precedence_sfg_delays.get_operations_topological_order()
 
         assert [comp.name for comp in topological_order] == [
             "IN1",
@@ -1161,39 +1106,28 @@ class TestRemove:
 
         assert set(
             op.name
-            for op in sfg_simple_filter.find_by_name("T1")[
-                0
-            ].subsequent_operations
+            for op in sfg_simple_filter.find_by_name("T1")[0].subsequent_operations
         ) == {"CMUL1", "OUT1"}
         assert set(
-            op.name
-            for op in new_sfg.find_by_name("T1")[0].subsequent_operations
+            op.name for op in new_sfg.find_by_name("T1")[0].subsequent_operations
         ) == {"ADD1", "OUT1"}
 
         assert set(
             op.name
-            for op in sfg_simple_filter.find_by_name("ADD1")[
-                0
-            ].preceding_operations
+            for op in sfg_simple_filter.find_by_name("ADD1")[0].preceding_operations
         ) == {"CMUL1", "IN1"}
         assert set(
-            op.name
-            for op in new_sfg.find_by_name("ADD1")[0].preceding_operations
+            op.name for op in new_sfg.find_by_name("ADD1")[0].preceding_operations
         ) == {"T1", "IN1"}
 
         assert "S1" in set(
             [
                 sig.name
-                for sig in sfg_simple_filter.find_by_name("T1")[0]
-                .output(0)
-                .signals
+                for sig in sfg_simple_filter.find_by_name("T1")[0].output(0).signals
             ]
         )
         assert "S2" in set(
-            [
-                sig.name
-                for sig in new_sfg.find_by_name("T1")[0].output(0).signals
-            ]
+            [sig.name for sig in new_sfg.find_by_name("T1")[0].output(0).signals]
         )
 
     def test_remove_multiple_inputs_outputs(self, butterfly_operation_tree):
@@ -1207,9 +1141,7 @@ class TestRemove:
         assert sfg.find_by_name("bfly3")[0].output(0).signal_count == 1
         assert new_sfg.find_by_name("bfly3")[0].output(0).signal_count == 1
 
-        sfg_dest_0 = (
-            sfg.find_by_name("bfly3")[0].output(0).signals[0].destination
-        )
+        sfg_dest_0 = sfg.find_by_name("bfly3")[0].output(0).signals[0].destination
         new_sfg_dest_0 = (
             new_sfg.find_by_name("bfly3")[0].output(0).signals[0].destination
         )
@@ -1222,9 +1154,7 @@ class TestRemove:
         assert sfg.find_by_name("bfly3")[0].output(1).signal_count == 1
         assert new_sfg.find_by_name("bfly3")[0].output(1).signal_count == 1
 
-        sfg_dest_1 = (
-            sfg.find_by_name("bfly3")[0].output(1).signals[0].destination
-        )
+        sfg_dest_1 = sfg.find_by_name("bfly3")[0].output(1).signals[0].destination
         new_sfg_dest_1 = (
             new_sfg.find_by_name("bfly3")[0].output(1).signals[0].destination
         )
@@ -1238,9 +1168,7 @@ class TestRemove:
         assert new_sfg.find_by_name("bfly1")[0].input(0).signal_count == 1
 
         sfg_source_0 = sfg.find_by_name("bfly1")[0].input(0).signals[0].source
-        new_sfg_source_0 = (
-            new_sfg.find_by_name("bfly1")[0].input(0).signals[0].source
-        )
+        new_sfg_source_0 = new_sfg.find_by_name("bfly1")[0].input(0).signals[0].source
 
         assert sfg_source_0.index == 0
         assert new_sfg_source_0.index == 0
@@ -1248,9 +1176,7 @@ class TestRemove:
         assert new_sfg_source_0.operation.name == "bfly3"
 
         sfg_source_1 = sfg.find_by_name("bfly1")[0].input(1).signals[0].source
-        new_sfg_source_1 = (
-            new_sfg.find_by_name("bfly1")[0].input(1).signals[0].source
-        )
+        new_sfg_source_1 = new_sfg.find_by_name("bfly1")[0].input(1).signals[0].source
 
         assert sfg_source_1.index == 1
         assert new_sfg_source_1.index == 1
@@ -1268,9 +1194,7 @@ class TestSaveLoadSFG:
     def get_path(self, existing=False):
         path_ = "".join(random.choices(string.ascii_uppercase, k=4)) + ".py"
         while path.exists(path_) if not existing else not path.exists(path_):
-            path_ = (
-                "".join(random.choices(string.ascii_uppercase, k=4)) + ".py"
-            )
+            path_ = "".join(random.choices(string.ascii_uppercase, k=4)) + ".py"
 
         return path_
 
@@ -1357,46 +1281,36 @@ class TestGetComponentsOfType:
     def test_get_multple_operations_of_type(self, sfg_two_inputs_two_outputs):
         assert [
             op.name
-            for op in sfg_two_inputs_two_outputs.find_by_type_name(
-                Addition.type_name()
-            )
+            for op in sfg_two_inputs_two_outputs.find_by_type_name(Addition.type_name())
         ] == ["ADD1", "ADD2"]
 
         assert [
             op.name
-            for op in sfg_two_inputs_two_outputs.find_by_type_name(
-                Input.type_name()
-            )
+            for op in sfg_two_inputs_two_outputs.find_by_type_name(Input.type_name())
         ] == ["IN1", "IN2"]
 
         assert [
             op.name
-            for op in sfg_two_inputs_two_outputs.find_by_type_name(
-                Output.type_name()
-            )
+            for op in sfg_two_inputs_two_outputs.find_by_type_name(Output.type_name())
         ] == ["OUT1", "OUT2"]
 
 
 class TestPrecedenceGraph:
     def test_precedence_graph(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR\n\tsubgraph cluster_0'
-            ' {\n\t\tlabel=N0\n\t\t"in1.0" [label=in1 height=0.1'
-            ' shape=rectangle width=0.1]\n\t\t"t1.0" [label=t1 height=0.1'
-            ' shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_1'
-            ' {\n\t\tlabel=N1\n\t\t"cmul1.0" [label=cmul1 height=0.1'
-            ' shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_2'
-            ' {\n\t\tlabel=N2\n\t\t"add1.0" [label=add1 height=0.1'
-            ' shape=rectangle width=0.1]\n\t}\n\t"in1.0" -> add1\n\tadd1'
-            ' [label=add1 shape=ellipse]\n\tin1 -> "in1.0"\n\tin1 [label=in1'
-            ' shape=cds]\n\t"t1.0" -> cmul1\n\tcmul1 [label=cmul1'
-            ' shape=ellipse]\n\t"t1.0" -> out1\n\tout1 [label=out1'
-            ' shape=cds]\n\tt1Out -> "t1.0"\n\tt1Out [label=t1'
-            ' shape=square]\n\t"cmul1.0" -> add1\n\tadd1 [label=add1'
-            ' shape=ellipse]\n\tcmul1 -> "cmul1.0"\n\tcmul1 [label=cmul1'
+            'digraph {\n\trankdir=LR\n\tsubgraph cluster_0 {\n\t\tlabel=N0\n\t\t"in1.0"'
+            ' [label=in1 height=0.1 shape=rectangle width=0.1]\n\t\t"t1.0" [label=t1'
+            ' height=0.1 shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_1'
+            ' {\n\t\tlabel=N1\n\t\t"cmul1.0" [label=cmul1 height=0.1 shape=rectangle'
+            ' width=0.1]\n\t}\n\tsubgraph cluster_2 {\n\t\tlabel=N2\n\t\t"add1.0"'
+            ' [label=add1 height=0.1 shape=rectangle width=0.1]\n\t}\n\t"in1.0" ->'
+            ' add1\n\tadd1 [label=add1 shape=ellipse]\n\tin1 -> "in1.0"\n\tin1'
+            ' [label=in1 shape=cds]\n\t"t1.0" -> cmul1\n\tcmul1 [label=cmul1'
+            ' shape=ellipse]\n\t"t1.0" -> out1\n\tout1 [label=out1 shape=cds]\n\tt1Out'
+            ' -> "t1.0"\n\tt1Out [label=t1 shape=square]\n\t"cmul1.0" -> add1\n\tadd1'
+            ' [label=add1 shape=ellipse]\n\tcmul1 -> "cmul1.0"\n\tcmul1 [label=cmul1'
             ' shape=ellipse]\n\t"add1.0" -> t1In\n\tt1In [label=t1'
-            ' shape=square]\n\tadd1 -> "add1.0"\n\tadd1 [label=add1'
-            ' shape=ellipse]\n}'
+            ' shape=square]\n\tadd1 -> "add1.0"\n\tadd1 [label=add1 shape=ellipse]\n}'
         )
 
         assert sfg_simple_filter.precedence_graph().source in (res, res + "\n")
@@ -1536,9 +1450,7 @@ class TestSFGErrors:
         adaptor = SymmetricTwoportAdaptor(0.5, in1, signal)
         out1 = Output(adaptor.output(0))
         out2 = Output(adaptor.output(1))
-        with pytest.raises(
-            ValueError, match="Dangling signal without source in SFG"
-        ):
+        with pytest.raises(ValueError, match="Dangling signal without source in SFG"):
             SFG([in1], [out1, out2])
 
     def test_remove_signal_with_different_number_of_inputs_and_outputs(self):
@@ -1552,9 +1464,7 @@ class TestSFGErrors:
         assert sfg1 is None
         with pytest.raises(
             ValueError,
-            match=(
-                "Different number of input and output ports of operation with"
-            ),
+            match="Different number of input and output ports of operation with",
         ):
             sfg.remove_operation('add1')
 
@@ -1586,10 +1496,7 @@ class TestInputDuplicationBug:
 
         twotapfir = SFG(inputs=[in1], outputs=[out1], name='twotapfir')
 
-        assert (
-            len([op for op in twotapfir.operations if isinstance(op, Input)])
-            == 1
-        )
+        assert len([op for op in twotapfir.operations if isinstance(op, Input)]) == 1
 
 
 class TestCriticalPath:
@@ -1649,9 +1556,7 @@ class TestUnfold:
 
             double_unfolded = sfg.unfold(factor).unfold(factor)
 
-            self.assert_counts_is_correct(
-                sfg, double_unfolded, factor * factor
-            )
+            self.assert_counts_is_correct(sfg, double_unfolded, factor * factor)
 
             NUM_TESTS = 5
             # Evaluate with some random values
@@ -1667,9 +1572,7 @@ class TestUnfold:
             ref = sim.results
 
             # We have i copies of the inputs, each sourcing their input from the orig
-            unfolded_input_lists = [
-                [] for _ in range(len(sfg.inputs) * factor)
-            ]
+            unfolded_input_lists = [[] for _ in range(len(sfg.inputs) * factor)]
             for t in range(0, NUM_TESTS):
                 for n in range(0, factor):
                     for k in range(0, len(sfg.inputs)):
@@ -1689,10 +1592,7 @@ class TestUnfold:
                 # indicies where we find the outputs
                 out_indices = [n + k * len(sfg.outputs) for k in range(factor)]
                 u_values = [
-                    [
-                        unfolded_results[ResultKey(f"{idx}")][k]
-                        for idx in out_indices
-                    ]
+                    [unfolded_results[ResultKey(f"{idx}")][k] for idx in out_indices]
                     for k in range(int(NUM_TESTS))
                 ]
 
@@ -1702,7 +1602,5 @@ class TestUnfold:
 
     def test_value_error(self, sfg_two_inputs_two_outputs: SFG):
         sfg = sfg_two_inputs_two_outputs
-        with pytest.raises(
-            ValueError, match="Unfolding 0 times removes the SFG"
-        ):
+        with pytest.raises(ValueError, match="Unfolding 0 times removes the SFG"):
             sfg.unfold(0)

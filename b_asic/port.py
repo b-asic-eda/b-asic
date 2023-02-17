@@ -49,8 +49,7 @@ class Port(ABC):
     @latency_offset.setter
     @abstractmethod
     def latency_offset(self, latency_offset: int) -> None:
-        """Set the latency_offset of the port to the integer specified value.
-        """
+        """Set the latency_offset of the port to the integer specified value."""
         raise NotImplementedError
 
     @property
@@ -94,6 +93,12 @@ class Port(ABC):
         """Removes all connected signals from the Port."""
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return a name consisting of *graph_id* of the related operation and the port number.
+        """
+
 
 class AbstractPort(Port):
     """
@@ -133,6 +138,10 @@ class AbstractPort(Port):
     @latency_offset.setter
     def latency_offset(self, latency_offset: Optional[int]):
         self._latency_offset = latency_offset
+
+    @property
+    def name(self):
+        return f"{self.operation.graph_id}.{self.index}"
 
 
 class SignalSourceProvider(ABC):
@@ -196,13 +205,9 @@ class InputPort(AbstractPort):
         Get the output port that is currently connected to this input port,
         or None if it is unconnected.
         """
-        return (
-            None if self._source_signal is None else self._source_signal.source
-        )
+        return None if self._source_signal is None else self._source_signal.source
 
-    def connect(
-        self, src: SignalSourceProvider, name: Name = Name("")
-    ) -> Signal:
+    def connect(self, src: SignalSourceProvider, name: Name = Name("")) -> Signal:
         """
         Connect the provided signal source to this input port by creating a new signal.
         Returns the new signal.

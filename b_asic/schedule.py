@@ -577,7 +577,7 @@ class Schedule:
                         start_time + cast(int, outport.latency_offset),
                         outport,
                         reads,
-                        outport.operation.graph_id,
+                        outport.name,
                     )
                 )
         return ret
@@ -800,6 +800,7 @@ class Schedule:
             The vertical distance between operations in the schedule. The height of
             the operation is always 1.
         """
+        self._plot_schedule(ax, operation_gap=operation_gap)
 
     def plot(self, operation_gap: Optional[float] = None) -> None:
         """
