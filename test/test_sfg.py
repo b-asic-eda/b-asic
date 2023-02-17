@@ -1703,6 +1703,6 @@ class TestUnfold:
     def test_value_error(self, sfg_two_inputs_two_outputs: SFG):
         sfg = sfg_two_inputs_two_outputs
         with pytest.raises(
-            ValueError, match="Unrollnig 0 times removes the SFG"
+            ValueError, match="Unfolding 0 times removes the SFG"
         ):
             sfg.unfold(0)

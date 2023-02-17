@@ -1496,9 +1496,9 @@ class SFG(AbstractOperation):
 
     def unfold(self, factor: int) -> "SFG":
         """
-        Unfolds the SFG `factor` times. Returns a new SFG without modifying the original
+        Unfold the SFG *factor* times. Return a new SFG without modifying the original.
 
-        Inputs and outputs are ordered with early inputs first. I.e. for an sfg
+        Inputs and outputs are ordered with early inputs first. That is for an SFG
         with n inputs, the first n inputs are the inputs at time t, the next n
         inputs are the inputs at time t+1, the next n at t+2 and so on.
 
@@ -1509,7 +1509,7 @@ class SFG(AbstractOperation):
         """
 
         if factor == 0:
-            raise ValueError("Unrollnig 0 times removes the SFG")
+            raise ValueError("Unfolding 0 times removes the SFG")
 
         # Make `factor` copies of the sfg
         new_ops = [
