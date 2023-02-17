@@ -5,12 +5,8 @@ Contains the class for representing the connections between operations.
 """
 from typing import TYPE_CHECKING, Iterable, Optional, Union
 
-from b_asic.graph_component import (
-    AbstractGraphComponent,
-    GraphComponent,
-    Name,
-    TypeName,
-)
+from b_asic.graph_component import AbstractGraphComponent, GraphComponent
+from b_asic.types import Name, TypeName
 
 if TYPE_CHECKING:
     from b_asic.operation import Operation
@@ -48,9 +44,7 @@ class Signal(AbstractGraphComponent):
     def __init__(
         self,
         source: Optional[Union["OutputPort", "Signal", "Operation"]] = None,
-        destination: Optional[
-            Union["InputPort", "Signal", "Operation"]
-        ] = None,
+        destination: Optional[Union["InputPort", "Signal", "Operation"]] = None,
         bits: Optional[int] = None,
         name: Name = Name(""),
     ):
@@ -70,11 +64,7 @@ class Signal(AbstractGraphComponent):
 
     @property
     def neighbors(self) -> Iterable[GraphComponent]:
-        return [
-            p.operation
-            for p in [self.source, self.destination]
-            if p is not None
-        ]
+        return [p.operation for p in [self.source, self.destination] if p is not None]
 
     @property
     def source(self) -> Optional["OutputPort"]:
@@ -86,9 +76,7 @@ class Signal(AbstractGraphComponent):
         """The destination InputPort of the signal."""
         return self._destination
 
-    def set_source(
-        self, source: Union["OutputPort", "Signal", "Operation"]
-    ) -> None:
+    def set_source(self, source: Union["OutputPort", "Signal", "Operation"]) -> None:
         """
         Disconnect the previous source OutputPort of the signal and
         connect to the entered source OutputPort. Also connect the entered
@@ -197,9 +185,7 @@ class Signal(AbstractGraphComponent):
         """
         if bits is not None:
             if not isinstance(bits, int):
-                raise TypeError(
-                    f"Bits must be an int, not {type(bits)}: {bits!r}"
-                )
+                raise TypeError(f"Bits must be an int, not {type(bits)}: {bits!r}")
             if bits < 0:
                 raise ValueError("Bits cannot be negative")
         self.set_param("bits", bits)
