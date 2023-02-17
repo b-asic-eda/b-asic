@@ -1542,14 +1542,6 @@ class SFG(AbstractOperation):
                     f"{new_ops[layer][op_idx].graph_id}_{suffix}"
                 )
 
-        def sanity_check():
-            all_ops = [op for op_list in new_ops for op in op_list]
-            cmul201 = [
-                op for op in all_ops if op.graph_id == GraphID("cmul2_0_1")
-            ]
-            if cmul201:
-                print(f"NOW:     {cmul201[0]}")
-
         # Walk through the operations, replacing delay nodes with connections
         for layer in range(factor):
             for op_idx, op in enumerate(self.operations):
@@ -1625,14 +1617,6 @@ class SFG(AbstractOperation):
                                 target_output
                             )
 
-                            print(
-                                f"Connecting {new_ops[layer][op_idx].name} <-"
-                                f" {target_output.operation.name} ({target_output.operation.graph_id})"
-                            )
-                            print(f"  |>{new_ops[layer][op_idx]}")
-                            print(f"  |<{target_output.operation}")
-                sanity_check()
-
         all_ops = [op for op_list in new_ops for op in op_list]
 
         # To get the input order correct, we need to know the input order in the original
@@ -1662,12 +1646,6 @@ class SFG(AbstractOperation):
                 ]
             )
         )
-
-        print("All ops: ")
-        print(*all_ops, sep="\n")
-
-        print("All outputs: ")
-        print(*all_outputs, sep="\n")
 
         # Sanity check to ensure that no duplicate graph IDs have been created
         ids = [op.graph_id for op in all_ops]

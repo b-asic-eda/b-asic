@@ -1662,15 +1662,9 @@ class TestUnfold:
                 for _ in sfg.inputs
             ]
 
-            print("In: ")
-            print(input_list)
-
             sim = Simulation(sfg, input_list)
             sim.run()
             ref = sim.results
-
-            print("out: ")
-            print(list(ref[ResultKey("0")]))
 
             # We have i copies of the inputs, each sourcing their input from the orig
             unfolded_input_lists = [
@@ -1687,10 +1681,6 @@ class TestUnfold:
             sim.run()
             unfolded_results = sim.results
 
-            print("ref out: ")
-            print("0: ", unfolded_results[ResultKey("0")])
-            print("1: ", unfolded_results[ResultKey("1")])
-
             for n, _ in enumerate(sfg.outputs):
                 # Outputs for an original output
                 ref_values = list(ref[ResultKey(f"{n}")])
@@ -1698,7 +1688,6 @@ class TestUnfold:
                 # Output n will be split into `factor` output ports, compute the
                 # indicies where we find the outputs
                 out_indices = [n + k * len(sfg.outputs) for k in range(factor)]
-                print("out indices: ", out_indices)
                 u_values = [
                     [
                         unfolded_results[ResultKey(f"{idx}")][k]
@@ -1707,12 +1696,7 @@ class TestUnfold:
                     for k in range(int(NUM_TESTS))
                 ]
 
-                print("u_values: ", u_values)
-
                 flat_u_values = list(itertools.chain.from_iterable(u_values))
-
-                print("ref_values:    ", ref_values)
-                print("flat u_values: ", flat_u_values)
 
                 assert flat_u_values == ref_values
 
