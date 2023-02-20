@@ -1378,7 +1378,8 @@ class SFG(AbstractOperation):
             dg.format = fmt
         dg.view()
 
-    def critical_path(self):
+    def critical_path_time(self) -> int:
+        """Return the time of the critical path."""
         # Import here needed to avoid circular imports
         from b_asic.schedule import Schedule
 

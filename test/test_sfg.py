@@ -1502,10 +1502,10 @@ class TestInputDuplicationBug:
 class TestCriticalPath:
     def test_single_accumulator(self, sfg_simple_accumulator: SFG):
         sfg_simple_accumulator.set_latency_of_type(Addition.type_name(), 5)
-        assert sfg_simple_accumulator.critical_path() == 5
+        assert sfg_simple_accumulator.critical_path_time() == 5
 
         sfg_simple_accumulator.set_latency_of_type(Addition.type_name(), 6)
-        assert sfg_simple_accumulator.critical_path() == 6
+        assert sfg_simple_accumulator.critical_path_time() == 6
 
 
 class TestUnfold:

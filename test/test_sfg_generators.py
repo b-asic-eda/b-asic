@@ -49,20 +49,15 @@ def test_direct_form_fir():
         )
         == 3
     )
-    assert (
-        len([comp for comp in sfg.components if isinstance(comp, Addition)])
-        == 2
-    )
-    assert (
-        len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
-    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 2
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
 
     sfg = direct_form_fir(
         (0.3, 0.4, 0.5, 0.6, 0.3),
         mult_properties={'latency': 2, 'execution_time': 1},
         add_properties={'latency': 1, 'execution_time': 1},
     )
-    assert sfg.critical_path() == 6
+    assert sfg.critical_path_time() == 6
 
 
 def test_transposed_direct_form_fir():
@@ -77,17 +72,12 @@ def test_transposed_direct_form_fir():
         )
         == 3
     )
-    assert (
-        len([comp for comp in sfg.components if isinstance(comp, Addition)])
-        == 2
-    )
-    assert (
-        len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
-    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 2
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
 
     sfg = transposed_direct_form_fir(
         (0.3, 0.4, 0.5, 0.6, 0.3),
         mult_properties={'latency': 2, 'execution_time': 1},
         add_properties={'latency': 1, 'execution_time': 1},
     )
-    assert sfg.critical_path() == 3
+    assert sfg.critical_path_time() == 3
