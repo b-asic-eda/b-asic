@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B-ASIC Scheduler-gui Graphics Component Item Module.
+B-ASIC Scheduler-GUI Operation Item Module.
 
-Contains the scheduler-gui OperationItem class for drawing and maintain a component
-in a graph.
+Contains the scheduler_gui OperationItem class for drawing and maintain an operation
+in the schedule.
 """
 from typing import TYPE_CHECKING, Dict, List, Union, cast
 
@@ -34,23 +34,24 @@ if TYPE_CHECKING:
 
 
 class OperationItem(QGraphicsItemGroup):
-    """
+    f"""
     Class to represent an operation in a graph.
 
     Parameters
     ----------
     operation : :class:`~b_asic.operation.Operation`
+        The operation.
     parent : :class:`~b_asic.scheduler_gui.scheduler_item.SchedulerItem`
-    height : float, default: 1.0
+        Parent passed to QGraphicsItemGroup
+    height : float, default: {OPERATION_HEIGHT}
+        The height of the operation.
     """
 
     _scale: float = 1.0
     """Static, changed from MainWindow."""
     _operation: Operation
     _height: float
-    _ports: Dict[
-        str, Dict[str, Union[float, QPointF]]
-    ]  # ['port-id']['latency/pos']
+    _ports: Dict[str, Dict[str, Union[float, QPointF]]]  # ['port-id']['latency/pos']
     _end_time: int
     _latency_item: QGraphicsPathItem
     _execution_time_item: QGraphicsPathItem
@@ -72,9 +73,7 @@ class OperationItem(QGraphicsItemGroup):
         self._height = height
         operation._check_all_latencies_set()
         latency_offsets = cast(Dict[str, int], operation.latency_offsets)
-        self._ports = {
-            k: {"latency": float(v)} for k, v in latency_offsets.items()
-        }
+        self._ports = {k: {"latency": float(v)} for k, v in latency_offsets.items()}
         self._end_time = max(latency_offsets.values())
         self._port_items = []
 
@@ -122,6 +121,14 @@ class OperationItem(QGraphicsItemGroup):
 
     @height.setter
     def height(self, height: float) -> None:
+        """
+        Set height.
+
+        Parameters
+        ----------
+        height : float
+            The new height.
+        """
         if self._height != height:
             self.clear()
             self._height = height
@@ -168,9 +175,7 @@ class OperationItem(QGraphicsItemGroup):
 
     def _make_component(self) -> None:
         """Makes a new component out of the stored attributes."""
-        latency_outline_pen = QPen(
-            Qt.GlobalColor.black
-        )  # used by component outline
+        latency_outline_pen = QPen(Qt.GlobalColor.black)  # used by component outline
         latency_outline_pen.setWidthF(2 / self._scale)
         # latency_outline_pen.setCapStyle(Qt.RoundCap)
         # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
@@ -178,9 +183,7 @@ class OperationItem(QGraphicsItemGroup):
             Qt.RoundJoin
         )  # Qt.MiterJoin, Qt.BevelJoin (default), Qt.RoundJoin, Qt.SvgMiterJoin
 
-        port_filling_brush = QBrush(
-            Qt.GlobalColor.black
-        )  # used by port filling
+        port_filling_brush = QBrush(Qt.GlobalColor.black)  # used by port filling
         port_outline_pen = QPen(Qt.GlobalColor.black)  # used by port outline
         port_outline_pen.setWidthF(0)
         # port_outline_pen.setCosmetic(True)
@@ -214,9 +217,7 @@ class OperationItem(QGraphicsItemGroup):
             self._execution_time_item.setPen(execution_time_pen)
 
         # component item
-        self._set_background(
-            OPERATION_LATENCY_INACTIVE
-        )  # used by component filling
+        self._set_background(OPERATION_LATENCY_INACTIVE)  # used by component filling
 
         inputs, outputs = self._operation.get_io_coordinates()
 

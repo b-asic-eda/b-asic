@@ -1,3 +1,11 @@
+"""
+B-ASIC Scheduler-GUI Signal Item Module.
+
+Contains the scheduler_gui SignalItem class for drawing and maintaining a signal
+in the schedule.
+"""
+
+
 from typing import TYPE_CHECKING, Optional, cast
 
 from qtpy.QtCore import QPointF
@@ -24,14 +32,14 @@ class SignalItem(QGraphicsPathItem):
 
     Parameters
     ----------
-    src_operation : OperationItem
+    src_operation : `~b_asic.scheduler_gui.operation_item.OperationItem`
         The operation that the signal is drawn from.
-    dest_operation : OperationItem
+    dest_operation : `~b_asic.scheduler_gui.operation_item.OperationItem`
         The operation that the signal is drawn to.
-    signal : Signal
+    signal : `~b_asic.signal.Signal`
         The signal on the SFG level.
     parent : QGraphicsItem, optional
-        The parent QGraphicsItem.
+        The parent QGraphicsItem passed to QGraphicsPathItem.
     """
 
     _path: Optional[QPainterPath] = None
@@ -75,7 +83,6 @@ class SignalItem(QGraphicsPathItem):
         schedule = cast("SchedulerItem", self.parentItem()).schedule
         if dest_x - source_x <= -0.1 or schedule._laps[self._signal.graph_id]:
             offset = SCHEDULE_INDENT  # TODO: Get from parent/axes...
-            laps = schedule._laps[self._signal.graph_id]
             path.lineTo(schedule.schedule_time + offset, source_y)
             path.moveTo(0 + offset, dest_y)
             path.lineTo(dest_x, dest_y)

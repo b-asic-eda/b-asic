@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B-ASIC Scheduler-gui Module.
+B-ASIC Scheduler-GUI Module.
 
-Contains the scheduler-gui MainWindow class for scheduling operations in an SFG.
+Contains the scheduler_gui MainWindow class for scheduling operations in an SFG.
 
-Start main-window with start_gui().
+Start main-window with ``start_gui()``.
 """
 import inspect
 import os
@@ -104,7 +104,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     _zoom: float
 
     def __init__(self):
-        """Initialize Scheduler-gui."""
+        """Initialize Scheduler-GUI."""
         super().__init__()
         self._schedule = None
         self._graph = None
@@ -121,9 +121,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Initialize the ui"""
 
         # Connect signals to slots
-        self.menu_load_from_file.triggered.connect(
-            self._load_schedule_from_pyfile
-        )
+        self.menu_load_from_file.triggered.connect(self._load_schedule_from_pyfile)
         self.menu_close_schedule.triggered.connect(self.close_schedule)
         self.menu_save.triggered.connect(self.save)
         self.menu_save_as.triggered.connect(self.save_as)
@@ -153,9 +151,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _init_graphics(self) -> None:
         """Initialize the QGraphics framework"""
         self._scene = QGraphicsScene()
-        self._scene.addRect(
-            0, 0, 0, 0
-        )  # dummy rect to be able to setPos() graph
+        self._scene.addRect(0, 0, 0, 0)  # dummy rect to be able to setPos() graph
         self.view.setScene(self._scene)
         self.view.scale(self._scale, self._scale)
         OperationItem._scale = self._scale
@@ -182,12 +178,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _open_documentation(self) -> None:
+        """Callback to open documentation web page."""
         webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
 
     @Slot()
     def _actionReorder(self) -> None:
-        """Callback to reorder all operations vertically based on start time.
-        """
+        """Callback to reorder all operations vertically based on start time."""
         if self.schedule is None:
             return
         if self._graph is not None:
@@ -228,25 +224,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tr("Python Files (*.py *.py3)"),
         )
 
-        if (
-            not abs_path_filename
-        ):  # return if empty filename (QFileDialog was canceled)
+        if not abs_path_filename:  # return if empty filename (QFileDialog was canceled)
             return
         log.debug("abs_path_filename = {}.".format(abs_path_filename))
 
         module_name = inspect.getmodulename(abs_path_filename)
         if not module_name:  # return if empty module name
-            log.error(
-                "Could not load module from file '{}'.".format(
-                    abs_path_filename
-                )
-            )
+            log.error("Could not load module from file '{}'.".format(abs_path_filename))
             return
 
         try:
-            module = SourceFileLoader(
-                module_name, abs_path_filename
-            ).load_module()
+            module = SourceFileLoader(module_name, abs_path_filename).load_module()
         except Exception as e:
             log.exception(
                 "Exception occurred. Could not load module from file"
@@ -262,9 +250,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.warning(
                 self,
                 self.tr("File not found"),
-                self.tr(
-                    "Cannot find any Schedule object in file '{}'."
-                ).format(os.path.basename(abs_path_filename)),
+                self.tr("Cannot find any Schedule object in file '{}'.").format(
+                    os.path.basename(abs_path_filename)
+                ),
             )
             log.info(
                 "Cannot find any Schedule object in file '{}'.".format(
@@ -302,8 +290,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def close_schedule(self) -> None:
         """
+        Close current schedule.
+
         SLOT() for SIGNAL(menu_close_schedule.triggered)
-        Closes current schedule.
         """
         if self._graph:
             self._graph._signals.component_selected.disconnect(
@@ -324,8 +313,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def save(self) -> None:
         """
+        Save current schedule.
+
         SLOT() for SIGNAL(menu_save.triggered)
-        This method save a schedule.
         """
         # TODO: all
         self._print_button_pressed("save_schedule()")
@@ -334,19 +324,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def save_as(self) -> None:
         """
+        Save current schedule asking for file name.
+
         SLOT() for SIGNAL(menu_save_as.triggered)
-        This method save as a schedule.
         """
-        # TODO: all
+        # TODO: Implement
         self._print_button_pressed("save_schedule()")
         self.update_statusbar(self.tr("Schedule saved successfully"))
 
     @Slot(bool)
     def show_info_table(self, checked: bool) -> None:
         """
+        Show or hide the info table.
+
         SLOT(bool) for SIGNAL(menu_node_info.triggered)
         Takes in a boolean and hide or show the info table accordingly with
-        'checked'.
+        *checked*.
         """
         # Note: splitter handler index 0 is a hidden splitter handle far most left,
         # use index 1
@@ -406,9 +399,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Updates the 'Schedule' part of the info table.
         """
         if self.schedule is not None:
-            self.info_table.item(1, 1).setText(
-                str(self.schedule.schedule_time)
-            )
+            self.info_table.item(1, 1).setText(str(self.schedule.schedule_time))
 
     @Slot(QRectF)
     def shrink_scene_to_min_size(self, rect: QRectF) -> None:
@@ -454,9 +445,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if ret == QMessageBox.StandardButton.Yes:
             if not hide_dialog:
-                settings.setValue(
-                    "scheduler/hide_exit_dialog", checkbox.isChecked()
-                )
+                settings.setValue("scheduler/hide_exit_dialog", checkbox.isChecked())
             self._write_settings()
             log.info("Exit: {}".format(os.path.basename(__file__)))
             event.accept()
@@ -489,9 +478,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._graph._signals.component_selected.connect(
             self.info_table_update_component
         )
-        self._graph._signals.component_moved.connect(
-            self.info_table_update_component
-        )
+        self._graph._signals.component_moved.connect(self.info_table_update_component)
         self._graph._signals.schedule_time_changed.connect(
             self.info_table_update_schedule
         )
@@ -520,12 +507,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         settings.setValue(
             "scheduler/state", self.saveState()
         )  # toolbars, dockwidgets: pos, size
-        settings.setValue(
-            "scheduler/menu/node_info", self.menu_node_info.isChecked()
-        )
-        settings.setValue(
-            "scheduler/splitter/state", self.splitter.saveState()
-        )
+        settings.setValue("scheduler/menu/node_info", self.menu_node_info.isChecked())
+        settings.setValue("scheduler/splitter/state", self.splitter.saveState())
         settings.setValue("scheduler/splitter/pos", self.splitter.sizes()[1])
 
         if settings.isWritable():
@@ -536,9 +519,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _read_settings(self) -> None:
         """Read settings from Settings to MainWindow."""
         settings = QSettings()
-        if settings.value(
-            "scheduler/maximized", defaultValue=False, type=bool
-        ):
+        if settings.value("scheduler/maximized", defaultValue=False, type=bool):
             self.showMaximized()
         else:
             self.move(settings.value("scheduler/pos", self.pos()))
@@ -566,9 +547,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.info_table.insertRow(1)
         self.info_table.setItem(1, 0, QTableWidgetItem("Schedule Time"))
         self.info_table.setItem(2, 0, QTableWidgetItem("Cyclic"))
-        self.info_table.setItem(
-            1, 1, QTableWidgetItem(str(schedule.schedule_time))
-        )
+        self.info_table.setItem(1, 1, QTableWidgetItem(str(schedule.schedule_time)))
         self.info_table.setItem(2, 1, QTableWidgetItem(str(schedule.cyclic)))
 
     def _info_table_fill_component(self, graph_id: GraphID) -> None:
@@ -630,9 +609,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 for _ in range(3):
                     self.info_table.removeRow(1)
         else:
-            log.error(
-                "'Operator' not found in info table. It may have been renamed."
-            )
+            log.error("'Operator' not found in info table. It may have been renamed.")
 
     def exit_app(self) -> None:
         """Exit application."""
@@ -647,9 +624,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             for _ in range(self.info_table.rowCount() - row + 1):
                 self.info_table.removeRow(row + 1)
         else:
-            log.error(
-                "'Operator' not found in info table. It may have been renamed."
-            )
+            log.error("'Operator' not found in info table. It may have been renamed.")
 
 
 def start_gui() -> None:

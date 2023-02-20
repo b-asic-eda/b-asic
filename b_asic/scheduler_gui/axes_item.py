@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""B-ASIC Scheduler-gui Graphics Axes Item Module.
+"""
+B-ASIC Scheduler-gui Axes Item Module.
 
-Contains the scheduler-gui AxesItem class for drawing and maintain the
+Contains the scheduler-gui AxesItem class for drawing and maintaining the
 axes in a graph.
 """
 from math import pi, sin
@@ -25,18 +26,19 @@ from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 
 class AxesItem(QGraphicsItemGroup):
-    """
+    f"""
     A class to represent axes in a graph.
 
     Parameters
     ----------
     width
     height
-    width_indent
-    height_indent
-    width_padding
-    height_padding
-    parent
+    width_indent : float, default: {SCHEDULE_INDENT}
+    height_indent : float, default: {SCHEDULE_INDENT}
+    width_padding : float, default: 0.6
+    height_padding : float, default: 0.5
+    parent : QGraphicsItem, optional
+        Passed to QGraphicsItemGroup.
     """
 
     _scale: float = 1.0
@@ -72,17 +74,14 @@ class AxesItem(QGraphicsItemGroup):
     ):
         """
         Class for an AxesItem.
+
         *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)
         if width < 0:
-            raise ValueError(
-                f"'width' greater or equal to 0 expected, got: {width}."
-            )
+            raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")
         if height < 0:
-            raise ValueError(
-                f"'height' greater or equal to 0 expected, got: {height}."
-            )
+            raise ValueError(f"'height' greater or equal to 0 expected, got: {height}.")
 
         self._width = width
         self._height = height
@@ -170,18 +169,14 @@ class AxesItem(QGraphicsItemGroup):
     def set_height(self, height: float) -> None:
         # TODO: docstring
         if height < 0:
-            raise ValueError(
-                f"'height' greater or equal to 0 expected, got: {height}."
-            )
+            raise ValueError(f"'height' greater or equal to 0 expected, got: {height}.")
         self._height = height
         self._update_yaxis()
 
     def set_width(self, width: int) -> None:
         # TODO: docstring
         if width < 0:
-            raise ValueError(
-                f"'width' greater or equal to 0 expected, got: {width}."
-            )
+            raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")
 
         delta_width = width - self._width
 
@@ -293,12 +288,7 @@ class AxesItem(QGraphicsItemGroup):
             0,
             0,
             0,
-            -(
-                self._height_indent
-                + self._height
-                + self._height_padding
-                + 0.05
-            ),
+            -(self._height_indent + self._height + self._height_padding + 0.05),
         )
         self._y_axis.setPen(self._base_pen)
 
@@ -325,15 +315,11 @@ class AxesItem(QGraphicsItemGroup):
         self._x_label.setScale(1 / self._scale)
         x_pos = self._width_indent + 0 + self._width_padding  # end of x-axis
         x_pos += (
-            self.mapRectFromItem(
-                self._x_arrow, self._x_arrow.boundingRect()
-            ).width()
+            self.mapRectFromItem(self._x_arrow, self._x_arrow.boundingRect()).width()
             / 2
         )  # + half arrow width
         x_pos -= (
-            self.mapRectFromItem(
-                self._x_label, self._x_label.boundingRect()
-            ).width()
+            self.mapRectFromItem(self._x_label, self._x_label.boundingRect()).width()
             / 2
         )  # - center of label
         self._x_label.setPos(x_pos, self._x_label_offset)
@@ -344,9 +330,7 @@ class AxesItem(QGraphicsItemGroup):
         for _ in range(self._width):
             self._append_x_tick()
         pos = self._x_ledger[-1].pos()
-        self._x_ledger[-1].setPos(
-            pos + QPointF(self._width, 0)
-        )  # move timeline
+        self._x_ledger[-1].setPos(pos + QPointF(self._width, 0))  # move timeline
 
         # y-axis
         self._update_yaxis()

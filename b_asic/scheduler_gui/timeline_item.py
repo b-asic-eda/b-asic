@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B-ASIC Scheduler-gui Graphics Timeline Item Module.
+B-ASIC Scheduler-GUI Timeline Item Module.
 
-Contains the scheduler-gui TimelineItem class for drawing and
-maintain the timeline in a graph.
+Contains the scheduler_gui TimelineItem class for drawing and
+maintain the timeline in a schedule.
 """
 from typing import List, Optional, overload
 
@@ -21,9 +21,7 @@ class TimelineItem(QGraphicsLineItem):
     _delta_time_label: QGraphicsTextItem
 
     @overload
-    def __init__(
-        self, line: QLineF, parent: Optional[QGraphicsItem] = None
-    ) -> None:
+    def __init__(self, line: QLineF, parent: Optional[QGraphicsItem] = None) -> None:
         """
         Constructs a TimelineItem out of 'line'. 'parent' is passed to
         QGraphicsLineItem's constructor.

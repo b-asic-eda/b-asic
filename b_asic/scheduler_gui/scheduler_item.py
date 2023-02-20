@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B-ASIC Scheduler-gui Graphics Graph Item Module.
+B-ASIC Scheduler-GUI Scheduler Item Module.
 
-Contains the scheduler-gui SchedulerItem class for drawing and
-maintain a component in a graph.
+Contains the scheduler_gui SchedulerItem class for drawing and
+maintaining a schedule.
 """
 from collections import defaultdict
 from math import floor
@@ -31,7 +31,9 @@ from b_asic.scheduler_gui.signal_item import SignalItem
 
 class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     """
-    A class to represent a graph in a QGraphicsScene. This class is a
+    A class to represent a schedule in a QGraphicsScene.
+
+    This class is a
     subclass of QGraphicsItemGroup and contains the objects, axes from
     AxesItem, as well as components from OperationItem. It
     also inherits from SchedulerEvent, which acts as a filter for events
@@ -53,9 +55,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     _event_items: List[QGraphicsItem]
     _signal_dict: Dict[OperationItem, Set[SignalItem]]
 
-    def __init__(
-        self, schedule: Schedule, parent: Optional[QGraphicsItem] = None
-    ):
+    def __init__(self, schedule: Schedule, parent: Optional[QGraphicsItem] = None):
         """
         Construct a SchedulerItem. *parent* is passed to QGraphicsItemGroup's
         constructor.
@@ -176,27 +176,23 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def is_valid_delta_time(self, delta_time: int) -> bool:
         """
-        Takes in a delta time and returns True if the schedule time can be changed by
-        *delta_time*. False otherwise.
+        Return True if the schedule time can be changed by *delta_time*.
         """
         # TODO: implement
         # item = self.scene().mouseGrabberItem()
         if self.schedule is None:
             raise ValueError("No schedule installed.")
         return (
-            self.schedule.schedule_time + delta_time
-            >= self.schedule.get_max_end_time()
+            self.schedule.schedule_time + delta_time >= self.schedule.get_max_end_time()
         )
 
-    def set_schedule_time(self, delta_time: int) -> None:
+    def change_schedule_time(self, delta_time: int) -> None:
         """Change the schedule time by *delta_time* and redraw the graph."""
         if self._axes is None:
             raise RuntimeError("No AxesItem!")
         if self.schedule is None:
             raise ValueError("No schedule installed.")
-        self.schedule.set_schedule_time(
-            self.schedule.schedule_time + delta_time
-        )
+        self.schedule.set_schedule_time(self.schedule.schedule_time + delta_time)
         self._axes.set_width(self._axes.width + delta_time)
         # Redraw all lines
         self._redraw_all_lines()
@@ -223,9 +219,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         op_item = self._operation_items[graph_id]
         op_item.setPos(
             self._x_axis_indent + self.schedule.start_times[graph_id],
-            self.schedule._get_y_position(
-                graph_id, OPERATION_HEIGHT, OPERATION_GAP
-            ),
+            self.schedule._get_y_position(graph_id, OPERATION_HEIGHT, OPERATION_GAP),
         )
 
     def _redraw_from_start(self) -> None:
@@ -261,9 +255,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         # build components
         for graph_id in self.schedule.start_times.keys():
             operation = cast(Operation, self.schedule.sfg.find_by_id(graph_id))
-            component = OperationItem(
-                operation, height=OPERATION_HEIGHT, parent=self
-            )
+            component = OperationItem(operation, height=OPERATION_HEIGHT, parent=self)
             self._operation_items[graph_id] = component
             self._set_position(graph_id)
             self._event_items += component.event_items

@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from qtpy import uic
 from setuptools_scm import get_version
@@ -31,31 +32,34 @@ def _check_filenames(*filenames: str) -> None:
     exception.
     """
     for filename in filenames:
-        if not os.path.exists(filename):
-            raise FileNotFoundError(filename)
+        Path(filename).resolve(strict=True)
 
 
 def _check_qt_version() -> None:
     """
-    Check if PySide2 or PyQt5 is installed, otherwise raise AssertionError
+    Check if PySide2, PyQt5, PySide6, or PyQt6 is installed, otherwise raise AssertionError
     exception.
     """
-    assert uic.PYSIDE2 or uic.PYQT5, "PySide2 or PyQt5 need to be installed"
+    assert (
+        uic.PYSIDE2 or uic.PYQT5 or uic.PYSIDE6 or uic.PYQT6
+    ), "Python QT bindings must be installed"
 
 
 def replace_qt_bindings(filename: str) -> None:
-    """Raplaces qt-binding api in 'filename' from PySide2/PyQt5 to qtpy."""
+    """Raplaces qt-binding api in *filename* from PySide2/6 or PyQt5/6 to qtpy."""
     with open(f"{filename}", "r") as file:
         filedata = file.read()
         filedata = filedata.replace("from PyQt5", "from qtpy")
         filedata = filedata.replace("from PySide2", "from qtpy")
+        filedata = filedata.replace("from PyQt6", "from qtpy")
+        filedata = filedata.replace("from PySide6", "from qtpy")
     with open(f"{filename}", "w") as file:
         file.write(filedata)
 
 
 def compile_rc(*filenames: str) -> None:
     """
-    Compile resource file(s) given by 'filenames'. If no arguments are given,
+    Compile resource file(s) given by *filenames*. If no arguments are given,
     the compiler will search for resource (.qrc) files and compile accordingly.
     """
     _check_qt_version()
@@ -70,10 +74,9 @@ def compile_rc(*filenames: str) -> None:
         if rcc is None:
             rcc = shutil.which("pyrcc5")
             arguments = f"-o {outfile} {filename}"
-        assert rcc, (
-            "Qt Resource compiler failed, cannot find pyside2-rcc, rcc, or"
-            " pyrcc5"
-        )
+        assert (
+            rcc
+        ), "Qt Resource compiler failed, cannot find pyside2-rcc, rcc, or pyrcc5"
 
         os_ = sys.platform
         if os_.startswith("linux"):  # Linux
@@ -124,7 +127,7 @@ def compile_rc(*filenames: str) -> None:
 
 def compile_ui(*filenames: str) -> None:
     """
-    Compile form file(s) given by 'filenames'. If no arguments are given, the
+    Compile form file(s) given by *filenames*. If no arguments are given, the
     compiler will search for form (.ui) files and compile accordingly.
     """
     _check_qt_version()
@@ -168,11 +171,43 @@ def compile_ui(*filenames: str) -> None:
                 log.error(f"{os_} UI compiler not supported")
                 raise NotImplementedError
 
-        else:  # uic.PYQT5
+        elif uic.PYQT5 or uic.PYQT6:
             from qtpy.uic import compileUi
 
             with open(outfile, "w") as ofile:
                 compileUi(filename, ofile)
+        elif uic.PYQT6:
+            uic_ = shutil.which("pyside6-uic")
+            arguments = f"-g python -o {outfile} {filename}"
+
+            if uic_ is None:
+                uic_ = shutil.which("uic")
+            if uic_ is None:
+                uic_ = shutil.which("pyuic6")
+                arguments = f"-o {outfile} {filename}"
+            assert uic_, (
+                "Qt User Interface Compiler failed, cannot find pyside6-uic,"
+                " uic, or pyuic6"
+            )
+
+            os_ = sys.platform
+            if os_.startswith("linux"):  # Linux
+                cmd = f"{uic_} {arguments}"
+                subprocess.call(cmd.split())
+
+            elif os_.startswith("win32"):  # Windows
+                # TODO: implement
+                log.error("Windows UI compiler not implemented")
+                raise NotImplementedError
+
+            elif os_.startswith("darwin"):  # macOS
+                # TODO: implement
+                log.error("macOS UI compiler not implemented")
+                raise NotImplementedError
+
+            else:  # other OS
+                log.error(f"{os_} UI compiler not supported")
+                raise NotImplementedError
 
         replace_qt_bindings(outfile)  # replace qt-bindings with qtpy
 
