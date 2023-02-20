@@ -1,5 +1,5 @@
 """
-B-ASIC signal generators
+B-ASIC Signal Generator Module.
 
 These can be used as input to Simulation to algorithmically provide signal values.
 Especially, all classes defined here will act as a callable which accepts an integer
@@ -22,7 +22,7 @@ class SignalGenerator:
     """
     Base class for signal generators.
 
-    Handles operator overloading and defined the ``__call__`` method that should
+    Handles operator overloading and defines the ``__call__`` method that should
     be overridden.
     """
 
@@ -94,7 +94,7 @@ class Impulse(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return 1 if time == self._delay else 0
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Impulse({self._delay})" if self._delay else "Impulse()"
 
 
@@ -114,7 +114,7 @@ class Step(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return 1 if time >= self._delay else 0
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Step({self._delay})" if self._delay else "Step()"
 
 
@@ -134,7 +134,7 @@ class Constant(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return self._constant
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self._constant}"
 
 
@@ -157,7 +157,7 @@ class ZeroPad(SignalGenerator):
             return self._data[time]
         return 0.0
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"ZeroPad({self._data})"
 
 
@@ -181,7 +181,7 @@ class Sinusoid(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return sin(pi * (self._frequency * time + self._phase))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"Sinusoid({self._frequency}, {self._phase})"
             if self._phase
@@ -216,7 +216,7 @@ class Gaussian(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return self._rng.normal(self._loc, self._scale)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         ret_list = []
         if self._seed is not None:
             ret_list.append(f"seed={self._seed}")
@@ -256,7 +256,7 @@ class Uniform(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return self._rng.uniform(self._low, self._high)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         ret_list = []
         if self._seed is not None:
             ret_list.append(f"seed={self._seed}")
@@ -280,7 +280,7 @@ class _AddGenerator(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return self._a(time) + self._b(time)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self._a} + {self._b}"
 
 
@@ -296,7 +296,7 @@ class _SubGenerator(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return self._a(time) - self._b(time)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self._a} - {self._b}"
 
 
@@ -312,7 +312,7 @@ class _MulGenerator(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return self._a(time) * self._b(time)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         a = (
             f"({self._a})"
             if isinstance(self._a, (_AddGenerator, _SubGenerator))
@@ -338,7 +338,7 @@ class _DivGenerator(SignalGenerator):
     def __call__(self, time: int) -> complex:
         return self._a(time) / self._b(time)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         a = (
             f"({self._a})"
             if isinstance(self._a, (_AddGenerator, _SubGenerator))
