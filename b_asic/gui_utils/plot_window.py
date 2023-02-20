@@ -1,3 +1,5 @@
+"""PlotWindow is a window in which simulation results are plotted."""
+
 # TODO's:
 # * Solve the legend update. That isn't working at all.
 # * Zoom etc. Might need to change FigureCanvas. Or just something very little.
@@ -5,9 +7,8 @@
 import re
 import sys
 
-from matplotlib.backends.backend_qt5agg import (
-    FigureCanvasQTAgg as FigureCanvas,
-)
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 from qtpy.QtCore import Qt
@@ -46,9 +47,7 @@ class PlotCanvas(FigureCanvas):
     def _save_plot_figure(self):
         self.logger.info(f"Saving plot of figure: {self.sfg.name}.")
         file_choices = "PNG (*.png)|*.png"
-        path, ext = QFileDialog.getSaveFileName(
-            self, "Save file", "", file_choices
-        )
+        path, ext = QFileDialog.getSaveFileName(self, "Save file", "", file_choices)
         path = path.encode("utf-8")
         if not path[-4:] == file_choices[-4:].encode("utf-8"):
             path += file_choices[-4:].encode("utf-8")
@@ -79,10 +78,10 @@ class PlotWindow(QDialog):
             | Qt.WindowCloseButtonHint
             | Qt.WindowMinimizeButtonHint
             | Qt.WindowMaximizeButtonHint
-            | Qt.WindowStaysOnTopHint
+            # | Qt.WindowStaysOnTopHint
         )
         self.setWindowTitle("Simulation result")
-        self.sim_result = sim_result
+        # self.sim_result = sim_result
         self._auto_redraw = False
 
         # Categorise sim_results into inputs, outputs, delays, others
@@ -110,25 +109,26 @@ class PlotWindow(QDialog):
         self.setLayout(self.dialog_layout)
 
         listlayout = QVBoxLayout()
-        self.plotcanvas = PlotCanvas(
-            logger=logger, parent=self, width=5, height=4, dpi=100
-        )
+        plotlayout = QVBoxLayout()
 
         self.dialog_layout.addLayout(listlayout)
-        self.dialog_layout.addWidget(self.plotcanvas)
+        self.dialog_layout.addLayout(plotlayout)
 
         ########### Plot: ##############
         # Do this before the list layout, as the list layout will re/set visibility
         # Note: The order is of importens. Interesting lines last, to be on top.
+        self.plotcanvas = PlotCanvas(
+            logger=logger, parent=self, width=5, height=4, dpi=100
+        )
+
         self._lines = {}
-        for key in (
-            sim_res_others | sim_res_delays | sim_res_ins | sim_res_outs
-        ):
-            line = self.plotcanvas.axes.plot(
-                sim_result[key], visible=False, label=key
-            )
+        for key in sim_res_others | sim_res_delays | sim_res_ins | sim_res_outs:
+            line = self.plotcanvas.axes.plot(sim_result[key], visible=False, label=key)
             self._lines[key] = line
         self.plotcanvas.legend = self.plotcanvas.axes.legend()
+
+        plotlayout.addWidget(NavigationToolbar(self.plotcanvas, self))
+        plotlayout.addWidget(self.plotcanvas)
 
         ########### List layout: ##############
 
@@ -146,9 +146,7 @@ class PlotWindow(QDialog):
         self.checklist = QListWidget()
         self.checklist.itemChanged.connect(self._item_change)
         listitems = {}
-        for key in (
-            sim_res_ins | sim_res_outs | sim_res_delays | sim_res_others
-        ):
+        for key in sim_res_ins | sim_res_outs | sim_res_delays | sim_res_others:
             listitem = QListWidgetItem(key)
             listitems[key] = listitem
             self.checklist.addItem(listitem)
@@ -180,9 +178,7 @@ class PlotWindow(QDialog):
         self._auto_redraw = True
 
     def _legend_checkbox_change(self, checkState):
-        self.plotcanvas.legend.set(
-            visible=(checkState == Qt.CheckState.Checked)
-        )
+        self.plotcanvas.legend.set(visible=(checkState == Qt.CheckState.Checked))
         if self._auto_redraw:
             if checkState == Qt.CheckState.Checked:
                 self.plotcanvas.legend = self.plotcanvas.axes.legend()
