@@ -1,6 +1,4 @@
-"""
-B-ASIC classes representing resource usage.
-"""
+"""B-ASIC classes representing resource usage."""
 
 from typing import Dict, Optional, Tuple
 
@@ -10,9 +8,10 @@ from b_asic.port import InputPort, OutputPort
 
 class Process:
     """
-    Object for use in resource allocation. Has a start time and an execution
-    time. Subclasses will in many cases contain additional information for
-    resource assignment.
+    Object for use in resource allocation.
+
+    Has a start time and an execution time. Subclasses will in many cases
+    contain additional information for resource assignment.
 
     Parameters
     ==========
@@ -59,9 +58,7 @@ class Process:
         return self._name
 
     def __repr__(self) -> str:
-        return (
-            f"Process({self.start_time}, {self.execution_time}, {self.name})"
-        )
+        return f"Process({self.start_time}, {self.execution_time}, {self.name})"
 
     # Static counter for default names
     _name_cnt = 0
@@ -90,8 +87,7 @@ class OperatorProcess(Process):
         execution_time = operation.execution_time
         if execution_time is None:
             raise ValueError(
-                "Operation {operation!r} does not have an execution time"
-                " specified!"
+                "Operation {operation!r} does not have an execution time specified!"
             )
         super().__init__(
             start_time,
@@ -157,8 +153,9 @@ class MemoryVariable(Process):
 
 class PlainMemoryVariable(Process):
     """
-    Object that corresponds to a memory variable which only use numbers for
-    ports. This can be useful when only a plain memory variable is wanted with
+    Object that corresponds to a memory variable which only use numbers for ports.
+
+    This can be useful when only a plain memory variable is wanted with
     no connection to a schedule.
 
     Parameters

@@ -64,23 +64,26 @@ class Signal(AbstractGraphComponent):
 
     @property
     def neighbors(self) -> Iterable[GraphComponent]:
+        """Return a list of the (up to) two operations connected to this signal."""
         return [p.operation for p in [self.source, self.destination] if p is not None]
 
     @property
     def source(self) -> Optional["OutputPort"]:
-        """The source OutputPort of the signal."""
+        """Return the source OutputPort of the signal."""
         return self._source
 
     @property
     def destination(self) -> Optional["InputPort"]:
-        """The destination InputPort of the signal."""
+        """Return the destination InputPort of the signal."""
         return self._destination
 
     def set_source(self, source: Union["OutputPort", "Signal", "Operation"]) -> None:
         """
-        Disconnect the previous source OutputPort of the signal and
-        connect to the entered source OutputPort. Also connect the entered
-        source port to the signal if it has not already been connected.
+        Connect to the entered source OutputPort.
+
+        Also, disconnect the previous source OutputPort of the signal and
+        connect the entered source port to the signal if it has not
+        already been connected.
 
         Parameters
         ==========
@@ -111,9 +114,11 @@ class Signal(AbstractGraphComponent):
         self, destination: Union["InputPort", "Signal", "Operation"]
     ) -> None:
         """
-        Disconnect the previous destination InputPort of the signal and
-        connect to the entered destination InputPort. Also connect the entered
-        destination port to the signal if it has not already been connected.
+        Connect to the entered *destination* InputPort.
+
+        Also, disconnect the previous destination InputPort of the signal and
+        connect the entered destination port to the signal if it has not already
+        been connected.
 
         Parameters
         ==========
@@ -143,8 +148,10 @@ class Signal(AbstractGraphComponent):
 
     def remove_source(self) -> None:
         """
-        Disconnect the source OutputPort of the signal. If the source port
-        still is connected to this signal then also disconnect the source port.
+        Disconnect the source OutputPort of the signal.
+
+        If the source port still is connected to this signal then also disconnect
+        the source port.
         """
         source = self._source
         if source is not None:
@@ -162,8 +169,7 @@ class Signal(AbstractGraphComponent):
 
     def dangling(self) -> bool:
         """
-        Returns True if the signal is missing either a source or a destination,
-        else False.
+        Return True if the signal is missing either a source or a destination.
         """
         return self._source is None or self._destination is None
 

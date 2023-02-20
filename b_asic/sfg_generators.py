@@ -29,8 +29,8 @@ def wdf_allpass(
     execution_time: Optional[int] = None,
 ) -> SFG:
     """
-    Generate a signal flow graph of a WDF allpass section based on symmetric two-port
-    adaptors.
+    Generate a signal flow graph of a WDF allpass section based on symmetric two-port\
+ adaptors.
 
     Parameters
     ----------
@@ -126,8 +126,9 @@ def direct_form_fir(
     add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
 ):
     r"""
-    Generate a signal flow graph of a direct form FIR filter. The *coefficients* parameter is a
-    sequence of impulse response values::
+    Generate a signal flow graph of a direct form FIR filter.
+
+    The *coefficients* parameter is a sequence of impulse response values::
 
         coefficients = [h0, h1, h2, ..., hN]
 
@@ -206,8 +207,9 @@ def transposed_direct_form_fir(
     add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
 ):
     r"""
-    Generate a signal flow graph of a transposed direct form FIR filter. The *coefficients* parameter is a
-    sequence of impulse response values::
+    Generate a signal flow graph of a transposed direct form FIR filter.
+
+    The *coefficients* parameter is a sequence of impulse response values::
 
         coefficients = [h0, h1, h2, ..., hN]
 

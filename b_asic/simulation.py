@@ -71,16 +71,16 @@ class Simulation:
 
     def set_input(self, index: int, input_provider: InputProvider) -> None:
         """
-        Set the input used to get values for the specific input at the
-        given index to the internal SFG.
+        Set the input used to get values for the specific input at the given index of\
+ the internal SFG.
 
         Parameters
         ----------
         index : int
             The input index.
         input_provider : list, callable, or number
-            Can be an array of values, a callable taking a time index and returning the value, or a
-            number (constant input).
+            Can be an array of values, a callable taking a time index and returning
+            the value, or a number (constant input).
         """
         if index < 0 or index >= len(self._input_functions):
             raise IndexError(
@@ -120,8 +120,7 @@ class Simulation:
         bits_override: Optional[int] = None,
         truncate: bool = True,
     ) -> Sequence[Num]:
-        """
-        Run one iteration of the simulation and return the resulting output values.
+        """Run one iteration of the simulation and return the resulting output values.
         """
         return self.run_for(1, save_results, bits_override, truncate)
 
@@ -133,8 +132,8 @@ class Simulation:
         truncate: bool = True,
     ) -> Sequence[Num]:
         """
-        Run the simulation until its iteration is greater than or equal to the given
-        iteration and return the output values of the last iteration.
+        Run the simulation until its iteration is greater than or equal to the given\
+ iteration and return the output values of the last iteration.
         """
         result: Sequence[Num] = []
         while self._iteration < iteration:
@@ -165,8 +164,8 @@ class Simulation:
         truncate: bool = True,
     ) -> Sequence[Num]:
         """
-        Run a given number of iterations of the simulation and return the output
-        values of the last iteration.
+        Run a given number of iterations of the simulation and return the output\
+ values of the last iteration.
         """
         return self.run_until(
             self._iteration + iterations, save_results, bits_override, truncate
@@ -179,8 +178,8 @@ class Simulation:
         truncate: bool = True,
     ) -> Sequence[Num]:
         """
-        Run the simulation until the end of its input arrays and return the output
-        values of the last iteration.
+        Run the simulation until the end of its input arrays and return the output\
+ values of the last iteration.
         """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")
@@ -194,11 +193,12 @@ class Simulation:
     @property
     def results(self) -> ResultArrayMap:
         """
-        Get a mapping from result keys to numpy arrays containing all results, including
-        intermediate values, calculated for each iteration up until now that was run
-        with save_results enabled.
-        The mapping is indexed using the key() method of Operation with the appropriate
-        output index.
+        Get a mapping from result keys to numpy arrays containing all results.
+
+        This includes intermediate values, calculated for each iteration up until now
+        that was run with *save_results* enabled.
+        The mapping is indexed using the ``key()`` method of Operation with the
+        appropriate output index.
         Example result after 3 iterations::
 
             {"c1": [3, 6, 7], "c2": [4, 5, 5], "bfly1.0": [7, 0, 0], "bfly1.1": [-1, 0, 2], "0": [7, -2, -1]}
