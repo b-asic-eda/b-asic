@@ -46,6 +46,8 @@ class TestRunFor:
         assert simulation.results["0"][3] == 13
         assert simulation.results["1"][3] == 20
 
+        assert simulation.iteration == 101
+
     def test_with_numpy_arrays_as_input(self, sfg_two_inputs_two_outputs):
         input0 = np.array([5, 9, 25, -5, 7])
         input1 = np.array([7, 3, 3, 54, 2])
@@ -131,15 +133,11 @@ class TestRunFor:
         )
         sim.run()
         assert (
-            sim.results[
-                precedence_sfg_delays.find_result_keys_by_name("ADD2")[0]
-            ][4]
+            sim.results[precedence_sfg_delays.find_result_keys_by_name("ADD2")[0]][4]
             == 31220
         )
         assert (
-            sim.results[
-                precedence_sfg_delays.find_result_keys_by_name("A1")[0]
-            ][2]
+            sim.results[precedence_sfg_delays.find_result_keys_by_name("A1")[0]][2]
             == 80
         )
 
@@ -220,9 +218,7 @@ class TestRun:
         input0 = np.array([1, 2, 3, 4, 5])
         simulation = Simulation(sfg_simple_filter, [input0])
         simulation.run_for(len(input0), save_results=True)
-        assert all(
-            simulation.results["0"] == np.array([0, 1.0, 2.5, 4.25, 6.125])
-        )
+        assert all(simulation.results["0"] == np.array([0, 1.0, 2.5, 4.25, 6.125]))
 
     def test_custom_operation(self, sfg_custom_operation):
         simulation = Simulation(sfg_custom_operation, [lambda n: n + 1])

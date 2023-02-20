@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import pytest
 
+from b_asic.process import Process
 from b_asic.research.interleaver import (
     generate_matrix_transposer,
     generate_random_interleaver,

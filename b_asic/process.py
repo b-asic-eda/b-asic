@@ -58,7 +58,7 @@ class Process:
         return self._name
 
     def __repr__(self) -> str:
-        return f"Process({self.start_time}, {self.execution_time}, {self.name})"
+        return f"Process({self.start_time}, {self.execution_time}, {self.name!r})"
 
     # Static counter for default names
     _name_cnt = 0
@@ -166,7 +166,8 @@ class PlainMemoryVariable(Process):
         Identifier for the source of the memory variable.
     reads : {int: int, ...}
         Dictionary where the key is the destination identifier and the value
-        is the time after *write_time* that the memory variable is read.
+        is the time after *write_time* that the memory variable is read, i.e., the
+        lifetime of the variable.
     name : str, optional
         The name of the process.
     """
