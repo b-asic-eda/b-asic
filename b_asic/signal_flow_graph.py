@@ -769,7 +769,12 @@ class SFG(AbstractOperation):
                 for port in ports:
                     port_string = port.name
                     if port.operation.output_count > 1:
-                        sub.node(port_string)
+                        sub.node(
+                            port_string,
+                            shape='rectangle',
+                            height="0.1",
+                            width="0.1",
+                        )
                     else:
                         sub.node(
                             port_string,
