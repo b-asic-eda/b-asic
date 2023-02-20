@@ -124,7 +124,7 @@ def direct_form_fir(
     name: Optional[str] = None,
     mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
     add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
-):
+) -> SFG:
     r"""
     Generate a signal flow graph of a direct form FIR filter.
 
@@ -205,7 +205,7 @@ def transposed_direct_form_fir(
     name: Optional[str] = None,
     mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
     add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
-):
+) -> SFG:
     r"""
     Generate a signal flow graph of a transposed direct form FIR filter.
 

@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 from pprint import pprint
+from typing import Optional, Tuple
 
 from qtpy.QtCore import QFileInfo, QSize, Qt
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
@@ -43,6 +44,7 @@ from b_asic.GUI.simulate_sfg_window import SimulateSFGWindow
 from b_asic.GUI.util_dialogs import FaqWindow, KeybindsWindow
 from b_asic.GUI.utils import decorate_class, handle_error
 from b_asic.gui_utils.about_window import AboutWindow
+from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 from b_asic.signal_flow_graph import SFG
@@ -88,9 +90,7 @@ class MainWindow(QMainWindow):
             b_asic.special_operations, self.ui.special_operations_list
         )
 
-        self.shortcut_core = QShortcut(
-            QKeySequence("Ctrl+R"), self.ui.operation_box
-        )
+        self.shortcut_core = QShortcut(QKeySequence("Ctrl+R"), self.ui.operation_box)
         self.shortcut_core.activated.connect(
             self._refresh_operations_list_from_namespace
         )
@@ -140,11 +140,11 @@ class MainWindow(QMainWindow):
 
         self.cursor = QCursor()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
         self.create_toolbar_view()
         self.create_graphics_view()
 
-    def create_graphics_view(self):
+    def create_graphics_view(self) -> None:
         self.graphic_view = QGraphicsView(self.scene, self)
         self.graphic_view.setRenderHint(QPainter.Antialiasing)
         self.graphic_view.setGeometry(
@@ -152,12 +152,12 @@ class MainWindow(QMainWindow):
         )
         self.graphic_view.setDragMode(QGraphicsView.RubberBandDrag)
 
-    def create_toolbar_view(self):
+    def create_toolbar_view(self) -> None:
         self.toolbar = self.addToolBar("Toolbar")
         self.toolbar.addAction("Create SFG", self.create_sfg_from_toolbar)
         self.toolbar.addAction("Clear workspace", self.clear_workspace)
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event) -> None:
         self.ui.operation_box.setGeometry(
             10, 10, self.ui.operation_box.width(), self.height()
         )
@@ -169,14 +169,14 @@ class MainWindow(QMainWindow):
         )
         super().resizeEvent(event)
 
-    def wheelEvent(self, event):
+    def wheelEvent(self, event) -> None:
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             old_zoom = self.zoom
             self.zoom += event.angleDelta().y() / 2500
             self.graphic_view.scale(self.zoom, self.zoom)
             self.zoom = old_zoom
 
-    def view_operation_names(self):
+    def view_operation_names(self) -> None:
         if self.check_show_names.isChecked():
             self.is_show_names = True
         else:
@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
             operation.label.setOpacity(self.is_show_names)
             operation.is_show_name = self.is_show_names
 
-    def _save_work(self):
+    def _save_work(self) -> None:
         sfg = self.sfg_widget.sfg
         file_dialog = QFileDialog()
         file_dialog.setDefaultSuffix(".py")
@@ -206,14 +206,10 @@ class MainWindow(QMainWindow):
         try:
             with open(module, "w+") as file_obj:
                 file_obj.write(
-                    sfg_to_python(
-                        sfg, suffix=f"positions = {operation_positions}"
-                    )
+                    sfg_to_python(sfg, suffix=f"positions = {operation_positions}")
                 )
         except Exception as e:
-            self.logger.error(
-                f"Failed to save SFG to path: {module}, with error: {e}."
-            )
+            self.logger.error(f"Failed to save SFG to path: {module}, with error: {e}.")
             return
 
         self.logger.info("Saved SFG to path: " + str(module))
@@ -237,8 +233,7 @@ class MainWindow(QMainWindow):
             sfg, positions = python_to_sfg(module)
         except ImportError as e:
             self.logger.error(
-                f"Failed to load module: {module} with the following error:"
-                f" {e}."
+                f"Failed to load module: {module} with the following error: {e}."
             )
             return
 
@@ -266,12 +261,8 @@ class MainWindow(QMainWindow):
             # print(op)
             self.create_operation(
                 op,
-                positions[op.graph_id][0:2]
-                if op.graph_id in positions
-                else None,
-                positions[op.graph_id][-1]
-                if op.graph_id in positions
-                else None,
+                positions[op.graph_id][0:2] if op.graph_id in positions else None,
+                positions[op.graph_id][-1] if op.graph_id in positions else None,
             )
 
         def connect_ports(ports):
@@ -287,9 +278,7 @@ class MainWindow(QMainWindow):
                     destination = [
                         destination
                         for destination in self.portDict[
-                            self.operationDragDict[
-                                signal.destination.operation
-                            ]
+                            self.operationDragDict[signal.destination.operation]
                         ]
                         if destination.port is signal.destination
                     ]
@@ -328,7 +317,7 @@ class MainWindow(QMainWindow):
         self.scene.clear()
         self.logger.info("Workspace cleared.")
 
-    def create_sfg_from_toolbar(self):
+    def create_sfg_from_toolbar(self) -> None:
         inputs = []
         outputs = []
         for op in self.pressed_operations:
@@ -347,14 +336,10 @@ class MainWindow(QMainWindow):
             self.logger.warning("Failed to initialize SFG with empty name.")
             return
 
-        self.logger.info(
-            "Creating SFG with name: %s from selected operations." % name
-        )
+        self.logger.info("Creating SFG with name: %s from selected operations." % name)
 
         sfg = SFG(inputs=inputs, outputs=outputs, name=name)
-        self.logger.info(
-            "Created SFG with name: %s from selected operations." % name
-        )
+        self.logger.info("Created SFG with name: %s from selected operations." % name)
 
         def check_equality(signal, signal_2):
             if not (
@@ -372,8 +357,7 @@ class MainWindow(QMainWindow):
                 and hasattr(signal_2.destination.operation, "value")
             ):
                 if not (
-                    signal.source.operation.value
-                    == signal_2.source.operation.value
+                    signal.source.operation.value == signal_2.source.operation.value
                     and signal.destination.operation.value
                     == signal_2.destination.operation.value
                 ):
@@ -386,8 +370,7 @@ class MainWindow(QMainWindow):
                 and hasattr(signal_2.destination.operation, "name")
             ):
                 if not (
-                    signal.source.operation.name
-                    == signal_2.source.operation.name
+                    signal.source.operation.name == signal_2.source.operation.name
                     and signal.destination.operation.name
                     == signal_2.destination.operation.name
                 ):
@@ -456,12 +439,12 @@ class MainWindow(QMainWindow):
 
         self.sfg_dict[sfg.name] = sfg
 
-    def _show_precedence_graph(self, event=None):
+    def _show_precedence_graph(self, event=None) -> None:
         self.dialog = ShowPCWindow(self)
         self.dialog.add_sfg_to_dialog()
         self.dialog.show()
 
-    def get_operations_from_namespace(self, namespace):
+    def get_operations_from_namespace(self, namespace) -> None:
         self.logger.info(
             "Fetching operations from namespace: " + str(namespace.__name__)
         )
@@ -471,7 +454,7 @@ class MainWindow(QMainWindow):
             if hasattr(getattr(namespace, comp), "type_name")
         ]
 
-    def add_operations_from_namespace(self, namespace, _list):
+    def add_operations_from_namespace(self, namespace, _list) -> None:
         for attr_name in self.get_operations_from_namespace(namespace):
             attr = getattr(namespace, attr_name)
             try:
@@ -482,11 +465,9 @@ class MainWindow(QMainWindow):
             except NotImplementedError:
                 pass
 
-        self.logger.info(
-            "Added operations from namespace: " + str(namespace.__name__)
-        )
+        self.logger.info("Added operations from namespace: " + str(namespace.__name__))
 
-    def add_namespace(self, event=None):
+    def add_namespace(self, event=None) -> None:
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
@@ -497,16 +478,25 @@ class MainWindow(QMainWindow):
         namespace = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(namespace)
 
-        self.add_operations_from_namespace(
-            namespace, self.ui.custom_operations_list
-        )
+        self.add_operations_from_namespace(namespace, self.ui.custom_operations_list)
 
-    def create_operation(self, op, position=None, is_flipped: bool = False):
+    def create_operation(
+        self,
+        op: Operation,
+        position: Optional[Tuple[float, float]] = None,
+        is_flipped: bool = False,
+    ) -> None:
+        """
+
+        Parameters
+        ----------
+        op : Operation
+        position : (float, float), optional
+        is_flipped : bool, default: False
+        """
         try:
             if op in self.operationDragDict:
-                self.logger.warning(
-                    "Multiple instances of operation with same name"
-                )
+                self.logger.warning("Multiple instances of operation with same name")
                 return
 
             attr_button = DragButton(op.graph_id, op, True, window=self)
@@ -573,7 +563,7 @@ class MainWindow(QMainWindow):
                 "Unexpected error occurred while creating operation: " + str(e)
             )
 
-    def _create_operation_item(self, item):
+    def _create_operation_item(self, item) -> None:
         self.logger.info("Creating operation of type: %s" % str(item.text()))
         try:
             attr_oper = self._operations_from_name[item.text()]()
@@ -583,7 +573,7 @@ class MainWindow(QMainWindow):
                 "Unexpected error occurred while creating operation: " + str(e)
             )
 
-    def _refresh_operations_list_from_namespace(self):
+    def _refresh_operations_list_from_namespace(self) -> None:
         self.logger.info("Refreshing operation list.")
         self.ui.core_operations_list.clear()
         self.ui.special_operations_list.clear()
@@ -596,10 +586,10 @@ class MainWindow(QMainWindow):
         )
         self.logger.info("Finished refreshing operation list.")
 
-    def on_list_widget_item_clicked(self, item):
+    def on_list_widget_item_clicked(self, item) -> None:
         self._create_operation_item(item)
 
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Delete:
             for pressed_op in self.pressed_operations:
                 pressed_op.remove()
@@ -607,11 +597,10 @@ class MainWindow(QMainWindow):
             self.pressed_operations.clear()
         super().keyPressEvent(event)
 
-    def _connect_callback(self, *event):
+    def _connect_callback(self, *event) -> None:
         if len(self.pressed_ports) < 2:
             self.logger.warning(
-                "Cannot connect less than two ports. Please select at least"
-                " two."
+                "Cannot connect less than two ports. Please select at least two."
             )
             return
 
@@ -636,9 +625,7 @@ class MainWindow(QMainWindow):
         for port in self.pressed_ports:
             port.select_port()
 
-    def _connect_button(
-        self, source: PortButton, destination: PortButton
-    ) -> None:
+    def _connect_button(self, source: PortButton, destination: PortButton) -> None:
         """
         Connect two PortButtons with an Arrow.
 
@@ -698,24 +685,18 @@ class MainWindow(QMainWindow):
     def _simulate_sfg(self):
         for sfg, properties in self.dialog.properties.items():
             self.logger.info("Simulating SFG with name: %s" % str(sfg.name))
-            simulation = FastSimulation(
-                sfg, input_providers=properties["input_values"]
-            )
+            simulation = FastSimulation(sfg, input_providers=properties["input_values"])
             l_result = simulation.run_for(
                 properties["iteration_count"],
                 save_results=properties["all_results"],
             )
 
             print(f"{'=' * 10} {sfg.name} {'=' * 10}")
-            pprint(
-                simulation.results if properties["all_results"] else l_result
-            )
+            pprint(simulation.results if properties["all_results"] else l_result)
             print(f"{'=' * 10} /{sfg.name} {'=' * 10}")
 
             if properties["show_plot"]:
-                self.logger.info(
-                    "Opening plot for SFG with name: " + str(sfg.name)
-                )
+                self.logger.info("Opening plot for SFG with name: " + str(sfg.name))
                 self.logger.info(
                     "To save the plot press 'Ctrl+S' when the plot is focused."
                 )

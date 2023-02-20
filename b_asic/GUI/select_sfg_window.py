@@ -1,15 +1,19 @@
 """
 B-ASIC select SFG window.
 """
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QComboBox, QDialog, QPushButton, QVBoxLayout
+
+if TYPE_CHECKING:
+    from b_asic.GUI.main_window import MainWindow
 
 
 class SelectSFGWindow(QDialog):
     ok = Signal()
 
-    def __init__(self, window):
+    def __init__(self, window: "MainWindow"):
         super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
@@ -23,9 +27,8 @@ class SelectSFGWindow(QDialog):
 
         self.sfg = None
         self.setLayout(self.dialog_layout)
-        self.add_sfgs_to_layout()
 
-    def add_sfgs_to_layout(self):
+        # Add SFGs to layout
         for sfg in self._window.sfg_dict:
             self.combo_box.addItem(sfg)
 
