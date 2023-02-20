@@ -25,12 +25,7 @@ from typing import (
     overload,
 )
 
-from b_asic.graph_component import (
-    AbstractGraphComponent,
-    GraphComponent,
-    GraphID,
-    Name,
-)
+from b_asic.graph_component import AbstractGraphComponent, GraphComponent, GraphID, Name
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.types import Num
@@ -403,31 +398,11 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def get_plot_coordinates(
         self,
-    ) -> Tuple[
-        Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]
-    ]:
+    ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
         """
         Return a tuple containing coordinates for the two polygons outlining
         the latency and execution time of the operation.
         The polygons are corresponding to a start time of 0 and are of height 1.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_io_coordinates(
-        self,
-    ) -> Tuple[
-        Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]
-    ]:
-        """
-        Return a tuple containing coordinates for inputs and outputs, respectively.
-        These maps to the polygons and are corresponding to a start time of 0
-        and height 1.
-
-        See also
-        ========
-        get_input_coordinates
-        get_output_coordinates
         """
         raise NotImplementedError
 
@@ -442,7 +417,6 @@ class Operation(GraphComponent, SignalSourceProvider):
 
         See also
         ========
-        get_io_coordinates
         get_output_coordinates
         """
         raise NotImplementedError
@@ -459,7 +433,6 @@ class Operation(GraphComponent, SignalSourceProvider):
         See also
         ========
         get_input_coordinates
-        get_io_coordinates
 
         """
         raise NotImplementedError
@@ -512,9 +485,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         input_count: int,
         output_count: int,
         name: Name = Name(""),
-        input_sources: Optional[
-            Sequence[Optional[SignalSourceProvider]]
-        ] = None,
+        input_sources: Optional[Sequence[Optional[SignalSourceProvider]]] = None,
         latency: Optional[int] = None,
         latency_offsets: Optional[Dict[str, int]] = None,
         execution_time: Optional[int] = None,
@@ -575,9 +546,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @overload
     @abstractmethod
-    def evaluate(
-        self, *inputs: Num
-    ) -> List[Num]:  # pylint: disable=arguments-differ
+    def evaluate(self, *inputs: Num) -> List[Num]:  # pylint: disable=arguments-differ
         ...
 
     @abstractmethod
@@ -601,34 +570,25 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         # Import here to avoid circular imports.
         from b_asic.core_operations import Addition, Constant
 
-        return Addition(
-            Constant(src) if isinstance(src, Number) else src, self
-        )
+        return Addition(Constant(src) if isinstance(src, Number) else src, self)
 
     def __sub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Subtraction
 
-        return Subtraction(
-            self, Constant(src) if isinstance(src, Number) else src
-        )
+        return Subtraction(self, Constant(src) if isinstance(src, Number) else src)
 
     def __rsub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Subtraction
 
-        return Subtraction(
-            Constant(src) if isinstance(src, Number) else src, self
-        )
+        return Subtraction(Constant(src) if isinstance(src, Number) else src, self)
 
     def __mul__(
         self, src: Union[SignalSourceProvider, Num]
     ) -> Union["Multiplication", "ConstantMultiplication"]:
         # Import here to avoid circular imports.
-        from b_asic.core_operations import (
-            ConstantMultiplication,
-            Multiplication,
-        )
+        from b_asic.core_operations import ConstantMultiplication, Multiplication
 
         return (
             ConstantMultiplication(src, self)
@@ -640,10 +600,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         self, src: Union[SignalSourceProvider, Num]
     ) -> Union["Multiplication", "ConstantMultiplication"]:
         # Import here to avoid circular imports.
-        from b_asic.core_operations import (
-            ConstantMultiplication,
-            Multiplication,
-        )
+        from b_asic.core_operations import ConstantMultiplication, Multiplication
 
         return (
             ConstantMultiplication(src, self)
@@ -655,9 +612,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         # Import here to avoid circular imports.
         from b_asic.core_operations import Constant, Division
 
-        return Division(
-            self, Constant(src) if isinstance(src, Number) else src
-        )
+        return Division(self, Constant(src) if isinstance(src, Number) else src)
 
     def __rtruediv__(
         self, src: Union[SignalSourceProvider, Num]
@@ -835,8 +790,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         self, delays: Optional[DelayMap] = None, prefix: str = ""
     ) -> Sequence[Optional[Num]]:
         return [
-            self.current_output(i, delays, prefix)
-            for i in range(self.output_count)
+            self.current_output(i, delays, prefix) for i in range(self.output_count)
         ]
 
     def evaluate_outputs(
@@ -927,9 +881,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         Operations input ports.
         """
         return [
-            signal.source.operation
-            for signal in self.input_signals
-            if signal.source
+            signal.source.operation for signal in self.input_signals if signal.source
         ]
 
     @property
@@ -1008,10 +960,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return max(
             (
-                (
-                    cast(int, output.latency_offset)
-                    - cast(int, input.latency_offset)
-                )
+                (cast(int, output.latency_offset) - cast(int, input.latency_offset))
                 for output, input in it.product(self.outputs, self.inputs)
             )
         )
@@ -1116,9 +1065,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[
-        Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]
-    ]:
+    ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
         # Doc-string inherited
         return (
             self._get_plot_coordinates_for_latency(),
@@ -1169,28 +1116,22 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def get_input_coordinates(self) -> Tuple[Tuple[float, float], ...]:
         # doc-string inherited
+        num_in = self.input_count
         return tuple(
             (
                 self.input_latency_offsets()[k],
-                (1 + 2 * k) / (2 * len(self.inputs)),
+                (1 + 2 * k) / (2 * num_in),
             )
-            for k in range(len(self.inputs))
+            for k in range(num_in)
         )
 
     def get_output_coordinates(self) -> Tuple[Tuple[float, float], ...]:
         # doc-string inherited
+        num_out = self.output_count
         return tuple(
             (
                 self.output_latency_offsets()[k],
-                (1 + 2 * k) / (2 * len(self.outputs)),
+                (1 + 2 * k) / (2 * num_out),
             )
-            for k in range(len(self.outputs))
+            for k in range(num_out)
         )
-
-    def get_io_coordinates(
-        self,
-    ) -> Tuple[
-        Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]
-    ]:
-        # Doc-string inherited
-        return self.get_input_coordinates(), self.get_output_coordinates()

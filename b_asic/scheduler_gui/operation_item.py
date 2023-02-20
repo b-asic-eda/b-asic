@@ -219,8 +219,6 @@ class OperationItem(QGraphicsItemGroup):
         # component item
         self._set_background(OPERATION_LATENCY_INACTIVE)  # used by component filling
 
-        inputs, outputs = self._operation.get_io_coordinates()
-
         def create_ports(io_coordinates, prefix):
             for i, (x, y) in enumerate(io_coordinates):
                 pos = QPointF(x, y * self._height)
@@ -235,8 +233,8 @@ class OperationItem(QGraphicsItemGroup):
                 new_port.setPos(port_pos.x(), port_pos.y())
                 self._port_items.append(new_port)
 
-        create_ports(inputs, "in")
-        create_ports(outputs, "out")
+        create_ports(self._operation.get_input_coordinates(), "in")
+        create_ports(self._operation.get_output_coordinates(), "out")
 
         # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)

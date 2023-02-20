@@ -21,8 +21,7 @@ from b_asic import (
 
 class TestOperationOverloading:
     def test_addition_overload(self):
-        """Tests addition overloading for both operation and number argument.
-        """
+        """Tests addition overloading for both operation and number argument."""
         add1 = Addition(None, None, "add1")
         add2 = Addition(None, None, "add2")
 
@@ -42,8 +41,7 @@ class TestOperationOverloading:
         assert add5.input(1).signals == add4.output(0).signals
 
     def test_subtraction_overload(self):
-        """Tests subtraction overloading for both operation and number argument.
-        """
+        """Tests subtraction overloading for both operation and number argument."""
         add1 = Addition(None, None, "add1")
         add2 = Addition(None, None, "add2")
 
@@ -63,8 +61,7 @@ class TestOperationOverloading:
         assert sub3.input(1).signals == sub2.output(0).signals
 
     def test_multiplication_overload(self):
-        """Tests multiplication overloading for both operation and number argument.
-        """
+        """Tests multiplication overloading for both operation and number argument."""
         add1 = Addition(None, None, "add1")
         add2 = Addition(None, None, "add2")
 
@@ -84,8 +81,7 @@ class TestOperationOverloading:
         assert mul3.value == 5
 
     def test_division_overload(self):
-        """Tests division overloading for both operation and number argument.
-        """
+        """Tests division overloading for both operation and number argument."""
         add1 = Addition(None, None, "add1")
         add2 = Addition(None, None, "add2")
 
@@ -125,18 +121,8 @@ class TestTraverse:
 
     def test_traverse_type(self, large_operation_tree):
         result = list(large_operation_tree.traverse())
-        assert (
-            len(
-                list(filter(lambda type_: isinstance(type_, Addition), result))
-            )
-            == 3
-        )
-        assert (
-            len(
-                list(filter(lambda type_: isinstance(type_, Constant), result))
-            )
-            == 4
-        )
+        assert len(list(filter(lambda type_: isinstance(type_, Addition), result))) == 3
+        assert len(list(filter(lambda type_: isinstance(type_, Constant), result))) == 4
 
     def test_traverse_loop(self, operation_graph_with_cycle):
         assert len(list(operation_graph_with_cycle.traverse())) == 8
@@ -184,9 +170,7 @@ class TestLatency:
         }
 
     def test_latency_offsets_constructor(self):
-        bfly = Butterfly(
-            latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10}
-        )
+        bfly = Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
 
         assert bfly.latency == 8
         assert bfly.latency_offsets == {
@@ -233,17 +217,13 @@ class TestExecutionTime:
 
     def test_set_execution_time_negative(self):
         bfly = Butterfly()
-        with pytest.raises(
-            ValueError, match="Execution time cannot be negative"
-        ):
+        with pytest.raises(ValueError, match="Execution time cannot be negative"):
             bfly.execution_time = -1
 
 
 class TestCopyOperation:
     def test_copy_butterfly_latency_offsets(self):
-        bfly = Butterfly(
-            latency_offsets={"in0": 4, "in1": 2, "out0": 10, "out1": 9}
-        )
+        bfly = Butterfly(latency_offsets={"in0": 4, "in1": 2, "out0": 10, "out1": 9})
 
         bfly_copy = bfly.copy_component()
 
@@ -274,9 +254,7 @@ class TestPlotCoordinates:
         assert exe == ((0, 0), (0, 1), (1, 1), (1, 0), (0, 0))
 
     def test_complicated_case(self):
-        bfly = Butterfly(
-            latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10}
-        )
+        bfly = Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
         bfly.execution_time = 7
 
         lat, exe = bfly.get_plot_coordinates()
@@ -300,28 +278,22 @@ class TestIOCoordinates:
         cmult.execution_time = 1
         cmult.set_latency(3)
 
-        i_c, o_c = cmult.get_io_coordinates()
-        assert i_c == ((0, 0.5),)
-        assert o_c == ((3, 0.5),)
+        assert cmult.get_input_coordinates() == ((0, 0.5),)
+        assert cmult.get_output_coordinates() == ((3, 0.5),)
 
     def test_complicated_case(self):
-        bfly = Butterfly(
-            latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10}
-        )
+        bfly = Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
         bfly.execution_time = 7
 
-        i_c, o_c = bfly.get_io_coordinates()
-        assert i_c == ((2, 0.25), (3, 0.75))
-        assert o_c == ((5, 0.25), (10, 0.75))
+        assert bfly.get_input_coordinates() == ((2, 0.25), (3, 0.75))
+        assert bfly.get_output_coordinates() == ((5, 0.25), (10, 0.75))
 
     def test_io_coordinates_error(self):
         bfly = Butterfly()
 
         bfly.set_latency_offsets({"in0": 3, "out1": 5})
-        with pytest.raises(
-            ValueError, match="Missing latencies for inputs \\[1\\]"
-        ):
-            bfly.get_io_coordinates()
+        with pytest.raises(ValueError, match="Missing latencies for inputs \\[1\\]"):
+            bfly.get_input_coordinates()
 
 
 class TestSplit:
