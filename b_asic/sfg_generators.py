@@ -148,7 +148,7 @@ def direct_form_fir(
         The Output to connect the SFG to. If not provided, one will be generated.
 
     name : Name, optional
-        The name of the SFG. If None, "WDF allpass section".
+        The name of the SFG. If None, "Direct-form FIR filter".
 
     mult_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.ConstantMultiplication`.
@@ -229,7 +229,7 @@ def transposed_direct_form_fir(
         The Output to connect the SFG to. If not provided, one will be generated.
 
     name : Name, optional
-        The name of the SFG. If None, "WDF allpass section".
+        The name of the SFG. If None, "Transposed direct-form FIR filter".
 
     mult_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.ConstantMultiplication`.
