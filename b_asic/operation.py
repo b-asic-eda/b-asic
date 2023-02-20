@@ -988,7 +988,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         if any(val is None for val in latency_offsets):
             raise ValueError(
-                "Missing latencies for inputs"
+                "Missing latencies for input(s)"
                 f" {[i for (i, latency) in enumerate(latency_offsets) if latency is None]}"
             )
 
@@ -999,8 +999,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         if any(val is None for val in latency_offsets):
             raise ValueError(
-                "Missing latencies for outputs"
-                f" {[i for i in latency_offsets if i is not None]}"
+                "Missing latencies for output(s)"
+                f" {[i for (i, latency) in enumerate(latency_offsets) if latency is None]}"
             )
 
         return cast(List[int], latency_offsets)

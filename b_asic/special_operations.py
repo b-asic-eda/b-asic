@@ -45,6 +45,10 @@ class Input(AbstractOperation):
         return self.param("value")
 
     @property
+    def latency(self) -> int:
+        return self.latency_offsets["out0"]
+
+    @property
     def value(self) -> Num:
         """Get the current value of this input."""
         return self.param("value")
@@ -56,9 +60,7 @@ class Input(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[
-        Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]
-    ]:
+    ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
         # Doc-string inherited
         return (
             (
@@ -122,9 +124,7 @@ class Output(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[
-        Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]
-    ]:
+    ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
         # Doc-string inherited
         return (
             ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
@@ -138,6 +138,10 @@ class Output(AbstractOperation):
     def get_output_coordinates(self) -> Tuple[Tuple[float, float], ...]:
         # doc-string inherited
         return tuple()
+
+    @property
+    def latency(self) -> int:
+        return self.latency_offsets["in0"]
 
 
 class Delay(AbstractOperation):
@@ -174,9 +178,7 @@ class Delay(AbstractOperation):
         self, index: int, delays: Optional[DelayMap] = None, prefix: str = ""
     ) -> Optional[Num]:
         if delays is not None:
-            return delays.get(
-                self.key(index, prefix), self.param("initial_value")
-            )
+            return delays.get(self.key(index, prefix), self.param("initial_value"))
         return self.param("initial_value")
 
     def evaluate_output(
@@ -190,9 +192,7 @@ class Delay(AbstractOperation):
         truncate: bool = True,
     ) -> Num:
         if index != 0:
-            raise IndexError(
-                f"Output index out of range (expected 0-0, got {index})"
-            )
+            raise IndexError(f"Output index out of range (expected 0-0, got {index})")
         if len(input_values) != 1:
             raise ValueError(
                 "Wrong number of inputs supplied to SFG for evaluation"

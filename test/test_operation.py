@@ -204,6 +204,10 @@ class TestLatency:
             "out1": 9,
         }
 
+    def test_set_latency_negative(self):
+        with pytest.raises(ValueError, match="Latency cannot be negative"):
+            Butterfly(latency=-1)
+
 
 class TestExecutionTime:
     def test_execution_time_constructor(self):
@@ -292,8 +296,15 @@ class TestIOCoordinates:
         bfly = Butterfly()
 
         bfly.set_latency_offsets({"in0": 3, "out1": 5})
-        with pytest.raises(ValueError, match="Missing latencies for inputs \\[1\\]"):
+        with pytest.raises(
+            ValueError, match="Missing latencies for input\\(s\\) \\[1\\]"
+        ):
             bfly.get_input_coordinates()
+
+        with pytest.raises(
+            ValueError, match="Missing latencies for output\\(s\\) \\[0\\]"
+        ):
+            bfly.get_output_coordinates()
 
 
 class TestSplit:

@@ -62,6 +62,10 @@ class Constant(AbstractOperation):
         """Set the constant value of this operation."""
         self.set_param("value", value)
 
+    @property
+    def latency(self) -> int:
+        return self.latency_offsets["out0"]
+
 
 class Addition(AbstractOperation):
     """
@@ -410,9 +414,7 @@ class Min(AbstractOperation):
 
     def evaluate(self, a, b):
         if isinstance(a, complex) or isinstance(b, complex):
-            raise ValueError(
-                "core_operations.Min does not support complex numbers."
-            )
+            raise ValueError("core_operations.Min does not support complex numbers.")
         return a if a < b else b
 
 
@@ -457,9 +459,7 @@ class Max(AbstractOperation):
 
     def evaluate(self, a, b):
         if isinstance(a, complex) or isinstance(b, complex):
-            raise ValueError(
-                "core_operations.Max does not support complex numbers."
-            )
+            raise ValueError("core_operations.Max does not support complex numbers.")
         return a if a > b else b
 
 
@@ -589,8 +589,7 @@ class ConstantMultiplication(AbstractOperation):
         latency_offsets: Optional[Dict[str, int]] = None,
         execution_time: Optional[int] = None,
     ):
-        """Construct a ConstantMultiplication operation with the given value.
-        """
+        """Construct a ConstantMultiplication operation with the given value."""
         super().__init__(
             input_count=1,
             output_count=1,

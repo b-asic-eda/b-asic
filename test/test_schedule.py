@@ -410,21 +410,19 @@ class TestTimeResolution:
 
         start_times_names = {}
         for op_id, start_time in schedule._start_times.items():
-            op_name = sfg_two_inputs_two_outputs_independent_with_cmul.find_by_id(
-                op_id
-            ).name
-            start_times_names[op_name] = start_time
+            op = sfg_two_inputs_two_outputs_independent_with_cmul.find_by_id(op_id)
+            start_times_names[op.name] = (start_time, op.latency, op.execution_time)
 
         assert start_times_names == {
-            "C1": 0,
-            "IN1": 0,
-            "IN2": 0,
-            "CMUL1": 0,
-            "CMUL2": 30,
-            "ADD1": 0,
-            "CMUL3": 42,
-            "OUT1": 54,
-            "OUT2": 60,
+            "C1": (0, 0, None),
+            "IN1": (0, 0, None),
+            "IN2": (0, 0, None),
+            "CMUL1": (0, 30, 18),
+            "CMUL2": (30, 24, 6),
+            "ADD1": (0, 42, 12),
+            "CMUL3": (42, 18, 6),
+            "OUT1": (54, 0, None),
+            "OUT2": (60, 0, None),
         }
 
         assert 6 * old_schedule_time == schedule.schedule_time
