@@ -57,9 +57,7 @@ class CMakeBuild(build_ext):
         print(f"=== Configuring {ext.name} ===")
         print(f"Temp dir: {self.build_temp}")
         print(f"Output dir: {cmake_output_dir}")
-        subprocess.check_call(
-            cmake_configure_argv, cwd=self.build_temp, env=env
-        )
+        subprocess.check_call(cmake_configure_argv, cwd=self.build_temp, env=env)
 
         print(f"=== Building {ext.name} ===")
         print(f"Temp dir: {self.build_temp}")
@@ -72,16 +70,16 @@ class CMakeBuild(build_ext):
 
 setuptools.setup(
     author=(
-        "Adam Jakobsson, Angus Lothian, Arvid Westerlund, Felix Goding, "
-        "Ivar Härnqvist, Jacob Wahlman, Kevin Scott, Rasmus Karlsson, "
-        "Oscar Gustafsson, Andreas Bolin"
+        "Adam Jakobsson, Angus Lothian, Arvid Westerlund, Felix Goding, Ivar Härnqvist,"
+        " Jacob Wahlman, Kevin Scott, Rasmus Karlsson, Oscar Gustafsson, Andreas Bolin,"
+        " Mikael Henriksson, Frans Skarman, Petter Källström, Olle Hansson"
     ),
     author_email=(
-        "adaja901@student.liu.se, anglo547@student.liu.se, "
-        "arvwe160@student.liu.se, felgo673@student.liu.se, "
-        "ivaha717@student.liu.se, jacwa448@student.liu.se, "
-        "kevsc634@student.liu.se, raska119@student.liu.se, "
-        "oscar.gustafsson@liu.se, andbo467@student.liu.se"
+        "adaja901@student.liu.se, anglo547@student.liu.se, arvwe160@student.liu.se,"
+        " felgo673@student.liu.se, ivaha717@student.liu.se, jacwa448@student.liu.se,"
+        " kevsc634@student.liu.se, raska119@student.liu.se, oscar.gustafsson@liu.se,"
+        " andbo467@student.liu.se, mikael.henriksson@liu.se, frans.skarman@liu.se,"
+        " petter.kallstrom@liu.se, olle.hansson@liu.se"
     ),
     ext_modules=[CMakeExtension("_b_asic")],
     cmdclass={"build_ext": CMakeBuild},

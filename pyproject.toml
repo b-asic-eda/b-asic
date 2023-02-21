@@ -3,7 +3,7 @@ name = "b-asic"
 description = "Better ASIC Toolbox"
 readme = "README.md"
 maintainers = [
-    { name = "Oscar Gustafsson", email = "oscar.gustafsson@gmail.com" },
+    { name = "Oscar Gustafsson", email = "oscar.gustafsson@liu.se" },
 ]
 license = { file = "LICENSE" }
 requires-python = ">=3.8"
