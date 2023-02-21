@@ -1604,3 +1604,19 @@ class TestUnfold:
         sfg = sfg_two_inputs_two_outputs
         with pytest.raises(ValueError, match="Unfolding 0 times removes the SFG"):
             sfg.unfold(0)
+
+
+class TestIsLinear:
+    def test_single_accumulator(self, sfg_simple_accumulator: SFG):
+        assert sfg_simple_accumulator.is_linear
+
+    def test_sfg_nested(self, sfg_nested: SFG):
+        assert not sfg_nested.is_linear
+
+
+class TestIsConstant:
+    def test_single_accumulator(self, sfg_simple_accumulator: SFG):
+        assert not sfg_simple_accumulator.is_constant
+
+    def test_sfg_nested(self, sfg_nested: SFG):
+        assert not sfg_nested.is_constant

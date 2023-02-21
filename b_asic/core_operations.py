@@ -66,6 +66,20 @@ class Constant(AbstractOperation):
     def latency(self) -> int:
         return self.latency_offsets["out0"]
 
+    def __repr__(self) -> str:
+        return f"Constant({self.value})"
+
+    def __str__(self) -> str:
+        return f"{self.value}"
+
+    @property
+    def is_linear(self) -> bool:
+        return True
+
+    @property
+    def is_constant(self) -> bool:
+        return True
+
 
 class Addition(AbstractOperation):
     """
@@ -129,6 +143,10 @@ class Addition(AbstractOperation):
     def evaluate(self, a, b):
         return a + b
 
+    @property
+    def is_linear(self) -> bool:
+        return True
+
 
 class Subtraction(AbstractOperation):
     """
@@ -188,6 +206,10 @@ class Subtraction(AbstractOperation):
 
     def evaluate(self, a, b):
         return a - b
+
+    @property
+    def is_linear(self) -> bool:
+        return True
 
 
 class AddSub(AbstractOperation):
@@ -270,6 +292,10 @@ class AddSub(AbstractOperation):
         """Set if operation is an addition."""
         self.set_param("is_add", is_add)
 
+    @property
+    def is_linear(self) -> bool:
+        return True
+
 
 class Multiplication(AbstractOperation):
     r"""
@@ -331,6 +357,12 @@ class Multiplication(AbstractOperation):
     def evaluate(self, a, b):
         return a * b
 
+    @property
+    def is_linear(self) -> bool:
+        return any(
+            input.connected_source.operation.is_constant for input in self.inputs
+        )
+
 
 class Division(AbstractOperation):
     r"""
@@ -371,6 +403,10 @@ class Division(AbstractOperation):
 
     def evaluate(self, a, b):
         return a / b
+
+    @property
+    def is_linear(self) -> bool:
+        return self.input(1).connected_source.operation.is_constant
 
 
 class Min(AbstractOperation):
@@ -618,6 +654,10 @@ class ConstantMultiplication(AbstractOperation):
         """Set the constant value of this operation."""
         self.set_param("value", value)
 
+    @property
+    def is_linear(self) -> bool:
+        return True
+
 
 class Butterfly(AbstractOperation):
     r"""
@@ -660,6 +700,10 @@ class Butterfly(AbstractOperation):
     def evaluate(self, a, b):
         return a + b, a - b
 
+    @property
+    def is_linear(self) -> bool:
+        return True
+
 
 class MAD(AbstractOperation):
     r"""
@@ -698,6 +742,13 @@ class MAD(AbstractOperation):
 
     def evaluate(self, a, b, c):
         return a * b + c
+
+    @property
+    def is_linear(self) -> bool:
+        return (
+            self.input(0).connected_source.operation.is_constant
+            or self.input(1).connected_source.operation.is_constant
+        )
 
 
 class SymmetricTwoportAdaptor(AbstractOperation):
@@ -750,6 +801,10 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
+
+    @property
+    def is_linear(self) -> bool:
+        return True
 
 
 class Reciprocal(AbstractOperation):

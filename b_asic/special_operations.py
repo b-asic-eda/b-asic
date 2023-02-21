@@ -89,6 +89,14 @@ class Input(AbstractOperation):
         # doc-string inherited
         return ((0, 0.5),)
 
+    @property
+    def is_constant(self) -> bool:
+        return False
+
+    @property
+    def is_linear(self) -> bool:
+        return True
+
 
 class Output(AbstractOperation):
     """
@@ -142,6 +150,10 @@ class Output(AbstractOperation):
     @property
     def latency(self) -> int:
         return self.latency_offsets["in0"]
+
+    @property
+    def is_linear(self) -> bool:
+        return True
 
 
 class Delay(AbstractOperation):
@@ -221,3 +233,7 @@ class Delay(AbstractOperation):
     def initial_value(self, value: Num) -> None:
         """Set the initial value of this delay."""
         self.set_param("initial_value", value)
+
+    @property
+    def is_linear(self) -> bool:
+        return True

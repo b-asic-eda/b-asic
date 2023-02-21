@@ -1540,3 +1540,11 @@ class SFG(AbstractOperation):
         assert len(ids) == len(set(ids))
 
         return SFG(inputs=all_inputs, outputs=all_outputs)
+
+    @property
+    def is_linear(self) -> bool:
+        return all(op.is_linear for op in self.split())
+
+    @property
+    def is_constant(self) -> bool:
+        return all(output.is_constant for output in self._output_operations)

@@ -467,6 +467,22 @@ class Operation(GraphComponent, SignalSourceProvider):
     def _check_all_latencies_set(self) -> None:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def is_linear(self) -> bool:
+        """
+        Return True if the operation is linear.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def is_constant(self) -> bool:
+        """
+        Return True if the output of the operation is constant.
+        """
+        raise NotImplementedError
+
 
 class AbstractOperation(Operation, AbstractGraphComponent):
     """
@@ -1134,4 +1150,16 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 (1 + 2 * k) / (2 * num_out),
             )
             for k in range(num_out)
+        )
+
+    @property
+    def is_linear(self) -> bool:
+        if self.is_constant:
+            return True
+        return False
+
+    @property
+    def is_constant(self) -> bool:
+        return all(
+            input.connected_source.operation.is_constant for input in self.inputs
         )
