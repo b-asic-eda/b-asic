@@ -6,7 +6,7 @@ B-ASIC Scheduler-GUI Graphics Scheduler Event Module.
 Contains the scheduler_ui SchedulerEvent class containing event filters and
 handlers for SchedulerItem objects.
 """
-
+import math
 from typing import List, Optional, overload
 
 # QGraphics and QPainter imports
@@ -195,8 +195,8 @@ class SchedulerEvent:  # PyQt5
 
         def update_pos(operation_item, dx, dy):
             pos_x = operation_item.x() + dx
-            pos_y = operation_item.y() + dy * (OPERATION_GAP + OPERATION_HEIGHT)
             if self.is_component_valid_pos(operation_item, pos_x):
+                pos_y = operation_item.y() + dy * (OPERATION_GAP + OPERATION_HEIGHT)
                 operation_item.setX(pos_x)
                 operation_item.setY(pos_y)
                 self._current_pos.setX(self._current_pos.x() + dx)
@@ -208,7 +208,7 @@ class SchedulerEvent:  # PyQt5
         delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
         delta_y = (item.mapToParent(event.pos()) - self._current_pos).y()
 
-        delta_y_steps = round(delta_y / (OPERATION_GAP + OPERATION_HEIGHT))
+        delta_y_steps = round(2 * delta_y / (OPERATION_GAP + OPERATION_HEIGHT)) / 2
         if delta_x > 0.505:
             update_pos(item, 1, delta_y_steps)
         elif delta_x < -0.505:
@@ -224,6 +224,7 @@ class SchedulerEvent:  # PyQt5
         allows the item to receive future move, release and double-click events.
         """
         item: OperationItem = self.scene().mouseGrabberItem()
+        self._old_op_position = self._schedule._y_locations[item.operation.graph_id]
         self._signals.component_selected.emit(item.graph_id)
         self._current_pos = item.mapToParent(event.pos())
         self.set_item_active(item)
@@ -241,6 +242,14 @@ class SchedulerEvent:  # PyQt5
             redraw = True
         if pos_x > self._schedule.schedule_time:
             pos_x = pos_x % self._schedule.schedule_time
+            redraw = True
+        if self._schedule._y_locations[item.operation.graph_id] % 1:
+            # TODO: move other operations
+            self._schedule._y_locations[item.operation.graph_id] = math.ceil(
+                self._schedule._y_locations[item.operation.graph_id]
+            )
+            pos_y = item.y() + (OPERATION_GAP + OPERATION_HEIGHT) / 2
+            item.setY(pos_y)
             redraw = True
         if redraw:
             item.setX(pos_x)
