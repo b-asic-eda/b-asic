@@ -495,6 +495,8 @@ class TestProcesses:
     def test__get_memory_variables_list(self, secondorder_iir_schedule):
         mvl = secondorder_iir_schedule._get_memory_variables_list()
         assert len(mvl) == 12
+        pc = secondorder_iir_schedule.get_memory_variables()
+        assert len(pc) == 12
 
 
 class TestFigureGeneration:

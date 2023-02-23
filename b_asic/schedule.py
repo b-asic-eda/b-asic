@@ -79,8 +79,8 @@ class Schedule:
         schedule_time: Optional[int] = None,
         cyclic: bool = False,
         scheduling_algorithm: str = "ASAP",
-        start_times: Dict[GraphID, int] = None,
-        laps: Dict[GraphID, int] = None,
+        start_times: Optional[Dict[GraphID, int]] = None,
+        laps: Optional[Dict[GraphID, int]] = None,
     ):
         """Construct a Schedule from an SFG."""
         self._original_sfg = sfg()  # Make a copy
@@ -92,6 +92,10 @@ class Schedule:
         if scheduling_algorithm == "ASAP":
             self._schedule_asap()
         elif scheduling_algorithm == "provided":
+            if start_times is None:
+                raise ValueError("Must provide start_times when using 'provided'")
+            if laps is None:
+                raise ValueError("Must provide laps when using 'provided'")
             self._start_times = start_times
             self._laps.update(laps)
             self._remove_delays_no_laps()
@@ -403,10 +407,10 @@ class Schedule:
 
         """
         if insert:
-            for gid, y_location in self._y_locations.items():
-                if y_location >= new_y:
-                    self._y_locations[gid] += 1
-        self._y_locations[graph_id] = new_y
+            for gid in self._y_locations:
+                if self.get_y_location(gid) >= new_y:
+                    self.set_y_location(gid, self.get_y_location(gid) + 1)
+        self.set_y_location(graph_id, new_y)
         used_locations = {*self._y_locations.values()}
         possible_locations = set(range(max(used_locations) + 1))
         if not possible_locations - used_locations:
@@ -889,7 +893,7 @@ class Schedule:
 
     def _reset_y_locations(self) -> None:
         """Reset all the y-locations in the schedule to None"""
-        self._y_locations = self._y_locations = defaultdict(lambda: None)
+        self._y_locations = defaultdict(lambda: None)
 
     def plot_in_axes(self, ax: Axes, operation_gap: Optional[float] = None) -> None:
         """

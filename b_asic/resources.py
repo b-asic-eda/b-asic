@@ -120,7 +120,7 @@ class ProcessCollection:
         return self._collection
 
     def __len__(self):
-        return len(self.__collection__)
+        return len(self._collection)
 
     def add_process(self, process: Process):
         """

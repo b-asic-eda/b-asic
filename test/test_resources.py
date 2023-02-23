@@ -1,15 +1,13 @@
 import pickle
 
 import matplotlib.pyplot as plt
-import networkx as nx
 import pytest
 
-from b_asic.process import Process
 from b_asic.research.interleaver import (
     generate_matrix_transposer,
     generate_random_interleaver,
 )
-from b_asic.resources import ProcessCollection, draw_exclusion_graph_coloring
+from b_asic.resources import ProcessCollection
 
 
 class TestProcessCollectionPlainMemoryVariable:
@@ -44,3 +42,6 @@ class TestProcessCollectionPlainMemoryVariable:
                 assert len(collection.split_ports(read_ports=1, write_ports=1)) == 1
                 if any(var.execution_time for var in collection.collection):
                     assert len(collection.split_ports(total_ports=1)) == 2
+
+    def test_len_process_collection(self, simple_collection: ProcessCollection):
+        assert len(simple_collection) == 7
