@@ -44,12 +44,14 @@ class SchedulerEvent:  # PyQt5
         component_selected = Signal(str)
         schedule_time_changed = Signal()
         component_moved = Signal(str)
+        redraw_all = Signal()
 
     _axes: Optional[AxesItem]
     _current_pos: QPointF
     _delta_time: int
     _signals: Signals  # PyQt5
     _schedule: Schedule
+    _old_op_position: int = -1
 
     def __init__(self, parent: Optional[QGraphicsItem] = None):  # PyQt5
         super().__init__(parent=parent)
@@ -202,7 +204,10 @@ class SchedulerEvent:  # PyQt5
                 self._current_pos.setX(self._current_pos.x() + dx)
                 self._current_pos.setY(self._current_pos.y() + dy)
                 self._redraw_lines(operation_item)
-                self._schedule._y_locations[operation_item.operation.graph_id] += dy
+                gid = operation_item.operation.graph_id
+                self._schedule.set_y_location(
+                    gid, dy + self._schedule.get_y_location(gid)
+                )
 
         item: OperationItem = self.scene().mouseGrabberItem()
         delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
@@ -224,7 +229,7 @@ class SchedulerEvent:  # PyQt5
         allows the item to receive future move, release and double-click events.
         """
         item: OperationItem = self.scene().mouseGrabberItem()
-        self._old_op_position = self._schedule._y_locations[item.operation.graph_id]
+        self._old_op_position = self._schedule.get_y_location(item.operation.graph_id)
         self._signals.component_selected.emit(item.graph_id)
         self._current_pos = item.mapToParent(event.pos())
         self.set_item_active(item)
@@ -243,18 +248,20 @@ class SchedulerEvent:  # PyQt5
         if pos_x > self._schedule.schedule_time:
             pos_x = pos_x % self._schedule.schedule_time
             redraw = True
-        if self._schedule._y_locations[item.operation.graph_id] % 1:
-            # TODO: move other operations
-            self._schedule._y_locations[item.operation.graph_id] = math.ceil(
-                self._schedule._y_locations[item.operation.graph_id]
+        pos_y = self._schedule.get_y_location(item.operation.graph_id)
+        # Check move in y-direction
+        if pos_y != self._old_op_position:
+            self._schedule.move_y_location(
+                item.operation.graph_id,
+                math.ceil(pos_y),
+                (pos_y % 1) != 0,
             )
-            pos_y = item.y() + (OPERATION_GAP + OPERATION_HEIGHT) / 2
-            item.setY(pos_y)
-            redraw = True
+            self._signals.redraw_all.emit()
+        # Operation has been moved in x-direction
         if redraw:
             item.setX(pos_x)
             self._redraw_lines(item)
-        self._signals.component_moved.emit(item.graph_id)
+            self._signals.component_moved.emit(item.graph_id)
 
     def operation_mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         ...

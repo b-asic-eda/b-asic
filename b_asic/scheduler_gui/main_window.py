@@ -482,8 +482,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._graph._signals.schedule_time_changed.connect(
             self.info_table_update_schedule
         )
+        self._graph._signals.redraw_all.connect(self._redraw_all)
         self.info_table_fill_schedule(self._schedule)
         self.update_statusbar(self.tr("Schedule loaded successfully"))
+
+    def _redraw_all(self) -> None:
+        self._graph._redraw_all()
 
     def update_statusbar(self, msg: str) -> None:
         """

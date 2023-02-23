@@ -31,7 +31,7 @@ from b_asic._preferences import (
 from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
-from b_asic.process import MemoryVariable, Process
+from b_asic.process import MemoryVariable
 from b_asic.resources import ProcessCollection
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
@@ -244,6 +244,7 @@ class Schedule:
         return self.backward_slack(graph_id), self.forward_slack(graph_id)
 
     def print_slacks(self) -> None:
+        """Print the slack times for all operations in the schedule."""
         raise NotImplementedError
 
     def set_schedule_time(self, time: int) -> "Schedule":
@@ -281,10 +282,12 @@ class Schedule:
 
     @property
     def schedule_time(self) -> int:
+        """The schedule time of the current schedule."""
         return self._schedule_time
 
     @property
     def cyclic(self) -> bool:
+        """If the current schedule is cyclic."""
         return self._cyclic
 
     def increase_time_resolution(self, factor: int) -> "Schedule":
@@ -359,6 +362,75 @@ class Schedule:
             )
         self._schedule_time = self._schedule_time // factor
         return self
+
+    def move_y_location(
+        self, graph_id: GraphID, new_y: int, insert: bool = False
+    ) -> None:
+        """
+        Move operation in y-direction and remove any empty rows.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The GraphID of the operation to move.
+        new_y : int
+           The new y-position of the operation.
+        insert : bool, optional
+            If True, all operations on that y-position will be moved one position.
+            The default is False.
+
+        """
+        if insert:
+            for gid, y_location in self._y_locations.items():
+                if y_location >= new_y:
+                    self._y_locations[gid] += 1
+        self._y_locations[graph_id] = new_y
+        used_locations = {*self._y_locations.values()}
+        possible_locations = set(range(max(used_locations) + 1))
+        if not possible_locations - used_locations:
+            return
+        remapping = {}
+        offset = 0
+        for loc in possible_locations:
+            if loc in used_locations:
+                remapping[loc] = loc - offset
+            else:
+                offset += 1
+
+        for gid, y_location in self._y_locations.items():
+            self._y_locations[gid] = remapping[self._y_locations[gid]]
+
+    def get_y_location(self, graph_id: GraphID) -> int:
+        """
+        Get the y-position of the Operation with GraphID *graph_id*.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The GraphID of the operation.
+
+        Returns
+        -------
+        int
+            The y-position of the operation.
+
+        """
+        return self._y_locations[graph_id]
+
+    def set_y_location(self, graph_id: GraphID, y_location: int) -> None:
+        """
+        Set the y-position of the Operation with GraphID *graph_id* to *y_location*.
+
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The GraphID of the operation to move.
+        y_location : int
+           The new y-position of the operation.
+
+        """
+        self._y_locations[graph_id] = y_location
 
     def move_operation(self, graph_id: GraphID, time: int) -> "Schedule":
         """

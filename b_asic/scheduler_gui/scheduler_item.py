@@ -224,14 +224,17 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def _redraw_from_start(self) -> None:
         self.schedule._reset_y_locations()
-        for graph_id in {
-            k: v
-            for k, v in sorted(
-                self.schedule.start_times.items(), key=lambda item: item[1]
-            )
-        }:
+        for graph_id in dict(
+            sorted(self.schedule.start_times.items(), key=lambda item: item[1])
+        ):
             self._set_position(graph_id)
         self._redraw_all_lines()
+
+    def _redraw_all(self) -> None:
+        for graph_id in self._operation_items:
+            self._set_position(graph_id)
+        self._redraw_all_lines()
+        self._update_axes()
 
     def _update_axes(self, build=False) -> None:
         # build axes
