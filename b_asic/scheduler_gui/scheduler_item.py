@@ -257,7 +257,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         """Make a new graph out of the stored attributes."""
         # build components
         for graph_id in self.schedule.start_times.keys():
-            operation = cast(Operation, self.schedule.sfg.find_by_id(graph_id))
+            operation = cast(Operation, self.schedule._sfg.find_by_id(graph_id))
             component = OperationItem(operation, height=OPERATION_HEIGHT, parent=self)
             self._operation_items[graph_id] = component
             self._set_position(graph_id)

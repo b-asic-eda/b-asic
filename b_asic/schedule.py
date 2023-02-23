@@ -55,8 +55,15 @@ class Schedule:
         algorithm.
     cyclic : bool, default: False
         If the schedule is cyclic.
-    scheduling_algorithm : {'ASAP'}, optional
+    scheduling_algorithm : {'ASAP', 'provided'}, optional
         The scheduling algorithm to use. Currently, only "ASAP" is supported.
+        If 'provided', use provided *start_times*  and *laps* dictionaries.
+    start_times : dict, optional
+        Dictionary with GraphIDs as keys and start times as values.
+        Used when *scheduling_algorithm* is 'provided'.
+    laps : dict, optional
+        Dictionary with GraphIDs as keys and laps as values.
+        Used when *scheduling_algorithm* is 'provided'.
     """
 
     _sfg: SFG
@@ -72,8 +79,11 @@ class Schedule:
         schedule_time: Optional[int] = None,
         cyclic: bool = False,
         scheduling_algorithm: str = "ASAP",
+        start_times: Dict[GraphID, int] = None,
+        laps: Dict[GraphID, int] = None,
     ):
         """Construct a Schedule from an SFG."""
+        self._original_sfg = sfg()  # Make a copy
         self._sfg = sfg
         self._start_times = {}
         self._laps = defaultdict(lambda: 0)
@@ -81,6 +91,10 @@ class Schedule:
         self._y_locations = defaultdict(lambda: None)
         if scheduling_algorithm == "ASAP":
             self._schedule_asap()
+        elif scheduling_algorithm == "provided":
+            self._start_times = start_times
+            self._laps.update(laps)
+            self._remove_delays_no_laps()
         else:
             raise NotImplementedError(
                 f"No algorithm with name: {scheduling_algorithm} defined."
@@ -107,8 +121,8 @@ class Schedule:
         """Return the current maximum end time among all operations."""
         max_end_time = 0
         for graph_id, op_start_time in self._start_times.items():
-            op = cast(Operation, self._sfg.find_by_id(graph_id))
-            for outport in op.outputs:
+            operation = cast(Operation, self._sfg.find_by_id(graph_id))
+            for outport in operation.outputs:
                 max_end_time = max(
                     max_end_time,
                     op_start_time + cast(int, outport.latency_offset),
@@ -149,8 +163,8 @@ class Schedule:
     ) -> Dict["OutputPort", Dict["Signal", int]]:
         ret = {}
         start_time = self._start_times[graph_id]
-        op = cast(Operation, self._sfg.find_by_id(graph_id))
-        for output_port in op.outputs:
+        operation = cast(Operation, self._sfg.find_by_id(graph_id))
+        for output_port in operation.outputs:
             output_slacks = {}
             available_time = start_time + cast(int, output_port.latency_offset)
 
@@ -200,8 +214,8 @@ class Schedule:
     def _backward_slacks(self, graph_id: GraphID) -> Dict[InputPort, Dict[Signal, int]]:
         ret = {}
         start_time = self._start_times[graph_id]
-        op = cast(Operation, self._sfg.find_by_id(graph_id))
-        for input_port in op.inputs:
+        operation = cast(Operation, self._sfg.find_by_id(graph_id))
+        for input_port in operation.inputs:
             input_slacks = {}
             usage_time = start_time + cast(int, input_port.latency_offset)
 
@@ -270,14 +284,19 @@ class Schedule:
 
     @property
     def sfg(self) -> SFG:
-        return self._sfg
+        """The SFG of the current schedule."""
+        return self._original_sfg
 
     @property
     def start_times(self) -> Dict[GraphID, int]:
+        """The start times of the operations in the current schedule."""
         return self._start_times
 
     @property
     def laps(self) -> Dict[GraphID, int]:
+        """
+        The number of laps for the start times of the operations in the current schedule.
+        """
         return self._laps
 
     @property
@@ -317,8 +336,11 @@ class Schedule:
         ret = [self._schedule_time, *self._start_times.values()]
         # Loop over operations
         for graph_id in self._start_times:
-            op = cast(Operation, self._sfg.find_by_id(graph_id))
-            ret += [cast(int, op.execution_time), *op.latency_offsets.values()]
+            operation = cast(Operation, self._sfg.find_by_id(graph_id))
+            ret += [
+                cast(int, operation.execution_time),
+                *operation.latency_offsets.values(),
+            ]
         # Remove not set values (None)
         ret = [v for v in ret if v is not None]
         return ret
@@ -535,7 +557,16 @@ class Schedule:
         self._start_times[graph_id] = new_start
         return self
 
+    def _remove_delays_no_laps(self) -> None:
+        """Remove delay elements without updating laps. Used when loading schedule."""
+        delay_list = self._sfg.find_by_type_name(Delay.type_name())
+        while delay_list:
+            delay_op = cast(Delay, delay_list[0])
+            self._sfg = cast(SFG, self._sfg.remove_operation(delay_op.graph_id))
+            delay_list = self._sfg.find_by_type_name(Delay.type_name())
+
     def _remove_delays(self) -> None:
+        """Remove delay elements and update laps. Used after scheduling algorithm."""
         delay_list = self._sfg.find_by_type_name(Delay.type_name())
         while delay_list:
             delay_op = cast(Delay, delay_list[0])
@@ -549,35 +580,35 @@ class Schedule:
 
     def _schedule_asap(self) -> None:
         """Schedule the operations using as-soon-as-possible scheduling."""
-        pl = self._sfg.get_precedence_list()
+        precedence_list = self._sfg.get_precedence_list()
 
-        if len(pl) < 2:
+        if len(precedence_list) < 2:
             print("Empty signal flow graph cannot be scheduled.")
             return
 
         non_schedulable_ops = set()
-        for outport in pl[0]:
-            op = outport.operation
-            if op.type_name() not in [Delay.type_name()]:
-                if op.graph_id not in self._start_times:
+        for outport in precedence_list[0]:
+            operation = outport.operation
+            if operation.type_name() not in [Delay.type_name()]:
+                if operation.graph_id not in self._start_times:
                     # Set start time of all operations in the first iter to 0
-                    self._start_times[op.graph_id] = 0
+                    self._start_times[operation.graph_id] = 0
             else:
-                non_schedulable_ops.add(op.graph_id)
+                non_schedulable_ops.add(operation.graph_id)
 
-        for outport in pl[1]:
-            op = outport.operation
-            if op.graph_id not in self._start_times:
+        for outport in precedence_list[1]:
+            operation = outport.operation
+            if operation.graph_id not in self._start_times:
                 # Set start time of all operations in the first iter to 0
-                self._start_times[op.graph_id] = 0
+                self._start_times[operation.graph_id] = 0
 
-        for outports in pl[2:]:
+        for outports in precedence_list[2:]:
             for outport in outports:
-                op = outport.operation
-                if op.graph_id not in self._start_times:
+                operation = outport.operation
+                if operation.graph_id not in self._start_times:
                     # Schedule the operation if it does not have a start time yet.
                     op_start_time = 0
-                    for inport in op.inputs:
+                    for inport in operation.inputs:
                         if len(inport.signals) != 1:
                             raise ValueError(
                                 "Error in scheduling, dangling input port detected."
@@ -617,7 +648,7 @@ class Schedule:
                         op_start_time_from_in = source_end_time - inport.latency_offset
                         op_start_time = max(op_start_time, op_start_time_from_in)
 
-                    self._start_times[op.graph_id] = op_start_time
+                    self._start_times[operation.graph_id] = op_start_time
         for output in self._sfg.find_by_type_name(Output.type_name()):
             output = cast(Output, output)
             source_port = cast(OutputPort, output.inputs[0].signals[0].source)
@@ -722,7 +753,7 @@ class Schedule:
                 line_cache.append(start)
 
             elif end[0] == start[0]:
-                p = Path(
+                path = Path(
                     [
                         start,
                         [start[0] + SPLINE_OFFSET, start[1]],
@@ -742,16 +773,16 @@ class Schedule:
                         Path.CURVE4,
                     ],
                 )
-                pp = PathPatch(
-                    p,
+                path_patch = PathPatch(
+                    path,
                     fc='none',
                     ec=_SIGNAL_COLOR,
                     lw=SIGNAL_LINEWIDTH,
                     zorder=10,
                 )
-                ax.add_patch(pp)
+                ax.add_patch(path_patch)
             else:
-                p = Path(
+                path = Path(
                     [
                         start,
                         [(start[0] + end[0]) / 2, start[1]],
@@ -760,14 +791,14 @@ class Schedule:
                     ],
                     [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4],
                 )
-                pp = PathPatch(
-                    p,
+                path_patch = PathPatch(
+                    path,
                     fc='none',
                     ec=_SIGNAL_COLOR,
                     lw=SIGNAL_LINEWIDTH,
                     zorder=10,
                 )
-                ax.add_patch(pp)
+                ax.add_patch(path_patch)
 
         def _draw_offset_arrow(start, end, start_offset, end_offset, name="", laps=0):
             """Draw an arrow from *start* to *end*, but with an offset."""
@@ -784,12 +815,12 @@ class Schedule:
         ax.grid()
         for graph_id, op_start_time in self._start_times.items():
             y_pos = self._get_y_position(graph_id, operation_gap=operation_gap)
-            op = cast(Operation, self._sfg.find_by_id(graph_id))
+            operation = cast(Operation, self._sfg.find_by_id(graph_id))
             # Rewrite to make better use of NumPy
             (
                 latency_coordinates,
                 execution_time_coordinates,
-            ) = op.get_plot_coordinates()
+            ) = operation.get_plot_coordinates()
             _x, _y = zip(*latency_coordinates)
             x = np.array(_x)
             y = np.array(_y)
@@ -809,11 +840,11 @@ class Schedule:
             yticklabels.append(cast(Operation, self._sfg.find_by_id(graph_id)).name)
 
         for graph_id, op_start_time in self._start_times.items():
-            op = cast(Operation, self._sfg.find_by_id(graph_id))
-            out_coordinates = op.get_output_coordinates()
+            operation = cast(Operation, self._sfg.find_by_id(graph_id))
+            out_coordinates = operation.get_output_coordinates()
             source_y_pos = self._get_y_position(graph_id, operation_gap=operation_gap)
 
-            for output_port in op.outputs:
+            for output_port in operation.outputs:
                 for output_signal in output_port.signals:
                     destination = cast(InputPort, output_signal.destination)
                     destination_op = destination.operation
@@ -911,7 +942,7 @@ class Schedule:
         """
         fig, ax = plt.subplots()
         self._plot_schedule(ax)
-        f = io.StringIO()
-        fig.savefig(f, format="svg")
+        buffer = io.StringIO()
+        fig.savefig(buffer, format="svg")
 
-        return f.getvalue()
+        return buffer.getvalue()
