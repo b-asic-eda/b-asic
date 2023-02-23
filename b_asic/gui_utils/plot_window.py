@@ -22,6 +22,7 @@ from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,;
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
 )
 
@@ -87,11 +88,8 @@ class PlotWindow(QDialog):
 
         self._lines = {}
         for key in sim_res_others | sim_res_delays | sim_res_ins | sim_res_outs:
-            # line = self.plotcanvas.axes.plot(sim_result[key], visible=False, label=key)
             line = self._plot_axes.plot(sim_result[key], label=key)
             self._lines[key] = line[0]
-        # self.plotcanvas.legend = self.plotcanvas.axes.legend()
-        self._legend = self._plot_axes.legend()
 
         self._plot_canvas = FigureCanvas(self._plot_fig)
 
@@ -112,6 +110,7 @@ class PlotWindow(QDialog):
 
         # Add the entire list
         self.checklist = QListWidget()
+        self.checklist.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.checklist.itemChanged.connect(self._item_change)
         listitems = {}
         for key in sim_res_ins | sim_res_outs | sim_res_delays | sim_res_others:
@@ -127,6 +126,7 @@ class PlotWindow(QDialog):
         listlayout.addWidget(self.checklist)
 
         # Add additional checkboxes
+        self._legend = self._plot_axes.legend()
         self.legend_checkbox = QCheckBox("&Legend")
         self.legend_checkbox.stateChanged.connect(self._legend_checkbox_change)
         self.legend_checkbox.setCheckState(Qt.CheckState.Checked)
