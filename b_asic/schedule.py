@@ -83,6 +83,9 @@ class Schedule:
         laps: Optional[Dict[GraphID, int]] = None,
     ):
         """Construct a Schedule from an SFG."""
+        if not isinstance(sfg, SFG):
+            raise TypeError("An SFG must be provided")
+
         self._original_sfg = sfg()  # Make a copy
         self._sfg = sfg
         self._start_times = {}

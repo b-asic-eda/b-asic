@@ -33,6 +33,9 @@ def sfg_to_python(
         True if printing a schedule.
 
     """
+    if not isinstance(sfg, SFG):
+        raise TypeError("An SFG must be provided")
+
     _type = "Schedule" if schedule else "SFG"
 
     result = (
@@ -139,7 +142,7 @@ def sfg_to_python(
 
 def python_to_sfg(path: str) -> Tuple[SFG, Dict[str, Tuple[int, int]]]:
     """
-    Given a serialized file try to deserialize it and load it to the library.
+    Given a serialized file, try to deserialize it and load it to the library.
 
     Parameters
     ==========
@@ -167,6 +170,8 @@ def schedule_to_python(schedule: Schedule) -> str:
     schedule : Schedule
         The schedule to serialize.
     """
+    if not isinstance(schedule, Schedule):
+        raise TypeError("A Schedule must be provided")
     sfg_name = (
         schedule.sfg.name.replace(" ", "_").replace("-", "_")
         if schedule.sfg.name

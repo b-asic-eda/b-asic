@@ -59,6 +59,9 @@ class Simulation:
         input_providers: Optional[Sequence[Optional[InputProvider]]] = None,
     ):
         """Construct a Simulation of an SFG."""
+        if not isinstance(sfg, SFG):
+            raise TypeError("An SFG must be provided")
+
         # Copy the SFG to make sure it's not modified from the outside.
         self._sfg = sfg()
         self._results = defaultdict(list)
