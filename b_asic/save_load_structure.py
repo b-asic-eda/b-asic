@@ -167,11 +167,16 @@ def schedule_to_python(schedule: Schedule) -> str:
     schedule : Schedule
         The schedule to serialize.
     """
-    sfg_name = schedule.sfg.name.replace(" ", "_").replace("-", "_")
+    sfg_name = (
+        schedule.sfg.name.replace(" ", "_").replace("-", "_")
+        if schedule.sfg.name
+        else "sfg"
+    )
     result = "\n# Schedule:\n"
+    nonzerolaps = {gid: val for gid, val in dict(schedule.laps).items() if val}
     result += (
         f"{sfg_name}_schedule = Schedule({sfg_name}, {schedule.schedule_time},"
         f" {schedule.cyclic}, 'provided', {schedule.start_times},"
-        f" {dict(schedule.laps)})\n"
+        f" {nonzerolaps})\n"
     )
     return sfg_to_python(schedule.sfg, schedule=True) + result
