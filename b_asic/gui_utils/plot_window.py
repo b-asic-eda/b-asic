@@ -25,36 +25,6 @@ from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,;
     QVBoxLayout,
 )
 
-# from qtpy.QtGui import QKeySequence
-
-
-# class PlotCanvas(FigureCanvas):
-#     """PlotCanvas is used as a part in the PlotWindow."""
-
-#     def __init__(self, logger, parent=None, width=5, height=4, dpi=100):
-#         fig = Figure(figsize=(width, height), dpi=dpi)
-#         super().__init__(fig)
-#         self.axes = fig.add_subplot(111)
-#         self.axes.xaxis.set_major_locator(MaxNLocator(integer=True))
-#         self.legend = None
-#         self.logger = logger
-
-#         FigureCanvas.updateGeometry(self)
-#         self.save_figure = QShortcut(QKeySequence("Ctrl+S"), self)
-#         self.save_figure.activated.connect(self._save_plot_figure)
-
-#     def _save_plot_figure(self):
-#         self.logger.info(f"Saving plot of figure: {self.sfg.name}.")
-#         file_choices = "PNG (*.png)|*.png"
-#         path, ext = QFileDialog.getSaveFileName(self, "Save file", "", file_choices)
-#         path = path.encode("utf-8")
-#         if not path[-4:] == file_choices[-4:].encode("utf-8"):
-#             path += file_choices[-4:].encode("utf-8")
-
-#         if path:
-#             self.print_figure(path.decode(), dpi=self.dpi)
-#             self.logger.info(f"Saved plot: {self.sfg.name} to path: {path}.")
-
 
 class PlotWindow(QDialog):
     """Dialog for plotting the result of a simulation."""
@@ -62,25 +32,17 @@ class PlotWindow(QDialog):
     def __init__(
         self,
         sim_result,
-        # sfg_name="{sfg_name}",
-        # window=None,
         logger=print,
         parent=None,
-        # width=5,
-        # height=4,
-        # dpi=100,
     ):
         super().__init__(parent=parent)
-        # self._window = window
         self.setWindowFlags(
             Qt.WindowTitleHint
             | Qt.WindowCloseButtonHint
             | Qt.WindowMinimizeButtonHint
             | Qt.WindowMaximizeButtonHint
-            # | Qt.WindowStaysOnTopHint
         )
         self.setWindowTitle("Simulation result")
-        # self.sim_result = sim_result
         self._auto_redraw = False
 
         # Categorise sim_results into inputs, outputs, delays, others
@@ -119,15 +81,15 @@ class PlotWindow(QDialog):
         # self.plotcanvas = PlotCanvas(
         #    logger=logger, parent=self, width=5, height=4, dpi=100
         # )
-        self._plot_fig = Figure(figsize=(5, 4), dpi=100)
+        self._plot_fig = Figure(figsize=(5, 4), layout="compressed")
         self._plot_axes = self._plot_fig.add_subplot(111)
         self._plot_axes.xaxis.set_major_locator(MaxNLocator(integer=True))
 
         self._lines = {}
         for key in sim_res_others | sim_res_delays | sim_res_ins | sim_res_outs:
             # line = self.plotcanvas.axes.plot(sim_result[key], visible=False, label=key)
-            line = self._plot_axes.plot(sim_result[key], visible=False, label=key)
-            self._lines[key] = line
+            line = self._plot_axes.plot(sim_result[key], label=key)
+            self._lines[key] = line[0]
         # self.plotcanvas.legend = self.plotcanvas.axes.legend()
         self._legend = self._plot_axes.legend()
 
@@ -161,7 +123,7 @@ class PlotWindow(QDialog):
             )
         for key in sim_res_outs:
             listitems[key].setCheckState(Qt.CheckState.Checked)
-        self.checklist.setFixedWidth(150)
+        # self.checklist.setFixedWidth(150)
         listlayout.addWidget(self.checklist)
 
         # Add additional checkboxes
@@ -202,6 +164,10 @@ class PlotWindow(QDialog):
         for x in range(self.checklist.count()):
             self.checklist.item(x).setCheckState(Qt.CheckState.Checked)
         self._auto_redraw = True
+        self._update_legend()
+
+    def _update_legend(self):
+        self._legend = self._plot_axes.legend()
         self._plot_canvas.draw()
 
     def _button_none_click(self, event):
@@ -209,17 +175,16 @@ class PlotWindow(QDialog):
         for x in range(self.checklist.count()):
             self.checklist.item(x).setCheckState(Qt.CheckState.Unchecked)
         self._auto_redraw = True
-        self._plot_canvas.draw()
+        self._update_legend()
 
     def _item_change(self, listitem):
         key = listitem.text()
-        self._lines[key][0].set(
-            visible=(listitem.checkState() == Qt.CheckState.Checked)
-        )
+        if listitem.checkState() == Qt.CheckState.Checked:
+            self._plot_axes.add_line(self._lines[key])
+        else:
+            self._lines[key].remove()
         if self._auto_redraw:
-            if self.legend_checkbox.checkState == Qt.CheckState.Checked:
-                self._legend = self._plot_axes.legend()
-            self._plot_canvas.draw()
+            self._update_legend()
 
 
 # Simple test of the dialog

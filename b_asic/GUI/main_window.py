@@ -34,7 +34,6 @@ from b_asic.GUI._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
 from b_asic.GUI.arrow import Arrow
 from b_asic.GUI.drag_button import DragButton
 from b_asic.GUI.gui_interface import Ui_main_window
-from b_asic.GUI.plot_window import PlotWindow
 from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
 from b_asic.GUI.show_pc_window import ShowPCWindow
@@ -44,6 +43,7 @@ from b_asic.GUI.simulate_sfg_window import SimulateSFGWindow
 from b_asic.GUI.util_dialogs import FaqWindow, KeybindsWindow
 from b_asic.GUI.utils import decorate_class, handle_error
 from b_asic.gui_utils.about_window import AboutWindow
+from b_asic.gui_utils.plot_window import PlotWindow
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
