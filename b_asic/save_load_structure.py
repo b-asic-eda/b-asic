@@ -1,8 +1,8 @@
 """
 B-ASIC Save/Load Structure Module.
 
-Contains functions for saving/loading SFGs to/from strings that can be stored
-as files.
+Contains functions for saving/loading SFGs and Schedules to/from strings that can be
+stored as files.
 """
 
 from datetime import datetime
@@ -158,7 +158,7 @@ def python_to_sfg(path: str) -> Tuple[SFG, Dict[str, Tuple[int, int]]]:
     )
 
 
-def schedule_to_python(schedule: Schedule):
+def schedule_to_python(schedule: Schedule) -> str:
     """
     Given a schedule structure try to serialize it for saving to a file.
 
