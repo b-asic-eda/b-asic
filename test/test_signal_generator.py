@@ -4,6 +4,7 @@ import pytest
 
 from b_asic.signal_generator import (
     Constant,
+    Delay,
     Gaussian,
     Impulse,
     Sinusoid,
@@ -97,6 +98,22 @@ def test_sinusoid():
     assert g(3) == pytest.approx(-sqrt(2) / 2)
 
     assert str(g) == "Sinusoid(0.5, 0.25)"
+
+
+def test_delay():
+    gref = Sinusoid(0.5)
+    g = Delay(gref)
+    assert g(0) == gref(-1)
+    assert g(2) == gref(1)
+
+    assert str(g) == "Delay(Sinusoid(0.5), 1)"
+
+    gref = Sinusoid(0.5)
+    g = Delay(gref, 3)
+    assert g(0) == gref(-3)
+    assert g(5) == gref(2)
+
+    assert str(g) == "Delay(Sinusoid(0.5), 3)"
 
 
 def test_gaussian():

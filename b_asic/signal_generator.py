@@ -268,6 +268,34 @@ class Uniform(SignalGenerator):
         return f"Uniform({args})"
 
 
+class Delay(SignalGenerator):
+    """
+    Signal generator that delays the value of another signal generator.
+
+    This can used to easily delay a sequence during simulation.
+
+    .. note:: Although the purpose is to delay, it is also possible to look ahead by
+              providing a negative delay.
+
+    Parameters
+    ----------
+    generator : SignalGenerator
+        The signal generator to delay the output of.
+    delay : int, default: 1
+        The number of time units to delay the generated signal.
+    """
+
+    def __init__(self, generator: SignalGenerator, delay: int = 1) -> None:
+        self._generator = generator
+        self._delay = delay
+
+    def __call__(self, time: int) -> complex:
+        return self._generator(time - self._delay)
+
+    def __repr__(self) -> str:
+        return f"Delay({self._generator!r}, {self._delay})"
+
+
 class _AddGenerator(SignalGenerator):
     """
     Signal generator that adds two signals.
