@@ -197,6 +197,17 @@ class PlotWindow(QDialog):
 def start_simulation_dialog(
     sim_results: Dict[str, List[complex]], sfg_name: Optional[str] = None
 ):
+    """
+    Display the simulation results window.
+
+    Parameters
+    ----------
+    sim_results : dict
+        Simulation results of the form obtained from :attr:`~b_asic.simulation.Simulation.results`.
+    sfg_name : str, optional
+        DESCRIPTION. The default is None.
+
+    """
     app = QApplication(sys.argv)
     win = PlotWindow(sim_result=sim_results, sfg_name=sfg_name)
     win.exec_()
