@@ -32,6 +32,19 @@ class SignalGeneratorInput(QGridLayout):
         """Return the SignalGenerator based on the graphical input."""
         raise NotImplementedError
 
+    def _parse_number(self, string, _type, name, default):
+        string = string.strip()
+        try:
+            if not string:
+                return default
+            return _type(string)
+        except ValueError:
+            self._logger.warning(
+                f"Cannot parse {name}: {string} not a {_type.__name__}, setting to"
+                f" {default}"
+            )
+            return default
+
 
 class DelayInput(SignalGeneratorInput):
     """
@@ -82,6 +95,7 @@ class ZeroPadInput(SignalGeneratorInput):
         self.input_label = QLabel("Input")
         self.addWidget(self.input_label, 0, 0)
         self.input_sequence = QLineEdit()
+        self.input_sequence.setPlaceholderText("0.1, -0.2, 0.7")
         self.addWidget(self.input_sequence, 0, 1)
 
     def get_generator(self) -> SignalGenerator:
@@ -91,14 +105,11 @@ class ZeroPadInput(SignalGeneratorInput):
             try:
                 if not val:
                     val = 0
-
                 val = complex(val)
             except ValueError:
                 self._logger.warning(f"Skipping value: {val}, not a digit.")
                 continue
-
             input_values.append(val)
-
         return ZeroPad(input_values)
 
 
@@ -138,34 +149,20 @@ class SinusoidInput(SignalGeneratorInput):
         self.frequency_label = QLabel("Frequency")
         self.addWidget(self.frequency_label, 0, 0)
         self.frequency_input = QLineEdit()
+        self.frequency_input.setText("0.1")
         self.addWidget(self.frequency_input, 0, 1)
 
         self.phase_label = QLabel("Phase")
         self.addWidget(self.phase_label, 1, 0)
         self.phase_input = QLineEdit()
+        self.phase_input.setText("0.0")
         self.addWidget(self.phase_input, 1, 1)
 
     def get_generator(self) -> SignalGenerator:
-        frequency = self.frequency_input.text().strip()
-        try:
-            if not frequency:
-                frequency = 0.1
-
-            frequency = float(frequency)
-        except ValueError:
-            self._logger.warning(f"Cannot parse frequency: {frequency} not a number.")
-            frequency = 0.1
-
-        phase = self.phase_input.text().strip()
-        try:
-            if not phase:
-                phase = 0
-
-            phase = float(phase)
-        except ValueError:
-            self._logger.warning(f"Cannot parse phase: {phase} not a number.")
-            phase = 0
-
+        frequency = self._parse_number(
+            self.frequency_input.text(), float, "Frequency", 0.1
+        )
+        phase = self._parse_number(self.phase_input.text(), float, "Phase", 0.0)
         return Sinusoid(frequency, phase)
 
 
@@ -196,26 +193,10 @@ class GaussianInput(SignalGeneratorInput):
         self.addWidget(self.seed_spin_box, 2, 1)
 
     def get_generator(self) -> SignalGenerator:
-        scale = self.scale_input.text().strip()
-        try:
-            if not scale:
-                scale = 1
-
-            scale = float(scale)
-        except ValueError:
-            self._logger.warning(f"Cannot parse scale: {scale} not a number.")
-            scale = 1
-
-        loc = self.loc_input.text().strip()
-        try:
-            if not loc:
-                loc = 0
-
-            loc = float(loc)
-        except ValueError:
-            self._logger.warning(f"Cannot parse loc: {loc} not a number.")
-            loc = 0
-
+        scale = self._parse_number(
+            self.scale_input.text(), float, "Standard deviation", 1.0
+        )
+        loc = self._parse_number(self.loc_input.text(), float, "Average value", 0.0)
         return Gaussian(self.seed_spin_box.value(), loc, scale)
 
 
@@ -246,26 +227,8 @@ class UniformInput(SignalGeneratorInput):
         self.addWidget(self.seed_spin_box, 2, 1)
 
     def get_generator(self) -> SignalGenerator:
-        low = self.low_input.text().strip()
-        try:
-            if not low:
-                low = -1.0
-
-            low = float(low)
-        except ValueError:
-            self._logger.warning(f"Cannot parse low: {low} not a number.")
-            low = -1.0
-
-        high = self.high_input.text().strip()
-        try:
-            if not high:
-                high = 1.0
-
-            high = float(high)
-        except ValueError:
-            self._logger.warning(f"Cannot parse high: {high} not a number.")
-            high = 1.0
-
+        low = self._parse_number(self.low_input.text(), float, "Lower bound", -1.0)
+        high = self._parse_number(self.high_input.text(), float, "Upper bound", 1.0)
         return Uniform(self.seed_spin_box.value(), low, high)
 
 
@@ -284,16 +247,9 @@ class ConstantInput(SignalGeneratorInput):
         self.addWidget(self.constant_input, 0, 1)
 
     def get_generator(self) -> SignalGenerator:
-        constant = self.constant_input.text().strip()
-        try:
-            if not constant:
-                constant = 1.0
-
-            constant = complex(constant)
-        except ValueError:
-            self._logger.warning(f"Cannot parse constant: {constant} not a number.")
-            constant = 0.0
-
+        constant = self._parse_number(
+            self.constant_input.text(), complex, "Constant", 1.0
+        )
         return Constant(constant)
 
 

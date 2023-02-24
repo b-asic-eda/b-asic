@@ -9,7 +9,7 @@ import logging
 import os
 import sys
 from pprint import pprint
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from qtpy.QtCore import QFileInfo, QSize, Qt
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
@@ -47,6 +47,7 @@ from b_asic.gui_utils.plot_window import PlotWindow
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.signal import Signal
 from b_asic.signal_flow_graph import SFG
 
 # from b_asic import FastSimulation
@@ -158,13 +159,12 @@ class MainWindow(QMainWindow):
         self.toolbar.addAction("Clear workspace", self.clear_workspace)
 
     def resizeEvent(self, event) -> None:
-        self.ui.operation_box.setGeometry(
-            10, 10, self.ui.operation_box.width(), self.height()
-        )
+        ui_width = self.ui.operation_box.width()
+        self.ui.operation_box.setGeometry(10, 10, ui_width, self.height())
         self.graphic_view.setGeometry(
-            self.ui.operation_box.width() + 20,
+            ui_width + 20,
             60,
-            self.width() - self.ui.operation_box.width() - 20,
+            self.width() - ui_width - 20,
             self.height() - 30,
         )
         super().resizeEvent(event)
@@ -214,20 +214,20 @@ class MainWindow(QMainWindow):
 
         self.logger.info("Saved SFG to path: " + str(module))
 
-    def save_work(self, event=None):
+    def save_work(self, event=None) -> None:
         self.sfg_widget = SelectSFGWindow(self)
         self.sfg_widget.show()
 
         # Wait for input to dialog.
         self.sfg_widget.ok.connect(self._save_work)
 
-    def load_work(self, event=None):
+    def load_work(self, event=None) -> None:
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
         self._load_from_file(module)
 
-    def _load_from_file(self, module):
+    def _load_from_file(self, module) -> None:
         self.logger.info("Loading SFG from path: " + str(module))
         try:
             sfg, positions = python_to_sfg(module)
@@ -252,7 +252,7 @@ class MainWindow(QMainWindow):
         self._load_sfg(sfg, positions)
         self.logger.info("Loaded SFG from path: " + str(module))
 
-    def _load_sfg(self, sfg, positions=None):
+    def _load_sfg(self, sfg, positions=None) -> None:
         if positions is None:
             positions = {}
 
@@ -299,11 +299,11 @@ class MainWindow(QMainWindow):
         self.sfg_dict[sfg.name] = sfg
         self.update()
 
-    def exit_app(self):
+    def exit_app(self) -> None:
         self.logger.info("Exiting the application.")
         QApplication.quit()
 
-    def clear_workspace(self):
+    def clear_workspace(self) -> None:
         self.logger.info("Clearing workspace from operations and SFGs.")
         self.pressed_operations.clear()
         self.pressed_ports.clear()
@@ -341,7 +341,7 @@ class MainWindow(QMainWindow):
         sfg = SFG(inputs=inputs, outputs=outputs, name=name)
         self.logger.info("Created SFG with name: %s from selected operations." % name)
 
-        def check_equality(signal, signal_2):
+        def check_equality(signal: Signal, signal_2: Signal) -> bool:
             if not (
                 signal.source.operation.type_name()
                 == signal_2.source.operation.type_name()
@@ -440,11 +440,11 @@ class MainWindow(QMainWindow):
         self.sfg_dict[sfg.name] = sfg
 
     def _show_precedence_graph(self, event=None) -> None:
-        self.dialog = ShowPCWindow(self)
-        self.dialog.add_sfg_to_dialog()
-        self.dialog.show()
+        self._precedence_graph_dialog = ShowPCWindow(self)
+        self._precedence_graph_dialog.add_sfg_to_dialog()
+        self._precedence_graph_dialog.show()
 
-    def get_operations_from_namespace(self, namespace) -> None:
+    def get_operations_from_namespace(self, namespace) -> List[str]:
         self.logger.info(
             "Fetching operations from namespace: " + str(namespace.__name__)
         )
@@ -667,11 +667,11 @@ class MainWindow(QMainWindow):
 
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event) -> None:
         for signal in self.signalPortDict.keys():
             signal.moveLine()
 
-    def _select_operations(self):
+    def _select_operations(self) -> None:
         selected = [button.widget() for button in self.scene.selectedItems()]
         for button in selected:
             button._toggle_button(pressed=False)
@@ -682,8 +682,8 @@ class MainWindow(QMainWindow):
 
         self.pressed_operations = selected
 
-    def _simulate_sfg(self):
-        for sfg, properties in self.dialog.properties.items():
+    def _simulate_sfg(self) -> None:
+        for sfg, properties in self._simulation_dialog.properties.items():
             self.logger.info("Simulating SFG with name: %s" % str(sfg.name))
             simulation = FastSimulation(sfg, input_providers=properties["input_values"])
             l_result = simulation.run_for(
@@ -697,36 +697,32 @@ class MainWindow(QMainWindow):
 
             if properties["show_plot"]:
                 self.logger.info("Opening plot for SFG with name: " + str(sfg.name))
-                self.logger.info(
-                    "To save the plot press 'Ctrl+S' when the plot is focused."
-                )
-                # self.plot = Plot(simulation, sfg, self)
-                self.plot = PlotWindow(simulation.results)
-                self.plot.show()
+                self._plot = PlotWindow(simulation.results, sfg_name=sfg.name)
+                self._plot.show()
 
-    def simulate_sfg(self, event=None):
-        self.dialog = SimulateSFGWindow(self)
+    def simulate_sfg(self, event=None) -> None:
+        self._simulation_dialog = SimulateSFGWindow(self)
 
         for _, sfg in self.sfg_dict.items():
-            self.dialog.add_sfg_to_dialog(sfg)
+            self._simulation_dialog.add_sfg_to_dialog(sfg)
 
-        self.dialog.show()
+        self._simulation_dialog.show()
 
         # Wait for input to dialog.
         # Kinda buggy because of the separate window in the same thread.
-        self.dialog.simulate.connect(self._simulate_sfg)
+        self._simulation_dialog.simulate.connect(self._simulate_sfg)
 
-    def display_faq_page(self, event=None):
-        self.faq_page = FaqWindow(self)
-        self.faq_page.scroll_area.show()
+    def display_faq_page(self, event=None) -> None:
+        self._faq_page = FaqWindow(self)
+        self._faq_page.scroll_area.show()
 
-    def display_about_page(self, event=None):
-        self.about_page = AboutWindow(self)
-        self.about_page.show()
+    def display_about_page(self, event=None) -> None:
+        self._about_page = AboutWindow(self)
+        self._about_page.show()
 
-    def display_keybinds_page(self, event=None):
-        self.keybinds_page = KeybindsWindow(self)
-        self.keybinds_page.show()
+    def display_keybinds_page(self, event=None) -> None:
+        self._keybinds_page = KeybindsWindow(self)
+        self._keybinds_page.show()
 
 
 def start_gui():

@@ -141,9 +141,9 @@ def test_help_dialogs(qtbot):
     widget.display_about_page()
     widget.display_keybinds_page()
     qtbot.wait(100)
-    widget.faq_page.close()
-    widget.about_page.close()
-    widget.keybinds_page.close()
+    widget._faq_page.close()
+    widget._about_page.close()
+    widget._keybinds_page.close()
 
     widget.exit_app()
 
@@ -159,7 +159,7 @@ def test_simulate(qtbot, datadir):
     qtbot.wait(100)
     # widget.dialog.save_properties()
     # qtbot.wait(100)
-    widget.dialog.close()
+    widget._simulation_dialog.close()
 
     widget.exit_app()
 

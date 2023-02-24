@@ -27,8 +27,8 @@ def test_MemoryVariables(secondorder_iir_schedule):
     pc = secondorder_iir_schedule.get_memory_variables()
     mem_vars = pc.collection
     pattern = re.compile(
-        "MemoryVariable\\(3, <b_asic.port.OutputPort object at 0x[a-f0-9]+>,"
-        " {<b_asic.port.InputPort object at 0x[a-f0-9]+>: 4}, 'cmul1.0'\\)"
+        "MemoryVariable\\(3, <b_asic.port.OutputPort object at 0x[a-fA-F0-9]+>,"
+        " {<b_asic.port.InputPort object at 0x[a-fA-F0-9]+>: 4}, 'cmul1.0'\\)"
     )
     mem_var = [m for m in mem_vars if m.name == 'cmul1.0'][0]
     assert pattern.match(repr(mem_var))
