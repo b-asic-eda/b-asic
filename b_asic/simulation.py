@@ -217,3 +217,10 @@ class Simulation:
         Clear all current state of the simulation, except for the results and iteration.
         """
         self._delays.clear()
+
+    def show(self) -> None:
+        """Show the simulation results."""
+        # import here to avoid cyclic imports
+        from b_asic.gui_utils.plot_window import start_simulation_dialog
+
+        start_simulation_dialog(self.results, self._sfg.name)

@@ -6,6 +6,7 @@
 
 import re
 import sys
+from typing import Dict, List, Optional, Tuple
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -32,8 +33,9 @@ class PlotWindow(QDialog):
 
     def __init__(
         self,
-        sim_result,
+        sim_result: Dict[str, List[complex]],
         logger=print,
+        sfg_name: Optional[str] = None,
         parent=None,
     ):
         super().__init__(parent=parent)
@@ -43,7 +45,12 @@ class PlotWindow(QDialog):
             | Qt.WindowMinimizeButtonHint
             | Qt.WindowMaximizeButtonHint
         )
-        self.setWindowTitle("Simulation result")
+        title = (
+            f"Simulation results: {sfg_name}"
+            if sfg_name is not None
+            else "Simulation results"
+        )
+        self.setWindowTitle(title)
         self._auto_redraw = False
 
         # Categorise sim_results into inputs, outputs, delays, others
@@ -187,10 +194,16 @@ class PlotWindow(QDialog):
             self._update_legend()
 
 
+def start_simulation_dialog(
+    sim_results: Dict[str, List[complex]], sfg_name: Optional[str] = None
+):
+    app = QApplication(sys.argv)
+    win = PlotWindow(sim_result=sim_results, sfg_name=sfg_name)
+    win.exec_()
+
+
 # Simple test of the dialog
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    # sim_res = {"c1": [3, 6, 7], "c2": [4, 5, 5], "bfly1.0": [7, 0, 0], "bfly1.1": [-1, 0, 2], "0": [1, 2, 3]}
     sim_res = {
         '0': [0.5, 0.5, 0, 0],
         'add1': [0.5, 0.5, 0, 0],
@@ -199,9 +212,4 @@ if __name__ == "__main__":
         'in1': [1, 0, 0, 0],
         't1': [0, 1, 0, 0],
     }
-    win = PlotWindow(
-        # window=None, sim_result=sim_res, sfg_name="hej", logger=print
-        sim_result=sim_res,
-    )
-    win.exec_()
-    # win.show()
+    start_simulation_dialog(sim_res, "Test data")
