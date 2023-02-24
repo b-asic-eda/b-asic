@@ -13,6 +13,7 @@ if you want more information.
 
 from math import pi, sin
 from numbers import Number
+from pathlib import Path
 from typing import Optional, Sequence
 
 import numpy as np
@@ -159,6 +160,31 @@ class ZeroPad(SignalGenerator):
 
     def __repr__(self) -> str:
         return f"ZeroPad({self._data})"
+
+
+class FromFile(SignalGenerator):
+    """
+    Signal generator that reads from file and pads a sequence with zeros.
+    File should be of type .txt or .csv and contain a single column vector
+    Parameters
+    ----------
+    path : string
+        Path to input file.
+    """
+
+    def __init__(self, path) -> None:
+        self._path = path
+        data = np.loadtxt(path, dtype=complex).tolist()
+        self._data = data
+        self._len = len(data)
+
+    def __call__(self, time: int) -> complex:
+        if 0 <= time < self._len:
+            return self._data[time]
+        return 0.0
+
+    def __repr__(self) -> str:
+        return f"FromFile({self._path!r})"
 
 
 class Sinusoid(SignalGenerator):

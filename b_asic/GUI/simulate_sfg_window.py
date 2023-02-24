@@ -16,6 +16,7 @@ from qtpy.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
     QPushButton,
     QShortcut,
@@ -25,6 +26,7 @@ from qtpy.QtWidgets import (
 )
 
 from b_asic.GUI.signal_generator_input import _GENERATOR_MAPPING
+from b_asic.signal_generator import FromFile
 
 
 class SimulateSFGWindow(QDialog):
@@ -40,6 +42,7 @@ class SimulateSFGWindow(QDialog):
         self.setWindowTitle("Simulate SFG")
 
         self.dialog_layout = QVBoxLayout()
+        self.dialog_layout.setSizeConstraint(QLayout.SetFixedSize)
         self.simulate_btn = QPushButton("Simulate")
         self.simulate_btn.clicked.connect(self.save_properties)
         self.dialog_layout.addWidget(self.simulate_btn)
@@ -89,15 +92,13 @@ class SimulateSFGWindow(QDialog):
                 self.input_grid.addWidget(input_label, i, 0)
 
                 input_dropdown = QComboBox()
-                input_dropdown.insertItems(
-                    0, list(_GENERATOR_MAPPING.keys()) + ["File"]
-                )
+                input_dropdown.insertItems(0, list(_GENERATOR_MAPPING.keys()))
                 input_dropdown.currentTextChanged.connect(
                     lambda text, i=i: self.change_input_format(i, text)
                 )
                 self.input_grid.addWidget(input_dropdown, i, 1, alignment=Qt.AlignLeft)
 
-                self.change_input_format(i, "Impulse")
+                self.change_input_format(i, "Constant")
 
                 y += 1
 
@@ -125,44 +126,12 @@ class SimulateSFGWindow(QDialog):
 
         if text in _GENERATOR_MAPPING:
             param_grid = _GENERATOR_MAPPING[text](self._window.logger)
-        elif text == "File":
-            file_label = QLabel("Browse")
-            param_grid.addWidget(file_label, 0, 0)
-            file_browser = QPushButton("No file selected")
-            file_browser.clicked.connect(
-                lambda i=i: self.get_input_file(i, file_browser)
-            )
-            param_grid.addWidget(file_browser, 0, 1)
         else:
             raise Exception("Input selection is not implemented")
 
         self.input_grid.addLayout(param_grid, i, 2)
 
         return
-
-    def get_input_file(self, i, file_browser):
-        module, accepted = QFileDialog().getOpenFileName()
-        file_browser.setText(module)
-        return
-
-    def parse_input_values(self, input_values):
-        _input_values = []
-        for _list in input_values:
-            _list_values = []
-            for val in _list:
-                val = val.strip()
-                try:
-                    if not val:
-                        val = 0
-
-                    _list_values.append(complex(val))
-                except ValueError:
-                    self._window.logger.warning(f"Skipping value: {val}, not a digit.")
-                    continue
-
-            _input_values.append(_list_values)
-
-        return _input_values
 
     def save_properties(self):
         for sfg, _properties in self.input_fields.items():
@@ -178,16 +147,6 @@ class SimulateSFGWindow(QDialog):
 
                 if in_format in _GENERATOR_MAPPING:
                     tmp2 = in_param.get_generator()
-                elif in_format == "File":
-                    widget = in_param.itemAtPosition(0, 1).widget()
-                    path = widget.text()
-                    try:
-                        tmp2 = self.parse_input_values(
-                            np.loadtxt(path, dtype=str).tolist()
-                        )
-                    except FileNotFoundError:
-                        self._window.logger.error(f"Selected input file not found.")
-                        continue
                 else:
                     raise Exception("Input selection is not implemented")
 

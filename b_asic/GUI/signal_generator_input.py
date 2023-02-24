@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
-from qtpy.QtWidgets import QGridLayout, QLabel, QLineEdit, QSpinBox
+from qtpy.QtWidgets import (
+    QFileDialog,
+    QGridLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSpinBox,
+)
 
 from b_asic.signal_generator import (
     Constant,
+    FromFile,
     Gaussian,
     Impulse,
     SignalGenerator,
@@ -92,6 +100,31 @@ class ZeroPadInput(SignalGeneratorInput):
             input_values.append(val)
 
         return ZeroPad(input_values)
+
+
+class FromFileInput(SignalGeneratorInput):
+    """
+    Class for graphically configuring and generating a
+    :class:`~b_asic.signal_generators.FromFile` signal generator.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.file_label = QLabel("Browse")
+        self.addWidget(self.file_label, 0, 0)
+        self.file_browser = QPushButton("No file selected")
+        self.file_browser.clicked.connect(
+            lambda i: self.get_input_file(i, self.file_browser)
+        )
+        self.addWidget(self.file_browser, 0, 1)
+
+    def get_generator(self) -> SignalGenerator:
+        return FromFile(self.file_browser.text())
+
+    def get_input_file(self, i, file_browser):
+        module, accepted = QFileDialog().getOpenFileName()
+        file_browser.setText(module)
+        return
 
 
 class SinusoidInput(SignalGeneratorInput):
@@ -272,4 +305,5 @@ _GENERATOR_MAPPING = {
     "Step": StepInput,
     "Uniform": UniformInput,
     "ZeroPad": ZeroPadInput,
+    "FromFile": FromFileInput,
 }

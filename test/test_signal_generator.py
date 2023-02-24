@@ -1,3 +1,4 @@
+import os
 from math import sqrt
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from b_asic.signal_generator import (
     Constant,
     Delay,
+    FromFile,
     Gaussian,
     Impulse,
     Sinusoid,
@@ -269,3 +271,17 @@ def test_division():
 
     assert str(g) == "Sinusoid(0.5, 0.25) / (0.5 * Step())"
     assert isinstance(g, _DivGenerator)
+
+
+def test_fromfile(datadir):
+    g = FromFile(datadir.join('input.csv'))
+    assert g(-1) == 0.0
+    assert g(0) == 0
+    assert g(1) == 1
+    assert g(2) == 0
+
+    with pytest.raises(FileNotFoundError, match="tset.py not found"):
+        g = FromFile(datadir.join('tset.py'))
+
+    with pytest.raises(ValueError, match="could not convert string"):
+        g = FromFile(datadir.join('bad.csv'))

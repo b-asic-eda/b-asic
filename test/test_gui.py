@@ -148,6 +148,22 @@ def test_help_dialogs(qtbot):
     widget.exit_app()
 
 
+def test_simulate(qtbot, datadir):
+    # Smoke test to open up the "Simulate SFG" and run default simulation
+    # Should really test all different tests
+    widget = GUI.MainWindow()
+    qtbot.addWidget(widget)
+    widget._load_from_file(datadir.join('twotapfir.py'))
+    assert 'twotapfir' in widget.sfg_dict
+    widget.simulate_sfg()
+    qtbot.wait(100)
+    # widget.dialog.save_properties()
+    # qtbot.wait(100)
+    widget.dialog.close()
+
+    widget.exit_app()
+
+
 def test_properties_window_smoke_test(qtbot, datadir):
     # Smoke test to open up the properties window
     # Should really check that the contents are correct and changes works etc
@@ -159,9 +175,7 @@ def test_properties_window_smoke_test(qtbot, datadir):
     dragbutton = widget.operationDragDict[op]
     dragbutton.show_properties_window()
     assert dragbutton._properties_window.operation == dragbutton
-    qtbot.mouseClick(
-        dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton
-    )
+    qtbot.mouseClick(dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton)
     widget.exit_app()
 
 
@@ -179,9 +193,7 @@ def test_properties_window_change_name(qtbot, datadir):
     dragbutton.show_properties_window()
     assert dragbutton._properties_window.edit_name.text() == "cmul2"
     dragbutton._properties_window.edit_name.setText("cmul73")
-    qtbot.mouseClick(
-        dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton
-    )
+    qtbot.mouseClick(dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton)
     dragbutton._properties_window.save_properties()
     assert dragbutton.name == "cmul73"
     assert dragbutton.operation.name == "cmul73"
