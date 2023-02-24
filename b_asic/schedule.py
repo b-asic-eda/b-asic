@@ -898,7 +898,7 @@ class Schedule:
         """Reset all the y-locations in the schedule to None"""
         self._y_locations = defaultdict(lambda: None)
 
-    def plot_in_axes(self, ax: Axes, operation_gap: Optional[float] = None) -> None:
+    def plot(self, ax: Axes, operation_gap: Optional[float] = None) -> None:
         """
         Plot the schedule in a :class:`matplotlib.axes.Axes` or subclass.
 
@@ -912,9 +912,9 @@ class Schedule:
         """
         self._plot_schedule(ax, operation_gap=operation_gap)
 
-    def plot(self, operation_gap: Optional[float] = None) -> None:
+    def show(self, operation_gap: Optional[float] = None) -> None:
         """
-        Plot the schedule. Will display based on the current Matplotlib backend.
+        Show the schedule. Will display based on the current Matplotlib backend.
 
         Parameters
         ----------

@@ -6,11 +6,7 @@ Three-point Winograd DFT
 
 from math import cos, pi, sin
 
-from b_asic.core_operations import (
-    Addition,
-    ConstantMultiplication,
-    Subtraction,
-)
+from b_asic.core_operations import Addition, ConstantMultiplication, Subtraction
 from b_asic.schedule import Schedule
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Input, Output
@@ -53,6 +49,6 @@ sfg.set_execution_time_of_type(Subtraction.type_name(), 1)
 # %%
 # Generate schedule
 schedule = Schedule(sfg, cyclic=True)
-schedule.plot()
+schedule.show()
 
 pc = schedule.get_memory_variables()

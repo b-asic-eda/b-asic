@@ -14,13 +14,13 @@ class TestProcessCollectionPlainMemoryVariable:
     @pytest.mark.mpl_image_compare(style='mpl20')
     def test_draw_process_collection(self, simple_collection):
         fig, ax = plt.subplots()
-        simple_collection.draw_lifetime_chart(ax=ax, show_markers=False)
+        simple_collection.plot(ax=ax, show_markers=False)
         return fig
 
     @pytest.mark.mpl_image_compare(style='mpl20')
     def test_draw_matrix_transposer_4(self):
         fig, ax = plt.subplots()
-        generate_matrix_transposer(4).draw_lifetime_chart(ax=ax)
+        generate_matrix_transposer(4).plot(ax=ax)
         return fig
 
     def test_split_memory_variable(self, simple_collection: ProcessCollection):

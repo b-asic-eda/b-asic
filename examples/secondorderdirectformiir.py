@@ -27,9 +27,7 @@ a0 = ConstantMultiplication(0.7, add1, "A0")
 add4 = Addition(a0, add3, "ADD4")
 out1 = Output(add4, "OUT1")
 
-sfg = SFG(
-    inputs=[in1], outputs=[out1], name="Second-order direct form IIR filter"
-)
+sfg = SFG(inputs=[in1], outputs=[out1], name="Second-order direct form IIR filter")
 
 # %%
 # Set latencies and execution times
@@ -42,4 +40,4 @@ sfg.set_execution_time_of_type(Addition.type_name(), 1)
 # Create schedule
 
 schedule = Schedule(sfg, cyclic=True)
-schedule.plot()
+schedule.show()

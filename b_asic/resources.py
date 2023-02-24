@@ -133,7 +133,7 @@ class ProcessCollection:
         """
         self._collection.add(process)
 
-    def draw_lifetime_chart(
+    def plot(
         self,
         ax: Optional[Axes] = None,
         show_name: bool = True,
