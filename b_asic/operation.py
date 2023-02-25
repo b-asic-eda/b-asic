@@ -253,7 +253,7 @@ class Operation(GraphComponent, SignalSourceProvider):
             that are encountered, and be updated with their new values.
         prefix : str, optional
             Used as a prefix for the key string when storing results/delays.
-        bits_override ; int, optional
+        bits_override : int, optional
             Specifies a word length override when truncating inputs
             which ignores the word length specified by the input signal.
         truncate : bool, default: True

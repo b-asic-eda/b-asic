@@ -110,6 +110,9 @@ run-doc-test:
   script:
     - pip install -r requirements_doc.txt
     - sphinx-build -b html docs_sphinx public
+    # Run linting on doc-strings
+    - pip install black velin
+    - velin . --check --black
 
 pages:
   variables:
