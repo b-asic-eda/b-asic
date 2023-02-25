@@ -86,8 +86,7 @@ class Signal(AbstractGraphComponent):
         already been connected.
 
         Parameters
-        ==========
-
+        ----------
         source : OutputPort, Signal, or Operation
             OutputPort, Signal, or Operation to connect as source to the signal.
             If Signal, it will connect to the source of the signal, so later on
@@ -121,8 +120,7 @@ class Signal(AbstractGraphComponent):
         been connected.
 
         Parameters
-        ==========
-
+        ----------
         destination : InputPort, Signal, or Operation
             InputPort, Signal, or Operation to connect as destination to the signal.
             If Signal, it will connect to the destination of the signal, so later on

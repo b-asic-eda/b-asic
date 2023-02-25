@@ -472,8 +472,8 @@ class SFG(AbstractOperation):
 
         Returns
         -------
-            A  list of inputs that are required to compute the output with the given
-            *output_index*.
+        A  list of inputs that are required to compute the output with the given
+        *output_index*.
         """
         if output_index < 0 or output_index >= self.output_count:
             raise IndexError(
@@ -538,7 +538,7 @@ class SFG(AbstractOperation):
         Returns an empty sequence if no components were found.
 
         Parameters
-        ==========
+        ----------
         type_name : TypeName
             The TypeName of the desired components.
         """
@@ -555,8 +555,7 @@ class SFG(AbstractOperation):
         Returns None if the component was not found.
 
         Parameters
-        ==========
-
+        ----------
         graph_id : GraphID
             Graph ID of the desired component.
         """
@@ -568,8 +567,7 @@ class SFG(AbstractOperation):
         Returns an empty sequence if no components were found.
 
         Parameters
-        ==========
-
+        ----------
         name : Name
             Name of the desired component(s)
         """
@@ -584,8 +582,7 @@ class SFG(AbstractOperation):
         from a simulation.
 
         Parameters
-        ==========
-
+        ----------
         name : Name
             Name of the desired component(s)
         output_index : int, default: 0
@@ -603,8 +600,7 @@ class SFG(AbstractOperation):
         Then return a new deepcopy of the sfg with the replaced component.
 
         Parameters
-        ==========
-
+        ----------
         component : Operation
             The new component(s), e.g. Multiplication
         graph_id : GraphID
@@ -644,8 +640,7 @@ class SFG(AbstractOperation):
         Then return a new deepcopy of the sfg with the inserted component.
 
         Parameters
-        ==========
-
+        ----------
         component : Operation
             The new component, e.g. Multiplication.
         output_comp_id : GraphID
@@ -689,8 +684,7 @@ class SFG(AbstractOperation):
         then returns None and does nothing.
 
         Parameters
-        ==========
-
+        ----------
         operation_id : GraphID
             The GraphID of the operation to remove.
 
@@ -1311,7 +1305,6 @@ class SFG(AbstractOperation):
         ----------
         show_id : Boolean, optional
             If True, the graph_id:s of signals are shown. The default is False.
-
         engine : string, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
@@ -1367,10 +1360,8 @@ class SFG(AbstractOperation):
             https://www.graphviz.org/doc/info/output.html
             Most common are "pdf", "eps", "png", and "svg". Default is None which
             leads to PDF.
-
         show_id : Boolean, optional
             If True, the graph_id:s of signals are shown. The default is False.
-
         engine : string, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.

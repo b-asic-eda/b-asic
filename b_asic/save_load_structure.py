@@ -22,7 +22,7 @@ def sfg_to_python(
     Given an SFG structure try to serialize it for saving to a file.
 
     Parameters
-    ==========
+    ----------
     sfg : SFG
         The SFG to serialize.
     counter : int, default: 0
@@ -145,7 +145,7 @@ def python_to_sfg(path: str) -> Tuple[SFG, Dict[str, Tuple[int, int]]]:
     Given a serialized file, try to deserialize it and load it to the library.
 
     Parameters
-    ==========
+    ----------
     path : str
         Path to file to read and deserialize.
     """
@@ -166,7 +166,7 @@ def schedule_to_python(schedule: Schedule) -> str:
     Given a schedule structure try to serialize it for saving to a file.
 
     Parameters
-    ==========
+    ----------
     schedule : Schedule
         The schedule to serialize.
     """

@@ -147,10 +147,10 @@ class Schedule:
 
         Returns
         -------
-            The number of time steps the operation with *graph_id* can ba moved
-            forward in time.
+        The number of time steps the operation with *graph_id* can ba moved
+        forward in time.
 
-        See also
+        See Also
         --------
         backward_slack
         slacks
@@ -197,13 +197,12 @@ class Schedule:
 
         Returns
         -------
-            The number of time steps the operation with *graph_id* can ba moved
+        The number of time steps the operation with *graph_id* can ba moved
             backward in time.
-
         .. note:: The backward slack is positive, but a call to :func:`move_operation`
-                  should be negative to move the operation backward.
+            should be negative to move the operation backward.
 
-        See also
+        See Also
         --------
         forward_slack
         slacks
@@ -249,12 +248,11 @@ class Schedule:
 
         Returns
         -------
-            A tuple as ``(backward_slack, forward_slack)``.
-
+        A tuple as ``(backward_slack, forward_slack)``.
         .. note:: The backward slack is positive, but a call to :func:`move_operation`
-                  should be negative to move the operation backward.
+            should be negative to move the operation backward.
 
-        See also
+        See Also
         --------
         backward_slack
         forward_slack
@@ -277,7 +275,7 @@ class Schedule:
         time : int
             The new schedule time. If it is too short, a ValueError will be raised.
 
-        See also
+        See Also
         --------
         get_max_time
         """
@@ -321,8 +319,7 @@ class Schedule:
         Increase time resolution for a schedule.
 
         Parameters
-        ==========
-
+        ----------
         factor : int
             The time resolution increment.
         """
@@ -369,13 +366,12 @@ class Schedule:
         Decrease time resolution for a schedule.
 
         Parameters
-        ==========
-
+        ----------
         factor : int
             The time resolution decrement.
 
-        See also
-        ========
+        See Also
+        --------
         get_possible_time_resolution_decrements
         """
         possible_values = self.get_possible_time_resolution_decrements()
@@ -403,7 +399,7 @@ class Schedule:
         graph_id : GraphID
             The GraphID of the operation to move.
         new_y : int
-           The new y-position of the operation.
+            The new y-position of the operation.
         insert : bool, optional
             If True, all operations on that y-position will be moved one position.
             The default is False.
@@ -450,13 +446,12 @@ class Schedule:
         """
         Set the y-position of the Operation with GraphID *graph_id* to *y_location*.
 
-
         Parameters
         ----------
         graph_id : GraphID
             The GraphID of the operation to move.
         y_location : int
-           The new y-position of the operation.
+            The new y-position of the operation.
 
         """
         self._y_locations[graph_id] = y_location
@@ -936,7 +931,7 @@ class Schedule:
 
         Returns
         -------
-            The Matplotlib Figure.
+        The Matplotlib Figure.
         """
         fig, ax = plt.subplots()
         self._plot_schedule(ax, operation_gap=operation_gap)

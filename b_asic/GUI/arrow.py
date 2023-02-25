@@ -12,13 +12,12 @@ class Arrow(QGraphicsPathItem):
     def __init__(self, source, destination, window, signal=None, parent=None):
         """
         Parameters
-        ==========
-
-        source :
+        ----------
+        source
             Source operation.
-        destination :
+        destination
             Destination operation.
-        window :
+        window
             Window containing signal flow graph.
         signal : Signal, optional
             Let arrow represent *signal*.
@@ -64,9 +63,7 @@ class Arrow(QGraphicsPathItem):
                             " with name:"
                             f" {self._window.opToSFG[operation].name}."
                         )
-                        del self._window.sfg_dict[
-                            self._window.opToSFG[operation].name
-                        ]
+                        del self._window.sfg_dict[self._window.opToSFG[operation].name]
                         self._window.opToSFG = {
                             op: self._window.opToSFG[op]
                             for op in self._window.opToSFG
@@ -97,11 +94,7 @@ class Arrow(QGraphicsPathItem):
             + self.destination.x()
             + (0 if not destination_flipped else PORTWIDTH)
         )
-        y1 = (
-            self.destination.operation.y()
-            + self.destination.y()
-            + PORTHEIGHT / 2
-        )
+        y1 = self.destination.operation.y() + self.destination.y() + PORTHEIGHT / 2
         xmid = (x0 + x1) / 2
         ymid = (y0 + y1) / 2
         both_flipped = source_flipped and destination_flipped

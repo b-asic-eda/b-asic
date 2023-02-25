@@ -155,7 +155,7 @@ class OperationItem(QGraphicsItemGroup):
 
         Returns
         -------
-            The location as a QPointF.
+        The location as a QPointF.
         """
         return self.mapToParent(self._ports[key]["pos"])
 

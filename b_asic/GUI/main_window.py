@@ -487,7 +487,6 @@ class MainWindow(QMainWindow):
         is_flipped: bool = False,
     ) -> None:
         """
-
         Parameters
         ----------
         op : Operation

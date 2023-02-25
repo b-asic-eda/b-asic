@@ -41,7 +41,7 @@ def generate_random_interleaver(
 
     Returns
     -------
-        ProcessCollection
+    ProcessCollection
 
     """
     inputorder = list(range(size))
@@ -52,9 +52,7 @@ def generate_random_interleaver(
     )
     return ProcessCollection(
         {
-            PlainMemoryVariable(
-                inputorder[i], 0, {0: outputorder[i] - inputorder[i]}
-            )
+            PlainMemoryVariable(inputorder[i], 0, {0: outputorder[i] - inputorder[i]})
             for i in range(len(inputorder))
         },
         len(inputorder),
@@ -89,7 +87,7 @@ def generate_matrix_transposer(
 
     Returns
     -------
-        ProcessCollection
+    ProcessCollection
     """
     if width is None:
         width = height

@@ -90,11 +90,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         position is valid, False otherwise.
 
         Parameters
-        ==========
-
+        ----------
         item : OperationItem
             The component.
-
         pos : float
             The x-position to check.
         """

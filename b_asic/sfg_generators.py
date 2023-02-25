@@ -140,27 +140,22 @@ def direct_form_fir(
     ----------
     coefficients : 1D-array
         Coefficients to use for the FIR filter section
-
     input_op : Input, optional
         The Input to connect the SFG to. If not provided, one will be generated.
-
     output : Output, optional
         The Output to connect the SFG to. If not provided, one will be generated.
-
     name : Name, optional
         The name of the SFG. If None, "Direct-form FIR filter".
-
     mult_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.ConstantMultiplication`.
-
     add_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.Addition`.
 
     Returns
     -------
-        Signal flow graph
+    Signal flow graph
 
-    See also
+    See Also
     --------
     transposed_direct_form_fir
     """
@@ -221,27 +216,22 @@ def transposed_direct_form_fir(
     ----------
     coefficients : 1D-array
         Coefficients to use for the FIR filter section
-
     input_op : Input, optional
         The Input to connect the SFG to. If not provided, one will be generated.
-
     output : Output, optional
         The Output to connect the SFG to. If not provided, one will be generated.
-
     name : Name, optional
         The name of the SFG. If None, "Transposed direct-form FIR filter".
-
     mult_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.ConstantMultiplication`.
-
     add_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.Addition`.
 
     Returns
     -------
-        Signal flow graph
+    Signal flow graph
 
-    See also
+    See Also
     --------
     direct_form_fir
     """

@@ -81,8 +81,7 @@ class Port(ABC):
         entered signal from the port as well.
 
         Parameters
-        ==========
-
+        ----------
         signal : Signal
             Signal to remove.
         """

@@ -62,16 +62,15 @@ def getLogger(filename: str = "scheduler-gui.log", loglevel: str = "INFO") -> Lo
     object.
 
     Parameters
-    ==========
-
-        filename : str optional
-            Output filename. Defaults to 'scheduler-gui.log'.
-        loglevel : str, optional
-            The minimum level that the logger will log. Defaults to 'INFO'.
+    ----------
+    filename : str optional
+        Output filename. Defaults to 'scheduler-gui.log'.
+    loglevel : str, optional
+        The minimum level that the logger will log. Defaults to 'INFO'.
 
     Returns
-    =======
-        Logger : 'logging.Logger' object.
+    -------
+    Logger : 'logging.Logger' object.
     """
 
     # logger = logging.getLogger(name)

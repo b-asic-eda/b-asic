@@ -218,9 +218,8 @@ class Operation(GraphComponent, SignalSourceProvider):
         The *prefix* parameter will be used as a prefix for the key string when looking
         for delays.
 
-        See also
-        ========
-
+        See Also
+        --------
         current_outputs, evaluate_output, evaluate_outputs
         """
         raise NotImplementedError
@@ -262,9 +261,8 @@ class Operation(GraphComponent, SignalSourceProvider):
             place. If set to False, input values will be used directly without any
             bit truncation.
 
-        See also
-        ========
-
+        See Also
+        --------
         evaluate_outputs, current_output, current_outputs
         """
         raise NotImplementedError
@@ -276,8 +274,8 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         Get all current outputs of this operation, if available.
 
-        See also
-        ========
+        See Also
+        --------
         current_output
         """
         raise NotImplementedError
@@ -415,8 +413,8 @@ class Operation(GraphComponent, SignalSourceProvider):
         These maps to the polygons and are corresponding to a start time of 0
         and height 1.
 
-        See also
-        ========
+        See Also
+        --------
         get_output_coordinates
         """
         raise NotImplementedError
@@ -430,8 +428,8 @@ class Operation(GraphComponent, SignalSourceProvider):
         These maps to the polygons and are corresponding to a start time of 0
         and height 1.
 
-        See also
-        ========
+        See Also
+        --------
         get_input_coordinates
 
         """
