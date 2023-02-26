@@ -31,13 +31,9 @@ sfg.set_execution_time_of_type(Addition.type_name(), 1)
 sim = Simulation(sfg, [lambda n: 0 if n else 1])
 sim.run_for(1000)
 
-import scipy.signal
-
-w, h = scipy.signal.freqz(sim.results['0'])
-
-import matplotlib.pyplot as plt
 import numpy as np
+from mplsignal.freq_plots import freqz_fir
 
-plt.plot(w, 20 * np.log10(np.abs(h) / 2))
+freqz_fir(np.array(sim.results['0']) / 2)
 
 schedule = Schedule(sfg, cyclic=True)

@@ -191,14 +191,13 @@ plt.show()
 
 
 # %%
-# To compute and plot the frequency response, it is possible to use SciPy and NumPy as
+# To compute and plot the frequency response, it is possible to use mplsignal
 
-import numpy as np
-import scipy.signal
+from mplsignal.freq_plots import freqz_fir
 
-w, h = scipy.signal.freqz(sim.results['0'])
-plt.plot(w, 20 * np.log10(np.abs(h)))
+freqz_fir(sim.results["0"])
 plt.show()
+
 
 # %%
 # As seen, the output has not converged to zero, leading to that the frequency-response may not be correct, so we want
@@ -225,6 +224,5 @@ plt.show()
 # %%
 # And the frequency-response:
 
-w, h = scipy.signal.freqz(sim.results['0'])
-plt.plot(w, 20 * np.log10(np.abs(h)))
+freqz_fir(sim.results["0"])
 plt.show()

@@ -55,7 +55,7 @@ To generate the documentation, the following additional packages are required:
     -   [Furo](https://pradyunsg.me/furo/)
     -   [numpydoc](https://numpydoc.readthedocs.io/)
     -   [Sphinx-Gallery](https://sphinx-gallery.github.io/)
-    -   [SciPy](https://scipy.org/)
+    -   [mplsignal](https://mplsignal.readthedocs.io/)
 
 ### Using CMake directly
 
