@@ -29,6 +29,15 @@ class TestProcessCollectionPlainMemoryVariable:
         )
         assert len(collection_split) == 3
 
+    @pytest.mark.mpl_image_compare(style='mpl20')
+    def test_left_edge_cell_assignment(self, simple_collection: ProcessCollection):
+        fig, ax = plt.subplots(1, 2)
+        assignment = simple_collection.left_edge_cell_assignment()
+        for cell in assignment.keys():
+            assignment[cell].plot(ax=ax[1], row=cell)
+        simple_collection.plot(ax[0])
+        return fig
+
     # Issue: #175
     def test_interleaver_issue175(self):
         with open('test/fixtures/interleaver-two-port-issue175.p', 'rb') as f:
