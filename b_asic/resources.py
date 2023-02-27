@@ -517,7 +517,7 @@ class ProcessCollection:
         e.g. Jupyter Qt console.
         """
         fig, ax = plt.subplots()
-        self.draw_lifetime_chart(ax, show_markers=False)
+        self.plot(ax, show_markers=False)
         f = io.StringIO()
         fig.savefig(f, format="svg")
 
