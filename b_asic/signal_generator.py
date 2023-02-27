@@ -165,7 +165,9 @@ class ZeroPad(SignalGenerator):
 class FromFile(SignalGenerator):
     """
     Signal generator that reads from file and pads a sequence with zeros.
+
     File should be of type .txt or .csv and contain a single column vector
+
     Parameters
     ----------
     path : string

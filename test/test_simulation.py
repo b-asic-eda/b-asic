@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from b_asic import Simulation
+from b_asic._b_asic import FastSimulation as Simulation
 
 
 class TestRunFor:
