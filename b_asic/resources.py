@@ -24,8 +24,13 @@ _T = TypeVar('_T')
 
 def _sorted_nicely(to_be_sorted: Iterable[_T]) -> List[_T]:
     """Sort the given iterable in the way that humans expect."""
-    convert = lambda text: int(text) if text.isdigit() else text
-    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', str(key))]
+
+    def convert(text):
+        return int(text) if text.isdigit() else text
+
+    def alphanum_key(key):
+        return [convert(c) for c in re.split('([0-9]+)', str(key))]
+
     return sorted(to_be_sorted, key=alphanum_key)
 
 
