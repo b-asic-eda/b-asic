@@ -36,7 +36,7 @@ def test_flip(qtbot, datadir):
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget.sfg_dict['twotapfir']
     op = sfg.find_by_name("cmul2")
-    dragbutton = widget.operationDragDict[op[0]]
+    dragbutton = widget._operation_drag_buttons[op[0]]
     assert not dragbutton.is_flipped()
     dragbutton._flip()
     assert dragbutton.is_flipped()
@@ -48,12 +48,12 @@ def test_sfg_invalidated_by_remove_of_operation(qtbot, datadir):
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget.sfg_dict['twotapfir']
-    ops_before_remove = len(widget.operationDragDict)
+    ops_before_remove = len(widget._operation_drag_buttons)
     op = sfg.find_by_name("cmul2")
-    dragbutton = widget.operationDragDict[op[0]]
+    dragbutton = widget._operation_drag_buttons[op[0]]
     dragbutton.remove()
     assert not widget.sfg_dict
-    assert ops_before_remove - 1 == len(widget.operationDragDict)
+    assert ops_before_remove - 1 == len(widget._operation_drag_buttons)
 
     widget.exit_app()
 
@@ -63,14 +63,14 @@ def test_sfg_invalidated_by_deleting_of_operation(qtbot, datadir):
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget.sfg_dict['twotapfir']
-    ops_before_remove = len(widget.operationDragDict)
+    ops_before_remove = len(widget._operation_drag_buttons)
     op = sfg.find_by_name("cmul2")
-    dragbutton = widget.operationDragDict[op[0]]
+    dragbutton = widget._operation_drag_buttons[op[0]]
     # Click
     qtbot.mouseClick(dragbutton, QtCore.Qt.MouseButton.LeftButton)
     qtbot.keyClick(widget, QtCore.Qt.Key.Key_Delete)
     assert not widget.sfg_dict
-    assert ops_before_remove - 1 == len(widget.operationDragDict)
+    assert ops_before_remove - 1 == len(widget._operation_drag_buttons)
 
     widget.exit_app()
 
@@ -81,7 +81,7 @@ def test_select_operation(qtbot, datadir):
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget.sfg_dict['twotapfir']
     op = sfg.find_by_name("cmul2")[0]
-    dragbutton = widget.operationDragDict[op]
+    dragbutton = widget._operation_drag_buttons[op]
     assert not dragbutton.pressed
     assert not widget.pressed_operations
 
@@ -98,7 +98,7 @@ def test_select_operation(qtbot, datadir):
 
     # Select another operation
     op2 = sfg.find_by_name("add1")[0]
-    dragbutton2 = widget.operationDragDict[op2]
+    dragbutton2 = widget._operation_drag_buttons[op2]
     assert not dragbutton2.pressed
 
     # Click
@@ -172,7 +172,7 @@ def test_properties_window_smoke_test(qtbot, datadir):
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget.sfg_dict['twotapfir']
     op = sfg.find_by_name("cmul2")[0]
-    dragbutton = widget.operationDragDict[op]
+    dragbutton = widget._operation_drag_buttons[op]
     dragbutton.show_properties_window()
     assert dragbutton._properties_window.operation == dragbutton
     qtbot.mouseClick(dragbutton._properties_window.ok, QtCore.Qt.MouseButton.LeftButton)
@@ -187,7 +187,7 @@ def test_properties_window_change_name(qtbot, datadir):
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget.sfg_dict['twotapfir']
     op = sfg.find_by_name("cmul2")[0]
-    dragbutton = widget.operationDragDict[op]
+    dragbutton = widget._operation_drag_buttons[op]
     assert dragbutton.name == "cmul2"
     assert dragbutton.operation.name == "cmul2"
     dragbutton.show_properties_window()
@@ -212,15 +212,15 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     widget.create_operation(sqrt)
     widget.create_operation(out1)
     # Should be three operations
-    assert len(widget.operationDragDict) == 3
+    assert len(widget._operation_drag_buttons) == 3
     # These particular three
     for op in (in1, sqrt, out1):
-        assert op in widget.operationDragDict
+        assert op in widget._operation_drag_buttons
     # No signals
-    assert not widget.signalList
+    assert not widget._arrow_list
 
     # Click on first port
-    in1_port = widget.portDict[widget.operationDragDict[in1]][0]
+    in1_port = widget.portDict[widget._operation_drag_buttons[in1]][0]
     qtbot.mouseClick(
         in1_port,
         QtCore.Qt.MouseButton.LeftButton,
@@ -228,7 +228,7 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     assert len(widget.pressed_ports) == 1
 
     # Click on second port
-    sqrt_in_port = widget.portDict[widget.operationDragDict[sqrt]][0]
+    sqrt_in_port = widget.portDict[widget._operation_drag_buttons[sqrt]][0]
     qtbot.mouseClick(
         sqrt_in_port,
         QtCore.Qt.MouseButton.LeftButton,
@@ -241,16 +241,16 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     # Not sure why this won't work
     # qtbot.keyClick(widget, QtCore.Qt.Key.Key_Space, delay=10)
     # Still one selected!?
-    assert len(widget.signalList) == 1
+    assert len(widget._arrow_list) == 1
 
     # Click on first port
-    sqrt_out_port = widget.portDict[widget.operationDragDict[sqrt]][1]
+    sqrt_out_port = widget.portDict[widget._operation_drag_buttons[sqrt]][1]
     qtbot.mouseClick(
         sqrt_out_port,
         QtCore.Qt.MouseButton.LeftButton,
     )
     # Click on second port
-    out1_port = widget.portDict[widget.operationDragDict[out1]][0]
+    out1_port = widget.portDict[widget._operation_drag_buttons[out1]][0]
     qtbot.mouseClick(
         out1_port,
         QtCore.Qt.MouseButton.LeftButton,
@@ -258,17 +258,17 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     )
     # Connect
     widget._connect_callback()
-    assert len(widget.signalList) == 2
+    assert len(widget._arrow_list) == 2
 
     # Select input op
     qtbot.mouseClick(
-        widget.operationDragDict[in1],
+        widget._operation_drag_buttons[in1],
         QtCore.Qt.MouseButton.LeftButton,
     )
 
     # And output op
     qtbot.mouseClick(
-        widget.operationDragDict[out1],
+        widget._operation_drag_buttons[out1],
         QtCore.Qt.MouseButton.LeftButton,
         QtCore.Qt.KeyboardModifier.ControlModifier,
     )

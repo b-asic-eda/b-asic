@@ -9,7 +9,7 @@ import logging
 import os
 import sys
 from pprint import pprint
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from qtpy.QtCore import QFileInfo, QSize, Qt
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
@@ -69,16 +69,15 @@ class MainWindow(QMainWindow):
         self.zoom = 1
         self.sfg_name_i = 0
         self.dragOperationSceneDict = {}
-        self.operationDragDict = {}
-        self.operationItemSceneList = []
-        self.signalList = []
+        self._operation_drag_buttons: Dict[Operation, DragButton] = {}
+        self._arrow_list: List[Arrow] = []
         self.mouse_pressed = False
         self.mouse_dragging = False
         self.starting_port = []
         self.pressed_operations = []
         self.portDict = {}
         self.signalPortDict = {}
-        self.opToSFG = {}
+        self._operation_to_sfg: Dict[DragButton, SFG] = {}
         self.pressed_ports = []
         self.sfg_dict = {}
         self._window = self
@@ -183,7 +182,7 @@ class MainWindow(QMainWindow):
         else:
             self.is_show_names = False
 
-        for operation in self.dragOperationSceneDict.keys():
+        for operation in self.dragOperationSceneDict:
             operation.label.setOpacity(self.is_show_names)
             operation.is_show_name = self.is_show_names
 
@@ -272,14 +271,14 @@ class MainWindow(QMainWindow):
                     source = [
                         source
                         for source in self.portDict[
-                            self.operationDragDict[signal.source.operation]
+                            self._operation_drag_buttons[signal.source.operation]
                         ]
                         if source.port is signal.source
                     ]
                     destination = [
                         destination
                         for destination in self.portDict[
-                            self.operationDragDict[signal.destination.operation]
+                            self._operation_drag_buttons[signal.destination.operation]
                         ]
                         if destination.port is signal.destination
                     ]
@@ -294,8 +293,8 @@ class MainWindow(QMainWindow):
             connect_ports(op.inputs)
 
         for op in sfg.split():
-            self.operationDragDict[op].setToolTip(sfg.name)
-            self.opToSFG[self.operationDragDict[op]] = sfg
+            self._operation_drag_buttons[op].setToolTip(sfg.name)
+            self._operation_to_sfg[self._operation_drag_buttons[op]] = sfg
 
         self.sfg_dict[sfg.name] = sfg
         self.update()
@@ -308,10 +307,9 @@ class MainWindow(QMainWindow):
         self.logger.info("Clearing workspace from operations and SFGs.")
         self.pressed_operations.clear()
         self.pressed_ports.clear()
-        self.operationItemSceneList.clear()
-        self.operationDragDict.clear()
+        self._operation_drag_buttons.clear()
         self.dragOperationSceneDict.clear()
-        self.signalList.clear()
+        self._arrow_list.clear()
         self.portDict.clear()
         self.signalPortDict.clear()
         self.sfg_dict.clear()
@@ -436,7 +434,7 @@ class MainWindow(QMainWindow):
 
         for op in self.pressed_operations:
             op.setToolTip(sfg.name)
-            self.opToSFG[op] = sfg
+            self._operation_to_sfg[op] = sfg
 
         self.sfg_dict[sfg.name] = sfg
 
@@ -495,11 +493,11 @@ class MainWindow(QMainWindow):
         is_flipped : bool, default: False
         """
         try:
-            if op in self.operationDragDict:
+            if op in self._operation_drag_buttons:
                 self.logger.warning("Multiple instances of operation with same name")
                 return
 
-            attr_button = DragButton(op.graph_id, op, True, window=self)
+            attr_button = DragButton(op, True, window=self)
             if position is None:
                 attr_button.move(GRID * 3, GRID * 2)
             else:
@@ -555,7 +553,7 @@ class MainWindow(QMainWindow):
                 if is_flipped:
                     attr_button._flip()
 
-            self.operationDragDict[op] = attr_button
+            self._operation_drag_buttons[op] = attr_button
             self.dragOperationSceneDict[attr_button] = attr_button_scene
 
         except Exception as e:
@@ -654,16 +652,16 @@ class MainWindow(QMainWindow):
             )
         )
         try:
-            line = Arrow(source, destination, self, signal=next(signal_exists))
+            arrow = Arrow(source, destination, self, signal=next(signal_exists))
         except StopIteration:
-            line = Arrow(source, destination, self)
+            arrow = Arrow(source, destination, self)
 
-        if line not in self.signalPortDict:
-            self.signalPortDict[line] = []
+        if arrow not in self.signalPortDict:
+            self.signalPortDict[arrow] = []
 
-        self.signalPortDict[line].append((source, destination))
-        self.scene.addItem(line)
-        self.signalList.append(line)
+        self.signalPortDict[arrow].append((source, destination))
+        self.scene.addItem(arrow)
+        self._arrow_list.append(arrow)
 
         self.update()
 

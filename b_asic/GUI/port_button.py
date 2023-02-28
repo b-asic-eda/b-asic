@@ -1,9 +1,15 @@
 """
 B-ASIC port button module.
 """
+from typing import TYPE_CHECKING
+
 from qtpy.QtCore import QMimeData, Qt, Signal
 from qtpy.QtGui import QDrag
 from qtpy.QtWidgets import QMenu, QPushButton
+
+if TYPE_CHECKING:
+    from b_asic.GUI.drag_button import DragButton
+    from b_asic.port import Port
 
 
 class PortButton(QPushButton):
@@ -12,20 +18,18 @@ class PortButton(QPushButton):
 
     Parameters
     ----------
-    name
-    operation
-    port
-    window
-    parent
+    name : str
+    operation : :class:`~b_asic.GUI.drag_button.DragButton`
+    port : :class:`~b_asic.port.Port`
     """
 
     connectionRequested = Signal(QPushButton)
     moved = Signal()
 
-    def __init__(self, name, operation, port, window, parent=None):
+    def __init__(self, name: str, operation: "DragButton", port: "Port"):
         super().__init__(name, parent=operation)
         self.pressed = False
-        self._window = window
+        self._window = operation._window
         self.port = port
         self.operation = operation
         self.clicked = 0
@@ -49,10 +53,7 @@ class PortButton(QPushButton):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        if (
-            event.button() == Qt.MouseButton.LeftButton
-            and self._window.mouse_pressed
-        ):
+        if event.button() == Qt.MouseButton.LeftButton and self._window.mouse_pressed:
             self._window.mouse_pressed = False
             if self._window.mouse_dragging:
                 self._window.mouse_dragging = False
@@ -89,7 +90,7 @@ class PortButton(QPushButton):
         self.update()
         super().dropEvent(event)
 
-    def _toggle_port(self, pressed=False):
+    def _toggle_port(self, pressed: bool = False):
         self.pressed = not pressed
         self.setStyleSheet(
             f"background-color: {'white' if not self.pressed else 'grey'}"
@@ -110,5 +111,5 @@ class PortButton(QPushButton):
             else:
                 self._window.pressed_ports.append(self)
 
-        for signal in self._window.signalList:
+        for signal in self._window._arrow_list:
             signal.update()

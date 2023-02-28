@@ -10,16 +10,11 @@ from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QAction, QMenu, QPushButton
 
-from b_asic.GUI._preferences import (
-    GAP,
-    GRID,
-    MINBUTTONSIZE,
-    PORTHEIGHT,
-    PORTWIDTH,
-)
+from b_asic.GUI._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT, PORTWIDTH
 from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.GUI.utils import decorate_class, handle_error
+from b_asic.operation import Operation
 from b_asic.port import InputPort
 
 
@@ -32,9 +27,8 @@ class DragButton(QPushButton):
 
     Parameters
     ----------
-    name
-    operation
-    is_show_name
+    operation : :class:`~b_asic.operation.Operation`
+    is_show_name : bool
     window
     parent
     """
@@ -44,13 +38,12 @@ class DragButton(QPushButton):
 
     def __init__(
         self,
-        name,
-        operation,
-        is_show_name,
+        operation: Operation,
+        is_show_name: bool,
         window,
         parent=None,
     ):
-        self.name = name
+        self.name = operation.graph_id
         self.ports = []
         self.is_show_name = is_show_name
         self._window = window
@@ -64,22 +57,25 @@ class DragButton(QPushButton):
         self._flipped = False
         self._properties_window = None
         self.label = None
+        self._context_menu = None
         super().__init__(parent)
 
     def contextMenuEvent(self, event):
-        menu = QMenu()
-        properties = QAction("Properties")
-        menu.addAction(properties)
-        properties.triggered.connect(self.show_properties_window)
+        if self._context_menu is None:
+            menu = QMenu()
+            properties = QAction("Properties")
+            menu.addAction(properties)
+            properties.triggered.connect(self.show_properties_window)
 
-        delete = QAction("Delete")
-        menu.addAction(delete)
-        delete.triggered.connect(self.remove)
+            delete = QAction("Delete")
+            menu.addAction(delete)
+            delete.triggered.connect(self.remove)
 
-        flip = QAction("Flip horizontal")
-        menu.addAction(flip)
-        flip.triggered.connect(self._flip)
-        menu.exec_(self.cursor().pos())
+            flip = QAction("Flip horizontal")
+            menu.addAction(flip)
+            flip.triggered.connect(self._flip)
+            self._context_menu = menu
+        self._context_menu.exec_(self.cursor().pos())
 
     def show_properties_window(self, event=None):
         self._properties_window = PropertiesWindow(self, self._window)
@@ -106,9 +102,7 @@ class DragButton(QPushButton):
                     if button is self:
                         continue
 
-                    button.move(
-                        button.mapToParent(event.pos() - self._mouse_press_pos)
-                    )
+                    button.move(button.mapToParent(event.pos() - self._mouse_press_pos))
 
         self._window.scene.update()
         self._window.graphic_view.update()
@@ -187,17 +181,13 @@ class DragButton(QPushButton):
             else:
                 self._window.pressed_operations.append(self)
 
-        for signal in self._window.signalList:
+        for signal in self._window._arrow_list:
             signal.update()
 
     def remove(self, event=None):
         """Remove button/operation from signal flow graph."""
-        self._window.logger.info(
-            f"Removing operation with name {self.operation.name}."
-        )
-        self._window.scene.removeItem(
-            self._window.dragOperationSceneDict[self]
-        )
+        self._window.logger.info("Removing operation with name " + self.operation.name)
+        self._window.scene.removeItem(self._window.dragOperationSceneDict[self])
 
         _signals = []
         for signal, ports in self._window.signalPortDict.items():
@@ -208,24 +198,25 @@ class DragButton(QPushButton):
                 )
             ):
                 self._window.logger.info(
-                    f"Removed signal with name: {signal.signal.name} to/from"
-                    f" operation: {self.operation.name}."
+                    "Removed signal with name: %s to/from operation: %s."
+                    % (signal.signal.name, self.operation.name)
                 )
                 _signals.append(signal)
 
         for signal in _signals:
             signal.remove()
 
-        if self in self._window.opToSFG:
+        if self in self._window._operation_to_sfg:
             self._window.logger.info(
-                "Operation detected in existing SFG, removing SFG with name:"
-                f" {self._window.opToSFG[self].name}."
+                "Operation detected in existing SFG, removing SFG with name: "
+                + self._window._operation_to_sfg[self].name
             )
-            del self._window.sfg_dict[self._window.opToSFG[self].name]
-            self._window.opToSFG = {
-                op: self._window.opToSFG[op]
-                for op in self._window.opToSFG
-                if self._window.opToSFG[op] is not self._window.opToSFG[self]
+            del self._window.sfg_dict[self._window._operation_to_sfg[self].name]
+            self._window._operation_to_sfg = {
+                op: self._window._operation_to_sfg[op]
+                for op in self._window._operation_to_sfg
+                if self._window._operation_to_sfg[op]
+                is not self._window._operation_to_sfg[self]
             }
 
         for port in self._window.portDict[self]:
@@ -238,8 +229,8 @@ class DragButton(QPushButton):
         if self in self._window.dragOperationSceneDict:
             del self._window.dragOperationSceneDict[self]
 
-        if self.operation in self._window.operationDragDict:
-            del self._window.operationDragDict[self.operation]
+        if self.operation in self._window._operation_drag_buttons:
+            del self._window._operation_drag_buttons[self.operation]
 
     def add_ports(self):
         def _determine_port_distance(opheight, ports):
@@ -258,14 +249,14 @@ class DragButton(QPushButton):
         output_ports_dist = _determine_port_distance(height, op.output_count)
         input_ports_dist = _determine_port_distance(height, op.input_count)
         for i, dist in enumerate(input_ports_dist):
-            port = PortButton(">", self, op.input(i), self._window)
+            port = PortButton(">", self, op.input(i))
             port.setFixedSize(PORTWIDTH, PORTHEIGHT)
             port.move(0, dist)
             port.show()
             self.ports.append(port)
 
         for i, dist in enumerate(output_ports_dist):
-            port = PortButton(">", self, op.output(i), self._window)
+            port = PortButton(">", self, op.output(i))
             port.setFixedSize(PORTWIDTH, PORTHEIGHT)
             port.move(MINBUTTONSIZE - PORTWIDTH, dist)
             port.show()

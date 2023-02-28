@@ -46,8 +46,8 @@ class Arrow(QGraphicsPathItem):
         self.signal.remove_destination()
         self.signal.remove_source()
         self._window.scene.removeItem(self)
-        if self in self._window.signalList:
-            self._window.signalList.remove(self)
+        if self in self._window._arrow_list:
+            self._window._arrow_list.remove(self)
 
         if self in self._window.signalPortDict:
             for port1, port2 in self._window.signalPortDict[self]:
@@ -57,18 +57,20 @@ class Arrow(QGraphicsPathItem):
                 ) in self._window.portDict.items():
                     if (
                         port1 in operation_ports or port2 in operation_ports
-                    ) and operation in self._window.opToSFG:
+                    ) and operation in self._window._operation_to_sfg:
                         self._window.logger.info(
                             "Operation detected in existing SFG, removing SFG"
                             " with name:"
-                            f" {self._window.opToSFG[operation].name}."
+                            f" {self._window._operation_to_sfg[operation].name}."
                         )
-                        del self._window.sfg_dict[self._window.opToSFG[operation].name]
-                        self._window.opToSFG = {
-                            op: self._window.opToSFG[op]
-                            for op in self._window.opToSFG
-                            if self._window.opToSFG[op]
-                            is not self._window.opToSFG[operation]
+                        del self._window.sfg_dict[
+                            self._window._operation_to_sfg[operation].name
+                        ]
+                        self._window._operation_to_sfg = {
+                            op: self._window._operation_to_sfg[op]
+                            for op in self._window._operation_to_sfg
+                            if self._window._operation_to_sfg[op]
+                            is not self._window._operation_to_sfg[operation]
                         }
 
         del self._window.signalPortDict[self]
