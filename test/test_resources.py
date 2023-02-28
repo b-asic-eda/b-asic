@@ -3,11 +3,12 @@ import pickle
 import matplotlib.pyplot as plt
 import pytest
 
+from b_asic.process import PlainMemoryVariable
 from b_asic.research.interleaver import (
     generate_matrix_transposer,
     generate_random_interleaver,
 )
-from b_asic.resources import ProcessCollection
+from b_asic.resources import ProcessCollection, draw_exclusion_graph_coloring
 
 
 class TestProcessCollectionPlainMemoryVariable:
@@ -33,10 +34,19 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_left_edge_cell_assignment(self, simple_collection: ProcessCollection):
         fig, ax = plt.subplots(1, 2)
         assignment = simple_collection.left_edge_cell_assignment()
-        for cell in assignment.keys():
+        for cell in assignment:
             assignment[cell].plot(ax=ax[1], row=cell)
         simple_collection.plot(ax[0])
         return fig
+
+    def test_cell_assignment_matrix_transposer(self):
+        collection = generate_matrix_transposer(4, min_lifetime=5)
+        assignment_left_edge = collection.left_edge_cell_assignment()
+        assignment_graph_color = collection.graph_color_cell_assignment(
+            coloring_strategy='saturation_largest_first'
+        )
+        assert len(assignment_left_edge.keys()) == 18
+        assert len(assignment_graph_color.keys()) == 16
 
     # Issue: #175
     def test_interleaver_issue175(self):
