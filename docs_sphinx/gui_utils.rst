@@ -1,5 +1,9 @@
-gui\_utils package
-==================
+GUI Utilities
+=============
+
+.. automodule:: b_asic.gui_utils
+   :members:
+   :undoc-members:
 
 gui\_utils.about\_window module
 -------------------------------

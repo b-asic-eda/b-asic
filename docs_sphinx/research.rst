@@ -1,6 +1,10 @@
 Research functions
 ==================
 
+.. automodule:: b_asic.research
+   :members:
+   :undoc-members:
+
 research.interleaver module
 ---------------------------
 
