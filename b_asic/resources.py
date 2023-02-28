@@ -376,10 +376,12 @@ class ProcessCollection:
         ----------
         heuristic : {'graph_color', 'left_edge'}, default: 'graph_color'
             The heuristic used when splitting based on execution times.
+
         coloring_strategy : str, default: 'saturation_largest_first'
             Node ordering strategy passed to :func:`networkx.coloring.greedy_color`.
             This parameter is only considered if *heuristic* is set to 'graph_color'.
             One of
+
             * 'largest_first'
             * 'random_sequential'
             * 'smallest_last'
@@ -418,14 +420,18 @@ class ProcessCollection:
         heuristic : str, default: "graph_color"
             The heuristic used when splitting this ProcessCollection.
             Valid options are:
+
             * "graph_color"
             * "..."
+
         read_ports : int, optional
             The number of read ports used when splitting process collection based on
             memory variable access.
+
         write_ports : int, optional
             The number of write ports used when splitting process collection based on
             memory variable access.
+
         total_ports : int, optional
             The total number of ports used when splitting process collection based on
             memory variable access.

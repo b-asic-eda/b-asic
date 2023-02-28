@@ -3,13 +3,15 @@ Functions to generate memory-variable test data that are used for research.
 """
 
 import random
-from typing import Optional, Set
+from typing import List, Optional, Tuple
 
 from b_asic.process import PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 
 
-def _insert_delays(inputorder, outputorder, min_lifetime, cyclic):
+def _insert_delays(
+    inputorder: List[int], outputorder: List[int], min_lifetime: int, cyclic: bool
+) -> Tuple[List[int], List[int]]:
     size = len(inputorder)
     maxdiff = min(outputorder[i] - inputorder[i] for i in range(size))
     outputorder = [o - maxdiff + min_lifetime for o in outputorder]

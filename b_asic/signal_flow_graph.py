@@ -617,13 +617,13 @@ class SFG(AbstractOperation):
         if component_copy.input_count != component.input_count:
             raise TypeError("The input count may not differ between the operations")
 
-        for index_in, inp in enumerate(component_copy.inputs):
-            for signal in inp.signals:
+        for index_in, input_ in enumerate(component_copy.inputs):
+            for signal in input_.signals:
                 signal.remove_destination()
                 signal.set_destination(component.input(index_in))
 
-        for index_out, outp in enumerate(component_copy.outputs):
-            for signal in outp.signals:
+        for index_out, output in enumerate(component_copy.outputs):
+            for signal in output.signals:
                 signal.remove_source()
                 signal.set_source(component.output(index_out))
 
@@ -1410,8 +1410,8 @@ class SFG(AbstractOperation):
         # and outputs of all operations
         for layer, op_list in enumerate(new_ops):
             for op_idx, op in enumerate(op_list):
-                for input in op.inputs:
-                    input.clear()
+                for input_ in op.inputs:
+                    input_.clear()
                 for output in op.outputs:
                     output.clear()
 
@@ -1458,7 +1458,7 @@ class SFG(AbstractOperation):
                     for out_signal in op.outputs[0].signals:
                         sink_port = out_signal.destination
                         if sink_port is None:
-                            # It would be weird if we found a signal but it wasn't connected anywere
+                            # It would be weird if we found a signal that wasn't connected anywhere
                             raise ValueError("Dangling output port in sfg")
 
                         sink_op_idx = id_idx_map[sink_port.operation.graph_id]

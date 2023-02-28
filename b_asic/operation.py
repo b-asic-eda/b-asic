@@ -856,9 +856,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             operation_copy: Operation = cast(Operation, self.copy_component())
             inputs = []
             for i in range(self.input_count):
-                _input = Input()
-                operation_copy.input(i).connect(_input)
-                inputs.append(_input)
+                input_ = Input()
+                operation_copy.input(i).connect(input_)
+                inputs.append(input_)
 
             outputs = [Output(operation_copy)]
 
@@ -868,8 +868,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         new_component: Operation = cast(
             Operation, super().copy_component(*args, **kwargs)
         )
-        for i, input in enumerate(self.inputs):
-            new_component.input(i).latency_offset = input.latency_offset
+        for i, _input in enumerate(self.inputs):
+            new_component.input(i).latency_offset = _input.latency_offset
         for i, output in enumerate(self.outputs):
             new_component.output(i).latency_offset = output.latency_offset
         new_component.execution_time = self._execution_time
@@ -974,8 +974,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return max(
             (
-                (cast(int, output.latency_offset) - cast(int, input.latency_offset))
-                for output, input in it.product(self.outputs, self.inputs)
+                (cast(int, output.latency_offset) - cast(int, input_.latency_offset))
+                for output, input_ in it.product(self.outputs, self.inputs)
             )
         )
 
@@ -983,8 +983,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def latency_offsets(self) -> Dict[str, Optional[int]]:
         latency_offsets = {}
 
-        for i, input in enumerate(self.inputs):
-            latency_offsets[f"in{i}"] = input.latency_offset
+        for i, input_ in enumerate(self.inputs):
+            latency_offsets[f"in{i}"] = input_.latency_offset
 
         for i, output in enumerate(self.outputs):
             latency_offsets[f"out{i}"] = output.latency_offset
@@ -992,7 +992,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return latency_offsets
 
     def _check_all_latencies_set(self) -> None:
-        """Raises an exception of an input or output does not have its latency offset set
+        """Raises an exception if an input or output does not have its latency offset set
         """
         self.input_latency_offsets()
         self.output_latency_offsets()
@@ -1159,5 +1159,5 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @property
     def is_constant(self) -> bool:
         return all(
-            input.connected_source.operation.is_constant for input in self.inputs
+            input_.connected_source.operation.is_constant for input_ in self.inputs
         )

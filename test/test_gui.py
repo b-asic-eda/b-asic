@@ -139,11 +139,11 @@ def test_help_dialogs(qtbot):
 
     widget.display_faq_page()
     widget.display_about_page()
-    widget.display_keybinds_page()
+    widget.display_keybindings_page()
     qtbot.wait(100)
     widget._faq_page.close()
     widget._about_page.close()
-    widget._keybinds_page.close()
+    widget._keybindings_page.close()
 
     widget.exit_app()
 

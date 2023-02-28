@@ -9,7 +9,7 @@ on the :mod:`logging` module and has predefined levels of logging.
 Usage:
 ------
 
-    >>> import logger
+    >>> import b_asic.scheduler_gui.logger as logger
     >>> log = logger.getLogger()
     >>> log.info('This is a log post with level INFO')
 
@@ -87,7 +87,7 @@ def getLogger(filename: str = "scheduler-gui.log", loglevel: str = "INFO") -> Lo
         loglevel = getattr(logging, loglevel.upper(), logging.INFO)
         logger.setLevel(loglevel)
 
-        # setup the console logger
+        # set up the console logger
         c_fmt_date = "%T"
         c_fmt = (
             "[%(process)d] %(asctime)s %(filename)18s:%(lineno)-4s"

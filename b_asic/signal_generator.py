@@ -13,7 +13,6 @@ if you want more information.
 
 from math import pi, sin
 from numbers import Number
-from pathlib import Path
 from typing import Optional, Sequence
 
 import numpy as np
@@ -300,7 +299,7 @@ class Delay(SignalGenerator):
     """
     Signal generator that delays the value of another signal generator.
 
-    This can used to easily delay a sequence during simulation.
+    This can be used to easily delay a sequence during simulation.
 
     .. note:: Although the purpose is to delay, it is also possible to look ahead by
               providing a negative delay.

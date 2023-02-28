@@ -130,10 +130,7 @@ class AbstractGraphComponent(GraphComponent):
             f"id: {self.graph_id if self.graph_id else 'no_id'}, \tname:"
             f" {self.name if self.name else 'no_name'}"
             + "".join(
-                (
-                    f", \t{key}: {str(param)}"
-                    for key, param in self._parameters.items()
-                )
+                (f", \t{key}: {str(param)}" for key, param in self._parameters.items())
             )
         )
 
@@ -176,12 +173,12 @@ class AbstractGraphComponent(GraphComponent):
     def traverse(self) -> Generator[GraphComponent, None, None]:
         # Breadth first search.
         visited = {self}
-        fontier = deque([self])
-        while fontier:
-            component = fontier.popleft()
+        frontier = deque([self])
+        while frontier:
+            component = frontier.popleft()
             yield component
             for neighbor in component.neighbors:
                 neighbor = cast(AbstractGraphComponent, neighbor)
                 if neighbor not in visited:
                     visited.add(neighbor)
-                    fontier.append(neighbor)
+                    frontier.append(neighbor)

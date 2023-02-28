@@ -360,7 +360,7 @@ class Multiplication(AbstractOperation):
     @property
     def is_linear(self) -> bool:
         return any(
-            input.connected_source.operation.is_constant for input in self.inputs
+            input_.connected_source.operation.is_constant for input_ in self.inputs
         )
 
 

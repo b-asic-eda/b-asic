@@ -72,7 +72,7 @@ class OperatorProcess(Process):
     ==========
     start_time : int
         Start time of process.
-    operation : Operation
+    operation : :class:`~b_asic.operation.Operation`
         Operation that the process corresponds to.
     name : str, optional
         The name of the process.
@@ -106,11 +106,11 @@ class MemoryVariable(Process):
 
     write_time : int
         Time when the memory variable is written.
-    write_port : OutputPort
+    write_port : :class:`~b_asic.port.OutputPort`
         The OutputPort that the memory variable originates from.
-    reads : {InputPort: int, ...}
-        Dictionary with the InputPorts that reads the memory variable and
-        for how long after the *write_time* they will read.
+    reads : dict
+        Dictionary with :class:`~b_asic.port.InputPort` that reads the memory variable as key and
+        for how long after the *write_time* it will read.
     name : str, optional
         The name of the process.
     """

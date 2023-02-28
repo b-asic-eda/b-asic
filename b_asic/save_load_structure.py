@@ -23,7 +23,7 @@ def sfg_to_python(
 
     Parameters
     ----------
-    sfg : SFG
+    sfg : :class:`~b_asic.signal_flow_graph.SFG`
         The SFG to serialize.
     counter : int, default: 0
         Number used for naming the SFG. Enables SFGs in SFGs.
@@ -167,7 +167,7 @@ def schedule_to_python(schedule: Schedule) -> str:
 
     Parameters
     ----------
-    schedule : Schedule
+    schedule : :class:`~b_asic.schedule.Schedule`
         The schedule to serialize.
     """
     if not isinstance(schedule, Schedule):

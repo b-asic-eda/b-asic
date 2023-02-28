@@ -48,7 +48,7 @@ class Schedule:
 
     Parameters
     ----------
-    sfg : SFG
+    sfg : :class:`~b_asic.signal_flow_graph.SFG`
         The signal flow graph to schedule.
     schedule_time : int, optional
         The schedule time. If not provided, it will be determined by the scheduling
@@ -899,7 +899,7 @@ class Schedule:
 
         Parameters
         ----------
-        ax : matplotlib.axes.Axes
+        ax : :class:`~matplotlib.axes.Axes`
             The :class:`matplotlib.axes.Axes` to plot in.
         operation_gap : float, optional
             The vertical distance between operations in the schedule. The height of

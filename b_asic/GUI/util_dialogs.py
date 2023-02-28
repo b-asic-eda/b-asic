@@ -65,7 +65,7 @@ _QUESTIONS = {
 }
 
 
-class KeybindsWindow(QDialog):
+class KeybindingsWindow(QDialog):
     def __init__(self, window):
         super().__init__()
         self._window = window
@@ -88,7 +88,7 @@ class KeybindsWindow(QDialog):
         frame.setFrameShadow(QFrame.Sunken)
         self.dialog_layout.addWidget(frame)
 
-        keybinds_label = QLabel(
+        keybindings_label = QLabel(
             "'Ctrl+R' - Reload the operation list to add any new operations "
             "created.\n"
             "'Ctrl+Q' - Quit the application.\n"
@@ -104,7 +104,7 @@ class KeybindsWindow(QDialog):
         self.dialog_layout.addLayout(information_layout)
         self.dialog_layout.addWidget(frame)
 
-        self.dialog_layout.addWidget(keybinds_label)
+        self.dialog_layout.addWidget(keybindings_label)
 
 
 class FaqWindow(QDialog):

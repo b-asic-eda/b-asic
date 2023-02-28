@@ -1,20 +1,14 @@
 """PlotWindow is a window in which simulation results are plotted."""
 
-# TODO's:
-# * Solve the legend update. That isn't working at all.
-# * Add a function to run this as a "stand-alone".
-
 import re
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 from qtpy.QtCore import Qt
-
-# Intereme imports for the Plot class:
 from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,; QLabel,; QFileDialog,; QShortcut,
     QApplication,
     QCheckBox,
@@ -144,18 +138,18 @@ class PlotWindow(QDialog):
         # listlayout.addWidget(self.ontop_checkbox)
 
         # Add "Close" buttons
-        buttonClose = QPushButton("&Close", self)
-        buttonClose.clicked.connect(self.close)
-        listlayout.addWidget(buttonClose)
+        button_close = QPushButton("&Close", self)
+        button_close.clicked.connect(self.close)
+        listlayout.addWidget(button_close)
 
         # Done. Tell the functions below to redraw the canvas when needed.
         # self.plotcanvas.draw()
         self._auto_redraw = True
 
-    def _legend_checkbox_change(self, checkState):
-        self._legend.set(visible=(checkState == Qt.CheckState.Checked))
+    def _legend_checkbox_change(self, check_state):
+        self._legend.set(visible=(check_state == Qt.CheckState.Checked))
         if self._auto_redraw:
-            if checkState == Qt.CheckState.Checked:
+            if check_state == Qt.CheckState.Checked:
                 self._legend = self._plot_axes.legend()
             self._plot_canvas.draw()
 

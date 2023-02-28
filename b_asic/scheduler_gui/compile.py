@@ -46,7 +46,7 @@ def _check_qt_version() -> None:
 
 
 def replace_qt_bindings(filename: str) -> None:
-    """Raplaces qt-binding api in *filename* from PySide2/6 or PyQt5/6 to qtpy."""
+    """Replaces qt-binding API in *filename* from PySide2/6 or PyQt5/6 to qtpy."""
     with open(f"{filename}", "r") as file:
         filedata = file.read()
         filedata = filedata.replace("from PyQt5", "from qtpy")
@@ -64,7 +64,7 @@ def compile_rc(*filenames: str) -> None:
     """
     _check_qt_version()
 
-    def compile(filename: str) -> None:
+    def _compile(filename: str) -> None:
         outfile = f"{os.path.splitext(filename)[0]}_rc.py"
         rcc = shutil.which("pyside2-rcc")
         arguments = f"-g python -o {outfile} {filename}"
@@ -117,12 +117,12 @@ def compile_rc(*filenames: str) -> None:
         ]
 
         for filename in rc_files:
-            compile(filename)
+            _compile(filename)
 
     else:
         _check_filenames(*filenames)
         for filename in filenames:
-            compile(filename)
+            _compile(filename)
 
 
 def compile_ui(*filenames: str) -> None:
@@ -132,7 +132,7 @@ def compile_ui(*filenames: str) -> None:
     """
     _check_qt_version()
 
-    def compile(filename: str) -> None:
+    def _compile(filename: str) -> None:
         directory, file = os.path.split(filename)
         file = os.path.splitext(file)[0]
         directory = directory if directory else "."
@@ -219,11 +219,11 @@ def compile_ui(*filenames: str) -> None:
             if name.endswith(".ui")
         ]
         for filename in ui_files:
-            compile(filename)
+            _compile(filename)
     else:
         _check_filenames(*filenames)
         for filename in filenames:
-            compile(filename)
+            _compile(filename)
 
 
 def compile_all() -> None:

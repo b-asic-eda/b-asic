@@ -40,7 +40,7 @@ from b_asic.GUI.show_pc_window import ShowPCWindow
 
 # from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
 from b_asic.GUI.simulate_sfg_window import SimulateSFGWindow
-from b_asic.GUI.util_dialogs import FaqWindow, KeybindsWindow
+from b_asic.GUI.util_dialogs import FaqWindow, KeybindingsWindow
 from b_asic.GUI.utils import decorate_class, handle_error
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.plot_window import PlotWindow
@@ -83,7 +83,21 @@ class MainWindow(QMainWindow):
         self.sfg_dict = {}
         self._window = self
         self.logger = logging.getLogger(__name__)
-        self.init_ui()
+
+        # Create Graphics View
+        self.graphic_view = QGraphicsView(self.scene, self)
+        self.graphic_view.setRenderHint(QPainter.Antialiasing)
+        self.graphic_view.setGeometry(
+            self.ui.operation_box.width(), 20, self.width(), self.height()
+        )
+        self.graphic_view.setDragMode(QGraphicsView.RubberBandDrag)
+
+        # Create toolbar
+        self.toolbar = self.addToolBar("Toolbar")
+        self.toolbar.addAction("Create SFG", self.create_sfg_from_toolbar)
+        self.toolbar.addAction("Clear workspace", self.clear_workspace)
+
+        # Add operations
         self.add_operations_from_namespace(
             b_asic.core_operations, self.ui.core_operations_list
         )
@@ -110,7 +124,7 @@ class MainWindow(QMainWindow):
         self.ui.actionSimulateSFG.triggered.connect(self.simulate_sfg)
         self.ui.faqBASIC.triggered.connect(self.display_faq_page)
         self.ui.aboutBASIC.triggered.connect(self.display_about_page)
-        self.ui.keybindsBASIC.triggered.connect(self.display_keybinds_page)
+        self.ui.keybindsBASIC.triggered.connect(self.display_keybindings_page)
         self.ui.core_operations_list.itemClicked.connect(
             self.on_list_widget_item_clicked
         )
@@ -133,6 +147,10 @@ class MainWindow(QMainWindow):
         self.shortcut_signal = QShortcut(QKeySequence(Qt.Key_Space), self)
         self.shortcut_signal.activated.connect(self._connect_callback)
 
+        self._keybindings_page = None
+        self._about_page = None
+        self._faq_page = None
+
         self.logger.info("Finished setting up GUI")
         self.logger.info(
             "For questions please refer to 'Ctrl+?', or visit the 'Help' "
@@ -140,23 +158,6 @@ class MainWindow(QMainWindow):
         )
 
         self.cursor = QCursor()
-
-    def init_ui(self) -> None:
-        self.create_toolbar_view()
-        self.create_graphics_view()
-
-    def create_graphics_view(self) -> None:
-        self.graphic_view = QGraphicsView(self.scene, self)
-        self.graphic_view.setRenderHint(QPainter.Antialiasing)
-        self.graphic_view.setGeometry(
-            self.ui.operation_box.width(), 20, self.width(), self.height()
-        )
-        self.graphic_view.setDragMode(QGraphicsView.RubberBandDrag)
-
-    def create_toolbar_view(self) -> None:
-        self.toolbar = self.addToolBar("Toolbar")
-        self.toolbar.addAction("Create SFG", self.create_sfg_from_toolbar)
-        self.toolbar.addAction("Clear workspace", self.clear_workspace)
 
     def resizeEvent(self, event) -> None:
         ui_width = self.ui.operation_box.width()
@@ -565,8 +566,8 @@ class MainWindow(QMainWindow):
     def _create_operation_item(self, item) -> None:
         self.logger.info("Creating operation of type: %s" % str(item.text()))
         try:
-            attr_oper = self._operations_from_name[item.text()]()
-            self.create_operation(attr_oper)
+            attr_operation = self._operations_from_name[item.text()]()
+            self.create_operation(attr_operation)
         except Exception as e:
             self.logger.error(
                 "Unexpected error occurred while creating operation: " + str(e)
@@ -712,16 +713,19 @@ class MainWindow(QMainWindow):
         self._simulation_dialog.simulate.connect(self._simulate_sfg)
 
     def display_faq_page(self, event=None) -> None:
-        self._faq_page = FaqWindow(self)
+        if self._faq_page is None:
+            self._faq_page = FaqWindow(self)
         self._faq_page.scroll_area.show()
 
     def display_about_page(self, event=None) -> None:
-        self._about_page = AboutWindow(self)
+        if self._about_page is None:
+            self._about_page = AboutWindow(self)
         self._about_page.show()
 
-    def display_keybinds_page(self, event=None) -> None:
-        self._keybinds_page = KeybindsWindow(self)
-        self._keybinds_page.show()
+    def display_keybindings_page(self, event=None) -> None:
+        if self._keybindings_page is None:
+            self._keybindings_page = KeybindingsWindow(self)
+        self._keybindings_page.show()
 
 
 def start_gui():
