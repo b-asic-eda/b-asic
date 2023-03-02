@@ -610,7 +610,7 @@ class ProcessCollection:
     def graph_color_cell_assignment(
         self,
         coloring_strategy: str = "saturation_largest_first",
-    ) -> Dict[int, "ProcessCollection"]:
+    ) -> Set["ProcessCollection"]:
         """
         Perform cell assignment of the processes in this collection using graph coloring with networkx.coloring.greedy_color.
         Two or more processes can share a single cell if, and only if, they have no overlaping time alive.
@@ -622,7 +622,7 @@ class ProcessCollection:
 
         Returns
         -------
-        Dict[int, ProcessCollection]
+        A set of ProcessCollection
 
         """
         cell_assignment: Dict[int, ProcessCollection] = dict()
@@ -636,7 +636,7 @@ class ProcessCollection:
             except:
                 cell_assignment[cell] = ProcessCollection(set(), self._schedule_time)
                 cell_assignment[cell].add_process(process)
-        return cell_assignment
+        return set(cell_assignment.values())
 
     def left_edge_cell_assignment(self) -> Dict[int, "ProcessCollection"]:
         """
@@ -680,6 +680,8 @@ class ProcessCollection:
     def generate_memory_based_storage_vhdl(
         self,
         filename: str,
+        word_length: int,
+        assignment: Set['ProcessCollection'],
         read_ports: Optional[int] = None,
         write_ports: Optional[int] = None,
         total_ports: Optional[int] = None,
@@ -691,6 +693,14 @@ class ProcessCollection:
         ----------
         filename : str
             Filename of output file.
+        word_length: int
+            Word length of the memory variable objects.
+        assignment: set
+            A possible cell assignment to use when generating the memory based storage.
+            The cell assignment is a dictionary int to ProcessCollection where the integer
+            corresponds to the cell to assign all MemoryVariables in corresponding process
+            collection.
+            If unset, each MemoryVariable will be assigned to a unique single cell.
         read_ports : int, optional
             The number of read ports used when splitting process collection based on
             memory variable access. If total ports in unset, this parameter has to be set
@@ -726,18 +736,75 @@ class ProcessCollection:
         for mv in self:
             filter_write = lambda p: p.start_time == mv.start_time
             filter_read = (
-                lambda p: (p.start_time + p.execution_time) & self._schedule_time
+                lambda p: (p.start_time + p.execution_time) % self._schedule_time
                 == mv.start_time + mv.execution_time % self._schedule_time
             )
-            if len(list(filter(filter_write, self))) > write_ports + 1:
+            needed_write_ports = len(list(filter(filter_write, self)))
+            needed_read_ports = len(list(filter(filter_read, self)))
+            if needed_write_ports > write_ports + 1:
                 raise ValueError(
-                    f'More than {write_ports} write ports needed to generate HDL for'
-                    ' this ProcessCollection'
+                    f'More than {write_ports} write ports needed ({needed_write_ports})'
+                    ' to generate HDL for this ProcessCollection'
                 )
-            if len(list(filter(filter_read, self))) > read_ports + 1:
+            if needed_read_ports > read_ports + 1:
                 raise ValueError(
-                    f'More than {read_ports} read ports needed to generate HDL for this'
-                    ' ProcessCollection'
+                    f'More than {read_ports} read ports needed ({needed_read_ports}) to'
+                    ' generate HDL for this ProcessCollection'
                 )
 
-        # raise NotImplementedError("Not implemented yet!")
+        with open(filename, 'w') as f:
+            from b_asic.codegen import vhdl
+
+            vhdl.common.write_b_asic_vhdl_preamble(f)
+            vhdl.common.write_ieee_header(f)
+            vhdl.entity.write_memory_based_architecture(
+                f, collection=self, word_length=word_length
+            )
+            vhdl.architecture.write_memory_based_architecture(
+                f,
+                assignment=assignment,
+                word_length=word_length,
+                read_ports=read_ports,
+                write_ports=write_ports,
+                total_ports=total_ports,
+            )
+
+    def generate_register_based_storage_vhdl(
+        self,
+        filename: str,
+        word_length: int,
+        assignment: Set['ProcessCollection'],
+        read_ports: Optional[int] = None,
+        write_ports: Optional[int] = None,
+        total_ports: Optional[int] = None,
+    ):
+        """
+        Generate VHDL code for register based storages of processes based on the Forward-Backward Register Allocation [1].
+
+        [1]: K. Parhi: VLSI Digital Signal Processing Systems: Design and Implementation, Ch. 6.3.2
+
+        Parameters
+        ----------
+        filename : str
+            Filename of output file.
+        word_length: int
+            Word length of the memory variable objects.
+        assignment: set
+            A possible cell assignment to use when generating the memory based storage.
+            The cell assignment is a dictionary int to ProcessCollection where the integer
+            corresponds to the cell to assign all MemoryVariables in corresponding process
+            collection.
+            If unset, each MemoryVariable will be assigned to a unique single cell.
+        read_ports : int, optional
+            The number of read ports used when splitting process collection based on
+            memory variable access. If total ports in unset, this parameter has to be set
+            and total_ports is assumed to be read_ports + write_ports.
+        write_ports : int, optional
+            The number of write ports used when splitting process collection based on
+            memory variable access. If total ports is unset, this parameter has to be set
+            and total_ports is assumed to be read_ports + write_ports.
+        total_ports : int, optional
+            The total number of ports used when splitting process collection based on
+            memory variable access.
+        """
+        pass

@@ -46,7 +46,23 @@ class TestProcessCollectionPlainMemoryVariable:
             coloring_strategy='saturation_largest_first'
         )
         assert len(assignment_left_edge.keys()) == 18
-        assert len(assignment_graph_color.keys()) == 16
+        assert len(assignment_graph_color) == 16
+
+    def test_generate_vhdl(self):
+        collection = generate_matrix_transposer(4, min_lifetime=5)
+        assignment = collection.graph_color_cell_assignment()
+        _, ax = plt.subplots()
+        for cell, pc in enumerate(assignment):
+            pc.plot(ax=ax, row=cell)
+        # plt.show()
+        collection.generate_memory_based_storage_vhdl(
+            "/tmp/wow.vhdl",
+            assignment=assignment,
+            word_length=13,
+            read_ports=1,
+            write_ports=1,
+            total_ports=2,
+        )
 
     # Issue: #175
     def test_interleaver_issue175(self):

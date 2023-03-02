@@ -124,12 +124,17 @@ class MemoryVariable(Process):
     ):
         self._read_ports = tuple(reads.keys())
         self._life_times = tuple(reads.values())
+        self._reads = reads
         self._write_port = write_port
         super().__init__(
             start_time=write_time,
             execution_time=max(self._life_times),
             name=name,
         )
+
+    @property
+    def reads(self) -> Dict[InputPort, int]:
+        return self._reads
 
     @property
     def life_times(self) -> Tuple[int, ...]:
@@ -182,11 +187,16 @@ class PlainMemoryVariable(Process):
         self._read_ports = tuple(reads.keys())
         self._life_times = tuple(reads.values())
         self._write_port = write_port
+        self._reads = reads
         super().__init__(
             start_time=write_time,
             execution_time=max(self._life_times),
             name=name,
         )
+
+    @property
+    def reads(self) -> Dict[int, int]:
+        return self._reads
 
     @property
     def life_times(self) -> Tuple[int, ...]:
