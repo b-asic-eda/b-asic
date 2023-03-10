@@ -31,3 +31,4 @@ Table of Contents
    gui_utils
    examples/index
    research
+   codegen/index

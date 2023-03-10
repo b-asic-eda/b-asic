@@ -4,16 +4,20 @@ Module for code generation of VHDL architectures.
 from io import TextIOWrapper
 from typing import Dict, Optional, Set, cast
 
-# from b_asic.codegen.vhdl_src import common
 from b_asic.codegen import vhdl
 from b_asic.codegen.vhdl import VHDL_TAB
 from b_asic.process import MemoryVariable, PlainMemoryVariable
-from b_asic.resources import ProcessCollection
+from b_asic.resources import (
+    ProcessCollection,
+    _ForwardBackwardEntry,
+    _ForwardBackwardTable,
+)
 
 
-def write_memory_based_architecture(
+def write_memory_based_storage(
     f: TextIOWrapper,
     assignment: Set[ProcessCollection],
+    entity_name: str,
     word_length: int,
     read_ports: int,
     write_ports: int,
@@ -24,7 +28,7 @@ def write_memory_based_architecture(
 
     Parameters
     ----------
-    assignment: dictionary
+    assignment : dict
         A possible cell assignment to use when generating the memory based storage.
         The cell assignment is a dictionary int to ProcessCollection where the integer
         corresponds to the cell to assign all MemoryVariables in corresponding process
@@ -32,19 +36,18 @@ def write_memory_based_architecture(
         If unset, each MemoryVariable will be assigned to a unique cell.
     f : TextIOWrapper
         File object (or other TextIOWrapper object) to write the architecture onto.
-    word_length: int
+    word_length : int
         Word length of the memory variable objects.
-    read_ports:
+    read_ports : int
         Number of read ports.
-    write_ports:
+    write_ports : int
         Number of write ports.
-    total_ports:
+    total_ports : int
         Total concurrent memory accesses possible.
     """
 
     # Code settings
     mem_depth = len(assignment)
-    entity_name = "some_name"
     architecture_name = "rtl"
     schedule_time = next(iter(assignment))._schedule_time
 
@@ -117,7 +120,7 @@ def write_memory_based_architecture(
     # Infer memory
     f.write('\n')
     f.write(f'{VHDL_TAB}-- Memory\n')
-    vhdl.common.write_synchronous_memory(
+    vhdl.common.write_asynchronous_read_memory(
         f=f,
         clk='clk',
         name=f'mem_{0}_proc',
@@ -139,10 +142,11 @@ def write_memory_based_architecture(
     for i, collection in enumerate(assignment):
         for mv in collection:
             mv = cast(MemoryVariable, mv)
-            f.write(f'{3*VHDL_TAB}-- {mv!r}\n')
-            f.write(f'{3*VHDL_TAB}when {mv.start_time} =>\n')
-            f.write(f'{4*VHDL_TAB}write_adr_0 <= {i};\n')
-            f.write(f'{4*VHDL_TAB}write_en_0 <= \'1\';\n')
+            if mv.execution_time:
+                f.write(f'{3*VHDL_TAB}-- {mv!r}\n')
+                f.write(f'{3*VHDL_TAB}when {mv.start_time} =>\n')
+                f.write(f'{4*VHDL_TAB}write_adr_0 <= {i};\n')
+                f.write(f'{4*VHDL_TAB}write_en_0 <= \'1\';\n')
     f.write(f'{3*VHDL_TAB}when others =>\n')
     f.write(f'{4*VHDL_TAB}write_adr_0 <= 0;\n')
     f.write(f'{4*VHDL_TAB}write_en_0 <= \'0\';\n')
@@ -170,8 +174,160 @@ def write_memory_based_architecture(
     f.write(f'{4*VHDL_TAB}read_adr_0 <= 0;\n')
     f.write(f'{4*VHDL_TAB}read_en_0 <= \'0\';\n')
     f.write(f'{2*VHDL_TAB}end case;\n')
+    f.write(f'{1*VHDL_TAB}end process;\n\n')
 
-    f.write(f'{1*VHDL_TAB}end process;\n')
+    f.write(f'{1*VHDL_TAB}-- Input and output assignment\n')
+    f.write(f'{1*VHDL_TAB}write_port_0 <= p_0_in;\n')
+    p_zero_exec = filter(
+        lambda p: p.execution_time == 0, (p for pc in assignment for p in pc)
+    )
+    vhdl.common.write_synchronous_process_prologue(
+        f,
+        clk='clk',
+        indent=len(VHDL_TAB),
+        name='output_reg_proc',
+    )
+    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    for p in p_zero_exec:
+        f.write(f'{4*VHDL_TAB}when {p.start_time} => p_0_out <= p_0_in;\n')
+    f.write(f'{4*VHDL_TAB}when others => p_0_out <= read_port_0;\n')
+    f.write(f'{3*VHDL_TAB}end case;\n')
+    vhdl.common.write_synchronous_process_epilogue(
+        f,
+        clk='clk',
+        indent=len(VHDL_TAB),
+        name='output_reg_proc',
+    )
 
     f.write('\n')
+    f.write(f'end architecture {architecture_name};')
+
+
+def write_register_based_storage(
+    f: TextIOWrapper,
+    forward_backward_table: _ForwardBackwardTable,
+    entity_name: str,
+    word_length: int,
+    read_ports: int,
+    write_ports: int,
+    total_ports: int,
+):
+    architecture_name = "rtl"
+    schedule_time = len(forward_backward_table)
+    reg_cnt = len(forward_backward_table[0].regs)
+
+    #
+    # Architecture declerative region begin
+    #
+    # Write architecture header
+    f.write(f'architecture {architecture_name} of {entity_name} is\n\n')
+
+    # Schedule time counter
+    f.write(f'{VHDL_TAB}-- Schedule counter\n')
+    vhdl.common.write_signal_decl(
+        f,
+        name='schedule_cnt',
+        type=f'integer range 0 to {schedule_time}-1',
+        name_pad=14,
+        default_value='0',
+    )
+    f.write('\n')
+
+    # Shift register
+    f.write(f'{VHDL_TAB}-- Shift register\n')
+    vhdl.common.write_type_decl(
+        f,
+        name='shift_reg_type',
+        alias=f'array(0 to {reg_cnt}-1) of std_logic_vector(WL-1 downto 0)',
+    )
+    vhdl.common.write_signal_decl(
+        f,
+        name='shift_reg',
+        type='shift_reg_type',
+        name_pad=14,
+    )
+
+    #
+    # Architecture body begin
+    #
+    f.write(f'begin\n\n')
+
+    f.write(f'{VHDL_TAB}-- Schedule counter\n')
+    vhdl.common.write_synchronous_process(
+        f=f,
+        name='schedule_cnt_proc',
+        clk='clk',
+        indent=len(1 * VHDL_TAB),
+        body=(
+            f'{0*VHDL_TAB}if en = \'1\' then\n'
+            f'{1*VHDL_TAB}if schedule_cnt = {schedule_time}-1 then\n'
+            f'{2*VHDL_TAB}schedule_cnt <= 0;\n'
+            f'{1*VHDL_TAB}else\n'
+            f'{2*VHDL_TAB}schedule_cnt <= schedule_cnt + 1;\n'
+            f'{1*VHDL_TAB}end if;\n'
+            f'{0*VHDL_TAB}end if;\n'
+        ),
+    )
+
+    f.write(f'\n{VHDL_TAB}-- Multiplexers for shift register\n')
+    vhdl.common.write_synchronous_process_prologue(
+        f,
+        clk='clk',
+        name='shift_reg_proc',
+        indent=len(VHDL_TAB),
+    )
+
+    # Default for all register
+    f.write(f'{3*VHDL_TAB}-- Default case\n')
+    f.write(f'{3*VHDL_TAB}shift_reg(0) <= p_0_in;\n')
+    for reg_idx in range(1, reg_cnt):
+        f.write(f'{3*VHDL_TAB}shift_reg({reg_idx}) <= shift_reg({reg_idx-1});\n')
+
+    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    for i, entry in enumerate(forward_backward_table):
+        if entry.back_edge_from:
+            f.write(f'{4*VHDL_TAB} when {schedule_time-1 if (i-1)<0 else (i-1)} =>\n')
+            for dst, src in entry.back_edge_from.items():
+                f.write(f'{5*VHDL_TAB} shift_reg({dst}) <= shift_reg({src});\n')
+    f.write(f'{4*VHDL_TAB}when others => null;\n')
+    f.write(f'{3*VHDL_TAB}end case;\n')
+
+    vhdl.common.write_synchronous_process_epilogue(
+        f,
+        clk='clk',
+        name='shift_reg_proc',
+        indent=len(VHDL_TAB),
+    )
+
+    f.write(f'\n{VHDL_TAB}-- Output muliplexer\n')
+    vhdl.common.write_synchronous_process_prologue(
+        f,
+        clk='clk',
+        name='out_mux_proc',
+        indent=len(VHDL_TAB),
+    )
+
+    f.write(f'{3*VHDL_TAB}-- Default case\n')
+    f.write(f'{3*VHDL_TAB}p_0_out <= shift_reg({reg_cnt-1});\n')
+    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    for i, entry in enumerate(forward_backward_table):
+        if entry.outputs_from is not None:
+            if entry.outputs_from != reg_cnt - 1:
+                f.write(f'{4*VHDL_TAB} when {i} =>\n')
+                if entry.outputs_from < 0:
+                    f.write(f'{5*VHDL_TAB} p_0_out <= p_{-1-entry.outputs_from}_in;\n')
+                else:
+                    f.write(
+                        f'{5*VHDL_TAB} p_0_out <= shift_reg({entry.outputs_from});\n'
+                    )
+    f.write(f'{4*VHDL_TAB}when others => null;\n')
+    f.write(f'{3*VHDL_TAB}end case;\n')
+
+    vhdl.common.write_synchronous_process_epilogue(
+        f,
+        clk='clk',
+        name='out_mux_proc',
+        indent=len(VHDL_TAB),
+    )
+
     f.write(f'end architecture {architecture_name};')

@@ -1,5 +1,6 @@
 import io
 import re
+from functools import reduce
 from typing import Dict, Iterable, List, Optional, Set, Tuple, TypeVar, Union
 
 import matplotlib.pyplot as plt
@@ -40,7 +41,7 @@ def _sanitize_port_option(
     total_ports: Optional[int] = None,
 ) -> Tuple[int, int, int]:
     """
-    General port sanitization function, to test if a port specification makes sense.
+    General port sanitization function used to test if a port specification makes sense.
     Raises ValueError if the port specification is in-proper.
 
     Parameters
@@ -148,6 +149,246 @@ def draw_exclusion_graph_coloring(
     )
 
 
+class _ForwardBackwardEntry:
+    def __init__(
+        self,
+        inputs: Optional[List[Process]] = None,
+        outputs: Optional[List[Process]] = None,
+        regs: Optional[List[Optional[Process]]] = None,
+        back_edge_to: Optional[Dict[int, int]] = None,
+        back_edge_from: Optional[Dict[int, int]] = None,
+        outputs_from: Optional[int] = None,
+    ):
+        """
+        Single entry in a _ForwardBackwardTable. Aggregate type of input, output and list of registers.
+
+        Parameters
+        ----------
+        inputs : List[Process], optional
+            input
+        outputs : List[Process], optional
+            output
+        regs : List[Optional[Process]], optional
+            regs
+        back_edge_to : dict, optional
+        back_edge_from : List[Optional[Process]], optional
+        outputs_from : int, optional
+        """
+        self.inputs: List[Process] = [] if inputs is None else inputs
+        self.outputs: List[Process] = [] if outputs is None else outputs
+        self.regs: List[Optional[Process]] = [] if regs is None else regs
+        self.back_edge_to: Dict[int, int] = {} if back_edge_to is None else back_edge_to
+        self.back_edge_from: Dict[int, int] = (
+            {} if back_edge_from is None else back_edge_from
+        )
+        self.outputs_from = outputs_from
+
+
+class _ForwardBackwardTable:
+    def __init__(self, collection: 'ProcessCollection'):
+        """
+        Forward-Backward allocation table for ProcessCollections. This structure implements the forward-backward
+        register allocation algorithm, which is used to generate hardware from MemoryVariables in a ProcessCollection.
+
+        Parameters
+        ----------
+        collection : ProcessCollection
+            ProcessCollection to apply forward-backward allocation on
+        """
+        # Generate an alive variable list
+        self._collection = collection
+        self._live_variables: List[int] = [0] * collection._schedule_time
+        for mv in self._collection:
+            stop_time = mv.start_time + mv.execution_time
+            for alive_time in range(mv.start_time, stop_time):
+                self._live_variables[alive_time % collection._schedule_time] += 1
+
+        # First, create an empty forward-backward table with the right dimensions
+        self.table: List[_ForwardBackwardEntry] = []
+        for _ in range(collection.schedule_time):
+            entry = _ForwardBackwardEntry()
+            # https://github.com/microsoft/pyright/issues/1073
+            for _ in range(max(self._live_variables)):
+                entry.regs.append(None)
+            self.table.append(entry)
+
+        # Insert all processes (one per time-slot) to the table input
+        # TODO: "Input each variable at the time step corresponding to the beginning of its lifetime. If multiple
+        #        variables are input in a given cycle, theses are allocated to multple registers such that the variable
+        #        with the longest lifetime is allocated to the inital register and the other variables are allocated to
+        #        consecutive registers in decreasing order of lifetime." -- K. Parhi
+        for mv in collection:
+            self.table[mv.start_time].inputs.append(mv)
+            if mv.execution_time:
+                self.table[(mv.start_time + 1) % collection.schedule_time].regs[0] = mv
+            else:
+                self.table[mv.start_time].outputs.append(mv)
+                self.table[mv.start_time].outputs_from = -1
+
+        # Forward-backward allocation
+        forward = True
+        while not self._forward_backward_is_complete():
+            if forward:
+                self._do_forward_allocation()
+            else:
+                self._do_single_backward_allocation()
+            forward = not (forward)
+
+    def _forward_backward_is_complete(self) -> bool:
+        s = {proc for e in self.table for proc in e.outputs}
+        return len(self._collection._collection - s) == 0
+
+    def _do_forward_allocation(self):
+        """
+        Forward all Processes as far as possible in the register chain. Processes are forwarded until they reach their
+        end time (at which they are added to the output list), or until they reach the end of the register chain.
+        """
+        rows = len(self.table)
+        cols = len(self.table[0].regs)
+        # Note that two passes of the forward allocation need to be done, since variables may loop around the schedule
+        # cycle boundary.
+        for _ in range(2):
+            for time, entry in enumerate(self.table):
+                for reg_idx, reg in enumerate(entry.regs):
+                    if reg is not None:
+                        reg_end_time = (reg.start_time + reg.execution_time) % rows
+                        if reg_end_time == time:
+                            if reg not in self.table[time].outputs:
+                                self.table[time].outputs.append(reg)
+                                self.table[time].outputs_from = reg_idx
+                        elif reg_idx != cols - 1:
+                            next_row = (time + 1) % rows
+                            next_col = reg_idx + 1
+                            if self.table[next_row].regs[next_col] not in (None, reg):
+                                cell = self.table[next_row].regs[next_col]
+                                raise ValueError(
+                                    f'Can\'t forward allocate {reg} in row={time},'
+                                    f' col={reg_idx} to next_row={next_row},'
+                                    f' next_col={next_col} (cell contains: {cell})'
+                                )
+                            else:
+                                self.table[(time + 1) % rows].regs[reg_idx + 1] = reg
+
+    def _do_single_backward_allocation(self):
+        """
+        Perform backward allocation of Processes in the allocation table.
+        """
+        rows = len(self.table)
+        cols = len(self.table[0].regs)
+        outputs = {out for e in self.table for out in e.outputs}
+        #
+        # Pass #1: Find any (one) non-dead variable from the last register and try to backward allocate it to a
+        # previous register where it is not blocking an open path. This heuristic helps minimize forward allocation
+        # moves later.
+        #
+        for time, entry in enumerate(self.table):
+            reg = entry.regs[-1]
+            if reg is not None and reg not in outputs:
+                next_entry = self.table[(time + 1) % rows]
+                for nreg_idx, nreg in enumerate(next_entry.regs):
+                    if nreg is None and (
+                        nreg_idx == 0 or entry.regs[nreg_idx - 1] is not None
+                    ):
+                        next_entry.regs[nreg_idx] = reg
+                        entry.back_edge_to[cols - 1] = nreg_idx
+                        next_entry.back_edge_from[nreg_idx] = cols - 1
+                        return
+        #
+        # Pass #2: Backward allocate the first non-dead variable from the last registers to an empty register.
+        #
+        for time, entry in enumerate(self.table):
+            reg = entry.regs[-1]
+            if reg is not None and reg not in outputs:
+                next_entry = self.table[(time + 1) % rows]
+                for nreg_idx, nreg in enumerate(next_entry.regs):
+                    if nreg is None:
+                        next_entry.regs[nreg_idx] = reg
+                        entry.back_edge_to[cols - 1] = nreg_idx
+                        return
+
+        # All passes failed, raise exception...
+        raise ValueError(
+            f"Can't backward allocate any variable. This should not happen."
+        )
+
+    def __getitem__(self, key):
+        return self.table[key]
+
+    def __iter__(self):
+        yield from self.table
+
+    def __len__(self):
+        return len(self.table)
+
+    def __str__(self):
+        # Text width of input and output column
+        lst_w = lambda proc_lst: reduce(lambda n, p: n + len(str(p)) + 1, proc_lst, 0)
+        input_col_w = max(5, max(lst_w(pl.inputs) for pl in self.table) + 1)
+        output_col_w = max(5, max(lst_w(pl.outputs) for pl in self.table) + 1)
+
+        # Text width of register columns
+        reg_col_w = 0
+        for entry in self.table:
+            for reg in entry.regs:
+                reg_col_w = max(len(str(reg)), reg_col_w)
+        reg_col_w = max(4, reg_col_w + 2)
+
+        # Header row of the string
+        res = f' T |{"In":^{input_col_w}}|'
+        for i in range(max(self._live_variables)):
+            reg = f'R{i}'
+            res += f'{reg:^{reg_col_w}}|'
+        res += f'{"Out":^{output_col_w}}|'
+        res += '\n'
+        res += (
+            6 + input_col_w + (reg_col_w + 1) * max(self._live_variables) + output_col_w
+        ) * '-' + '\n'
+
+        for time, entry in enumerate(self.table):
+            # Time
+            res += f'{time:^3}| '
+
+            # Input column
+            inputs_str = ''
+            for input in entry.inputs:
+                inputs_str += input.name + ','
+            if inputs_str:
+                inputs_str = inputs_str[:-1]
+            res += f'{inputs_str:^{input_col_w-1}}|'
+
+            # Register columns
+            GREEN_BACKGROUND_ANSI = "\u001b[42m"
+            BROWN_BACKGROUND_ANSI = "\u001b[43m"
+            RESET_BACKGROUND_ANSI = "\033[0m"
+            for reg_idx, reg in enumerate(entry.regs):
+                if reg is None:
+                    res += " " * reg_col_w + "|"
+                else:
+                    if reg_idx in entry.back_edge_to:
+                        res += f'{GREEN_BACKGROUND_ANSI}'
+                        res += f'{reg.name:^{reg_col_w}}'
+                        res += f'{RESET_BACKGROUND_ANSI}|'
+                    elif reg_idx in entry.back_edge_from:
+                        res += f'{BROWN_BACKGROUND_ANSI}'
+                        res += f'{reg.name:^{reg_col_w}}'
+                        res += f'{RESET_BACKGROUND_ANSI}|'
+                    else:
+                        res += f'{reg.name:^{reg_col_w}}' + "|"
+
+            # Output column
+            outputs_str = ''
+            for output in entry.outputs:
+                outputs_str += output.name + ','
+            if outputs_str:
+                outputs_str = outputs_str[:-1]
+            if entry.outputs_from is not None:
+                outputs_str += f"({entry.outputs_from})"
+            res += f'{outputs_str:^{output_col_w}}|'
+
+            res += '\n'
+        return res
+
+
 class ProcessCollection:
     """
     Collection of one or more processes
@@ -173,8 +414,12 @@ class ProcessCollection:
         self._cyclic = cyclic
 
     @property
-    def collection(self):
+    def collection(self) -> Set[Process]:
         return self._collection
+
+    @property
+    def schedule_time(self) -> int:
+        return self._schedule_time
 
     def __len__(self):
         return len(self._collection)
@@ -229,7 +474,7 @@ class ProcessCollection:
 
         Returns
         -------
-        ax: Associated Matplotlib Axes (or array of Axes) object
+        ax : Associated Matplotlib Axes (or array of Axes) object
         """
 
         # Set up the Axes object
@@ -680,11 +925,12 @@ class ProcessCollection:
     def generate_memory_based_storage_vhdl(
         self,
         filename: str,
+        entity_name: str,
         word_length: int,
         assignment: Set['ProcessCollection'],
-        read_ports: Optional[int] = None,
-        write_ports: Optional[int] = None,
-        total_ports: Optional[int] = None,
+        read_ports: int = 1,
+        write_ports: int = 1,
+        total_ports: int = 2,
     ):
         """
         Generate VHDL code for memory based storage of processes (MemoryVariables).
@@ -693,27 +939,28 @@ class ProcessCollection:
         ----------
         filename : str
             Filename of output file.
-        word_length: int
+        entity_name : str
+            Name used for the VHDL entity.
+        word_length : int
             Word length of the memory variable objects.
-        assignment: set
+        assignment : set
             A possible cell assignment to use when generating the memory based storage.
             The cell assignment is a dictionary int to ProcessCollection where the integer
             corresponds to the cell to assign all MemoryVariables in corresponding process
             collection.
             If unset, each MemoryVariable will be assigned to a unique single cell.
-        read_ports : int, optional
+        read_ports : int, default: 1
             The number of read ports used when splitting process collection based on
             memory variable access. If total ports in unset, this parameter has to be set
             and total_ports is assumed to be read_ports + write_ports.
-        write_ports : int, optional
+        write_ports : int, default: 1
             The number of write ports used when splitting process collection based on
             memory variable access. If total ports is unset, this parameter has to be set
             and total_ports is assumed to be read_ports + write_ports.
-        total_ports : int, optional
+        total_ports : int, default: 2
             The total number of ports used when splitting process collection based on
             memory variable access.
         """
-
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
         is_memory_variable = all(
             isinstance(process, MemoryVariable) for process in self._collection
@@ -731,6 +978,15 @@ class ProcessCollection:
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
         )
+
+        # Make sure the provided assignment (Set[ProcessCollection]) only
+        # contains memory variables from this (self).
+        for collection in assignment:
+            for mv in collection:
+                if mv not in self:
+                    raise ValueError(
+                        f'{mv.__repr__()} is not part of {self.__repr__()}.'
+                    )
 
         # Make sure that concurrent reads/writes do not surpass the port setting
         for mv in self:
@@ -757,12 +1013,13 @@ class ProcessCollection:
 
             vhdl.common.write_b_asic_vhdl_preamble(f)
             vhdl.common.write_ieee_header(f)
-            vhdl.entity.write_memory_based_architecture(
-                f, collection=self, word_length=word_length
+            vhdl.entity.write_memory_based_storage(
+                f, entity_name=entity_name, collection=self, word_length=word_length
             )
-            vhdl.architecture.write_memory_based_architecture(
+            vhdl.architecture.write_memory_based_storage(
                 f,
                 assignment=assignment,
+                entity_name=entity_name,
                 word_length=word_length,
                 read_ports=read_ports,
                 write_ports=write_ports,
@@ -773,13 +1030,13 @@ class ProcessCollection:
         self,
         filename: str,
         word_length: int,
-        assignment: Set['ProcessCollection'],
-        read_ports: Optional[int] = None,
-        write_ports: Optional[int] = None,
-        total_ports: Optional[int] = None,
+        entity_name: str,
+        read_ports: int = 1,
+        write_ports: int = 1,
+        total_ports: int = 2,
     ):
         """
-        Generate VHDL code for register based storages of processes based on the Forward-Backward Register Allocation [1].
+        Generate VHDL code for register based storages of processes based on Forward-Backward Register Allocation [1].
 
         [1]: K. Parhi: VLSI Digital Signal Processing Systems: Design and Implementation, Ch. 6.3.2
 
@@ -787,24 +1044,57 @@ class ProcessCollection:
         ----------
         filename : str
             Filename of output file.
-        word_length: int
+        word_length : int
             Word length of the memory variable objects.
-        assignment: set
-            A possible cell assignment to use when generating the memory based storage.
-            The cell assignment is a dictionary int to ProcessCollection where the integer
-            corresponds to the cell to assign all MemoryVariables in corresponding process
-            collection.
-            If unset, each MemoryVariable will be assigned to a unique single cell.
-        read_ports : int, optional
+        entity_name : str
+            Name used for the VHDL entity.
+        read_ports : int, default: 1
             The number of read ports used when splitting process collection based on
             memory variable access. If total ports in unset, this parameter has to be set
             and total_ports is assumed to be read_ports + write_ports.
-        write_ports : int, optional
+        write_ports : int, default: 1
             The number of write ports used when splitting process collection based on
             memory variable access. If total ports is unset, this parameter has to be set
             and total_ports is assumed to be read_ports + write_ports.
-        total_ports : int, optional
+        total_ports : int, default: 2
             The total number of ports used when splitting process collection based on
             memory variable access.
         """
-        pass
+        # Check that this is a ProcessCollection of (Plain)MemoryVariables
+        is_memory_variable = all(
+            isinstance(process, MemoryVariable) for process in self._collection
+        )
+        is_plain_memory_variable = all(
+            isinstance(process, PlainMemoryVariable) for process in self._collection
+        )
+        if not (is_memory_variable or is_plain_memory_variable):
+            raise ValueError(
+                "HDL can only be generated for ProcessCollection of"
+                " (Plain)MemoryVariables"
+            )
+
+        # Sanitize port settings
+        read_ports, write_ports, total_ports = _sanitize_port_option(
+            read_ports, write_ports, total_ports
+        )
+
+        # Create the forward-backward table
+        forward_backward_table = _ForwardBackwardTable(self)
+
+        with open(filename, 'w') as f:
+            from b_asic.codegen import vhdl
+
+            vhdl.common.write_b_asic_vhdl_preamble(f)
+            vhdl.common.write_ieee_header(f)
+            vhdl.entity.write_register_based_storage(
+                f, entity_name=entity_name, collection=self, word_length=word_length
+            )
+            vhdl.architecture.write_register_based_storage(
+                f,
+                forward_backward_table=forward_backward_table,
+                entity_name=entity_name,
+                word_length=word_length,
+                read_ports=read_ports,
+                write_ports=write_ports,
+                total_ports=total_ports,
+            )

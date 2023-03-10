@@ -21,7 +21,7 @@ class TestProcessCollectionPlainMemoryVariable:
     @pytest.mark.mpl_image_compare(style='mpl20')
     def test_draw_matrix_transposer_4(self):
         fig, ax = plt.subplots()
-        generate_matrix_transposer(4).plot(ax=ax)
+        generate_matrix_transposer(4).plot(ax=ax)  # type: ignore
         return fig
 
     def test_split_memory_variable(self, simple_collection: ProcessCollection):
@@ -48,21 +48,26 @@ class TestProcessCollectionPlainMemoryVariable:
         assert len(assignment_left_edge.keys()) == 18
         assert len(assignment_graph_color) == 16
 
-    def test_generate_vhdl(self):
-        collection = generate_matrix_transposer(4, min_lifetime=5)
-        assignment = collection.graph_color_cell_assignment()
-        _, ax = plt.subplots()
-        for cell, pc in enumerate(assignment):
-            pc.plot(ax=ax, row=cell)
-        # plt.show()
-        collection.generate_memory_based_storage_vhdl(
-            "/tmp/wow.vhdl",
-            assignment=assignment,
-            word_length=13,
-            read_ports=1,
-            write_ports=1,
-            total_ports=2,
-        )
+    def test_generate_memory_based_vhdl(self):
+        for rows in [2, 3, 4, 5, 7]:
+            collection = generate_matrix_transposer(rows, min_lifetime=0)
+            assignment = collection.graph_color_cell_assignment()
+            collection.generate_memory_based_storage_vhdl(
+                filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_memory_{rows}x{rows}.vhdl',
+                entity_name=f'streaming_matrix_transposition_memory_{rows}x{rows}',
+                assignment=assignment,
+                word_length=16,
+            )
+
+    def test_generate_register_based_vhdl(self):
+        for rows in [2, 3, 4, 5, 7]:
+            generate_matrix_transposer(
+                rows, min_lifetime=1
+            ).generate_register_based_storage_vhdl(
+                filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_register_{rows}x{rows}.vhdl',
+                entity_name=f'streaming_matrix_transposition_register_{rows}x{rows}',
+                word_length=16,
+            )
 
     # Issue: #175
     def test_interleaver_issue175(self):
