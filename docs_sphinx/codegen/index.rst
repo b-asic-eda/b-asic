@@ -1,7 +1,7 @@
 .. _codegen:
 
-B-ASIC Code Generation
-**********************
+Code generation
+***************
 
 Code generation using the B-ASIC toolbox.
 

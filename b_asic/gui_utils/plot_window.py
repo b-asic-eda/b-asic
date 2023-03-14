@@ -23,12 +23,22 @@ from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,;
 
 
 class PlotWindow(QDialog):
-    """Dialog for plotting the result of a simulation."""
+    """
+    Dialog for plotting the result of a simulation.
+
+    Parameters
+    ----------
+    sim_result : dict
+        Simulation results of the form obtained from :attr:`~b_asic.simulation.Simulation.results`.
+    sfg_name : str, optional
+        The name of the SFG.
+    parent : optional
+        The parent window.
+    """
 
     def __init__(
         self,
         sim_result: Dict[str, List[complex]],
-        logger=print,
         sfg_name: Optional[str] = None,
         parent=None,
     ):
@@ -199,8 +209,7 @@ def start_simulation_dialog(
     sim_results : dict
         Simulation results of the form obtained from :attr:`~b_asic.simulation.Simulation.results`.
     sfg_name : str, optional
-        DESCRIPTION. The default is None.
-
+        The name of the SFG.
     """
     app = QApplication(sys.argv)
     win = PlotWindow(sim_result=sim_results, sfg_name=sfg_name)

@@ -1,7 +1,7 @@
 .. _examples:
 
-===============
-B-ASIC Examples
-===============
+========
+Examples
+========
 
 These are examples of how B-ASIC can be used.

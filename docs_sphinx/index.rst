@@ -29,6 +29,6 @@ Table of Contents
    GUI
    scheduler_gui
    gui_utils
+   codegen/index
    examples/index
    research
-   codegen/index
