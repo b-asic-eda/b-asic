@@ -66,6 +66,8 @@ def write_signal_decl(
     type: str,
     default_value: Optional[str] = None,
     name_pad: Optional[int] = None,
+    vivado_ram_style: Optional[str] = None,
+    quartus_ram_style: Optional[str] = None,
 ):
     """
     Create a VHDL signal declaration: ::
@@ -80,10 +82,16 @@ def write_signal_decl(
         Signal name.
     type : str
         Signal type.
-    default_value : str, optional
+    default_value : string, optional
         An optional default value to the signal.
     name_pad : int, optional
         An optional left padding value applied to the name.
+    vivado_ram_style : string, optional
+        An optional Xilinx Vivado RAM style attribute to apply to this signal delcaration.
+        If set, exactly one of: "block", "distributed", "registers", "ultra", "mixed" or "auto".
+    quartus_ram_style : string, optional
+        An optional Quartus Prime RAM style attribute to apply to this signal delcaration.
+        If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K", "MLAB" or "logic".
     """
     # Spacing of VHDL signals declaration always with a single tab
     name_pad = 0 if name_pad is None else name_pad
@@ -91,6 +99,18 @@ def write_signal_decl(
     if default_value is not None:
         f.write(f' := {default_value}')
     f.write(f';\n')
+    if vivado_ram_style:
+        f.write(f'{VHDL_TAB}attribute ram_style : string;\n')
+        f.write(
+            f'{VHDL_TAB}attribute ram_style of {name} : signal is'
+            f' "{vivado_ram_style}";\n'
+        )
+    if quartus_ram_style:
+        f.write(f'{VHDL_TAB}attribute ramstyle : string;\n')
+        f.write(
+            f'{VHDL_TAB}attribute ramstyle of {name} : signal is'
+            f' "{quartus_ram_style}";\n'
+        )
 
 
 def write_constant_decl(
@@ -141,11 +161,117 @@ def write_type_decl(
     f.write(f'{VHDL_TAB}type {name} is {alias};\n')
 
 
+def write_process_prologue(
+    f: TextIOWrapper,
+    sensitivity_list: str,
+    indent: str = VHDL_TAB,
+    name: Optional[str] = None,
+):
+    """
+    Write only the prologue of a regular VHDL process with a user provided sensitivity list.
+    This method should almost always guarantely be followed by a write_asynchronous_process_epilogue.
+
+    Parameters
+    ----------
+    f : :class:`io.TextIOWrapper`
+        The TextIOWrapper object to write the type declaration to.
+    sensitivity_list : str
+        Content of the process sensitivity list.
+    indent : str, default: 1*VHDL_TAB
+        Indentation used in the process. This string is applied to the first written line of all output.
+    name : Optional[str]
+        An optional name for the process.
+    """
+    if name is not None:
+        f.write(f'{indent}{name}: process({sensitivity_list})\n')
+    else:
+        f.write(f'{indent}process({sensitivity_list})\n')
+    f.write(f'{indent}begin\n')
+
+
+def write_process_epilogue(
+    f: TextIOWrapper,
+    sensitivity_list: Optional[str] = None,
+    indent: str = VHDL_TAB,
+    name: Optional[str] = None,
+):
+    """
+    Parameters
+    ----------
+    f : :class:`io.TextIOWrapper`
+        The TextIOWrapper object to write the type declaration to.
+    sensitivity_list : str
+        Content of the process sensitivity list. Not needed when writing the epligoue.
+    indent : str, default: 1*VHDL_TAB
+        Indentation used in the process. This string is applied to the first written line of all output.
+    name : Optional[str]
+        An optional name of the ending process.
+    """
+    _ = sensitivity_list
+    f.write(f'{indent}end process')
+    if name is not None:
+        f.write(' ' + name)
+    f.write(';\n')
+
+
+def write_synchronous_process_prologue(
+    f: TextIOWrapper,
+    clk: str,
+    indent: str = VHDL_TAB,
+    name: Optional[str] = None,
+):
+    """
+    Write only the prologue of a regular VHDL synchronous process with a single clock object in the sensitivity list
+    triggering a rising edge block by some body of VHDL code.
+    This method should almost always guarantely be followed by a write_synchronous_process_epilogue.
+
+    Parameters
+    ----------
+    f : :class:`io.TextIOWrapper`
+        The TextIOWrapper to write the VHDL code onto.
+    clk : str
+        Name of the clock.
+    indent : str, default: VHDL_TAB
+        Indentation used in the process. This string is applied to the first written line of all output.
+    name : Optional[str]
+        An optional name for the process.
+    """
+    write_process_prologue(f, sensitivity_list=clk, indent=indent, name=name)
+    f.write(f'{indent}{VHDL_TAB}if rising_edge(clk) then\n')
+
+
+def write_synchronous_process_epilogue(
+    f: TextIOWrapper,
+    clk: Optional[str],
+    indent: str = VHDL_TAB,
+    name: Optional[str] = None,
+):
+    """
+    Write only the epilogue of a regular VHDL synchronous process with a single clock object in the sensitivity list
+    triggering a rising edge block by some body of VHDL code.
+    This method should almost always guarantely be followed by a write_synchronous_process_epilogue.
+
+    Parameters
+    ----------
+    f : :class:`io.TextIOWrapper`
+        The TextIOWrapper to write the VHDL code onto.
+    clk : str
+        Name of the clock.
+    indent : str, default: VHDL_TAB
+        Indent this process block with `indent` columns
+    name : Optional[str]
+        An optional name for the process
+    """
+    _ = clk
+    f.write(f'{indent}{VHDL_TAB}end if;\n')
+    write_process_epilogue(f, sensitivity_list=clk, indent=indent, name=name)
+
+
 def write_synchronous_process(
     f: TextIOWrapper,
     clk: str,
     body: str,
-    indent: Optional[int] = 0,
+    indent: str = VHDL_TAB,
     name: Optional[str] = None,
 ):
     """
@@ -160,79 +286,16 @@ def write_synchronous_process(
         Name of the clock.
     body : str
         Body of the `if rising_edge(clk) then` block.
-    indent : Optional[int]
+    indent : int, default: VHDL_TAB
         Indent this process block with `indent` columns
     name : Optional[str]
         An optional name for the process
     """
-    space = '' if indent is None else ' ' * indent
     write_synchronous_process_prologue(f, clk, indent, name)
     for line in body.split('\n'):
         if len(line):
-            f.write(f'{space}{2*VHDL_TAB}{line}\n')
+            f.write(f'{indent}{2*VHDL_TAB}{line}\n')
     write_synchronous_process_epilogue(f, clk, indent, name)
-
-
-def write_synchronous_process_prologue(
-    f: TextIOWrapper,
-    clk: str,
-    indent: Optional[int] = 0,
-    name: Optional[str] = None,
-):
-    """
-    Write only the prologue of a regular VHDL synchronous process with a single clock object in the sensitivity list
-    triggering a rising edge block by some body of VHDL code.
-    This method should almost always guarantely be followed by a write_synchronous_process_epilogue.
-
-    Parameters
-    ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper to write the VHDL code onto.
-    clk : str
-        Name of the clock.
-    indent : Optional[int]
-        Indent this process block with `indent` columns
-    name : Optional[str]
-        An optional name for the process
-    """
-    space = '' if indent is None else ' ' * indent
-    if name is not None:
-        f.write(f'{space}{name}: process({clk})\n')
-    else:
-        f.write(f'{space}process({clk})\n')
-    f.write(f'{space}begin\n')
-    f.write(f'{space}{VHDL_TAB}if rising_edge(clk) then\n')
-
-
-def write_synchronous_process_epilogue(
-    f: TextIOWrapper,
-    clk: Optional[str],
-    indent: Optional[int] = 0,
-    name: Optional[str] = None,
-):
-    """
-    Write only the epilogue of a regular VHDL synchronous process with a single clock object in the sensitivity list
-    triggering a rising edge block by some body of VHDL code.
-    This method should almost always guarantely be followed by a write_synchronous_process_epilogue.
-
-    Parameters
-    ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper to write the VHDL code onto.
-    clk : str
-        Name of the clock.
-    indent : Optional[int]
-        Indent this process block with `indent` columns
-    name : Optional[str]
-        An optional name for the process
-    """
-    _ = clk
-    space = '' if indent is None else ' ' * indent
-    f.write(f'{space}{VHDL_TAB}end if;\n')
-    f.write(f'{space}end process')
-    if name is not None:
-        f.write(' ' + name)
-    f.write(';\n')
 
 
 def write_synchronous_memory(
@@ -260,7 +323,7 @@ def write_synchronous_memory(
     """
     assert len(read_ports) >= 1
     assert len(write_ports) >= 1
-    write_synchronous_process_prologue(f, clk=clk, name=name, indent=len(VHDL_TAB))
+    write_synchronous_process_prologue(f, clk=clk, name=name)
     for read_name, address, re in read_ports:
         f.write(f'{3*VHDL_TAB}if {re} = \'1\' then\n')
         f.write(f'{4*VHDL_TAB}{read_name} <= memory({address});\n')
@@ -269,7 +332,7 @@ def write_synchronous_memory(
         f.write(f'{3*VHDL_TAB}if {we} = \'1\' then\n')
         f.write(f'{4*VHDL_TAB}memory({address}) <= {write_name};\n')
         f.write(f'{3*VHDL_TAB}end if;\n')
-    write_synchronous_process_epilogue(f, clk=clk, name=name, indent=len(VHDL_TAB))
+    write_synchronous_process_epilogue(f, clk=clk, name=name)
 
 
 def write_asynchronous_read_memory(
@@ -280,7 +343,7 @@ def write_asynchronous_read_memory(
     name: Optional[str] = None,
 ):
     """
-    Infer a VHDL synchronous reads and writes.
+    Infer a VHDL memory with synchronous writes and asynchronous reads.
 
     Parameters
     ----------
@@ -297,11 +360,11 @@ def write_asynchronous_read_memory(
     """
     assert len(read_ports) >= 1
     assert len(write_ports) >= 1
-    write_synchronous_process_prologue(f, clk=clk, name=name, indent=len(VHDL_TAB))
+    write_synchronous_process_prologue(f, clk=clk, name=name)
     for write_name, address, we in write_ports:
         f.write(f'{3*VHDL_TAB}if {we} = \'1\' then\n')
         f.write(f'{4*VHDL_TAB}memory({address}) <= {write_name};\n')
         f.write(f'{3*VHDL_TAB}end if;\n')
-    write_synchronous_process_epilogue(f, clk=clk, name=name, indent=len(VHDL_TAB))
+    write_synchronous_process_epilogue(f, clk=clk, name=name)
     for read_name, address, _ in read_ports:
         f.write(f'{1*VHDL_TAB}{read_name} <= memory({address});\n')

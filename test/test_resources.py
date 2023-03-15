@@ -62,7 +62,7 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_generate_register_based_vhdl(self):
         for rows in [2, 3, 4, 5, 7]:
             generate_matrix_transposer(
-                rows, min_lifetime=1
+                rows, min_lifetime=0
             ).generate_register_based_storage_vhdl(
                 filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_register_{rows}x{rows}.vhdl',
                 entity_name=f'streaming_matrix_transposition_register_{rows}x{rows}',

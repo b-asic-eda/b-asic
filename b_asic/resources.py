@@ -931,6 +931,7 @@ class ProcessCollection:
         read_ports: int = 1,
         write_ports: int = 1,
         total_ports: int = 2,
+        input_sync: bool = True,
     ):
         """
         Generate VHDL code for memory based storage of processes (MemoryVariables).
@@ -960,6 +961,10 @@ class ProcessCollection:
         total_ports : int, default: 2
             The total number of ports used when splitting process collection based on
             memory variable access.
+        input_sync : bool, default: True
+            Add registers to the input signals (enable signal and data input signals).
+            Adding registers to the inputs allow pipelining of address generation (which is added automatically).
+            For large interleavers, this can improve timing significantly.
         """
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
         is_memory_variable = all(
@@ -1024,6 +1029,7 @@ class ProcessCollection:
                 read_ports=read_ports,
                 write_ports=write_ports,
                 total_ports=total_ports,
+                input_sync=input_sync,
             )
 
     def generate_register_based_storage_vhdl(
