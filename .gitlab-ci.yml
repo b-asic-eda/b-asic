@@ -102,6 +102,18 @@ run-test-3.11-pyqt5:
 #  extends: ".run-test"
 #  allow_failure: true
 
+run-vhdl-tests:
+  variables:
+    QT_API: pyqt5
+  image: python:3.10
+  stage: test
+  script:
+      - pytest
+      - pip install vunit_hdl
+      - apt install -y ghdl
+      - cd b_asic/codegen/testbench
+      - python test.py
+
 run-doc-test:
   variables:
     QT_API: pyside2
