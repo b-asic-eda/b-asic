@@ -28,12 +28,12 @@ public:
 	void set_input(std::size_t index, input_provider_type input_provider);
 	void set_inputs(std::vector<std::optional<input_provider_type>> input_providers);
 
-	[[nodiscard]] std::vector<number> step(bool save_results, std::optional<std::uint8_t> bits_override, bool truncate);
+	[[nodiscard]] std::vector<number> step(bool save_results, std::optional<std::uint8_t> bits_override, bool quantize);
 	[[nodiscard]] std::vector<number> run_until(iteration_type iteration, bool save_results, std::optional<std::uint8_t> bits_override,
-												bool truncate);
+												bool quantize);
 	[[nodiscard]] std::vector<number> run_for(iteration_type iterations, bool save_results, std::optional<std::uint8_t> bits_override,
-											  bool truncate);
-	[[nodiscard]] std::vector<number> run(bool save_results, std::optional<std::uint8_t> bits_override, bool truncate);
+											  bool quantize);
+	[[nodiscard]] std::vector<number> run(bool save_results, std::optional<std::uint8_t> bits_override, bool quantize);
 
 	[[nodiscard]] iteration_type iteration() const noexcept;
 	[[nodiscard]] pybind11::dict results() const noexcept;

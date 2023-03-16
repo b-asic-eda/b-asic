@@ -344,7 +344,7 @@ class SFG(AbstractOperation):
         delays: Optional[MutableDelayMap] = None,
         prefix: str = "",
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Number:
         # doc-string inherited
         if index < 0 or index >= self.output_count:
@@ -365,8 +365,8 @@ class SFG(AbstractOperation):
         # Set the values of our input operations to the given input values.
         for op, arg in zip(
             self._input_operations,
-            self.truncate_inputs(input_values, bits_override)
-            if truncate
+            self.quantize_inputs(input_values, bits_override)
+            if quantize
             else input_values,
         ):
             op.value = arg
@@ -378,7 +378,7 @@ class SFG(AbstractOperation):
             delays,
             prefix,
             bits_override,
-            truncate,
+            quantize,
             deferred_delays,
         )
         while deferred_delays:
@@ -392,7 +392,7 @@ class SFG(AbstractOperation):
                     delays,
                     prefix,
                     bits_override,
-                    truncate,
+                    quantize,
                     new_deferred_delays,
                 )
             deferred_delays = new_deferred_delays
@@ -1225,7 +1225,7 @@ class SFG(AbstractOperation):
         delays: MutableDelayMap,
         prefix: str,
         bits_override: Optional[int],
-        truncate: bool,
+        quantize: bool,
         deferred_delays: DelayQueue,
     ) -> Num:
         key_base = (
@@ -1253,7 +1253,7 @@ class SFG(AbstractOperation):
                 delays,
                 prefix,
                 bits_override,
-                truncate,
+                quantize,
                 deferred_delays,
             )
         else:
@@ -1270,7 +1270,7 @@ class SFG(AbstractOperation):
         delays: MutableDelayMap,
         prefix: str,
         bits_override: Optional[int],
-        truncate: bool,
+        quantize: bool,
         deferred_delays: DelayQueue,
     ) -> Num:
         input_values = [
@@ -1280,7 +1280,7 @@ class SFG(AbstractOperation):
                 delays,
                 prefix,
                 bits_override,
-                truncate,
+                quantize,
                 deferred_delays,
             )
             for input_port in src.operation.inputs
@@ -1292,7 +1292,7 @@ class SFG(AbstractOperation):
             delays,
             key_base,
             bits_override,
-            truncate,
+            quantize,
         )
         results[key] = value
         return value

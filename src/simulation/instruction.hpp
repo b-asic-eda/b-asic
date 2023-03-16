@@ -14,7 +14,7 @@ enum class instruction_type : std::uint8_t {
 	push_result,             // push(results[index])
 	push_delay,              // push(delays[index])
 	push_constant,           // push(value)
-	truncate,                // push(trunc(pop(), bit_mask))
+	quantize,                // push(trunc(pop(), bit_mask))
 	addition,                // rhs=pop(), lhs=pop(), push(lhs + rhs)
 	subtraction,             // rhs=pop(), lhs=pop(), push(lhs - rhs)
 	multiplication,          // rhs=pop(), lhs=pop(), push(lhs * rhs)
@@ -39,7 +39,7 @@ struct instruction final {
 	union {
 		// Index used by push_input, push_result, delay and custom.
 		std::size_t index;
-		// Bit mask used by truncate.
+		// Bit mask used by quantize.
 		std::int64_t bit_mask;
 		// Constant value used by push_constant and constant_multiplication.
 		number value;

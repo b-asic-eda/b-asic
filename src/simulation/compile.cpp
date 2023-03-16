@@ -203,9 +203,9 @@ private:
 		if (!signal.attr("bits").is_none()) {
 			auto const bits = signal.attr("bits").cast<std::size_t>();
 			if (bits > 64) {
-				throw py::value_error{"Cannot truncate to more than 64 bits"};
+				throw py::value_error{"Cannot quantize to more than 64 bits"};
 			}
-			this->add_instruction(instruction_type::truncate, no_result_index, 0).bit_mask = static_cast<std::int64_t>(
+			this->add_instruction(instruction_type::quantize, no_result_index, 0).bit_mask = static_cast<std::int64_t>(
 				(std::int64_t{1} << bits) - 1);
 		}
 	}

@@ -59,7 +59,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     ports.
 
     Operations can be evaluated independently using evaluate_output().
-    Operations may specify how to truncate inputs through truncate_input().
+    Operations may specify how to quantize inputs through quantize_input().
     """
 
     @abstractmethod
@@ -233,7 +233,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         delays: Optional[MutableDelayMap] = None,
         prefix: str = "",
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Num:
         """
         Evaluate the output at the given index of this operation with the given input
@@ -256,7 +256,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         bits_override : int, optional
             Specifies a word length override when truncating inputs
             which ignores the word length specified by the input signal.
-        truncate : bool, default: True
+        quantize : bool, default: True
             Specifies whether input truncation should be enabled in the first
             place. If set to False, input values will be used directly without any
             bit truncation.
@@ -288,7 +288,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         delays: Optional[MutableDelayMap] = None,
         prefix: str = "",
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Sequence[Num]:
         """
         Evaluate all outputs of this operation given the input values.
@@ -325,7 +325,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def truncate_input(self, index: int, value: Num, bits: int) -> Num:
+    def quantize_input(self, index: int, value: Num, bits: int) -> Num:
         """
         Truncate the value to be used as input at the given index to a certain bit
         length.
@@ -756,7 +756,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         delays: Optional[MutableDelayMap] = None,
         prefix: str = "",
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Num:
         if index < 0 or index >= self.output_count:
             raise IndexError(
@@ -771,8 +771,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         values = self.evaluate(
             *(
-                self.truncate_inputs(input_values, bits_override)
-                if truncate
+                self.quantize_inputs(input_values, bits_override)
+                if quantize
                 else input_values
             )
         )
@@ -814,7 +814,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         delays: Optional[MutableDelayMap] = None,
         prefix: str = "",
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Sequence[Num]:
         return [
             self.evaluate_output(
@@ -824,7 +824,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 delays,
                 prefix,
                 bits_override,
-                truncate,
+                quantize,
             )
             for i in range(self.output_count)
         ]
@@ -931,14 +931,14 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return self.input(0)
 
     # TODO: Fix
-    def truncate_input(self, index: int, value: Num, bits: int) -> Num:
+    def quantize_input(self, index: int, value: Num, bits: int) -> Num:
         if isinstance(value, (float, int)):
             return round(value) & ((2**bits) - 1)
         else:
             raise TypeError
 
     # TODO: Seems wrong??? - Oscar
-    def truncate_inputs(
+    def quantize_inputs(
         self,
         input_values: Sequence[Num],
         bits_override: Optional[int] = None,
@@ -955,10 +955,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             if bits_override is not None:
                 if isinstance(value, complex):
                     raise TypeError(
-                        "Complex value cannot be truncated to {bits} bits as"
+                        "Complex value cannot be quantized to {bits} bits as"
                         " requested by the signal connected to input #{i}"
                     )
-                value = self.truncate_input(i, value, bits_override)
+                value = self.quantize_input(i, value, bits_override)
             args.append(value)
         return args
 

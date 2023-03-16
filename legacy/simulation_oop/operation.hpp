@@ -30,7 +30,7 @@ struct evaluation_context final {
 	delay_map* delays = nullptr;
 	delay_queue* deferred_delays = nullptr;
 	std::optional<std::size_t> bits_override{};
-	bool truncate = false;
+	bool quantize = false;
 };
 
 class signal_source final {
@@ -71,7 +71,7 @@ public:
 
 protected:
 	[[nodiscard]] virtual number evaluate_output_impl(std::size_t index, evaluation_context const& context) const = 0;
-	[[nodiscard]] virtual number truncate_input(std::size_t index, number value, std::size_t bits) const;
+	[[nodiscard]] virtual number quantize_input(std::size_t index, number value, std::size_t bits) const;
 
 	[[nodiscard]] result_key const& key_base() const;
 	[[nodiscard]] result_key key_of_output(std::size_t index) const;

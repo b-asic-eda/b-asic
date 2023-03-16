@@ -16,7 +16,7 @@ struct simulation_state final {
 };
 
 simulation_state run_simulation(simulation_code const& code, span<number const> inputs, span<number> delays,
-								std::optional<std::uint8_t> bits_override, bool truncate);
+								std::optional<std::uint8_t> bits_override, bool quantize);
 
 } // namespace asic
 

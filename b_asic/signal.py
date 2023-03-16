@@ -175,7 +175,7 @@ class Signal(AbstractGraphComponent):
     def bits(self) -> Optional[int]:
         """
         Get the number of bits that this operation using this signal as an
-        input should truncate received values to.
+        input should quantize received values to.
         None = unlimited.
         """
         return self.param("bits")
@@ -184,7 +184,7 @@ class Signal(AbstractGraphComponent):
     def bits(self, bits: Optional[int]) -> None:
         """
         Set the number of bits that operations using this signal as an input
-        should truncate received values to.
+        should quantize received values to.
         None = unlimited.
         """
         if bits is not None:

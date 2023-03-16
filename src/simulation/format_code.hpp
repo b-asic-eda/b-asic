@@ -53,7 +53,7 @@ namespace asic {
 		case instruction_type::push_result:             return fmt::format("push_result results[{}]", instruction.index);
 		case instruction_type::push_delay:              return fmt::format("push_delay delays[{}]", instruction.index);
 		case instruction_type::push_constant:           return fmt::format("push_constant {}", format_number(instruction.value));
-		case instruction_type::truncate:                return fmt::format("truncate {:#018x}", instruction.bit_mask);
+		case instruction_type::quantize:                return fmt::format("quantize {:#018x}", instruction.bit_mask);
 		case instruction_type::addition:                return "addition";
 		case instruction_type::subtraction:             return "subtraction";
 		case instruction_type::multiplication:          return "multiplication";

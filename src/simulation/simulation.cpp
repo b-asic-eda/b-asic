@@ -62,12 +62,12 @@ void simulation::set_inputs(
 	}
 }
 
-std::vector<number> simulation::step(bool save_results, std::optional<std::uint8_t> bits_override, bool truncate) {
-	return this->run_for(1, save_results, bits_override, truncate);
+std::vector<number> simulation::step(bool save_results, std::optional<std::uint8_t> bits_override, bool quantize) {
+	return this->run_for(1, save_results, bits_override, quantize);
 }
 
 std::vector<number> simulation::run_until(iteration_type iteration, bool save_results, std::optional<std::uint8_t> bits_override,
-										  bool truncate) {
+										  bool quantize) {
 	auto result = std::vector<number>{};
 	while (m_iteration < iteration) {
 		ASIC_DEBUG_MSG("Running simulation iteration.");
@@ -75,7 +75,7 @@ std::vector<number> simulation::run_until(iteration_type iteration, bool save_re
 		for (auto&& [input, function] : zip(inputs, m_input_functions)) {
 			input = function(m_iteration);
 		}
-		auto state = run_simulation(m_code, inputs, m_delays, bits_override, truncate);
+		auto state = run_simulation(m_code, inputs, m_delays, bits_override, quantize);
 		result = std::move(state.stack);
 		if (save_results) {
 			m_results.push_back(std::move(state.results));
@@ -86,16 +86,16 @@ std::vector<number> simulation::run_until(iteration_type iteration, bool save_re
 }
 
 std::vector<number> simulation::run_for(iteration_type iterations, bool save_results, std::optional<std::uint8_t> bits_override,
-										bool truncate) {
+										bool quantize) {
 	if (iterations > std::numeric_limits<iteration_type>::max() - m_iteration) {
 		throw py::value_error("Simulation iteration type overflow!");
 	}
-	return this->run_until(m_iteration + iterations, save_results, bits_override, truncate);
+	return this->run_until(m_iteration + iterations, save_results, bits_override, quantize);
 }
 
-std::vector<number> simulation::run(bool save_results, std::optional<std::uint8_t> bits_override, bool truncate) {
+std::vector<number> simulation::run(bool save_results, std::optional<std::uint8_t> bits_override, bool quantize) {
 	if (m_input_length) {
-		return this->run_until(*m_input_length, save_results, bits_override, truncate);
+		return this->run_until(*m_input_length, save_results, bits_override, quantize);
 	}
 	throw py::index_error{"Tried to run unlimited simulation"};
 }

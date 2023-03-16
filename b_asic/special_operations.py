@@ -201,7 +201,7 @@ class Delay(AbstractOperation):
         delays: Optional[MutableDelayMap] = None,
         prefix: str = "",
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Num:
         if index != 0:
             raise IndexError(f"Output index out of range (expected 0-0, got {index})")
@@ -216,8 +216,8 @@ class Delay(AbstractOperation):
         if delays is not None:
             value = delays.get(key, value)
             delays[key] = (
-                self.truncate_inputs(input_values, bits_override)[0]
-                if truncate
+                self.quantize_inputs(input_values, bits_override)[0]
+                if quantize
                 else input_values[0]
             )
         if results is not None:

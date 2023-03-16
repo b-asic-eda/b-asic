@@ -18,27 +18,27 @@ namespace py = pybind11;
 
 namespace asic {
 
-[[nodiscard]] static number truncate_value(number value, std::int64_t bit_mask) {
+[[nodiscard]] static number quantize_value(number value, std::int64_t bit_mask) {
 	if (value.imag() != 0) {
-		throw py::type_error{"Complex value cannot be truncated"};
+		throw py::type_error{"Complex value cannot be quantized"};
 	}
 	return number{static_cast<number::value_type>(static_cast<std::int64_t>(value.real()) & bit_mask)};
 }
 
-[[nodiscard]] static std::int64_t setup_truncation_parameters(bool& truncate, std::optional<std::uint8_t>& bits_override) {
-	if (truncate && bits_override) {
-		truncate = false; // Ignore truncate instructions, they will be truncated using bits_override instead.
+[[nodiscard]] static std::int64_t setup_truncation_parameters(bool& quantize, std::optional<std::uint8_t>& bits_override) {
+	if (quantize && bits_override) {
+		quantize = false; // Ignore quantize instructions, they will be quantized using bits_override instead.
 		if (*bits_override > 64) {
-			throw py::value_error{"Cannot truncate to more than 64 bits"};
+			throw py::value_error{"Cannot quantize to more than 64 bits"};
 		}
 		return static_cast<std::int64_t>((std::int64_t{1} << *bits_override) - 1); // Return the bit mask override to use.
 	}
-	bits_override.reset(); // Don't use bits_override if truncate is false.
+	bits_override.reset(); // Don't use bits_override if quantize is false.
 	return std::int64_t{};
 }
 
 simulation_state run_simulation(simulation_code const& code, span<number const> inputs, span<number> delays,
-								std::optional<std::uint8_t> bits_override, bool truncate) {
+								std::optional<std::uint8_t> bits_override, bool quantize) {
 	ASIC_ASSERT(inputs.size() == code.input_count);
 	ASIC_ASSERT(delays.size() == code.delays.size());
 	ASIC_ASSERT(code.output_count <= code.required_stack_size);
@@ -72,8 +72,8 @@ simulation_state run_simulation(simulation_code const& code, span<number const> 
 		return *(stack_pointer - 1);
 	};
 
-	// Check if results should be truncated.
-	auto const bit_mask_override = setup_truncation_parameters(truncate, bits_override);
+	// Check if results should be quantized.
+	auto const bit_mask_override = setup_truncation_parameters(quantize, bits_override);
 
 	// Hot instruction evaluation loop.
 	for (auto const& instruction : code.instructions) {
@@ -92,9 +92,9 @@ simulation_state run_simulation(simulation_code const& code, span<number const> 
 			case instruction_type::push_constant:
 				push(instruction.value);
 				break;
-			case instruction_type::truncate:
-				if (truncate) {
-					push(truncate_value(pop(), instruction.bit_mask));
+			case instruction_type::quantize:
+				if (quantize) {
+					push(quantize_value(pop(), instruction.bit_mask));
 				}
 				break;
 			case instruction_type::addition: {
@@ -163,16 +163,16 @@ simulation_state run_simulation(simulation_code const& code, span<number const> 
 				for (auto i = std::size_t{0}; i < op.input_count; ++i) {
 					input_values.push_back(pop());
 				}
-				push(op.evaluate_output(src.output_index, std::move(input_values), "truncate"_a = truncate).cast<number>());
+				push(op.evaluate_output(src.output_index, std::move(input_values), "quantize"_a = quantize).cast<number>());
 				break;
 			}
 			case instruction_type::forward_value:
 				// Do nothing, since doing push(pop()) would be pointless.
 				break;
 		}
-		// If we've been given a global override for how many bits to use, always truncate the result.
+		// If we've been given a global override for how many bits to use, always quantize the result.
 		if (bits_override) {
-			push(truncate_value(pop(), bit_mask_override));
+			push(quantize_value(pop(), bit_mask_override));
 		}
 		// Store the result.
 		state.results[instruction.result_index] = peek();

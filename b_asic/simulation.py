@@ -121,18 +121,18 @@ class Simulation:
         self,
         save_results: bool = True,
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Sequence[Num]:
         """Run one iteration of the simulation and return the resulting output values.
         """
-        return self.run_for(1, save_results, bits_override, truncate)
+        return self.run_for(1, save_results, bits_override, quantize)
 
     def run_until(
         self,
         iteration: int,
         save_results: bool = True,
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Sequence[Num]:
         """
         Run the simulation until its iteration is greater than or equal to the given\
@@ -151,7 +151,7 @@ class Simulation:
                 self._delays,
                 "",
                 bits_override,
-                truncate,
+                quantize,
             )
             if save_results:
                 for key, value in results.items():
@@ -164,21 +164,21 @@ class Simulation:
         iterations: int,
         save_results: bool = True,
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Sequence[Num]:
         """
         Run a given number of iterations of the simulation and return the output\
  values of the last iteration.
         """
         return self.run_until(
-            self._iteration + iterations, save_results, bits_override, truncate
+            self._iteration + iterations, save_results, bits_override, quantize
         )
 
     def run(
         self,
         save_results: bool = True,
         bits_override: Optional[int] = None,
-        truncate: bool = True,
+        quantize: bool = True,
     ) -> Sequence[Num]:
         """
         Run the simulation until the end of its input arrays and return the output\
@@ -186,7 +186,7 @@ class Simulation:
         """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")
-        return self.run_until(self._input_length, save_results, bits_override, truncate)
+        return self.run_until(self._input_length, save_results, bits_override, quantize)
 
     @property
     def iteration(self) -> int:

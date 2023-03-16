@@ -26,20 +26,20 @@ void define_simulation_class(pybind11::module& module) {
 			"Set the input functions used to get values for the inputs to the internal SFG.")
 
 		.def("step", &simulation::step,
-			py::arg("save_results") = true, py::arg("bits_override") = py::none{}, py::arg("truncate") = true,
+			py::arg("save_results") = true, py::arg("bits_override") = py::none{}, py::arg("quantize") = true,
 			"Run one iteration of the simulation and return the resulting output values.")
 
 		.def("run_until", &simulation::run_until,
-			py::arg("iteration"), py::arg("save_results") = true, py::arg("bits_override") = py::none{}, py::arg("truncate") = true,
+			py::arg("iteration"), py::arg("save_results") = true, py::arg("bits_override") = py::none{}, py::arg("quantize") = true,
 			"Run the simulation until its iteration is greater than or equal to the given iteration\n"
 			"and return the output values of the last iteration.")
 
 		.def("run_for", &simulation::run_for,
-			py::arg("iterations"), py::arg("save_results") = true, py::arg("bits_override") = py::none{}, py::arg("truncate") = true,
+			py::arg("iterations"), py::arg("save_results") = true, py::arg("bits_override") = py::none{}, py::arg("quantize") = true,
 			"Run a given number of iterations of the simulation and return the output values of the last iteration.")
 
 		.def("run", &simulation::run,
-			py::arg("save_results") = true, py::arg("bits_override") = py::none{}, py::arg("truncate") = true,
+			py::arg("save_results") = true, py::arg("bits_override") = py::none{}, py::arg("quantize") = true,
 			"Run the simulation until the end of its input arrays and return the output values of the last iteration.")
 
 		.def_property_readonly("iteration", &simulation::iteration,
