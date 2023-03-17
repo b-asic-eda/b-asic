@@ -2,7 +2,7 @@
 Module for code generation of VHDL architectures.
 """
 from io import TextIOWrapper
-from typing import Set, cast
+from typing import Dict, List, Set, Tuple, cast
 
 from b_asic.codegen import vhdl
 from b_asic.codegen.vhdl import VHDL_TAB
@@ -263,7 +263,28 @@ def write_register_based_storage(
 ):
     architecture_name = "rtl"
     schedule_time = len(forward_backward_table)
+
+    # Number of registers in this design
     reg_cnt = len(forward_backward_table[0].regs)
+
+    # Set of the register indices to output from
+    output_regs = {entry.outputs_from for entry in forward_backward_table.table}
+    if None in output_regs:
+        output_regs.remove(None)
+    output_regs = cast(Set[int], output_regs)
+
+    # Table with mapping: register to output multiplexer index
+    output_mux_table = {reg: i for i, reg in enumerate(output_regs)}
+
+    # Back-edge register indices
+    back_edges: Set[Tuple[int, int]] = {
+        (frm, to)
+        for entry in forward_backward_table
+        for frm, to in entry.back_edge_to.items()
+    }
+    back_edge_table: Dict[Tuple[int, int], int] = {
+        edge: i + 1 for i, edge in enumerate(back_edges)
+    }
 
     #
     # Architecture declerative region begin
@@ -277,7 +298,7 @@ def write_register_based_storage(
         f,
         name='schedule_cnt',
         type=f'integer range 0 to {schedule_time}-1',
-        name_pad=14,
+        name_pad=18,
         default_value='0',
     )
 
@@ -292,17 +313,25 @@ def write_register_based_storage(
         f,
         name='shift_reg',
         type='shift_reg_type',
-        name_pad=14,
+        name_pad=18,
+    )
+
+    # Back edge mux decoder
+    f.write(f'\n{VHDL_TAB}-- Back-edge mux select signal\n')
+    vhdl.common.write_signal_decl(
+        f,
+        name='back_edge_mux_sel',
+        type=f'integer range 0 to {len(back_edges)}',
+        name_pad=18,
     )
 
     # Output mux selector
     f.write(f'\n{VHDL_TAB}-- Output mux select signal\n')
-    output_regs = {entry.outputs_from for entry in forward_backward_table.table}
     vhdl.common.write_signal_decl(
         f,
         name='out_mux_sel',
         type=f'integer range 0 to {len(output_regs)-1}',
-        name_pad=14,
+        name_pad=18,
     )
 
     #
@@ -326,6 +355,31 @@ def write_register_based_storage(
         ),
     )
 
+    # Shift register back-edge decoding
+    f.write(f'\n{VHDL_TAB}-- Shift register back-edge decoding\n')
+    vhdl.common.write_synchronous_process_prologue(
+        f,
+        clk='clk',
+        name='shift_reg_back_edge_decode_proc',
+    )
+    vhdl.write(f, 3, f'case schedule_cnt is')
+    for time, entry in enumerate(forward_backward_table):
+        if entry.back_edge_to:
+            assert len(entry.back_edge_to) == 1
+            for src, dst in entry.back_edge_to.items():
+                mux_idx = back_edge_table[(src, dst)]
+                vhdl.write(f, 4, f'when {(time-1)%schedule_time} =>')
+                vhdl.write(f, 5, f'-- ({src} -> {dst})')
+                vhdl.write(f, 5, f'back_edge_mux_sel <= {mux_idx};')
+    vhdl.write(f, 4, f'when others =>')
+    vhdl.write(f, 5, f'back_edge_mux_sel <= 0;')
+    vhdl.write(f, 3, f'end case;')
+    vhdl.common.write_synchronous_process_epilogue(
+        f,
+        clk='clk',
+        name='shift_reg_back_edge_decode_proc',
+    )
+
     # Shift register multiplexer logic
     f.write(f'\n{VHDL_TAB}-- Multiplexers for shift register\n')
     vhdl.common.write_synchronous_process_prologue(
@@ -337,13 +391,16 @@ def write_register_based_storage(
     f.write(f'{3*VHDL_TAB}shift_reg(0) <= p_0_in;\n')
     for reg_idx in range(1, reg_cnt):
         f.write(f'{3*VHDL_TAB}shift_reg({reg_idx}) <= shift_reg({reg_idx-1});\n')
-
-    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
-    for i, entry in enumerate(forward_backward_table):
-        if entry.back_edge_from:
-            f.write(f'{4*VHDL_TAB} when {schedule_time-1 if (i-1)<0 else (i-1)} =>\n')
-            for dst, src in entry.back_edge_from.items():
-                f.write(f'{5*VHDL_TAB} shift_reg({dst}) <= shift_reg({src});\n')
+    vhdl.write(f, 3, f'case back_edge_mux_sel is')
+    for edge, mux_sel in back_edge_table.items():
+        vhdl.write(f, 4, f'when {mux_sel} =>')
+        vhdl.write(f, 5, f'shift_reg({edge[1]}) <= shift_reg({edge[0]});')
+    # f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    # for i, entry in enumerate(forward_backward_table):
+    #    if entry.back_edge_from:
+    #        f.write(f'{4*VHDL_TAB} when {schedule_time-1 if (i-1)<0 else (i-1)} =>\n')
+    #        for dst, src in entry.back_edge_from.items():
+    #            f.write(f'{5*VHDL_TAB} shift_reg({dst}) <= shift_reg({src});\n')
     f.write(f'{4*VHDL_TAB}when others => null;\n')
     f.write(f'{3*VHDL_TAB}end case;\n')
 
@@ -353,29 +410,37 @@ def write_register_based_storage(
         name='shift_reg_proc',
     )
 
+    # Output multiplexer decoding logic
+    f.write(f'\n{VHDL_TAB}-- Output muliplexer decoding logic\n')
+    vhdl.common.write_synchronous_process_prologue(
+        f, clk='clk', name='out_mux_decode_proc'
+    )
+    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    for i, entry in enumerate(forward_backward_table):
+        if entry.outputs_from is not None:
+            f.write(f'{4*VHDL_TAB}when {(i-1)%schedule_time} =>\n')
+            f.write(
+                f'{5*VHDL_TAB}out_mux_sel <= {output_mux_table[entry.outputs_from]};\n'
+            )
+    f.write(f'{3*VHDL_TAB}end case;\n')
+    vhdl.common.write_synchronous_process_epilogue(
+        f, clk='clk', name='out_mux_decode_proc'
+    )
+
     # Output multiplexer logic
     f.write(f'\n{VHDL_TAB}-- Output muliplexer\n')
-    f.write(f'\n{VHDL_TAB}-- {output_regs}\n')
-    f.write(f'\n{VHDL_TAB}-- { list(range(len(output_regs))) }\n')
     vhdl.common.write_synchronous_process_prologue(
         f,
         clk='clk',
         name='out_mux_proc',
     )
-    f.write(f'{3*VHDL_TAB}-- Default case\n')
-    f.write(f'{3*VHDL_TAB}p_0_out <= shift_reg({reg_cnt-1});\n')
-    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
-    for i, entry in enumerate(forward_backward_table):
-        if entry.outputs_from is not None:
-            if entry.outputs_from != reg_cnt - 1:
-                f.write(f'{4*VHDL_TAB} when {i} =>\n')
-                if entry.outputs_from < 0:
-                    f.write(f'{5*VHDL_TAB} p_0_out <= p_{-1-entry.outputs_from}_in;\n')
-                else:
-                    f.write(
-                        f'{5*VHDL_TAB} p_0_out <= shift_reg({entry.outputs_from});\n'
-                    )
-    f.write(f'{4*VHDL_TAB}when others => null;\n')
+    f.write(f'{3*VHDL_TAB}case out_mux_sel is\n')
+    for reg_i, mux_i in output_mux_table.items():
+        f.write(f'{4*VHDL_TAB}when {mux_i} =>\n')
+        if reg_i < 0:
+            f.write(f'{5*VHDL_TAB}p_0_out <= p_{-1-reg_i}_in;\n')
+        else:
+            f.write(f'{5*VHDL_TAB}p_0_out <= shift_reg({reg_i});\n')
     f.write(f'{3*VHDL_TAB}end case;\n')
     vhdl.common.write_synchronous_process_epilogue(
         f,

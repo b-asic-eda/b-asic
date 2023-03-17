@@ -171,7 +171,9 @@ class _ForwardBackwardEntry:
         regs : List[Optional[Process]], optional
             regs
         back_edge_to : dict, optional
-        back_edge_from : List[Optional[Process]], optional
+            Dictionary containing back edges of this entry to registers in the next entry.
+        back_edge_from : dict, optional
+            Dictionary containing the back edge of the previous entry to registers in this entry.
         outputs_from : int, optional
         """
         self.inputs: List[Process] = [] if inputs is None else inputs
@@ -304,6 +306,7 @@ class _ForwardBackwardTable:
                     if nreg is None:
                         next_entry.regs[nreg_idx] = reg
                         entry.back_edge_to[cols - 1] = nreg_idx
+                        next_entry.back_edge_from[nreg_idx] = cols - 1
                         return
 
         # All passes failed, raise exception...
