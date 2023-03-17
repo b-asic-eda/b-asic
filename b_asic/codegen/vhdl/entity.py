@@ -4,6 +4,7 @@ Module for code generation of VHDL entity declarations
 from io import TextIOWrapper
 from typing import Set
 
+from b_asic.codegen import vhdl
 from b_asic.codegen.vhdl import VHDL_TAB
 from b_asic.port import Port
 from b_asic.process import MemoryVariable, PlainMemoryVariable
@@ -28,19 +29,29 @@ def write_memory_based_storage(
     entity_name = entity_name
 
     # Write the entity header
-    f.write(f'entity {entity_name} is\n')
-    f.write(f'{VHDL_TAB}generic(\n')
-    f.write(f'{2*VHDL_TAB}-- Data word length\n')
-    f.write(f'{2*VHDL_TAB}WL : integer := {word_length}\n')
-    f.write(f'{VHDL_TAB});\n')
-    f.write(f'{VHDL_TAB}port(\n')
+    vhdl.write_lines(
+        f,
+        [
+            (0, f'entity {entity_name} is'),
+            (1, f'generic('),
+            (2, f'-- Data word length'),
+            (2, f'WL : integer := {word_length}'),
+            (1, f');'),
+            (1, f'port('),
+        ],
+    )
 
     # Write the clock and reset signal
-    f.write(f'{2*VHDL_TAB}-- Clock, synchronous reset and enable signals\n')
-    f.write(f'{2*VHDL_TAB}clk : in std_logic;\n')
-    f.write(f'{2*VHDL_TAB}rst : in std_logic;\n')
-    f.write(f'{2*VHDL_TAB}en  : in std_logic;\n')
-    f.write(f'\n')
+    vhdl.write_lines(
+        f,
+        [
+            (0, f'-- Clock, synchronous reset and enable signals'),
+            (2, f'clk : in std_logic;'),
+            (2, f'rst : in std_logic;'),
+            (2, f'en  : in std_logic;'),
+            (0, f''),
+        ],
+    )
 
     # Write the input port specification
     f.write(f'{2*VHDL_TAB}-- Memory port I/O\n')

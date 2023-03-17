@@ -53,12 +53,14 @@ def write_memory_based_storage(
     schedule_time = next(iter(assignment))._schedule_time
 
     # Write architecture header
-    f.write(f'architecture {architecture_name} of {entity_name} is\n\n')
+    vhdl.write(
+        f, 0, f'architecture {architecture_name} of {entity_name} is', end='\n\n'
+    )
 
     #
     # Architecture declerative region begin
     #
-    f.write(f'{VHDL_TAB}-- HDL memory description\n')
+    vhdl.write(f, 1, '-- HDL memory description')
     vhdl.common.write_constant_decl(
         f, name='MEM_WL', type='integer', value=word_length, name_pad=12
     )
@@ -89,7 +91,7 @@ def write_memory_based_storage(
         vhdl.common.write_signal_decl(f, f'write_en_{i}', 'std_logic', name_pad=14)
 
     # Schedule time counter
-    f.write(f'\n{VHDL_TAB}-- Schedule counter\n')
+    vhdl.write(f, 1, f'-- Schedule counter', start='\n')
     vhdl.common.write_signal_decl(
         f,
         name='schedule_cnt',
@@ -99,7 +101,7 @@ def write_memory_based_storage(
 
     # Input sync signals
     if input_sync:
-        f.write(f'\n{VHDL_TAB}-- Input synchronization\n')
+        vhdl.write(f, 1, f'-- Input synchronization', start='\n')
         for i in range(read_ports):
             vhdl.common.write_signal_decl(
                 f, f'p_{i}_in_sync', 'std_logic_vector(WL-1 downto 0)', name_pad=14
@@ -108,36 +110,44 @@ def write_memory_based_storage(
     #
     # Architecture body begin
     #
-    f.write(f'\nbegin\n\n')
-    f.write(f'{VHDL_TAB}-- Schedule counter\n')
-    vhdl.common.write_synchronous_process(
+    vhdl.write(f, 0, f'begin', start='\n', end='\n\n')
+    vhdl.write(f, 1, f'-- Schedule counter')
+    vhdl.common.write_synchronous_process_prologue(
         f=f,
         name='schedule_cnt_proc',
         clk='clk',
-        body=(
-            f'{0*VHDL_TAB}if rst = \'1\' then\n'
-            f'{1*VHDL_TAB}schedule_cnt <= 0;\n'
-            f'{0*VHDL_TAB}else\n'
-            f'{1*VHDL_TAB}if en = \'1\' then\n'
-            f'{2*VHDL_TAB}if schedule_cnt = {schedule_time-1} then\n'
-            f'{3*VHDL_TAB}schedule_cnt <= 0;\n'
-            f'{2*VHDL_TAB}else\n'
-            f'{3*VHDL_TAB}schedule_cnt <= schedule_cnt + 1;\n'
-            f'{2*VHDL_TAB}end if;\n'
-            f'{1*VHDL_TAB}end if;\n'
-            f'{0*VHDL_TAB}end if;\n'
-        ),
+    )
+    vhdl.write_lines(
+        f,
+        [
+            (3, f'if rst = \'1\' then'),
+            (4, f'schedule_cnt <= 0;'),
+            (3, f'else'),
+            (4, f'if en = \'1\' then'),
+            (5, f'if schedule_cnt = {schedule_time-1} then'),
+            (6, f'schedule_cnt <= 0;'),
+            (5, f'else'),
+            (6, f'schedule_cnt <= schedule_cnt + 1;'),
+            (5, f'end if;'),
+            (4, f'end if;'),
+            (3, f'end if;'),
+        ],
+    )
+    vhdl.common.write_synchronous_process_epilogue(
+        f=f,
+        name='schedule_cnt_proc',
+        clk='clk',
     )
 
     if input_sync:
-        f.write(f'\n{VHDL_TAB}-- Input synchronization\n')
+        vhdl.write(f, 1, f'-- Input synchronization', start='\n')
         vhdl.common.write_synchronous_process_prologue(
             f=f,
             name='input_sync_proc',
             clk='clk',
         )
         for i in range(read_ports):
-            f.write(f'{3*VHDL_TAB}p_{i}_in_sync <= p_{i}_in;\n')
+            vhdl.write(f, 3, f'p_{i}_in_sync <= p_{i}_in;')
         vhdl.common.write_synchronous_process_epilogue(
             f=f,
             name='input_sync_proc',
@@ -145,7 +155,7 @@ def write_memory_based_storage(
         )
 
     # Infer memory
-    f.write(f'\n{VHDL_TAB}-- Memory\n')
+    vhdl.write(f, 1, f'-- Memory', start='\n')
     vhdl.common.write_asynchronous_read_memory(
         f=f,
         clk='clk',
@@ -161,7 +171,7 @@ def write_memory_based_storage(
     )
 
     # Write address generation
-    f.write(f'\n{VHDL_TAB}-- Memory write address generation\n')
+    vhdl.write(f, 1, f'-- Memory write address generation', start='\n')
     if input_sync:
         vhdl.common.write_synchronous_process_prologue(
             f, clk="clk", name="mem_write_address_proc"
@@ -170,19 +180,29 @@ def write_memory_based_storage(
         vhdl.common.write_process_prologue(
             f, sensitivity_list="schedule_cnt", name="mem_write_address_proc"
         )
-    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    vhdl.write(f, 3, f'case schedule_cnt is')
     for i, collection in enumerate(assignment):
         for mv in collection:
             mv = cast(MemoryVariable, mv)
             if mv.execution_time:
-                f.write(f'{4*VHDL_TAB}-- {mv!r}\n')
-                f.write(f'{4*VHDL_TAB}when {(mv.start_time) % schedule_time} =>\n')
-                f.write(f'{5*VHDL_TAB}write_adr_0 <= {i};\n')
-                f.write(f'{5*VHDL_TAB}write_en_0 <= \'1\';\n')
-    f.write(f'{4*VHDL_TAB}when others =>\n')
-    f.write(f'{5*VHDL_TAB}write_adr_0 <= 0;\n')
-    f.write(f'{5*VHDL_TAB}write_en_0 <= \'0\';\n')
-    f.write(f'{3*VHDL_TAB}end case;\n')
+                vhdl.write_lines(
+                    f,
+                    [
+                        (4, f'-- {mv!r}'),
+                        (4, f'when {(mv.start_time) % schedule_time} =>'),
+                        (5, f'write_adr_0 <= {i};'),
+                        (5, f'write_en_0 <= \'1\';'),
+                    ],
+                )
+    vhdl.write_lines(
+        f,
+        [
+            (4, 'when others =>'),
+            (5, 'write_adr_0 <= 0;'),
+            (5, 'write_en_0 <= \'0\';'),
+            (3, 'end case;'),
+        ],
+    )
     if input_sync:
         vhdl.common.write_synchronous_process_epilogue(
             f, clk="clk", name="mem_write_address_proc"
@@ -193,35 +213,47 @@ def write_memory_based_storage(
         )
 
     # Read address generation
-    f.write(f'\n{VHDL_TAB}-- Memory read address generation\n')
+    vhdl.write(f, 1, f'-- Memory read address generation', start='\n')
     vhdl.common.write_synchronous_process_prologue(
         f, clk="clk", name="mem_read_address_proc"
     )
-    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    vhdl.write(f, 3, f'case schedule_cnt is')
     for i, collection in enumerate(assignment):
         for mv in collection:
             mv = cast(PlainMemoryVariable, mv)
-            f.write(f'{4*VHDL_TAB}-- {mv!r}\n')
+            vhdl.write(f, 4, f'-- {mv!r}')
             for read_time in mv.reads.values():
-                f.write(
-                    f'{4*VHDL_TAB}when'
-                    f' {(mv.start_time+read_time-int(not(input_sync))) % schedule_time} =>\n'
+                vhdl.write(
+                    f,
+                    4,
+                    'when'
+                    f' {(mv.start_time+read_time-int(not(input_sync))) % schedule_time} =>',
                 )
-                f.write(f'{5*VHDL_TAB}read_adr_0 <= {i};\n')
-                f.write(f'{5*VHDL_TAB}read_en_0 <= \'1\';\n')
-    f.write(f'{4*VHDL_TAB}when others =>\n')
-    f.write(f'{5*VHDL_TAB}read_adr_0 <= 0;\n')
-    f.write(f'{5*VHDL_TAB}read_en_0 <= \'0\';\n')
-    f.write(f'{3*VHDL_TAB}end case;\n')
+                vhdl.write_lines(
+                    f,
+                    [
+                        (5, f'read_adr_0 <= {i};'),
+                        (5, f'read_en_0 <= \'1\';'),
+                    ],
+                )
+    vhdl.write_lines(
+        f,
+        [
+            (4, f'when others =>'),
+            (5, f'read_adr_0 <= 0;'),
+            (5, f'read_en_0 <= \'0\';'),
+            (3, f'end case;'),
+        ],
+    )
     vhdl.common.write_synchronous_process_epilogue(
         f, clk="clk", name="mem_read_address_proc"
     )
 
-    f.write(f'\n{1*VHDL_TAB}-- Input and output assignment\n')
+    vhdl.write(f, 1, f'-- Input and output assignmentn', start='\n')
     if input_sync:
-        f.write(f'{1*VHDL_TAB}write_port_0 <= p_0_in_sync;\n')
+        vhdl.write(f, 1, f'write_port_0 <= p_0_in_sync;')
     else:
-        f.write(f'{1*VHDL_TAB}write_port_0 <= p_0_in;\n')
+        vhdl.write(f, 1, f'write_port_0 <= p_0_in;')
     p_zero_exec = filter(
         lambda p: p.execution_time == 0, (p for pc in assignment for p in pc)
     )
@@ -230,26 +262,27 @@ def write_memory_based_storage(
         clk='clk',
         name='output_reg_proc',
     )
-    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    vhdl.write(f, 3, f'case schedule_cnt is')
     for p in p_zero_exec:
         if input_sync:
-            f.write(
-                f'{4*VHDL_TAB}when {(p.start_time+1)%schedule_time} => p_0_out <='
-                ' p_0_in_sync;\n'
-            )
+            write_time = (p.start_time + 1) % schedule_time
+            vhdl.write(f, 4, f'when {write_time} => p_0_out <= p_0_in_sync;')
         else:
-            f.write(
-                f'{4*VHDL_TAB}when {(p.start_time)%schedule_time} => p_0_out <='
-                ' p_0_in;\n'
-            )
-    f.write(f'{4*VHDL_TAB}when others => p_0_out <= read_port_0;\n')
-    f.write(f'{3*VHDL_TAB}end case;\n')
+            write_time = (p.start_time) % schedule_time
+            vhdl.write(f, 4, f'when {write_time} => p_0_out <= p_0_in;')
+    vhdl.write_lines(
+        f,
+        [
+            (4, f'when others => p_0_out <= read_port_0;'),
+            (3, f'end case;'),
+        ],
+    )
     vhdl.common.write_synchronous_process_epilogue(
         f,
         clk='clk',
         name='output_reg_proc',
     )
-    f.write(f'\nend architecture {architecture_name};')
+    vhdl.write(f, 0, f'end architecture {architecture_name};', start='\n')
 
 
 def write_register_based_storage(
@@ -260,6 +293,8 @@ def write_register_based_storage(
     read_ports: int,
     write_ports: int,
     total_ports: int,
+    sync_rst: bool = False,
+    async_rst: bool = False,
 ):
     architecture_name = "rtl"
     schedule_time = len(forward_backward_table)
@@ -290,10 +325,12 @@ def write_register_based_storage(
     # Architecture declerative region begin
     #
     # Write architecture header
-    f.write(f'architecture {architecture_name} of {entity_name} is\n\n')
+    vhdl.write(
+        f, 0, f'architecture {architecture_name} of {entity_name} is', end='\n\n'
+    )
 
     # Schedule time counter
-    f.write(f'{VHDL_TAB}-- Schedule counter\n')
+    vhdl.write(f, 1, f'-- Schedule counter')
     vhdl.common.write_signal_decl(
         f,
         name='schedule_cnt',
@@ -303,7 +340,7 @@ def write_register_based_storage(
     )
 
     # Shift register
-    f.write(f'\n{VHDL_TAB}-- Shift register\n')
+    vhdl.write(f, 1, f'-- Shift register', start='\n')
     vhdl.common.write_type_decl(
         f,
         name='shift_reg_type',
@@ -317,7 +354,7 @@ def write_register_based_storage(
     )
 
     # Back edge mux decoder
-    f.write(f'\n{VHDL_TAB}-- Back-edge mux select signal\n')
+    vhdl.write(f, 1, f'-- Back-edge mux select signal', start='\n')
     vhdl.common.write_signal_decl(
         f,
         name='back_edge_mux_sel',
@@ -326,7 +363,7 @@ def write_register_based_storage(
     )
 
     # Output mux selector
-    f.write(f'\n{VHDL_TAB}-- Output mux select signal\n')
+    vhdl.write(f, 1, f'-- Output mux select signal', start='\n')
     vhdl.common.write_signal_decl(
         f,
         name='out_mux_sel',
@@ -337,26 +374,33 @@ def write_register_based_storage(
     #
     # Architecture body begin
     #
-    f.write(f'begin\n\n')
-
-    f.write(f'{VHDL_TAB}-- Schedule counter\n')
-    vhdl.common.write_synchronous_process(
+    vhdl.write(f, 0, f'begin', start='\n', end='\n\n')
+    vhdl.write(f, 1, f'-- Schedule counter')
+    vhdl.common.write_synchronous_process_prologue(
         f=f,
         name='schedule_cnt_proc',
         clk='clk',
-        body=(
-            f'{0*VHDL_TAB}if en = \'1\' then\n'
-            f'{1*VHDL_TAB}if schedule_cnt = {schedule_time}-1 then\n'
-            f'{2*VHDL_TAB}schedule_cnt <= 0;\n'
-            f'{1*VHDL_TAB}else\n'
-            f'{2*VHDL_TAB}schedule_cnt <= schedule_cnt + 1;\n'
-            f'{1*VHDL_TAB}end if;\n'
-            f'{0*VHDL_TAB}end if;\n'
-        ),
+    )
+    vhdl.write_lines(
+        f,
+        [
+            (4, f'if en = \'1\' then'),
+            (5, f'if schedule_cnt = {schedule_time}-1 then'),
+            (6, f'schedule_cnt <= 0;'),
+            (5, f'else'),
+            (6, f'schedule_cnt <= schedule_cnt + 1;'),
+            (5, f'end if;'),
+            (4, f'end if;'),
+        ],
+    )
+    vhdl.common.write_synchronous_process_epilogue(
+        f=f,
+        name='schedule_cnt_proc',
+        clk='clk',
     )
 
     # Shift register back-edge decoding
-    f.write(f'\n{VHDL_TAB}-- Shift register back-edge decoding\n')
+    vhdl.write(f, 1, f'-- Shift register back-edge decoding', start='\n')
     vhdl.common.write_synchronous_process_prologue(
         f,
         clk='clk',
@@ -368,12 +412,22 @@ def write_register_based_storage(
             assert len(entry.back_edge_to) == 1
             for src, dst in entry.back_edge_to.items():
                 mux_idx = back_edge_table[(src, dst)]
-                vhdl.write(f, 4, f'when {(time-1)%schedule_time} =>')
-                vhdl.write(f, 5, f'-- ({src} -> {dst})')
-                vhdl.write(f, 5, f'back_edge_mux_sel <= {mux_idx};')
-    vhdl.write(f, 4, f'when others =>')
-    vhdl.write(f, 5, f'back_edge_mux_sel <= 0;')
-    vhdl.write(f, 3, f'end case;')
+                vhdl.write_lines(
+                    f,
+                    [
+                        (4, f'when {(time-1)%schedule_time} =>'),
+                        (5, f'-- ({src} -> {dst})'),
+                        (5, f'back_edge_mux_sel <= {mux_idx};'),
+                    ],
+                )
+    vhdl.write_lines(
+        f,
+        [
+            (4, f'when others =>'),
+            (5, f'back_edge_mux_sel <= 0;'),
+            (3, f'end case;'),
+        ],
+    )
     vhdl.common.write_synchronous_process_epilogue(
         f,
         clk='clk',
@@ -381,28 +435,46 @@ def write_register_based_storage(
     )
 
     # Shift register multiplexer logic
-    f.write(f'\n{VHDL_TAB}-- Multiplexers for shift register\n')
+    vhdl.write(f, 1, f'-- Multiplexers for shift register', start='\n')
     vhdl.common.write_synchronous_process_prologue(
         f,
         clk='clk',
         name='shift_reg_proc',
     )
-    f.write(f'{3*VHDL_TAB}-- Default case\n')
-    f.write(f'{3*VHDL_TAB}shift_reg(0) <= p_0_in;\n')
+    if sync_rst:
+        vhdl.write(f, 3, f'if rst = \'1\' then')
+        for reg_idx in range(reg_cnt):
+            vhdl.write(f, 4, f'shift_reg({reg_idx}) <= (others => \'0\');')
+        vhdl.write(f, 3, f'else')
+
+    vhdl.write_lines(
+        f,
+        [
+            (3, f'-- Default case'),
+            (3, f'shift_reg(0) <= p_0_in;'),
+        ],
+    )
     for reg_idx in range(1, reg_cnt):
-        f.write(f'{3*VHDL_TAB}shift_reg({reg_idx}) <= shift_reg({reg_idx-1});\n')
+        vhdl.write(f, 3, f'shift_reg({reg_idx}) <= shift_reg({reg_idx-1});')
     vhdl.write(f, 3, f'case back_edge_mux_sel is')
     for edge, mux_sel in back_edge_table.items():
-        vhdl.write(f, 4, f'when {mux_sel} =>')
-        vhdl.write(f, 5, f'shift_reg({edge[1]}) <= shift_reg({edge[0]});')
-    # f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
-    # for i, entry in enumerate(forward_backward_table):
-    #    if entry.back_edge_from:
-    #        f.write(f'{4*VHDL_TAB} when {schedule_time-1 if (i-1)<0 else (i-1)} =>\n')
-    #        for dst, src in entry.back_edge_from.items():
-    #            f.write(f'{5*VHDL_TAB} shift_reg({dst}) <= shift_reg({src});\n')
-    f.write(f'{4*VHDL_TAB}when others => null;\n')
-    f.write(f'{3*VHDL_TAB}end case;\n')
+        vhdl.write_lines(
+            f,
+            [
+                (4, f'when {mux_sel} =>'),
+                (5, f'shift_reg({edge[1]}) <= shift_reg({edge[0]});'),
+            ],
+        )
+    vhdl.write_lines(
+        f,
+        [
+            (4, f'when others => null;'),
+            (3, f'end case;'),
+        ],
+    )
+
+    if sync_rst:
+        vhdl.write(f, 3, f'end if;')
 
     vhdl.common.write_synchronous_process_epilogue(
         f,
@@ -411,41 +483,40 @@ def write_register_based_storage(
     )
 
     # Output multiplexer decoding logic
-    f.write(f'\n{VHDL_TAB}-- Output muliplexer decoding logic\n')
+    vhdl.write(f, 1, f'-- Output muliplexer decoding logic', start='\n')
     vhdl.common.write_synchronous_process_prologue(
         f, clk='clk', name='out_mux_decode_proc'
     )
-    f.write(f'{3*VHDL_TAB}case schedule_cnt is\n')
+    vhdl.write(f, 3, f'case schedule_cnt is')
     for i, entry in enumerate(forward_backward_table):
         if entry.outputs_from is not None:
-            f.write(f'{4*VHDL_TAB}when {(i-1)%schedule_time} =>\n')
-            f.write(
-                f'{5*VHDL_TAB}out_mux_sel <= {output_mux_table[entry.outputs_from]};\n'
-            )
-    f.write(f'{3*VHDL_TAB}end case;\n')
+            sel = output_mux_table[entry.outputs_from]
+            vhdl.write(f, 4, f'when {(i-1)%schedule_time} =>')
+            vhdl.write(f, 5, f'out_mux_sel <= {sel};')
+    vhdl.write(f, 3, f'end case;')
     vhdl.common.write_synchronous_process_epilogue(
         f, clk='clk', name='out_mux_decode_proc'
     )
 
     # Output multiplexer logic
-    f.write(f'\n{VHDL_TAB}-- Output muliplexer\n')
+    vhdl.write(f, 1, f'-- Output muliplexer', start='\n')
     vhdl.common.write_synchronous_process_prologue(
         f,
         clk='clk',
         name='out_mux_proc',
     )
-    f.write(f'{3*VHDL_TAB}case out_mux_sel is\n')
+    vhdl.write(f, 3, f'case out_mux_sel is')
     for reg_i, mux_i in output_mux_table.items():
-        f.write(f'{4*VHDL_TAB}when {mux_i} =>\n')
+        vhdl.write(f, 4, f'when {mux_i} =>')
         if reg_i < 0:
-            f.write(f'{5*VHDL_TAB}p_0_out <= p_{-1-reg_i}_in;\n')
+            vhdl.write(f, 5, f'p_0_out <= p_{-1-reg_i}_in;')
         else:
-            f.write(f'{5*VHDL_TAB}p_0_out <= shift_reg({reg_i});\n')
-    f.write(f'{3*VHDL_TAB}end case;\n')
+            vhdl.write(f, 5, f'p_0_out <= shift_reg({reg_i});')
+    vhdl.write(f, 3, f'end case;')
     vhdl.common.write_synchronous_process_epilogue(
         f,
         clk='clk',
         name='out_mux_proc',
     )
 
-    f.write(f'end architecture {architecture_name};')
+    vhdl.write(f, 0, f'end architecture {architecture_name};', start='\n')
