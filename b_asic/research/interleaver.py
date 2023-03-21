@@ -63,23 +63,23 @@ def generate_random_interleaver(
 
 
 def generate_matrix_transposer(
-    height: int,
-    width: Optional[int] = None,
+    rows: int,
+    cols: Optional[int] = None,
     min_lifetime: int = 0,
     cyclic: bool = True,
 ) -> ProcessCollection:
     r"""
     Generate a ProcessCollection with memory variable corresponding to transposing a
-    matrix of size *height* :math:`\times` *width*. If *width* is not provided, a
-    square matrix of size *height* :math:`\times` *height* is used.
+    matrix of size *rows* :math:`\times` *cols*. If *cols* is not provided, a
+    square matrix of size *rows* :math:`\times` *rows* is used.
 
     Parameters
     ----------
-    height : int
-        Matrix height.
-    width : int, optional
-        Matrix width. If not provided assumed to be equal to height, i.e., a square
-        matrix.
+    rows : int
+        Number of rows in input matrix.
+    cols : int, optional
+        Number of columns in input matrix. If not provided assumed to be equal
+        to *rows*, i.e., a square matrix.
     min_lifetime : int, default: 0
         The minimum lifetime for a memory variable. Default is 0 meaning that at
         least one variable is passed from the input to the output directly,
@@ -91,18 +91,18 @@ def generate_matrix_transposer(
     -------
     ProcessCollection
     """
-    if width is None:
-        width = height
+    if cols is None:
+        cols = rows
 
     inputorder = []
-    for row in range(height):
-        for col in range(width):
-            inputorder.append(col + width * row)
+    for col in range(cols):
+        for row in range(rows):
+            inputorder.append(row + rows * col)
 
     outputorder = []
-    for row in range(width):
-        for col in range(height):
-            outputorder.append(col * width + row)
+    for row in range(rows):
+        for col in range(cols):
+            outputorder.append(col * rows + row)
 
     inputorder, outputorder = _insert_delays(
         inputorder, outputorder, min_lifetime, cyclic

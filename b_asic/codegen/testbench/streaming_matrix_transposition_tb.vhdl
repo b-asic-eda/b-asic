@@ -100,6 +100,43 @@ begin
 
 end architecture behav;
 
+--
+-- 4x8 memory based matrix transposition
+--
+library ieee, vunit_lib;
+context vunit_lib.vunit_context;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity streaming_matrix_transposition_memory_4x8_tb is
+    generic (
+        runner_cfg  : string;   -- VUnit python pipe
+        tb_path     : string    -- Absolute path to this testbench
+    );
+end entity streaming_matrix_transposition_memory_4x8_tb;
+
+architecture behav of streaming_matrix_transposition_memory_4x8_tb is
+    constant WL : integer := 16;
+    signal done : boolean;
+    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal clk, rst, en : std_logic;
+begin
+
+    -- VUnit test runner
+    process begin
+        test_runner_setup(runner, runner_cfg);
+        wait until done = true;
+        test_runner_cleanup(runner);
+    end process;
+
+    -- Run the test baby!
+    dut : entity work.streaming_matrix_transposition_memory_4x8
+        generic map(WL=>WL) port map(clk, rst, en, input, output);
+    tb : entity work.streaming_matrix_transposition_tester
+        generic map (WL=>WL, ROWS=>4, COLS=>8) port map(clk, rst, en, input, output, done);
+
+end architecture behav;
+
 
 --
 -- 7x7 memory based matrix transposition
@@ -322,5 +359,43 @@ begin
         generic map(WL=>WL) port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
         generic map (WL=>WL, ROWS=>2, COLS=>2) port map(clk, rst, en, input, output, done);
+
+end architecture behav;
+
+
+--
+-- 4x8 register based matrix transposition
+--
+library ieee, vunit_lib;
+context vunit_lib.vunit_context;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity streaming_matrix_transposition_register_4x8_tb is
+    generic (
+        runner_cfg  : string;   -- VUnit python pipe
+        tb_path     : string    -- Absolute path to this testbench
+    );
+end entity streaming_matrix_transposition_register_4x8_tb;
+
+architecture behav of streaming_matrix_transposition_register_4x8_tb is
+    constant WL : integer := 16;
+    signal done : boolean;
+    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal clk, rst, en : std_logic;
+begin
+
+    -- VUnit test runner
+    process begin
+        test_runner_setup(runner, runner_cfg);
+        wait until done = true;
+        test_runner_cleanup(runner);
+    end process;
+
+    -- Run the test baby!
+    dut : entity work.streaming_matrix_transposition_register_4x8
+        generic map(WL=>WL) port map(clk, rst, en, input, output);
+    tb : entity work.streaming_matrix_transposition_tester
+        generic map (WL=>WL, ROWS=>4, COLS=>8) port map(clk, rst, en, input, output, done);
 
 end architecture behav;

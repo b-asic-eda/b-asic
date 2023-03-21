@@ -69,6 +69,21 @@ class TestProcessCollectionPlainMemoryVariable:
                 word_length=16,
             )
 
+    def test_rectangular_matrix_transposition(self):
+        collection = generate_matrix_transposer(rows=4, cols=8, min_lifetime=2)
+        assignment = collection.graph_color_cell_assignment()
+        collection.generate_memory_based_storage_vhdl(
+            filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_memory_4x8.vhdl',
+            entity_name=f'streaming_matrix_transposition_memory_4x8',
+            assignment=assignment,
+            word_length=16,
+        )
+        collection.generate_register_based_storage_vhdl(
+            filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_register_4x8.vhdl',
+            entity_name=f'streaming_matrix_transposition_register_4x8',
+            word_length=16,
+        )
+
     # Issue: #175
     def test_interleaver_issue175(self):
         with open('test/fixtures/interleaver-two-port-issue175.p', 'rb') as f:
