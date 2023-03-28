@@ -46,18 +46,18 @@ def generate_random_interleaver(
     ProcessCollection
 
     """
-    inputorder = list(range(size))
-    outputorder = inputorder[:]
-    random.shuffle(outputorder)
-    inputorder, outputorder = _insert_delays(
-        inputorder, outputorder, min_lifetime, cyclic
+    inputorders = list(range(size))
+    outputorders = inputorders[:]
+    random.shuffle(outputorders)
+    inputorders, outputorders = _insert_delays(
+        inputorders, outputorders, min_lifetime, cyclic
     )
     return ProcessCollection(
         {
-            PlainMemoryVariable(inputorder[i], 0, {0: outputorder[i] - inputorder[i]})
-            for i in range(len(inputorder))
+            PlainMemoryVariable(inputorder, 0, {0: outputorders[i] - inputorder})
+            for i, inputorder in enumerate(inputorders)
         },
-        len(inputorder),
+        len(inputorders),
         cyclic,
     )
 

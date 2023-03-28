@@ -738,9 +738,7 @@ class SFG(AbstractOperation):
 
         # Find all first iter output ports for precedence
         first_iter_ports = [
-            op.output(i)
-            for op in (no_input_ops + delay_ops)
-            for i in range(op.output_count)
+            output for op in (no_input_ops + delay_ops) for output in op.outputs
         ]
 
         self._precedence_list = self._traverse_for_precedence_list(first_iter_ports)
@@ -756,8 +754,7 @@ class SFG(AbstractOperation):
         pg.attr(rankdir="LR")
 
         # Creates nodes for each output port in the precedence list
-        for i in range(len(p_list)):
-            ports = p_list[i]
+        for i, ports in enumerate(p_list):
             with pg.subgraph(name=f"cluster_{i}") as sub:
                 sub.attr(label=f"N{i}")
                 for port in ports:
@@ -779,8 +776,7 @@ class SFG(AbstractOperation):
                         )
         # Creates edges for each output port and creates nodes for each operation
         # and edges for them as well
-        for i in range(len(p_list)):
-            ports = p_list[i]
+        for i, ports in enumerate(p_list):
             for port in ports:
                 source_label = port.operation.graph_id
                 node_node = port.name
