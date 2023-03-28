@@ -3,6 +3,7 @@ Functions to generate memory-variable test data that are used for research.
 """
 
 import random
+from itertools import product
 from typing import List, Optional, Tuple
 
 from b_asic.process import PlainMemoryVariable
@@ -10,21 +11,25 @@ from b_asic.resources import ProcessCollection
 
 
 def _insert_delays(
-    inputorder: List[int], outputorder: List[int], min_lifetime: int, cyclic: bool
-) -> Tuple[List[int], List[int]]:
+    inputorder: List[Tuple[int, int]],
+    outputorder: List[Tuple[int, int]],
+    min_lifetime: int,
+    cyclic: bool,
+    time: int,
+) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
     size = len(inputorder)
-    maxdiff = min(outputorder[i] - inputorder[i] for i in range(size))
-    outputorder = [o - maxdiff + min_lifetime for o in outputorder]
-    maxdelay = max(outputorder[i] - inputorder[i] for i in range(size))
+    maxdiff = min(outputorder[i][0] - inputorder[i][0] for i in range(size))
+    outputorder = [(o[0] - maxdiff + min_lifetime, o[1]) for o in outputorder]
+    maxdelay = max(outputorder[i][0] - inputorder[i][0] for i in range(size))
     if cyclic:
-        if maxdelay >= size:
-            inputorder = inputorder + [i + size for i in inputorder]
-            outputorder = outputorder + [o + size for o in outputorder]
+        if maxdelay >= time:
+            inputorder = inputorder + [(i[0] + time, i[1]) for i in inputorder]
+            outputorder = outputorder + [(o[0] + time, o[1]) for o in outputorder]
     return inputorder, outputorder
 
 
 def generate_random_interleaver(
-    size: int, min_lifetime: int = 0, cyclic: bool = True
+    size: int, min_lifetime: int = 0, cyclic: bool = True, parallelism: int = 1
 ) -> ProcessCollection:
     """
     Generate a ProcessCollection with memory variable corresponding to a random
@@ -40,24 +45,28 @@ def generate_random_interleaver(
     cyclic : bool, default: True
         If the interleaver should operate continuously in a cyclic manner. That is,
         start a new interleaving operation directly after the previous.
+    parallelism : int, default: 1
+        Number of values to input and output every cycle.
 
     Returns
     -------
     ProcessCollection
 
     """
-    inputorders = list(range(size))
+    inputorders = list(product(range(size), range(parallelism)))
     outputorders = inputorders[:]
     random.shuffle(outputorders)
     inputorders, outputorders = _insert_delays(
-        inputorders, outputorders, min_lifetime, cyclic
+        inputorders, outputorders, min_lifetime, cyclic, size
     )
     return ProcessCollection(
         {
-            PlainMemoryVariable(inputorder, 0, {0: outputorders[i] - inputorder})
+            PlainMemoryVariable(
+                *inputorder, {outputorders[i][1]: outputorders[i][0] - inputorder[0]}
+            )
             for i, inputorder in enumerate(inputorders)
         },
-        len(inputorders),
+        len(inputorders) // parallelism,
         cyclic,
     )
 
@@ -67,6 +76,7 @@ def generate_matrix_transposer(
     cols: Optional[int] = None,
     min_lifetime: int = 0,
     cyclic: bool = True,
+    parallelism: int = 1,
 ) -> ProcessCollection:
     r"""
     Generate a ProcessCollection with memory variable corresponding to transposing a
@@ -86,6 +96,8 @@ def generate_matrix_transposer(
     cyclic : bool, default: True
         If the interleaver should operate continuously in a cyclic manner. That is,
         start a new interleaving operation directly after the previous.
+    parallelism : int, default: 1
+        Number of values to input and output every cycle.
 
     Returns
     -------
@@ -94,29 +106,34 @@ def generate_matrix_transposer(
     if cols is None:
         cols = rows
 
-    inputorder = []
+    if (rows * cols // parallelism) * parallelism != rows * cols:
+        raise ValueError(
+            f"parallelism ({parallelism}) must be an integer multiple of rows*cols"
+            f" ({rows}*{cols} = {rows*cols})"
+        )
+
+    inputorders = []
     for col in range(cols):
         for row in range(rows):
-            inputorder.append(row + rows * col)
+            inputorders.append(((row + rows * col) // parallelism, row % parallelism))
 
-    outputorder = []
+    outputorders = []
     for row in range(rows):
         for col in range(cols):
-            outputorder.append(col * rows + row)
+            outputorders.append(((col * rows + row) // parallelism, col % parallelism))
 
-    inputorder, outputorder = _insert_delays(
-        inputorder, outputorder, min_lifetime, cyclic
+    inputorders, outputorders = _insert_delays(
+        inputorders, outputorders, min_lifetime, cyclic, rows * cols // parallelism
     )
     return ProcessCollection(
         {
             PlainMemoryVariable(
-                inputorder[i],
-                0,
-                {0: outputorder[i] - inputorder[i]},
-                name=f"{inputorder[i]}",
+                *inputorder,
+                {outputorders[i][1]: outputorders[i][0] - inputorder[0]},
+                name=f"{inputorders[i][0]*parallelism + inputorders[i][1]}",
             )
-            for i in range(len(inputorder))
+            for i, inputorder in enumerate(inputorders)
         },
-        len(inputorder),
+        len(inputorders) // parallelism,
         cyclic,
     )
