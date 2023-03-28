@@ -327,7 +327,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def quantize_input(self, index: int, value: Num, bits: int) -> Num:
         """
-        Truncate the value to be used as input at the given index to a certain bit
+        Quantize the value to be used as input at the given index to a certain bit
         length.
         """
         raise NotImplementedError
@@ -944,7 +944,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         bits_override: Optional[int] = None,
     ) -> Sequence[Num]:
         """
-        Truncate the values to be used as inputs to the bit lengths specified
+        Quantize the values to be used as inputs to the bit lengths specified
         by the respective signals connected to each input.
         """
         args = []
