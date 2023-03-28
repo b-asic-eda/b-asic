@@ -411,7 +411,7 @@ class Schedule:
                     self.set_y_location(gid, self.get_y_location(gid) + 1)
         self.set_y_location(graph_id, new_y)
         used_locations = {*self._y_locations.values()}
-        possible_locations = set(range(max(used_locations) + 1))
+        possible_locations = set(range(round(max(used_locations)) + 1))
         if not possible_locations - used_locations:
             return
         remapping = {}
