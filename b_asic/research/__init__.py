@@ -8,5 +8,6 @@ that they may be useful for someone else as well.
 
 The following module is currently available:
 
-- :mod:`b_asic.research.interleaver`: generate matrix transposers and random interleavers.
+- :mod:`b_asic.research.interleaver`: generate matrix transposers and random
+  interleavers.
 """

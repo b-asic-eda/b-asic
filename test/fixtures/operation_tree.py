@@ -1,6 +1,6 @@
 import pytest
 
-from b_asic import Addition, Butterfly, Constant, Signal
+from b_asic import Addition, Butterfly, Constant
 
 
 @pytest.fixture

@@ -1,7 +1,5 @@
 import re
 
-import pytest
-
 from b_asic.process import PlainMemoryVariable
 
 

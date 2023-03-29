@@ -63,6 +63,3 @@ def write_lines(
             write(f, indent_level=tpl[0], text=tpl[1], end=tpl[2])
         else:
             raise ValueError('All tuples in list `lines` must have length 2 or 3')
-
-
-from b_asic.codegen.vhdl import architecture, common, entity

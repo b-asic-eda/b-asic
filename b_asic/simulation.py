@@ -204,7 +204,8 @@ class Simulation:
         appropriate output index.
         Example result after 3 iterations::
 
-            {"c1": [3, 6, 7], "c2": [4, 5, 5], "bfly1.0": [7, 0, 0], "bfly1.1": [-1, 0, 2], "0": [7, -2, -1]}
+            {"c1": [3, 6, 7], "c2": [4, 5, 5], "bfly1.0": [7, 0, 0], "bfly1.1":\
+ [-1, 0, 2], "0": [7, -2, -1]}
         """
         return {key: np.array(value) for key, value in self._results.items()}
 

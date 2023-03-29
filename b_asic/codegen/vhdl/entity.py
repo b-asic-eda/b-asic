@@ -33,11 +33,11 @@ def write_memory_based_storage(
         f,
         [
             (0, f'entity {entity_name} is'),
-            (1, f'generic('),
-            (2, f'-- Data word length'),
+            (1, 'generic('),
+            (2, '-- Data word length'),
             (2, f'WL : integer := {word_length}'),
-            (1, f');'),
-            (1, f'port('),
+            (1, ');'),
+            (1, 'port('),
         ],
     )
 
@@ -45,11 +45,11 @@ def write_memory_based_storage(
     vhdl.write_lines(
         f,
         [
-            (0, f'-- Clock, synchronous reset and enable signals'),
-            (2, f'clk : in std_logic;'),
-            (2, f'rst : in std_logic;'),
-            (2, f'en  : in std_logic;'),
-            (0, f''),
+            (0, '-- Clock, synchronous reset and enable signals'),
+            (2, 'clk : in std_logic;'),
+            (2, 'rst : in std_logic;'),
+            (2, 'en  : in std_logic;'),
+            (0, ''),
         ],
     )
 

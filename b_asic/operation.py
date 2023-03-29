@@ -951,7 +951,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         for i, input_port in enumerate(self.inputs):
             value = input_values[i]
             if bits_override is None and input_port.signal_count >= 1:
-                bits = input_port.signals[0].bits
+                input_port.signals[0].bits
             if bits_override is not None:
                 if isinstance(value, complex):
                     raise TypeError(
@@ -992,7 +992,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return latency_offsets
 
     def _check_all_latencies_set(self) -> None:
-        """Raises an exception if an input or output does not have its latency offset set
+        """
+        Raises an exception if an input or output does not have a latency offset.
         """
         self.input_latency_offsets()
         self.output_latency_offsets()
@@ -1001,10 +1002,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         latency_offsets = [i.latency_offset for i in self.inputs]
 
         if any(val is None for val in latency_offsets):
-            raise ValueError(
-                "Missing latencies for input(s)"
-                f" {[i for (i, latency) in enumerate(latency_offsets) if latency is None]}"
-            )
+            missing = [
+                i for (i, latency) in enumerate(latency_offsets) if latency is None
+            ]
+            raise ValueError(f"Missing latencies for input(s) {missing}")
 
         return cast(List[int], latency_offsets)
 
@@ -1012,10 +1013,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         latency_offsets = [i.latency_offset for i in self.outputs]
 
         if any(val is None for val in latency_offsets):
-            raise ValueError(
-                "Missing latencies for output(s)"
-                f" {[i for (i, latency) in enumerate(latency_offsets) if latency is None]}"
-            )
+            missing = [
+                i for (i, latency) in enumerate(latency_offsets) if latency is None
+            ]
+            raise ValueError(f"Missing latencies for output(s) {missing}")
 
         return cast(List[int], latency_offsets)
 

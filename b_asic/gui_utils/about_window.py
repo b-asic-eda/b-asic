@@ -32,7 +32,9 @@ class AboutWindow(QDialog):
         self._add_information_to_layout()
 
     def _hover_text(self, url):
-        # self.setWindowTitle(url) # When removing mouse, the title gets "B-ASIC Scheduler". Where does THAT come from?
+        # self.setWindowTitle(url)
+        # When removing mouse, the title gets "B-ASIC Scheduler".
+        # Where does THAT come from?
         if url:
             QToolTip.showText(QCursor.pos(), url)
         else:
@@ -54,7 +56,8 @@ class AboutWindow(QDialog):
             " Computer Engineering</a> at <a"
             " href=\"https://liu.se/?l=en\">Linköping University</a>,"
             " Sweden.\n\nB-ASIC is released under the <a"
-            " href=\"https://gitlab.liu.se/da/B-ASIC/-/blob/master/LICENSE\">MIT-license</a>"
+            " href=\"https://gitlab.liu.se/da/B-ASIC/-/blob/master/LICENSE\">"
+            "MIT-license</a>"
             " and any extension to the program should follow that same"
             f" license.\n\n*Version: {__version__}*\n\nCopyright 2020-2023,"
             " Oscar Gustafsson et al."
@@ -74,9 +77,11 @@ class AboutWindow(QDialog):
         self.logo2.setFixedWidth(100)
 
         label3 = QLabel(
-            """Additional resources: <a href="https://da.gitlab-pages.liu.se/B-ASIC/">documentation</a>,"""
-            """ <a href="https://gitlab.liu.se/da/B-ASIC/">git repository</a>,"""
-            """ <a href="https://gitlab.liu.se/da/B-ASIC/-/issues">report issues and suggestions</a>."""
+            'Additional resources: <a href="https://da.gitlab-pages.liu.se/B-ASIC/">'
+            'documentation</a>,'
+            ' <a href="https://gitlab.liu.se/da/B-ASIC/">git repository</a>,'
+            ' <a href="https://gitlab.liu.se/da/B-ASIC/-/issues">report issues and'
+            ' suggestions</a>.'
         )
         label3.setOpenExternalLinks(True)
         label3.linkHovered.connect(self._hover_text)

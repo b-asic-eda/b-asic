@@ -311,7 +311,7 @@ class _ForwardBackwardTable:
 
         # All passes failed, raise exception...
         raise ValueError(
-            f"Can't backward allocate any variable. This should not happen."
+            "Can't backward allocate any variable. This should not happen."
         )
 
     def __getitem__(self, key):
@@ -325,7 +325,9 @@ class _ForwardBackwardTable:
 
     def __str__(self):
         # Text width of input and output column
-        lst_w = lambda proc_lst: reduce(lambda n, p: n + len(str(p)) + 1, proc_lst, 0)
+        def lst_w(proc_lst):
+            return reduce(lambda n, p: n + len(str(p)) + 1, proc_lst, 0)
+
         input_col_w = max(5, max(lst_w(pl.inputs) for pl in self.table) + 1)
         output_col_w = max(5, max(lst_w(pl.outputs) for pl in self.table) + 1)
 
@@ -499,7 +501,7 @@ class ProcessCollection:
 
         # Generate the life-time chart
         for i, process in enumerate(_sorted_nicely(self._collection)):
-            bar_row = i if row == None else row
+            bar_row = i if row is None else row
             bar_start = process.start_time % self._schedule_time
             bar_end = process.start_time + process.execution_time
             bar_end = (
@@ -553,7 +555,7 @@ class ProcessCollection:
         _ax.xaxis.set_major_locator(MaxNLocator(integer=True))  # type: ignore
         _ax.yaxis.set_major_locator(MaxNLocator(integer=True))  # type: ignore
         _ax.set_xlim(0, self._schedule_time)  # type: ignore
-        if row == None:
+        if row is None:
             _ax.set_ylim(0.25, len(self._collection) + 0.75)  # type: ignore
         else:
             pass
@@ -998,11 +1000,16 @@ class ProcessCollection:
 
         # Make sure that concurrent reads/writes do not surpass the port setting
         for mv in self:
-            filter_write = lambda p: p.start_time == mv.start_time
-            filter_read = (
-                lambda p: (p.start_time + p.execution_time) % self._schedule_time
-                == mv.start_time + mv.execution_time % self._schedule_time
-            )
+
+            def filter_write(p):
+                return p.start_time == mv.start_time
+
+            def filter_read(p):
+                return (
+                    (p.start_time + p.execution_time) % self._schedule_time
+                    == mv.start_time + mv.execution_time % self._schedule_time
+                )
+
             needed_write_ports = len(list(filter(filter_write, self)))
             needed_read_ports = len(list(filter(filter_read, self)))
             if needed_write_ports > write_ports + 1:
@@ -1017,14 +1024,14 @@ class ProcessCollection:
                 )
 
         with open(filename, 'w') as f:
-            from b_asic.codegen import vhdl
+            from b_asic.codegen.vhdl import architecture, common, entity
 
-            vhdl.common.write_b_asic_vhdl_preamble(f)
-            vhdl.common.write_ieee_header(f)
-            vhdl.entity.write_memory_based_storage(
+            common.write_b_asic_vhdl_preamble(f)
+            common.write_ieee_header(f)
+            entity.write_memory_based_storage(
                 f, entity_name=entity_name, collection=self, word_length=word_length
             )
-            vhdl.architecture.write_memory_based_storage(
+            architecture.write_memory_based_storage(
                 f,
                 assignment=assignment,
                 entity_name=entity_name,

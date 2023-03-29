@@ -1398,7 +1398,7 @@ class TestSFGErrors:
         in2 = Input()
         adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
         out1 = Output(adaptor.output(0))
-        out2 = Output(adaptor.output(1))
+        Output(adaptor.output(1))
         with pytest.raises(ValueError, match="Duplicate output operation"):
             SFG([in1, in2], [out1, out1])
 

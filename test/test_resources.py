@@ -3,12 +3,11 @@ import pickle
 import matplotlib.pyplot as plt
 import pytest
 
-from b_asic.process import PlainMemoryVariable
 from b_asic.research.interleaver import (
     generate_matrix_transposer,
     generate_random_interleaver,
 )
-from b_asic.resources import ProcessCollection, draw_exclusion_graph_coloring
+from b_asic.resources import ProcessCollection
 
 
 class TestProcessCollectionPlainMemoryVariable:
@@ -73,14 +72,14 @@ class TestProcessCollectionPlainMemoryVariable:
         collection = generate_matrix_transposer(rows=4, cols=8, min_lifetime=2)
         assignment = collection.graph_color_cell_assignment()
         collection.generate_memory_based_storage_vhdl(
-            filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_memory_4x8.vhdl',
-            entity_name=f'streaming_matrix_transposition_memory_4x8',
+            filename='b_asic/codegen/testbench/streaming_matrix_transposition_memory_4x8.vhdl',
+            entity_name='streaming_matrix_transposition_memory_4x8',
             assignment=assignment,
             word_length=16,
         )
         collection.generate_register_based_storage_vhdl(
-            filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_register_4x8.vhdl',
-            entity_name=f'streaming_matrix_transposition_register_4x8',
+            filename='b_asic/codegen/testbench/streaming_matrix_transposition_register_4x8.vhdl',
+            entity_name='streaming_matrix_transposition_register_4x8',
             word_length=16,
         )
 
