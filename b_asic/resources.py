@@ -889,9 +889,7 @@ class ProcessCollection:
         for process, cell in coloring.items():
             if cell not in cell_assignment:
                 cell_assignment[cell] = ProcessCollection(set(), self._schedule_time)
-                cell_assignment[cell].add_process(process)
-            else:
-                cell_assignment[cell].add_process(process)
+            cell_assignment[cell].add_process(process)
         return set(cell_assignment.values())
 
     def left_edge_cell_assignment(self) -> Dict[int, "ProcessCollection"]:
