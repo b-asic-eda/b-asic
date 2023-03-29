@@ -860,6 +860,8 @@ class ProcessCollection:
     def graph_color_cell_assignment(
         self,
         coloring_strategy: str = "saturation_largest_first",
+        *,
+        coloring: Optional[Dict[Process, int]] = None,
     ) -> Set["ProcessCollection"]:
         """
         Perform cell assignment of the processes in this collection using graph coloring with networkx.coloring.greedy_color.
@@ -869,6 +871,9 @@ class ProcessCollection:
         ----------
         coloring_strategy : str, default: "saturation_largest_first"
             Graph coloring strategy passed to networkx.coloring.greedy_color().
+        coloring : dictionary, optional
+            An optional graph coloring, dictionary with Process and its associated color (int).
+            If a graph coloring is not provided throught this parameter, one will be created when calling this method.
 
         Returns
         -------
@@ -877,14 +882,15 @@ class ProcessCollection:
         """
         cell_assignment: Dict[int, ProcessCollection] = dict()
         exclusion_graph = self.create_exclusion_graph_from_execution_time()
-        coloring: Dict[Process, int] = nx.coloring.greedy_color(
-            exclusion_graph, strategy=coloring_strategy
-        )
+        if coloring is None:
+            coloring = nx.coloring.greedy_color(
+                exclusion_graph, strategy=coloring_strategy
+            )
         for process, cell in coloring.items():
-            try:
-                cell_assignment[cell].add_process(process)
-            except:
+            if cell not in cell_assignment:
                 cell_assignment[cell] = ProcessCollection(set(), self._schedule_time)
+                cell_assignment[cell].add_process(process)
+            else:
                 cell_assignment[cell].add_process(process)
         return set(cell_assignment.values())
 
