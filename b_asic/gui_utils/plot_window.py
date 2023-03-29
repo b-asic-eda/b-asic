@@ -147,10 +147,15 @@ class PlotWindow(QDialog):
         # self.ontop_checkbox.setCheckState(Qt.CheckState.Unchecked)
         # listlayout.addWidget(self.ontop_checkbox)
 
+        relim_button = QPushButton("&Recompute limits")
+        relim_button.clicked.connect(self._relim)
+        listlayout.addWidget(relim_button)
+
         # Add "Close" buttons
         button_close = QPushButton("&Close", self)
         button_close.clicked.connect(self.close)
         listlayout.addWidget(button_close)
+        self._relim()
 
         # Done. Tell the functions below to redraw the canvas when needed.
         # self.plotcanvas.draw()
@@ -196,6 +201,13 @@ class PlotWindow(QDialog):
             self._lines[key].remove()
         if self._auto_redraw:
             self._update_legend()
+
+    def _relim(self, event=None):
+        self._plot_axes.relim(True)
+        self._plot_axes.autoscale(True)
+        self._plot_axes.autoscale(axis='x', tight=True)
+        self._plot_axes.autoscale(axis='y')
+        self._plot_canvas.draw()
 
 
 def start_simulation_dialog(
