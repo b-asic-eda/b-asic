@@ -209,10 +209,17 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
+    <widget class="QMenu" name="menu_Recent_Schedule">
+     <property name="title">
+      <string>&amp;Recent Schedule</string>
+     </property>
+    </widget>
     <addaction name="menu_load_from_file"/>
     <addaction name="menu_close_schedule"/>
     <addaction name="menu_save"/>
     <addaction name="menu_save_as"/>
+    <addaction name="separator"/>
+    <addaction name="menu_Recent_Schedule"/>
     <addaction name="separator"/>
     <addaction name="menu_quit"/>
    </widget>
@@ -221,6 +228,8 @@
      <string>&amp;View</string>
     </property>
     <addaction name="menu_node_info"/>
+    <addaction name="separator"/>
+    <addaction name="actionPlot_schedule"/>
    </widget>
    <widget class="QMenu" name="menu_Edit">
     <property name="title">
@@ -263,7 +272,6 @@
    <addaction name="menu_save_as"/>
    <addaction name="separator"/>
    <addaction name="menu_node_info"/>
-   <addaction name="actionT"/>
    <addaction name="actionReorder"/>
   </widget>
   <action name="menu_load_from_file">
@@ -399,6 +407,11 @@
    </property>
    <property name="toolTip">
     <string>Reorder schedule based on start time</string>
+   </property>
+  </action>
+  <action name="actionPlot_schedule">
+   <property name="text">
+    <string>Plot schedule</string>
    </property>
   </action>
  </widget>

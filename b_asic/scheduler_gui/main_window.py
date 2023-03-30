@@ -11,6 +11,7 @@ import inspect
 import os
 import sys
 import webbrowser
+from collections import deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
 from typing import Optional, Union, cast
@@ -22,6 +23,7 @@ import qtpy
 from qtpy.QtCore import (
     QByteArray,
     QCoreApplication,
+    QFileInfo,
     QRectF,
     QSettings,
     QStandardPaths,
@@ -31,6 +33,7 @@ from qtpy.QtCore import (
 from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import (
     QAbstractButton,
+    QAction,
     QApplication,
     QCheckBox,
     QFileDialog,
@@ -85,10 +88,8 @@ if __debug__:
 # The following QCoreApplication values is used for QSettings among others
 QCoreApplication.setOrganizationName("Linköping University")
 QCoreApplication.setOrganizationDomain("liu.se")
-QCoreApplication.setApplicationName("B-ASIC Scheduler")
-QCoreApplication.setApplicationVersion(
-    __version__
-)  # TODO: read from packet __version__
+QCoreApplication.setApplicationName("B-ASIC Scheduling GUI")
+QCoreApplication.setApplicationVersion(__version__)
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -129,7 +130,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.menu_node_info.triggered.connect(self.show_info_table)
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
         self.actionReorder.triggered.connect(self._actionReorder)
-        self.actionT.triggered.connect(self._actionTbtn)
+        self.actionPlot_schedule.triggered.connect(self._actionTbtn)
         self.splitter.splitterMoved.connect(self._splitter_moved)
         self.actionDocumentation.triggered.connect(self._open_documentation)
         self.actionAbout.triggered.connect(self._open_about_window)
@@ -147,6 +148,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.splitter.setStretchFactor(1, 0)
         self.splitter.setCollapsible(0, False)
         self.splitter.setCollapsible(1, True)
+
+        # Recent files
+        self.maxFileNr = 4
+        self.recentFilesList = []
+        self.recentFilePaths = deque(maxlen=self.maxFileNr)
+        self.createActionsAndMenus()
 
     def _init_graphics(self) -> None:
         """Initialize the QGraphics framework"""
@@ -217,15 +224,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     QStandardPaths.HomeLocation
                 )[0]
 
-        abs_path_filename, _ = QFileDialog.getOpenFileName(
+        abs_path_filename, accepted = QFileDialog.getOpenFileName(
             self,
             self.tr("Open python file"),
             last_file,
             self.tr("Python Files (*.py *.py3)"),
         )
 
-        if not abs_path_filename:  # return if empty filename (QFileDialog was canceled)
+        if not abs_path_filename or not accepted:
             return
+
+        self._load_from_file(abs_path_filename)
+
+    def _load_from_file(self, abs_path_filename):
         log.debug("abs_path_filename = {}.".format(abs_path_filename))
 
         module_name = inspect.getmodulename(abs_path_filename)
@@ -241,6 +252,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 " '{}'.\n\n{}".format(abs_path_filename, e)
             )
             return
+
+        self.addRecentFile(abs_path_filename)
 
         schedule_obj_list = dict(
             inspect.getmembers(module, (lambda x: isinstance(x, Schedule)))
@@ -285,6 +298,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.open(schedule)
         del module
+        settings = QSettings()
         settings.setValue("scheduler/last_opened_file", abs_path_filename)
 
     @Slot()
@@ -629,6 +643,55 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.info_table.removeRow(row + 1)
         else:
             log.error("'Operator' not found in info table. It may have been renamed.")
+
+    def createActionsAndMenus(self):
+        for i in range(self.maxFileNr):
+            recentFileAction = QAction(self.menu_Recent_Schedule)
+            recentFileAction.setVisible(False)
+            recentFileAction.triggered.connect(
+                lambda b=0, x=recentFileAction: self.openRecent(x)
+            )
+            self.recentFilesList.append(recentFileAction)
+            self.menu_Recent_Schedule.addAction(recentFileAction)
+
+        self.updateRecentActionList()
+
+    def updateRecentActionList(self):
+        settings = QSettings()
+
+        rfp = settings.value("scheduler/recentFiles")
+
+        # print(rfp)
+        if rfp:
+            dequelen = len(rfp)
+            if dequelen > 0:
+                for i in range(dequelen):
+                    action = self.recentFilesList[i]
+                    action.setText(rfp[i])
+                    action.setData(QFileInfo(rfp[i]))
+                    action.setVisible(True)
+
+                for i in range(dequelen, self.maxFileNr):
+                    self.recentFilesList[i].setVisible(False)
+
+    def openRecent(self, action):
+        self._load_from_file(action.data().filePath())
+
+    def addRecentFile(self, module):
+        settings = QSettings()
+
+        rfp = settings.value("scheduler/recentFiles")
+
+        if rfp:
+            if module not in rfp:
+                rfp.append(module)
+        else:
+            rfp = deque(maxlen=self.maxFileNr)
+            rfp.append(module)
+
+        settings.setValue("scheduler/recentFiles", rfp)
+
+        self.updateRecentActionList()
 
 
 def start_gui() -> None:

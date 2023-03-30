@@ -20,9 +20,7 @@ class Ui_MainWindow(object):
         )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(
-            MainWindow.sizePolicy().hasHeightForWidth()
-        )
+        sizePolicy.setHeightForWidth(MainWindow.sizePolicy().hasHeightForWidth())
         MainWindow.setSizePolicy(sizePolicy)
         icon = QtGui.QIcon()
         icon.addPixmap(
@@ -57,21 +55,15 @@ class Ui_MainWindow(object):
         self.view.setRenderHints(
             QtGui.QPainter.Antialiasing | QtGui.QPainter.TextAntialiasing
         )
-        self.view.setViewportUpdateMode(
-            QtWidgets.QGraphicsView.FullViewportUpdate
-        )
+        self.view.setViewportUpdateMode(QtWidgets.QGraphicsView.FullViewportUpdate)
         self.view.setObjectName("view")
         self.info_table = QtWidgets.QTableWidget(self.splitter)
         self.info_table.setStyleSheet(
             "alternate-background-color: #fadefb;background-color: #ebebeb;"
         )
-        self.info_table.setEditTriggers(
-            QtWidgets.QAbstractItemView.NoEditTriggers
-        )
+        self.info_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.info_table.setAlternatingRowColors(True)
-        self.info_table.setSelectionBehavior(
-            QtWidgets.QAbstractItemView.SelectRows
-        )
+        self.info_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.info_table.setRowCount(2)
         self.info_table.setColumnCount(2)
         self.info_table.setObjectName("info_table")
@@ -139,6 +131,8 @@ class Ui_MainWindow(object):
         self.menubar.setObjectName("menubar")
         self.menuFile = QtWidgets.QMenu(self.menubar)
         self.menuFile.setObjectName("menuFile")
+        self.menu_Recent_Schedule = QtWidgets.QMenu(self.menuFile)
+        self.menu_Recent_Schedule.setObjectName("menu_Recent_Schedule")
         self.menuView = QtWidgets.QMenu(self.menubar)
         self.menuView.setObjectName("menuView")
         self.menu_Edit = QtWidgets.QMenu(self.menubar)
@@ -208,13 +202,19 @@ class Ui_MainWindow(object):
         self.actionDocumentation.setObjectName("actionDocumentation")
         self.actionReorder = QtWidgets.QAction(MainWindow)
         self.actionReorder.setObjectName("actionReorder")
+        self.actionPlot_schedule = QtWidgets.QAction(MainWindow)
+        self.actionPlot_schedule.setObjectName("actionPlot_schedule")
         self.menuFile.addAction(self.menu_load_from_file)
         self.menuFile.addAction(self.menu_close_schedule)
         self.menuFile.addAction(self.menu_save)
         self.menuFile.addAction(self.menu_save_as)
         self.menuFile.addSeparator()
+        self.menuFile.addAction(self.menu_Recent_Schedule.menuAction())
+        self.menuFile.addSeparator()
         self.menuFile.addAction(self.menu_quit)
         self.menuView.addAction(self.menu_node_info)
+        self.menuView.addSeparator()
+        self.menuView.addAction(self.actionPlot_schedule)
         self.menuWindow.addAction(self.menu_exit_dialog)
         self.menuHelp.addAction(self.actionDocumentation)
         self.menuHelp.addSeparator()
@@ -229,7 +229,6 @@ class Ui_MainWindow(object):
         self.toolBar.addAction(self.menu_save_as)
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.menu_node_info)
-        self.toolBar.addAction(self.actionT)
         self.toolBar.addAction(self.actionReorder)
 
         self.retranslateUi(MainWindow)
@@ -253,6 +252,7 @@ class Ui_MainWindow(object):
         item.setText(_translate("MainWindow", "Operator"))
         self.info_table.setSortingEnabled(__sortingEnabled)
         self.menuFile.setTitle(_translate("MainWindow", "&File"))
+        self.menu_Recent_Schedule.setTitle(_translate("MainWindow", "&Recent Schedule"))
         self.menuView.setTitle(_translate("MainWindow", "&View"))
         self.menu_Edit.setTitle(_translate("MainWindow", "&Edit"))
         self.menuWindow.setTitle(_translate("MainWindow", "&Window"))
@@ -264,9 +264,7 @@ class Ui_MainWindow(object):
         self.menu_load_from_file.setToolTip(
             _translate("MainWindow", "Load schedule from python script")
         )
-        self.menu_load_from_file.setShortcut(
-            _translate("MainWindow", "Ctrl+O")
-        )
+        self.menu_load_from_file.setShortcut(_translate("MainWindow", "Ctrl+O"))
         self.menu_save.setText(_translate("MainWindow", "&Save"))
         self.menu_save.setToolTip(_translate("MainWindow", "Save schedule"))
         self.menu_save.setShortcut(_translate("MainWindow", "Ctrl+S"))
@@ -278,21 +276,14 @@ class Ui_MainWindow(object):
         self.menu_quit.setText(_translate("MainWindow", "&Quit"))
         self.menu_quit.setShortcut(_translate("MainWindow", "Ctrl+Q"))
         self.menu_save_as.setText(_translate("MainWindow", "Save &As..."))
-        self.menu_exit_dialog.setText(
-            _translate("MainWindow", "&Hide exit dialog")
-        )
-        self.menu_exit_dialog.setToolTip(
-            _translate("MainWindow", "Hide exit dialog")
-        )
+        self.menu_exit_dialog.setText(_translate("MainWindow", "&Hide exit dialog"))
+        self.menu_exit_dialog.setToolTip(_translate("MainWindow", "Hide exit dialog"))
         self.actionT.setText(_translate("MainWindow", "T"))
-        self.menu_close_schedule.setText(
-            _translate("MainWindow", "&Close Schedule")
-        )
+        self.menu_close_schedule.setText(_translate("MainWindow", "&Close Schedule"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
-        self.actionDocumentation.setText(
-            _translate("MainWindow", "Documentation")
-        )
+        self.actionDocumentation.setText(_translate("MainWindow", "Documentation"))
         self.actionReorder.setText(_translate("MainWindow", "Reorder"))
         self.actionReorder.setToolTip(
             _translate("MainWindow", "Reorder schedule based on start time")
         )
+        self.actionPlot_schedule.setText(_translate("MainWindow", "Plot schedule"))

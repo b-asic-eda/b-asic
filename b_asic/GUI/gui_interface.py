@@ -1,13 +1,7 @@
 # -*- coding: utf-8 -*-
+# Originally generated from QT designer, but now manually maintained
 
-# Form implementation generated from reading ui file 'gui_interface.ui'
-#
-# Created by: PyQt5 UI code generator 5.14.2
-#
-# WARNING! All changes made in this file will be lost!
-
-
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtWidgets
 
 
 class Ui_main_window(object):

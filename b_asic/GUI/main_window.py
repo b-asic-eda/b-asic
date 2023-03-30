@@ -333,8 +333,8 @@ class MainWindow(QMainWindow):
             if dequelen > 0:
                 for i in range(dequelen):
                     action = self.recentFilesList[i]
-                    action.setText(rfp[i].fileName())
-                    action.setData(rfp[i])
+                    action.setText(rfp[i])
+                    action.setData(QFileInfo(rfp[i]))
                     action.setVisible(True)
 
                 for i in range(dequelen, self.maxFileNr):
@@ -348,13 +348,12 @@ class MainWindow(QMainWindow):
 
         rfp = settings.value("SFG/recentFiles")
 
-        recentFile = QFileInfo(module)
         if rfp:
-            if recentFile not in rfp:
-                rfp.append(recentFile)
+            if module not in rfp:
+                rfp.append(module)
         else:
             rfp = deque(maxlen=self.maxFileNr)
-            rfp.append(recentFile)
+            rfp.append(module)
 
         settings.setValue("SFG/recentFiles", rfp)
 
