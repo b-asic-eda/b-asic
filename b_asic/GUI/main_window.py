@@ -8,10 +8,11 @@ import importlib
 import logging
 import os
 import sys
+from collections import deque
 from pprint import pprint
 from typing import Dict, List, Optional, Tuple
 
-from qtpy.QtCore import QFileInfo, QSize, Qt
+from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
 from qtpy.QtWidgets import (
     QAction,
@@ -30,6 +31,7 @@ from qtpy.QtWidgets import (
 
 import b_asic.core_operations
 import b_asic.special_operations
+from b_asic._version import __version__
 from b_asic.GUI._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
 from b_asic.GUI.arrow import Arrow
 from b_asic.GUI.drag_button import DragButton
@@ -55,6 +57,11 @@ from b_asic.simulation import Simulation as FastSimulation
 from b_asic.special_operations import Input, Output
 
 logging.basicConfig(level=logging.INFO)
+
+QCoreApplication.setOrganizationName("Linköping University")
+QCoreApplication.setOrganizationDomain("liu.se")
+QCoreApplication.setApplicationName("B-ASIC SFG GUI")
+QCoreApplication.setApplicationVersion(__version__)
 
 
 @decorate_class(handle_error)
@@ -97,6 +104,10 @@ class MainWindow(QMainWindow):
         self.toolbar.addAction("Clear workspace", self.clear_workspace)
 
         # Add operations
+        self.maxFileNr = 4
+        self.recentFilesList = []
+        self.recentFilePaths = deque(maxlen=self.maxFileNr)
+
         self.add_operations_from_namespace(
             b_asic.core_operations, self.ui.core_operations_list
         )
@@ -145,6 +156,7 @@ class MainWindow(QMainWindow):
         self.shortcut_help.activated.connect(self.display_faq_page)
         self.shortcut_signal = QShortcut(QKeySequence(Qt.Key_Space), self)
         self.shortcut_signal.activated.connect(self._connect_callback)
+        self.createActionsAndMenus()
 
         self._keybindings_page = None
         self._about_page = None
@@ -225,6 +237,7 @@ class MainWindow(QMainWindow):
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
+        self.addRecentFile(module)
         self._load_from_file(module)
 
     def _load_from_file(self, module) -> None:
@@ -256,9 +269,7 @@ class MainWindow(QMainWindow):
         if positions is None:
             positions = {}
 
-        # print(sfg)
         for op in sfg.split():
-            # print(op)
             self.create_operation(
                 op,
                 positions[op.graph_id][0:2] if op.graph_id in positions else None,
@@ -298,6 +309,56 @@ class MainWindow(QMainWindow):
 
         self.sfg_dict[sfg.name] = sfg
         self.update()
+
+    def createActionsAndMenus(self):
+        for i in range(self.maxFileNr):
+            recentFileAction = QAction(self.ui.recent_sfg)
+            recentFileAction.setVisible(False)
+            recentFileAction.triggered.connect(
+                lambda b=0, x=recentFileAction: self.openRecent(x)
+            )
+            self.recentFilesList.append(recentFileAction)
+            self.ui.recent_sfg.addAction(recentFileAction)
+
+        self.updateRecentActionList()
+
+    def updateRecentActionList(self):
+        settings = QSettings()
+
+        rfp = settings.value("SFG/recentFiles")
+
+        # print(rfp)
+        if rfp:
+            dequelen = len(rfp)
+            if dequelen > 0:
+                for i in range(dequelen):
+                    action = self.recentFilesList[i]
+                    action.setText(rfp[i].fileName())
+                    action.setData(rfp[i])
+                    action.setVisible(True)
+
+                for i in range(dequelen, self.maxFileNr):
+                    self.recentFilesList[i].setVisible(False)
+
+    def openRecent(self, action):
+        self._load_from_file(action.data().filePath())
+
+    def addRecentFile(self, module):
+        settings = QSettings()
+
+        rfp = settings.value("SFG/recentFiles")
+
+        recentFile = QFileInfo(module)
+        if rfp:
+            if recentFile not in rfp:
+                rfp.append(recentFile)
+        else:
+            rfp = deque(maxlen=self.maxFileNr)
+            rfp.append(recentFile)
+
+        settings.setValue("SFG/recentFiles", rfp)
+
+        self.updateRecentActionList()
 
     def exit_app(self) -> None:
         self.logger.info("Exiting the application.")
