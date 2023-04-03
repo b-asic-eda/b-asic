@@ -6,7 +6,7 @@ in the schedule.
 """
 
 
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QPointF
 from qtpy.QtGui import QPainterPath, QPen
@@ -42,7 +42,6 @@ class SignalItem(QGraphicsPathItem):
         The parent QGraphicsItem passed to QGraphicsPathItem.
     """
 
-    _path: Optional[QPainterPath] = None
     _src_operation: OperationItem
     _dest_operation: OperationItem
     _signal: Signal

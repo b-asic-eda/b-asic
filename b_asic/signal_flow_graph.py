@@ -1378,6 +1378,12 @@ class SFG(AbstractOperation):
 
         return Schedule(self, scheduling_algorithm="ASAP").schedule_time
 
+    def edit(self) -> None:
+        """Edit SFG in GUI."""
+        from b_asic.GUI.main_window import start_editor
+
+        start_editor(self)
+
     def unfold(self, factor: int) -> "SFG":
         """
         Unfold the SFG *factor* times. Return a new SFG without modifying the original.

@@ -314,6 +314,12 @@ class Schedule:
         """If the current schedule is cyclic."""
         return self._cyclic
 
+    def edit(self) -> None:
+        """Edit schedule in GUI."""
+        from b_asic.scheduler_gui.main_window import start_scheduler
+
+        start_scheduler(self)
+
     def increase_time_resolution(self, factor: int) -> "Schedule":
         """
         Increase time resolution for a schedule.

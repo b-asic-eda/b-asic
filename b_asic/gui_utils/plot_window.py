@@ -2,7 +2,7 @@
 
 import re
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Mapping, Optional, Sequence, Union
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -21,6 +21,9 @@ from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,;
     QVBoxLayout,
 )
 
+from b_asic.operation import ResultKey
+from b_asic.types import Num
+
 
 class PlotWindow(QDialog):
     """
@@ -38,7 +41,7 @@ class PlotWindow(QDialog):
 
     def __init__(
         self,
-        sim_result: Dict[str, List[complex]],
+        sim_result: Mapping[ResultKey, Sequence[Num]],
         sfg_name: Optional[str] = None,
         parent=None,
     ):

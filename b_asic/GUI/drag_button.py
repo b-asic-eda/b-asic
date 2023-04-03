@@ -5,6 +5,7 @@ Contains a GUI class for drag buttons.
 """
 
 import os.path
+from typing import List
 
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
@@ -44,7 +45,7 @@ class DragButton(QPushButton):
         parent=None,
     ):
         self.name = operation.graph_id
-        self.ports = []
+        self.ports: List[PortButton] = []
         self.is_show_name = is_show_name
         self._window = window
         self.operation = operation

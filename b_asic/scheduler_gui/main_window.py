@@ -14,7 +14,7 @@ import webbrowser
 from collections import deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
-from typing import Optional, Union, cast
+from typing import List, Optional, Union, cast
 
 # Qt/qtpy
 import qtpy
@@ -96,8 +96,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     """Schedule of an SFG with scheduled Operations."""
 
     _scene: QGraphicsScene
-    _schedule: Union[Schedule, None]
-    _graph: Union[SchedulerItem, None]
+    _schedule: Optional[Schedule]
+    _graph: Optional[SchedulerItem]
     _scale: float
     _debug_rectangles: QGraphicsItemGroup
     _splitter_pos: int
@@ -129,8 +129,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.menu_quit.triggered.connect(self.close)
         self.menu_node_info.triggered.connect(self.show_info_table)
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
-        self.actionReorder.triggered.connect(self._actionReorder)
-        self.actionPlot_schedule.triggered.connect(self._actionTbtn)
+        self.actionReorder.triggered.connect(self._action_reorder)
+        self.actionPlot_schedule.triggered.connect(self._plot_schedule)
         self.splitter.splitterMoved.connect(self._splitter_moved)
         self.actionDocumentation.triggered.connect(self._open_documentation)
         self.actionAbout.triggered.connect(self._open_about_window)
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Recent files
         self.maxFileNr = 4
-        self.recentFilesList = []
+        self.recentFilesList: List[QAction] = []
         self.recentFilePaths = deque(maxlen=self.maxFileNr)
         self.createActionsAndMenus()
 
@@ -174,11 +174,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # Slots #
     #########
     @Slot()
-    def _actionTbtn(self) -> None:
+    def _plot_schedule(self) -> None:
         # TODO: remove
         if self.schedule is None:
             return
-        self.schedule.plot()
+        self.schedule.show()
         if self._graph is not None:
             print(f"filtersChildEvents(): {self._graph.filtersChildEvents()}")
         # self._print_button_pressed('callback_pushButton()')
@@ -189,7 +189,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
 
     @Slot()
-    def _actionReorder(self) -> None:
+    def _action_reorder(self) -> None:
         """Callback to reorder all operations vertically based on start time."""
         if self.schedule is None:
             return
@@ -694,12 +694,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.updateRecentActionList()
 
 
-def start_gui() -> None:
+def start_scheduler(schedule: Optional[Schedule] = None) -> None:
     app = QApplication(sys.argv)
     window = MainWindow()
+    if schedule:
+        window.open(schedule)
     window.show()
     sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
-    start_gui()
+    start_scheduler()

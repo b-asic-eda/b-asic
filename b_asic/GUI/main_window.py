@@ -10,7 +10,7 @@ import os
 import sys
 from collections import deque
 from pprint import pprint
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
@@ -199,7 +199,7 @@ class MainWindow(QMainWindow):
             operation.is_show_name = self.is_show_names
 
     def _save_work(self) -> None:
-        sfg = self.sfg_widget.sfg
+        sfg = cast(SFG, self.sfg_widget.sfg)
         file_dialog = QFileDialog()
         file_dialog.setDefaultSuffix(".py")
         module, accepted = file_dialog.getSaveFileName()
@@ -401,49 +401,49 @@ class MainWindow(QMainWindow):
         self.logger.info("Created SFG with name: %s from selected operations." % name)
 
         def check_equality(signal: Signal, signal_2: Signal) -> bool:
+            source = cast(OutputPort, signal.source)
+            source2 = cast(OutputPort, signal_2.source)
+            dest = cast(InputPort, signal.destination)
+            dest2 = cast(InputPort, signal_2.destination)
             if not (
-                signal.source.operation.type_name()
-                == signal_2.source.operation.type_name()
-                and signal.destination.operation.type_name()
-                == signal_2.destination.operation.type_name()
+                source.operation.type_name() == source2.operation.type_name()
+                and dest.operation.type_name() == dest2.operation.type_name()
             ):
                 return False
 
             if (
-                hasattr(signal.source.operation, "value")
-                and hasattr(signal_2.source.operation, "value")
-                and hasattr(signal.destination.operation, "value")
-                and hasattr(signal_2.destination.operation, "value")
+                hasattr(source.operation, "value")
+                and hasattr(source2.operation, "value")
+                and hasattr(dest.operation, "value")
+                and hasattr(dest2.operation, "value")
             ):
                 if not (
-                    signal.source.operation.value == signal_2.source.operation.value
-                    and signal.destination.operation.value
-                    == signal_2.destination.operation.value
+                    source.operation.value == source2.operation.value
+                    and dest.operation.value == dest2.operation.value
                 ):
                     return False
 
             if (
-                hasattr(signal.source.operation, "name")
-                and hasattr(signal_2.source.operation, "name")
-                and hasattr(signal.destination.operation, "name")
-                and hasattr(signal_2.destination.operation, "name")
+                hasattr(source.operation, "name")
+                and hasattr(source2.operation, "name")
+                and hasattr(dest.operation, "name")
+                and hasattr(dest2.operation, "name")
             ):
                 if not (
-                    signal.source.operation.name == signal_2.source.operation.name
-                    and signal.destination.operation.name
-                    == signal_2.destination.operation.name
+                    source.operation.name == source2.operation.name
+                    and dest.operation.name == dest2.operation.name
                 ):
                     return False
 
             try:
                 _signal_source_index = [
-                    signal.source.operation.outputs.index(port)
-                    for port in signal.source.operation.outputs
+                    source.operation.outputs.index(port)
+                    for port in source.operation.outputs
                     if signal in port.signals
                 ]
                 _signal_2_source_index = [
-                    signal_2.source.operation.outputs.index(port)
-                    for port in signal_2.source.operation.outputs
+                    source2.operation.outputs.index(port)
+                    for port in source2.operation.outputs
                     if signal_2 in port.signals
                 ]
             except ValueError:
@@ -451,13 +451,13 @@ class MainWindow(QMainWindow):
 
             try:
                 _signal_destination_index = [
-                    signal.destination.operation.inputs.index(port)
-                    for port in signal.destination.operation.inputs
+                    dest.operation.inputs.index(port)
+                    for port in dest.operation.inputs
                     if signal in port.signals
                 ]
                 _signal_2_destination_index = [
-                    signal_2.destination.operation.inputs.index(port)
-                    for port in signal_2.destination.operation.inputs
+                    dest2.operation.inputs.index(port)
+                    for port in dest2.operation.inputs
                     if signal_2 in port.signals
                 ]
             except ValueError:
@@ -786,12 +786,14 @@ class MainWindow(QMainWindow):
         self._keybindings_page.show()
 
 
-def start_gui():
+def start_editor(sfg: Optional[SFG] = None):
     app = QApplication(sys.argv)
     window = MainWindow()
+    if sfg:
+        window._load_sfg(sfg)
     window.show()
     sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
-    start_gui()
+    start_editor()
