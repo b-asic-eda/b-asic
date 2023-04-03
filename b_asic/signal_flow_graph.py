@@ -594,17 +594,18 @@ class SFG(AbstractOperation):
                 keys.append(comp.key(output_index, comp.graph_id))
         return keys
 
-    def replace_component(self, component: Operation, graph_id: GraphID) -> "SFG":
+    def replace_operation(self, component: Operation, graph_id: GraphID) -> "SFG":
         """
-        Find and replace all components matching either on GraphID, Type or both.
-        Then return a new deepcopy of the sfg with the replaced component.
+        Find and replace an operation based on GraphID.
+
+        Then return a new deepcopy of the SFG with the replaced operation.
 
         Parameters
         ----------
         component : Operation
-            The new component(s), e.g. Multiplication
+            The new operation(s), e.g. Multiplication
         graph_id : GraphID
-            The GraphID to match the component to replace.
+            The GraphID to match the operation to replace.
         """
 
         sfg_copy = self()  # Copy to not mess with this SFG.

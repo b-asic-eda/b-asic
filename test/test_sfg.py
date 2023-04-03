@@ -296,12 +296,12 @@ class TestComponents:
         }
 
 
-class TestReplaceComponents:
+class TestReplaceOperation:
     def test_replace_addition_by_id(self, operation_tree):
         sfg = SFG(outputs=[Output(operation_tree)])
         component_id = "add1"
 
-        sfg = sfg.replace_component(Multiplication(name="Multi"), graph_id=component_id)
+        sfg = sfg.replace_operation(Multiplication(name="Multi"), graph_id=component_id)
         assert component_id not in sfg._components_by_id.keys()
         assert "Multi" in sfg._components_by_name.keys()
 
@@ -309,7 +309,7 @@ class TestReplaceComponents:
         sfg = SFG(outputs=[Output(large_operation_tree)])
         component_id = "add3"
 
-        sfg = sfg.replace_component(Multiplication(name="Multi"), graph_id=component_id)
+        sfg = sfg.replace_operation(Multiplication(name="Multi"), graph_id=component_id)
         assert "Multi" in sfg._components_by_name.keys()
         assert component_id not in sfg._components_by_id.keys()
 
@@ -318,7 +318,7 @@ class TestReplaceComponents:
         component_id = "c1"
         const_ = sfg.find_by_id(component_id)
 
-        sfg = sfg.replace_component(Constant(1), graph_id=component_id)
+        sfg = sfg.replace_operation(Constant(1), graph_id=component_id)
         assert const_ is not sfg.find_by_id(component_id)
 
     def test_no_match_on_replace(self, large_operation_tree):
@@ -328,7 +328,7 @@ class TestReplaceComponents:
         with pytest.raises(
             ValueError, match="No operation matching the criteria found"
         ):
-            sfg = sfg.replace_component(
+            sfg = sfg.replace_operation(
                 Multiplication(name="Multi"), graph_id=component_id
             )
 
@@ -340,7 +340,7 @@ class TestReplaceComponents:
             TypeError,
             match="The input count may not differ between the operations",
         ):
-            sfg = sfg.replace_component(
+            sfg = sfg.replace_operation(
                 Multiplication(name="Multi"), graph_id=component_id
             )
 
