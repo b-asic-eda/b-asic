@@ -853,7 +853,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 last_operations = [last_operations]
             outputs = [Output(o) for o in last_operations]
         except TypeError:
-            operation_copy: Operation = cast(Operation, self.copy_component())
+            operation_copy: Operation = cast(Operation, self.copy())
             inputs = []
             for i in range(self.input_count):
                 input_ = Input()
@@ -864,10 +864,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return SFG(inputs=inputs, outputs=outputs)
 
-    def copy_component(self, *args, **kwargs) -> GraphComponent:
-        new_component: Operation = cast(
-            Operation, super().copy_component(*args, **kwargs)
-        )
+    def copy(self, *args, **kwargs) -> GraphComponent:
+        new_component: Operation = cast(Operation, super().copy(*args, **kwargs))
         for i, _input in enumerate(self.inputs):
             new_component.input(i).latency_offset = _input.latency_offset
         for i, output in enumerate(self.outputs):

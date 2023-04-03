@@ -83,7 +83,7 @@ class GraphComponent(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def copy_component(self, *args, **kwargs) -> "GraphComponent":
+    def copy(self, *args, **kwargs) -> "GraphComponent":
         """
         Get a new instance of this graph component type with the same name, id and
         parameters.
@@ -160,7 +160,7 @@ class AbstractGraphComponent(GraphComponent):
     def set_param(self, name: str, value: Any) -> None:
         self._parameters[name] = value
 
-    def copy_component(self, *args, **kwargs) -> GraphComponent:
+    def copy(self, *args, **kwargs) -> GraphComponent:
         new_component = self.__class__(*args, **kwargs)
         new_component.name = copy(self.name)
         new_component.graph_id = copy(self.graph_id)

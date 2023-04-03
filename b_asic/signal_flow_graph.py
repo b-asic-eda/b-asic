@@ -505,8 +505,8 @@ class SFG(AbstractOperation):
 
         return input_indexes_required
 
-    def copy_component(self, *args, **kwargs) -> GraphComponent:
-        return super().copy_component(
+    def copy(self, *args, **kwargs) -> GraphComponent:
+        return super().copy(
             *args,
             **kwargs,
             inputs=self._input_operations,
@@ -1030,7 +1030,7 @@ class SFG(AbstractOperation):
     ) -> GraphComponent:
         if original_component in self._original_components_to_new:
             raise ValueError("Tried to add duplicate SFG component")
-        new_component = original_component.copy_component()
+        new_component = original_component.copy()
         self._original_components_to_new[original_component] = new_component
         if not new_component.graph_id or new_component.graph_id in self._used_ids:
             new_id = self._graph_id_generator.next_id(
@@ -1397,7 +1397,7 @@ class SFG(AbstractOperation):
 
         # Make `factor` copies of the sfg
         new_ops = [
-            [cast(Operation, op.copy_component()) for op in self.operations]
+            [cast(Operation, op.copy()) for op in self.operations]
             for _ in range(factor)
         ]
 

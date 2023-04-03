@@ -229,7 +229,7 @@ class TestCopyOperation:
     def test_copy_butterfly_latency_offsets(self):
         bfly = Butterfly(latency_offsets={"in0": 4, "in1": 2, "out0": 10, "out1": 9})
 
-        bfly_copy = bfly.copy_component()
+        bfly_copy = bfly.copy()
 
         assert bfly_copy.latency_offsets == {
             "in0": 4,
@@ -242,7 +242,7 @@ class TestCopyOperation:
         add = Addition()
         add.execution_time = 2
 
-        add_copy = add.copy_component()
+        add_copy = add.copy()
 
         assert add_copy.execution_time == 2
 
