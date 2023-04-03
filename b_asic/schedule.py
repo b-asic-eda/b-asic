@@ -7,7 +7,7 @@ Contains the schedule class for scheduling operations in an SFG.
 import io
 import sys
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple, cast
+from typing import Dict, List, Optional, Sequence, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -720,8 +720,8 @@ class Schedule:
         line_cache = []
 
         def _draw_arrow(
-            start: List[float], end: List[float], name: str = "", laps: int = 0
-        ):
+            start: Sequence[float], end: Sequence[float], name: str = "", laps: int = 0
+        ) -> None:
             """Draw an arrow from *start* to *end*."""
             if end[0] < start[0] or laps > 0:  # Wrap around
                 if start not in line_cache:
@@ -802,7 +802,14 @@ class Schedule:
                 )
                 ax.add_patch(path_patch)
 
-        def _draw_offset_arrow(start, end, start_offset, end_offset, name="", laps=0):
+        def _draw_offset_arrow(
+            start: Sequence[float],
+            end: Sequence[float],
+            start_offset: Sequence[float],
+            end_offset: Sequence[float],
+            name: str = "",
+            laps: int = 0,
+        ) -> None:
             """Draw an arrow from *start* to *end*, but with an offset."""
             _draw_arrow(
                 [start[0] + start_offset[0], start[1] + start_offset[1]],

@@ -16,7 +16,7 @@ from b_asic.signal_flow_graph import SFG
 
 
 def sfg_to_python(
-    sfg: SFG, counter: int = 0, suffix: Optional[str] = None, schedule=False
+    sfg: SFG, counter: int = 0, suffix: Optional[str] = None, schedule: bool = False
 ) -> str:
     """
     Given an SFG structure try to serialize it for saving to a file.
