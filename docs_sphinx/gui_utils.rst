@@ -5,6 +5,14 @@ GUI Utilities
    :members:
    :undoc-members:
 
+
+gui\_utils.decorators module
+----------------------------
+
+.. automodule:: b_asic.gui_utils.decorators
+   :members:
+   :undoc-members:
+
 gui\_utils.about\_window module
 -------------------------------
 

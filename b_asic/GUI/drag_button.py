@@ -14,7 +14,7 @@ from qtpy.QtWidgets import QAction, QMenu, QPushButton
 from b_asic.GUI._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT, PORTWIDTH
 from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.properties_window import PropertiesWindow
-from b_asic.GUI.utils import decorate_class, handle_error
+from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.operation import Operation
 from b_asic.port import InputPort
 

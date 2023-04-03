@@ -43,8 +43,8 @@ from b_asic.GUI.show_pc_window import ShowPCWindow
 # from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
 from b_asic.GUI.simulate_sfg_window import SimulateSFGWindow
 from b_asic.GUI.util_dialogs import FaqWindow, KeybindingsWindow
-from b_asic.GUI.utils import decorate_class, handle_error
 from b_asic.gui_utils.about_window import AboutWindow
+from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.gui_utils.plot_window import PlotWindow
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort

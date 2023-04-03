@@ -103,11 +103,3 @@ GUI.util\_dialogs module
    :members:
    :undoc-members:
    :show-inheritance:
-
-GUI.utils module
-----------------
-
-.. automodule:: b_asic.GUI.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
