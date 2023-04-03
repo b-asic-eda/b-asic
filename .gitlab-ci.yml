@@ -13,8 +13,6 @@ before_script:
   # - export CXXFLAGS='--coverage'
   # Install without dependencies to make sure that requirements.txt is up-to-date
   - pip install --no-deps -ve .
-  # Move file, but should be handled by installation
-  - mv _b_asic* b_asic
   - pip show b_asic
   - export QT_API=$QT_API
   # Install test dependencies
