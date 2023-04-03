@@ -14,8 +14,6 @@ How to build and debug the library during development.
 
 The following packages are required in order to build the library:
 
--   [CMake](https://cmake.org/) 3.8+
--   gcc 7+/clang 7+/msvc 16+ (C++ 17 support)
 -   [Python](https://python.org/) 3.8+
 -   Python dependencies (install with `pip install -r requirements.txt` or they will be installed as part of the
     installation process):
@@ -30,8 +28,6 @@ The following packages are required in order to build the library:
     - pyqt5
     - pyside6
     - pyqt6
-
-During the compilation process, [fmtlib](https://github.com/fmtlib/fmt) and [pybind11](https://pybind11.readthedocs.io/) are used.
 
 To build a binary distribution, the following additional packages are required:
 
@@ -56,40 +52,6 @@ To generate the documentation, the following additional packages are required:
     -   [numpydoc](https://numpydoc.readthedocs.io/)
     -   [Sphinx-Gallery](https://sphinx-gallery.github.io/)
     -   [mplsignal](https://mplsignal.readthedocs.io/)
-
-### Using CMake directly
-
-How to build using CMake.
-
-#### Configuring
-
-In `B-ASIC`:
-
-```
-mkdir build
-cd build
-cmake ..
-```
-
-#### Building (Debug)
-
-In `B-ASIC/build`:
-
-```
-cmake --build .
-```
-
-The output gets written to `B-ASIC/build/lib`.
-
-#### Building (Release)
-
-In `B-ASIC/build`:
-
-```
-cmake --build . --config Release
-```
-
-The output gets written to `B-ASIC/build/lib`.
 
 ### Using setuptools to create a package
 
