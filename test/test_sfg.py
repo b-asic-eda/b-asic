@@ -11,15 +11,10 @@ import pytest
 
 from b_asic import SFG, Input, Output, Signal
 from b_asic.core_operations import (
-    Absolute,
     Addition,
     Butterfly,
-    ComplexConjugate,
     Constant,
     ConstantMultiplication,
-    Division,
-    Max,
-    Min,
     Multiplication,
     SquareRoot,
     Subtraction,
@@ -944,6 +939,31 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         sfg1.connect_external_signals_to_components()
         assert test_sfg.evaluate(1, 2, 3, 4) == 16
         assert not test_sfg.connect_external_signals_to_components()
+
+    def test_add_two_sfgs(self):
+        c1 = ConstantMultiplication(0.5)
+        c1_sfg = c1.to_sfg()
+
+        c2 = ConstantMultiplication(0.5)
+        c2_sfg = c2.to_sfg()
+
+        in1 = Input()
+        in2 = Input()
+
+        output = Output(c1_sfg + c2_sfg)
+        c1_sfg << in1
+        c2_sfg << in2
+
+        sfg = SFG([in1, in2], [output])
+        assert not sfg.find_by_type_name(ConstantMultiplication.type_name())
+
+        c1_sfg.connect_external_signals_to_components()
+        sfg = SFG([in1, in2], [output])
+        assert len(sfg.find_by_type_name(ConstantMultiplication.type_name())) == 1
+
+        c2_sfg.connect_external_signals_to_components()
+        sfg = SFG([in1, in2], [output])
+        assert len(sfg.find_by_type_name(ConstantMultiplication.type_name())) == 2
 
 
 class TestTopologicalOrderOperations:
