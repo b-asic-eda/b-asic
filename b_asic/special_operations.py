@@ -21,7 +21,7 @@ class Input(AbstractOperation):
     """
     Input operation.
 
-    Marks an input port to an SFG.
+    Represents an input port to an SFG.
     Its value will be updated on each iteration when simulating the SFG.
     """
 
@@ -102,7 +102,7 @@ class Output(AbstractOperation):
     """
     Output operation.
 
-    Marks an output port to an SFG.
+    Represents an output port to an SFG.
     The SFG will forward its input to the corresponding output signal
     destinations.
     """
@@ -160,8 +160,17 @@ class Delay(AbstractOperation):
     """
     Unit delay operation.
 
-    Represents one unit of delay in a circuit, typically a clock cycle.
-    Can be thought of as a register or a D flip-flop.
+    Represents a delay of one iteration.
+    The initial value is zero unless otherwise specified.
+
+    Parameters
+    ----------
+    src0 : SignalSourceProvider, optional
+        The node to be delayed.
+    initial_value : Number, default: 0
+        Initial value of the delay.
+    name : Name, default ""
+        Name.
     """
 
     def __init__(
