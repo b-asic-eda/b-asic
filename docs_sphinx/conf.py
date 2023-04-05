@@ -24,6 +24,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_gallery.gen_gallery',
     'numpydoc',  # Needs to be loaded *after* autodoc.
+    'jupyter_sphinx',
 ]
 
 templates_path = ['_templates']

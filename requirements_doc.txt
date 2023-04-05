@@ -3,3 +3,4 @@ furo
 numpydoc
 sphinx-gallery
 mplsignal
+jupyter-sphinx
