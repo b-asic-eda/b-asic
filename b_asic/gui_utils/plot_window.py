@@ -226,9 +226,10 @@ def start_simulation_dialog(
     sfg_name : str, optional
         The name of the SFG.
     """
-    QApplication(sys.argv)
+    app = QApplication(sys.argv)
     win = PlotWindow(sim_result=sim_results, sfg_name=sfg_name)
-    win.exec_()
+    win.show()
+    sys.exit(app.exec_())
 
 
 # Simple test of the dialog

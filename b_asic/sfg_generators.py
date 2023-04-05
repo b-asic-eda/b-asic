@@ -109,8 +109,8 @@ def wdf_allpass(
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
-        Signal(adaptor2.output(1), adaptor1.input(1))
-        Signal(adaptor2.output(0), delay2)
+        Signal(adaptor2.output(0), adaptor1.input(1))
+        Signal(adaptor2.output(1), delay2)
         signal_out = Signal(adaptor1.output(0))
 
     output << signal_out
