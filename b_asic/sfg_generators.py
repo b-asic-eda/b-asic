@@ -21,8 +21,6 @@ from b_asic.special_operations import Delay, Input, Output
 
 def wdf_allpass(
     coefficients: Sequence[float],
-    input_op: Optional[Union[Input, Signal, InputPort]] = None,
-    output: Optional[Union[Output, Signal, OutputPort]] = None,
     name: Optional[str] = None,
     latency: Optional[int] = None,
     latency_offsets: Optional[Dict[str, int]] = None,
@@ -36,12 +34,6 @@ def wdf_allpass(
     ----------
     coefficients : 1D-array
         Coefficients to use for the allpass section
-
-    input_op : Input, optional
-        The Input to connect the SFG to. If not provided, one will be generated.
-
-    output : Output, optional
-        The Output to connect the SFG to. If not provided, one will be generated.
 
     name : Name, optional
         The name of the SFG. If None, "WDF allpass section".
@@ -65,12 +57,10 @@ def wdf_allpass(
         raise ValueError("Coefficients cannot be empty")
     if np_coefficients.ndim != 1:
         raise TypeError("coefficients must be a 1D-array")
-    if input_op is None:
-        input_op = Input()
-    if output is None:
-        output = Output()
     if name is None:
         name = "WDF allpass section"
+    input_op = Input()
+    output = Output()
     odd_order = order % 2
     if odd_order:
         # First-order section
@@ -119,8 +109,6 @@ def wdf_allpass(
 
 def direct_form_fir(
     coefficients: Sequence[complex],
-    input_op: Optional[Union[Input, Signal, InputPort]] = None,
-    output: Optional[Union[Output, Signal, OutputPort]] = None,
     name: Optional[str] = None,
     mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
     add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
@@ -140,10 +128,6 @@ def direct_form_fir(
     ----------
     coefficients : 1D-array
         Coefficients to use for the FIR filter section
-    input_op : Input, optional
-        The Input to connect the SFG to. If not provided, one will be generated.
-    output : Output, optional
-        The Output to connect the SFG to. If not provided, one will be generated.
     name : Name, optional
         The name of the SFG. If None, "Direct-form FIR filter".
     mult_properties : dictionary, optional
@@ -165,16 +149,14 @@ def direct_form_fir(
         raise ValueError("Coefficients cannot be empty")
     if np_coefficients.ndim != 1:
         raise TypeError("coefficients must be a 1D-array")
-    if input_op is None:
-        input_op = Input()
-    if output is None:
-        output = Output()
     if name is None:
         name = "Direct-form FIR filter"
     if mult_properties is None:
         mult_properties = {}
     if add_properties is None:
         add_properties = {}
+    input_op = Input()
+    output = Output()
 
     prev_delay = input_op
     prev_add = None
@@ -195,8 +177,6 @@ def direct_form_fir(
 
 def transposed_direct_form_fir(
     coefficients: Sequence[complex],
-    input_op: Optional[Union[Input, Signal, InputPort]] = None,
-    output: Optional[Union[Output, Signal, OutputPort]] = None,
     name: Optional[str] = None,
     mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
     add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
@@ -216,10 +196,6 @@ def transposed_direct_form_fir(
     ----------
     coefficients : 1D-array
         Coefficients to use for the FIR filter section
-    input_op : Input, optional
-        The Input to connect the SFG to. If not provided, one will be generated.
-    output : Output, optional
-        The Output to connect the SFG to. If not provided, one will be generated.
     name : Name, optional
         The name of the SFG. If None, "Transposed direct-form FIR filter".
     mult_properties : dictionary, optional
@@ -241,16 +217,14 @@ def transposed_direct_form_fir(
         raise ValueError("Coefficients cannot be empty")
     if np_coefficients.ndim != 1:
         raise TypeError("coefficients must be a 1D-array")
-    if input_op is None:
-        input_op = Input()
-    if output is None:
-        output = Output()
     if name is None:
         name = "Transposed direct-form FIR filter"
     if mult_properties is None:
         mult_properties = {}
     if add_properties is None:
         add_properties = {}
+    input_op = Input()
+    output = Output()
 
     prev_delay = None
     for i, coeff in enumerate(reversed(np_coefficients)):
