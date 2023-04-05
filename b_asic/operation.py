@@ -928,14 +928,13 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             )
         return self.input(0)
 
-    # TODO: Fix
     def quantize_input(self, index: int, value: Num, bits: int) -> Num:
         if isinstance(value, (float, int)):
-            return round(value) & ((2**bits) - 1)
+            b = 2**bits
+            return round((value + 1) * b % (2 * b) - b) / b
         else:
             raise TypeError
 
-    # TODO: Seems wrong??? - Oscar
     def quantize_inputs(
         self,
         input_values: Sequence[Num],
