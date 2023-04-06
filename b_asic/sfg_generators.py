@@ -13,7 +13,6 @@ from b_asic.core_operations import (
     Name,
     SymmetricTwoportAdaptor,
 )
-from b_asic.port import InputPort, OutputPort
 from b_asic.signal import Signal
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
@@ -51,7 +50,7 @@ def wdf_allpass(
     -------
         Signal flow graph
     """
-    np_coefficients = np.squeeze(np.asarray(coefficients))
+    np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
     order = len(np_coefficients)
     if not order:
         raise ValueError("Coefficients cannot be empty")
@@ -143,7 +142,7 @@ def direct_form_fir(
     --------
     transposed_direct_form_fir
     """
-    np_coefficients = np.squeeze(np.asarray(coefficients))
+    np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
     taps = len(np_coefficients)
     if not taps:
         raise ValueError("Coefficients cannot be empty")
@@ -211,7 +210,7 @@ def transposed_direct_form_fir(
     --------
     direct_form_fir
     """
-    np_coefficients = np.squeeze(np.asarray(coefficients))
+    np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
     taps = len(np_coefficients)
     if not taps:
         raise ValueError("Coefficients cannot be empty")

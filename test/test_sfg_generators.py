@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from b_asic.core_operations import (
     Addition,
@@ -16,6 +17,7 @@ from b_asic.special_operations import Delay
 
 
 def test_wdf_allpass():
+    # Third-order
     sfg = wdf_allpass([0.3, 0.5, 0.7])
     assert (
         len(
@@ -28,6 +30,9 @@ def test_wdf_allpass():
         == 3
     )
 
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 3
+
+    # Fourth-order
     sfg = wdf_allpass([0.3, 0.5, 0.7, 0.9])
     assert (
         len(
@@ -38,6 +43,34 @@ def test_wdf_allpass():
             ]
         )
         == 4
+    )
+
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 4
+
+    # First-order
+    sfg = wdf_allpass([0.3])
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, SymmetricTwoportAdaptor)
+            ]
+        )
+        == 1
+    )
+
+    # First-order with scalar input (happens to work)
+    sfg = wdf_allpass(0.3)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, SymmetricTwoportAdaptor)
+            ]
+        )
+        == 1
     )
 
 
@@ -75,6 +108,36 @@ def test_direct_form_fir():
     impulse_response.append(0.0)
     assert np.allclose(sim.results['0'], impulse_response)
 
+    impulse_response = [0.3]
+    sfg = direct_form_fir(impulse_response)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, ConstantMultiplication)
+            ]
+        )
+        == 1
+    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+
+    impulse_response = 0.3
+    sfg = direct_form_fir(impulse_response)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, ConstantMultiplication)
+            ]
+        )
+        == 1
+    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+
 
 def test_transposed_direct_form_fir():
     impulse_response = [0.3, 0.5, 0.7]
@@ -109,3 +172,42 @@ def test_transposed_direct_form_fir():
     sim.run_for(6)
     impulse_response.append(0.0)
     assert np.allclose(sim.results['0'], impulse_response)
+
+    impulse_response = [0.3]
+    sfg = transposed_direct_form_fir(impulse_response)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, ConstantMultiplication)
+            ]
+        )
+        == 1
+    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+
+    impulse_response = 0.3
+    sfg = transposed_direct_form_fir(impulse_response)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, ConstantMultiplication)
+            ]
+        )
+        == 1
+    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+
+
+def test_sfg_generator_errors():
+    sfg_gens = [wdf_allpass, transposed_direct_form_fir, direct_form_fir]
+    for gen in sfg_gens:
+        with pytest.raises(ValueError, match="Coefficients cannot be empty"):
+            gen([])
+        with pytest.raises(TypeError, match="coefficients must be a 1D-array"):
+            gen([[1, 2], [1, 3]])
