@@ -477,7 +477,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def is_constant(self) -> bool:
         """
-        Return True if the output of the operation is constant.
+        Return True if the output(s) of the operation is(are) constant.
         """
         raise NotImplementedError
 
@@ -948,7 +948,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         for i, input_port in enumerate(self.inputs):
             value = input_values[i]
             if bits_override is None and input_port.signal_count >= 1:
-                input_port.signals[0].bits
+                bits_override = input_port.signals[0].bits
             if bits_override is not None:
                 if isinstance(value, complex):
                     raise TypeError(

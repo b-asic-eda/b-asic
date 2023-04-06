@@ -193,3 +193,12 @@ class Signal(AbstractGraphComponent):
             if bits < 0:
                 raise ValueError("Bits cannot be negative")
         self.set_param("bits", bits)
+
+    @property
+    def is_constant(self) -> bool:
+        """
+        Return True if the value of the signal (source) is constant.
+        """
+        if self.source is None:
+            raise ValueError("Signal source not set")
+        return self.source.operation.is_constant

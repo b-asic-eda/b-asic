@@ -4,9 +4,10 @@ B-ASIC test suit for the signal module which consists of the Signal class.
 
 import pytest
 
-from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
+from b_asic.core_operations import Addition, Butterfly, Constant, ConstantMultiplication
 from b_asic.port import InputPort, OutputPort
 from b_asic.signal import Signal
+from b_asic.special_operations import Input
 
 
 def test_signal_creation_and_disconnection_and_connection_changing():
@@ -105,6 +106,16 @@ def test_create_from_single_input_single_output():
     assert signal.source.operation.name == "Zig"
 
 
+def test_signal_is_constant():
+    c = Constant(0.5, name="Foo")
+    signal = Signal(c)
+    assert signal.is_constant
+
+    i = Input()
+    signal = Signal(i)
+    assert not signal.is_constant
+
+
 def test_signal_errors():
     cm1 = ConstantMultiplication(0.5, name="Foo")
     add1 = Addition(name="Zig")
@@ -146,3 +157,7 @@ def test_signal_errors():
         ),
     ):
         signal.set_source(bf)
+
+    signal = Signal()
+    with pytest.raises(ValueError, match="Signal source not set"):
+        signal.is_constant
