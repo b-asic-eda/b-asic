@@ -1,13 +1,15 @@
 import pickle
+import re
 
 import matplotlib.pyplot as plt
 import pytest
 
+from b_asic.process import PlainMemoryVariable
 from b_asic.research.interleaver import (
     generate_matrix_transposer,
     generate_random_interleaver,
 )
-from b_asic.resources import ProcessCollection
+from b_asic.resources import ProcessCollection, _ForwardBackwardTable
 
 
 class TestProcessCollectionPlainMemoryVariable:
@@ -82,6 +84,29 @@ class TestProcessCollectionPlainMemoryVariable:
             entity_name='streaming_matrix_transposition_register_4x8',
             word_length=16,
         )
+
+    def test_forward_backward_table_to_string(self):
+        collection = ProcessCollection(
+            collection={
+                PlainMemoryVariable(0, 0, {0: 5}, name="PC0"),
+                PlainMemoryVariable(1, 0, {0: 4}, name="PC1"),
+                PlainMemoryVariable(2, 0, {0: 3}, name="PC2"),
+                PlainMemoryVariable(3, 0, {0: 6}, name="PC3"),
+                PlainMemoryVariable(4, 0, {0: 6}, name="PC4"),
+                PlainMemoryVariable(5, 0, {0: 5}, name="PC5"),
+            },
+            schedule_time=7,
+            cyclic=True,
+        )
+        t = _ForwardBackwardTable(collection)
+        process_names = {match.group(0) for match in re.finditer(r'PC[0-9]+', str(t))}
+        register_names = {match.group(0) for match in re.finditer(r'R[0-9]+', str(t))}
+        assert len(process_names) == 6  # 6 process in the collection
+        assert len(register_names) == 5  # 5 register required
+        for i, process in enumerate(sorted(process_names)):
+            assert process == f'PC{i}'
+        for i, register in enumerate(sorted(register_names)):
+            assert register == f'R{i}'
 
     # Issue: #175
     def test_interleaver_issue175(self):

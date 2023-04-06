@@ -324,6 +324,11 @@ class _ForwardBackwardTable:
         return len(self.table)
 
     def __str__(self):
+        # ANSI escape codes for coloring in the forward-backward table stirng
+        GREEN_BACKGROUND_ANSI = "\u001b[42m"
+        BROWN_BACKGROUND_ANSI = "\u001b[43m"
+        RESET_BACKGROUND_ANSI = "\033[0m"
+
         # Text width of input and output column
         def lst_w(proc_lst):
             return reduce(lambda n, p: n + len(str(p)) + 1, proc_lst, 0)
@@ -362,9 +367,6 @@ class _ForwardBackwardTable:
             res += f'{inputs_str:^{input_col_w-1}}|'
 
             # Register columns
-            GREEN_BACKGROUND_ANSI = "\u001b[42m"
-            BROWN_BACKGROUND_ANSI = "\u001b[43m"
-            RESET_BACKGROUND_ANSI = "\033[0m"
             for reg_idx, reg in enumerate(entry.regs):
                 if reg is None:
                     res += " " * reg_col_w + "|"
