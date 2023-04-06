@@ -100,8 +100,14 @@ class PlotWindow(QDialog):
         self._plot_axes = self._plot_fig.add_subplot(111)
         self._plot_axes.xaxis.set_major_locator(MaxNLocator(integer=True))
 
+        # Use | when dropping support for Python 3.8
+        ordered_for_plotting = {}
+        ordered_for_plotting.update(sim_res_others)
+        ordered_for_plotting.update(sim_res_delays)
+        ordered_for_plotting.update(sim_res_ins)
+        ordered_for_plotting.update(sim_res_outs)
         self._lines = {}
-        for key in sim_res_others | sim_res_delays | sim_res_ins | sim_res_outs:
+        for key, result in ordered_for_plotting.items():
             line = self._plot_axes.plot(sim_result[key], label=key)
             self._lines[key] = line[0]
 
@@ -114,12 +120,12 @@ class PlotWindow(QDialog):
 
         # Add two buttons for selecting all/none:
         hlayout = QHBoxLayout()
-        button_all = QPushButton("&All")
-        button_all.clicked.connect(self._button_all_click)
-        hlayout.addWidget(button_all)
-        button_none = QPushButton("&None")
-        button_none.clicked.connect(self._button_none_click)
-        hlayout.addWidget(button_none)
+        self._button_all = QPushButton("&All")
+        self._button_all.clicked.connect(self._button_all_click)
+        hlayout.addWidget(self._button_all)
+        self._button_none = QPushButton("&None")
+        self._button_none.clicked.connect(self._button_none_click)
+        hlayout.addWidget(self._button_none)
         listlayout.addLayout(hlayout)
 
         # Add the entire list
@@ -127,7 +133,13 @@ class PlotWindow(QDialog):
         self.checklist.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.checklist.itemChanged.connect(self._item_change)
         listitems = {}
-        for key in sim_res_ins | sim_res_outs | sim_res_delays | sim_res_others:
+        # Use | when dropping support for Python 3.8
+        ordered_for_checklist = {}
+        ordered_for_checklist.update(sim_res_ins)
+        ordered_for_checklist.update(sim_res_outs)
+        ordered_for_checklist.update(sim_res_delays)
+        ordered_for_checklist.update(sim_res_others)
+        for key in ordered_for_checklist:
             listitem = QListWidgetItem(key)
             listitems[key] = listitem
             self.checklist.addItem(listitem)
