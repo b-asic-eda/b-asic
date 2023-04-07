@@ -212,9 +212,9 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     sqrt = SquareRoot()
     out1 = Output()
     # Create operations
-    widget.create_operation(in1)
-    widget.create_operation(sqrt)
-    widget.create_operation(out1)
+    widget.add_operation(in1)
+    widget.add_operation(sqrt)
+    widget.add_operation(out1)
     # Should be three operations
     assert len(widget._drag_buttons) == 3
     # These particular three

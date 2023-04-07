@@ -119,28 +119,14 @@ class SchedulerEvent:  # PyQt5
 
         if isinstance(item, OperationItem):  # one component
             switch = {
-                # QEvent.FocusIn:                         self.operation_focusInEvent,
-                # QEvent.GraphicsSceneContextMenu:    self.operation_contextMenuEvent,
-                # QEvent.GraphicsSceneDragEnter:          self.operation_dragEnterEvent,
-                # QEvent.GraphicsSceneDragMove:           self.operation_dragMoveEvent,
-                # QEvent.GraphicsSceneDragLeave:          self.operation_dragLeaveEvent,
-                # QEvent.GraphicsSceneDrop:               self.operation_dropEvent,
-                # QEvent.GraphicsSceneHoverEnter:        self.operation_hoverEnterEvent,
-                # QEvent.GraphicsSceneHoverMove:          self.operation_hoverMoveEvent,
-                # QEvent.GraphicsSceneHoverLeave:        self.operation_hoverLeaveEvent,
                 QEvent.GraphicsSceneMouseMove: self.operation_mouseMoveEvent,
                 QEvent.GraphicsSceneMousePress: self.operation_mousePressEvent,
                 QEvent.GraphicsSceneMouseRelease: self.operation_mouseReleaseEvent,
-                # QEvent.GraphicsSceneMouseDoubleClick:
-                #    self.operation_mouseDoubleClickEvent,
-                # QEvent.GraphicsSceneWheel:              self.operation_wheelEvent
             }
             handler = switch.get(event.type())
 
         elif isinstance(item, TimelineItem):  # the timeline
             switch = {
-                # QEvent.GraphicsSceneHoverEnter:         self.timeline_hoverEnterEvent,
-                # QEvent.GraphicsSceneHoverLeave:         self.timeline_hoverLeaveEvent,
                 QEvent.GraphicsSceneMouseMove: self.timeline_mouseMoveEvent,
                 QEvent.GraphicsSceneMousePress: self.timeline_mousePressEvent,
                 QEvent.GraphicsSceneMouseRelease: self.timeline_mouseReleaseEvent,
@@ -161,32 +147,6 @@ class SchedulerEvent:  # PyQt5
     #################################
     # Event Handlers: OperationItem #
     #################################
-    def operation_focusInEvent(self, event: QFocusEvent) -> None:
-        ...
-
-    def operation_contextMenuEvent(self, event: QGraphicsSceneContextMenuEvent) -> None:
-        ...
-
-    def operation_dragEnterEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
-        ...
-
-    def operation_dragMoveEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
-        ...
-
-    def operation_dragLeaveEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
-        ...
-
-    def operation_dropEvent(self, event: QGraphicsSceneDragDropEvent) -> None:
-        ...
-
-    def operation_hoverEnterEvent(self, event: QGraphicsSceneHoverEvent) -> None:
-        ...
-
-    def operation_hoverMoveEvent(self, event: QGraphicsSceneHoverEvent) -> None:
-        ...
-
-    def operation_hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent) -> None:
-        ...
 
     def operation_mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
@@ -262,12 +222,6 @@ class SchedulerEvent:  # PyQt5
             item.setX(pos_x)
             self._redraw_lines(item)
             self._signals.component_moved.emit(item.graph_id)
-
-    def operation_mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-        ...
-
-    def operation_wheelEvent(self, event: QGraphicsSceneWheelEvent) -> None:
-        ...
 
     ###################################
     # Event Handlers: GraphicsLineTem #

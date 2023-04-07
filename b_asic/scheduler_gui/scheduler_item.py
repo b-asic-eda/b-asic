@@ -42,7 +42,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     Parameters
     ==========
 
-    schedule : Schedule
+    schedule : :class:`~b_asic.schedule.Schedule`
         The Schedule to draw.
 
     parent : QGraphicsItem, optional
@@ -91,7 +91,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
         Parameters
         ----------
-        item : OperationItem
+        item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
             The component.
         pos : float
             The x-position to check.
@@ -136,11 +136,11 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def set_item_active(self, item: OperationItem) -> None:
         """
-        Set an item as active, i.e., draw it and connecting signals in special colors.
+        Set *item* as active, i.e., draw it and connecting signals in special colors.
 
         Parameters
         ----------
-        item : OperationItem
+        item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
 
         """
@@ -150,12 +150,12 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def set_item_inactive(self, item: OperationItem) -> None:
         """
-        Set an item as inactive, i.e., draw it and connecting signals in standard
+        Set *item* as inactive, i.e., draw it and connecting signals in standard
         colors.
 
         Parameters
         ----------
-        item : OperationItem
+        item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
 
         """
@@ -164,7 +164,15 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
             signal.set_inactive()
 
     def set_new_start_time(self, item: OperationItem) -> None:
-        """Set new start time for *item*."""
+        """
+        Set new start time for *item*.
+
+        Parameters
+        ----------
+        item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
+            The item to set as active.
+
+        """
         pos = item.x()
         op_start_time = self.schedule.start_time_of_operation(item.graph_id)
         new_start_time = floor(pos) - floor(self._x_axis_indent)
@@ -175,6 +183,12 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     def is_valid_delta_time(self, delta_time: int) -> bool:
         """
         Return True if the schedule time can be changed by *delta_time*.
+
+        Parameters
+        ----------
+        delta_time : int
+            The time difference to check for.
+
         """
         # TODO: implement
         # item = self.scene().mouseGrabberItem()
@@ -185,7 +199,14 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         )
 
     def change_schedule_time(self, delta_time: int) -> None:
-        """Change the schedule time by *delta_time* and redraw the graph."""
+        """
+        Change the schedule time by *delta_time* and redraw the graph.
+
+        Parameters
+        ----------
+        delta_time : int
+            The time difference to change the schedule time with.
+        """
         if self._axes is None:
             raise RuntimeError("No AxesItem!")
         if self.schedule is None:

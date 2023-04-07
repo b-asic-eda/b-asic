@@ -98,13 +98,11 @@ class TimelineItem(QGraphicsLineItem):
     #     self._delta_time_label.setVisible(visible)
 
     def show_label(self) -> None:
-        """Show the label (label are not visible by default). This convenience
-        function is equivalent to calling set_label_visible(True)."""
+        """Show the label."""
         self._delta_time_label.show()
 
     def hide_label(self) -> None:
-        """Hide the label (label are not visible by default). This convenience
-        function is equivalent to calling set_label_visible(False)."""
+        """Hide the label."""
         self._delta_time_label.hide()
 
     def set_text_scale(self, scale: float) -> None:

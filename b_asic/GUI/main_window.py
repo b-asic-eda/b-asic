@@ -270,7 +270,7 @@ class MainWindow(QMainWindow):
             positions = {}
 
         for op in sfg.split():
-            self.create_operation(
+            self.add_operation(
                 op,
                 positions[op.graph_id][0:2] if op.graph_id in positions else None,
                 positions[op.graph_id][-1] if op.graph_id in positions else None,
@@ -530,7 +530,9 @@ class MainWindow(QMainWindow):
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
+        self._add_namespace(module)
 
+    def _add_namespace(self, module):
         spec = importlib.util.spec_from_file_location(
             f"{QFileInfo(module).fileName()}", module
         )
@@ -539,18 +541,23 @@ class MainWindow(QMainWindow):
 
         self.add_operations_from_namespace(namespace, self._ui.custom_operations_list)
 
-    def create_operation(
+    def add_operation(
         self,
         op: Operation,
         position: Optional[Tuple[float, float]] = None,
         is_flipped: bool = False,
     ) -> None:
         """
+        Add operation to GUI.
+
         Parameters
         ----------
         op : Operation
+            The operation to add.
         position : (float, float), optional
+            (x, y)-position for operation.
         is_flipped : bool, default: False
+            Whether the operation is flipped.
         """
         try:
             if op in self._drag_buttons:
@@ -625,7 +632,7 @@ class MainWindow(QMainWindow):
         self._logger.info("Creating operation of type: %s" % str(item.text()))
         try:
             attr_operation = self._operations_from_name[item.text()]()
-            self.create_operation(attr_operation)
+            self.add_operation(attr_operation)
         except Exception as e:
             self._logger.error(
                 "Unexpected error occurred while creating operation: " + str(e)

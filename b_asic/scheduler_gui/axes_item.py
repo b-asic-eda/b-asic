@@ -128,11 +128,6 @@ class AxesItem(QGraphicsItemGroup):
         """
         return self._width
 
-    # @width.setter
-    # def width(self, width: int) -> None:
-    #     if self._width != width:
-    #         self.update_axes(width = width)
-
     @property
     def height(self) -> float:
         """
@@ -140,22 +135,6 @@ class AxesItem(QGraphicsItemGroup):
         value will update the axes automatically.
         """
         return self._height
-
-    @height.setter
-    def height(self, height: float) -> None:
-        if self._height != height:
-            self._height = height
-            self._update_yaxis()
-
-    # @property
-    # def width_indent(self) -> float:
-    #     """Get or set the current x-axis indent. Setting the indent to a new
-    #     value will update the axes automatically."""
-    #     return self._width_indent
-    # @width_indent.setter
-    # def width_indent(self, width_indent: float) -> None:
-    #     if self._width_indent != width_indent:
-    #         self.update_axes(width_indent = width_indent)
 
     @property
     def event_items(self) -> List[QGraphicsItem]:
@@ -170,8 +149,9 @@ class AxesItem(QGraphicsItemGroup):
         # TODO: docstring
         if height < 0:
             raise ValueError(f"'height' greater or equal to 0 expected, got: {height}.")
-        self._height = height
-        self._update_yaxis()
+        if self._height != height:
+            self._height = height
+            self._update_yaxis()
 
     def set_width(self, width: int) -> None:
         # TODO: docstring

@@ -32,11 +32,11 @@ class SignalItem(QGraphicsPathItem):
 
     Parameters
     ----------
-    src_operation : `~b_asic.scheduler_gui.operation_item.OperationItem`
+    src_operation : :class:`~b_asic.scheduler_gui.operation_item.OperationItem`
         The operation that the signal is drawn from.
-    dest_operation : `~b_asic.scheduler_gui.operation_item.OperationItem`
+    dest_operation : :class:`~b_asic.scheduler_gui.operation_item.OperationItem`
         The operation that the signal is drawn to.
-    signal : `~b_asic.signal.Signal`
+    signal : :class:`~b_asic.signal.Signal`
         The signal on the SFG level.
     parent : QGraphicsItem, optional
         The parent QGraphicsItem passed to QGraphicsPathItem.
@@ -59,7 +59,7 @@ class SignalItem(QGraphicsPathItem):
         self._src_operation = src_operation
         self._dest_operation = dest_operation
         self._signal = signal
-        self.refresh_pens()
+        self._refresh_pens()
         self.set_inactive()
         self.update_path()
 
@@ -97,7 +97,7 @@ class SignalItem(QGraphicsPathItem):
             path.cubicTo(ctrl_point1, ctrl_point2, dest_point)
         self.setPath(path)
 
-    def refresh_pens(self) -> None:
+    def _refresh_pens(self) -> None:
         """Create pens."""
         pen = QPen(SIGNAL_ACTIVE)
         pen.setWidthF(SIGNAL_WIDTH)

@@ -318,6 +318,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._graph.removeSceneEventFilters(self._graph.event_items)
             self._scene.removeItem(self._graph)
             self.menu_close_schedule.setEnabled(False)
+            self.menu_save.setEnabled(False)
+            self.menu_save_as.setEnabled(False)
+
             del self._graph
             self._graph = None
             del self._schedule
@@ -487,6 +490,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._graph = SchedulerItem(self._schedule)
         self._graph.setPos(1 / self._scale, 1 / self._scale)
         self.menu_close_schedule.setEnabled(True)
+        self.menu_save.setEnabled(True)
+        self.menu_save_as.setEnabled(True)
         self._scene.addItem(self._graph)
         self._graph.installSceneEventFilters(self._graph.event_items)
         self._graph._signals.component_selected.connect(
