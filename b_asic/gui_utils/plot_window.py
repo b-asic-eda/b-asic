@@ -12,20 +12,20 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,; QLabel,; QFileDialog,; QShortcut,
     QApplication,
     QCheckBox,
-    QDialog,
     QHBoxLayout,
     QListWidget,
     QListWidgetItem,
     QPushButton,
     QSizePolicy,
     QVBoxLayout,
+    QWidget,
 )
 
 from b_asic.operation import ResultKey
 from b_asic.types import Num
 
 
-class PlotWindow(QDialog):
+class PlotWindow(QWidget):
     """
     Dialog for plotting the result of a simulation.
 
@@ -43,9 +43,8 @@ class PlotWindow(QDialog):
         self,
         sim_result: Mapping[ResultKey, Sequence[Num]],
         sfg_name: Optional[str] = None,
-        parent=None,
     ):
-        super().__init__(parent=parent)
+        super().__init__()
         self.setWindowFlags(
             Qt.WindowTitleHint
             | Qt.WindowCloseButtonHint

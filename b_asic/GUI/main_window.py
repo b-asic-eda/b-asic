@@ -12,7 +12,7 @@ from collections import deque
 from pprint import pprint
 from typing import Dict, List, Optional, Tuple, cast
 
-from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt
+from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
 from qtpy.QtWidgets import (
     QAction,
@@ -39,9 +39,8 @@ from b_asic.GUI.gui_interface import Ui_main_window
 from b_asic.GUI.port_button import PortButton
 from b_asic.GUI.select_sfg_window import SelectSFGWindow
 from b_asic.GUI.show_pc_window import ShowPCWindow
-
-# from b_asic.GUI.simulate_sfg_window import Plot, SimulateSFGWindow
 from b_asic.GUI.simulate_sfg_window import SimulateSFGWindow
+from b_asic.GUI.simulation_worker import SimulationWorker
 from b_asic.GUI.util_dialogs import FaqWindow, KeybindingsWindow
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.decorators import decorate_class, handle_error
@@ -51,9 +50,7 @@ from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 from b_asic.signal import Signal
 from b_asic.signal_flow_graph import SFG
-
-# from b_asic import FastSimulation
-from b_asic.simulation import Simulation as FastSimulation
+from b_asic.simulation import Simulation
 from b_asic.special_operations import Input, Output
 
 logging.basicConfig(level=logging.INFO)
@@ -89,6 +86,7 @@ class MainWindow(QMainWindow):
         self.sfg_dict = {}
         self._window = self
         self.logger = logging.getLogger(__name__)
+        self._plot: Dict[Simulation, PlotWindow] = dict()
 
         # Create Graphics View
         self.graphic_view = QGraphicsView(self.scene, self)
@@ -237,7 +235,6 @@ class MainWindow(QMainWindow):
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
-        self.addRecentFile(module)
         self._load_from_file(module)
 
     def _load_from_file(self, module) -> None:
@@ -249,6 +246,8 @@ class MainWindow(QMainWindow):
                 f"Failed to load module: {module} with the following error: {e}."
             )
             return
+
+        self.addRecentFile(module)
 
         while sfg.name in self.sfg_dict:
             self.logger.warning(
@@ -741,22 +740,23 @@ class MainWindow(QMainWindow):
         self.pressed_operations = selected
 
     def _simulate_sfg(self) -> None:
+        self._thread = dict()
+        self._sim_worker = dict()
         for sfg, properties in self._simulation_dialog.properties.items():
             self.logger.info("Simulating SFG with name: %s" % str(sfg.name))
-            simulation = FastSimulation(sfg, input_providers=properties["input_values"])
-            l_result = simulation.run_for(
-                properties["iteration_count"],
-                save_results=properties["all_results"],
-            )
+            self._sim_worker[sfg] = SimulationWorker(sfg, properties)
+            self._thread[sfg] = QThread()
+            self._sim_worker[sfg].moveToThread(self._thread[sfg])
+            self._thread[sfg].started.connect(self._sim_worker[sfg].start_simulation)
+            self._sim_worker[sfg].finished.connect(self._thread[sfg].quit)
+            self._sim_worker[sfg].finished.connect(self._show_plot_window)
+            self._sim_worker[sfg].finished.connect(self._sim_worker[sfg].deleteLater)
+            self._thread[sfg].finished.connect(self._thread[sfg].deleteLater)
+            self._thread[sfg].start()
 
-            print(f"{'=' * 10} {sfg.name} {'=' * 10}")
-            pprint(simulation.results if properties["all_results"] else l_result)
-            print(f"{'=' * 10} /{sfg.name} {'=' * 10}")
-
-            if properties["show_plot"]:
-                self.logger.info("Opening plot for SFG with name: " + str(sfg.name))
-                self._plot = PlotWindow(simulation.results, sfg_name=sfg.name)
-                self._plot.show()
+    def _show_plot_window(self, sim: Simulation):
+        self._plot[sim] = PlotWindow(sim.results, sfg_name=sim._sfg.name)
+        self._plot[sim].show()
 
     def simulate_sfg(self, event=None) -> None:
         self._simulation_dialog = SimulateSFGWindow(self)

@@ -157,8 +157,8 @@ def test_simulate(qtbot, datadir):
     assert 'twotapfir' in widget.sfg_dict
     widget.simulate_sfg()
     qtbot.wait(100)
-    # widget.dialog.save_properties()
-    # qtbot.wait(100)
+    widget._simulation_dialog.save_properties()
+    qtbot.wait(100)
     widget._simulation_dialog.close()
 
     widget.exit_app()
