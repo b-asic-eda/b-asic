@@ -72,8 +72,8 @@ class KeybindingsWindow(QDialog):
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("B-ASIC Keybindings")
 
-        self.dialog_layout = QVBoxLayout()
-        self.setLayout(self.dialog_layout)
+        self._dialog_layout = QVBoxLayout()
+        self.setLayout(self._dialog_layout)
 
         self.add_information_to_layout()
 
@@ -86,7 +86,7 @@ class KeybindingsWindow(QDialog):
         frame = QFrame()
         frame.setFrameShape(QFrame.HLine)
         frame.setFrameShadow(QFrame.Sunken)
-        self.dialog_layout.addWidget(frame)
+        self._dialog_layout.addWidget(frame)
 
         keybindings_label = QLabel(
             "'Ctrl+R' - Reload the operation list to add any new operations "
@@ -101,10 +101,10 @@ class KeybindingsWindow(QDialog):
         information_layout.addWidget(title_label)
         information_layout.addWidget(subtitle_label)
 
-        self.dialog_layout.addLayout(information_layout)
-        self.dialog_layout.addWidget(frame)
+        self._dialog_layout.addLayout(information_layout)
+        self._dialog_layout.addWidget(frame)
 
-        self.dialog_layout.addWidget(keybindings_label)
+        self._dialog_layout.addWidget(keybindings_label)
 
 
 class FaqWindow(QDialog):
@@ -114,16 +114,16 @@ class FaqWindow(QDialog):
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Frequently Asked Questions")
 
-        self.dialog_layout = QVBoxLayout()
-        self.scroll_area = QScrollArea()
-        self.setLayout(self.dialog_layout)
+        self._dialog_layout = QVBoxLayout()
+        self._scroll_area = QScrollArea()
+        self.setLayout(self._dialog_layout)
         for question, answer in _QUESTIONS.items():
-            self.add_question_to_layout(question, answer)
+            self._add_question_to_layout(question, answer)
 
-        self.scroll_area.setWidget(self)
-        self.scroll_area.setWidgetResizable(True)
+        self._scroll_area.setWidget(self)
+        self._scroll_area.setWidgetResizable(True)
 
-    def add_question_to_layout(self, question, answer):
+    def _add_question_to_layout(self, question, answer):
         question_layout = QVBoxLayout()
         answer_layout = QHBoxLayout()
 
@@ -136,7 +136,7 @@ class FaqWindow(QDialog):
         frame = QFrame()
         frame.setFrameShape(QFrame.HLine)
         frame.setFrameShadow(QFrame.Sunken)
-        self.dialog_layout.addWidget(frame)
+        self._dialog_layout.addWidget(frame)
 
         question_layout.addLayout(answer_layout)
-        self.dialog_layout.addLayout(question_layout)
+        self._dialog_layout.addLayout(question_layout)

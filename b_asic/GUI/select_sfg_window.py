@@ -19,22 +19,22 @@ class SelectSFGWindow(QDialog):
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("Select SFG")
 
-        self.dialog_layout = QVBoxLayout()
-        self.ok_btn = QPushButton("Ok")
-        self.ok_btn.clicked.connect(self.save_properties)
-        self.dialog_layout.addWidget(self.ok_btn)
-        self.combo_box = QComboBox()
+        self._dialog_layout = QVBoxLayout()
+        self._ok_button = QPushButton("Ok")
+        self._ok_button.clicked.connect(self.save_properties)
+        self._dialog_layout.addWidget(self._ok_button)
+        self._sfg_combo_box = QComboBox()
 
         self.sfg = None
-        self.setLayout(self.dialog_layout)
+        self.setLayout(self._dialog_layout)
 
         # Add SFGs to layout
-        for sfg in self._window.sfg_dict:
-            self.combo_box.addItem(sfg)
+        for sfg in self._window._sfg_dict:
+            self._sfg_combo_box.addItem(sfg)
 
-        self.dialog_layout.addWidget(self.combo_box)
+        self._dialog_layout.addWidget(self._sfg_combo_box)
 
     def save_properties(self):
-        self.sfg = self._window.sfg_dict[self.combo_box.currentText()]
+        self.sfg = self._window._sfg_dict[self._sfg_combo_box.currentText()]
         self.accept()
         self.ok.emit()

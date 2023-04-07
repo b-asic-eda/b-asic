@@ -219,6 +219,11 @@ class Simulation:
         """
         self._delays.clear()
 
+    @property
+    def sfg(self) -> SFG:
+        """The signal flow graph being simulated."""
+        return self._sfg
+
     def show(self) -> None:
         """Show the simulation results."""
         # import here to avoid cyclic imports

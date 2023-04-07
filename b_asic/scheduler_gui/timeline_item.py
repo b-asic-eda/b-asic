@@ -78,7 +78,7 @@ class TimelineItem(QGraphicsLineItem):
     #     return self._delta_time_label
 
     def set_text(self, number: int) -> None:
-        """Set the label text to 'number'."""
+        """Set the label text to *number*."""
         # self.prepareGeometryChange()
         self._delta_time_label.setPlainText(f"( {number:+} )")
         self._delta_time_label.setX(

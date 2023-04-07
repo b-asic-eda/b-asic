@@ -80,14 +80,14 @@ class PlotWindow(QWidget):
         # | ...  | plot  |
         # | misc |       |
 
-        self.dialog_layout = QHBoxLayout()
-        self.setLayout(self.dialog_layout)
+        self._dialog_layout = QHBoxLayout()
+        self.setLayout(self._dialog_layout)
 
         listlayout = QVBoxLayout()
         plotlayout = QVBoxLayout()
 
-        self.dialog_layout.addLayout(listlayout)
-        self.dialog_layout.addLayout(plotlayout)
+        self._dialog_layout.addLayout(listlayout)
+        self._dialog_layout.addLayout(plotlayout)
 
         ########### Plot: ##############
         # Do this before the list layout, as the list layout will re/set visibility
@@ -128,9 +128,9 @@ class PlotWindow(QWidget):
         listlayout.addLayout(hlayout)
 
         # Add the entire list
-        self.checklist = QListWidget()
-        self.checklist.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.checklist.itemChanged.connect(self._item_change)
+        self._checklist = QListWidget()
+        self._checklist.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self._checklist.itemChanged.connect(self._item_change)
         listitems = {}
         # Use | when dropping support for Python 3.8
         ordered_for_checklist = {}
@@ -139,23 +139,23 @@ class PlotWindow(QWidget):
         ordered_for_checklist.update(sim_res_delays)
         ordered_for_checklist.update(sim_res_others)
         for key in ordered_for_checklist:
-            listitem = QListWidgetItem(key)
-            listitems[key] = listitem
-            self.checklist.addItem(listitem)
-            listitem.setCheckState(
+            list_item = QListWidgetItem(key)
+            listitems[key] = list_item
+            self._checklist.addItem(list_item)
+            list_item.setCheckState(
                 Qt.CheckState.Unchecked  # CheckState: Qt.CheckState.{Unchecked, PartiallyChecked, Checked}
             )
         for key in sim_res_outs:
             listitems[key].setCheckState(Qt.CheckState.Checked)
-        # self.checklist.setFixedWidth(150)
-        listlayout.addWidget(self.checklist)
+        # self._checklist.setFixedWidth(150)
+        listlayout.addWidget(self._checklist)
 
         # Add additional checkboxes
         self._legend = self._plot_axes.legend()
-        self.legend_checkbox = QCheckBox("&Legend")
-        self.legend_checkbox.stateChanged.connect(self._legend_checkbox_change)
-        self.legend_checkbox.setCheckState(Qt.CheckState.Checked)
-        listlayout.addWidget(self.legend_checkbox)
+        self._legend_checkbox = QCheckBox("&Legend")
+        self._legend_checkbox.stateChanged.connect(self._legend_checkbox_change)
+        self._legend_checkbox.setCheckState(Qt.CheckState.Checked)
+        listlayout.addWidget(self._legend_checkbox)
         # self.ontop_checkbox = QCheckBox("&On top")
         # self.ontop_checkbox.stateChanged.connect(self._ontop_checkbox_change)
         # self.ontop_checkbox.setCheckState(Qt.CheckState.Unchecked)
@@ -191,8 +191,8 @@ class PlotWindow(QWidget):
 
     def _button_all_click(self, event):
         self._auto_redraw = False
-        for x in range(self.checklist.count()):
-            self.checklist.item(x).setCheckState(Qt.CheckState.Checked)
+        for x in range(self._checklist.count()):
+            self._checklist.item(x).setCheckState(Qt.CheckState.Checked)
         self._auto_redraw = True
         self._update_legend()
 
@@ -202,8 +202,8 @@ class PlotWindow(QWidget):
 
     def _button_none_click(self, event):
         self._auto_redraw = False
-        for x in range(self.checklist.count()):
-            self.checklist.item(x).setCheckState(Qt.CheckState.Unchecked)
+        for x in range(self._checklist.count()):
+            self._checklist.item(x).setCheckState(Qt.CheckState.Unchecked)
         self._auto_redraw = True
         self._update_legend()
 

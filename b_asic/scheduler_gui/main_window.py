@@ -153,7 +153,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.maxFileNr = 4
         self.recentFilesList: List[QAction] = []
         self.recentFilePaths = deque(maxlen=self.maxFileNr)
-        self.createActionsAndMenus()
+        self._create_recent_file_actions_and_menus()
 
     def _init_graphics(self) -> None:
         """Initialize the QGraphics framework"""
@@ -253,7 +253,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
 
-        self.addRecentFile(abs_path_filename)
+        self._add_recent_file(abs_path_filename)
 
         schedule_obj_list = dict(
             inspect.getmembers(module, (lambda x: isinstance(x, Schedule)))
@@ -644,19 +644,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             log.error("'Operator' not found in info table. It may have been renamed.")
 
-    def createActionsAndMenus(self):
+    def _create_recent_file_actions_and_menus(self):
         for i in range(self.maxFileNr):
             recentFileAction = QAction(self.menu_Recent_Schedule)
             recentFileAction.setVisible(False)
             recentFileAction.triggered.connect(
-                lambda b=0, x=recentFileAction: self.openRecent(x)
+                lambda b=0, x=recentFileAction: self._open_recent_file(x)
             )
             self.recentFilesList.append(recentFileAction)
             self.menu_Recent_Schedule.addAction(recentFileAction)
 
-        self.updateRecentActionList()
+        self._update_recent_file_list()
 
-    def updateRecentActionList(self):
+    def _update_recent_file_list(self):
         settings = QSettings()
 
         rfp = settings.value("scheduler/recentFiles")
@@ -674,10 +674,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 for i in range(dequelen, self.maxFileNr):
                     self.recentFilesList[i].setVisible(False)
 
-    def openRecent(self, action):
+    def _open_recent_file(self, action):
         self._load_from_file(action.data().filePath())
 
-    def addRecentFile(self, module):
+    def _add_recent_file(self, module):
         settings = QSettings()
 
         rfp = settings.value("scheduler/recentFiles")
@@ -691,7 +691,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         settings.setValue("scheduler/recentFiles", rfp)
 
-        self.updateRecentActionList()
+        self._update_recent_file_list()
 
 
 def start_scheduler(schedule: Optional[Schedule] = None) -> None:

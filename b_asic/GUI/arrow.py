@@ -45,25 +45,25 @@ class Arrow(QGraphicsPathItem):
         """Remove line and connections to signals etc."""
         self.signal.remove_destination()
         self.signal.remove_source()
-        self._window.scene.removeItem(self)
-        if self in self._window._arrow_list:
-            self._window._arrow_list.remove(self)
+        self._window._scene.removeItem(self)
+        if self in self._window._arrows:
+            self._window._arrows.remove(self)
 
-        if self in self._window.signalPortDict:
-            for port1, port2 in self._window.signalPortDict[self]:
+        if self in self._window._signal_ports:
+            for port1, port2 in self._window._signal_ports[self]:
                 for (
                     operation,
                     operation_ports,
-                ) in self._window.portDict.items():
+                ) in self._window._ports.items():
                     if (
                         port1 in operation_ports or port2 in operation_ports
                     ) and operation in self._window._operation_to_sfg:
-                        self._window.logger.info(
+                        self._window._logger.info(
                             "Operation detected in existing SFG, removing SFG"
                             " with name:"
                             f" {self._window._operation_to_sfg[operation].name}."
                         )
-                        del self._window.sfg_dict[
+                        del self._window._sfg_dict[
                             self._window._operation_to_sfg[operation].name
                         ]
                         self._window._operation_to_sfg = {
@@ -73,7 +73,7 @@ class Arrow(QGraphicsPathItem):
                             is not self._window._operation_to_sfg[operation]
                         }
 
-        del self._window.signalPortDict[self]
+        del self._window._signal_ports[self]
 
     def moveLine(self):
         """

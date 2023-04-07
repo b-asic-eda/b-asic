@@ -52,6 +52,14 @@ GUI.port\_button module
    :undoc-members:
    :show-inheritance:
 
+GUI.precedence\_graph\_window module
+------------------------------------
+
+.. automodule:: b_asic.GUI.precedence_graph_window
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 GUI.properties\_window module
 -----------------------------
 
@@ -64,14 +72,6 @@ GUI.select\_sfg\_window module
 ------------------------------
 
 .. automodule:: b_asic.GUI.select_sfg_window
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-GUI.show\_pc\_window module
----------------------------
-
-.. automodule:: b_asic.GUI.show_pc_window
    :members:
    :undoc-members:
    :show-inheritance:
@@ -92,6 +92,14 @@ GUI.simulate\_sfg\_window module
 --------------------------------
 
 .. automodule:: b_asic.GUI.simulate_sfg_window
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+GUI.simulation\_worker module
+--------------------------------
+
+.. automodule:: b_asic.GUI.simulation_worker
    :members:
    :undoc-members:
    :show-inheritance:

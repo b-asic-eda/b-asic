@@ -98,15 +98,14 @@ class DragButton(QPushButton):
         if event.buttons() == Qt.MouseButton.LeftButton and self._m_press:
             self._m_drag = True
             self.move(self.mapToParent(event.pos() - self._mouse_press_pos))
-            if self in self._window.pressed_operations:
-                for button in self._window.pressed_operations:
+            if self in self._window._pressed_operations:
+                for button in self._window._pressed_operations:
                     if button is self:
                         continue
 
                     button.move(button.mapToParent(event.pos() - self._mouse_press_pos))
 
-        self._window.scene.update()
-        self._window.graphic_view.update()
+        self._window._update()
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
@@ -129,8 +128,7 @@ class DragButton(QPushButton):
         newx = GRID * round(x / GRID)
         newy = GRID * round(y / GRID)
         self.move(newx, newy)
-        self._window.scene.update()
-        self._window.graphic_view.update()
+        self._window._update()
         super().mouseReleaseEvent(event)
 
     def _flip(self, event=None):
@@ -144,8 +142,7 @@ class DragButton(QPushButton):
             pb.move(newx, pb.pos().y())
             pb.setText(text)
 
-        self._window.scene.update()
-        self._window.graphic_view.update()
+        self._window._update()
 
     def _toggle_button(self, pressed=False):
         self.pressed = not pressed
@@ -169,36 +166,36 @@ class DragButton(QPushButton):
 
     def select_button(self, modifiers=None):
         if modifiers != Qt.KeyboardModifier.ControlModifier:
-            for button in self._window.pressed_operations:
+            for button in self._window._pressed_operations:
                 button._toggle_button(button.pressed)
 
             self._toggle_button(self.pressed)
-            self._window.pressed_operations = [self]
+            self._window._pressed_operations = [self]
 
         else:
             self._toggle_button(self.pressed)
-            if self in self._window.pressed_operations:
-                self._window.pressed_operations.remove(self)
+            if self in self._window._pressed_operations:
+                self._window._pressed_operations.remove(self)
             else:
-                self._window.pressed_operations.append(self)
+                self._window._pressed_operations.append(self)
 
-        for signal in self._window._arrow_list:
+        for signal in self._window._arrows:
             signal.update()
 
     def remove(self, event=None):
         """Remove button/operation from signal flow graph."""
-        self._window.logger.info("Removing operation with name " + self.operation.name)
-        self._window.scene.removeItem(self._window.dragOperationSceneDict[self])
+        self._window._logger.info("Removing operation with name " + self.operation.name)
+        self._window._scene.removeItem(self._window._drag_operation_scenes[self])
 
         _signals = []
-        for signal, ports in self._window.signalPortDict.items():
+        for signal, ports in self._window._signal_ports.items():
             if any(
                 map(
                     lambda port: set(port).intersection(set(self.ports)),
                     ports,
                 )
             ):
-                self._window.logger.info(
+                self._window._logger.info(
                     "Removed signal with name: %s to/from operation: %s."
                     % (signal.signal.name, self.operation.name)
                 )
@@ -208,11 +205,11 @@ class DragButton(QPushButton):
             signal.remove()
 
         if self in self._window._operation_to_sfg:
-            self._window.logger.info(
+            self._window._logger.info(
                 "Operation detected in existing SFG, removing SFG with name: "
                 + self._window._operation_to_sfg[self].name
             )
-            del self._window.sfg_dict[self._window._operation_to_sfg[self].name]
+            del self._window._sfg_dict[self._window._operation_to_sfg[self].name]
             self._window._operation_to_sfg = {
                 op: self._window._operation_to_sfg[op]
                 for op in self._window._operation_to_sfg
@@ -220,18 +217,18 @@ class DragButton(QPushButton):
                 is not self._window._operation_to_sfg[self]
             }
 
-        for port in self._window.portDict[self]:
-            if port in self._window.pressed_ports:
-                self._window.pressed_ports.remove(port)
+        for port in self._window._ports[self]:
+            if port in self._window._pressed_ports:
+                self._window._pressed_ports.remove(port)
 
-        if self in self._window.pressed_operations:
-            self._window.pressed_operations.remove(self)
+        if self in self._window._pressed_operations:
+            self._window._pressed_operations.remove(self)
 
-        if self in self._window.dragOperationSceneDict:
-            del self._window.dragOperationSceneDict[self]
+        if self in self._window._drag_operation_scenes:
+            del self._window._drag_operation_scenes[self]
 
-        if self.operation in self._window._operation_drag_buttons:
-            del self._window._operation_drag_buttons[self.operation]
+        if self.operation in self._window._drag_buttons:
+            del self._window._drag_buttons[self.operation]
 
     def add_ports(self):
         def _determine_port_distance(opheight, ports):

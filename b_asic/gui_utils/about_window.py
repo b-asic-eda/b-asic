@@ -26,8 +26,8 @@ class AboutWindow(QDialog):
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("About B-ASIC")
 
-        self.dialog_layout = QVBoxLayout()
-        self.setLayout(self.dialog_layout)
+        self._dialog_layout = QVBoxLayout()
+        self.setLayout(self._dialog_layout)
 
         self._add_information_to_layout()
 
@@ -104,9 +104,9 @@ class AboutWindow(QDialog):
         hline.setFrameShape(QFrame.HLine)
         hline.setFrameShadow(QFrame.Sunken)
 
-        self.dialog_layout.addLayout(layout12)
-        self.dialog_layout.addWidget(hline)
-        self.dialog_layout.addLayout(layout34)
+        self._dialog_layout.addLayout(layout12)
+        self._dialog_layout.addWidget(hline)
+        self._dialog_layout.addLayout(layout34)
 
 
 # ONLY FOR DEBUG below

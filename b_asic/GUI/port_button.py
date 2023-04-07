@@ -48,21 +48,21 @@ class PortButton(QPushButton):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            self._window.mouse_pressed = True
+            self._window._mouse_pressed = True
             self.select_port(event.modifiers())
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and self._window.mouse_pressed:
-            self._window.mouse_pressed = False
-            if self._window.mouse_dragging:
-                self._window.mouse_dragging = False
+        if event.button() == Qt.MouseButton.LeftButton and self._window._mouse_pressed:
+            self._window._mouse_pressed = False
+            if self._window._mouse_dragging:
+                self._window._mouse_dragging = False
         super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
-        if self._window.mouse_pressed:
-            self._window.mouse_draggin = True
-            self._window.starting_port = self
+        if self._window._mouse_pressed:
+            self._window._mouse_dragging = True
+            self._window._starting_port = self
             data = QMimeData()
             drag = QDrag(self)
             drag.setMimeData(data)
@@ -84,7 +84,7 @@ class PortButton(QPushButton):
 
     def dropEvent(self, event):
         event.acceptProposedAction()
-        if self != self._window.starting_port:
+        if self != self._window._starting_port:
             self.select_port(Qt.KeyboardModifier.ControlModifier)
             self._window._connect_callback()
         self.update()
@@ -98,18 +98,18 @@ class PortButton(QPushButton):
 
     def select_port(self, modifiers=None):
         if modifiers != Qt.KeyboardModifier.ControlModifier:
-            for port in self._window.pressed_ports:
+            for port in self._window._pressed_ports:
                 port._toggle_port(port.pressed)
 
             self._toggle_port(self.pressed)
-            self._window.pressed_ports = [self]
+            self._window._pressed_ports = [self]
 
         else:
             self._toggle_port(self.pressed)
-            if self in self._window.pressed_ports:
-                self._window.pressed_ports.remove(self)
+            if self in self._window._pressed_ports:
+                self._window._pressed_ports.remove(self)
             else:
-                self._window.pressed_ports.append(self)
+                self._window._pressed_ports.append(self)
 
-        for signal in self._window._arrow_list:
+        for signal in self._window._arrows:
             signal.update()

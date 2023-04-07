@@ -24,7 +24,7 @@ def test_start_with_data(qtbot):
     widget = PlotWindow(sim_res)
     qtbot.addWidget(widget)
 
-    assert widget.checklist.count() == 6
+    assert widget._checklist.count() == 6
     assert len(widget._plot_axes.lines) == 1
 
 
@@ -40,7 +40,7 @@ def test_click_buttons(qtbot):
     widget = PlotWindow(sim_res)
     qtbot.addWidget(widget)
 
-    assert widget.checklist.count() == 6
+    assert widget._checklist.count() == 6
     assert len(widget._plot_axes.lines) == 1
 
     qtbot.mouseClick(widget._button_all, QtCore.Qt.MouseButton.LeftButton)
