@@ -7,13 +7,13 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QComboBox, QDialog, QPushButton, QVBoxLayout
 
 if TYPE_CHECKING:
-    from b_asic.GUI.main_window import MainWindow
+    from b_asic.GUI.main_window import SFGMainWindow
 
 
 class SelectSFGWindow(QDialog):
     ok = Signal()
 
-    def __init__(self, window: "MainWindow"):
+    def __init__(self, window: "SFGMainWindow"):
         super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)

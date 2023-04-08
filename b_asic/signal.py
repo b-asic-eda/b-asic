@@ -77,6 +77,20 @@ class Signal(AbstractGraphComponent):
         """Return the destination InputPort of the signal."""
         return self._destination
 
+    @property
+    def source_operation(self) -> Optional["Operation"]:
+        """Return the source Operation of the signal."""
+        if self._source is not None:
+            return self._source.operation
+        return None
+
+    @property
+    def destination_operation(self) -> Optional["Operation"]:
+        """Return the destination Operation of the signal."""
+        if self._destination is not None:
+            return self._destination.operation
+        return None
+
     def set_source(self, source: Union["OutputPort", "Signal", "Operation"]) -> None:
         """
         Connect to the entered source OutputPort.

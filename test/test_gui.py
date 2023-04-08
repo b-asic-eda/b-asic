@@ -3,7 +3,7 @@ from qtpy import QtCore
 from qtpy.QtWidgets import QInputDialog
 
 try:
-    import b_asic.GUI as GUI
+    from b_asic.GUI.main_window import SFGMainWindow
 except ImportError:
     pytestmark = pytest.mark.skip("Qt not setup")
 
@@ -12,14 +12,14 @@ from b_asic.special_operations import Input, Output
 
 
 def test_start(qtbot):
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
 
     widget.exit_app()
 
 
 def test_load(qtbot, datadir):
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     assert 'twotapfir' in widget._sfg_dict
@@ -31,7 +31,7 @@ def test_load(qtbot, datadir):
 
 
 def test_flip(qtbot, datadir):
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget._sfg_dict['twotapfir']
@@ -44,7 +44,7 @@ def test_flip(qtbot, datadir):
 
 
 def test_sfg_invalidated_by_remove_of_operation(qtbot, datadir):
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget._sfg_dict['twotapfir']
@@ -59,7 +59,7 @@ def test_sfg_invalidated_by_remove_of_operation(qtbot, datadir):
 
 
 def test_sfg_invalidated_by_deleting_of_operation(qtbot, datadir):
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget._sfg_dict['twotapfir']
@@ -76,7 +76,7 @@ def test_sfg_invalidated_by_deleting_of_operation(qtbot, datadir):
 
 
 def test_select_operation(qtbot, datadir):
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget._sfg_dict['twotapfir']
@@ -134,7 +134,7 @@ def test_select_operation(qtbot, datadir):
 def test_help_dialogs(qtbot):
     # Smoke test to open up the "help dialogs"
     # Should really test doing this through the menus an/or closing them
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
 
     widget.display_faq_page()
@@ -151,7 +151,7 @@ def test_help_dialogs(qtbot):
 def test_simulate(qtbot, datadir):
     # Smoke test to open up the "Simulate SFG" and run default simulation
     # Should really test all different tests
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     assert 'twotapfir' in widget._sfg_dict
@@ -167,7 +167,7 @@ def test_simulate(qtbot, datadir):
 def test_properties_window_smoke_test(qtbot, datadir):
     # Smoke test to open up the _properties window
     # Should really check that the contents are correct and changes works etc
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget._sfg_dict['twotapfir']
@@ -184,7 +184,7 @@ def test_properties_window_smoke_test(qtbot, datadir):
 def test_properties_window_change_name(qtbot, datadir):
     # Smoke test to open up the _properties window
     # Should really check that the contents are correct and changes works etc
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     widget._load_from_file(datadir.join('twotapfir.py'))
     sfg = widget._sfg_dict['twotapfir']
@@ -206,7 +206,7 @@ def test_properties_window_change_name(qtbot, datadir):
 
 
 def test_add_operation_and_create_sfg(qtbot, monkeypatch):
-    widget = GUI.MainWindow()
+    widget = SFGMainWindow()
     qtbot.addWidget(widget)
     in1 = Input()
     sqrt = SquareRoot()
@@ -221,10 +221,10 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     for op in (in1, sqrt, out1):
         assert op in widget._drag_buttons
     # No signals
-    assert not widget._arrows
+    assert not widget._arrow_ports
 
     # Click on first port
-    in1_port = widget._ports[widget._drag_buttons[in1]][0]
+    in1_port = widget._drag_buttons[in1].port_list[0]
     qtbot.mouseClick(
         in1_port,
         QtCore.Qt.MouseButton.LeftButton,
@@ -232,7 +232,7 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     assert len(widget._pressed_ports) == 1
 
     # Click on second port
-    sqrt_in_port = widget._ports[widget._drag_buttons[sqrt]][0]
+    sqrt_in_port = widget._drag_buttons[sqrt].port_list[0]
     qtbot.mouseClick(
         sqrt_in_port,
         QtCore.Qt.MouseButton.LeftButton,
@@ -245,16 +245,16 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     # Not sure why this won't work
     # qtbot.keyClick(widget, QtCore.Qt.Key.Key_Space, delay=10)
     # Still one selected!?
-    assert len(widget._arrows) == 1
+    assert len(widget._arrow_ports) == 1
 
     # Click on first port
-    sqrt_out_port = widget._ports[widget._drag_buttons[sqrt]][1]
+    sqrt_out_port = widget._drag_buttons[sqrt].port_list[1]
     qtbot.mouseClick(
         sqrt_out_port,
         QtCore.Qt.MouseButton.LeftButton,
     )
     # Click on second port
-    out1_port = widget._ports[widget._drag_buttons[out1]][0]
+    out1_port = widget._drag_buttons[out1].port_list[0]
     qtbot.mouseClick(
         out1_port,
         QtCore.Qt.MouseButton.LeftButton,
@@ -262,7 +262,7 @@ def test_add_operation_and_create_sfg(qtbot, monkeypatch):
     )
     # Connect
     widget._connect_callback()
-    assert len(widget._arrows) == 2
+    assert len(widget._arrow_ports) == 2
 
     # Select input op
     qtbot.mouseClick(

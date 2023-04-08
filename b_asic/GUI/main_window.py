@@ -1,15 +1,16 @@
-"""B-ASIC Main Window Module.
+"""
+B-ASIC Signal Flow Graph Editor Module.
 
-This file opens the main window of the GUI for B-ASIC when run.
+This file opens the main SFG editor window of the GUI for B-ASIC when run.
 """
 
 
-import importlib
+import importlib.util
 import logging
 import os
 import sys
 from collections import deque
-from typing import Dict, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Sequence, Tuple, cast
 
 from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
@@ -52,6 +53,9 @@ from b_asic.signal_flow_graph import SFG
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Input, Output
 
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QGraphicsProxyWidget
+
 logging.basicConfig(level=logging.INFO)
 
 QCoreApplication.setOrganizationName("Linköping University")
@@ -61,31 +65,29 @@ QCoreApplication.setApplicationVersion(__version__)
 
 
 @decorate_class(handle_error)
-class MainWindow(QMainWindow):
+class SFGMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self._ui = Ui_main_window()
         self._ui.setupUi(self)
         self.setWindowIcon(QIcon("small_logo.png"))
         self._scene = QGraphicsScene(self)
-        self._operations_from_name = {}
+        self._operations_from_name: Dict[str, Operation] = {}
         self._zoom = 1
-        self._sfg_name_i = 0
-        self._drag_operation_scenes = {}
+        self._drag_operation_scenes: Dict[DragButton, "QGraphicsProxyWidget"] = {}
         self._drag_buttons: Dict[Operation, DragButton] = {}
-        self._arrows: List[Arrow] = []
         self._mouse_pressed = False
         self._mouse_dragging = False
         self._starting_port = None
-        self._pressed_operations = []
-        self._ports = {}
-        self._signal_ports = {}
+        self._pressed_operations: List[DragButton] = []
+        self._arrow_ports: Dict[Arrow, List[Tuple[PortButton, PortButton]]] = {}
         self._operation_to_sfg: Dict[DragButton, SFG] = {}
-        self._pressed_ports = []
-        self._sfg_dict = {}
+        self._pressed_ports: List[PortButton] = []
+        self._sfg_dict: Dict[str, SFG] = {}
         self._window = self
         self._logger = logging.getLogger(__name__)
-        self._plot: Dict[Simulation, PlotWindow] = dict()
+        self._plot: Dict[Simulation, PlotWindow] = {}
+        self._ports: Dict[DragButton, List[PortButton]] = {}
 
         # Create Graphics View
         self._graphics_view = QGraphicsView(self._scene, self)
@@ -102,8 +104,8 @@ class MainWindow(QMainWindow):
 
         # Add operations
         self._max_recent_files = 4
-        self._recent_files = []
-        self._recent_files_paths = deque(maxlen=self._max_recent_files)
+        self._recent_files_actions: List[QAction] = []
+        self._recent_files_paths: Deque[str] = deque(maxlen=self._max_recent_files)
 
         self.add_operations_from_namespace(
             b_asic.core_operations, self._ui.core_operations_list
@@ -112,14 +114,16 @@ class MainWindow(QMainWindow):
             b_asic.special_operations, self._ui.special_operations_list
         )
 
-        self._shortcut_core = QShortcut(QKeySequence("Ctrl+R"), self._ui.operation_box)
-        self._shortcut_core.activated.connect(
+        self._shortcut_refresh_operations = QShortcut(
+            QKeySequence("Ctrl+R"), self._ui.operation_box
+        )
+        self._shortcut_refresh_operations.activated.connect(
             self._refresh_operations_list_from_namespace
         )
         self._scene.selectionChanged.connect(self._select_operations)
 
         self.move_button_index = 0
-        self.is_show_names = True
+        self._show_names = True
 
         self._check_show_names = QAction("Show operation names")
         self._check_show_names.triggered.connect(self.view_operation_names)
@@ -133,13 +137,13 @@ class MainWindow(QMainWindow):
         self._ui.aboutBASIC.triggered.connect(self.display_about_page)
         self._ui.keybindsBASIC.triggered.connect(self.display_keybindings_page)
         self._ui.core_operations_list.itemClicked.connect(
-            self.on_list_widget_item_clicked
+            self._on_list_widget_item_clicked
         )
         self._ui.special_operations_list.itemClicked.connect(
-            self.on_list_widget_item_clicked
+            self._on_list_widget_item_clicked
         )
         self._ui.custom_operations_list.itemClicked.connect(
-            self.on_list_widget_item_clicked
+            self._on_list_widget_item_clicked
         )
         self._ui.save_menu.triggered.connect(self.save_work)
         self._ui.load_menu.triggered.connect(self.load_work)
@@ -187,13 +191,13 @@ class MainWindow(QMainWindow):
 
     def view_operation_names(self) -> None:
         if self._check_show_names.isChecked():
-            self.is_show_names = True
+            self._show_names = True
         else:
-            self.is_show_names = False
+            self._show_names = False
 
         for operation in self._drag_operation_scenes:
-            operation.label.setOpacity(self.is_show_names)
-            operation.is_show_name = self.is_show_names
+            operation.label.setOpacity(self._show_names)
+            operation.show_name = self._show_names
 
     def _save_work(self) -> None:
         sfg = cast(SFG, self.sfg_widget.sfg)
@@ -265,7 +269,7 @@ class MainWindow(QMainWindow):
         self._load_sfg(sfg, positions)
         self._logger.info("Loaded SFG from path: " + str(module))
 
-    def _load_sfg(self, sfg, positions=None) -> None:
+    def _load_sfg(self, sfg: SFG, positions=None) -> None:
         if positions is None:
             positions = {}
 
@@ -276,29 +280,29 @@ class MainWindow(QMainWindow):
                 positions[op.graph_id][-1] if op.graph_id in positions else None,
             )
 
-        def connect_ports(ports):
+        def connect_ports(ports: Sequence[InputPort]):
             for port in ports:
                 for signal in port.signals:
-                    source = [
+                    sources = [
                         source
-                        for source in self._ports[
-                            self._drag_buttons[signal.source.operation]
-                        ]
+                        for source in self._drag_buttons[
+                            signal.source_operation
+                        ].port_list
                         if source.port is signal.source
                     ]
-                    destination = [
+                    destinations = [
                         destination
-                        for destination in self._ports[
-                            self._drag_buttons[signal.destination.operation]
-                        ]
+                        for destination in self._drag_buttons[
+                            signal.destination.operation
+                        ].port_list
                         if destination.port is signal.destination
                     ]
 
-                    if source and destination:
-                        self._connect_button(source[0], destination[0])
+                    if sources and destinations:
+                        self._connect_button(sources[0], destinations[0])
 
-            for port in self._pressed_ports:
-                port.select_port()
+            for pressed_port in self._pressed_ports:
+                pressed_port.select_port()
 
         for op in sfg.split():
             connect_ports(op.inputs)
@@ -312,33 +316,33 @@ class MainWindow(QMainWindow):
 
     def _create_recent_file_actions_and_menus(self):
         for i in range(self._max_recent_files):
-            recentFileAction = QAction(self._ui.recent_sfg)
-            recentFileAction.setVisible(False)
-            recentFileAction.triggered.connect(
-                lambda b=0, x=recentFileAction: self._open_recent_file(x)
+            recent_file_action = QAction(self._ui.recent_sfg)
+            recent_file_action.setVisible(False)
+            recent_file_action.triggered.connect(
+                lambda b=0, x=recent_file_action: self._open_recent_file(x)
             )
-            self._recent_files.append(recentFileAction)
-            self._ui.recent_sfg.addAction(recentFileAction)
+            self._recent_files_actions.append(recent_file_action)
+            self._ui.recent_sfg.addAction(recent_file_action)
 
         self._update_recent_file_list()
 
     def _update_recent_file_list(self):
         settings = QSettings()
 
-        rfp = settings.value("SFG/recentFiles")
+        rfp = cast(deque, settings.value("SFG/recentFiles"))
 
         # print(rfp)
         if rfp:
             dequelen = len(rfp)
             if dequelen > 0:
                 for i in range(dequelen):
-                    action = self._recent_files[i]
+                    action = self._recent_files_actions[i]
                     action.setText(rfp[i])
                     action.setData(QFileInfo(rfp[i]))
                     action.setVisible(True)
 
                 for i in range(dequelen, self._max_recent_files):
-                    self._recent_files[i].setVisible(False)
+                    self._recent_files_actions[i].setVisible(False)
 
     def _open_recent_file(self, action):
         self._load_from_file(action.data().filePath())
@@ -346,7 +350,7 @@ class MainWindow(QMainWindow):
     def _add_recent_file(self, module):
         settings = QSettings()
 
-        rfp = settings.value("SFG/recentFiles")
+        rfp = cast(deque, settings.value("SFG/recentFiles"))
 
         if rfp:
             if module not in rfp:
@@ -369,9 +373,8 @@ class MainWindow(QMainWindow):
         self._pressed_ports.clear()
         self._drag_buttons.clear()
         self._drag_operation_scenes.clear()
-        self._arrows.clear()
+        self._arrow_ports.clear()
         self._ports.clear()
-        self._signal_ports.clear()
         self._sfg_dict.clear()
         self._scene.clear()
         self._logger.info("Workspace cleared.")
@@ -379,11 +382,11 @@ class MainWindow(QMainWindow):
     def create_sfg_from_toolbar(self) -> None:
         inputs = []
         outputs = []
-        for op in self._pressed_operations:
-            if isinstance(op.operation, Input):
-                inputs.append(op.operation)
-            elif isinstance(op.operation, Output):
-                outputs.append(op.operation)
+        for pressed_op in self._pressed_operations:
+            if isinstance(pressed_op.operation, Input):
+                inputs.append(pressed_op.operation)
+            elif isinstance(pressed_op.operation, Output):
+                outputs.append(pressed_op.operation)
 
         name, accepted = QInputDialog.getText(
             self, "Create SFG", "Name: ", QLineEdit.Normal
@@ -401,100 +404,96 @@ class MainWindow(QMainWindow):
         self._logger.info("Created SFG with name: %s from selected operations." % name)
 
         def check_equality(signal: Signal, signal_2: Signal) -> bool:
-            source = cast(OutputPort, signal.source)
-            source2 = cast(OutputPort, signal_2.source)
-            dest = cast(InputPort, signal.destination)
-            dest2 = cast(InputPort, signal_2.destination)
+            source_operation = cast(Operation, signal.source_operation)
+            source_operation2 = cast(Operation, signal_2.source_operation)
+            dest_operation = cast(Operation, signal.destination_operation)
+            dest_operation2 = cast(Operation, signal_2.destination_operation)
             if not (
-                source.operation.type_name() == source2.operation.type_name()
-                and dest.operation.type_name() == dest2.operation.type_name()
+                source_operation.type_name() == source_operation2.type_name()
+                and dest_operation.type_name() == dest_operation2.type_name()
             ):
                 return False
 
             if (
-                hasattr(source.operation, "value")
-                and hasattr(source2.operation, "value")
-                and hasattr(dest.operation, "value")
-                and hasattr(dest2.operation, "value")
+                hasattr(source_operation, "value")
+                and hasattr(source_operation2, "value")
+                and hasattr(dest_operation, "value")
+                and hasattr(dest_operation2, "value")
             ):
                 if not (
-                    source.operation.value == source2.operation.value
-                    and dest.operation.value == dest2.operation.value
+                    source_operation.value == source_operation2.value
+                    and dest_operation.value == dest_operation2.value
                 ):
                     return False
 
             if (
-                hasattr(source.operation, "name")
-                and hasattr(source2.operation, "name")
-                and hasattr(dest.operation, "name")
-                and hasattr(dest2.operation, "name")
+                hasattr(source_operation, "name")
+                and hasattr(source_operation2, "name")
+                and hasattr(dest_operation, "name")
+                and hasattr(dest_operation2, "name")
             ):
                 if not (
-                    source.operation.name == source2.operation.name
-                    and dest.operation.name == dest2.operation.name
+                    source_operation.name == source_operation2.name
+                    and dest_operation.name == dest_operation2.name
                 ):
                     return False
 
             try:
-                _signal_source_index = [
-                    source.operation.outputs.index(port)
-                    for port in source.operation.outputs
+                signal_source_index = [
+                    source_operation.outputs.index(port)
+                    for port in source_operation.outputs
                     if signal in port.signals
                 ]
-                _signal_2_source_index = [
-                    source2.operation.outputs.index(port)
-                    for port in source2.operation.outputs
+                signal_2_source_index = [
+                    source_operation2.outputs.index(port)
+                    for port in source_operation2.outputs
                     if signal_2 in port.signals
                 ]
             except ValueError:
                 return False  # Signal output connections not matching
 
             try:
-                _signal_destination_index = [
-                    dest.operation.inputs.index(port)
-                    for port in dest.operation.inputs
+                signal_destination_index = [
+                    dest_operation.inputs.index(port)
+                    for port in dest_operation.inputs
                     if signal in port.signals
                 ]
-                _signal_2_destination_index = [
-                    dest2.operation.inputs.index(port)
-                    for port in dest2.operation.inputs
+                signal_2_destination_index = [
+                    dest_operation2.inputs.index(port)
+                    for port in dest_operation2.inputs
                     if signal_2 in port.signals
                 ]
             except ValueError:
                 return False  # Signal input connections not matching
 
             return (
-                _signal_source_index == _signal_2_source_index
-                and _signal_destination_index == _signal_2_destination_index
+                signal_source_index == signal_2_source_index
+                and signal_destination_index == signal_2_destination_index
             )
 
         for _pressed_op in self._pressed_operations:
             for operation in sfg.operations:
                 for input_ in operation.inputs:
                     for signal in input_.signals:
-                        for line in self._signal_ports:
-                            if check_equality(line.signal, signal):
-                                line.source.operation.operation = (
-                                    signal.source.operation
-                                )
-                                line.destination.operation.operation = (
-                                    signal.destination.operation
+                        for arrow in self._arrow_ports:
+                            if check_equality(arrow.signal, signal):
+                                arrow.set_source_operation(signal.source_operation)
+                                arrow.set_destination_operation(
+                                    signal.destination_operation
                                 )
 
                 for output_ in operation.outputs:
                     for signal in output_.signals:
-                        for line in self._signal_ports:
-                            if check_equality(line.signal, signal):
-                                line.source.operation.operation = (
-                                    signal.source.operation
-                                )
-                                line.destination.operation.operation = (
-                                    signal.destination.operation
+                        for arrow in self._arrow_ports:
+                            if check_equality(arrow.signal, signal):
+                                arrow.set_source_operation(signal.source_operation)
+                                arrow.set_destination_operation(
+                                    signal.destination_operation
                                 )
 
-        for op in self._pressed_operations:
-            op.setToolTip(sfg.name)
-            self._operation_to_sfg[op] = sfg
+        for pressed_op in self._pressed_operations:
+            pressed_op.setToolTip(sfg.name)
+            self._operation_to_sfg[pressed_op] = sfg
 
         self._sfg_dict[sfg.name] = sfg
 
@@ -541,6 +540,10 @@ class MainWindow(QMainWindow):
 
         self.add_operations_from_namespace(namespace, self._ui.custom_operations_list)
 
+    def _update(self):
+        self._scene.update()
+        self._graphics_view.update()
+
     def add_operation(
         self,
         op: Operation,
@@ -581,7 +584,7 @@ class MainWindow(QMainWindow):
                 "border-color: black; border-width: 2px"
             )
             attr_button.add_ports()
-            self._ports[attr_button] = attr_button.ports
+            self._ports[attr_button] = attr_button.port_list
 
             icon_path = os.path.join(
                 os.path.dirname(__file__),
@@ -608,7 +611,7 @@ class MainWindow(QMainWindow):
                 )
             attr_button_scene.setFlag(QGraphicsItem.ItemIsSelectable, True)
             operation_label = QGraphicsTextItem(op.name, attr_button_scene)
-            if not self.is_show_names:
+            if not self._show_names:
                 operation_label.setOpacity(0)
             operation_label.setTransformOriginPoint(
                 operation_label.boundingRect().center()
@@ -651,7 +654,7 @@ class MainWindow(QMainWindow):
         )
         self._logger.info("Finished refreshing operation list.")
 
-    def on_list_widget_item_clicked(self, item) -> None:
+    def _on_list_widget_item_clicked(self, item) -> None:
         self._create_operation_item(item)
 
     def keyPressEvent(self, event) -> None:
@@ -714,8 +717,8 @@ class MainWindow(QMainWindow):
         self._logger.info(
             "Connecting: %s -> %s."
             % (
-                source.operation.operation.type_name(),
-                destination.operation.operation.type_name(),
+                source.operation.type_name(),
+                destination.operation.type_name(),
             )
         )
         try:
@@ -723,18 +726,17 @@ class MainWindow(QMainWindow):
         except StopIteration:
             arrow = Arrow(source, destination, self)
 
-        if arrow not in self._signal_ports:
-            self._signal_ports[arrow] = []
+        if arrow not in self._arrow_ports:
+            self._arrow_ports[arrow] = []
 
-        self._signal_ports[arrow].append((source, destination))
+        self._arrow_ports[arrow].append((source, destination))
         self._scene.addItem(arrow)
-        self._arrows.append(arrow)
 
         self.update()
 
     def paintEvent(self, event) -> None:
-        for signal in self._signal_ports.keys():
-            signal.moveLine()
+        for arrow in self._arrow_ports:
+            arrow.update_arrow()
 
     def _select_operations(self) -> None:
         selected = [button.widget() for button in self._scene.selectedItems()]
@@ -796,7 +798,7 @@ class MainWindow(QMainWindow):
 
 def start_editor(sfg: Optional[SFG] = None):
     app = QApplication(sys.argv)
-    window = MainWindow()
+    window = SFGMainWindow()
     if sfg:
         window._load_sfg(sfg)
     window.show()

@@ -52,7 +52,7 @@ class PropertiesWindow(QDialog):
 
         self._show_name_layout = QHBoxLayout()
         self._check_show_name = QCheckBox("Show name?")
-        self._check_show_name.setChecked(self.operation.is_show_name)
+        self._check_show_name.setChecked(self.operation.show_name)
         self._check_show_name.setLayoutDirection(Qt.RightToLeft)
         self._check_show_name.setStyleSheet("spacing: 170px")
         self._show_name_layout.addWidget(self._check_show_name)
@@ -155,10 +155,10 @@ class PropertiesWindow(QDialog):
 
         if self._check_show_name.isChecked():
             self.operation.label.setOpacity(1)
-            self.operation.is_show_name = True
+            self.operation.show_name = True
         else:
             self.operation.label.setOpacity(0)
-            self.operation.is_show_name = False
+            self.operation.show_name = False
 
         self.operation.operation.set_latency_offsets(
             {

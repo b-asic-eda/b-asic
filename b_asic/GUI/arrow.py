@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING, Optional, cast
+
 from qtpy.QtCore import QPointF
 from qtpy.QtGui import QPainterPath, QPen
 from qtpy.QtWidgets import QGraphicsPathItem, QMenu
@@ -5,35 +7,49 @@ from qtpy.QtWidgets import QGraphicsPathItem, QMenu
 from b_asic.GUI._preferences import GRID, LINECOLOR, PORTHEIGHT, PORTWIDTH
 from b_asic.signal import Signal
 
+if TYPE_CHECKING:
+    from b_asic.GUI.drag_button import DragButton
+    from b_asic.GUI.main_window import SFGMainWindow
+    from b_asic.GUI.port_button import PortButton
+    from b_asic.port import InputPort, OutputPort
+
 
 class Arrow(QGraphicsPathItem):
-    """Arrow/connection in signal flow graph GUI."""
+    """
+    Arrow/connection in signal flow graph GUI.
 
-    def __init__(self, source, destination, window, signal=None, parent=None):
-        """
-        Parameters
-        ----------
-        source
-            Source operation.
-        destination
-            Destination operation.
-        window
-            Window containing signal flow graph.
-        signal : Signal, optional
-            Let arrow represent *signal*.
-        parent : optional
-            Parent.
-        """
+    Parameters
+    ----------
+    source_port_button : :class:`~b_asic.GUI.port_button.PortButton`
+        Source port button.
+    destination_port_button : :class:`~b_asic.GUI.port_button.PortButton`
+        Destination port button.
+    window : :class:`~b_asic.GUI.main_window.SFGMainWindow`
+        Window containing signal flow graph.
+    signal : Signal, optional
+        Let arrow represent *signal*.
+    parent : optional
+        Parent.
+    """
+
+    def __init__(
+        self,
+        source_port_button: "PortButton",
+        destination_port_button: "PortButton",
+        window: "SFGMainWindow",
+        signal: Optional[Signal] = None,
+        parent=None,
+    ):
         super().__init__(parent)
-        self.source = source
+        self._source_port_button = source_port_button
         if signal is None:
-            signal = Signal(source.port, destination.port)
+            signal = Signal(source_port_button.port, destination_port_button.port)
         self.signal = signal
-        self.destination = destination
+        self._destination_port_button = destination_port_button
         self._window = window
-        self.moveLine()
-        self.source.moved.connect(self.moveLine)
-        self.destination.moved.connect(self.moveLine)
+        self.update_arrow()
+        self._source_port_button.moved.connect(self.update_arrow)
+        self._destination_port_button.moved.connect(self.update_arrow)
 
     def contextMenuEvent(self, event):
         """Open right-click menu."""
@@ -41,16 +57,62 @@ class Arrow(QGraphicsPathItem):
         menu.addAction("Delete", self.remove)
         menu.exec_(self.cursor().pos())
 
+    @property
+    def source_operation_button(self) -> "DragButton":
+        """The source DragButton."""
+        return self._source_port_button._operation_button
+
+    @property
+    def destination_operation_button(self) -> "DragButton":
+        """The destination DragButton."""
+        return self._destination_port_button._operation_button
+
+    @property
+    def source_operation(self) -> "Operation":
+        """The source Operation."""
+        return self._source_port_button.operation
+
+    @property
+    def destination_operation(self) -> "Operation":
+        """The destination Operation."""
+        return self._destination_port_button.operation
+
+    @property
+    def source_port_button(self) -> "PortButton":
+        """The source PortButton."""
+        return self._source_port_button
+
+    @property
+    def destination_port_button(self) -> "PortButton":
+        """The destination PortButton."""
+        return self._destination_port_button
+
+    @property
+    def source_port(self) -> "OutputPort":
+        """The source OutputPort."""
+        return cast("OutputPort", self._source_port_button.port)
+
+    @property
+    def desination_port(self) -> "InputPort":
+        """The destination InputPort."""
+        return cast("InputPort", self._destination_port_button.port)
+
+    def set_source_operation(self, source: "Operation"):
+        """Set operation of the source DragButton"""
+        self._source_port_button._operation_button.operation = source
+
+    def set_destination_operation(self, destination: "Operation"):
+        """Set operation of the destination DragButton"""
+        self._destination_port_button._operation_button.operation = destination
+
     def remove(self):
         """Remove line and connections to signals etc."""
         self.signal.remove_destination()
         self.signal.remove_source()
         self._window._scene.removeItem(self)
-        if self in self._window._arrows:
-            self._window._arrows.remove(self)
 
-        if self in self._window._signal_ports:
-            for port1, port2 in self._window._signal_ports[self]:
+        if self in self._window._arrow_ports:
+            for port1, port2 in self._window._arrow_ports[self]:
                 for (
                     operation,
                     operation_ports,
@@ -73,30 +135,39 @@ class Arrow(QGraphicsPathItem):
                             is not self._window._operation_to_sfg[operation]
                         }
 
-        del self._window._signal_ports[self]
+        del self._window._arrow_ports[self]
 
-    def moveLine(self):
+    def update_arrow(self):
         """
-        Draw a line connecting ``self.source`` with ``self.destination``.
+        Update coordinates for arrow.
+
         Used as callback when moving operations.
         """
         ORTHOGONAL = True
         OFFSET = 2 * PORTWIDTH
         self.setPen(QPen(LINECOLOR, 3))
-        source_flipped = self.source.operation.is_flipped()
-        destination_flipped = self.destination.operation.is_flipped()
+        source_flipped = self.source_operation_button.is_flipped()
+        destination_flipped = self.destination_operation_button.is_flipped()
         x0 = (
-            self.source.operation.x()
-            + self.source.x()
+            self.source_operation_button.x()
+            + self.source_port_button.x()
             + (PORTWIDTH if not source_flipped else 0)
         )
-        y0 = self.source.operation.y() + self.source.y() + PORTHEIGHT / 2
+        y0 = (
+            self.source_operation_button.y()
+            + self.source_port_button.y()
+            + PORTHEIGHT / 2
+        )
         x1 = (
-            self.destination.operation.x()
-            + self.destination.x()
+            self.destination_operation_button.x()
+            + self.destination_port_button.x()
             + (0 if not destination_flipped else PORTWIDTH)
         )
-        y1 = self.destination.operation.y() + self.destination.y() + PORTHEIGHT / 2
+        y1 = (
+            self.destination_operation_button.y()
+            + self._destination_port_button.y()
+            + PORTHEIGHT / 2
+        )
         xmid = (x0 + x1) / 2
         ymid = (y0 + y1) / 2
         both_flipped = source_flipped and destination_flipped

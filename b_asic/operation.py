@@ -660,8 +660,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             dict_ele = []
             for signal in inport.signals:
                 if signal.source:
-                    if signal.source.operation.graph_id:
-                        dict_ele.append(signal.source.operation.graph_id)
+                    if signal.source_operation.graph_id:
+                        dict_ele.append(signal.source_operation.graph_id)
                     else:
                         dict_ele.append(GraphID("no_id"))
                 else:
@@ -679,8 +679,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             dict_ele = []
             for signal in outport.signals:
                 if signal.destination:
-                    if signal.destination.operation.graph_id:
-                        dict_ele.append(signal.destination.operation.graph_id)
+                    if signal.destination_operation.graph_id:
+                        dict_ele.append(signal.destination_operation.graph_id)
                     else:
                         dict_ele.append(GraphID("no_id"))
                 else:
@@ -893,7 +893,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         Operations input ports.
         """
         return [
-            signal.source.operation for signal in self.input_signals if signal.source
+            signal.source_operation for signal in self.input_signals if signal.source
         ]
 
     @property

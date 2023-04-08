@@ -9,6 +9,7 @@ from qtpy.QtWidgets import QMenu, QPushButton
 
 if TYPE_CHECKING:
     from b_asic.GUI.drag_button import DragButton
+    from b_asic.operation import Operation
     from b_asic.port import Port
 
 
@@ -19,20 +20,19 @@ class PortButton(QPushButton):
     Parameters
     ----------
     name : str
-    operation : :class:`~b_asic.GUI.drag_button.DragButton`
+    operation_button : :class:`~b_asic.GUI.drag_button.DragButton`
     port : :class:`~b_asic.port.Port`
     """
 
     connectionRequested = Signal(QPushButton)
     moved = Signal()
 
-    def __init__(self, name: str, operation: "DragButton", port: "Port"):
-        super().__init__(name, parent=operation)
+    def __init__(self, name: str, operation_button: "DragButton", port: "Port"):
+        super().__init__(name, parent=operation_button)
         self.pressed = False
-        self._window = operation._window
+        self._window = operation_button._window
         self.port = port
-        self.operation = operation
-        self.clicked = 0
+        self._operation_button = operation_button
         self._m_drag = False
         self._m_press = False
         self.setAcceptDrops(True)
@@ -40,6 +40,11 @@ class PortButton(QPushButton):
 
         self.setStyleSheet("background-color: white")
         self.connectionRequested.connect(self._window._connect_callback)
+
+    @property
+    def operation(self) -> "Operation":
+        """Operation associated with PortButton."""
+        return self._operation_button.operation
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -97,6 +102,19 @@ class PortButton(QPushButton):
         )
 
     def select_port(self, modifiers=None):
+        """
+        Select the port taking *modifiers* into account.
+
+        Parameters
+        ----------
+        modifiers : optional
+            Qt keyboard modifier.
+
+        Returns
+        -------
+
+
+        """
         if modifiers != Qt.KeyboardModifier.ControlModifier:
             for port in self._window._pressed_ports:
                 port._toggle_port(port.pressed)
@@ -111,5 +129,5 @@ class PortButton(QPushButton):
             else:
                 self._window._pressed_ports.append(self)
 
-        for signal in self._window._arrows:
-            signal.update()
+        for arrow in self._window._arrow_ports:
+            arrow.update()

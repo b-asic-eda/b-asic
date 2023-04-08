@@ -1,7 +1,7 @@
 """
 B-ASIC window to simulate an SFG.
 """
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -19,6 +19,9 @@ from qtpy.QtWidgets import (
 )
 
 from b_asic.GUI.signal_generator_input import _GENERATOR_MAPPING
+
+if TYPE_CHECKING:
+    from b_asic.signal_flow_graph import SFG
 
 
 class SimulateSFGWindow(QDialog):
@@ -42,7 +45,15 @@ class SimulateSFGWindow(QDialog):
         self._input_grid = QGridLayout()
         self._input_files = {}
 
-    def add_sfg_to_dialog(self, sfg) -> None:
+    def add_sfg_to_dialog(self, sfg: "SFG") -> None:
+        """
+        Add a signal flow graph to the dialog.
+
+        Parameters
+        ----------
+        sfg : SFG
+            The signal flow graph to add.
+        """
         sfg_layout = QVBoxLayout()
         options_layout = QFormLayout()
 
@@ -105,6 +116,16 @@ class SimulateSFGWindow(QDialog):
         self._dialog_layout.addLayout(sfg_layout)
 
     def change_input_format(self, i: int, text: str) -> None:
+        """
+        Change the input format selector.
+
+        Parameters
+        ----------
+        i : int
+            Input number to change for.
+        text : str
+            Name of generator.
+        """
         grid = self._input_grid.itemAtPosition(i, 2)
         if grid:
             for j in reversed(range(grid.count())):
@@ -114,8 +135,6 @@ class SimulateSFGWindow(QDialog):
                     widget.hide()
             self._input_grid.removeItem(grid)
 
-        param_grid = QGridLayout()
-
         if text in _GENERATOR_MAPPING:
             param_grid = _GENERATOR_MAPPING[text](self._window._logger)
         else:
@@ -124,6 +143,7 @@ class SimulateSFGWindow(QDialog):
         self._input_grid.addLayout(param_grid, i, 2)
 
     def save_properties(self) -> None:
+        """Save the simulation properties and emit a signal to start the simulation."""
         for sfg, _properties in self._input_fields.items():
             ic_value = self._input_fields[sfg]["iteration_count"].value()
             if ic_value == 0:
@@ -159,4 +179,5 @@ class SimulateSFGWindow(QDialog):
 
     @property
     def properties(self) -> Dict:
+        """Return the simulation properties."""
         return self._properties

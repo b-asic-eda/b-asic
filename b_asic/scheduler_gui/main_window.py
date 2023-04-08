@@ -14,7 +14,7 @@ import webbrowser
 from collections import deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
-from typing import List, Optional, Union, cast
+from typing import Deque, List, Optional, cast
 
 # Qt/qtpy
 import qtpy
@@ -92,7 +92,7 @@ QCoreApplication.setApplicationName("B-ASIC Scheduling GUI")
 QCoreApplication.setApplicationVersion(__version__)
 
 
-class MainWindow(QMainWindow, Ui_MainWindow):
+class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     """Schedule of an SFG with scheduled Operations."""
 
     _scene: QGraphicsScene
@@ -150,9 +150,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.splitter.setCollapsible(1, True)
 
         # Recent files
-        self.maxFileNr = 4
-        self.recentFilesList: List[QAction] = []
-        self.recentFilePaths = deque(maxlen=self.maxFileNr)
+        self._max_recent_files = 4
+        self._recent_files_actions: List[QAction] = []
+        self._recent_file_paths: Deque[str] = deque(maxlen=self._max_recent_files)
         self._create_recent_file_actions_and_menus()
 
     def _init_graphics(self) -> None:
@@ -650,34 +650,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             log.error("'Operator' not found in info table. It may have been renamed.")
 
     def _create_recent_file_actions_and_menus(self):
-        for i in range(self.maxFileNr):
-            recentFileAction = QAction(self.menu_Recent_Schedule)
-            recentFileAction.setVisible(False)
-            recentFileAction.triggered.connect(
-                lambda b=0, x=recentFileAction: self._open_recent_file(x)
+        for i in range(self._max_recent_files):
+            recent_file_action = QAction(self.menu_Recent_Schedule)
+            recent_file_action.setVisible(False)
+            recent_file_action.triggered.connect(
+                lambda b=0, x=recent_file_action: self._open_recent_file(x)
             )
-            self.recentFilesList.append(recentFileAction)
-            self.menu_Recent_Schedule.addAction(recentFileAction)
+            self._recent_files_actions.append(recent_file_action)
+            self.menu_Recent_Schedule.addAction(recent_file_action)
 
         self._update_recent_file_list()
 
     def _update_recent_file_list(self):
         settings = QSettings()
 
-        rfp = settings.value("scheduler/recentFiles")
+        rfp = cast(deque, settings.value("scheduler/recentFiles"))
 
         # print(rfp)
         if rfp:
             dequelen = len(rfp)
             if dequelen > 0:
                 for i in range(dequelen):
-                    action = self.recentFilesList[i]
+                    action = self._recent_files_actions[i]
                     action.setText(rfp[i])
                     action.setData(QFileInfo(rfp[i]))
                     action.setVisible(True)
 
-                for i in range(dequelen, self.maxFileNr):
-                    self.recentFilesList[i].setVisible(False)
+                for i in range(dequelen, self._max_recent_files):
+                    self._recent_files_actions[i].setVisible(False)
 
     def _open_recent_file(self, action):
         self._load_from_file(action.data().filePath())
@@ -685,13 +685,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _add_recent_file(self, module):
         settings = QSettings()
 
-        rfp = settings.value("scheduler/recentFiles")
+        rfp = cast(deque, settings.value("scheduler/recentFiles"))
 
         if rfp:
             if module not in rfp:
                 rfp.append(module)
         else:
-            rfp = deque(maxlen=self.maxFileNr)
+            rfp = deque(maxlen=self._max_recent_files)
             rfp.append(module)
 
         settings.setValue("scheduler/recentFiles", rfp)
@@ -701,7 +701,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 def start_scheduler(schedule: Optional[Schedule] = None) -> None:
     app = QApplication(sys.argv)
-    window = MainWindow()
+    window = ScheduleMainWindow()
     if schedule:
         window.open(schedule)
     window.show()

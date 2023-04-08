@@ -497,7 +497,7 @@ class Schedule:
                 tmp_prev_available = tmp_usage - new_slack
                 prev_available = tmp_prev_available % self._schedule_time
                 laps = new_slack // self._schedule_time
-                source_op = signal.source.operation
+                source_op = signal.source_operation
                 if new_usage < prev_available:
                     print("Incrementing input laps 1")
                     laps += 1

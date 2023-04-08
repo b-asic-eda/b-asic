@@ -24,6 +24,7 @@ class SimulationWorker(QObject):
         self._props = properties
 
     def start_simulation(self):
+        """Start simulation and emit signal when finished."""
         simulation = Simulation(self._sfg, input_providers=self._props["input_values"])
         simulation.run_for(
             self._props["iteration_count"],

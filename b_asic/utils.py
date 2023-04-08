@@ -9,7 +9,7 @@ def interleave(*args) -> List[Num]:
     """
     Interleave a number of arrays.
 
-    For the input ``interleave([1, 2], [3, 4])``, return ``[1, 2, 3, 4]``.
+    For the input ``interleave([1, 2], [3, 4])``, return ``[1, 3, 2, 4]``.
 
     Parameters
     ----------

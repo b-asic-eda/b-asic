@@ -5,7 +5,7 @@ Contains a GUI class for drag buttons.
 """
 
 import os.path
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
@@ -18,6 +18,9 @@ from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.operation import Operation
 from b_asic.port import InputPort
 
+if TYPE_CHECKING:
+    from b_asic.GUI.main_window import SFGMainWindow
+
 
 @decorate_class(handle_error)
 class DragButton(QPushButton):
@@ -29,8 +32,11 @@ class DragButton(QPushButton):
     Parameters
     ----------
     operation : :class:`~b_asic.operation.Operation`
-    is_show_name : bool
-    window
+        The operation that the drag button corresponds to.
+    show_name : bool
+        Whether to show the name.
+    window : SFGMainWindow
+        Parent MainWindow.
     parent
     """
 
@@ -40,16 +46,15 @@ class DragButton(QPushButton):
     def __init__(
         self,
         operation: Operation,
-        is_show_name: bool,
+        show_name: bool,
         window,
         parent=None,
     ):
         self.name = operation.graph_id
-        self.ports: List[PortButton] = []
-        self.is_show_name = is_show_name
+        self._ports: List[PortButton] = []
+        self.show_name = show_name
         self._window = window
         self.operation = operation
-        self.clicked = 0
         self.pressed = False
         self._m_press = False
         self._m_drag = False
@@ -78,11 +83,20 @@ class DragButton(QPushButton):
             self._context_menu = menu
         self._context_menu.exec_(self.cursor().pos())
 
-    def show_properties_window(self, event=None):
+    def show_properties_window(self, event=None) -> None:
+        """Display the properties window for the associated Operation."""
         self._properties_window = PropertiesWindow(self, self._window)
         self._properties_window.show()
 
-    def add_label(self, label):
+    def add_label(self, label: str) -> None:
+        """
+        Add label to button.
+
+        Parameters
+        ----------
+        label : src
+            The label to add.
+        """
         self.label = label
 
     def mousePressEvent(self, event):
@@ -93,6 +107,11 @@ class DragButton(QPushButton):
             self._mouse_move_pos = pos
 
         super().mousePressEvent(event)
+
+    @property
+    def port_list(self) -> List[PortButton]:
+        """Return a list of PortButtons."""
+        return self._ports
 
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.MouseButton.LeftButton and self._m_press:
@@ -133,7 +152,7 @@ class DragButton(QPushButton):
 
     def _flip(self, event=None):
         self._flipped = not self._flipped
-        for pb in self.ports:
+        for pb in self._ports:
             if isinstance(pb.port, InputPort):
                 newx = MINBUTTONSIZE - PORTWIDTH if self._flipped else 0
             else:
@@ -164,7 +183,15 @@ class DragButton(QPushButton):
         """Return True if the button is flipped (inputs to the right)."""
         return self._flipped
 
-    def select_button(self, modifiers=None):
+    def select_button(self, modifiers=None) -> None:
+        """
+        Select button taking *modifiers* into account.
+
+        Parameters
+        ----------
+        modifiers : optional
+            Qt keyboard modifier.
+        """
         if modifiers != Qt.KeyboardModifier.ControlModifier:
             for button in self._window._pressed_operations:
                 button._toggle_button(button.pressed)
@@ -179,8 +206,8 @@ class DragButton(QPushButton):
             else:
                 self._window._pressed_operations.append(self)
 
-        for signal in self._window._arrows:
-            signal.update()
+        for arrow in self._window._arrow_ports:
+            arrow.update()
 
     def remove(self, event=None):
         """Remove button/operation from signal flow graph."""
@@ -188,10 +215,10 @@ class DragButton(QPushButton):
         self._window._scene.removeItem(self._window._drag_operation_scenes[self])
 
         _signals = []
-        for signal, ports in self._window._signal_ports.items():
+        for signal, ports in self._window._arrow_ports.items():
             if any(
                 map(
-                    lambda port: set(port).intersection(set(self.ports)),
+                    lambda port: set(port).intersection(set(self._ports)),
                     ports,
                 )
             ):
@@ -217,7 +244,7 @@ class DragButton(QPushButton):
                 is not self._window._operation_to_sfg[self]
             }
 
-        for port in self._window._ports[self]:
+        for port in self._ports:
             if port in self._window._pressed_ports:
                 self._window._pressed_ports.remove(port)
 
@@ -231,6 +258,8 @@ class DragButton(QPushButton):
             del self._window._drag_buttons[self.operation]
 
     def add_ports(self):
+        """Add ports to button."""
+
         def _determine_port_distance(opheight, ports):
             """
             Determine the distance between each port on the side of an operation.
@@ -251,11 +280,11 @@ class DragButton(QPushButton):
             port.setFixedSize(PORTWIDTH, PORTHEIGHT)
             port.move(0, dist)
             port.show()
-            self.ports.append(port)
+            self._ports.append(port)
 
         for i, dist in enumerate(output_ports_dist):
             port = PortButton(">", self, op.output(i))
             port.setFixedSize(PORTWIDTH, PORTHEIGHT)
             port.move(MINBUTTONSIZE - PORTWIDTH, dist)
             port.show()
-            self.ports.append(port)
+            self._ports.append(port)
