@@ -10,6 +10,7 @@ API
     operation.rst
     port.rst
     process.rst
+    quantization.rst
     resources.rst
     save_load_structure.rst
     schedule.rst
