@@ -44,6 +44,7 @@ from b_asic.GUI.simulation_worker import SimulationWorker
 from b_asic.GUI.util_dialogs import FaqWindow, KeybindingsWindow
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.decorators import decorate_class, handle_error
+from b_asic.gui_utils.icons import get_icon
 from b_asic.gui_utils.plot_window import PlotWindow
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -99,8 +100,12 @@ class SFGMainWindow(QMainWindow):
 
         # Create _toolbar
         self._toolbar = self.addToolBar("Toolbar")
-        self._toolbar.addAction("Create SFG", self.create_sfg_from_toolbar)
-        self._toolbar.addAction("Clear workspace", self._clear_workspace)
+        self._toolbar.addAction(
+            get_icon('new-sfg'), "Create SFG", self.create_sfg_from_toolbar
+        )
+        self._toolbar.addAction(
+            get_icon('close'), "Clear workspace", self._clear_workspace
+        )
 
         # Add operations
         self._max_recent_files = 4
@@ -146,7 +151,9 @@ class SFGMainWindow(QMainWindow):
             self._on_list_widget_item_clicked
         )
         self._ui.save_menu.triggered.connect(self.save_work)
+        self._ui.save_menu.setIcon(get_icon('save'))
         self._ui.load_menu.triggered.connect(self.load_work)
+        self._ui.load_menu.setIcon(get_icon('open'))
         self._ui.load_operations.triggered.connect(self.add_namespace)
         self._ui.exit_menu.triggered.connect(self.exit_app)
         self._shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)

@@ -50,6 +50,7 @@ import b_asic.scheduler_gui.logger as logger
 from b_asic._version import __version__
 from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow
+from b_asic.gui_utils.icons import get_icon
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
@@ -133,14 +134,17 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         # Connect signals to slots
         self.menu_load_from_file.triggered.connect(self._load_schedule_from_pyfile)
+        self.menu_load_from_file.setIcon(get_icon('open'))
         self.menu_close_schedule.triggered.connect(self.close_schedule)
         self.menu_save.triggered.connect(self.save)
+        self.menu_save.setIcon(get_icon('save'))
         self.menu_save_as.triggered.connect(self.save_as)
         self.menu_quit.triggered.connect(self.close)
         self.menu_node_info.triggered.connect(self.show_info_table)
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
         self.actionReorder.triggered.connect(self._action_reorder)
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
+        self.actionPlot_schedule.setIcon(get_icon('plot-schedule'))
         self.splitter.splitterMoved.connect(self._splitter_moved)
         self.actionDocumentation.triggered.connect(self._open_documentation)
         self.actionAbout.triggered.connect(self._open_about_window)

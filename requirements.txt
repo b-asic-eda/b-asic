@@ -4,3 +4,4 @@ graphviz>=0.19
 matplotlib
 setuptools_scm[toml]>=6.2
 networkx
+qtawesome
