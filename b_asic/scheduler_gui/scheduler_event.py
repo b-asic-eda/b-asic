@@ -11,15 +11,7 @@ from typing import List, Optional, overload
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import QEvent, QObject, QPointF, Signal
-from qtpy.QtGui import QFocusEvent
-from qtpy.QtWidgets import (
-    QGraphicsItem,
-    QGraphicsSceneContextMenuEvent,
-    QGraphicsSceneDragDropEvent,
-    QGraphicsSceneHoverEvent,
-    QGraphicsSceneMouseEvent,
-    QGraphicsSceneWheelEvent,
-)
+from qtpy.QtWidgets import QGraphicsItem, QGraphicsSceneMouseEvent
 
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui._preferences import OPERATION_GAP, OPERATION_HEIGHT

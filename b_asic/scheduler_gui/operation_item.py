@@ -135,11 +135,6 @@ class OperationItem(QGraphicsItemGroup):
             self._make_component()
 
     @property
-    def end_time(self) -> int:
-        """The relative end time."""
-        return self._end_time
-
-    @property
     def event_items(self) -> List[QGraphicsItem]:
         """List of objects that receives events."""
         return [self]

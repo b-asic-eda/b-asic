@@ -14,7 +14,7 @@ import webbrowser
 from collections import deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
-from typing import Deque, List, Optional, cast
+from typing import TYPE_CHECKING, Deque, List, Optional, cast
 
 # Qt/qtpy
 import qtpy
@@ -58,7 +58,10 @@ from b_asic.scheduler_gui.scheduler_item import SchedulerItem
 sys.path.insert(0, "icons/")  # Needed for *.rc.py files in ui_main_window
 from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
 
-log = logger.getLogger()
+if TYPE_CHECKING:
+    from logging import Logger
+
+log: "Logger" = logger.getLogger()
 sys.excepthook = logger.handle_exceptions
 
 
@@ -116,6 +119,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self._read_settings()
         self._init_ui()
+
+        # Recent files
+        self._max_recent_files = 4
+        self._recent_files_actions: List[QAction] = []
+        self._recent_file_paths: Deque[str] = deque(maxlen=self._max_recent_files)
+        self._create_recent_file_actions_and_menus()
+
         self._init_graphics()
 
     def _init_ui(self) -> None:
@@ -148,12 +158,6 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.splitter.setStretchFactor(1, 0)
         self.splitter.setCollapsible(0, False)
         self.splitter.setCollapsible(1, True)
-
-        # Recent files
-        self._max_recent_files = 4
-        self._recent_files_actions: List[QAction] = []
-        self._recent_file_paths: Deque[str] = deque(maxlen=self._max_recent_files)
-        self._create_recent_file_actions_and_menus()
 
     def _init_graphics(self) -> None:
         """Initialize the QGraphics framework"""
@@ -527,9 +531,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         )  # window: maximized, in X11 - always False
         settings.setValue("scheduler/pos", self.pos())  # window: pos
         settings.setValue("scheduler/size", self.size())  # window: size
-        settings.setValue(
-            "scheduler/state", self.saveState()
-        )  # toolbars, dockwidgets: pos, size
+        settings.setValue("scheduler/state", self.saveState())
         settings.setValue("scheduler/menu/node_info", self.menu_node_info.isChecked())
         settings.setValue("scheduler/splitter/state", self.splitter.saveState())
         settings.setValue("scheduler/splitter/pos", self.splitter.sizes()[1])

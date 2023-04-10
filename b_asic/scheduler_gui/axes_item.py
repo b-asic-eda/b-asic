@@ -115,10 +115,6 @@ class AxesItem(QGraphicsItemGroup):
         # TODO: update, needed?
         # self._timeline.setParentItem(None)
         self._event_items = []
-        keys = list(self._axes.keys())
-        for key in keys:
-            self._axes[key].setParentItem(None)
-            del self._axes[key]
 
     @property
     def width(self) -> int:

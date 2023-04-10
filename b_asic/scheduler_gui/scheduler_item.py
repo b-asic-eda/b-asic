@@ -99,7 +99,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         # TODO: implement
         if self.schedule is None:
             raise ValueError("No schedule installed.")
-        end_time = item.end_time
         new_start_time = floor(pos) - floor(self._x_axis_indent)
         slacks = self.schedule.slacks(item.graph_id)
         op_start_time = self.schedule.start_time_of_operation(item.graph_id)
@@ -116,7 +115,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         else:
             if pos < 0:
                 return False
-            if new_start_time + end_time > self.schedule.schedule_time:
+            if new_start_time + item.operation.latency > self.schedule.schedule_time:
                 return False
 
         return True
