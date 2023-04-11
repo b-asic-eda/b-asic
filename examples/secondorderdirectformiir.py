@@ -35,6 +35,8 @@ sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
 sfg.set_latency_of_type(Addition.type_name(), 1)
 sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
 sfg.set_execution_time_of_type(Addition.type_name(), 1)
+sfg.set_execution_time_of_type(Input.type_name(), 1)
+sfg.set_execution_time_of_type(Output.type_name(), 1)
 
 # %%
 # Create schedule

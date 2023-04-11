@@ -10,6 +10,7 @@ from matplotlib.ticker import MaxNLocator
 
 from b_asic._preferences import LATENCY_COLOR
 from b_asic.process import MemoryVariable, PlainMemoryVariable, Process
+from b_asic.types import TypeName
 
 # Default latency coloring RGB tuple
 _LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
@@ -1120,3 +1121,29 @@ class ProcessCollection:
                 write_ports=write_ports,
                 total_ports=total_ports,
             )
+
+    def get_by_type_name(self, type_name: TypeName) -> "ProcessCollection":
+        """
+        Return a ProcessCollection with only a given type of operations.
+
+        Parameters
+        ----------
+        type_name : TypeName
+            The type_name of the operation.
+
+        Returns
+        -------
+        None.
+
+        """
+        from b_asic.process import OperatorProcess
+
+        return ProcessCollection(
+            {
+                process
+                for process in self._collection
+                if isinstance(process, OperatorProcess)
+                and process._operation.type_name() == type_name
+            },
+            self._schedule_time,
+        )

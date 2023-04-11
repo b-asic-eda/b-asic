@@ -31,7 +31,7 @@ from b_asic._preferences import (
 from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
-from b_asic.process import MemoryVariable
+from b_asic.process import MemoryVariable, OperatorProcess
 from b_asic.resources import ProcessCollection
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
@@ -294,13 +294,13 @@ class Schedule:
 
     @property
     def start_times(self) -> Dict[GraphID, int]:
-        """The start times of the operations in the current schedule."""
+        """The start times of the operations in the schedule."""
         return self._start_times
 
     @property
     def laps(self) -> Dict[GraphID, int]:
         """
-        The number of laps for the start times of the operations in the current schedule.
+        The number of laps for the start times of the operations in the schedule.
         """
         return self._laps
 
@@ -674,8 +674,8 @@ class Schedule:
                 ] + cast(int, source_port.latency_offset)
         self._remove_delays()
 
-    def _get_memory_variables_list(self) -> List['MemoryVariable']:
-        ret: List['MemoryVariable'] = []
+    def _get_memory_variables_list(self) -> List[MemoryVariable]:
+        ret: List[MemoryVariable] = []
         for graph_id, start_time in self._start_times.items():
             slacks = self._forward_slacks(graph_id)
             for outport, signals in slacks.items():
@@ -706,6 +706,24 @@ class Schedule:
         return ProcessCollection(
             set(self._get_memory_variables_list()), self.schedule_time
         )
+
+    def get_operations(self) -> ProcessCollection:
+        """
+        Return a :class:`~b_asic.resources.ProcessCollection` containing all
+        operations.
+
+        Returns
+        -------
+        ProcessCollection
+
+        """
+        return ProcessCollection(set(self._get_operations_list()), self.schedule_time)
+
+    def _get_operations_list(self) -> List[OperatorProcess]:
+        return [
+            OperatorProcess(start_time, self._sfg.find_by_id(graph_id))
+            for graph_id, start_time in self._start_times.items()
+        ]
 
     def _get_y_position(
         self, graph_id, operation_height=1.0, operation_gap=None

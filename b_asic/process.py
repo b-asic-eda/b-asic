@@ -29,8 +29,8 @@ class Process:
         self._start_time = start_time
         self._execution_time = execution_time
         if name is None:
-            self._name = f"Proc. {PlainMemoryVariable._name_cnt}"
-            PlainMemoryVariable._name_cnt += 1
+            self._name = f"Proc. {Process._name_cnt}"
+            Process._name_cnt += 1
         else:
             self._name = name
 
@@ -87,12 +87,12 @@ class OperatorProcess(Process):
         execution_time = operation.execution_time
         if execution_time is None:
             raise ValueError(
-                "Operation {operation!r} does not have an execution time specified!"
+                f"Operation {operation!r} does not have an execution time specified!"
             )
         super().__init__(
             start_time,
             execution_time,
-            name=name,
+            name=name or operation.name or operation.graph_id,
         )
         self._operation = operation
 
