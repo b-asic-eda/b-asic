@@ -717,13 +717,14 @@ class Schedule:
         ProcessCollection
 
         """
-        return ProcessCollection(set(self._get_operations_list()), self.schedule_time)
-
-    def _get_operations_list(self) -> List[OperatorProcess]:
-        return [
-            OperatorProcess(start_time, self._sfg.find_by_id(graph_id))
-            for graph_id, start_time in self._start_times.items()
-        ]
+        return ProcessCollection(
+            {
+                OperatorProcess(start_time, self._sfg.find_by_id(graph_id))
+                for graph_id, start_time in self._start_times.items()
+            },
+            self.schedule_time,
+            self.cyclic,
+        )
 
     def _get_y_position(
         self, graph_id, operation_height=1.0, operation_gap=None

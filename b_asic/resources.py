@@ -9,7 +9,7 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
 
 from b_asic._preferences import LATENCY_COLOR
-from b_asic.process import MemoryVariable, PlainMemoryVariable, Process
+from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable, Process
 from b_asic.types import TypeName
 
 # Default latency coloring RGB tuple
@@ -1124,7 +1124,7 @@ class ProcessCollection:
 
     def get_by_type_name(self, type_name: TypeName) -> "ProcessCollection":
         """
-        Return a ProcessCollection with only a given type of operations.
+        Return a ProcessCollection with only a given type of operation.
 
         Parameters
         ----------
@@ -1133,11 +1133,9 @@ class ProcessCollection:
 
         Returns
         -------
-        None.
+        ProcessCollection
 
         """
-        from b_asic.process import OperatorProcess
-
         return ProcessCollection(
             {
                 process
@@ -1146,4 +1144,5 @@ class ProcessCollection:
                 and process._operation.type_name() == type_name
             },
             self._schedule_time,
+            self._cyclic,
         )
