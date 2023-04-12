@@ -34,6 +34,8 @@ class Constant(AbstractOperation):
     """
 
     _execution_time = 0
+    is_linear = True
+    is_constant = True
 
     def __init__(self, value: Num = 0, name: Name = ""):
         """Construct a Constant operation with the given value."""
@@ -72,14 +74,6 @@ class Constant(AbstractOperation):
     def __str__(self) -> str:
         return f"{self.value}"
 
-    @property
-    def is_linear(self) -> bool:
-        return True
-
-    @property
-    def is_constant(self) -> bool:
-        return True
-
 
 class Addition(AbstractOperation):
     """
@@ -114,6 +108,8 @@ class Addition(AbstractOperation):
 
     """
 
+    is_linear = True
+
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
@@ -142,10 +138,6 @@ class Addition(AbstractOperation):
 
     def evaluate(self, a, b):
         return a + b
-
-    @property
-    def is_linear(self) -> bool:
-        return True
 
 
 class Subtraction(AbstractOperation):
@@ -180,6 +172,8 @@ class Subtraction(AbstractOperation):
     AddSub
     """
 
+    is_linear = True
+
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
@@ -206,10 +200,6 @@ class Subtraction(AbstractOperation):
 
     def evaluate(self, a, b):
         return a - b
-
-    @property
-    def is_linear(self) -> bool:
-        return True
 
 
 class AddSub(AbstractOperation):
@@ -252,6 +242,7 @@ class AddSub(AbstractOperation):
     ========
     Addition, Subtraction
     """
+    is_linear = True
 
     def __init__(
         self,
@@ -291,10 +282,6 @@ class AddSub(AbstractOperation):
     def is_add(self, is_add: bool) -> None:
         """Set if operation is an addition."""
         self.set_param("is_add", is_add)
-
-    @property
-    def is_linear(self) -> bool:
-        return True
 
 
 class Multiplication(AbstractOperation):
@@ -615,6 +602,7 @@ class ConstantMultiplication(AbstractOperation):
 
     .. math:: y = x_0 \times \text{value}
     """
+    is_linear = True
 
     def __init__(
         self,
@@ -654,10 +642,6 @@ class ConstantMultiplication(AbstractOperation):
         """Set the constant value of this operation."""
         self.set_param("value", value)
 
-    @property
-    def is_linear(self) -> bool:
-        return True
-
 
 class Butterfly(AbstractOperation):
     r"""
@@ -672,6 +656,7 @@ class Butterfly(AbstractOperation):
         y_1 & = & x_0 - x_1
         \end{eqnarray}
     """
+    is_linear = True
 
     def __init__(
         self,
@@ -699,10 +684,6 @@ class Butterfly(AbstractOperation):
 
     def evaluate(self, a, b):
         return a + b, a - b
-
-    @property
-    def is_linear(self) -> bool:
-        return True
 
 
 class MAD(AbstractOperation):
@@ -761,6 +742,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         y_1 & = & x_0 + \text{value}\times\left(x_1 - x_0\right)
         \end{eqnarray}
     """
+    is_linear = True
 
     def __init__(
         self,
@@ -801,10 +783,6 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
-
-    @property
-    def is_linear(self) -> bool:
-        return True
 
 
 class Reciprocal(AbstractOperation):

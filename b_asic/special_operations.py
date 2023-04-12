@@ -25,7 +25,8 @@ class Input(AbstractOperation):
     Its value will be updated on each iteration when simulating the SFG.
     """
 
-    _execution_time = 0
+    is_linear = True
+    is_constant = False
 
     def __init__(self, name: Name = ""):
         """Construct an Input operation."""
@@ -34,6 +35,7 @@ class Input(AbstractOperation):
             output_count=1,
             name=name,
             latency_offsets={"out0": 0},
+            execution_time=0,
         )
         self.set_param("value", 0)
 
@@ -89,14 +91,6 @@ class Input(AbstractOperation):
         # doc-string inherited
         return ((0, 0.5),)
 
-    @property
-    def is_constant(self) -> bool:
-        return False
-
-    @property
-    def is_linear(self) -> bool:
-        return True
-
 
 class Output(AbstractOperation):
     """
@@ -107,7 +101,7 @@ class Output(AbstractOperation):
     destinations.
     """
 
-    _execution_time = 0
+    is_linear = True
 
     def __init__(
         self,
@@ -121,6 +115,7 @@ class Output(AbstractOperation):
             name=Name(name),
             input_sources=[src0],
             latency_offsets={"in0": 0},
+            execution_time=0,
         )
 
     @classmethod
@@ -172,6 +167,8 @@ class Delay(AbstractOperation):
     name : Name, default ""
         Name.
     """
+
+    is_linear = True
 
     def __init__(
         self,
@@ -242,7 +239,3 @@ class Delay(AbstractOperation):
     def initial_value(self, value: Num) -> None:
         """Set the initial value of this delay."""
         self.set_param("initial_value", value)
-
-    @property
-    def is_linear(self) -> bool:
-        return True
