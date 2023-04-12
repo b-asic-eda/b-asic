@@ -1,5 +1,7 @@
 import re
 
+import pytest
+
 from b_asic.process import PlainMemoryVariable
 
 
@@ -32,3 +34,8 @@ def test_MemoryVariables(secondorder_iir_schedule):
     assert pattern.match(repr(mem_var))
     assert mem_var.execution_time == 4
     assert mem_var.start_time == 3
+
+
+def test_OperatorProcess_error(secondorder_iir_schedule):
+    with pytest.raises(ValueError, match="does not have an execution time specified"):
+        _ = secondorder_iir_schedule.get_operations()

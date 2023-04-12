@@ -1001,9 +1001,7 @@ class ProcessCollection:
         for collection in assignment:
             for mv in collection:
                 if mv not in self:
-                    raise ValueError(
-                        f'{mv.__repr__()} is not part of {self.__repr__()}.'
-                    )
+                    raise ValueError(f'{mv!r} is not part of {self!r}.')
 
         # Make sure that concurrent reads/writes do not surpass the port setting
         for mv in self:
@@ -1141,7 +1139,7 @@ class ProcessCollection:
                 process
                 for process in self._collection
                 if isinstance(process, OperatorProcess)
-                and process._operation.type_name() == type_name
+                and process.operation.type_name() == type_name
             },
             self._schedule_time,
             self._cyclic,

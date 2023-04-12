@@ -96,6 +96,14 @@ class OperatorProcess(Process):
         )
         self._operation = operation
 
+    @property
+    def operation(self) -> Operation:
+        """The Operation that the OperatorProcess corresponds to."""
+        return self._operation
+
+    def __repr__(self) -> str:
+        return f"OperatorProcess({self.start_time}, {self.operation}, {self.name!r})"
+
 
 class MemoryVariable(Process):
     """

@@ -6,6 +6,7 @@ import re
 import pytest
 
 from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
+from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
@@ -562,3 +563,8 @@ class TestErrors:
             NotImplementedError, match="No algorithm with name: foo defined."
         ):
             Schedule(sfg_simple_filter, scheduling_algorithm="foo")
+
+    def test_get_operations(self, secondorder_iir_schedule_with_execution_times):
+        pc = secondorder_iir_schedule_with_execution_times.get_operations()
+        assert len(pc) == 13
+        assert all(isinstance(operand, OperatorProcess) for operand in pc.collection)

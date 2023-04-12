@@ -4,6 +4,7 @@ import re
 import matplotlib.pyplot as plt
 import pytest
 
+from b_asic.core_operations import ConstantMultiplication
 from b_asic.process import PlainMemoryVariable
 from b_asic.research.interleaver import (
     generate_matrix_transposer,
@@ -124,3 +125,12 @@ class TestProcessCollectionPlainMemoryVariable:
 
     def test_len_process_collection(self, simple_collection: ProcessCollection):
         assert len(simple_collection) == 7
+
+    def test_get_by_type_name(self, secondorder_iir_schedule_with_execution_times):
+        pc = secondorder_iir_schedule_with_execution_times.get_operations()
+        pc_cmul = pc.get_by_type_name(ConstantMultiplication.type_name())
+        assert len(pc_cmul) == 7
+        assert all(
+            isinstance(operand.operation, ConstantMultiplication)
+            for operand in pc_cmul.collection
+        )
