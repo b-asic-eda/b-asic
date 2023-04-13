@@ -2,8 +2,10 @@
 
 import re
 import sys
-from typing import Dict, List, Mapping, Optional, Sequence, Union
+from typing import Dict, List, Mapping, Optional, Sequence  # , Union
 
+# from numpy import (array, real, imag, real_if_close, absolute, angle)
+import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -60,21 +62,48 @@ class PlotWindow(QWidget):
         self.setWindowTitle(title)
         self._auto_redraw = False
 
-        # Categorise sim_results into inputs, outputs, delays, others
-        sim_res_ins = {}
-        sim_res_outs = {}
-        sim_res_delays = {}
-        sim_res_others = {}
-
-        for key in sim_result:
+        ########### Categorizing/sorting/renaming sim_results: ##############
+        #  take: sim_results
+        #  generate: key_order, initially_checked
+        #  generate: updated_result
+        initially_checked = []
+        dict_to_sort = {}  # use key=m+1/n, where m:3=input, 4=output, 2=T, 1=others
+        updated_result = {}
+        n = 0
+        for key, result in sim_result.items():
+            key2 = key  # in most cases
             if re.fullmatch("in[0-9]+", key):
-                sim_res_ins[key] = sim_result[key]
+                m = 4
             elif re.fullmatch("[0-9]+", key):
-                sim_res_outs[key] = sim_result[key]
+                m = 3
+                key2 = 'o' + key
             elif re.fullmatch("t[0-9]+", key):
-                sim_res_delays[key] = sim_result[key]
+                m = 2
             else:
-                sim_res_others[key] = sim_result[key]
+                m = 1
+
+            if all(np.imag(np.real_if_close(result)) == 0):
+                n = n + 1
+                dict_to_sort[m + 1 / n] = key2
+                updated_result[key2] = np.real(result)
+                if m == 3:  # output
+                    initially_checked.append(key2)
+            else:
+                # The same again, but split into several lines
+                dict_to_sort[m + 1 / (n + 1)] = key2 + '_re'
+                dict_to_sort[m + 1 / (n + 2)] = key2 + '_im'
+                dict_to_sort[m + 1 / (n + 3)] = key2 + '_mag'
+                dict_to_sort[m + 1 / (n + 4)] = key2 + '_ang'
+                updated_result[key2 + '_re'] = np.real(result)
+                updated_result[key2 + '_im'] = np.imag(result)
+                updated_result[key2 + '_mag'] = np.absolute(result)
+                updated_result[key2 + '_ang'] = np.angle(result)
+                n = n + 4
+                if m == 3:  # output
+                    initially_checked.append(key2 + '_re')
+                    initially_checked.append(key2 + '_im')
+
+        key_order = list(dict(sorted(dict_to_sort.items(), reverse=True)).values())
 
         # Layout: ############################################
         # | list | icons |
@@ -100,15 +129,9 @@ class PlotWindow(QWidget):
         self._plot_axes = self._plot_fig.add_subplot(111)
         self._plot_axes.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        # Use | when dropping support for Python 3.8
-        ordered_for_plotting = {}
-        ordered_for_plotting.update(sim_res_others)
-        ordered_for_plotting.update(sim_res_delays)
-        ordered_for_plotting.update(sim_res_ins)
-        ordered_for_plotting.update(sim_res_outs)
         self._lines = {}
-        for key, result in ordered_for_plotting.items():
-            line = self._plot_axes.plot(sim_result[key], label=key)
+        for key in key_order:
+            line = self._plot_axes.plot(updated_result[key], label=key)
             self._lines[key] = line[0]
 
         self._plot_canvas = FigureCanvas(self._plot_fig)
@@ -133,20 +156,14 @@ class PlotWindow(QWidget):
         self._checklist.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self._checklist.itemChanged.connect(self._item_change)
         listitems = {}
-        # Use | when dropping support for Python 3.8
-        ordered_for_checklist = {}
-        ordered_for_checklist.update(sim_res_ins)
-        ordered_for_checklist.update(sim_res_outs)
-        ordered_for_checklist.update(sim_res_delays)
-        ordered_for_checklist.update(sim_res_others)
-        for key in ordered_for_checklist:
+        for key in key_order:
             list_item = QListWidgetItem(key)
             listitems[key] = list_item
             self._checklist.addItem(list_item)
             list_item.setCheckState(
                 Qt.CheckState.Unchecked  # CheckState: Qt.CheckState.{Unchecked, PartiallyChecked, Checked}
             )
-        for key in sim_res_outs:
+        for key in initially_checked:
             listitems[key].setCheckState(Qt.CheckState.Checked)
         # self._checklist.setFixedWidth(150)
         listlayout.addWidget(self._checklist)
@@ -248,11 +265,15 @@ def start_simulation_dialog(
 # Simple test of the dialog
 if __name__ == "__main__":
     sim_res = {
-        '0': [0.5, 0.5, 0, 0],
+        '0': [0.5, 0.6, 0.5, 0],
+        '1': [0.0, 1.0 + 0.3j, 0.5, 0.1j],
         'add1': [0.5, 0.5, 0, 0],
         'cmul1': [0, 0.5, 0, 0],
         'cmul2': [0.5, 0, 0, 0],
         'in1': [1, 0, 0, 0],
+        'in2': [0.1, 2, 0, 0],
         't1': [0, 1, 0, 0],
+        't2': [0, 0, 1, 0],
+        't3': [0, 0, 0, 1],
     }
     start_simulation_dialog(sim_res, "Test data")
