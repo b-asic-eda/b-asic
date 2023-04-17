@@ -73,6 +73,29 @@ def test_wdf_allpass():
         == 1
     )
 
+    # Bi-reciprocal third-order
+    sfg = wdf_allpass([0.0, 0.5, 0.0])
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, SymmetricTwoportAdaptor)
+            ]
+        )
+        == 1
+    )
+
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 3
+
+    # Second-order all zeros third-order
+    sfg = wdf_allpass([0.0, 0.0])
+    assert not [
+        comp for comp in sfg.components if isinstance(comp, SymmetricTwoportAdaptor)
+    ]
+
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
+
 
 def test_direct_form_fir():
     impulse_response = [0.3, 0.5, 0.7]

@@ -29,6 +29,8 @@ def wdf_allpass(
     Generate a signal flow graph of a WDF allpass section based on symmetric two-port\
  adaptors.
 
+    Simplifies the SFG in case an adaptor operation is 0.
+
     Parameters
     ----------
     coefficients : 1D-array
@@ -62,17 +64,20 @@ def wdf_allpass(
     output = Output()
     odd_order = order % 2
     if odd_order:
-        # First-order section
-        adaptor0 = SymmetricTwoportAdaptor(
-            np_coefficients[0],
-            input_op,
-            latency=latency,
-            latency_offsets=latency_offsets,
-            execution_time=execution_time,
-        )
-        signal_out = Signal(adaptor0.output(0))
-        delay = Delay(adaptor0.output(1))
-        Signal(delay, adaptor0.input(1))
+        if np_coefficients[0]:
+            # First-order section
+            adaptor0 = SymmetricTwoportAdaptor(
+                np_coefficients[0],
+                input_op,
+                latency=latency,
+                latency_offsets=latency_offsets,
+                execution_time=execution_time,
+            )
+            signal_out = Signal(adaptor0.output(0))
+            delay = Delay(adaptor0.output(1))
+            Signal(delay, adaptor0.input(1))
+        else:
+            signal_out = Delay(input_op)
     else:
         signal_out = Signal(input_op)
 
@@ -80,28 +85,38 @@ def wdf_allpass(
     sos_count = (order - 1) // 2 if odd_order else order // 2
     offset1, offset2 = (1, 2) if odd_order else (0, 1)
     for n in range(sos_count):
-        adaptor1 = SymmetricTwoportAdaptor(
-            np_coefficients[2 * n + offset1],
-            signal_out,
-            latency=latency,
-            latency_offsets=latency_offsets,
-            execution_time=execution_time,
-        )
-        # Signal(prev_adaptor., adaptor1.input(0), name="Previous-stage to next")
-        delay1 = Delay(adaptor1.output(1))
-        delay2 = Delay()
-        adaptor2 = SymmetricTwoportAdaptor(
-            np_coefficients[2 * n + offset2],
-            delay1,
-            delay2,
-            latency=latency,
-            latency_offsets=latency_offsets,
-            execution_time=execution_time,
-        )
-        Signal(adaptor2.output(0), adaptor1.input(1))
-        Signal(adaptor2.output(1), delay2)
-        signal_out = Signal(adaptor1.output(0))
-
+        if np_coefficients[2 * n + offset1]:
+            adaptor1 = SymmetricTwoportAdaptor(
+                np_coefficients[2 * n + offset1],
+                signal_out,
+                latency=latency,
+                latency_offsets=latency_offsets,
+                execution_time=execution_time,
+            )
+            # Signal(prev_adaptor., adaptor1.input(0), name="Previous-stage to next")
+            delay1 = Delay(adaptor1.output(1))
+        else:
+            delay1 = Delay(signal_out)
+        if np_coefficients[2 * n + offset2]:
+            delay2 = Delay()
+            adaptor2 = SymmetricTwoportAdaptor(
+                np_coefficients[2 * n + offset2],
+                delay1,
+                delay2,
+                latency=latency,
+                latency_offsets=latency_offsets,
+                execution_time=execution_time,
+            )
+            Signal(adaptor2.output(0), adaptor1.input(1))
+            Signal(adaptor2.output(1), delay2)
+            signal_out = Signal(adaptor1.output(0))
+        else:
+            delay2 = Delay(delay1)
+            if np_coefficients[2 * n + offset1]:
+                Signal(delay2, adaptor1.input(1))
+                signal_out = Signal(adaptor1.output(0))
+            else:
+                signal_out = Signal(delay2)
     output << signal_out
     return SFG([input_op], [output], name=Name(name))
 
