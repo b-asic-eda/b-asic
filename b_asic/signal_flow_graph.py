@@ -747,9 +747,18 @@ class SFG(AbstractOperation):
         return self._precedence_list
 
     def show_precedence_graph(self) -> None:
+        """
+        Display the output of :func:`precedence_graph` in the system viewer.
+        """
         self.precedence_graph().view()
 
     def precedence_graph(self) -> Digraph:
+        """
+        Return the SFG in prededence form in Graphviz format.
+
+        This can be rendered in enriched shells.
+
+        """
         p_list = self.get_precedence_list()
         pg = Digraph()
         pg.attr(rankdir="LR")
@@ -1377,6 +1386,14 @@ class SFG(AbstractOperation):
         from b_asic.schedule import Schedule
 
         return Schedule(self, scheduling_algorithm="ASAP").schedule_time
+
+    def iteration_period_bound(self) -> int:
+        """
+        Return the iteration period bound of the SFG.
+
+        If -1, the SFG does not have any loops and therefore no iteration period bound.
+        """
+        raise NotImplementedError()
 
     def edit(self) -> None:
         """Edit SFG in GUI."""
