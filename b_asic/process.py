@@ -19,20 +19,14 @@ class Process:
         Start time of process.
     execution_time : int
         Execution time (lifetime) of process.
-    name : str, optional
-        The name of the process. If not provided, generate a name.
+    name : str, default: ""
+        The name of the process.
     """
 
-    def __init__(
-        self, start_time: int, execution_time: int, name: Optional[str] = None
-    ):
+    def __init__(self, start_time: int, execution_time: int, name: str = ""):
         self._start_time = start_time
         self._execution_time = execution_time
-        if name is None:
-            self._name = f"Proc. {Process._name_cnt}"
-            Process._name_cnt += 1
-        else:
-            self._name = name
+        self._name = name
 
     def __lt__(self, other):
         return self._start_time < other.start_time or (
@@ -59,9 +53,6 @@ class Process:
 
     def __repr__(self) -> str:
         return f"Process({self.start_time}, {self.execution_time}, {self.name!r})"
-
-    # Static counter for default names
-    _name_cnt = 0
 
 
 class OperatorProcess(Process):
@@ -117,8 +108,8 @@ class MemoryVariable(Process):
     write_port : :class:`~b_asic.port.OutputPort`
         The OutputPort that the memory variable originates from.
     reads : dict
-        Dictionary with :class:`~b_asic.port.InputPort` that reads the memory variable as key and
-        for how long after the *write_time* it will read.
+        Dictionary with :class:`~b_asic.port.InputPort` that reads the memory variable
+        as key and for how long after the *write_time* it will read.
     name : str, optional
         The name of the process.
     """
@@ -196,6 +187,10 @@ class PlainMemoryVariable(Process):
         self._life_times = tuple(reads.values())
         self._write_port = write_port
         self._reads = reads
+        if name is None:
+            name = f"Var. {PlainMemoryVariable._name_cnt}"
+            PlainMemoryVariable._name_cnt += 1
+
         super().__init__(
             start_time=write_time,
             execution_time=max(self._life_times),
@@ -224,3 +219,6 @@ class PlainMemoryVariable(Process):
             f"PlainMemoryVariable({self.start_time}, {self.write_port},"
             f" {reads!r}, {self.name!r})"
         )
+
+    # Static counter for default names
+    _name_cnt = 0

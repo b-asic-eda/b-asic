@@ -12,7 +12,7 @@ def test_PlainMemoryVariable():
     assert mem.execution_time == 2
     assert mem.life_times == (1, 2)
     assert mem.read_ports == (4, 5)
-    assert repr(mem) == "PlainMemoryVariable(3, 0, {4: 1, 5: 2}, 'Proc. 0')"
+    assert repr(mem) == "PlainMemoryVariable(3, 0, {4: 1, 5: 2}, 'Var. 0')"
 
     mem2 = PlainMemoryVariable(2, 0, {4: 2, 5: 3}, 'foo')
     assert repr(mem2) == "PlainMemoryVariable(2, 0, {4: 2, 5: 3}, 'foo')"
