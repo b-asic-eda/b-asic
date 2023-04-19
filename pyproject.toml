@@ -73,3 +73,6 @@ skip = [
 packages = ["b_asic", "test"]
 no_site_packages = true
 ignore_missing_imports = true
+
+[tool.coverage.report]
+precision = 2

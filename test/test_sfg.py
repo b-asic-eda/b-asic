@@ -1534,3 +1534,55 @@ class TestIsConstant:
 
     def test_sfg_nested(self, sfg_nested: SFG):
         assert not sfg_nested.is_constant
+
+
+class TestInsertComponentAfter:
+    def test_insert_component_after_in_sfg(self, large_operation_tree_names):
+        sfg = SFG(outputs=[Output(large_operation_tree_names)])
+        sqrt = SquareRoot()
+
+        _sfg = sfg.insert_operation_after(
+            sfg.find_by_name("constant4")[0].graph_id, sqrt
+        )
+        assert _sfg.evaluate() != sfg.evaluate()
+
+        assert any([isinstance(comp, SquareRoot) for comp in _sfg.operations])
+        assert not any([isinstance(comp, SquareRoot) for comp in sfg.operations])
+
+        assert not isinstance(
+            sfg.find_by_name("constant4")[0].output(0).signals[0].destination.operation,
+            SquareRoot,
+        )
+        assert isinstance(
+            _sfg.find_by_name("constant4")[0]
+            .output(0)
+            .signals[0]
+            .destination.operation,
+            SquareRoot,
+        )
+
+        assert sfg.find_by_name("constant4")[0].output(0).signals[
+            0
+        ].destination.operation is sfg.find_by_id("add3")
+        assert _sfg.find_by_name("constant4")[0].output(0).signals[
+            0
+        ].destination.operation is not _sfg.find_by_id("add3")
+        assert _sfg.find_by_id("sqrt1").output(0).signals[
+            0
+        ].destination.operation is _sfg.find_by_id("add3")
+
+    def test_insert_component_after_mimo_operation_error(
+        self, large_operation_tree_names
+    ):
+        sfg = SFG(outputs=[Output(large_operation_tree_names)])
+        with pytest.raises(
+            TypeError, match="Only operations with one input and one output"
+        ):
+            sfg.insert_operation_after('constant4', SymmetricTwoportAdaptor(0.5))
+
+    def test_insert_component_after_unknown_component_error(
+        self, large_operation_tree_names
+    ):
+        sfg = SFG(outputs=[Output(large_operation_tree_names)])
+        with pytest.raises(ValueError, match="Unknown component:"):
+            sfg.insert_operation_after('foo', SquareRoot())
