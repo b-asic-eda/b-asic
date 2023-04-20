@@ -705,13 +705,14 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_recent_file_list()
 
 
-def start_scheduler(schedule: Optional[Schedule] = None) -> None:
+def start_scheduler(schedule: Optional[Schedule] = None) -> Schedule:
     app = QApplication(sys.argv)
     window = ScheduleMainWindow()
     if schedule:
         window.open(schedule)
     window.show()
-    sys.exit(app.exec_())
+    app.exec_()
+    return window.schedule
 
 
 if __name__ == "__main__":

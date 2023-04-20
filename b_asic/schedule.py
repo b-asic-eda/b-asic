@@ -314,11 +314,21 @@ class Schedule:
         """If the current schedule is cyclic."""
         return self._cyclic
 
-    def edit(self) -> None:
-        """Edit schedule in GUI."""
+    def edit(self, inplace=False) -> "Schedule":
+        """
+        Edit schedule in GUI and return new schedule.
+
+        Parameters
+        ----------
+        inplace : bool, default: False
+            If True, replace the current schedule.
+        """
         from b_asic.scheduler_gui.main_window import start_scheduler
 
-        start_scheduler(self)
+        new_schedule = start_scheduler(self)
+        if inplace:
+            self = new_schedule
+        return new_schedule
 
     def increase_time_resolution(self, factor: int) -> "Schedule":
         """
