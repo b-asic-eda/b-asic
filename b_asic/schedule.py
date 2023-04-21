@@ -329,6 +329,8 @@ class Schedule:
         if inplace:
             self._start_times = new_schedule._start_times
             self._laps = new_schedule._laps
+            self._schedule_time = new_schedule._schedule_time
+            self._y_locations = new_schedule._y_locations
         return new_schedule
 
     def increase_time_resolution(self, factor: int) -> "Schedule":
