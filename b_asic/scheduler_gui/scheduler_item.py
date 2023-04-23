@@ -247,6 +247,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         ):
             self._set_position(graph_id)
         self._redraw_all_lines()
+        self._update_axes()
 
     def _redraw_all(self) -> None:
         for graph_id in self._operation_items:
