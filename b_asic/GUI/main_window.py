@@ -803,13 +803,14 @@ class SFGMainWindow(QMainWindow):
         self._keybindings_page.show()
 
 
-def start_editor(sfg: Optional[SFG] = None):
+def start_editor(sfg: Optional[SFG] = None) -> Dict[str, SFG]:
     app = QApplication(sys.argv)
     window = SFGMainWindow()
     if sfg:
         window._load_sfg(sfg)
     window.show()
-    sys.exit(app.exec_())
+    app.exec_()
+    return window._sfg_dict
 
 
 if __name__ == "__main__":

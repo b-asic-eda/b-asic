@@ -1468,11 +1468,11 @@ class SFG(AbstractOperation):
         """
         raise NotImplementedError()
 
-    def edit(self) -> None:
+    def edit(self) -> Dict[str, "SFG"]:
         """Edit SFG in GUI."""
         from b_asic.GUI.main_window import start_editor
 
-        start_editor(self)
+        return start_editor(self)
 
     def unfold(self, factor: int) -> "SFG":
         """
