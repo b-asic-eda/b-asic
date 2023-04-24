@@ -706,7 +706,23 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
 
 def start_scheduler(schedule: Optional[Schedule] = None) -> Schedule:
-    app = QApplication(sys.argv)
+    """
+    Start scheduler GUI.
+
+    Parameters
+    ----------
+    schedule : Schedule, optional
+        The schedule to start the editor with.
+
+    Returns
+    -------
+    Schedule
+        The edited schedule.
+    """
+    if not QApplication.instance():
+        app = QApplication(sys.argv)
+    else:
+        app = QApplication.instance()
     window = ScheduleMainWindow()
     if schedule:
         window.open(schedule)

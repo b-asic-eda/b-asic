@@ -804,7 +804,23 @@ class SFGMainWindow(QMainWindow):
 
 
 def start_editor(sfg: Optional[SFG] = None) -> Dict[str, SFG]:
-    app = QApplication(sys.argv)
+    """
+    Start the SFG editor.
+
+    Parameters
+    ----------
+    sfg : SFG, optional
+        The SFG to start the editor with.
+
+    Returns
+    -------
+    dict
+        All SFGs currently in the editor.
+    """
+    if not QApplication.instance():
+        app = QApplication(sys.argv)
+    else:
+        app = QApplication.instance()
     window = SFGMainWindow()
     if sfg:
         window._load_sfg(sfg)
