@@ -262,8 +262,20 @@ class Schedule:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
         return self.backward_slack(graph_id), self.forward_slack(graph_id)
 
-    def print_slacks(self) -> None:
-        """Print the slack times for all operations in the schedule."""
+    def print_slacks(self, order: int = 0) -> None:
+        """
+        Print the slack times for all operations in the schedule.
+
+        Parameters
+        ----------
+        order : int, default: 0
+            Sorting order.
+
+            * 0: alphabetical on Graph ID
+            * 1: backward slack
+            * 2: forward slack
+
+        """
         res = [
             (
                 op.graph_id,
@@ -280,7 +292,7 @@ class Schedule:
             )
             for r in res
         ]
-
+        res.sort(key=lambda tup: tup[order])
         print("Graph ID | Backward |  Forward")
         print("---------|----------|---------")
         for r in res:
