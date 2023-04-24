@@ -13,7 +13,7 @@ if you want more information.
 
 from math import pi, sin
 from numbers import Number
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 
@@ -408,3 +408,79 @@ class _DivGenerator(SignalGenerator):
             else f"{self._b}"
         )
         return f"{a} / {b}"
+
+
+class Upsample(SignalGenerator):
+    """
+    Signal generator that upsamples the value of a signal generator or a sequence.
+
+    *factor* - 1 zeros are inserted between every value. If a sequence, it will
+    automatically be zero-padded.
+
+    Parameters
+    ----------
+    data : SignalGenerator or 1-D array
+        The signal generator or array to upsample.
+    factor : int
+        Upsampling factor.
+    phase : int, default 0
+        The phase of the upsampling.
+    """
+
+    def __init__(
+        self,
+        data: Union[SignalGenerator, Sequence[complex]],
+        factor: int,
+        phase: int = 0,
+    ) -> None:
+        if not isinstance(data, SignalGenerator):
+            data = ZeroPad(data)
+        self._generator = data
+        self._factor = factor
+        self._phase = phase
+
+    def __call__(self, time: int) -> complex:
+        index = (time - self._phase) / self._factor
+        if int(index) == index:
+            return self._generator(int(index))
+        else:
+            return 0.0
+
+    def __repr__(self) -> str:
+        return f"Upsample({self._generator!r}, {self._factor}, {self._phase})"
+
+
+class Downsample(SignalGenerator):
+    """
+    Signal generator that downsamples the value of a signal generator or a sequence.
+
+    Return every *factor*:th value. If a sequence, it will automatically be zero-padded.
+
+    Parameters
+    ----------
+    data : SignalGenerator or 1-D array
+        The signal generator or array to downsample.
+    factor : int
+        Downsampling factor.
+    phase : int, default 0
+        The phase of the downsampling.
+    """
+
+    def __init__(
+        self,
+        data: Union[SignalGenerator, Sequence[complex]],
+        factor: int,
+        phase: int = 0,
+    ) -> None:
+        if not isinstance(data, SignalGenerator):
+            data = ZeroPad(data)
+        self._generator = data
+        self._factor = factor
+        self._phase = phase
+
+    def __call__(self, time: int) -> complex:
+        index = time * self._factor + self._phase
+        return self._generator(index)
+
+    def __repr__(self) -> str:
+        return f"Downsample({self._generator!r}, {self._factor}, {self._phase})"

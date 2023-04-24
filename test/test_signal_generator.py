@@ -5,12 +5,14 @@ import pytest
 from b_asic.signal_generator import (
     Constant,
     Delay,
+    Downsample,
     FromFile,
     Gaussian,
     Impulse,
     Sinusoid,
     Step,
     Uniform,
+    Upsample,
     ZeroPad,
     _AddGenerator,
     _DivGenerator,
@@ -284,3 +286,61 @@ def test_fromfile(datadir):
 
     with pytest.raises(ValueError, match="could not convert string"):
         g = FromFile(datadir.join('bad.csv'))
+
+
+def test_upsample():
+    g = Upsample([0.4, 0.6], 2)
+    assert g(-1) == 0
+    assert g(0) == 0.4
+    assert g(1) == 0
+    assert g(2) == 0.6
+    assert g(3) == 0.0
+
+    assert str(g) == "Upsample(ZeroPad([0.4, 0.6]), 2, 0)"
+
+    g = Upsample([0.4, 0.6], 2, 1)
+    assert g(-1) == 0
+    assert g(0) == 0.0
+    assert g(1) == 0.4
+    assert g(2) == 0.0
+    assert g(3) == 0.6
+    assert g(4) == 0.0
+
+    assert str(g) == "Upsample(ZeroPad([0.4, 0.6]), 2, 1)"
+
+    g = Upsample([0.4, 0.6], 3)
+    assert g(-1) == 0.0
+    assert g(0) == 0.4
+    assert g(1) == 0.0
+    assert g(2) == 0.0
+    assert g(3) == 0.6
+    assert g(4) == 0.0
+
+    assert str(g) == "Upsample(ZeroPad([0.4, 0.6]), 3, 0)"
+
+    g = Upsample(Sinusoid(0.5, 0.25), 3)
+    assert g(0) == pytest.approx(sqrt(2) / 2)
+    assert g(1) == 0.0
+    assert g(2) == 0.0
+    assert g(3) == pytest.approx(sqrt(2) / 2)
+    assert g(4) == 0.0
+    assert g(5) == 0.0
+    assert g(6) == pytest.approx(-sqrt(2) / 2)
+
+    assert str(g) == "Upsample(Sinusoid(0.5, 0.25), 3, 0)"
+
+
+def test_downsample():
+    g = Downsample([0.4, 0.6], 2)
+    assert g(-1) == 0
+    assert g(0) == 0.4
+    assert g(1) == 0.0
+    assert g(2) == 0.0
+    assert str(g) == "Downsample(ZeroPad([0.4, 0.6]), 2, 0)"
+
+    g = Downsample([0.4, 0.6], 2, 1)
+    assert g(-1) == 0
+    assert g(0) == 0.6
+    assert g(1) == 0.0
+    assert g(2) == 0.0
+    assert str(g) == "Downsample(ZeroPad([0.4, 0.6]), 2, 1)"
