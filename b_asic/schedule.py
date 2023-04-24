@@ -264,7 +264,27 @@ class Schedule:
 
     def print_slacks(self) -> None:
         """Print the slack times for all operations in the schedule."""
-        raise NotImplementedError
+        res = [
+            (
+                op.graph_id,
+                self.backward_slack(op.graph_id),
+                self.forward_slack(op.graph_id),
+            )
+            for op in self._sfg.operations
+        ]
+        res = [
+            (
+                r[0],
+                f"{r[1]}".rjust(8) if r[1] < sys.maxsize else "oo".rjust(8),
+                f"{r[2]}".rjust(8) if r[2] < sys.maxsize else "oo".rjust(8),
+            )
+            for r in res
+        ]
+
+        print("Graph ID | Backward |  Forward")
+        print("---------|----------|---------")
+        for r in res:
+            print(f"{r[0]:8} | {r[1]} | {r[2]}")
 
     def set_schedule_time(self, time: int) -> "Schedule":
         """
