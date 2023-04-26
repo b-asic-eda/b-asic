@@ -146,7 +146,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.splitter.splitterMoved.connect(self._splitter_moved)
         self.actionDocumentation.triggered.connect(self._open_documentation)
         self.actionAbout.triggered.connect(self._open_about_window)
-
+        self.actionDecrease_time_resolution.triggered.connect(
+            self._decrease_time_resolution
+        )
+        self.actionIncrease_time_resolution.triggered.connect(
+            self._increase_time_resolution
+        )
         # Setup event member functions
         self.closeEvent = self._close_event
 
@@ -201,6 +206,25 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
         if self._graph is not None:
             self._graph._redraw_from_start()
+
+    @Slot()
+    def _increase_time_resolution(self) -> None:
+        factor, ok = QInputDialog.getInt(
+            self, "Increase time resolution", "Factor", 1, 1
+        )
+        if ok:
+            self.schedule.increase_time_resolution(factor)
+            self.open(self.schedule)
+
+    @Slot()
+    def _decrease_time_resolution(self) -> None:
+        vals = [str(v) for v in self.schedule.get_possible_time_resolution_decrements()]
+        factor, ok = QInputDialog.getItem(
+            self, "Decrease time resolution", "Factor", vals, editable=False
+        )
+        if ok:
+            self.schedule.decrease_time_resolution(int(factor))
+            self.open(self.schedule)
 
     def wheelEvent(self, event) -> None:
         """Zoom in or out using mouse wheel if control is pressed."""

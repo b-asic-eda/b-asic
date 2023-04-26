@@ -235,6 +235,11 @@
     <property name="title">
      <string>&amp;Edit</string>
     </property>
+    <addaction name="actionUndo"/>
+    <addaction name="actionRedo"/>
+    <addaction name="separator"/>
+    <addaction name="actionIncrease_time_resolution"/>
+    <addaction name="actionDecrease_time_resolution"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
     <property name="title">
@@ -412,6 +417,32 @@
   <action name="actionPlot_schedule">
    <property name="text">
     <string>Plot schedule</string>
+   </property>
+  </action>
+  <action name="actionUndo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Undo</string>
+   </property>
+  </action>
+  <action name="actionRedo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Redo</string>
+   </property>
+  </action>
+  <action name="actionIncrease_time_resolution">
+   <property name="text">
+    <string>Increase time resolution...</string>
+   </property>
+  </action>
+  <action name="actionDecrease_time_resolution">
+   <property name="text">
+    <string>Decrease time resolution...</string>
    </property>
   </action>
  </widget>

@@ -204,6 +204,20 @@ class Ui_MainWindow(object):
         self.actionReorder.setObjectName("actionReorder")
         self.actionPlot_schedule = QtWidgets.QAction(MainWindow)
         self.actionPlot_schedule.setObjectName("actionPlot_schedule")
+        self.actionUndo = QtWidgets.QAction(MainWindow)
+        self.actionUndo.setEnabled(False)
+        self.actionUndo.setObjectName("actionUndo")
+        self.actionRedo = QtWidgets.QAction(MainWindow)
+        self.actionRedo.setEnabled(False)
+        self.actionRedo.setObjectName("actionRedo")
+        self.actionIncrease_time_resolution = QtWidgets.QAction(MainWindow)
+        self.actionIncrease_time_resolution.setObjectName(
+            "actionIncrease_time_resolution"
+        )
+        self.actionDecrease_time_resolution = QtWidgets.QAction(MainWindow)
+        self.actionDecrease_time_resolution.setObjectName(
+            "actionDecrease_time_resolution"
+        )
         self.menuFile.addAction(self.menu_load_from_file)
         self.menuFile.addAction(self.menu_close_schedule)
         self.menuFile.addAction(self.menu_save)
@@ -215,6 +229,11 @@ class Ui_MainWindow(object):
         self.menuView.addAction(self.menu_node_info)
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionPlot_schedule)
+        self.menu_Edit.addAction(self.actionUndo)
+        self.menu_Edit.addAction(self.actionRedo)
+        self.menu_Edit.addSeparator()
+        self.menu_Edit.addAction(self.actionIncrease_time_resolution)
+        self.menu_Edit.addAction(self.actionDecrease_time_resolution)
         self.menuWindow.addAction(self.menu_exit_dialog)
         self.menuHelp.addAction(self.actionDocumentation)
         self.menuHelp.addSeparator()
@@ -287,3 +306,11 @@ class Ui_MainWindow(object):
             _translate("MainWindow", "Reorder schedule based on start time")
         )
         self.actionPlot_schedule.setText(_translate("MainWindow", "Plot schedule"))
+        self.actionUndo.setText(_translate("MainWindow", "Undo"))
+        self.actionRedo.setText(_translate("MainWindow", "Redo"))
+        self.actionIncrease_time_resolution.setText(
+            _translate("MainWindow", "Increase time resolution...")
+        )
+        self.actionDecrease_time_resolution.setText(
+            _translate("MainWindow", "Decrease time resolution...")
+        )
