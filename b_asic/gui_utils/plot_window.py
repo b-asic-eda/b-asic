@@ -135,8 +135,9 @@ class PlotWindow(QWidget):
             self._lines[key] = line[0]
 
         self._plot_canvas = FigureCanvas(self._plot_fig)
+        self._toolbar = NavigationToolbar(self._plot_canvas, self)
 
-        plotlayout.addWidget(NavigationToolbar(self._plot_canvas, self))
+        plotlayout.addWidget(self._toolbar)
         plotlayout.addWidget(self._plot_canvas)
 
         ########### List layout: ##############
