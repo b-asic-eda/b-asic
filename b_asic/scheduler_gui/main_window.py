@@ -55,8 +55,6 @@ from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.scheduler_item import SchedulerItem
-
-sys.path.insert(0, "icons/")  # Needed for *.rc.py files in ui_main_window
 from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
 
 if TYPE_CHECKING:

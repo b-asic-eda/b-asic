@@ -174,6 +174,8 @@ class Schedule:
         for output_port in operation.outputs:
             output_slacks = {}
             available_time = start_time + cast(int, output_port.latency_offset)
+            if available_time > self._schedule_time:
+                available_time -= self._schedule_time
 
             for signal in output_port.signals:
                 destination = cast(InputPort, signal.destination)
@@ -232,6 +234,8 @@ class Schedule:
                     + self._start_times[source.operation.graph_id]
                     - self._schedule_time * self._laps[signal.graph_id]
                 )
+                if available_time > self._schedule_time:
+                    available_time -= self._schedule_time
                 input_slacks[signal] = usage_time - available_time
             ret[input_port] = input_slacks
         return ret
@@ -518,6 +522,7 @@ class Schedule:
         time : int
             The time to move. If positive move forward, if negative move backward.
         """
+        print(f"schedule.move_operation({graph_id!r}, {time})")
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
 
@@ -528,7 +533,8 @@ class Schedule:
                 f" between {-backward_slack} and {forward_slack}."
             )
 
-        tmp_start = self._start_times[graph_id] + time
+        old_start = self._start_times[graph_id]
+        tmp_start = old_start + time
         new_start = tmp_start % self._schedule_time
 
         # Update input laps
@@ -537,42 +543,22 @@ class Schedule:
             tmp_usage = tmp_start + cast(int, in_port.latency_offset)
             new_usage = tmp_usage % self._schedule_time
             for signal, signal_slack in signal_slacks.items():
+                # New slack
                 new_slack = signal_slack + time
-                old_laps = self._laps[signal.graph_id]
+                # Compute a lower limit on laps
+                laps = new_slack // self._schedule_time
+                # Compensate for cases where above is not correct
                 tmp_prev_available = tmp_usage - new_slack
                 prev_available = tmp_prev_available % self._schedule_time
-                laps = new_slack // self._schedule_time
+                # If prev_available == 0 it will come from previous lap, unless it comes
+                # from an Input
                 source_op = signal.source_operation
+                if prev_available == 0 and not isinstance(source_op, Input):
+                    prev_available = self._schedule_time
+                # Usage time (new_usage) < available time (prev_available) within a
+                # schedule period
                 if new_usage < prev_available:
-                    print("Incrementing input laps 1")
                     laps += 1
-                if (
-                    prev_available == 0
-                    and new_usage == 0
-                    and (
-                        tmp_prev_available > 0
-                        or tmp_prev_available == 0
-                        and not isinstance(source_op, Input)
-                    )
-                ):
-                    print("Incrementing input laps 2")
-                    laps += 1
-                print(
-                    [
-                        "Input",
-                        signal.source.operation,
-                        time,
-                        tmp_start,
-                        signal_slack,
-                        new_slack,
-                        old_laps,
-                        laps,
-                        new_usage,
-                        prev_available,
-                        tmp_usage,
-                        tmp_prev_available,
-                    ]
-                )
                 self._laps[signal.graph_id] = laps
 
         # Update output laps
@@ -581,29 +567,19 @@ class Schedule:
             tmp_available = tmp_start + cast(int, out_port.latency_offset)
             new_available = tmp_available % self._schedule_time
             for signal, signal_slack in signal_slacks.items():
+                # New slack
                 new_slack = signal_slack - time
+                # Compute a lower limit on laps
+                laps = new_slack // self._schedule_time
+                # Compensate for cases where above is not correct
                 tmp_next_usage = tmp_available + new_slack
                 next_usage = tmp_next_usage % self._schedule_time
-                laps = new_slack // self._schedule_time
+                # Usage time (new_usage) < available time (prev_available) within a
+                # schedule period
+                if new_available == 0 and (new_slack > 0 or next_usage == 0):
+                    new_available = self._schedule_time
                 if next_usage < new_available:
                     laps += 1
-                    print("Incrementing output laps 1")
-                if new_available == 0 and (new_slack > 0 or next_usage == 0):
-                    print("Incrementing output laps 2")
-                    laps += 1
-                print(
-                    [
-                        "Output",
-                        signal_slack,
-                        new_slack,
-                        old_laps,
-                        laps,
-                        new_available,
-                        next_usage,
-                        tmp_available,
-                        tmp_next_usage,
-                    ]
-                )
                 self._laps[signal.graph_id] = laps
 
         # Set new start time

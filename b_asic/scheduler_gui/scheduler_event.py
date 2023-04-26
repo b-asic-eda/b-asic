@@ -213,7 +213,7 @@ class SchedulerEvent:  # PyQt5
         if redraw:
             item.setX(pos_x)
             self._redraw_lines(item)
-            self._signals.component_moved.emit(item.graph_id)
+        self._signals.component_moved.emit(item.graph_id)
 
     ###################################
     # Event Handlers: GraphicsLineTem #
