@@ -27,6 +27,7 @@ from qtpy.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QShortcut,
+    QStatusBar,
 )
 
 import b_asic.core_operations
@@ -106,6 +107,10 @@ class SFGMainWindow(QMainWindow):
         self._toolbar.addAction(
             get_icon('close'), "Clear workspace", self._clear_workspace
         )
+
+        # Create status bar
+        self._statusbar = QStatusBar(self)
+        self.setStatusBar(self._statusbar)
 
         # Add operations
         self._max_recent_files = 4
@@ -275,6 +280,7 @@ class SFGMainWindow(QMainWindow):
             sfg.name = name
         self._load_sfg(sfg, positions)
         self._logger.info("Loaded SFG from path: " + str(module))
+        self.update_statusbar(f"Loaded SFG from {module}")
 
     def _load_sfg(self, sfg: SFG, positions=None) -> None:
         if positions is None:
@@ -374,6 +380,17 @@ class SFGMainWindow(QMainWindow):
         self._logger.info("Exiting the application.")
         QApplication.quit()
 
+    def update_statusbar(self, msg: str) -> None:
+        """
+        Write *msg* to the statusbar with temporarily policy.
+
+        Parameters
+        ----------
+        msg : str
+            The message to write.
+        """
+        self._statusbar.showMessage(msg)
+
     def _clear_workspace(self) -> None:
         self._logger.info("Clearing workspace from operations and SFGs.")
         self._pressed_operations.clear()
@@ -385,6 +402,7 @@ class SFGMainWindow(QMainWindow):
         self._sfg_dict.clear()
         self._scene.clear()
         self._logger.info("Workspace cleared.")
+        self.update_statusbar("Workspace cleared.")
 
     def create_sfg_from_toolbar(self) -> None:
         inputs = []
@@ -409,6 +427,7 @@ class SFGMainWindow(QMainWindow):
 
         sfg = SFG(inputs=inputs, outputs=outputs, name=name)
         self._logger.info("Created SFG with name: %s from selected operations." % name)
+        self.update_statusbar(f"Created SFG: {name}")
 
         def check_equality(signal: Signal, signal_2: Signal) -> bool:
             source_operation = cast(Operation, signal.source_operation)
@@ -643,6 +662,7 @@ class SFGMainWindow(QMainWindow):
         try:
             attr_operation = self._operations_from_name[item.text()]()
             self.add_operation(attr_operation)
+            self.update_statusbar(f"{item.text()} added.")
         except Exception as e:
             self._logger.error(
                 "Unexpected error occurred while creating operation: " + str(e)
