@@ -142,10 +142,12 @@ class SFGMainWindow(QMainWindow):
 
         self._ui.actionShowPC.triggered.connect(self._show_precedence_graph)
         self._ui.actionSimulateSFG.triggered.connect(self.simulate_sfg)
+        self._ui.actionSimulateSFG.setIcon(get_icon('sim'))
 
         # About menu
         self._ui.faqBASIC.triggered.connect(self.display_faq_page)
         self._ui.faqBASIC.setShortcut(QKeySequence("Ctrl+?"))
+        self._ui.faqBASIC.setIcon(get_icon('faq'))
         self._ui.aboutBASIC.triggered.connect(self.display_about_page)
         self._ui.aboutBASIC.setIcon(get_icon('about'))
         self._ui.keybindsBASIC.triggered.connect(self.display_keybindings_page)
@@ -175,7 +177,9 @@ class SFGMainWindow(QMainWindow):
         self._ui.exit_menu.setIcon(get_icon('quit'))
         self._ui.select_all.triggered.connect(self._select_all)
         self._ui.select_all.setShortcut(QKeySequence("Ctrl+A"))
+        self._ui.select_all.setIcon(get_icon('all'))
         self._ui.unselect_all.triggered.connect(self._unselect_all)
+        self._ui.unselect_all.setIcon(get_icon('none'))
         self._shortcut_signal = QShortcut(QKeySequence(Qt.Key_Space), self)
         self._shortcut_signal.activated.connect(self._connect_callback)
         self._create_recent_file_actions_and_menus()
@@ -201,6 +205,12 @@ class SFGMainWindow(QMainWindow):
         self._statusbar_visible.setChecked(True)
         self._statusbar_visible.triggered.connect(self._toggle_statusbar)
         self._ui.view_menu.addAction(self._statusbar_visible)
+
+        # Zoom to fit
+        self._ui.view_menu.addSeparator()
+        self._zoom_to_fit_action = QAction(get_icon('zoom-to-fit'), "Zoom to &fit")
+        self._zoom_to_fit_action.triggered.connect(self._zoom_to_fit)
+        self._ui.view_menu.addAction(self._zoom_to_fit_action)
 
         # Non-modal dialogs
         self._keybindings_page = None
@@ -411,7 +421,7 @@ class SFGMainWindow(QMainWindow):
 
         self._update_recent_file_list()
 
-    def exit_app(self) -> None:
+    def exit_app(self, event=None) -> None:
         """Exit the application."""
         self._logger.info("Exiting the application.")
         QApplication.quit()
@@ -868,6 +878,12 @@ class SFGMainWindow(QMainWindow):
         for operation in self._drag_buttons.values():
             operation._toggle_button(pressed=True)
         self.update_statusbar("Unselected all operations")
+
+    def _zoom_to_fit(self, event=None):
+        """Callback for zoom to fit SFGs in window."""
+        self._graphics_view.fitInView(
+            self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio
+        )
 
     def _simulate_sfg(self) -> None:
         """Callback for simulating SFGs in separate threads."""

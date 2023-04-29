@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file './main_window.ui'
+# Form implementation generated from reading ui file '.\main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
 #
@@ -123,11 +123,11 @@ class Ui_MainWindow(object):
         self.info_table.horizontalHeader().setHighlightSections(False)
         self.info_table.horizontalHeader().setStretchLastSection(True)
         self.info_table.verticalHeader().setVisible(False)
-        self.info_table.verticalHeader().setDefaultSectionSize(19)
+        self.info_table.verticalHeader().setDefaultSectionSize(24)
         self.horizontalLayout.addWidget(self.splitter)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 20))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 22))
         self.menubar.setObjectName("menubar")
         self.menuFile = QtWidgets.QMenu(self.menubar)
         self.menuFile.setObjectName("menuFile")
@@ -218,6 +218,12 @@ class Ui_MainWindow(object):
         self.actionDecrease_time_resolution.setObjectName(
             "actionDecrease_time_resolution"
         )
+        self.actionZoom_to_fit = QtWidgets.QAction(MainWindow)
+        self.actionZoom_to_fit.setObjectName("actionZoom_to_fit")
+        self.actionStatus_bar = QtWidgets.QAction(MainWindow)
+        self.actionStatus_bar.setCheckable(True)
+        self.actionStatus_bar.setChecked(True)
+        self.actionStatus_bar.setObjectName("actionStatus_bar")
         self.menuFile.addAction(self.menu_load_from_file)
         self.menuFile.addAction(self.menu_close_schedule)
         self.menuFile.addAction(self.menu_save)
@@ -227,8 +233,11 @@ class Ui_MainWindow(object):
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.menu_quit)
         self.menuView.addAction(self.menu_node_info)
+        self.menuView.addAction(self.actionStatus_bar)
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionPlot_schedule)
+        self.menuView.addSeparator()
+        self.menuView.addAction(self.actionZoom_to_fit)
         self.menu_Edit.addAction(self.actionUndo)
         self.menu_Edit.addAction(self.actionRedo)
         self.menu_Edit.addSeparator()
@@ -314,3 +323,5 @@ class Ui_MainWindow(object):
         self.actionDecrease_time_resolution.setText(
             _translate("MainWindow", "Decrease time resolution...")
         )
+        self.actionZoom_to_fit.setText(_translate("MainWindow", "Zoom to fit"))
+        self.actionStatus_bar.setText(_translate("MainWindow", "Status bar"))

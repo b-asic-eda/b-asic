@@ -92,7 +92,7 @@
         <bool>false</bool>
        </attribute>
        <attribute name="verticalHeaderDefaultSectionSize">
-        <number>19</number>
+        <number>24</number>
        </attribute>
        <row>
         <property name="text">
@@ -202,7 +202,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -228,8 +228,11 @@
      <string>&amp;View</string>
     </property>
     <addaction name="menu_node_info"/>
+    <addaction name="actionStatus_bar"/>
     <addaction name="separator"/>
     <addaction name="actionPlot_schedule"/>
+    <addaction name="separator"/>
+    <addaction name="actionZoom_to_fit"/>
    </widget>
    <widget class="QMenu" name="menu_Edit">
     <property name="title">
@@ -443,6 +446,22 @@
   <action name="actionDecrease_time_resolution">
    <property name="text">
     <string>Decrease time resolution...</string>
+   </property>
+  </action>
+  <action name="actionZoom_to_fit">
+   <property name="text">
+    <string>Zoom to fit</string>
+   </property>
+  </action>
+  <action name="actionStatus_bar">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Status bar</string>
    </property>
   </action>
  </widget>

@@ -4,6 +4,7 @@ import qtawesome
 
 ICONS = {
     'save': 'mdi6.content-save',
+    'save-as': 'mdi6.content-save-edit',
     'undo': 'mdi6.undo',
     'redo': 'mdi6.redo',
     'new': 'mdi6.file-outline',
@@ -23,9 +24,16 @@ ICONS = {
     'about': 'ph.question',
     'keys': 'ph.keyboard',
     'add-operations': 'ph.math-operations',
+    'zoom-to-fit': 'mdi6.fit-to-page',
+    'faq': 'mdi6.frequently-asked-questions',
+    'sim': 'mdi6.chart-line',
+    'reorder': ('msc.graph-left', {'rotated': -90}),
 }
 
 
 def get_icon(name):
     """Return icon for given name"""
-    return qtawesome.icon(ICONS[name])
+    info = ICONS[name]
+    if isinstance(info, str):
+        return qtawesome.icon(info)
+    return qtawesome.icon(info[0], **info[1])

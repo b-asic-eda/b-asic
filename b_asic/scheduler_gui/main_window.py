@@ -137,14 +137,19 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.menu_save.triggered.connect(self.save)
         self.menu_save.setIcon(get_icon('save'))
         self.menu_save_as.triggered.connect(self.save_as)
+        self.menu_save_as.setIcon(get_icon('save-as'))
         self.menu_quit.triggered.connect(self.close)
         self.menu_quit.setIcon(get_icon('quit'))
         self.menu_node_info.triggered.connect(self.show_info_table)
         self.menu_node_info.setIcon(get_icon('info'))
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
         self.actionReorder.triggered.connect(self._action_reorder)
+        self.actionReorder.setIcon(get_icon('reorder'))
+        self.actionStatus_bar.triggered.connect(self._toggle_statusbar)
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
         self.actionPlot_schedule.setIcon(get_icon('plot-schedule'))
+        self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
+        self.actionZoom_to_fit.setIcon(get_icon('zoom-to-fit'))
         self.actionUndo.setIcon(get_icon('undo'))
         self.actionRedo.setIcon(get_icon('redo'))
         self.splitter.splitterMoved.connect(self._splitter_moved)
@@ -740,6 +745,14 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         settings.setValue("scheduler/recentFiles", rfp)
 
         self._update_recent_file_list()
+
+    def _zoom_to_fit(self, event=None):
+        """Callback for zoom to fit schedule in window."""
+        self.view.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def _toggle_statusbar(self, event=None) -> None:
+        """Callback for toggling the status bar."""
+        self.statusbar.setVisible(self.actionStatus_bar.isChecked())
 
 
 def start_scheduler(schedule: Optional[Schedule] = None) -> Schedule:
