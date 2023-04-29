@@ -198,8 +198,13 @@ class SchedulerEvent:  # PyQt5
             pos_x += self._schedule.schedule_time
             redraw = True
         if pos_x > self._schedule.schedule_time:
-            pos_x = pos_x % self._schedule.schedule_time
-            redraw = True
+            # If zero execution time, keep operation at the edge
+            if (
+                pos_x > self._schedule.schedule_time + 1
+                or item.operation.execution_time
+            ):
+                pos_x = pos_x % self._schedule.schedule_time
+                redraw = True
         pos_y = self._schedule.get_y_location(item.operation.graph_id)
         # Check move in y-direction
         if pos_y != self._old_op_position:

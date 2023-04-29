@@ -96,7 +96,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         pos : float
             The x-position to check.
         """
-        # TODO: implement
         if self.schedule is None:
             raise ValueError("No schedule installed.")
         new_start_time = floor(pos) - floor(self._x_axis_indent)
@@ -108,9 +107,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         if self.schedule.cyclic:
             if new_start_time < -1:
                 # Moving one position before left edge => wrap
-                return False
-            if new_start_time > self.schedule.schedule_time + 1:
-                # Moving one position after schedule_time => wrap
                 return False
         else:
             if pos < 0:

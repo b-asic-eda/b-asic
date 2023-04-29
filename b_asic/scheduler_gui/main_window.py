@@ -672,9 +672,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         row = self.info_table.findItems("Operator", Qt.MatchFlag.MatchExactly)
         if row:
             row = row[0].row()
-            if row > 2:
-                for _ in range(3):
-                    self.info_table.removeRow(1)
+            for _ in range(1, row):
+                self.info_table.removeRow(1)
         else:
             log.error("'Operator' not found in info table. It may have been renamed.")
 
