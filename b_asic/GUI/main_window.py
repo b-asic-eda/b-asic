@@ -11,6 +11,7 @@ import os
 import sys
 import webbrowser
 from collections import deque
+from types import ModuleType
 from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Sequence, Tuple, cast
 
 from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread, Slot
@@ -25,6 +26,7 @@ from qtpy.QtWidgets import (
     QGraphicsView,
     QInputDialog,
     QLineEdit,
+    QListWidget,
     QListWidgetItem,
     QMainWindow,
     QShortcut,
@@ -405,6 +407,7 @@ class SFGMainWindow(QMainWindow):
         self._update_recent_file_list()
 
     def exit_app(self) -> None:
+        """Exit the application."""
         self._logger.info("Exiting the application.")
         QApplication.quit()
 
@@ -433,6 +436,7 @@ class SFGMainWindow(QMainWindow):
         self.update_statusbar("Workspace cleared.")
 
     def create_sfg_from_toolbar(self) -> None:
+        """Callback to create an SFG."""
         inputs = []
         outputs = []
         for pressed_op in self._pressed_operations:
@@ -552,6 +556,7 @@ class SFGMainWindow(QMainWindow):
         self._sfg_dict[sfg.name] = sfg
 
     def _show_precedence_graph(self, event=None) -> None:
+        """Callback for showing precedence graph."""
         if not self._sfg_dict:
             self.update_statusbar("No SFG to show")
             return
@@ -560,9 +565,23 @@ class SFGMainWindow(QMainWindow):
         self._precedence_graph_dialog.show()
 
     def _toggle_statusbar(self, event=None) -> None:
+        """Callback for toggling the status bar."""
         self._statusbar.setVisible(self._statusbar_visible.isChecked())
 
-    def get_operations_from_namespace(self, namespace) -> List[str]:
+    def get_operations_from_namespace(self, namespace: ModuleType) -> List[str]:
+        """
+        Return a list of all operations defined in a namespace (module).
+
+        Parameters
+        ----------
+        namespace : module
+            A loaded Python module containing operations.
+
+        Returns
+        -------
+        list
+            A list of names of all the operations in the module.
+        """
         self._logger.info(
             "Fetching operations from namespace: " + str(namespace.__name__)
         )
@@ -572,13 +591,25 @@ class SFGMainWindow(QMainWindow):
             if hasattr(getattr(namespace, comp), "type_name")
         ]
 
-    def add_operations_from_namespace(self, namespace, _list) -> None:
+    def add_operations_from_namespace(
+        self, namespace: ModuleType, list_widget: QListWidget
+    ) -> None:
+        """
+        Add operations from namespace (module) to a list widget.
+
+        Parameters
+        ----------
+        namespace : module
+            A loaded Python module containing operations.
+        list_widget : QListWidget
+            The widget to add operations to.
+        """
         for attr_name in self.get_operations_from_namespace(namespace):
             attr = getattr(namespace, attr_name)
             try:
                 attr.type_name()
                 item = QListWidgetItem(attr_name)
-                _list.addItem(item)
+                list_widget.addItem(item)
                 self._operations_from_name[attr_name] = attr
             except NotImplementedError:
                 pass
@@ -586,12 +617,13 @@ class SFGMainWindow(QMainWindow):
         self._logger.info("Added operations from namespace: " + str(namespace.__name__))
 
     def add_namespace(self, event=None) -> None:
+        """Callback for adding namespace."""
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
         self._add_namespace(module)
 
-    def _add_namespace(self, module):
+    def _add_namespace(self, module: str):
         spec = importlib.util.spec_from_file_location(
             f"{QFileInfo(module).fileName()}", module
         )
@@ -727,6 +759,7 @@ class SFGMainWindow(QMainWindow):
         super().keyPressEvent(event)
 
     def _connect_callback(self, *event) -> None:
+        """Callback for connecting operation buttons."""
         if len(self._pressed_ports) < 2:
             self._logger.warning(
                 "Cannot connect less than two ports. Please select at least two."
@@ -800,6 +833,7 @@ class SFGMainWindow(QMainWindow):
             arrow.update_arrow()
 
     def _select_operations(self) -> None:
+        """Select an operation button."""
         selected = [button.widget() for button in self._scene.selectedItems()]
         for button in selected:
             button._toggle_button(pressed=False)
@@ -811,6 +845,7 @@ class SFGMainWindow(QMainWindow):
         self._pressed_operations = selected
 
     def _select_all(self, event=None) -> None:
+        """Callback for selecting all operation buttons."""
         if not self._drag_buttons:
             self.update_statusbar("No operations to select")
             return
@@ -820,6 +855,7 @@ class SFGMainWindow(QMainWindow):
         self.update_statusbar("Selected all operations")
 
     def _unselect_all(self, event=None) -> None:
+        """Callback for unselecting all operation buttons."""
         if not self._drag_buttons:
             self.update_statusbar("No operations to unselect")
             return
@@ -829,6 +865,7 @@ class SFGMainWindow(QMainWindow):
         self.update_statusbar("Unselected all operations")
 
     def _simulate_sfg(self) -> None:
+        """Callback for simulating SFGs in separate threads."""
         self._thread = dict()
         self._sim_worker = dict()
         for sfg, properties in self._simulation_dialog._properties.items():
@@ -844,10 +881,12 @@ class SFGMainWindow(QMainWindow):
             self._thread[sfg].start()
 
     def _show_plot_window(self, sim: Simulation):
+        """Callback for displaying simulation results window."""
         self._plot[sim] = PlotWindow(sim.results, sfg_name=sim.sfg.name)
         self._plot[sim].show()
 
     def simulate_sfg(self, event=None) -> None:
+        """Callback for showing simulation dialog."""
         if not self._sfg_dict:
             self.update_statusbar("No SFG to simulate")
             return
@@ -869,16 +908,19 @@ class SFGMainWindow(QMainWindow):
         webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
 
     def display_faq_page(self, event=None) -> None:
+        """Callback for displaying FAQ dialog."""
         if self._faq_page is None:
             self._faq_page = FaqWindow(self)
         self._faq_page._scroll_area.show()
 
     def display_about_page(self, event=None) -> None:
+        """Callback for displaying about dialog."""
         if self._about_page is None:
             self._about_page = AboutWindow(self)
         self._about_page.show()
 
     def display_keybindings_page(self, event=None) -> None:
+        """Callback for displaying keybindings dialog."""
         if self._keybindings_page is None:
             self._keybindings_page = KeybindingsWindow(self)
         self._keybindings_page.show()
