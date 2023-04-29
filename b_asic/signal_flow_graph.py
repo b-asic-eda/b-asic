@@ -1379,7 +1379,7 @@ class SFG(AbstractOperation):
     def sfg_digraph(
         self,
         show_id: bool = False,
-        engine: str = None,
+        engine: Optional[str] = None,
         branch_node: bool = False,
         port_numbering: bool = True,
         splines: str = "spline",
@@ -1476,7 +1476,15 @@ class SFG(AbstractOperation):
     def _repr_png_(self):
         return self.sfg_digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
 
-    def show(self, fmt=None, show_id=False, engine=None) -> None:
+    def show(
+        self,
+        fmt: Optional[str] = None,
+        show_id: bool = False,
+        engine: Optional[str] = None,
+        branch_node: bool = False,
+        port_numbering: bool = True,
+        splines: str = "spline",
+    ) -> None:
         """
         Shows a visual representation of the SFG using the default system viewer.
 
@@ -1487,16 +1495,27 @@ class SFG(AbstractOperation):
             https://www.graphviz.org/doc/info/output.html
             Most common are "pdf", "eps", "png", and "svg". Default is None which
             leads to PDF.
-        show_id : Boolean, optional
-            If True, the graph_id:s of signals are shown. The default is False.
+        show_id : bool, default: False
+            If True, the graph_id:s of signals are shown.
         engine : string, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
+        branch_node : bool, default: False
+            Add a branch node in case the fan-out of a signal is two or more.
+        port_numbering : bool, default: True
+            Show the port number in case the number of ports (input or output) is two or more.
+        splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
+            Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
+
         """
 
-        dg = self.sfg_digraph(show_id=show_id)
-        if engine is not None:
-            dg.engine = engine
+        dg = self.sfg_digraph(
+            show_id=show_id,
+            engine=engine,
+            branch_node=branch_node,
+            port_numbering=port_numbering,
+            splines=splines,
+        )
         if fmt is not None:
             dg.format = fmt
         dg.view()
