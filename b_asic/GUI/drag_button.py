@@ -50,7 +50,7 @@ class DragButton(QPushButton):
         window,
         parent=None,
     ):
-        self.name = operation.graph_id
+        self.name = operation.name or operation.graph_id
         self._ports: List[PortButton] = []
         self.show_name = show_name
         self._window = window
@@ -87,6 +87,10 @@ class DragButton(QPushButton):
         """Display the properties window for the associated Operation."""
         self._properties_window = PropertiesWindow(self, self._window)
         self._properties_window.show()
+
+    def type_name(self):
+        """Return the type name of the underlying operation."""
+        return self.operation.type_name()
 
     def add_label(self, label: str) -> None:
         """

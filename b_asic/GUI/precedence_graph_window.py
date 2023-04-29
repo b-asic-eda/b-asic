@@ -23,12 +23,16 @@ class PrecedenceGraphWindow(QDialog):
         self.setWindowTitle("Show precedence graph")
 
         self._dialog_layout = QVBoxLayout()
-        self._show_precedence_graph_button = QPushButton("Show PG")
+        self._show_precedence_graph_button = QPushButton("Show precedence graph")
         self._show_precedence_graph_button.clicked.connect(self.show_precedence_graph)
         self._dialog_layout.addWidget(self._show_precedence_graph_button)
         self.setLayout(self._dialog_layout)
 
     def add_sfg_to_dialog(self):
+        if not self._window._sfg_dict:
+            self.accept()
+            self.pc.emit()
+
         self._sfg_layout = QVBoxLayout()
         self._options_layout = QFormLayout()
 
@@ -45,6 +49,9 @@ class PrecedenceGraphWindow(QDialog):
         self._dialog_layout.addWidget(frame)
 
         self._dialog_layout.addLayout(self._sfg_layout)
+        if len(self._check_box_dict) == 1:
+            check_box = list(self._check_box_dict.keys())[0]
+            check_box.setChecked(True)
 
     def show_precedence_graph(self):
         for check_box, sfg in self._check_box_dict.items():

@@ -33,6 +33,12 @@ class SelectSFGWindow(QDialog):
             self._sfg_combo_box.addItem(sfg)
 
         self._dialog_layout.addWidget(self._sfg_combo_box)
+        if len(self._window._sfg_dict) == 1:
+            self._sfg_combo_box.setCurrentIndex(0)
+            self.save_properties()
+        if not self._window._sfg_dict:
+            self.accept()
+            self.ok.emit()
 
     def save_properties(self):
         self.sfg = self._window._sfg_dict[self._sfg_combo_box.currentText()]

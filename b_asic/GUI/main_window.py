@@ -70,6 +70,8 @@ QCoreApplication.setApplicationVersion(__version__)
 class SFGMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self._logger = logging.getLogger(__name__)
+        self._window = self
         self._ui = Ui_main_window()
         self._ui.setupUi(self)
         self.setWindowIcon(QIcon("small_logo.png"))
@@ -86,8 +88,6 @@ class SFGMainWindow(QMainWindow):
         self._operation_to_sfg: Dict[DragButton, SFG] = {}
         self._pressed_ports: List[PortButton] = []
         self._sfg_dict: Dict[str, SFG] = {}
-        self._window = self
-        self._logger = logging.getLogger(__name__)
         self._plot: Dict[Simulation, PlotWindow] = {}
         self._ports: Dict[DragButton, List[PortButton]] = {}
 
@@ -99,8 +99,11 @@ class SFGMainWindow(QMainWindow):
         )
         self._graphics_view.setDragMode(QGraphicsView.RubberBandDrag)
 
-        # Create _toolbar
+        # Create toolbar
         self._toolbar = self.addToolBar("Toolbar")
+        self._toolbar.addAction(get_icon('open'), "Load SFG", self.load_work)
+        self._toolbar.addAction(get_icon('save'), "Save SFG", self.save_work)
+        self._toolbar.addSeparator()
         self._toolbar.addAction(
             get_icon('new-sfg'), "Create SFG", self.create_sfg_from_toolbar
         )
@@ -133,17 +136,11 @@ class SFGMainWindow(QMainWindow):
         self._scene.selectionChanged.connect(self._select_operations)
 
         self.move_button_index = 0
-        self._show_names = True
-
-        self._check_show_names = QAction("Show operation names")
-        self._check_show_names.triggered.connect(self.view_operation_names)
-        self._check_show_names.setCheckable(True)
-        self._check_show_names.setChecked(True)
-        self._ui.view_menu.addAction(self._check_show_names)
 
         self._ui.actionShowPC.triggered.connect(self._show_precedence_graph)
         self._ui.actionSimulateSFG.triggered.connect(self.simulate_sfg)
         self._ui.faqBASIC.triggered.connect(self.display_faq_page)
+        self._ui.faqBASIC.setShortcut(QKeySequence("Ctrl+?"))
         self._ui.aboutBASIC.triggered.connect(self.display_about_page)
         self._ui.keybindsBASIC.triggered.connect(self.display_keybindings_page)
         self._ui.core_operations_list.itemClicked.connect(
@@ -157,20 +154,42 @@ class SFGMainWindow(QMainWindow):
         )
         self._ui.save_menu.triggered.connect(self.save_work)
         self._ui.save_menu.setIcon(get_icon('save'))
+        self._ui.save_menu.setShortcut(QKeySequence("Ctrl+S"))
         self._ui.load_menu.triggered.connect(self.load_work)
         self._ui.load_menu.setIcon(get_icon('open'))
+        self._ui.load_menu.setShortcut(QKeySequence("Ctrl+O"))
         self._ui.load_operations.triggered.connect(self.add_namespace)
         self._ui.exit_menu.triggered.connect(self.exit_app)
-        self._shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
-        self._shortcut_open.activated.connect(self.load_work)
-        self._shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
-        self._shortcut_save.activated.connect(self.save_work)
-        self._shortcut_help = QShortcut(QKeySequence("Ctrl+?"), self)
-        self._shortcut_help.activated.connect(self.display_faq_page)
+        self._ui.select_all.triggered.connect(self._select_all)
+        self._ui.select_all.setShortcut(QKeySequence("Ctrl+A"))
+        self._ui.unselect_all.triggered.connect(self._unselect_all)
         self._shortcut_signal = QShortcut(QKeySequence(Qt.Key_Space), self)
         self._shortcut_signal.activated.connect(self._connect_callback)
         self._create_recent_file_actions_and_menus()
 
+        # View menu
+
+        # Operation names
+        self._show_names = True
+        self._check_show_names = QAction("&Operation names")
+        self._check_show_names.triggered.connect(self.view_operation_names)
+        self._check_show_names.setCheckable(True)
+        self._check_show_names.setChecked(True)
+        self._ui.view_menu.addAction(self._check_show_names)
+
+        self._ui.view_menu.addSeparator()
+
+        # Toggle toolbar
+        self._ui.view_menu.addAction(self._toolbar.toggleViewAction())
+
+        # Toggle status bar
+        self._statusbar_visible = QAction("&Status bar")
+        self._statusbar_visible.setCheckable(True)
+        self._statusbar_visible.setChecked(True)
+        self._statusbar_visible.triggered.connect(self._toggle_statusbar)
+        self._ui.view_menu.addAction(self._statusbar_visible)
+
+        # Non-modal dialogs
         self._keybindings_page = None
         self._about_page = None
         self._faq_page = None
@@ -201,17 +220,16 @@ class SFGMainWindow(QMainWindow):
             self._graphics_view.scale(self._zoom, self._zoom)
             self._zoom = old_zoom
 
-    def view_operation_names(self) -> None:
-        if self._check_show_names.isChecked():
-            self._show_names = True
-        else:
-            self._show_names = False
+    def view_operation_names(self, event=None) -> None:
+        self._show_names = self._check_show_names.isChecked()
 
         for operation in self._drag_operation_scenes:
             operation.label.setOpacity(self._show_names)
             operation.show_name = self._show_names
 
     def _save_work(self) -> None:
+        if not self.sfg_widget.sfg:
+            self.update_statusbar("No SFG selected - saving cancelled")
         sfg = cast(SFG, self.sfg_widget.sfg)
         file_dialog = QFileDialog()
         file_dialog.setDefaultSuffix(".py")
@@ -240,8 +258,12 @@ class SFGMainWindow(QMainWindow):
             return
 
         self._logger.info("Saved SFG to path: " + str(module))
+        self.update_statusbar("Saved SFG to path: " + str(module))
 
     def save_work(self, event=None) -> None:
+        if not self._sfg_dict:
+            self.update_statusbar("No SFG to save")
+            return
         self.sfg_widget = SelectSFGWindow(self)
         self.sfg_widget.show()
 
@@ -524,9 +546,15 @@ class SFGMainWindow(QMainWindow):
         self._sfg_dict[sfg.name] = sfg
 
     def _show_precedence_graph(self, event=None) -> None:
+        if not self._sfg_dict:
+            self.update_statusbar("No SFG to show")
+            return
         self._precedence_graph_dialog = PrecedenceGraphWindow(self)
         self._precedence_graph_dialog.add_sfg_to_dialog()
         self._precedence_graph_dialog.show()
+
+    def _toggle_statusbar(self, event=None) -> None:
+        self._statusbar.setVisible(self._statusbar_visible.isChecked())
 
     def get_operations_from_namespace(self, namespace) -> List[str]:
         self._logger.info(
@@ -776,6 +804,24 @@ class SFGMainWindow(QMainWindow):
 
         self._pressed_operations = selected
 
+    def _select_all(self, event=None) -> None:
+        if not self._drag_buttons:
+            self.update_statusbar("No operations to select")
+            return
+
+        for operation in self._drag_buttons.values():
+            operation._toggle_button(pressed=False)
+        self.update_statusbar("Selected all operations")
+
+    def _unselect_all(self, event=None) -> None:
+        if not self._drag_buttons:
+            self.update_statusbar("No operations to unselect")
+            return
+
+        for operation in self._drag_buttons.values():
+            operation._toggle_button(pressed=True)
+        self.update_statusbar("Unselected all operations")
+
     def _simulate_sfg(self) -> None:
         self._thread = dict()
         self._sim_worker = dict()
@@ -796,6 +842,10 @@ class SFGMainWindow(QMainWindow):
         self._plot[sim].show()
 
     def simulate_sfg(self, event=None) -> None:
+        if not self._sfg_dict:
+            self.update_statusbar("No SFG to simulate")
+            return
+
         self._simulation_dialog = SimulateSFGWindow(self)
 
         for _, sfg in self._sfg_dict.items():

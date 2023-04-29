@@ -206,15 +206,19 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
         if self._graph is not None:
             self._graph._redraw_from_start()
+            self.update_statusbar("Operations reordered based on start time")
 
     @Slot()
     def _increase_time_resolution(self) -> None:
         factor, ok = QInputDialog.getInt(
             self, "Increase time resolution", "Factor", 1, 1
         )
-        if ok:
+        if ok and factor > 1:
             self.schedule.increase_time_resolution(factor)
             self.open(self.schedule)
+            self.update_statusbar(f"Time resolution increased by a factor {factor}")
+        if not ok:
+            self.update_statusbar("Cancelled")
 
     @Slot()
     def _decrease_time_resolution(self) -> None:
@@ -222,9 +226,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         factor, ok = QInputDialog.getItem(
             self, "Decrease time resolution", "Factor", vals, editable=False
         )
-        if ok:
+        if ok and int(factor) > 1:
             self.schedule.decrease_time_resolution(int(factor))
             self.open(self.schedule)
+            self.update_statusbar(f"Time resolution decreased by a factor {factor}")
+        if not ok:
+            self.update_statusbar("Cancelled")
 
     def wheelEvent(self, event) -> None:
         """Zoom in or out using mouse wheel if control is pressed."""
@@ -356,6 +363,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             del self._schedule
             self._schedule = None
             self.info_table_clear()
+            self.update_statusbar("Closed schedule")
 
     @Slot()
     def save(self) -> None:
