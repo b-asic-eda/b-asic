@@ -147,8 +147,11 @@ class SFGMainWindow(QMainWindow):
         self._ui.faqBASIC.triggered.connect(self.display_faq_page)
         self._ui.faqBASIC.setShortcut(QKeySequence("Ctrl+?"))
         self._ui.aboutBASIC.triggered.connect(self.display_about_page)
+        self._ui.aboutBASIC.setIcon(get_icon('about'))
         self._ui.keybindsBASIC.triggered.connect(self.display_keybindings_page)
+        self._ui.keybindsBASIC.setIcon(get_icon('keys'))
         self._ui.documentationBASIC.triggered.connect(self._open_documentation)
+        self._ui.documentationBASIC.setIcon(get_icon('docs'))
 
         # Operation lists
         self._ui.core_operations_list.itemClicked.connect(
@@ -167,7 +170,9 @@ class SFGMainWindow(QMainWindow):
         self._ui.load_menu.setIcon(get_icon('open'))
         self._ui.load_menu.setShortcut(QKeySequence("Ctrl+O"))
         self._ui.load_operations.triggered.connect(self.add_namespace)
+        self._ui.load_operations.setIcon(get_icon('add-operations'))
         self._ui.exit_menu.triggered.connect(self.exit_app)
+        self._ui.exit_menu.setIcon(get_icon('quit'))
         self._ui.select_all.triggered.connect(self._select_all)
         self._ui.select_all.setShortcut(QKeySequence("Ctrl+A"))
         self._ui.unselect_all.triggered.connect(self._unselect_all)

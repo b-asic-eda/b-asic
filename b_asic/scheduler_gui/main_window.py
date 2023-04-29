@@ -138,20 +138,28 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.menu_save.setIcon(get_icon('save'))
         self.menu_save_as.triggered.connect(self.save_as)
         self.menu_quit.triggered.connect(self.close)
+        self.menu_quit.setIcon(get_icon('quit'))
         self.menu_node_info.triggered.connect(self.show_info_table)
+        self.menu_node_info.setIcon(get_icon('info'))
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
         self.actionReorder.triggered.connect(self._action_reorder)
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
         self.actionPlot_schedule.setIcon(get_icon('plot-schedule'))
+        self.actionUndo.setIcon(get_icon('undo'))
+        self.actionRedo.setIcon(get_icon('redo'))
         self.splitter.splitterMoved.connect(self._splitter_moved)
         self.actionDocumentation.triggered.connect(self._open_documentation)
+        self.actionDocumentation.setIcon(get_icon('docs'))
         self.actionAbout.triggered.connect(self._open_about_window)
+        self.actionAbout.setIcon(get_icon('about'))
         self.actionDecrease_time_resolution.triggered.connect(
             self._decrease_time_resolution
         )
+        self.actionDecrease_time_resolution.setIcon(get_icon('decrease-timeresolution'))
         self.actionIncrease_time_resolution.triggered.connect(
             self._increase_time_resolution
         )
+        self.actionIncrease_time_resolution.setIcon(get_icon('increase-timeresolution'))
         # Setup event member functions
         self.closeEvent = self._close_event
 
