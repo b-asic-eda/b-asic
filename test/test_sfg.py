@@ -1233,23 +1233,51 @@ class TestPrecedenceGraph:
 class TestSFGGraph:
     def test_sfg(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR\n\tin1 [shape=cds]\n\tin1 -> add1\n\tout1'
-            ' [shape=cds]\n\tt1 -> out1\n\tadd1 [shape=ellipse]\n\tcmul1 ->'
-            ' add1\n\tcmul1 [shape=ellipse]\n\tadd1 -> t1\n\tt1'
-            ' [shape=square]\n\tt1 -> cmul1\n}'
+            'digraph {\n\trankdir=LR splines=spline\n\tin1 [shape=cds]\n\tin1 -> add1'
+            ' [headlabel=0]\n\tout1 [shape=cds]\n\tt1 -> out1\n\tadd1'
+            ' [shape=ellipse]\n\tcmul1 -> add1 [headlabel=1]\n\tcmul1'
+            ' [shape=ellipse]\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 -> cmul1\n}'
         )
         assert sfg_simple_filter.sfg_digraph().source in (res, res + "\n")
 
     def test_sfg_show_id(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR\n\tin1 [shape=cds]\n\tin1 -> add1'
-            ' [label=s1]\n\tout1 [shape=cds]\n\tt1 -> out1 [label=s2]\n\tadd1'
-            ' [shape=ellipse]\n\tcmul1 -> add1 [label=s3]\n\tcmul1'
-            ' [shape=ellipse]\n\tadd1 -> t1 [label=s4]\n\tt1'
+            'digraph {\n\trankdir=LR splines=spline\n\tin1 [shape=cds]\n\tin1 -> add1'
+            ' [label=s1 headlabel=0]\n\tout1 [shape=cds]\n\tt1 -> out1'
+            ' [label=s2]\n\tadd1 [shape=ellipse]\n\tcmul1 -> add1 [label=s3'
+            ' headlabel=1]\n\tcmul1 [shape=ellipse]\n\tadd1 -> t1 [label=s4]\n\tt1'
             ' [shape=square]\n\tt1 -> cmul1 [label=s5]\n}'
         )
 
         assert sfg_simple_filter.sfg_digraph(show_id=True).source in (
+            res,
+            res + "\n",
+        )
+
+    def test_sfg_branch(self, sfg_simple_filter):
+        res = (
+            'digraph {\n\trankdir=LR splines=spline\n\tin1 [shape=cds]\n\tin1 -> add1'
+            ' [headlabel=0]\n\tout1 [shape=cds]\n\t"t1.0" -> out1\n\t"t1.0"'
+            ' [shape=point]\n\tt1 -> "t1.0" [arrowhead=none]\n\tadd1'
+            ' [shape=ellipse]\n\tcmul1 -> add1 [headlabel=1]\n\tcmul1'
+            ' [shape=ellipse]\n\tadd1 -> t1\n\tt1 [shape=square]\n\t"t1.0" ->'
+            ' cmul1\n}'
+        )
+
+        assert sfg_simple_filter.sfg_digraph(branch_node=True).source in (
+            res,
+            res + "\n",
+        )
+
+    def test_sfg_no_port_numbering(self, sfg_simple_filter):
+        res = (
+            'digraph {\n\trankdir=LR splines=spline\n\tin1 [shape=cds]\n\tin1 ->'
+            ' add1\n\tout1 [shape=cds]\n\tt1 -> out1\n\tadd1 [shape=ellipse]\n\tcmul1'
+            ' -> add1\n\tcmul1 [shape=ellipse]\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1'
+            ' -> cmul1\n}'
+        )
+
+        assert sfg_simple_filter.sfg_digraph(port_numbering=False).source in (
             res,
             res + "\n",
         )
