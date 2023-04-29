@@ -9,10 +9,11 @@ import importlib.util
 import logging
 import os
 import sys
+import webbrowser
 from collections import deque
 from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Sequence, Tuple, cast
 
-from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread
+from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread, Slot
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
 from qtpy.QtWidgets import (
     QAction,
@@ -139,10 +140,15 @@ class SFGMainWindow(QMainWindow):
 
         self._ui.actionShowPC.triggered.connect(self._show_precedence_graph)
         self._ui.actionSimulateSFG.triggered.connect(self.simulate_sfg)
+
+        # About menu
         self._ui.faqBASIC.triggered.connect(self.display_faq_page)
         self._ui.faqBASIC.setShortcut(QKeySequence("Ctrl+?"))
         self._ui.aboutBASIC.triggered.connect(self.display_about_page)
         self._ui.keybindsBASIC.triggered.connect(self.display_keybindings_page)
+        self._ui.documentationBASIC.triggered.connect(self._open_documentation)
+
+        # Operation lists
         self._ui.core_operations_list.itemClicked.connect(
             self._on_list_widget_item_clicked
         )
@@ -856,6 +862,11 @@ class SFGMainWindow(QMainWindow):
         # Wait for input to dialog.
         # Kinda buggy because of the separate window in the same thread.
         self._simulation_dialog.simulate.connect(self._simulate_sfg)
+
+    @Slot()
+    def _open_documentation(self, event=None) -> None:
+        """Callback to open documentation web page."""
+        webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
 
     def display_faq_page(self, event=None) -> None:
         if self._faq_page is None:
