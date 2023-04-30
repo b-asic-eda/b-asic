@@ -132,8 +132,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         # Connect signals to slots
         self.menu_load_from_file.triggered.connect(self._load_schedule_from_pyfile)
-        self.menu_load_from_file.setIcon(get_icon('open'))
+        self.menu_load_from_file.setIcon(get_icon('import'))
+        self.menu_open.setIcon(get_icon('open'))
         self.menu_close_schedule.triggered.connect(self.close_schedule)
+        self.menu_close_schedule.setIcon(get_icon('close'))
         self.menu_save.triggered.connect(self.save)
         self.menu_save.setIcon(get_icon('save'))
         self.menu_save_as.triggered.connect(self.save_as)

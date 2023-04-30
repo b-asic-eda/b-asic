@@ -9,6 +9,7 @@ ICONS = {
     'redo': 'mdi6.redo',
     'new': 'mdi6.file-outline',
     'open': 'mdi6.folder-open',
+    'import': 'mdi6.import',
     'legend': 'mdi6.map-legend',
     'close': 'mdi6.close',
     'all': 'mdi6.select-all',
