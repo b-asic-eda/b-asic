@@ -213,9 +213,12 @@ class SFGMainWindow(QMainWindow):
         self._ui.view_menu.addAction(self._zoom_to_fit_action)
 
         # Toggle full screen
-        self._fullscreen_action = QAction(get_icon('full-screen'), "Toggle full screen")
+        self._fullscreen_action = QAction(
+            get_icon('full-screen'), "Toggle f&ull screen"
+        )
         self._fullscreen_action.setCheckable(True)
         self._fullscreen_action.triggered.connect(self._toggle_fullscreen)
+        self._fullscreen_action.setShortcut(QKeySequence("F11"))
         self._ui.view_menu.addAction(self._fullscreen_action)
 
         # Non-modal dialogs

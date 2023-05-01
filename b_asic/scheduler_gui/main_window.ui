@@ -519,6 +519,9 @@
    <property name="text">
     <string>Toggle f&amp;ull screen</string>
    </property>
+   <property name="shortcut">
+    <string>F11</string>
+   </property>
   </action>
  </widget>
  <resources/>

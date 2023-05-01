@@ -361,3 +361,4 @@ class Ui_MainWindow(object):
         self.actionToggle_full_screen.setText(
             _translate("MainWindow", "Toggle f&ull screen")
         )
+        self.actionToggle_full_screen.setShortcut(_translate("MainWindow", "F11"))
