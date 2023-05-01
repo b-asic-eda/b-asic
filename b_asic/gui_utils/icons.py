@@ -29,6 +29,8 @@ ICONS = {
     'faq': 'mdi6.frequently-asked-questions',
     'sim': 'mdi6.chart-line',
     'reorder': ('msc.graph-left', {'rotated': -90}),
+    'full-screen': 'mdi6.fullscreen',
+    'full-screen-exit': 'mdi6.fullscreen-exit',
 }
 
 

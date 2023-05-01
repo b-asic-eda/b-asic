@@ -212,6 +212,12 @@ class SFGMainWindow(QMainWindow):
         self._zoom_to_fit_action.triggered.connect(self._zoom_to_fit)
         self._ui.view_menu.addAction(self._zoom_to_fit_action)
 
+        # Toggle full screen
+        self._fullscreen_action = QAction(get_icon('full-screen'), "Toggle full screen")
+        self._fullscreen_action.setCheckable(True)
+        self._fullscreen_action.triggered.connect(self._toggle_fullscreen)
+        self._ui.view_menu.addAction(self._fullscreen_action)
+
         # Non-modal dialogs
         self._keybindings_page = None
         self._about_page = None
@@ -383,6 +389,15 @@ class SFGMainWindow(QMainWindow):
             self._ui.recent_sfg.addAction(recent_file_action)
 
         self._update_recent_file_list()
+
+    def _toggle_fullscreen(self, event=None):
+        """Callback for toggling full screen mode."""
+        if self.isFullScreen():
+            self.showNormal()
+            self._fullscreen_action.setIcon(get_icon('full-screen'))
+        else:
+            self.showFullScreen()
+            self._fullscreen_action.setIcon(get_icon('full-screen-exit'))
 
     def _update_recent_file_list(self):
         settings = QSettings()

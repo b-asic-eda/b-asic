@@ -148,10 +148,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.actionReorder.triggered.connect(self._action_reorder)
         self.actionReorder.setIcon(get_icon('reorder'))
         self.actionStatus_bar.triggered.connect(self._toggle_statusbar)
-        self.actionPlot_schedule.triggered.connect(self._plot_schedule)
         self.actionPlot_schedule.setIcon(get_icon('plot-schedule'))
-        self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
+        self.actionPlot_schedule.triggered.connect(self._plot_schedule)
         self.actionZoom_to_fit.setIcon(get_icon('zoom-to-fit'))
+        self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
+        self.actionToggle_full_screen.setIcon(get_icon('full-screen'))
+        self.actionToggle_full_screen.triggered.connect(self._toggle_fullscreen)
         self.actionUndo.setIcon(get_icon('undo'))
         self.actionRedo.setIcon(get_icon('redo'))
         self.splitter.splitterMoved.connect(self._splitter_moved)
@@ -755,6 +757,15 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def _toggle_statusbar(self, event=None) -> None:
         """Callback for toggling the status bar."""
         self.statusbar.setVisible(self.actionStatus_bar.isChecked())
+
+    def _toggle_fullscreen(self, event=None):
+        """Callback for toggling full screen mode."""
+        if self.isFullScreen():
+            self.showNormal()
+            self.actionToggle_full_screen.setIcon(get_icon('full-screen'))
+        else:
+            self.showFullScreen()
+            self.actionToggle_full_screen.setIcon(get_icon('full-screen-exit'))
 
 
 def start_scheduler(schedule: Optional[Schedule] = None) -> Schedule:

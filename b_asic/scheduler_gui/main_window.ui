@@ -211,7 +211,7 @@
     </property>
     <widget class="QMenu" name="menu_Recent_Schedule">
      <property name="title">
-      <string>&amp;Open recent</string>
+      <string>Open &amp;recent</string>
      </property>
     </widget>
     <addaction name="menu_open"/>
@@ -235,6 +235,7 @@
     <addaction name="actionPlot_schedule"/>
     <addaction name="separator"/>
     <addaction name="actionZoom_to_fit"/>
+    <addaction name="actionToggle_full_screen"/>
    </widget>
    <widget class="QMenu" name="menu_Edit">
     <property name="title">
@@ -502,13 +503,21 @@
   </action>
   <action name="menu_open">
    <property name="text">
-    <string>Open...</string>
+    <string>&amp;Open...</string>
    </property>
    <property name="toolTip">
     <string>Open previously saved schedule</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionToggle_full_screen">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Toggle f&amp;ull screen</string>
    </property>
   </action>
  </widget>
