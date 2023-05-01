@@ -20,6 +20,12 @@ gui\_utils.about\_window module
    :members:
    :undoc-members:
 
+gui\_utils.color\_button module
+-------------------------------
+
+.. automodule:: b_asic.gui_utils.color_button
+   :members:
+   :undoc-members:
 
 gui\_utils.plot\_window module
 -------------------------------
