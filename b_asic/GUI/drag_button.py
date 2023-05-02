@@ -47,7 +47,7 @@ class DragButton(QPushButton):
         self,
         operation: Operation,
         show_name: bool,
-        window,
+        window: "SFGMainWindow",
         parent=None,
     ):
         self.name = operation.name or operation.graph_id

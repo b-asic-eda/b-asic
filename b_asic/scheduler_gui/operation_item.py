@@ -12,11 +12,13 @@ from typing import TYPE_CHECKING, Dict, List, Union, cast
 from qtpy.QtCore import QPointF, Qt
 from qtpy.QtGui import QBrush, QColor, QCursor, QPainterPath, QPen
 from qtpy.QtWidgets import (
+    QAction,
     QGraphicsEllipseItem,
     QGraphicsItem,
     QGraphicsItemGroup,
     QGraphicsPathItem,
     QGraphicsSimpleTextItem,
+    QMenu,
 )
 
 # B-ASIC
@@ -81,12 +83,13 @@ class OperationItem(QGraphicsItemGroup):
         self.setFlag(QGraphicsItem.ItemIsSelectable)  # mouse move events
         # self.setAcceptHoverEvents(True)                 # mouse hover events
         self.setAcceptedMouseButtons(
-            Qt.MouseButton.LeftButton
+            Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton
         )  # accepted buttons for movements
         self.setCursor(
             QCursor(Qt.CursorShape.OpenHandCursor)
         )  # default cursor when hovering over object
 
+        self._context_menu = None
         self._make_component()
 
     # def sceneEvent(self, event: QEvent) -> bool:
@@ -105,6 +108,11 @@ class OperationItem(QGraphicsItemGroup):
     def graph_id(self) -> GraphID:
         """The graph-id of the operation that the item corresponds to."""
         return self._operation.graph_id
+
+    @property
+    def name(self) -> str:
+        """The name of the operation that the item corresponds to."""
+        return self._operation.name
 
     @property
     def operation(self) -> Operation:
@@ -247,3 +255,14 @@ class OperationItem(QGraphicsItemGroup):
             self.addToGroup(self._execution_time_item)
 
         self.set_inactive()
+
+    def _open_context_menu(self):
+        menu = QMenu()
+        swap = QAction("Swap")
+        menu.addAction(swap)
+        swap.setEnabled(self._operation.is_swappable)
+        swap.triggered.connect(self._swap_io)
+        menu.exec_(self.cursor().pos())
+
+    def _swap_io(self, event=None) -> None:
+        self._operation.swap_io()

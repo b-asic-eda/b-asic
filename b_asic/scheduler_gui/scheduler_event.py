@@ -10,7 +10,7 @@ import math
 from typing import List, Optional, overload
 
 # QGraphics and QPainter imports
-from qtpy.QtCore import QEvent, QObject, QPointF, Signal
+from qtpy.QtCore import QEvent, QObject, QPointF, Qt, Signal
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsSceneMouseEvent
 
 from b_asic.schedule import Schedule
@@ -181,14 +181,22 @@ class SchedulerEvent:  # PyQt5
         allows the item to receive future move, release and double-click events.
         """
         item: OperationItem = self.scene().mouseGrabberItem()
-        self._old_op_position = self._schedule.get_y_location(item.operation.graph_id)
-        self._signals.component_selected.emit(item.graph_id)
-        self._current_pos = item.mapToParent(event.pos())
-        self.set_item_active(item)
-        event.accept()
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._old_op_position = self._schedule.get_y_location(
+                item.operation.graph_id
+            )
+            self._signals.component_selected.emit(item.graph_id)
+            self._current_pos = item.mapToParent(event.pos())
+            self.set_item_active(item)
+            event.accept()
+        else:  # Right-button
+            item._open_context_menu()
 
     def operation_mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """Change the cursor to OpenHandCursor when releasing an object."""
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+
         item: OperationItem = self.scene().mouseGrabberItem()
         self.set_item_inactive(item)
         self.set_new_start_time(item)
