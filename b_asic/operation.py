@@ -481,6 +481,24 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def is_swappable(self) -> bool:
+        """
+        Return True if the inputs (and outputs) to the operation can be swapped and
+        retain the same function.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def swap_io(self) -> None:
+        """
+        Swap inputs (and outputs) of operation.
+
+        Errors if :meth:`is_swappable` is False.
+        """
+        raise NotImplementedError
+
 
 class AbstractOperation(Operation, AbstractGraphComponent):
     """
@@ -1150,12 +1168,28 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @property
     def is_linear(self) -> bool:
+        # doc-string inherited
         if self.is_constant:
             return True
         return False
 
     @property
     def is_constant(self) -> bool:
+        # doc-string inherited
         return all(
             input_.connected_source.operation.is_constant for input_ in self.inputs
         )
+
+    @property
+    def is_swappable(self) -> bool:
+        # doc-string inherited
+        return False
+
+    def swap_io(self) -> None:
+        # doc-string inherited
+        if not self.is_swappable:
+            raise TypeError(f"operation io cannot be swapped for {type(self)}")
+        if self.input_count == 2 and self.output_count == 1:
+            self._input_ports.reverse()
+            for i, p in enumerate(self._input_ports):
+                p._index = i

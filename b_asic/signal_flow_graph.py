@@ -748,6 +748,20 @@ class SFG(AbstractOperation):
         Signal(output_port, new_operation)
         signal.set_source(new_operation)
 
+    def swap_io_of_operation(self, operation_id: GraphID) -> None:
+        """
+        Swap the inputs (and outputs) of operation.
+
+        Parameters
+        ----------
+        operation_id : GraphID
+            The GraphID of the operation to swap.
+
+        """
+        operation = cast(Operation, self.find_by_id(operation_id))
+        if operation is not None:
+            operation.swap_io()
+
     def remove_operation(self, operation_id: GraphID) -> Union["SFG", None]:
         """
         Returns a version of the SFG where the operation with the specified GraphID
@@ -1399,7 +1413,8 @@ class SFG(AbstractOperation):
         branch_node : bool, default: False
             Add a branch node in case the fan-out of a signal is two or more.
         port_numbering : bool, default: True
-            Show the port number in case the number of ports (input or output) is two or more.
+            Show the port number in case the number of ports (input or output) is two or
+            more.
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
 
@@ -1503,7 +1518,8 @@ class SFG(AbstractOperation):
         branch_node : bool, default: False
             Add a branch node in case the fan-out of a signal is two or more.
         port_numbering : bool, default: True
-            Show the port number in case the number of ports (input or output) is two or more.
+            Show the port number in case the number of ports (input or output) is two or
+            more.
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
 
@@ -1599,8 +1615,8 @@ class SFG(AbstractOperation):
                     new_source_op = new_ops[layer][source_op_idx]
                     source_op_output = new_source_op.outputs[source_op_output_index]
 
-                    # If this is the last layer, we need to create a new delay element and connect it instead
-                    # of the copied port
+                    # If this is the last layer, we need to create a new delay element
+                    # and connect it instead of the copied port
                     if layer == factor - 1:
                         delay = Delay(name=op.name)
                         delay.graph_id = op.graph_id
@@ -1630,14 +1646,14 @@ class SFG(AbstractOperation):
                         new_destination = new_dest_op.inputs[sink_op_output_index]
                         new_destination.connect(new_source_port)
                 else:
-                    # Other opreations need to be re-targeted to the corresponding output in the
-                    # current layer, as long as that output is not a delay, as that has been solved
-                    # above.
+                    # Other opreations need to be re-targeted to the corresponding
+                    # output in the current layer, as long as that output is not a
+                    # delay, as that has been solved above.
                     # To avoid double connections, we'll only re-connect inputs
                     for input_num, original_input in enumerate(op.inputs):
                         original_source = original_input.connected_source
-                        # We may not always have something connected to the input, if we don't
-                        # we can abort
+                        # We may not always have something connected to the input, if we
+                        # don't we can abort
                         if original_source is None:
                             continue
 

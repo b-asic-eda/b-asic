@@ -9,7 +9,7 @@ from typing import Counter, Dict, Type
 
 import pytest
 
-from b_asic import SFG, Input, Output, Signal
+from b_asic import Input, Output, Signal
 from b_asic.core_operations import (
     Addition,
     Butterfly,
@@ -22,6 +22,7 @@ from b_asic.core_operations import (
 )
 from b_asic.operation import ResultKey
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.signal_flow_graph import SFG, GraphID
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
 
@@ -1562,6 +1563,30 @@ class TestIsConstant:
 
     def test_sfg_nested(self, sfg_nested: SFG):
         assert not sfg_nested.is_constant
+
+
+class TestSwapIOOfOperation:
+    def do_test(self, sfg: SFG, graph_id: GraphID):
+        NUM_TESTS = 5
+        # Evaluate with some random values
+        # To avoid problems with missing inputs at the end of the sequence,
+        # we generate i*(some large enough) number
+        input_list = [
+            [random.random() for _ in range(0, NUM_TESTS)] for _ in sfg.inputs
+        ]
+        sim_ref = Simulation(sfg, input_list)
+        sim_ref.run()
+
+        sfg.swap_io_of_operation(graph_id)
+        sim_swap = Simulation(sfg, input_list)
+        sim_swap.run()
+        for n, _ in enumerate(sfg.outputs):
+            ref_values = list(sim_ref.results[ResultKey(f"{n}")])
+            swap_values = list(sim_swap.results[ResultKey(f"{n}")])
+            assert ref_values == swap_values
+
+    def test_single_accumulator(self, sfg_simple_accumulator: SFG):
+        self.do_test(sfg_simple_accumulator, 'add1')
 
 
 class TestInsertComponentAfter:

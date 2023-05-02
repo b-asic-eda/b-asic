@@ -109,6 +109,7 @@ class Addition(AbstractOperation):
     """
 
     is_linear = True
+    is_swappable = True
 
     def __init__(
         self,
@@ -274,7 +275,7 @@ class AddSub(AbstractOperation):
         return a + b if self.is_add else a - b
 
     @property
-    def is_add(self) -> Num:
+    def is_add(self) -> bool:
         """Get if operation is an addition."""
         return self.param("is_add")
 
@@ -282,6 +283,10 @@ class AddSub(AbstractOperation):
     def is_add(self, is_add: bool) -> None:
         """Set if operation is an addition."""
         self.set_param("is_add", is_add)
+
+    @property
+    def is_swappable(self) -> bool:
+        return self.is_add
 
 
 class Multiplication(AbstractOperation):
@@ -316,6 +321,7 @@ class Multiplication(AbstractOperation):
     ConstantMultiplication
 
     """
+    is_swappable = True
 
     def __init__(
         self,
@@ -410,6 +416,7 @@ class Min(AbstractOperation):
     ========
     Max
     """
+    is_swappable = True
 
     def __init__(
         self,
@@ -455,6 +462,7 @@ class Max(AbstractOperation):
     ========
     Min
     """
+    is_swappable = True
 
     def __init__(
         self,
@@ -695,6 +703,7 @@ class MAD(AbstractOperation):
 
     .. math:: y = x_0 \times x_1 + x_2
     """
+    is_swappable = True
 
     def __init__(
         self,
@@ -731,6 +740,15 @@ class MAD(AbstractOperation):
             or self.input(1).connected_source.operation.is_constant
         )
 
+    def swap_io(self) -> None:
+        self._input_ports = [
+            self._input_ports[1],
+            self._input_ports[0],
+            self._input_ports[2],
+        ]
+        for i, p in enumerate(self._input_ports):
+            p._index = i
+
 
 class SymmetricTwoportAdaptor(AbstractOperation):
     r"""
@@ -743,6 +761,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         \end{eqnarray}
     """
     is_linear = True
+    is_swappable = True
 
     def __init__(
         self,
@@ -783,6 +802,16 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
+
+    def swap_io(self) -> None:
+        # Swap inputs and outputs and change sign of coefficient
+        self._input_ports.reverse()
+        for i, p in enumerate(self._input_ports):
+            p._index = i
+        self._output_ports.reverse()
+        for i, p in enumerate(self._output_ports):
+            p._index = i
+        self.set_param("value", -self.value)
 
 
 class Reciprocal(AbstractOperation):

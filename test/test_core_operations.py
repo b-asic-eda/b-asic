@@ -100,6 +100,13 @@ class TestAddSub:
         test_operation = AddSub(is_add=False)
         assert test_operation.evaluate_output(0, [3 + 5j, 4 + 6j]) == -1 - 1j
 
+    def test_addsub_subtraction_is_swappable(self):
+        test_operation = AddSub(is_add=False)
+        assert not test_operation.is_swappable
+
+        test_operation = AddSub(is_add=True)
+        assert test_operation.is_swappable
+
 
 class TestMultiplication:
     """Tests for Multiplication class."""
@@ -130,10 +137,7 @@ class TestDivision:
 
     def test_division_complex(self):
         test_operation = Division()
-        assert (
-            test_operation.evaluate_output(0, [60 + 40j, 10 + 20j])
-            == 2.8 - 1.6j
-        )
+        assert test_operation.evaluate_output(0, [60 + 40j, 10 + 20j]) == 2.8 - 1.6j
 
 
 class TestSquareRoot:
@@ -254,12 +258,14 @@ class TestSymmetricTwoportAdaptor:
 
     def test_symmetrictwoportadaptor_complex(self):
         test_operation = SymmetricTwoportAdaptor(0.5)
-        assert (
-            test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == 3.5 - 3.5j
-        )
-        assert (
-            test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == 2.5 - 0.5j
-        )
+        assert test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == 3.5 - 3.5j
+        assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == 2.5 - 0.5j
+
+    def test_symmetrictwoportadaptor_swap_io(self):
+        test_operation = SymmetricTwoportAdaptor(0.5)
+        assert test_operation.value == 0.5
+        test_operation.swap_io()
+        assert test_operation.value == -0.5
 
 
 class TestReciprocal:

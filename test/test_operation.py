@@ -358,3 +358,11 @@ class TestLatencyOffset:
             ),
         ):
             bfly.set_latency_offsets({"foo": 3, "out2": 5})
+
+
+class TestIsSwappable:
+    def test_butterfly_is_swappable(self):
+        bfly = Butterfly()
+        assert not bfly.is_swappable
+        with pytest.raises(TypeError, match="operation io cannot be swapped"):
+            bfly.swap_io()
