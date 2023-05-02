@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Originally generated from QT designer, but now manually maintained
 
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 
 class Ui_main_window(object):
@@ -9,10 +9,44 @@ class Ui_main_window(object):
         main_window.setObjectName("main_window")
         main_window.setEnabled(True)
         main_window.resize(897, 633)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(main_window.sizePolicy().hasHeightForWidth())
+        main_window.setSizePolicy(sizePolicy)
         self.centralwidget = QtWidgets.QWidget(main_window)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(
+            self.centralwidget.sizePolicy().hasHeightForWidth()
+        )
+        self.centralwidget.setSizePolicy(sizePolicy)
         self.centralwidget.setObjectName("centralwidget")
-        self.operation_box = QtWidgets.QGroupBox(self.centralwidget)
-        self.operation_box.setGeometry(QtCore.QRect(10, 10, 201, 531))
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
+        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayout.setSpacing(0)
+        self.horizontalLayout.setObjectName("horizontalLayout")
+        self.splitter = QtWidgets.QSplitter(self.centralwidget)
+        self.splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.splitter.setHandleWidth(0)
+        self.splitter.setObjectName("splitter")
+        # self.view = QtWidgets.QGraphicsView(self.splitter)
+        # self.view.setAlignment(
+        #     QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop
+        # )
+        # self.view.setRenderHints(
+        #     QtGui.QPainter.Antialiasing | QtGui.QPainter.TextAntialiasing
+        # )
+        # self.view.setViewportUpdateMode(QtWidgets.QGraphicsView.FullViewportUpdate)
+        # self.view.setObjectName("view")
+        self.horizontalLayout.addWidget(self.splitter)
+        self.operation_box = QtWidgets.QGroupBox(self.splitter)
+        # self.operation_box.setGeometry(QtCore.QRect(10, 10, 201, 531))
         self.operation_box.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.operation_box.setAutoFillBackground(False)
         self.operation_box.setStyleSheet(
@@ -34,10 +68,28 @@ class Ui_main_window(object):
         self.operation_box.setFlat(False)
         self.operation_box.setCheckable(False)
         self.operation_box.setObjectName("operation_box")
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(
+            self.operation_box.sizePolicy().hasHeightForWidth()
+        )
+        self.operation_box.setSizePolicy(sizePolicy)
         self.operation_list = QtWidgets.QToolBox(self.operation_box)
         self.operation_list.setGeometry(QtCore.QRect(10, 20, 171, 271))
         self.operation_list.setAutoFillBackground(False)
         self.operation_list.setObjectName("operation_list")
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred
+        )
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(
+            self.operation_list.sizePolicy().hasHeightForWidth()
+        )
+        self.operation_list.setSizePolicy(sizePolicy)
         self.core_operations_page = QtWidgets.QWidget()
         self.core_operations_page.setGeometry(QtCore.QRect(0, 0, 171, 217))
         self.core_operations_page.setObjectName("core_operations_page")

@@ -78,7 +78,7 @@ class SFGMainWindow(QMainWindow):
         self._ui = Ui_main_window()
         self._ui.setupUi(self)
         self.setWindowIcon(QIcon("small_logo.png"))
-        self._scene = QGraphicsScene(self)
+        self._scene = QGraphicsScene(self._ui.splitter)
         self._operations_from_name: Dict[str, Operation] = {}
         self._zoom = 1
         self._drag_operation_scenes: Dict[DragButton, "QGraphicsProxyWidget"] = {}
@@ -95,7 +95,7 @@ class SFGMainWindow(QMainWindow):
         self._ports: Dict[DragButton, List[PortButton]] = {}
 
         # Create Graphics View
-        self._graphics_view = QGraphicsView(self._scene, self)
+        self._graphics_view = QGraphicsView(self._scene, self._ui.splitter)
         self._graphics_view.setRenderHint(QPainter.Antialiasing)
         self._graphics_view.setGeometry(
             self._ui.operation_box.width(), 20, self.width(), self.height()
