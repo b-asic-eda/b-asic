@@ -63,25 +63,22 @@ class DragButton(QPushButton):
         self._flipped = False
         self._properties_window = None
         self.label = None
-        self._context_menu = None
         super().__init__(parent)
 
     def contextMenuEvent(self, event):
-        if self._context_menu is None:
-            menu = QMenu()
-            properties = QAction("Properties")
-            menu.addAction(properties)
-            properties.triggered.connect(self.show_properties_window)
+        menu = QMenu()
+        properties = QAction("Properties")
+        menu.addAction(properties)
+        properties.triggered.connect(self.show_properties_window)
 
-            delete = QAction("Delete")
-            menu.addAction(delete)
-            delete.triggered.connect(self.remove)
+        delete = QAction("Delete")
+        menu.addAction(delete)
+        delete.triggered.connect(self.remove)
 
-            flip = QAction("Flip horizontal")
-            menu.addAction(flip)
-            flip.triggered.connect(self._flip)
-            self._context_menu = menu
-        self._context_menu.exec_(self.cursor().pos())
+        flip = QAction("Flip horizontal")
+        menu.addAction(flip)
+        flip.triggered.connect(self._flip)
+        menu.exec_(self.cursor().pos())
 
     def show_properties_window(self, event=None) -> None:
         """Display the properties window for the associated Operation."""

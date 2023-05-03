@@ -89,7 +89,6 @@ class OperationItem(QGraphicsItemGroup):
             QCursor(Qt.CursorShape.OpenHandCursor)
         )  # default cursor when hovering over object
 
-        self._context_menu = None
         self._make_component()
 
     # def sceneEvent(self, event: QEvent) -> bool:
