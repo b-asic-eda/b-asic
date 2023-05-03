@@ -18,6 +18,7 @@ from b_asic.scheduler_gui._preferences import (
     SIGNAL_ACTIVE,
     SIGNAL_INACTIVE,
     SIGNAL_WIDTH,
+    SIGNAL_WIDTH_ACTIVE,
 )
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.signal import Signal
@@ -59,6 +60,8 @@ class SignalItem(QGraphicsPathItem):
         self._src_operation = src_operation
         self._dest_operation = dest_operation
         self._signal = signal
+        self._src_key = f"out{self._signal.source.index}"
+        self._dest_key = f"in{self._signal.destination.index}"
         self._refresh_pens()
         self.set_inactive()
         self.update_path()
@@ -67,12 +70,8 @@ class SignalItem(QGraphicsPathItem):
         """
         Create a new path after moving connected operations.
         """
-        source_point = self._src_operation.get_port_location(
-            f"out{self._signal.source.index}"
-        )
-        dest_point = self._dest_operation.get_port_location(
-            f"in{self._signal.destination.index}"
-        )
+        source_point = self._src_operation.get_port_location(self._src_key)
+        dest_point = self._dest_operation.get_port_location(self._dest_key)
         path = QPainterPath()
         path.moveTo(source_point)
         source_x = source_point.x()
@@ -100,7 +99,7 @@ class SignalItem(QGraphicsPathItem):
     def _refresh_pens(self) -> None:
         """Create pens."""
         pen = QPen(SIGNAL_ACTIVE)
-        pen.setWidthF(SIGNAL_WIDTH)
+        pen.setWidthF(SIGNAL_WIDTH_ACTIVE)
         self._active_pen = pen
         pen = QPen(SIGNAL_INACTIVE)
         pen.setWidthF(SIGNAL_WIDTH)
@@ -111,7 +110,11 @@ class SignalItem(QGraphicsPathItem):
         Set the signal color to represent that a connected operation is selected.
         """
         self.setPen(self._active_pen)
+        self._src_operation.set_port_active(self._src_key)
+        self._dest_operation.set_port_active(self._dest_key)
 
     def set_inactive(self) -> None:
         """Set the signal color to the default color."""
         self.setPen(self._inactive_pen)
+        self._src_operation.set_port_inactive(self._src_key)
+        self._dest_operation.set_port_inactive(self._dest_key)

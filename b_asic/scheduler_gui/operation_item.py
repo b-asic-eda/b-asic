@@ -89,6 +89,14 @@ class OperationItem(QGraphicsItemGroup):
             QCursor(Qt.CursorShape.OpenHandCursor)
         )  # default cursor when hovering over object
 
+        self._port_filling_brush = QBrush(Qt.GlobalColor.black)
+        self._port_outline_pen = QPen(Qt.GlobalColor.black)
+        self._port_outline_pen.setWidthF(0)
+
+        self._port_filling_brush_active = QBrush(OPERATION_LATENCY_ACTIVE)
+        self._port_outline_pen_active = QPen(OPERATION_LATENCY_ACTIVE)
+        self._port_outline_pen_active.setWidthF(0)
+
         self._make_component()
 
     # def sceneEvent(self, event: QEvent) -> bool:
@@ -171,6 +179,16 @@ class OperationItem(QGraphicsItemGroup):
         self._set_background(OPERATION_LATENCY_INACTIVE)
         self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
+    def set_port_active(self, key: str):
+        item = self._ports[key]["item"]
+        item.setBrush(self._port_filling_brush_active)
+        item.setPen(self._port_outline_pen_active)
+
+    def set_port_inactive(self, key: str):
+        item = self._ports[key]["item"]
+        item.setBrush(self._port_filling_brush)
+        item.setPen(self._port_outline_pen)
+
     def _set_background(self, color: QColor) -> None:
         brush = QBrush(color)
         self._latency_item.setBrush(brush)
@@ -185,10 +203,6 @@ class OperationItem(QGraphicsItemGroup):
             Qt.RoundJoin
         )  # Qt.MiterJoin, Qt.BevelJoin (default), Qt.RoundJoin, Qt.SvgMiterJoin
 
-        port_filling_brush = QBrush(Qt.GlobalColor.black)  # used by port filling
-        port_outline_pen = QPen(Qt.GlobalColor.black)  # used by port outline
-        port_outline_pen.setWidthF(0)
-        # port_outline_pen.setCosmetic(True)
         port_size = 7 / self._scale  # the diameter of a port
 
         execution_time_color = QColor(OPERATION_EXECUTION_TIME_INACTIVE)
@@ -230,10 +244,10 @@ class OperationItem(QGraphicsItemGroup):
                 new_port = QGraphicsEllipseItem(
                     -port_size / 2, -port_size / 2, port_size, port_size
                 )
-                new_port.setPen(port_outline_pen)
-                new_port.setBrush(port_filling_brush)
+                new_port.setPen(self._port_outline_pen)
+                new_port.setBrush(self._port_filling_brush)
                 new_port.setPos(port_pos.x(), port_pos.y())
-                self._port_items.append(new_port)
+                self._ports[key]["item"] = new_port
 
         create_ports(self._operation.get_input_coordinates(), "in")
         create_ports(self._operation.get_output_coordinates(), "out")
@@ -247,8 +261,8 @@ class OperationItem(QGraphicsItemGroup):
 
         # item group, consist of component_item, port_items and execution_time_item
         self.addToGroup(self._latency_item)
-        for port in self._port_items:
-            self.addToGroup(port)
+        for port in self._ports.values():
+            self.addToGroup(port["item"])
         self.addToGroup(self._label_item)
         if execution_time:
             self.addToGroup(self._execution_time_item)
