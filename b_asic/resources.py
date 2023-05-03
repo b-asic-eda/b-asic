@@ -8,12 +8,13 @@ import networkx as nx
 from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
 
-from b_asic._preferences import LATENCY_COLOR
+from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
 from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable, Process
 from b_asic.types import TypeName
 
 # Default latency coloring RGB tuple
 _LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
+_WARNING_COLOR = tuple(c / 255 for c in WARNING_COLOR)
 
 #
 # Human-intuitive sorting:
@@ -453,6 +454,8 @@ class ProcessCollection:
         marker_write: str = "o",
         show_markers: bool = True,
         row: Optional[int] = None,
+        *,
+        allow_excessive_lifetimes: bool = False,
     ):
         """
         Plot a process variable lifetime chart.
@@ -479,6 +482,9 @@ class ProcessCollection:
             Render all processes in this collection on a specified row in the matplotlib axes object.
             Defaults to None, which renders all processes on separate rows. This option is useful when
             drawing cell assignments.
+        allow_excessive_lifetimes : bool, default False
+            If set to true, the plot method allows ploting collections of variables with a greater lifetime
+            than the schedule time.
 
         Returns
         -------
@@ -494,7 +500,7 @@ class ProcessCollection:
         # Lifetime chart left and right padding
         PAD_L, PAD_R = 0.05, 0.05
         max_execution_time = max(process.execution_time for process in self._collection)
-        if max_execution_time > self._schedule_time:
+        if not allow_excessive_lifetimes and max_execution_time > self._schedule_time:
             # Schedule time needs to be greater than or equal to the maximum process
             # lifetime
             raise KeyError(
@@ -505,8 +511,13 @@ class ProcessCollection:
         # Generate the life-time chart
         for i, process in enumerate(_sorted_nicely(self._collection)):
             bar_row = i if row is None else row
-            bar_start = process.start_time % self._schedule_time
-            bar_end = process.start_time + process.execution_time
+            bar_start = process.start_time
+            bar_end = bar_start + process.execution_time
+            bar_start = (
+                bar_start
+                if process.execution_time == 0
+                else bar_start % self._schedule_time
+            )
             bar_end = (
                 bar_end
                 if bar_end == self._schedule_time
@@ -527,7 +538,13 @@ class ProcessCollection:
                     color=marker_color,
                     zorder=10,
                 )
-            if bar_end >= bar_start:
+            if process.execution_time > self.schedule_time:
+                _ax.broken_barh(  # type: ignore
+                    [(0, self.schedule_time)],
+                    (bar_row + 0.55, 0.9),
+                    color=_WARNING_COLOR,
+                )
+            elif bar_end >= bar_start:
                 _ax.broken_barh(  # type: ignore
                     [(PAD_L + bar_start, bar_end - bar_start - PAD_L - PAD_R)],
                     (bar_row + 0.55, 0.9),
