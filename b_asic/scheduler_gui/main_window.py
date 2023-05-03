@@ -9,6 +9,7 @@ Start main-window with ``start_gui()``.
 """
 import inspect
 import os
+import pickle
 import sys
 import webbrowser
 from collections import deque
@@ -118,6 +119,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self._read_settings()
         self._init_ui()
+        self._file_name = None
 
         # Recent files
         self._max_recent_files = 4
@@ -134,6 +136,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.menu_load_from_file.triggered.connect(self._load_schedule_from_pyfile)
         self.menu_load_from_file.setIcon(get_icon('import'))
         self.menu_open.setIcon(get_icon('open'))
+        self.menu_open.triggered.connect(self.open_schedule)
         self.menu_close_schedule.triggered.connect(self.close_schedule)
         self.menu_close_schedule.setIcon(get_icon('close'))
         self.menu_save.triggered.connect(self.save)
@@ -354,6 +357,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         del module
         settings = QSettings()
         settings.setValue("scheduler/last_opened_file", abs_path_filename)
+        self._file_name = abs_path_filename
+        self._toggle_file_loaded(True)
 
     @Slot()
     def close_schedule(self) -> None:
@@ -381,6 +386,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._schedule = None
             self.info_table_clear()
             self.update_statusbar("Closed schedule")
+            self._toggle_file_loaded(False)
 
     @Slot()
     def save(self) -> None:
@@ -390,7 +396,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         SLOT() for SIGNAL(menu_save.triggered)
         """
         # TODO: all
-        self._print_button_pressed("save_schedule()")
+        if self._file_name is None:
+            self.save_as()
+            return
+        self._schedule._sfg._graph_id_generator = None
+        self._schedule._original_sfg._graph_id_generator = None
+        with open(self._file_name, 'wb') as f:
+            pickle.dump(self._schedule, f)
         self.update_statusbar(self.tr("Schedule saved successfully"))
 
     @Slot()
@@ -401,8 +413,52 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         SLOT() for SIGNAL(menu_save_as.triggered)
         """
         # TODO: Implement
-        self._print_button_pressed("save_schedule()")
+        filename, extension = QFileDialog.getSaveFileName(
+            self, 'Save File', '.', filter=self.tr("B-ASIC schedule (*.bsc)")
+        )
+        if not filename:
+            return
+        if not filename.endswith('.bsc'):
+            filename += '.bsc'
+        self._file_name = filename
+        self._schedule._sfg._graph_id_generator = None
+        self._schedule._original_sfg._graph_id_generator = None
+        with open(self._file_name, 'wb') as f:
+            pickle.dump(self._schedule, f)
         self.update_statusbar(self.tr("Schedule saved successfully"))
+
+    @Slot()
+    def open_schedule(self) -> None:
+        """
+        Open a schedule.
+
+        SLOT() for SIGNAL(menu_open.triggered)
+        """
+        # TODO: all
+        last_file = QStandardPaths.standardLocations(QStandardPaths.HomeLocation)[0]
+
+        abs_path_filename, accepted = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Open schedule file"),
+            last_file,
+            self.tr("B-ASIC schedule (*.bsc)"),
+        )
+
+        if not abs_path_filename or not accepted:
+            return
+        self._open_schedule_file(abs_path_filename)
+
+    def _open_schedule_file(self, abs_path_filename: str):
+        self._file_name = abs_path_filename
+        self._add_recent_file(abs_path_filename)
+
+        with open(self._file_name, 'rb') as f:
+            schedule = pickle.load(f)
+        self.open(schedule)
+        settings = QSettings()
+        settings.setValue("scheduler/last_opened_file", self._file_name)
+        self._toggle_file_loaded(True)
+        self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     @Slot(bool)
     def show_info_table(self, checked: bool) -> None:
@@ -425,6 +481,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                 self.splitter.moveSplitter(max_ - self._splitter_pos, 1)
         else:
             self.splitter.moveSplitter(max_, 1)
+
+    def _toggle_file_loaded(self, enable: bool):
+        self.menu_save.setEnabled(enable)
+        self.menu_save_as.setEnabled(enable)
 
     @Slot(bool)
     def hide_exit_dialog(self, checked: bool) -> None:
@@ -732,7 +792,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                     self._recent_files_actions[i].setVisible(False)
 
     def _open_recent_file(self, action):
-        self._load_from_file(action.data().filePath())
+        if action.data().filePath().endswith('.bsc'):
+            self._open_schedule_file(action.data().filePath())
+        else:
+            self._load_from_file(action.data().filePath())
 
     def _add_recent_file(self, module):
         settings = QSettings()

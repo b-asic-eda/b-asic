@@ -42,6 +42,16 @@ _LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
 _SIGNAL_COLOR = tuple(c / 255 for c in SIGNAL_COLOR)
 
 
+def _laps_default():
+    """Default value for _laps. Cannot use lambda."""
+    return 0
+
+
+def _y_locations_default():
+    """Default value for _y_locations. Cannot use lambda."""
+    return None
+
+
 class Schedule:
     """
     Schedule of an SFG with scheduled Operations.
@@ -89,9 +99,9 @@ class Schedule:
         self._original_sfg = sfg()  # Make a copy
         self._sfg = sfg
         self._start_times = {}
-        self._laps = defaultdict(lambda: 0)
+        self._laps = defaultdict(_laps_default)
         self._cyclic = cyclic
-        self._y_locations = defaultdict(lambda: None)
+        self._y_locations = defaultdict(_y_locations_default)
         if scheduling_algorithm == "ASAP":
             self._schedule_asap()
         elif scheduling_algorithm == "provided":
