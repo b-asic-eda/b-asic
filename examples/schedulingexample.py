@@ -1,7 +1,9 @@
 """
-Example SFG used for scheduling in the TSTE87 course.
+====================================================
+Example SFG used for scheduling in the TSTE87 course
+====================================================
 
-Node numbering from the original SFG used with the Matlab toolbox.::
+Node numbering from the original SFG used with the Matlab toolbox::
 
     sfg=addoperand([],'in',1,1);
     sfg=addoperand(sfg,'constmult',1,1,2,0.25);

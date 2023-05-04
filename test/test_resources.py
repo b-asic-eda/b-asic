@@ -134,3 +134,6 @@ class TestProcessCollectionPlainMemoryVariable:
             isinstance(operand.operation, ConstantMultiplication)
             for operand in pc_cmul.collection
         )
+
+    def test_show(self, simple_collection: ProcessCollection):
+        simple_collection.show()

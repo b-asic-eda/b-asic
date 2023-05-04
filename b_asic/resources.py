@@ -447,6 +447,7 @@ class ProcessCollection:
     def plot(
         self,
         ax: Optional[Axes] = None,
+        *,
         show_name: bool = True,
         bar_color: Union[str, Tuple[float, ...]] = _LATENCY_COLOR,
         marker_color: Union[str, Tuple[float, ...]] = "black",
@@ -454,7 +455,6 @@ class ProcessCollection:
         marker_write: str = "o",
         show_markers: bool = True,
         row: Optional[int] = None,
-        *,
         allow_excessive_lifetimes: bool = False,
     ):
         """
@@ -472,10 +472,10 @@ class ProcessCollection:
             Bar color in lifetime chart.
         marker_color : color, default 'black'
             Color for read and write marker.
-        marker_write : str, default 'x'
-            Marker at write time in the lifetime chart.
         marker_read : str, default 'o'
             Marker at read time in the lifetime chart.
+        marker_write : str, default 'x'
+            Marker at write time in the lifetime chart.
         show_markers : bool, default True
             Show markers at read and write times.
         row : int, optional
@@ -580,6 +580,53 @@ class ProcessCollection:
         else:
             pass
         return _ax
+
+    def show(
+        self,
+        *,
+        show_name: bool = True,
+        bar_color: Union[str, Tuple[float, ...]] = _LATENCY_COLOR,
+        marker_color: Union[str, Tuple[float, ...]] = "black",
+        marker_read: str = "X",
+        marker_write: str = "o",
+        show_markers: bool = True,
+        allow_excessive_lifetimes: bool = False,
+    ) -> None:
+        """
+        Show the process collection using the current Matplotlib backend.
+        Equivalent to creating a Matplotlib figure, passing it and arguments to :func:`plot`
+        and invoking :py:meth:`matplotlib.figure.Figure.show`.
+
+        Parameters
+        ----------
+        show_name : bool, default: True
+            Show name of all processes in the lifetime chart.
+        bar_color : color, optional
+            Bar color in lifetime chart.
+        marker_color : color, default 'black'
+            Color for read and write marker.
+        marker_read : str, default 'o'
+            Marker at read time in the lifetime chart.
+        marker_write : str, default 'x'
+            Marker at write time in the lifetime chart.
+        show_markers : bool, default True
+            Show markers at read and write times.
+        allow_excessive_lifetimes : bool, default False
+            If set to true, the plot method allows ploting collections of variables with a greater lifetime
+            than the schedule time.
+        """
+        fig, ax = plt.subplots()
+        self.plot(
+            ax=ax,
+            show_name=show_name,
+            bar_color=bar_color,
+            marker_color=marker_color,
+            marker_read=marker_read,
+            marker_write=marker_write,
+            show_markers=show_markers,
+            allow_excessive_lifetimes=allow_excessive_lifetimes,
+        )
+        fig.show()  # type: ignore
 
     def create_exclusion_graph_from_ports(
         self,
@@ -721,7 +768,7 @@ class ProcessCollection:
             The heuristic used when splitting based on execution times.
 
         coloring_strategy : str, default: 'saturation_largest_first'
-            Node ordering strategy passed to :func:`networkx.coloring.greedy_color`.
+            Node ordering strategy passed to :func:`networkx.algorithms.coloring.greedy_color`.
             This parameter is only considered if *heuristic* is set to 'graph_color'.
             One of
 
@@ -761,7 +808,7 @@ class ProcessCollection:
         Parameters
         ----------
         heuristic : str, default: "graph_color"
-            The heuristic used when splitting this ProcessCollection.
+            The heuristic used when splitting this :class:`ProcessCollection`.
             Valid options are:
 
             * "graph_color"
@@ -811,7 +858,7 @@ class ProcessCollection:
             The total number of ports used when splitting process collection based on
             memory variable access.
         coloring_strategy : str, default: 'saturation_largest_first'
-            Node ordering strategy passed to :func:`networkx.coloring.greedy_color`
+            Node ordering strategy passed to :func:`networkx.algorithms.coloring.greedy_color`
             One of
             * 'largest_first'
             * 'random_sequential'
@@ -884,13 +931,14 @@ class ProcessCollection:
         coloring: Optional[Dict[Process, int]] = None,
     ) -> Set["ProcessCollection"]:
         """
-        Perform cell assignment of the processes in this collection using graph coloring with networkx.coloring.greedy_color.
+        Perform cell assignment of the processes in this collection using graph coloring.
+
         Two or more processes can share a single cell if, and only if, they have no overlaping time alive.
 
         Parameters
         ----------
         coloring_strategy : str, default: "saturation_largest_first"
-            Graph coloring strategy passed to networkx.coloring.greedy_color().
+            Graph coloring strategy passed to :func:`networkx.algorithms.coloring.greedy_color`.
         coloring : dictionary, optional
             An optional graph coloring, dictionary with Process and its associated color (int).
             If a graph coloring is not provided throught this parameter, one will be created when calling this method.
