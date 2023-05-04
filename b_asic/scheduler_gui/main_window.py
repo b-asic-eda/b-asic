@@ -211,13 +211,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     #########
     @Slot()
     def _plot_schedule(self) -> None:
-        # TODO: remove
+        """Callback for plotting schedule using Matplotlib."""
         if self.schedule is None:
             return
         self.schedule.show()
-        if self._graph is not None:
-            print(f"filtersChildEvents(): {self._graph.filtersChildEvents()}")
-        # self._print_button_pressed('callback_pushButton()')
 
     @Slot()
     def _open_documentation(self) -> None:
@@ -235,27 +232,36 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _increase_time_resolution(self) -> None:
+        """Callback for increasing time resolution."""
+        # Create dialog asking for int
         factor, ok = QInputDialog.getInt(
             self, "Increase time resolution", "Factor", 1, 1
         )
-        if ok and factor > 1:
-            self.schedule.increase_time_resolution(factor)
-            self.open(self.schedule)
-            self.update_statusbar(f"Time resolution increased by a factor {factor}")
-        if not ok:
+        # Check return value
+        if ok:
+            if factor > 1:
+                self.schedule.increase_time_resolution(factor)
+                self.open(self.schedule)
+                self.update_statusbar(f"Time resolution increased by a factor {factor}")
+        else:  # Cancelled
             self.update_statusbar("Cancelled")
 
     @Slot()
     def _decrease_time_resolution(self) -> None:
+        """Callback for decreasing time resolution."""
+        # Get possible factors
         vals = [str(v) for v in self.schedule.get_possible_time_resolution_decrements()]
+        # Create dialog
         factor, ok = QInputDialog.getItem(
             self, "Decrease time resolution", "Factor", vals, editable=False
         )
-        if ok and int(factor) > 1:
-            self.schedule.decrease_time_resolution(int(factor))
-            self.open(self.schedule)
-            self.update_statusbar(f"Time resolution decreased by a factor {factor}")
-        if not ok:
+        # Check return value
+        if ok:
+            if int(factor) > 1:
+                self.schedule.decrease_time_resolution(int(factor))
+                self.open(self.schedule)
+                self.update_statusbar(f"Time resolution decreased by a factor {factor}")
+        else:  # Cancelled
             self.update_statusbar("Cancelled")
 
     def wheelEvent(self, event) -> None:
@@ -270,8 +276,6 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def _load_schedule_from_pyfile(self) -> None:
         """
         SLOT() for SIGNAL(menu_load_from_file.triggered)
-        Load a python script as a module and search for a Schedule object. If
-        found, opens it.
         """
         settings = QSettings()
         last_file = settings.value(
@@ -299,6 +303,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._load_from_file(abs_path_filename)
 
     def _load_from_file(self, abs_path_filename):
+        """
+        Import from Python-file.
+
+        Load a python script as a module and search for a Schedule object. If
+        found, opens it.
+        """
         log.debug("abs_path_filename = {}.".format(abs_path_filename))
 
         module_name = inspect.getmodulename(abs_path_filename)
@@ -408,6 +418,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._schedule._original_sfg._graph_id_generator = None
         with open(self._file_name, 'wb') as f:
             pickle.dump(self._schedule, f)
+        self._add_recent_file(self._file_name)
         self.update_statusbar(self.tr("Schedule saved successfully"))
 
     @Slot()
@@ -430,6 +441,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._schedule._original_sfg._graph_id_generator = None
         with open(self._file_name, 'wb') as f:
             pickle.dump(self._schedule, f)
+        self._add_recent_file(self._file_name)
         self.update_statusbar(self.tr("Schedule saved successfully"))
 
     @Slot()
@@ -454,6 +466,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._open_schedule_file(abs_path_filename)
 
     def _open_schedule_file(self, abs_path_filename: str):
+        """Open a saved schedule (*.bsc-file), which is a pickled Schedule."""
         self._file_name = abs_path_filename
         self._add_recent_file(abs_path_filename)
 
@@ -802,17 +815,17 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         else:
             self._load_from_file(action.data().filePath())
 
-    def _add_recent_file(self, module):
+    def _add_recent_file(self, filename):
         settings = QSettings()
 
         rfp = cast(deque, settings.value("scheduler/recentFiles"))
 
         if rfp:
-            if module not in rfp:
-                rfp.append(module)
+            if filename not in rfp:
+                rfp.append(filename)
         else:
             rfp = deque(maxlen=self._max_recent_files)
-            rfp.append(module)
+            rfp.append(filename)
 
         settings.setValue("scheduler/recentFiles", rfp)
 

@@ -137,6 +137,15 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
             signal.update_path()
 
     def set_warnings(self, warnings: bool = True):
+        """
+        Set warnings for long execution times.
+
+        Parameters
+        ----------
+        warnings : bool
+            Whether to draw processes with execution time longer than schedule time in
+            a different color.
+        """
         if warnings != self._warnings:
             self._warnings = warnings
             s = set()
