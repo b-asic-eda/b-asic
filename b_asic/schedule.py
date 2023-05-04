@@ -182,21 +182,27 @@ class Schedule:
         start_time = self._start_times[graph_id]
         operation = cast(Operation, self._sfg.find_by_id(graph_id))
         for output_port in operation.outputs:
-            output_slacks = {}
-            available_time = start_time + cast(int, output_port.latency_offset)
-            if available_time > self._schedule_time:
-                available_time -= self._schedule_time
-
-            for signal in output_port.signals:
-                destination = cast(InputPort, signal.destination)
-                usage_time = (
-                    cast(int, destination.latency_offset)
-                    + self._start_times[destination.operation.graph_id]
-                    + self._schedule_time * self._laps[signal.graph_id]
-                )
-                output_slacks[signal] = usage_time - available_time
-            ret[output_port] = output_slacks
+            ret[output_port] = self._output_slacks(output_port, start_time)
         return ret
+
+    def _output_slacks(
+        self, output_port: "OutputPort", start_time: Optional[int] = None
+    ) -> Dict[Signal, int]:
+        if start_time is None:
+            start_time = self._start_times[output_port.operation.graph_id]
+        output_slacks = {}
+        available_time = start_time + cast(int, output_port.latency_offset)
+        if available_time > self._schedule_time:
+            available_time -= self._schedule_time
+        for signal in output_port.signals:
+            destination = cast(InputPort, signal.destination)
+            usage_time = (
+                cast(int, destination.latency_offset)
+                + self._start_times[destination.operation.graph_id]
+                + self._schedule_time * self._laps[signal.graph_id]
+            )
+            output_slacks[signal] = usage_time - available_time
+        return output_slacks
 
     def backward_slack(self, graph_id: GraphID) -> int:
         """
@@ -234,21 +240,27 @@ class Schedule:
         start_time = self._start_times[graph_id]
         operation = cast(Operation, self._sfg.find_by_id(graph_id))
         for input_port in operation.inputs:
-            input_slacks = {}
-            usage_time = start_time + cast(int, input_port.latency_offset)
-
-            for signal in input_port.signals:
-                source = cast(OutputPort, signal.source)
-                available_time = (
-                    cast(int, source.latency_offset)
-                    + self._start_times[source.operation.graph_id]
-                    - self._schedule_time * self._laps[signal.graph_id]
-                )
-                if available_time > self._schedule_time:
-                    available_time -= self._schedule_time
-                input_slacks[signal] = usage_time - available_time
-            ret[input_port] = input_slacks
+            ret[input_port] = self._input_slacks(input_port, start_time)
         return ret
+
+    def _input_slacks(
+        self, input_port: InputPort, start_time: Optional[int] = None
+    ) -> Dict[Signal, int]:
+        if start_time is None:
+            start_time = self._start_times[input_port.operation.graph_id]
+        input_slacks = {}
+        usage_time = start_time + cast(int, input_port.latency_offset)
+        for signal in input_port.signals:
+            source = cast(OutputPort, signal.source)
+            available_time = (
+                cast(int, source.latency_offset)
+                + self._start_times[source.operation.graph_id]
+                - self._schedule_time * self._laps[signal.graph_id]
+            )
+            if available_time > self._schedule_time:
+                available_time -= self._schedule_time
+            input_slacks[signal] = usage_time - available_time
+        return input_slacks
 
     def slacks(self, graph_id: GraphID) -> Tuple[int, int]:
         """
