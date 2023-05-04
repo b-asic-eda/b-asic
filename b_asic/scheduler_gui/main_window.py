@@ -120,6 +120,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._read_settings()
         self._init_ui()
         self._file_name = None
+        self._show_incorrect_execution_time = True
 
         # Recent files
         self._max_recent_files = 4
@@ -151,6 +152,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.actionReorder.triggered.connect(self._action_reorder)
         self.actionReorder.setIcon(get_icon('reorder'))
         self.actionStatus_bar.triggered.connect(self._toggle_statusbar)
+        self.action_incorrect_execution_time.setIcon(get_icon('warning'))
+        self.action_incorrect_execution_time.triggered.connect(
+            self._toggle_execution_time_warning
+        )
         self.actionPlot_schedule.setIcon(get_icon('plot-schedule'))
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
         self.actionZoom_to_fit.setIcon(get_icon('zoom-to-fit'))
@@ -820,6 +825,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def _toggle_statusbar(self, event=None) -> None:
         """Callback for toggling the status bar."""
         self.statusbar.setVisible(self.actionStatus_bar.isChecked())
+
+    def _toggle_execution_time_warning(self, event=None) -> None:
+        """Callback for toggling the status bar."""
+        self._show_incorrect_execution_time = (
+            self.action_incorrect_execution_time.isChecked()
+        )
+        self._graph.set_warnings(self._show_incorrect_execution_time)
 
     def _toggle_fullscreen(self, event=None):
         """Callback for toggling full screen mode."""

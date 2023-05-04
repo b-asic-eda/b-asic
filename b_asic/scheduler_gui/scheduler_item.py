@@ -55,7 +55,12 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     _event_items: List[QGraphicsItem]
     _signal_dict: Dict[OperationItem, Set[SignalItem]]
 
-    def __init__(self, schedule: Schedule, parent: Optional[QGraphicsItem] = None):
+    def __init__(
+        self,
+        schedule: Schedule,
+        warnings: bool = True,
+        parent: Optional[QGraphicsItem] = None,
+    ):
         """
         Construct a SchedulerItem. *parent* is passed to QGraphicsItemGroup's
         constructor.
@@ -68,6 +73,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         # else:
         #     super().__init__(parent=self)
         self._schedule = schedule
+        self._parent = parent
+        self._warnings = warnings
         self._axes = None
         self._operation_items = {}
         self._x_axis_indent = SCHEDULE_INDENT
@@ -128,6 +135,15 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         """Update lines connected to *item*."""
         for signal in self._signal_dict[item]:
             signal.update_path()
+
+    def set_warnings(self, warnings: bool = True):
+        if warnings != self._warnings:
+            self._warnings = warnings
+            s = set()
+            for signals in self._signal_dict.values():
+                s.update(signals)
+            for signal in s:
+                signal.set_inactive()
 
     def set_item_active(self, item: OperationItem) -> None:
         """

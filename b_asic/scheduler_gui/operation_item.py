@@ -29,6 +29,9 @@ from b_asic.scheduler_gui._preferences import (
     OPERATION_HEIGHT,
     OPERATION_LATENCY_ACTIVE,
     OPERATION_LATENCY_INACTIVE,
+    SIGNAL_ACTIVE,
+    SIGNAL_INACTIVE,
+    SIGNAL_WARNING,
 )
 
 if TYPE_CHECKING:
@@ -89,13 +92,17 @@ class OperationItem(QGraphicsItemGroup):
             QCursor(Qt.CursorShape.OpenHandCursor)
         )  # default cursor when hovering over object
 
-        self._port_filling_brush = QBrush(Qt.GlobalColor.black)
-        self._port_outline_pen = QPen(Qt.GlobalColor.black)
+        self._port_filling_brush = QBrush(SIGNAL_INACTIVE)
+        self._port_outline_pen = QPen(SIGNAL_INACTIVE)
         self._port_outline_pen.setWidthF(0)
 
-        self._port_filling_brush_active = QBrush(OPERATION_LATENCY_ACTIVE)
-        self._port_outline_pen_active = QPen(OPERATION_LATENCY_ACTIVE)
+        self._port_filling_brush_active = QBrush(SIGNAL_ACTIVE)
+        self._port_outline_pen_active = QPen(SIGNAL_ACTIVE)
         self._port_outline_pen_active.setWidthF(0)
+
+        self._port_filling_brush_warning = QBrush(SIGNAL_WARNING)
+        self._port_outline_pen_warning = QPen(SIGNAL_WARNING)
+        self._port_outline_pen_warning.setWidthF(0)
 
         self._make_component()
 
@@ -184,10 +191,14 @@ class OperationItem(QGraphicsItemGroup):
         item.setBrush(self._port_filling_brush_active)
         item.setPen(self._port_outline_pen_active)
 
-    def set_port_inactive(self, key: str):
+    def set_port_inactive(self, key: str, warning: bool = False):
         item = self._ports[key]["item"]
-        item.setBrush(self._port_filling_brush)
-        item.setPen(self._port_outline_pen)
+        item.setBrush(
+            self._port_filling_brush_warning if warning else self._port_filling_brush
+        )
+        item.setPen(
+            self._port_outline_pen_warning if warning else self._port_outline_pen
+        )
 
     def _set_background(self, color: QColor) -> None:
         brush = QBrush(color)

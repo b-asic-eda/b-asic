@@ -17,8 +17,10 @@ from b_asic.scheduler_gui._preferences import (
     SCHEDULE_INDENT,
     SIGNAL_ACTIVE,
     SIGNAL_INACTIVE,
+    SIGNAL_WARNING,
     SIGNAL_WIDTH,
     SIGNAL_WIDTH_ACTIVE,
+    SIGNAL_WIDTH_WARNING,
 )
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.signal import Signal
@@ -63,6 +65,7 @@ class SignalItem(QGraphicsPathItem):
         self._src_key = f"out{self._signal.source.index}"
         self._dest_key = f"in{self._signal.destination.index}"
         self._refresh_pens()
+        self._parent = parent
         self.set_inactive()
         self.update_path()
 
@@ -104,6 +107,9 @@ class SignalItem(QGraphicsPathItem):
         pen = QPen(SIGNAL_INACTIVE)
         pen.setWidthF(SIGNAL_WIDTH)
         self._inactive_pen = pen
+        pen = QPen(SIGNAL_WARNING)
+        pen.setWidthF(SIGNAL_WIDTH_WARNING)
+        self._warning_pen = pen
 
     def set_active(self) -> None:
         """
@@ -115,6 +121,10 @@ class SignalItem(QGraphicsPathItem):
 
     def set_inactive(self) -> None:
         """Set the signal color to the default color."""
-        self.setPen(self._inactive_pen)
-        self._src_operation.set_port_inactive(self._src_key)
-        self._dest_operation.set_port_inactive(self._dest_key)
+        warning = self._parent._warnings and (
+            self._parent._schedule._input_slacks(self._signal.destination)[self._signal]
+            > self._parent._schedule.schedule_time
+        )
+        self.setPen(self._warning_pen if warning else self._inactive_pen)
+        self._src_operation.set_port_inactive(self._src_key, warning)
+        self._dest_operation.set_port_inactive(self._dest_key, warning)

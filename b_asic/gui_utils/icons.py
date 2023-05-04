@@ -31,6 +31,7 @@ ICONS = {
     'reorder': ('msc.graph-left', {'rotated': -90}),
     'full-screen': 'mdi6.fullscreen',
     'full-screen-exit': 'mdi6.fullscreen-exit',
+    'warning': 'fa.warning',
 }
 
 

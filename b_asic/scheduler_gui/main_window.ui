@@ -231,6 +231,7 @@
     <addaction name="menu_node_info"/>
     <addaction name="actionToolbar"/>
     <addaction name="actionStatus_bar"/>
+    <addaction name="action_incorrect_execution_time"/>
     <addaction name="separator"/>
     <addaction name="actionPlot_schedule"/>
     <addaction name="separator"/>
@@ -287,6 +288,7 @@
    <addaction name="actionRedo"/>
    <addaction name="separator"/>
    <addaction name="menu_node_info"/>
+   <addaction name="action_incorrect_execution_time"/>
    <addaction name="actionReorder"/>
   </widget>
   <action name="menu_load_from_file">
@@ -341,7 +343,7 @@
     <string>&amp;Node info</string>
    </property>
    <property name="toolTip">
-    <string>Show(hide node information</string>
+    <string>Show/hide node information</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+I</string>
@@ -499,6 +501,23 @@
    </property>
    <property name="toolTip">
     <string>Show/hide toolbar</string>
+   </property>
+  </action>
+  <action name="action_incorrect_execution_time">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Incorrect execution time</string>
+   </property>
+   <property name="toolTip">
+    <string>Highlight processes with execution time longer than schedule time</string>
+   </property>
+   <property name="iconVisibleInMenu">
+    <bool>false</bool>
    </property>
   </action>
   <action name="menu_open">

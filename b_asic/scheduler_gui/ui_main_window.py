@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '.\main_window.ui'
+# Form implementation generated from reading ui file './main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
 #
@@ -226,6 +226,13 @@ class Ui_MainWindow(object):
         self.actionToolbar.setCheckable(True)
         self.actionToolbar.setChecked(True)
         self.actionToolbar.setObjectName("actionToolbar")
+        self.action_incorrect_execution_time = QtWidgets.QAction(MainWindow)
+        self.action_incorrect_execution_time.setCheckable(True)
+        self.action_incorrect_execution_time.setChecked(True)
+        self.action_incorrect_execution_time.setIconVisibleInMenu(False)
+        self.action_incorrect_execution_time.setObjectName(
+            "action_incorrect_execution_time"
+        )
         self.menu_open = QtWidgets.QAction(MainWindow)
         self.menu_open.setObjectName("menu_open")
         self.actionToggle_full_screen = QtWidgets.QAction(MainWindow)
@@ -243,6 +250,7 @@ class Ui_MainWindow(object):
         self.menuView.addAction(self.menu_node_info)
         self.menuView.addAction(self.actionToolbar)
         self.menuView.addAction(self.actionStatus_bar)
+        self.menuView.addAction(self.action_incorrect_execution_time)
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionPlot_schedule)
         self.menuView.addSeparator()
@@ -271,6 +279,7 @@ class Ui_MainWindow(object):
         self.toolBar.addAction(self.actionRedo)
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.menu_node_info)
+        self.toolBar.addAction(self.action_incorrect_execution_time)
         self.toolBar.addAction(self.actionReorder)
 
         self.retranslateUi(MainWindow)
@@ -312,7 +321,7 @@ class Ui_MainWindow(object):
         self.menu_save.setShortcut(_translate("MainWindow", "Ctrl+S"))
         self.menu_node_info.setText(_translate("MainWindow", "&Node info"))
         self.menu_node_info.setToolTip(
-            _translate("MainWindow", "Show(hide node information")
+            _translate("MainWindow", "Show/hide node information")
         )
         self.menu_node_info.setShortcut(_translate("MainWindow", "Ctrl+I"))
         self.menu_quit.setText(_translate("MainWindow", "&Quit"))
@@ -353,6 +362,15 @@ class Ui_MainWindow(object):
         )
         self.actionToolbar.setText(_translate("MainWindow", "&Toolbar"))
         self.actionToolbar.setToolTip(_translate("MainWindow", "Show/hide toolbar"))
+        self.action_incorrect_execution_time.setText(
+            _translate("MainWindow", "&Incorrect execution time")
+        )
+        self.action_incorrect_execution_time.setToolTip(
+            _translate(
+                "MainWindow",
+                "Highlight processes with execution time longer than schedule time",
+            )
+        )
         self.menu_open.setText(_translate("MainWindow", "&Open..."))
         self.menu_open.setToolTip(
             _translate("MainWindow", "Open previously saved schedule")

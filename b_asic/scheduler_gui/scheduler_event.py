@@ -198,8 +198,8 @@ class SchedulerEvent:  # PyQt5
             return
 
         item: OperationItem = self.scene().mouseGrabberItem()
-        self.set_item_inactive(item)
         self.set_new_start_time(item)
+        self.set_item_inactive(item)
         pos_x = item.x()
         redraw = False
         if pos_x < 0:
