@@ -966,7 +966,7 @@ class Schedule:
 
     def _reset_y_locations(self) -> None:
         """Reset all the y-locations in the schedule to None"""
-        self._y_locations = defaultdict(lambda: None)
+        self._y_locations = defaultdict(_y_locations_default)
 
     def plot(self, ax: Axes, operation_gap: Optional[float] = None) -> None:
         """
