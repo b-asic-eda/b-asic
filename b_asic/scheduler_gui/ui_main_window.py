@@ -226,6 +226,11 @@ class Ui_MainWindow(object):
         self.actionToolbar.setCheckable(True)
         self.actionToolbar.setChecked(True)
         self.actionToolbar.setObjectName("actionToolbar")
+        self.action_show_port_numbers = QtWidgets.QAction(MainWindow)
+        self.action_show_port_numbers.setCheckable(True)
+        self.action_show_port_numbers.setChecked(False)
+        self.action_show_port_numbers.setIconVisibleInMenu(False)
+        self.action_show_port_numbers.setObjectName("action_show_port_numbers")
         self.action_incorrect_execution_time = QtWidgets.QAction(MainWindow)
         self.action_incorrect_execution_time.setCheckable(True)
         self.action_incorrect_execution_time.setChecked(True)
@@ -251,6 +256,7 @@ class Ui_MainWindow(object):
         self.menuView.addAction(self.actionToolbar)
         self.menuView.addAction(self.actionStatus_bar)
         self.menuView.addAction(self.action_incorrect_execution_time)
+        self.menuView.addAction(self.action_show_port_numbers)
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionPlot_schedule)
         self.menuView.addSeparator()
@@ -280,6 +286,7 @@ class Ui_MainWindow(object):
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.menu_node_info)
         self.toolBar.addAction(self.action_incorrect_execution_time)
+        self.toolBar.addAction(self.action_show_port_numbers)
         self.toolBar.addAction(self.actionReorder)
 
         self.retranslateUi(MainWindow)
@@ -362,6 +369,12 @@ class Ui_MainWindow(object):
         )
         self.actionToolbar.setText(_translate("MainWindow", "&Toolbar"))
         self.actionToolbar.setToolTip(_translate("MainWindow", "Show/hide toolbar"))
+        self.action_show_port_numbers.setText(
+            _translate("MainWindow", "S&how port numbers")
+        )
+        self.action_show_port_numbers.setToolTip(
+            _translate("MainWindow", "Show port numbers of operation")
+        )
         self.action_incorrect_execution_time.setText(
             _translate("MainWindow", "&Incorrect execution time")
         )

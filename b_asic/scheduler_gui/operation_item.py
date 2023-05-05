@@ -62,6 +62,7 @@ class OperationItem(QGraphicsItemGroup):
     _execution_time_item: QGraphicsPathItem
     _label_item: QGraphicsSimpleTextItem
     _port_items: List[QGraphicsEllipseItem]
+    _port_number_items: List[QGraphicsSimpleTextItem]
 
     def __init__(
         self,
@@ -81,6 +82,7 @@ class OperationItem(QGraphicsItemGroup):
         self._ports = {k: {"latency": float(v)} for k, v in latency_offsets.items()}
         self._end_time = max(latency_offsets.values())
         self._port_items = []
+        self._port_number_items = []
 
         self.setFlag(QGraphicsItem.ItemIsMovable)  # mouse move events
         self.setFlag(QGraphicsItem.ItemIsSelectable)  # mouse move events
@@ -186,6 +188,10 @@ class OperationItem(QGraphicsItemGroup):
         self._set_background(OPERATION_LATENCY_INACTIVE)
         self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
+    def set_show_port_numbers(self, port_number: bool = True):
+        for item in self._port_number_items:
+            item.setVisible(port_number)
+
     def set_port_active(self, key: str):
         item = self._ports[key]["item"]
         item.setBrush(self._port_filling_brush_active)
@@ -263,6 +269,20 @@ class OperationItem(QGraphicsItemGroup):
         create_ports(self._operation.get_input_coordinates(), "in")
         create_ports(self._operation.get_output_coordinates(), "out")
 
+        for i, (x, y) in enumerate(self._operation.get_input_coordinates()):
+            port_item = QGraphicsSimpleTextItem(str(i))
+            port_item.setScale(port_item.scale() / self._scale)
+            center = port_item.boundingRect().center() / self._scale
+            port_item.setPos(QPointF(x + center.x(), y * self._height - center.y()))
+            self._port_number_items.append(port_item)
+
+        for i, (x, y) in enumerate(self._operation.get_output_coordinates()):
+            port_item = QGraphicsSimpleTextItem(str(i))
+            port_item.setScale(port_item.scale() / self._scale)
+            center = port_item.boundingRect().center() / self._scale
+            port_item.setPos(QPointF(x - 3 * center.x(), y * self._height - center.y()))
+            self._port_number_items.append(port_item)
+
         # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)
         self._label_item.setScale(self._label_item.scale() / self._scale)
@@ -275,6 +295,8 @@ class OperationItem(QGraphicsItemGroup):
         for port in self._ports.values():
             self.addToGroup(port["item"])
         self.addToGroup(self._label_item)
+        for item in self._port_number_items:
+            self.addToGroup(item)
         if execution_time:
             self.addToGroup(self._execution_time_item)
 

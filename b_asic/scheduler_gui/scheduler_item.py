@@ -45,6 +45,14 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     schedule : :class:`~b_asic.schedule.Schedule`
         The Schedule to draw.
 
+    warnings : bool, default: True
+        Whether to draw processes with execution time longer than schedule time in
+        a different color.
+
+    port_numbers : bool, default: False
+        Whether to show port numbers on the operations.
+
+
     parent : QGraphicsItem, optional
         The parent. Passed to the constructor of QGraphicsItemGroup
     """
@@ -59,6 +67,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         self,
         schedule: Schedule,
         warnings: bool = True,
+        show_port_numbers: bool = False,
         parent: Optional[QGraphicsItem] = None,
     ):
         """
@@ -74,13 +83,16 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         #     super().__init__(parent=self)
         self._schedule = schedule
         self._parent = parent
-        self._warnings = warnings
+        self._warnings = not warnings  # To trigger redraw
+        self._show_port_numbers = not show_port_numbers  # To trigger redraw
         self._axes = None
         self._operation_items = {}
         self._x_axis_indent = SCHEDULE_INDENT
         self._event_items = []
         self._signal_dict = defaultdict(set)
         self._make_graph()
+        self.set_warnings(warnings)
+        self.set_port_numbers(show_port_numbers)
 
     def clear(self) -> None:
         """
@@ -142,7 +154,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
         Parameters
         ----------
-        warnings : bool
+        warnings : bool, default: True
             Whether to draw processes with execution time longer than schedule time in
             a different color.
         """
@@ -153,6 +165,20 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
                 s.update(signals)
             for signal in s:
                 signal.set_inactive()
+
+    def set_port_numbers(self, port_numbers: bool = True):
+        """
+        Set if port numbers are shown.
+
+        Parameters
+        ----------
+        port_numbers : bool, default: True
+            Whether to show port numbers on the operations.
+        """
+        if port_numbers != self._show_port_numbers:
+            self._show_port_numbers = port_numbers
+            for item in self._operation_items.values():
+                item.set_show_port_numbers(port_numbers)
 
     def set_item_active(self, item: OperationItem) -> None:
         """

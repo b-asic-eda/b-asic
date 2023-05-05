@@ -32,6 +32,7 @@ ICONS = {
     'full-screen': 'mdi6.fullscreen',
     'full-screen-exit': 'mdi6.fullscreen-exit',
     'warning': 'fa.warning',
+    'port-numbers': 'fa.hashtag',
 }
 
 

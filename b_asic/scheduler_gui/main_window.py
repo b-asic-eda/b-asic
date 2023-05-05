@@ -121,6 +121,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._init_ui()
         self._file_name = None
         self._show_incorrect_execution_time = True
+        self._show_port_numbers = True
 
         # Recent files
         self._max_recent_files = 4
@@ -156,6 +157,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_incorrect_execution_time.triggered.connect(
             self._toggle_execution_time_warning
         )
+        self.action_show_port_numbers.setIcon(get_icon('port-numbers'))
+        self.action_show_port_numbers.triggered.connect(self._toggle_port_number)
         self.actionPlot_schedule.setIcon(get_icon('plot-schedule'))
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
         self.actionZoom_to_fit.setIcon(get_icon('zoom-to-fit'))
@@ -845,6 +848,11 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.action_incorrect_execution_time.isChecked()
         )
         self._graph.set_warnings(self._show_incorrect_execution_time)
+
+    def _toggle_port_number(self, event=None) -> None:
+        """Callback for toggling the status bar."""
+        self._show_port_numbers = self.action_show_port_numbers.isChecked()
+        self._graph.set_port_numbers(self._show_port_numbers)
 
     def _toggle_fullscreen(self, event=None):
         """Callback for toggling full screen mode."""

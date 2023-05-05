@@ -232,6 +232,7 @@
     <addaction name="actionToolbar"/>
     <addaction name="actionStatus_bar"/>
     <addaction name="action_incorrect_execution_time"/>
+    <addaction name="action_show_port_numbers"/>
     <addaction name="separator"/>
     <addaction name="actionPlot_schedule"/>
     <addaction name="separator"/>
@@ -289,6 +290,7 @@
    <addaction name="separator"/>
    <addaction name="menu_node_info"/>
    <addaction name="action_incorrect_execution_time"/>
+   <addaction name="action_show_port_numbers"/>
    <addaction name="actionReorder"/>
   </widget>
   <action name="menu_load_from_file">
@@ -501,6 +503,23 @@
    </property>
    <property name="toolTip">
     <string>Show/hide toolbar</string>
+   </property>
+  </action>
+  <action name="action_show_port_numbers">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>S&amp;how port numbers</string>
+   </property>
+   <property name="toolTip">
+    <string>Show port numbers of operation</string>
+   </property>
+   <property name="iconVisibleInMenu">
+    <bool>false</bool>
    </property>
   </action>
   <action name="action_incorrect_execution_time">
