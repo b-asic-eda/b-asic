@@ -306,3 +306,29 @@ def sfg_two_tap_fir():
     Signal(source=add1.output(0), destination=out1.input(0))
     Signal(source=cmul2.output(0), destination=add1.input(1))
     return SFG(inputs=[in1], outputs=[out1], name='twotapfir')
+
+
+@pytest.fixture
+def sfg_direct_form_iir_lp_filter():
+    """
+    Signal flow graph of the second-order direct form 2 IIR filter used in the
+    first lab in the TSTE87 lab series.
+
+    IN1>---->ADD1>----------+--->a0>--->ADD4>---->OUT1
+               ^            |            ^
+               |            T1           |
+               |            |            |
+             ADD2<---<a1<---+--->a1>--->ADD3
+               ^            |            ^
+               |            T2           |
+               |            |            |
+               +-----<a2<---+--->a2>-----+
+    """
+    a0, a1, a2, b1, b2 = 57 / 256, 55 / 128, 57 / 256, 179 / 512, -171 / 512
+    x, y = Input(name="x"), Output(name="y")
+    d0, d1 = Delay(), Delay()
+    top_node = d0 * b1 + d1 * b2 + x
+    d0.input(0).connect(top_node)
+    d1.input(0).connect(d0)
+    y << a1 * d0 + a2 * d1 + a0 * top_node
+    return SFG(inputs=[x], outputs=[y], name='Direct Form 2 IIR Lowpass filter')

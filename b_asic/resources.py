@@ -1112,6 +1112,30 @@ class ProcessCollection:
                 input_sync=input_sync,
             )
 
+    def split_on_length(self, length: int = 0):
+        """
+        Split the current ProcessCollection into two new ProcessCollection based on exectuion time length.
+
+        Parameters
+        ----------
+        length : int, default: 0
+            The execution time length to split on. Length is inclusive for the smaller collection.
+
+        Returns
+        -------
+        A tuple of two ProcessCollections, one with short than or equal execution times and one with greater execution times.
+        """
+        short = set()
+        long = set()
+        for process in self.collection:
+            if process.execution_time <= length:
+                short.add(process)
+            else:
+                long.add(process)
+        return ProcessCollection(
+            short, schedule_time=self.schedule_time
+        ), ProcessCollection(long, schedule_time=self.schedule_time)
+
     def generate_register_based_storage_vhdl(
         self,
         filename: str,

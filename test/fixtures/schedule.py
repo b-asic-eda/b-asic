@@ -2,6 +2,7 @@ import pytest
 
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.schedule import Schedule
+from b_asic.signal_flow_graph import SFG
 
 
 @pytest.fixture
@@ -23,4 +24,30 @@ def secondorder_iir_schedule_with_execution_times(precedence_sfg_delays):
     )
 
     schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+    return schedule
+
+
+@pytest.fixture
+def schedule_direct_form_iir_lp_filter(sfg_direct_form_iir_lp_filter: SFG):
+    sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 4)
+    sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        ConstantMultiplication.type_name(), 3
+    )
+    sfg_direct_form_iir_lp_filter.set_execution_time_of_type(Addition.type_name(), 2)
+    sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        ConstantMultiplication.type_name(), 1
+    )
+    schedule = Schedule(
+        sfg_direct_form_iir_lp_filter, scheduling_algorithm="ASAP", cyclic=True
+    )
+    schedule.move_operation('cmul4', -1)
+    schedule.move_operation('cmul3', -1)
+    schedule.move_operation('cmul4', -10)
+    schedule.move_operation('cmul4', 1)
+    schedule.move_operation('cmul3', -8)
+    schedule.move_operation('add4', 1)
+    schedule.move_operation('add4', 1)
+    schedule.move_operation('cmul2', 1)
+    schedule.move_operation('cmul2', 1)
+    schedule.move_operation('cmul4', 2)
     return schedule

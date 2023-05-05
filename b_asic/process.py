@@ -4,6 +4,7 @@ from typing import Dict, Optional, Tuple
 
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
+from b_asic.types import TypeName
 
 
 class Process:
@@ -91,6 +92,10 @@ class OperatorProcess(Process):
     def operation(self) -> Operation:
         """The Operation that the OperatorProcess corresponds to."""
         return self._operation
+
+    @property
+    def type_name(self) -> TypeName:
+        return self._operation.type_name()
 
     def __repr__(self) -> str:
         return f"OperatorProcess({self.start_time}, {self.operation}, {self.name!r})"
