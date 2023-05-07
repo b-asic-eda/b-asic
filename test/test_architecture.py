@@ -86,7 +86,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         for operation in chain(adders, const_mults, inputs, outputs)
     ]
     for i, pe in enumerate(processing_elements):
-        pe.set_name(f"{pe._type_name.upper()}-{i}")
+        pe.set_entity_name(f"{pe._type_name.upper()}-{i}")
 
     # Extract zero-length memory variables
     direct_conn, mvs = mvs.split_on_length()
@@ -97,7 +97,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     ]
     assert len(memories) == 1
     for i, memory in enumerate(memories):
-        memory.set_name(f"mem-{i}")
+        memory.set_entity_name(f"mem-{i}")
 
     # Create architecture from
     architecture = Architecture(

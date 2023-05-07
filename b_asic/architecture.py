@@ -15,9 +15,14 @@ class ProcessingElement:
     Parameters
     ----------
     process_collection : :class:`~b_asic.resources.ProcessCollection`
+        Process collection containing operations to map to processing element.
+    entity_name : str, optional
+        Name of processing element entity.
     """
 
-    def __init__(self, process_collection: ProcessCollection, name=""):
+    def __init__(
+        self, process_collection: ProcessCollection, entity_name: Optional[str] = None
+    ):
         if not len(process_collection):
             raise ValueError(
                 "Do not create ProcessingElement with empty ProcessCollection"
@@ -40,22 +45,19 @@ class ProcessingElement:
         self._collection = process_collection
         self._operation_type = op_type
         self._type_name = op_type.type_name()
-        self._name = name
+        self._entity_name = entity_name
 
     @property
     def processes(self) -> Set[OperatorProcess]:
         return {cast(OperatorProcess, p) for p in self._collection}
 
-    def __str__(self):
-        return self._name or self._type_name
-
     def __repr__(self):
-        return self._name or self._type_name
+        return self._entity_name or self._type_name
 
-    def set_name(self, name: str):
-        self._name = name
+    def set_entity_name(self, entity_name: str):
+        self._entity_name = entity_name
 
-    def write_code(self, path: str, entity_name: str) -> None:
+    def write_code(self, path: str) -> None:
         """
         Write VHDL code for processing element.
 
@@ -63,8 +65,9 @@ class ProcessingElement:
         ----------
         path : str
             Directory to write code in.
-        entity_name : str
         """
+        if not self._entity_name:
+            raise ValueError("Entity name must be set")
         raise NotImplementedError
 
 
@@ -78,10 +81,15 @@ class Memory:
         The ProcessCollection to create a Memory for.
     memory_type : {'RAM', 'register'}
         The type of memory.
+    entity_name : str, optional
+        Name of memory entity.
     """
 
     def __init__(
-        self, process_collection: ProcessCollection, memory_type: str = "RAM", name=""
+        self,
+        process_collection: ProcessCollection,
+        memory_type: str = "RAM",
+        entity_name: Optional[str] = None,
     ):
         if not len(process_collection):
             raise ValueError("Do not create Memory with empty ProcessCollection")
@@ -93,23 +101,24 @@ class Memory:
                 "Can only have MemoryVariable or PlainMemoryVariable in"
                 " ProcessCollection when creating Memory"
             )
+        if memory_type not in ("RAM", "register"):
+            raise ValueError(
+                f"memory_type must be 'RAM' or 'register', not {memory_type!r}"
+            )
         self._collection = process_collection
         self._memory_type = memory_type
-        self._name = name
+        self._entity_name = entity_name
 
     def __iter__(self):
         return iter(self._collection)
 
-    def set_name(self, name: str):
-        self._name = name
-
-    def __str__(self):
-        return self._name or self._memory_type
+    def set_entity_name(self, entity_name: str):
+        self._entity_name = entity_name
 
     def __repr__(self):
-        return self._name or self._memory_type
+        return self._entity_name or self._memory_type
 
-    def write_code(self, path: str, entity_name: str) -> None:
+    def write_code(self, path: str) -> None:
         """
         Write VHDL code for memory.
 
@@ -117,13 +126,9 @@ class Memory:
         ----------
         path : str
             Directory to write code in.
-        entity_name : str
-
-        Returns
-        -------
-
-
         """
+        if not self._entity_name:
+            raise ValueError("Entity name must be set")
         raise NotImplementedError
 
 
@@ -137,9 +142,8 @@ class Architecture:
         The processing elements in the architecture.
     memories : set of :class:`~b_asic.architecture.Memory`
         The memories in the architecture.
-    name : str, default: "arch"
-        Name for the top-level architecture. Used for the entity and as prefix for all
-        building blocks.
+    entity_name : str, default: "arch"
+        Name for the top-level entity.
     direct_interconnects : ProcessCollection, optional
         Process collection of zero-time memory variables used for direct interconnects.
     """
@@ -148,12 +152,12 @@ class Architecture:
         self,
         processing_elements: Set[ProcessingElement],
         memories: Set[Memory],
-        name: str = "arch",
+        entity_name: str = "arch",
         direct_interconnects: Optional[ProcessCollection] = None,
     ):
         self._processing_elements = processing_elements
         self._memories = memories
-        self._name = name
+        self._entity_name = entity_name
         self._direct_interconnects = direct_interconnects
         self._variable_inport_to_resource = {}
         self._variable_outport_to_resource = {}
@@ -259,6 +263,9 @@ class Architecture:
                 d_out[i][self._variable_outport_to_resource[output]] += 1
         return [dict(d) for d in d_in], [dict(d) for d in d_out]
 
+    def set_entity_name(self, entity_name: str):
+        self._entity_name = entity_name
+
     @property
     def memories(self) -> Set[Memory]:
         return self._memories
@@ -266,3 +273,7 @@ class Architecture:
     @property
     def processing_elements(self) -> Set[ProcessingElement]:
         return self._processing_elements
+
+    @property
+    def direct_interconnects(self) -> Optional[ProcessCollection]:
+        return self._direct_interconnects
