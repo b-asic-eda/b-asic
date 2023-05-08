@@ -4,6 +4,8 @@ B-ASIC architecture classes.
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple, cast
 
+from graphviz import Digraph
+
 from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 
@@ -33,6 +35,8 @@ class Resource:
             raise ValueError("Do not create Resource with empty ProcessCollection")
         self._collection = process_collection
         self._entity_name = entity_name
+        self._input_count = -1
+        self._output_count = -1
 
     def __repr__(self):
         return self._entity_name
@@ -63,6 +67,43 @@ class Resource:
         if not self._entity_name:
             raise ValueError("Entity name must be set")
         raise NotImplementedError
+
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        return self._digraph()._repr_mimebundle_(include=include, exclude=exclude)
+
+    def _repr_jpeg_(self):
+        return self._digraph()._repr_mimebundle_(include=["image/jpeg"])["image/jpeg"]
+
+    def _repr_png_(self):
+        return self._digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
+
+    def _digraph(self) -> Digraph:
+        dg = Digraph(node_attr={'shape': 'record'})
+        dg.node(self._entity_name, self._struct_def())
+        return dg
+
+    @property
+    def input_count(self) -> int:
+        """Number of input ports."""
+        return self._input_count
+
+    @property
+    def output_count(self) -> int:
+        """Number of output ports."""
+        return self._output_count
+
+    def _struct_def(self) -> str:
+        inputs = [f"in{i}" for i in range(self._input_count)]
+        outputs = [f"out{i}" for i in range(self._output_count)]
+        ret = ""
+        if inputs:
+            instrs = [f"<{instr}> {instr}" for instr in inputs]
+            ret += f"{{{'|'.join(instrs)}}}|"
+        ret += f"{self._entity_name}"
+        if outputs:
+            outstrs = [f"<{outstr}> {outstr}" for outstr in outputs]
+            ret += f"|{{{'|'.join(outstrs)}}}"
+        return ret
 
 
 class ProcessingElement(Resource):
@@ -100,10 +141,20 @@ class ProcessingElement(Resource):
         self._operation_type = op_type
         self._type_name = op_type.type_name()
         self._entity_name = entity_name
+        self._input_count = ops[0].input_count
+        self._output_count = ops[0].output_count
 
     @property
     def processes(self) -> Set[OperatorProcess]:
         return {cast(OperatorProcess, p) for p in self._collection}
+
+    def input_count(self) -> int:
+        """Return number of input ports."""
+        raise NotImplementedError()
+
+    def output_count(self) -> int:
+        """Return number of output ports."""
+        raise NotImplementedError()
 
 
 class Memory(Resource):
@@ -278,7 +329,7 @@ class Architecture:
 
     def get_interconnects_for_pe(
         self, pe: ProcessingElement
-    ) -> Tuple[List[Dict[str, int]], List[Dict[str, int]]]:
+    ) -> Tuple[List[Dict[Resource, int]], List[Dict[Resource, int]]]:
         """
         Return lists of dictionaries with interconnect information for a
         ProcessingElement.
@@ -319,6 +370,35 @@ class Architecture:
             The entity name.
         """
         self._entity_name = entity_name
+
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        return self._digraph()._repr_mimebundle_(include=include, exclude=exclude)
+
+    def _repr_jpeg_(self):
+        return self._digraph()._repr_mimebundle_(include=["image/jpeg"])["image/jpeg"]
+
+    def _repr_png_(self):
+        return self._digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
+
+    def _digraph(self) -> Digraph:
+        dg = Digraph(node_attr={'shape': 'record'})
+        for mem in self._memories:
+            dg.node(mem._entity_name, mem._struct_def())
+        for pe in self._processing_elements:
+            dg.node(pe._entity_name, pe._struct_def())
+        for pe in self._processing_elements:
+            inputs, outputs = self.get_interconnects_for_pe(pe)
+            for i, inp in enumerate(inputs):
+                for source, cnt in inp.items():
+                    dg.edge(
+                        source._entity_name, f"{pe._entity_name}:in{i}", label=f"{cnt}"
+                    )
+            for o, outp in enumerate(outputs):
+                for dest, cnt in outp.items():
+                    dg.edge(
+                        f"{pe._entity_name}:out{0}", dest._entity_name, label=f"{cnt}"
+                    )
+        return dg
 
     @property
     def memories(self) -> Set[Memory]:

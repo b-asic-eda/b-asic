@@ -4,7 +4,7 @@ B-ASIC Signal Flow Graph Module.
 Contains the signal flow graph operation.
 """
 
-import itertools as it
+import itertools
 import re
 from collections import defaultdict, deque
 from io import StringIO
@@ -26,7 +26,6 @@ from typing import (
 )
 
 from graphviz import Digraph
-from matplotlib.axes import itertools
 
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
@@ -963,7 +962,7 @@ class SFG(AbstractOperation):
         first_op = no_inputs_queue.popleft()
         visited = {first_op}
         p_queue = PriorityQueue()
-        p_queue_entry_num = it.count()
+        p_queue_entry_num = itertools.count()
         # Negative priority as max-heap popping is wanted
         p_queue.put((-first_op.output_count, -next(p_queue_entry_num), first_op))
 
@@ -1020,7 +1019,7 @@ class SFG(AbstractOperation):
 
                 # Else fetch operation with the lowest input count that is not zero
                 elif seen_but_not_visited_count > 0:
-                    for i in it.count(start=1):
+                    for i in itertools.count(start=1):
                         seen_inputs_queue = seen_with_inputs_dict[i]
                         if seen_inputs_queue:
                             new_op = seen_inputs_queue.popleft()

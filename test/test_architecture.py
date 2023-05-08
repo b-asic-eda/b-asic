@@ -84,7 +84,16 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         for operation in chain(adders, const_mults, inputs, outputs)
     ]
     for i, pe in enumerate(processing_elements):
-        pe.set_entity_name(f"{pe._type_name.upper()}-{i}")
+        pe.set_entity_name(f"{pe._type_name.upper()}{i}")
+        if pe._type_name == 'add':
+            s = (
+                'digraph {\n\tnode [shape=record]\n\t'
+                + pe._entity_name
+                + ' [label="{<in0> in0|<in1> in1}|'
+                + pe._entity_name
+                + '|{<out0> out0}"]\n}'
+            )
+            assert pe._digraph().source in (s, s + '\n')
 
     # Extract zero-length memory variables
     direct_conn, mvs = mvs.split_on_length()
@@ -95,13 +104,16 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     ]
     assert len(memories) == 1
     for i, memory in enumerate(memories):
-        memory.set_entity_name(f"mem-{i}")
+        memory.set_entity_name(f"MEM{i}")
+        s = 'digraph {\n\tnode [shape=record]\n\tMEM0 [label=MEM0]\n}'
+        assert memory._digraph().source in (s, s + '\n')
 
     # Create architecture from
     architecture = Architecture(
         set(processing_elements), set(memories), direct_interconnects=direct_conn
     )
 
+    # assert architecture._digraph().source == "foo"
     for pe in processing_elements:
         print(pe)
         for operation in pe._collection:
