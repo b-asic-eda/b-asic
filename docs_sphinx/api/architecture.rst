@@ -9,3 +9,4 @@
 .. automodule:: b_asic.architecture
    :members:
    :undoc-members:
+   :inherited-members:

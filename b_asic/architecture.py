@@ -84,7 +84,7 @@ class Resource(HardwareBlock):
 
     Parameters
     ----------
-    process_collection : ProcessCollection
+    process_collection : :class:`~b_asic.resources.ProcessCollection`
         The process collection containing processes to be mapped to resource.
     entity_name : str, optional
         The name of the resulting entity.
@@ -247,7 +247,7 @@ class Architecture(HardwareBlock):
     ----------
     processing_elements : :class:`~b_asic.architecture.ProcessingElement` or iterable of :class:`~b_asic.architecture.ProcessingElement`
         The processing elements in the architecture.
-    memories : `~b_asic.architecture.Memory` or iterable of :class:`~b_asic.architecture.Memory`
+    memories : :class:`~b_asic.architecture.Memory` or iterable of :class:`~b_asic.architecture.Memory`
         The memories in the architecture.
     entity_name : str, default: "arch"
         Name for the top-level entity.
