@@ -591,6 +591,7 @@ class ProcessCollection:
         marker_write: str = "o",
         show_markers: bool = True,
         allow_excessive_lifetimes: bool = False,
+        title: Optional[str] = None,
     ) -> None:
         """
         Show the process collection using the current Matplotlib backend.
@@ -614,6 +615,8 @@ class ProcessCollection:
         allow_excessive_lifetimes : bool, default False
             If set to true, the plot method allows ploting collections of variables with a greater lifetime
             than the schedule time.
+        title : str, optional
+            Title of plot.
         """
         fig, ax = plt.subplots()
         self.plot(
@@ -626,6 +629,8 @@ class ProcessCollection:
             show_markers=show_markers,
             allow_excessive_lifetimes=allow_excessive_lifetimes,
         )
+        if title:
+            fig.suptitle(title)
         fig.show()  # type: ignore
 
     def create_exclusion_graph_from_ports(

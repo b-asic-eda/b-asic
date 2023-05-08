@@ -995,7 +995,9 @@ class Schedule:
         """
         self._plot_schedule(ax, operation_gap=operation_gap)
 
-    def show(self, operation_gap: Optional[float] = None) -> None:
+    def show(
+        self, operation_gap: Optional[float] = None, title: Optional[str] = None
+    ) -> None:
         """
         Show the schedule. Will display based on the current Matplotlib backend.
 
@@ -1004,8 +1006,13 @@ class Schedule:
         operation_gap : float, optional
             The vertical distance between operations in the schedule. The height of
             the operation is always 1.
+        title : str, optional
+            Figure title.
         """
-        self._get_figure(operation_gap=operation_gap).show()
+        fig = self._get_figure(operation_gap=operation_gap)
+        if title:
+            fig.suptitle(title)
+        fig.show()
 
     def _get_figure(self, operation_gap: Optional[float] = None) -> Figure:
         """

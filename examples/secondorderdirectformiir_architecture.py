@@ -39,7 +39,7 @@ sfg.set_execution_time_of_type(Addition.type_name(), 1)
 # %%
 # Create schedule
 schedule = Schedule(sfg, cyclic=True)
-schedule.show()
+schedule.show(title='Original schedule')
 
 # %%
 # Rescheudle to only require one adder and one multiplier
@@ -48,19 +48,19 @@ schedule.move_operation('cmul5', -5)
 schedule.move_operation('cmul4', -4)
 schedule.move_operation('cmul6', -2)
 schedule.move_operation('cmul3', 1)
-schedule.show()
+schedule.show(title='Improved schedule')
 
 # %%
 # Extract operations and create processing elements
 operations = schedule.get_operations()
 adders = operations.get_by_type_name('add')
-adders.show()
+adders.show(title="Adder executions")
 mults = operations.get_by_type_name('cmul')
-mults.show()
+mults.show(title="Multiplier executions")
 inputs = operations.get_by_type_name('in')
-inputs.show()
+inputs.show(title="Input executions")
 outputs = operations.get_by_type_name('out')
-outputs.show()
+outputs.show(title="Output executions")
 
 p1 = ProcessingElement(adders, entity_name="adder")
 p2 = ProcessingElement(mults, entity_name="cmul")
@@ -69,18 +69,17 @@ p_out = ProcessingElement(outputs, entity_name='out')
 
 # %%
 # Extract memory variables
-# Memories
 mem_vars = schedule.get_memory_variables()
-mem_vars.show()
+mem_vars.show(title="All memory variables")
 direct, mem_vars = mem_vars.split_on_length()
-direct.show()
-mem_vars.show()
+direct.show(title="Direct interconnects")
+mem_vars.show(title="Non-zero time memory variables")
 mem_vars_set = mem_vars.split_on_ports(read_ports=1, write_ports=1, total_ports=1)
 
 memories = set()
 for i, mem in enumerate(mem_vars_set):
     memories.add(Memory(mem, entity_name=f"memory{i}"))
-    mem.show()
+    mem.show(title=f"memory{i}")
 
 # %%
 # Create architecture
