@@ -443,7 +443,7 @@ class ProcessCollection:
         return self._schedule_time
 
     def __len__(self):
-        return len(self._collection)
+        return len(self.collection)
 
     def add_process(self, process: Process):
         """
@@ -454,7 +454,25 @@ class ProcessCollection:
         process : Process
             The process object to be added to the collection.
         """
-        self._collection.add(process)
+        self.collection.add(process)
+
+    def remove_process(self, process: Process):
+        """
+        Remove a processes from this process collection.
+
+        Raises KeyError if the process is not in this collection.
+
+        Parameters
+        ----------
+        process : Process
+            The processes object to remove from this collection
+        """
+        if process not in self.collection:
+            raise KeyError(
+                f"Can't remove process: '{process}', as it is not in collection."
+            )
+        else:
+            self.collection.remove(process)
 
     def plot(
         self,

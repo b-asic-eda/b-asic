@@ -37,8 +37,8 @@ class TestProcessCollectionPlainMemoryVariable:
         fig, ax = plt.subplots(1, 2)
         assignment = simple_collection.left_edge_cell_assignment()
         for cell in assignment:
-            assignment[cell].plot(ax=ax[1], row=cell)
-        simple_collection.plot(ax[0])
+            assignment[cell].plot(ax=ax[1], row=cell)  # type: ignore
+        simple_collection.plot(ax[0])  # type:ignore
         return fig
 
     def test_cell_assignment_matrix_transposer(self):
@@ -132,3 +132,16 @@ class TestProcessCollectionPlainMemoryVariable:
 
     def test_show(self, simple_collection: ProcessCollection):
         simple_collection.show()
+
+    def test_add_remove_process(self, simple_collection: ProcessCollection):
+        new_proc = PlainMemoryVariable(1, 0, {0: 3})
+        assert len(simple_collection) == 7
+        assert new_proc not in simple_collection
+
+        simple_collection.add_process(new_proc)
+        assert len(simple_collection) == 8
+        assert new_proc in simple_collection
+
+        simple_collection.remove_process(new_proc)
+        assert len(simple_collection) == 7
+        assert new_proc not in simple_collection
