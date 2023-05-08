@@ -22,7 +22,7 @@ def test_processing_element_exceptions(schedule_direct_form_iir_lp_filter: Sched
         ProcessingElement(mvs)
     empty_collection = ProcessCollection(collection=set(), schedule_time=5)
     with pytest.raises(
-        ValueError, match="Do not create ProcessingElement with empty ProcessCollection"
+        ValueError, match="Do not create Resource with empty ProcessCollection"
     ):
         ProcessingElement(empty_collection)
 
@@ -52,7 +52,7 @@ def test_memory_exceptions(schedule_direct_form_iir_lp_filter: Schedule):
     operations = schedule_direct_form_iir_lp_filter.get_operations()
     empty_collection = ProcessCollection(collection=set(), schedule_time=5)
     with pytest.raises(
-        ValueError, match="Do not create Memory with empty ProcessCollection"
+        ValueError, match="Do not create Resource with empty ProcessCollection"
     ):
         Memory(empty_collection)
     with pytest.raises(
