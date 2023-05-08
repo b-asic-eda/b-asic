@@ -114,7 +114,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
 
     # Create architecture from
     architecture = Architecture(
-        set(processing_elements), set(memories), direct_interconnects=direct_conn
+        processing_elements, memories, direct_interconnects=direct_conn
     )
 
     # assert architecture._digraph().source == "foo"

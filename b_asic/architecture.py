@@ -2,7 +2,7 @@
 B-ASIC architecture classes.
 """
 from collections import defaultdict
-from typing import Dict, Iterator, List, Optional, Set, Tuple, cast
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union, cast
 
 from graphviz import Digraph
 
@@ -16,49 +16,39 @@ def _interconnect_dict() -> int:
     return 0
 
 
-class Resource:
+class HardwareBlock:
     """
-    Base class for resource.
+    Base class for architectures and resources.
 
     Parameters
     ----------
-    process_collection : ProcessCollection
-        The process collection containing processes to be mapped to resource.
     entity_name : str, optional
         The name of the resulting entity.
-
     """
 
-    def __init__(
-        self, process_collection: ProcessCollection, entity_name: Optional[str] = None
-    ):
-        if not len(process_collection):
-            raise ValueError("Do not create Resource with empty ProcessCollection")
-        self._collection = process_collection
-        self._entity_name = entity_name
-        self._input_count = -1
-        self._output_count = -1
-
-    def __repr__(self):
-        return self.entity_name
-
-    def __iter__(self):
-        return iter(self._collection)
+    def __init__(self, entity_name: Optional[str] = None):
+        self._entity_name = None
+        if entity_name is not None:
+            self.set_entity_name(entity_name)
 
     def set_entity_name(self, entity_name: str):
         """
-        Set entity name of resource.
+        Set entity name of hardware block.
 
         Parameters
         ----------
         entity_name : str
             The entity name.
         """
+        # Should be a better check.
+        # See https://stackoverflow.com/questions/7959587/regex-for-vhdl-identifier
+        if " " in entity_name:
+            raise ValueError("Cannot have space in entity name")
         self._entity_name = entity_name
 
     def write_code(self, path: str) -> None:
         """
-        Write VHDL code for resource.
+        Write VHDL code for hardware block.
 
         Parameters
         ----------
@@ -77,6 +67,45 @@ class Resource:
 
     def _repr_png_(self):
         return self._digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
+
+    @property
+    def entity_name(self) -> str:
+        if self._entity_name is None:
+            return "Undefined entity name"
+        return self._entity_name
+
+    def _digraph(self) -> Digraph:
+        raise NotImplementedError()
+
+
+class Resource(HardwareBlock):
+    """
+    Base class for resource.
+
+    Parameters
+    ----------
+    process_collection : ProcessCollection
+        The process collection containing processes to be mapped to resource.
+    entity_name : str, optional
+        The name of the resulting entity.
+
+    """
+
+    def __init__(
+        self, process_collection: ProcessCollection, entity_name: Optional[str] = None
+    ):
+        if not len(process_collection):
+            raise ValueError("Do not create Resource with empty ProcessCollection")
+        super().__init__(entity_name=entity_name)
+        self._collection = process_collection
+        self._input_count = -1
+        self._output_count = -1
+
+    def __repr__(self):
+        return self.entity_name
+
+    def __iter__(self):
+        return iter(self._collection)
 
     def _digraph(self) -> Digraph:
         dg = Digraph(node_attr={'shape': 'record'})
@@ -105,12 +134,6 @@ class Resource:
             outstrs = [f"<{outstr}> {outstr}" for outstr in outputs]
             ret += f"|{{{'|'.join(outstrs)}}}"
         return "{" + ret + "}"
-
-    @property
-    def entity_name(self) -> str:
-        if self._entity_name is None:
-            return "Undefined entity name"
-        return self._entity_name
 
 
 class ProcessingElement(Resource):
@@ -216,32 +239,36 @@ class Memory(Resource):
         return cast(Iterator[MemoryVariable], iter(self._collection))
 
 
-class Architecture:
+class Architecture(HardwareBlock):
     """
     Class representing an architecture.
 
     Parameters
     ----------
-    processing_elements : set of :class:`~b_asic.architecture.ProcessingElement`
+    processing_elements : :class:`~b_asic.architecture.ProcessingElement` or iterable of :class:`~b_asic.architecture.ProcessingElement`
         The processing elements in the architecture.
-    memories : set of :class:`~b_asic.architecture.Memory`
+    memories : `~b_asic.architecture.Memory` or iterable of :class:`~b_asic.architecture.Memory`
         The memories in the architecture.
     entity_name : str, default: "arch"
         Name for the top-level entity.
-    direct_interconnects : ProcessCollection, optional
+    direct_interconnects : :class:`~b_asic.resources.ProcessCollection`, optional
         Process collection of zero-time memory variables used for direct interconnects.
     """
 
     def __init__(
         self,
-        processing_elements: Set[ProcessingElement],
-        memories: Set[Memory],
+        processing_elements: Union[ProcessingElement, Iterable[ProcessingElement]],
+        memories: Union[Memory, Iterable[Memory]],
         entity_name: str = "arch",
         direct_interconnects: Optional[ProcessCollection] = None,
     ):
-        self._processing_elements = processing_elements
-        self._memories = memories
-        self._entity_name = entity_name
+        super().__init__(entity_name)
+        self._processing_elements = (
+            set(processing_elements)
+            if isinstance(processing_elements, ProcessingElement)
+            else processing_elements
+        )
+        self._memories = set(memories) if isinstance(memories, Memory) else memories
         self._direct_interconnects = direct_interconnects
         self._variable_inport_to_resource: Dict[InputPort, Tuple[Resource, int]] = {}
         self._variable_outport_to_resource: Dict[OutputPort, Tuple[Resource, int]] = {}
@@ -315,17 +342,6 @@ class Architecture:
             )
         # Make sure all inputs and outputs in the architecture are in use
 
-    def write_code(self, path: str) -> None:
-        """
-        Write HDL of architecture.
-
-        Parameters
-        ----------
-        path : str
-            Directory to write code in.
-        """
-        raise NotImplementedError
-
     def get_interconnects_for_memory(self, mem: Memory):
         """
         Return a dictionary with interconnect information for a Memory.
@@ -385,26 +401,6 @@ class Architecture:
                 d_out[i][self._variable_outport_to_resource[output]] += 1
         return [dict(d) for d in d_in], [dict(d) for d in d_out]
 
-    def set_entity_name(self, entity_name: str):
-        """
-        Set entity name of architecture.
-
-        Parameters
-        ----------
-        entity_name : str
-            The entity name.
-        """
-        self._entity_name = entity_name
-
-    def _repr_mimebundle_(self, include=None, exclude=None):
-        return self._digraph()._repr_mimebundle_(include=include, exclude=exclude)
-
-    def _repr_jpeg_(self):
-        return self._digraph()._repr_mimebundle_(include=["image/jpeg"])["image/jpeg"]
-
-    def _repr_png_(self):
-        return self._digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
-
     def _digraph(self) -> Digraph:
         edges = set()
         dg = Digraph(node_attr={'shape': 'record'})
@@ -438,11 +434,11 @@ class Architecture:
         return dg
 
     @property
-    def memories(self) -> Set[Memory]:
+    def memories(self) -> Iterable[Memory]:
         return self._memories
 
     @property
-    def processing_elements(self) -> Set[ProcessingElement]:
+    def processing_elements(self) -> Iterable[ProcessingElement]:
         return self._processing_elements
 
     @property
