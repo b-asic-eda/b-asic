@@ -27,7 +27,7 @@ class TestProcessCollectionPlainMemoryVariable:
         return fig
 
     def test_split_memory_variable(self, simple_collection: ProcessCollection):
-        collection_split = simple_collection.split_ports(
+        collection_split = simple_collection.split_on_ports(
             heuristic="graph_color", read_ports=1, write_ports=1, total_ports=2
         )
         assert len(collection_split) == 3
@@ -113,15 +113,15 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_interleaver_issue175(self):
         with open('test/fixtures/interleaver-two-port-issue175.p', 'rb') as f:
             interleaver_collection: ProcessCollection = pickle.load(f)
-            assert len(interleaver_collection.split_ports(total_ports=1)) == 2
+            assert len(interleaver_collection.split_on_ports(total_ports=1)) == 2
 
     def test_generate_random_interleaver(self):
         for _ in range(10):
             for size in range(5, 20, 5):
                 collection = generate_random_interleaver(size)
-                assert len(collection.split_ports(read_ports=1, write_ports=1)) == 1
+                assert len(collection.split_on_ports(read_ports=1, write_ports=1)) == 1
                 if any(var.execution_time for var in collection.collection):
-                    assert len(collection.split_ports(total_ports=1)) == 2
+                    assert len(collection.split_on_ports(total_ports=1)) == 2
 
     def test_len_process_collection(self, simple_collection: ProcessCollection):
         assert len(simple_collection) == 7

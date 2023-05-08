@@ -1,7 +1,6 @@
 from itertools import chain
-from typing import List, Set, cast
+from typing import List, cast
 
-import matplotlib.pyplot as plt
 import pytest
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
@@ -9,7 +8,6 @@ from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.process import MemoryVariable, OperatorProcess
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
-from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Input, Output
 
 
@@ -32,10 +30,10 @@ def test_extract_processing_elements(schedule_direct_form_iir_lp_filter: Schedul
     operations = schedule_direct_form_iir_lp_filter.get_operations()
 
     # Split into new process collections on overlapping execution time
-    adders = operations.get_by_type_name(Addition.type_name()).split_execution_time()
+    adders = operations.get_by_type_name(Addition.type_name()).split_on_execution_time()
     const_mults = operations.get_by_type_name(
         ConstantMultiplication.type_name()
-    ).split_execution_time()
+    ).split_on_execution_time()
 
     # List of ProcessingElements
     processing_elements: List[ProcessingElement] = []
@@ -69,15 +67,15 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     operations = schedule_direct_form_iir_lp_filter.get_operations()
 
     # Split operations further into chunks
-    adders = operations.get_by_type_name(Addition.type_name()).split_execution_time()
+    adders = operations.get_by_type_name(Addition.type_name()).split_on_execution_time()
     assert len(adders) == 1
     const_mults = operations.get_by_type_name(
         ConstantMultiplication.type_name()
-    ).split_execution_time()
+    ).split_on_execution_time()
     assert len(const_mults) == 1
-    inputs = operations.get_by_type_name(Input.type_name()).split_execution_time()
+    inputs = operations.get_by_type_name(Input.type_name()).split_on_execution_time()
     assert len(inputs) == 1
-    outputs = operations.get_by_type_name(Output.type_name()).split_execution_time()
+    outputs = operations.get_by_type_name(Output.type_name()).split_on_execution_time()
     assert len(outputs) == 1
 
     # Create necessary processing elements
@@ -93,7 +91,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
 
     # Create Memories from the memory variables
     memories: List[Memory] = [
-        Memory(pc) for pc in mvs.split_ports(read_ports=1, write_ports=1)
+        Memory(pc) for pc in mvs.split_on_ports(read_ports=1, write_ports=1)
     ]
     assert len(memories) == 1
     for i, memory in enumerate(memories):

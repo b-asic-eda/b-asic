@@ -754,7 +754,7 @@ class ProcessCollection:
                         exclusion_graph.add_edge(process1, process2)
         return exclusion_graph
 
-    def split_execution_time(
+    def split_on_execution_time(
         self,
         heuristic: str = "graph_color",
         coloring_strategy: str = "saturation_largest_first",
@@ -795,7 +795,7 @@ class ProcessCollection:
         else:
             raise ValueError(f"Invalid heuristic '{heuristic}'")
 
-    def split_ports(
+    def split_on_ports(
         self,
         heuristic: str = "graph_color",
         read_ports: Optional[int] = None,
@@ -803,7 +803,9 @@ class ProcessCollection:
         total_ports: Optional[int] = None,
     ) -> Set["ProcessCollection"]:
         """
-        Split this process storage based on concurrent read/write times according to some heuristic.
+        Split this process storage based on concurrent read/write times according.
+
+        Different heurstic methods can be used.
 
         Parameters
         ----------
@@ -963,6 +965,7 @@ class ProcessCollection:
     def left_edge_cell_assignment(self) -> Dict[int, "ProcessCollection"]:
         """
         Perform cell assignment of the processes in this collection using the left-edge algorithm.
+
         Two or more processes can share a single cell if, and only if, they have no overlaping time alive.
 
         Returns
@@ -1112,18 +1115,22 @@ class ProcessCollection:
                 input_sync=input_sync,
             )
 
-    def split_on_length(self, length: int = 0):
+    def split_on_length(
+        self, length: int = 0
+    ) -> Tuple["ProcessCollection", "ProcessCollection"]:
         """
-        Split the current ProcessCollection into two new ProcessCollection based on exectuion time length.
+        Split into two new ProcessCollections based on execution time length.
 
         Parameters
         ----------
         length : int, default: 0
-            The execution time length to split on. Length is inclusive for the smaller collection.
+            The execution time length to split on. Length is inclusive for the smaller
+            collection.
 
         Returns
         -------
-        A tuple of two ProcessCollections, one with short than or equal execution times and one with greater execution times.
+        A tuple of two ProcessCollections, one with shorter than or equal execution
+        times and one with longer execution times.
         """
         short = set()
         long = set()
