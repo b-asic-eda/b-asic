@@ -1,5 +1,6 @@
 import io
 import re
+from collections import Counter
 from functools import reduce
 from typing import Dict, Iterable, List, Optional, Set, Tuple, TypeVar, Union
 
@@ -1266,3 +1267,17 @@ class ProcessCollection:
             self._schedule_time,
             self._cyclic,
         )
+
+    def read_ports_bound(self) -> int:
+        reads = []
+        for process in self._collection:
+            reads.extend(
+                set(read_time % self.schedule_time for read_time in process.read_times)
+            )
+        count = Counter(reads)
+        return max(count.values())
+
+    def write_ports_bound(self) -> int:
+        writes = [process.start_time for process in self._collection]
+        count = Counter(writes)
+        return max(count.values())

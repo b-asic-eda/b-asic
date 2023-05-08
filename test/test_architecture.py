@@ -103,9 +103,13 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         Memory(pc) for pc in mvs.split_on_ports(read_ports=1, write_ports=1)
     ]
     assert len(memories) == 1
+
     for i, memory in enumerate(memories):
         memory.set_entity_name(f"MEM{i}")
-        s = 'digraph {\n\tnode [shape=record]\n\tMEM0 [label=MEM0]\n}'
+        s = (
+            'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{<in0> in0}|MEM0|{<out0>'
+            ' out0}"]\n}'
+        )
         assert memory._digraph().source in (s, s + '\n')
 
     # Create architecture from

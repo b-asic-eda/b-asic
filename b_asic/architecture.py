@@ -40,7 +40,7 @@ class Resource:
         self._output_count = -1
 
     def __repr__(self):
-        return self._entity_name
+        return self.entity_name
 
     def __iter__(self):
         return iter(self._collection)
@@ -80,7 +80,7 @@ class Resource:
 
     def _digraph(self) -> Digraph:
         dg = Digraph(node_attr={'shape': 'record'})
-        dg.node(self._entity_name, self._struct_def())
+        dg.node(self.entity_name, self._struct_def())
         return dg
 
     @property
@@ -100,11 +100,17 @@ class Resource:
         if inputs:
             instrs = [f"<{instr}> {instr}" for instr in inputs]
             ret += f"{{{'|'.join(instrs)}}}|"
-        ret += f"{self._entity_name}"
+        ret += f"{self.entity_name}"
         if outputs:
             outstrs = [f"<{outstr}> {outstr}" for outstr in outputs]
             ret += f"|{{{'|'.join(outstrs)}}}"
         return ret
+
+    @property
+    def entity_name(self) -> str:
+        if self._entity_name is None:
+            return "Undefined entity name"
+        return self._entity_name
 
 
 class ProcessingElement(Resource):
@@ -149,14 +155,6 @@ class ProcessingElement(Resource):
     def processes(self) -> Set[OperatorProcess]:
         return {cast(OperatorProcess, p) for p in self._collection}
 
-    def input_count(self) -> int:
-        """Return number of input ports."""
-        raise NotImplementedError()
-
-    def output_count(self) -> int:
-        """Return number of output ports."""
-        raise NotImplementedError()
-
 
 class Memory(Resource):
     """
@@ -170,6 +168,10 @@ class Memory(Resource):
         The type of memory.
     entity_name : str, optional
         Name of memory entity.
+    read_ports : int, optional
+        Number of read ports for memory.
+    write_ports : int, optional
+        Number of write ports for memory.
     """
 
     def __init__(
@@ -177,6 +179,8 @@ class Memory(Resource):
         process_collection: ProcessCollection,
         memory_type: str = "RAM",
         entity_name: Optional[str] = None,
+        read_ports: Optional[int] = None,
+        write_ports: Optional[int] = None,
     ):
         super().__init__(process_collection=process_collection, entity_name=entity_name)
         if not all(
@@ -191,6 +195,20 @@ class Memory(Resource):
             raise ValueError(
                 f"memory_type must be 'RAM' or 'register', not {memory_type!r}"
             )
+        read_ports_bound = self._collection.read_ports_bound()
+        if read_ports is None:
+            self._output_count = read_ports_bound
+        else:
+            if read_ports < read_ports_bound:
+                raise ValueError(f"At least {read_ports_bound} read ports required")
+            self._output_count = read_ports
+        write_ports_bound = self._collection.write_ports_bound()
+        if write_ports is None:
+            self._input_count = write_ports_bound
+        else:
+            if write_ports < write_ports_bound:
+                raise ValueError(f"At least {write_ports_bound} write ports required")
+            self._input_count = write_ports
         self._memory_type = memory_type
 
     def __iter__(self) -> Iterator[MemoryVariable]:
@@ -386,26 +404,20 @@ class Architecture:
     def _digraph(self) -> Digraph:
         dg = Digraph(node_attr={'shape': 'record'})
         for i, mem in enumerate(self._memories):
-            if mem._entity_name is not None:
-                dg.node(mem._entity_name, mem._struct_def())
-            else:
-                dg.node(f"MEM-{i}", mem._struct_def())
+            dg.node(mem.entity_name, mem._struct_def())
         for i, pe in enumerate(self._processing_elements):
-            if pe._entity_name is not None:
-                dg.node(pe._entity_name, pe._struct_def())
-            else:
-                dg.node(f"PE-{i}", pe._struct_def())
+            dg.node(pe.entity_name, pe._struct_def())
         for pe in self._processing_elements:
             inputs, outputs = self.get_interconnects_for_pe(pe)
             for i, inp in enumerate(inputs):
                 for source, cnt in inp.items():
                     dg.edge(
-                        source._entity_name, f"{pe._entity_name}:in{i}", label=f"{cnt}"
+                        source.entity_name, f"{pe.entity_name}:in{i}", label=f"{cnt}"
                     )
             for o, outp in enumerate(outputs):
                 for dest, cnt in outp.items():
                     dg.edge(
-                        f"{pe._entity_name}:out{o}", dest._entity_name, label=f"{cnt}"
+                        f"{pe.entity_name}:out{o}", dest.entity_name, label=f"{cnt}"
                     )
         return dg
 
