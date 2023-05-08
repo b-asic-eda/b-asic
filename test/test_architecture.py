@@ -89,9 +89,9 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
             s = (
                 'digraph {\n\tnode [shape=record]\n\t'
                 + pe._entity_name
-                + ' [label="{<in0> in0|<in1> in1}|'
+                + ' [label="{{<in0> in0|<in1> in1}|'
                 + pe._entity_name
-                + '|{<out0> out0}"]\n}'
+                + '|{<out0> out0}}"]\n}'
             )
             assert pe._digraph().source in (s, s + '\n')
 
@@ -107,8 +107,8 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     for i, memory in enumerate(memories):
         memory.set_entity_name(f"MEM{i}")
         s = (
-            'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{<in0> in0}|MEM0|{<out0>'
-            ' out0}"]\n}'
+            'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{{<in0> in0}|MEM0|{<out0>'
+            ' out0}}"]\n}'
         )
         assert memory._digraph().source in (s, s + '\n')
 

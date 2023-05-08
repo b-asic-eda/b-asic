@@ -104,7 +104,7 @@ class Resource:
         if outputs:
             outstrs = [f"<{outstr}> {outstr}" for outstr in outputs]
             ret += f"|{{{'|'.join(outstrs)}}}"
-        return ret
+        return "{" + ret + "}"
 
     @property
     def entity_name(self) -> str:
@@ -243,15 +243,15 @@ class Architecture:
         self._memories = memories
         self._entity_name = entity_name
         self._direct_interconnects = direct_interconnects
-        self._variable_inport_to_resource: Dict[InputPort, Resource] = {}
-        self._variable_outport_to_resource: Dict[OutputPort, Resource] = {}
+        self._variable_inport_to_resource: Dict[InputPort, Tuple[Resource, int]] = {}
+        self._variable_outport_to_resource: Dict[OutputPort, Tuple[Resource, int]] = {}
         self._operation_inport_to_resource: Dict[InputPort, Resource] = {}
         self._operation_outport_to_resource: Dict[OutputPort, Resource] = {}
 
-        self._build_dicts()
-
         # Validate input and output ports
         self.validate_ports()
+
+        self._build_dicts()
 
     def _build_dicts(self):
         for pe in self.processing_elements:
@@ -264,18 +264,20 @@ class Architecture:
         for memory in self.memories:
             for mv in memory:
                 for read_port in mv.read_ports:
-                    self._variable_inport_to_resource[read_port] = memory
-                self._variable_outport_to_resource[mv.write_port] = memory
+                    self._variable_inport_to_resource[read_port] = (memory, 0)  # Fix
+                self._variable_outport_to_resource[mv.write_port] = (memory, 0)  # Fix
         if self._direct_interconnects:
             for di in self._direct_interconnects:
                 di = cast(MemoryVariable, di)
                 for read_port in di.read_ports:
-                    self._variable_inport_to_resource[
-                        read_port
-                    ] = self._operation_outport_to_resource[di.write_port]
-                    self._variable_outport_to_resource[
-                        di.write_port
-                    ] = self._operation_inport_to_resource[read_port]
+                    self._variable_inport_to_resource[read_port] = (
+                        self._operation_outport_to_resource[di.write_port],
+                        di.write_port.index,
+                    )
+                    self._variable_outport_to_resource[di.write_port] = (
+                        self._operation_inport_to_resource[read_port],
+                        read_port.index,
+                    )
 
     def validate_ports(self):
         # Validate inputs and outputs of memory variables in all the memories in this
@@ -350,7 +352,9 @@ class Architecture:
 
     def get_interconnects_for_pe(
         self, pe: ProcessingElement
-    ) -> Tuple[List[Dict[Resource, int]], List[Dict[Resource, int]]]:
+    ) -> Tuple[
+        List[Dict[Tuple[Resource, int], int]], List[Dict[Tuple[Resource, int], int]]
+    ]:
         """
         Return lists of dictionaries with interconnect information for a
         ProcessingElement.
@@ -402,7 +406,9 @@ class Architecture:
         return self._digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
 
     def _digraph(self) -> Digraph:
+        edges = set()
         dg = Digraph(node_attr={'shape': 'record'})
+        # dg.attr(rankdir="LR")
         for i, mem in enumerate(self._memories):
             dg.node(mem.entity_name, mem._struct_def())
         for i, pe in enumerate(self._processing_elements):
@@ -410,15 +416,25 @@ class Architecture:
         for pe in self._processing_elements:
             inputs, outputs = self.get_interconnects_for_pe(pe)
             for i, inp in enumerate(inputs):
-                for source, cnt in inp.items():
-                    dg.edge(
-                        source.entity_name, f"{pe.entity_name}:in{i}", label=f"{cnt}"
+                for (source, port), cnt in inp.items():
+                    edges.add(
+                        (
+                            f"{source.entity_name}:out{port}",
+                            f"{pe.entity_name}:in{i}",
+                            f"{cnt}",
+                        )
                     )
             for o, outp in enumerate(outputs):
-                for dest, cnt in outp.items():
-                    dg.edge(
-                        f"{pe.entity_name}:out{o}", dest.entity_name, label=f"{cnt}"
+                for (dest, port), cnt in outp.items():
+                    edges.add(
+                        (
+                            f"{pe.entity_name}:out{o}",
+                            f"{dest.entity_name}:in{port}",
+                            f"{cnt}",
+                        )
                     )
+        for src, dest, cnt in edges:
+            dg.edge(src, dest, label=cnt)
         return dg
 
     @property

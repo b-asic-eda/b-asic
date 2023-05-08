@@ -84,3 +84,31 @@ for i, mem in enumerate(mem_vars_set):
 # %%
 # Create architecture
 arch = Architecture({p1, p2, p_in, p_out}, memories, direct_interconnects=direct)
+
+# %%
+# The architecture can be rendered in enriched shells.
+#
+# .. graphviz::
+#
+#        digraph {
+#             node [shape=record]
+#             memory1 [label="{{<in0> in0}|memory1|{<out0> out0}}"]
+#             memory0 [label="{{<in0> in0}|memory0|{<out0> out0}}"]
+#             memory2 [label="{{<in0> in0}|memory2|{<out0> out0}}"]
+#             in [label="{in|{<out0> out0}}"]
+#             out [label="{{<in0> in0}|out}"]
+#             cmul [label="{{<in0> in0}|cmul|{<out0> out0}}"]
+#             adder [label="{{<in0> in0|<in1> in1}|adder|{<out0> out0}}"]
+#             memory1:out0 -> adder:in1 [label=1]
+#             cmul:out0 -> adder:in0 [label=1]
+#             cmul:out0 -> memory0:in0 [label=3]
+#             memory0:out0 -> adder:in0 [label=1]
+#             adder:out0 -> adder:in1 [label=1]
+#             memory1:out0 -> cmul:in0 [label=5]
+#             memory0:out0 -> adder:in1 [label=2]
+#             adder:out0 -> memory1:in0 [label=2]
+#             adder:out0 -> out:in0 [label=1]
+#             memory2:out0 -> adder:in0 [label=2]
+#             cmul:out0 -> memory2:in0 [label=2]
+#             in:out0 -> cmul:in0 [label=1]
+#        }
