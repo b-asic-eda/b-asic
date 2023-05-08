@@ -55,6 +55,10 @@ class Process:
     def __repr__(self) -> str:
         return f"Process({self.start_time}, {self.execution_time}, {self.name!r})"
 
+    @property
+    def read_times(self) -> Tuple[int, ...]:
+        return (self.start_time + self.execution_time,)
+
 
 class OperatorProcess(Process):
     """
@@ -159,6 +163,10 @@ class MemoryVariable(Process):
             f" {reads!r}, {self.name!r})"
         )
 
+    @property
+    def read_times(self) -> Tuple[int, ...]:
+        return tuple(self.start_time + read for read in self._life_times)
+
 
 class PlainMemoryVariable(Process):
     """
@@ -224,6 +232,10 @@ class PlainMemoryVariable(Process):
             f"PlainMemoryVariable({self.start_time}, {self.write_port},"
             f" {reads!r}, {self.name!r})"
         )
+
+    @property
+    def read_times(self) -> Tuple[int, ...]:
+        return tuple(self.start_time + read for read in self._life_times)
 
     # Static counter for default names
     _name_cnt = 0

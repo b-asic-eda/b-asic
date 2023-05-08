@@ -531,20 +531,30 @@ class ProcessCollection:
                     color=marker_color,
                     zorder=10,
                 )
-                _ax.scatter(  # type: ignore
-                    x=bar_end,
-                    y=bar_row + 1,
-                    marker=marker_read,
-                    color=marker_color,
-                    zorder=10,
-                )
+                for end_time in process.read_times:
+                    end_time = (
+                        end_time
+                        if end_time == self._schedule_time
+                        else end_time % self._schedule_time
+                    )
+                    _ax.scatter(  # type: ignore
+                        x=end_time,
+                        y=bar_row + 1,
+                        marker=marker_read,
+                        color=marker_color,
+                        zorder=10,
+                    )
             if process.execution_time > self.schedule_time:
+                # Execution time longer than schedule time, draw with warning color
                 _ax.broken_barh(  # type: ignore
                     [(0, self.schedule_time)],
                     (bar_row + 0.55, 0.9),
                     color=_WARNING_COLOR,
                 )
-            elif bar_end >= bar_start:
+            elif process.execution_time == 0:
+                # Execution time zero, don't draw the bar
+                pass
+            elif bar_end > bar_start:
                 _ax.broken_barh(  # type: ignore
                     [(PAD_L + bar_start, bar_end - bar_start - PAD_L - PAD_R)],
                     (bar_row + 0.55, 0.9),
@@ -679,28 +689,39 @@ class ProcessCollection:
         exclusion_graph = nx.Graph()
         exclusion_graph.add_nodes_from(self._collection)
         for node1 in exclusion_graph:
+            # node1_stop_time = (node1.start_time + node1.execution_time) % self.schedule_time
+            node1_stop_times = tuple(
+                read_time % self.schedule_time for read_time in node1.read_times
+            )
+            if total_ports == 1 and node1.start_time in node1_stop_times:
+                print(node1.start_time, node1_stop_times)
+                raise ValueError("Cannot read and write in same cycle.")
             for node2 in exclusion_graph:
                 if node1 == node2:
                     continue
                 else:
-                    node1_stop_time = node1.start_time + node1.execution_time
-                    node2_stop_time = node2.start_time + node2.execution_time
-                    if total_ports == 1:
-                        # Single-port assignment
-                        if node1.start_time == node2.start_time:
-                            exclusion_graph.add_edge(node1, node2)
-                        elif node1_stop_time == node2_stop_time:
-                            exclusion_graph.add_edge(node1, node2)
-                        elif node1.start_time == node2_stop_time:
-                            exclusion_graph.add_edge(node1, node2)
-                        elif node1_stop_time == node2.start_time:
-                            exclusion_graph.add_edge(node1, node2)
-                    else:
-                        # Dual-port assignment
-                        if node1.start_time == node2.start_time:
-                            exclusion_graph.add_edge(node1, node2)
-                        elif node1_stop_time == node2_stop_time:
-                            exclusion_graph.add_edge(node1, node2)
+                    # node2_stop_time = (node2.start_time + node2.execution_time) % self.schedule_time
+                    node2_stop_times = tuple(
+                        read_time % self.schedule_time for read_time in node2.read_times
+                    )
+                    for node1_stop_time in node1_stop_times:
+                        for node2_stop_time in node2_stop_times:
+                            if total_ports == 1:
+                                # Single-port assignment
+                                if node1.start_time == node2.start_time:
+                                    exclusion_graph.add_edge(node1, node2)
+                                elif node1_stop_time == node2_stop_time:
+                                    exclusion_graph.add_edge(node1, node2)
+                                elif node1.start_time == node2_stop_time:
+                                    exclusion_graph.add_edge(node1, node2)
+                                elif node1_stop_time == node2.start_time:
+                                    exclusion_graph.add_edge(node1, node2)
+                            else:
+                                # Dual-port assignment
+                                if node1.start_time == node2.start_time:
+                                    exclusion_graph.add_edge(node1, node2)
+                                elif node1_stop_time == node2_stop_time:
+                                    exclusion_graph.add_edge(node1, node2)
         return exclusion_graph
 
     def create_exclusion_graph_from_execution_time(self) -> nx.Graph:

@@ -43,9 +43,9 @@ schedule.show(title='Original schedule')
 
 # %%
 # Rescheudle to only require one adder and one multiplier
-schedule.move_operation('add4', 3)
-schedule.move_operation('cmul5', -5)
-schedule.move_operation('cmul4', -4)
+schedule.move_operation('add4', 2)
+schedule.move_operation('cmul5', -4)
+schedule.move_operation('cmul4', -5)
 schedule.move_operation('cmul6', -2)
 schedule.move_operation('cmul3', 1)
 schedule.show(title='Improved schedule')
@@ -74,7 +74,7 @@ mem_vars.show(title="All memory variables")
 direct, mem_vars = mem_vars.split_on_length()
 direct.show(title="Direct interconnects")
 mem_vars.show(title="Non-zero time memory variables")
-mem_vars_set = mem_vars.split_on_ports(read_ports=1, write_ports=1, total_ports=1)
+mem_vars_set = mem_vars.split_on_ports(read_ports=1, write_ports=1, total_ports=2)
 
 memories = set()
 for i, mem in enumerate(mem_vars_set):

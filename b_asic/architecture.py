@@ -2,10 +2,11 @@
 B-ASIC architecture classes.
 """
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple, cast
+from typing import Dict, Iterator, List, Optional, Set, Tuple, cast
 
 from graphviz import Digraph
 
+from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 
@@ -192,6 +193,10 @@ class Memory(Resource):
             )
         self._memory_type = memory_type
 
+    def __iter__(self) -> Iterator[MemoryVariable]:
+        # Add information about the iterator type
+        return cast(Iterator[MemoryVariable], iter(self._collection))
+
 
 class Architecture:
     """
@@ -220,10 +225,10 @@ class Architecture:
         self._memories = memories
         self._entity_name = entity_name
         self._direct_interconnects = direct_interconnects
-        self._variable_inport_to_resource = {}
-        self._variable_outport_to_resource = {}
-        self._operation_inport_to_resource = {}
-        self._operation_outport_to_resource = {}
+        self._variable_inport_to_resource: Dict[InputPort, Resource] = {}
+        self._variable_outport_to_resource: Dict[OutputPort, Resource] = {}
+        self._operation_inport_to_resource: Dict[InputPort, Resource] = {}
+        self._operation_outport_to_resource: Dict[OutputPort, Resource] = {}
 
         self._build_dicts()
 
@@ -240,7 +245,6 @@ class Architecture:
 
         for memory in self.memories:
             for mv in memory:
-                mv = cast(MemoryVariable, mv)
                 for read_port in mv.read_ports:
                     self._variable_inport_to_resource[read_port] = memory
                 self._variable_outport_to_resource[mv.write_port] = memory
@@ -262,7 +266,6 @@ class Architecture:
         memory_write_ports = set()
         for memory in self.memories:
             for mv in memory:
-                mv = cast(MemoryVariable, mv)
                 memory_write_ports.add(mv.write_port)
                 memory_read_ports.update(mv.read_ports)
         if self._direct_interconnects:
@@ -382,10 +385,16 @@ class Architecture:
 
     def _digraph(self) -> Digraph:
         dg = Digraph(node_attr={'shape': 'record'})
-        for mem in self._memories:
-            dg.node(mem._entity_name, mem._struct_def())
-        for pe in self._processing_elements:
-            dg.node(pe._entity_name, pe._struct_def())
+        for i, mem in enumerate(self._memories):
+            if mem._entity_name is not None:
+                dg.node(mem._entity_name, mem._struct_def())
+            else:
+                dg.node(f"MEM-{i}", mem._struct_def())
+        for i, pe in enumerate(self._processing_elements):
+            if pe._entity_name is not None:
+                dg.node(pe._entity_name, pe._struct_def())
+            else:
+                dg.node(f"PE-{i}", pe._struct_def())
         for pe in self._processing_elements:
             inputs, outputs = self.get_interconnects_for_pe(pe)
             for i, inp in enumerate(inputs):
@@ -396,7 +405,7 @@ class Architecture:
             for o, outp in enumerate(outputs):
                 for dest, cnt in outp.items():
                     dg.edge(
-                        f"{pe._entity_name}:out{0}", dest._entity_name, label=f"{cnt}"
+                        f"{pe._entity_name}:out{o}", dest._entity_name, label=f"{cnt}"
                     )
         return dg
 
