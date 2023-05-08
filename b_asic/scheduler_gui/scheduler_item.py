@@ -258,6 +258,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         if self.schedule is None:
             raise ValueError("No schedule installed.")
         self.schedule.set_schedule_time(self.schedule.schedule_time + delta_time)
+        if delta_time:
+            print(f"schedule.set_schedule_time({self.schedule.schedule_time})")
         self._axes.set_width(self._axes.width + delta_time)
         # Redraw all lines
         self._redraw_all_lines()
@@ -351,6 +353,11 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
                     self.addToGroup(gui_signal)
                     self._signal_dict[component].add(gui_signal)
                     self._signal_dict[destination_component].add(gui_signal)
+
+    def _swap_io_of_operation(self, graph_id: str) -> None:
+        self._schedule.swap_io_of_operation(graph_id)
+        print(f"schedule.swap_io_of_operation({graph_id!r})")
+        self._signals.reopen.emit()
 
 
 pprint(SchedulerItem.__mro__)

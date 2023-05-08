@@ -83,6 +83,7 @@ class OperationItem(QGraphicsItemGroup):
         self._end_time = max(latency_offsets.values())
         self._port_items = []
         self._port_number_items = []
+        self._parent = parent
 
         self.setFlag(QGraphicsItem.ItemIsMovable)  # mouse move events
         self.setFlag(QGraphicsItem.ItemIsSelectable)  # mouse move events
@@ -311,4 +312,4 @@ class OperationItem(QGraphicsItemGroup):
         menu.exec_(self.cursor().pos())
 
     def _swap_io(self, event=None) -> None:
-        self._operation.swap_io()
+        self._parent._swap_io_of_operation(self._operation.graph_id)

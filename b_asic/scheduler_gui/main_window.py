@@ -245,6 +245,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if factor > 1:
                 self.schedule.increase_time_resolution(factor)
                 self.open(self.schedule)
+                print(f"schedule.increase_time_resolution({factor})")
                 self.update_statusbar(f"Time resolution increased by a factor {factor}")
         else:  # Cancelled
             self.update_statusbar("Cancelled")
@@ -263,6 +264,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if int(factor) > 1:
                 self.schedule.decrease_time_resolution(int(factor))
                 self.open(self.schedule)
+                print(f"schedule.decrease_time_resolution({factor})")
                 self.update_statusbar(f"Time resolution decreased by a factor {factor}")
         else:  # Cancelled
             self.update_statusbar("Cancelled")
@@ -392,6 +394,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._graph._signals.schedule_time_changed.disconnect(
                 self.info_table_update_schedule
             )
+            self._graph._signals.reopen.disconnect(self._reopen_schedule)
             self._graph.removeSceneEventFilters(self._graph.event_items)
             self._scene.removeItem(self._graph)
             self.menu_close_schedule.setEnabled(False)
@@ -638,11 +641,16 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.info_table_update_schedule
         )
         self._graph._signals.redraw_all.connect(self._redraw_all)
+        self._graph._signals.reopen.connect(self._reopen_schedule)
         self.info_table_fill_schedule(self._schedule)
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def _redraw_all(self) -> None:
         self._graph._redraw_all()
+
+    @Slot()
+    def _reopen_schedule(self) -> None:
+        self.open(self._schedule)
 
     def update_statusbar(self, msg: str) -> None:
         """

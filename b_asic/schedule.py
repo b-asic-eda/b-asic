@@ -345,6 +345,19 @@ class Schedule:
         self._schedule_time = time
         return self
 
+    def swap_io_of_operation(self, operation_id: GraphID) -> None:
+        """
+        Swap the inputs (and outputs) of operation.
+
+        Parameters
+        ----------
+        operation_id : GraphID
+            The GraphID of the operation to swap.
+
+        """
+        self._original_sfg.swap_io_of_operation(operation_id)
+        self._sfg.swap_io_of_operation(operation_id)
+
     @property
     def sfg(self) -> SFG:
         """The SFG of the current schedule."""

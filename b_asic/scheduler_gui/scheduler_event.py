@@ -37,6 +37,7 @@ class SchedulerEvent:  # PyQt5
         schedule_time_changed = Signal()
         component_moved = Signal(str)
         redraw_all = Signal()
+        reopen = Signal()
 
     _axes: Optional[AxesItem]
     _current_pos: QPointF
@@ -191,6 +192,7 @@ class SchedulerEvent:  # PyQt5
             event.accept()
         else:  # Right-button
             item._open_context_menu()
+            self._signals.redraw_all.emit()
 
     def operation_mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """Change the cursor to OpenHandCursor when releasing an object."""
