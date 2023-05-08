@@ -1,7 +1,7 @@
 """
-=====================================
-Second-order IIR Filter with Schedule
-=====================================
+=========================================
+Second-order IIR Filter with Architecture
+=========================================
 
 """
 
@@ -14,7 +14,6 @@ from b_asic.special_operations import Delay, Input, Output
 in1 = Input("IN1")
 c0 = ConstantMultiplication(5, in1, "C0")
 add1 = Addition(c0, None, "ADD1")
-# Not sure what operation "Q" is supposed to be in the example
 T1 = Delay(add1, 0, "T1")
 T2 = Delay(T1, 0, "T2")
 b2 = ConstantMultiplication(0.2, T2, "B2")
@@ -39,37 +38,50 @@ sfg.set_execution_time_of_type(Addition.type_name(), 1)
 
 # %%
 # Create schedule
-
 schedule = Schedule(sfg, cyclic=True)
 schedule.show()
 
-# Rescheudle
+# %%
+# Rescheudle to only require one adder and one multiplier
 schedule.move_operation('add4', 3)
-schedule.move_operation('cmul5', -1)
-schedule.move_operation('cmul4', -1)
-schedule.move_operation('cmul5', -3)
-schedule.move_operation('cmul4', -3)
-schedule.move_operation('cmul4', -1)
-schedule.move_operation('cmul6', -1)
-schedule.move_operation('cmul6', -1)
+schedule.move_operation('cmul5', -5)
+schedule.move_operation('cmul4', -4)
+schedule.move_operation('cmul6', -2)
 schedule.move_operation('cmul3', 1)
-schedule.move_operation('cmul4', 1)
-schedule.move_operation('cmul5', -1)
+schedule.show()
 
-# ARch
+# %%
+# Extract operations and create processing elements
 operations = schedule.get_operations()
 adders = operations.get_by_type_name('add')
+adders.show()
 mults = operations.get_by_type_name('cmul')
+mults.show()
 inputs = operations.get_by_type_name('in')
+inputs.show()
 outputs = operations.get_by_type_name('out')
+outputs.show()
+
 p1 = ProcessingElement(adders, entity_name="adder")
 p2 = ProcessingElement(mults, entity_name="cmul")
 p_in = ProcessingElement(inputs, entity_name='in')
 p_out = ProcessingElement(outputs, entity_name='out')
 
+# %%
+# Extract memory variables
 # Memories
 mem_vars = schedule.get_memory_variables()
+mem_vars.show()
 direct, mem_vars = mem_vars.split_on_length()
-mem = Memory(mem_vars, entity_name="memory")
+direct.show()
+mem_vars.show()
+mem_vars_set = mem_vars.split_on_ports(read_ports=1, write_ports=1, total_ports=1)
 
-arch = Architecture({p1, p2, p_in, p_out}, {mem}, direct_interconnects=direct)
+memories = set()
+for i, mem in enumerate(mem_vars_set):
+    memories.add(Memory(mem, entity_name=f"memory{i}"))
+    mem.show()
+
+# %%
+# Create architecture
+arch = Architecture({p1, p2, p_in, p_out}, memories, direct_interconnects=direct)
