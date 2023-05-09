@@ -852,7 +852,7 @@ class ProcessCollection:
             )
             return self._split_from_graph_coloring(coloring)
         elif heuristic == "left_edge":
-            raise NotImplementedError()
+            return self._left_edge_assignment()
         else:
             raise ValueError(f"Invalid heuristic '{heuristic}'")
 
@@ -989,18 +989,17 @@ class ProcessCollection:
     def __iter__(self):
         return iter(self._collection)
 
-    def graph_color_cell_assignment(
+    def _graph_color_assignment(
         self,
         coloring_strategy: str = "saturation_largest_first",
         *,
         coloring: Optional[Dict[Process, int]] = None,
-    ) -> Set["ProcessCollection"]:
+    ) -> List["ProcessCollection"]:
         """
-        Perform cell assignment of the processes in this collection using graph
-        coloring.
+        Perform assignment of the processes in this collection using graph coloring.
 
-        Two or more processes can share a single cell if, and only if, they have no
-        overlaping time alive.
+        Two or more processes can share a single resource if, and only if, they have no
+        overlaping execution time.
 
         Parameters
         ----------
@@ -1014,7 +1013,7 @@ class ProcessCollection:
 
         Returns
         -------
-        A set of ProcessCollection
+        List[ProcessCollection]
 
         """
         cell_assignment: Dict[int, ProcessCollection] = dict()
@@ -1027,19 +1026,19 @@ class ProcessCollection:
             if cell not in cell_assignment:
                 cell_assignment[cell] = ProcessCollection(set(), self._schedule_time)
             cell_assignment[cell].add_process(process)
-        return set(cell_assignment.values())
+        return list(cell_assignment.values())
 
-    def left_edge_cell_assignment(self) -> Dict[int, "ProcessCollection"]:
+    def _left_edge_assignment(self) -> List["ProcessCollection"]:
         """
-        Perform cell assignment of the processes in this collection using the left-edge
+        Perform assignment of the processes in this collection using the left-edge
         algorithm.
 
-        Two or more processes can share a single cell if, and only if, they have no
-        overlaping time alive.
+        Two or more processes can share a single resource if, and only if, they have no
+        overlaping execution time.
 
         Returns
         -------
-        Dict[int, ProcessCollection]
+        List[ProcessCollection]
         """
         next_empty_cell = 0
         cell_assignment: Dict[int, ProcessCollection] = dict()
@@ -1070,7 +1069,7 @@ class ProcessCollection:
                 )
                 cell_assignment[next_empty_cell].add_process(next_process)
                 next_empty_cell += 1
-        return cell_assignment
+        return [pc for pc in cell_assignment.values()]
 
     def generate_memory_based_storage_vhdl(
         self,

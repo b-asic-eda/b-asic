@@ -34,27 +34,30 @@ class TestProcessCollectionPlainMemoryVariable:
     @pytest.mark.mpl_image_compare(style='mpl20')
     def test_left_edge_cell_assignment(self, simple_collection: ProcessCollection):
         fig, ax = plt.subplots(1, 2)
-        assignment = simple_collection.left_edge_cell_assignment()
-        for cell in assignment:
-            assignment[cell].plot(ax=ax[1], row=cell)  # type: ignore
+        assignment = list(simple_collection._left_edge_assignment())
+        for i, cell in enumerate(assignment):
+            cell.plot(ax=ax[1], row=i)  # type: ignore
         simple_collection.plot(ax[0])  # type:ignore
         return fig
 
     def test_cell_assignment_matrix_transposer(self):
         collection = generate_matrix_transposer(4, min_lifetime=5)
-        assignment_left_edge = collection.left_edge_cell_assignment()
-        assignment_graph_color = collection.graph_color_cell_assignment(
+        assignment_left_edge = collection._left_edge_assignment()
+        assignment_graph_color = collection.split_on_execution_time(
             coloring_strategy='saturation_largest_first'
         )
-        assert len(assignment_left_edge.keys()) == 18
+        assert len(assignment_left_edge) == 18
         assert len(assignment_graph_color) == 16
 
     def test_generate_memory_based_vhdl(self):
         for rows in [2, 3, 4, 5, 7]:
             collection = generate_matrix_transposer(rows, min_lifetime=0)
-            assignment = collection.graph_color_cell_assignment()
+            assignment = collection.split_on_execution_time(heuristic="graph_color")
             collection.generate_memory_based_storage_vhdl(
-                filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_memory_{rows}x{rows}.vhdl',
+                filename=(
+                    'b_asic/codegen/testbench/'
+                    f'streaming_matrix_transposition_memory_{rows}x{rows}.vhdl'
+                ),
                 entity_name=f'streaming_matrix_transposition_memory_{rows}x{rows}',
                 assignment=assignment,
                 word_length=16,
@@ -65,22 +68,31 @@ class TestProcessCollectionPlainMemoryVariable:
             generate_matrix_transposer(
                 rows, min_lifetime=0
             ).generate_register_based_storage_vhdl(
-                filename=f'b_asic/codegen/testbench/streaming_matrix_transposition_register_{rows}x{rows}.vhdl',
+                filename=(
+                    'b_asic/codegen/testbench/streaming_matrix_transposition_'
+                    f'register_{rows}x{rows}.vhdl'
+                ),
                 entity_name=f'streaming_matrix_transposition_register_{rows}x{rows}',
                 word_length=16,
             )
 
     def test_rectangular_matrix_transposition(self):
         collection = generate_matrix_transposer(rows=4, cols=8, min_lifetime=2)
-        assignment = collection.graph_color_cell_assignment()
+        assignment = collection.split_on_execution_time(heuristic="graph_color")
         collection.generate_memory_based_storage_vhdl(
-            filename='b_asic/codegen/testbench/streaming_matrix_transposition_memory_4x8.vhdl',
+            filename=(
+                'b_asic/codegen/testbench/streaming_matrix_transposition_memory_'
+                '4x8.vhdl'
+            ),
             entity_name='streaming_matrix_transposition_memory_4x8',
             assignment=assignment,
             word_length=16,
         )
         collection.generate_register_based_storage_vhdl(
-            filename='b_asic/codegen/testbench/streaming_matrix_transposition_register_4x8.vhdl',
+            filename=(
+                'b_asic/codegen/testbench/streaming_matrix_transposition_register_'
+                '4x8.vhdl'
+            ),
             entity_name='streaming_matrix_transposition_register_4x8',
             word_length=16,
         )

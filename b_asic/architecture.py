@@ -5,6 +5,7 @@ from collections import defaultdict
 from io import TextIOWrapper
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union, cast
 
+import matplotlib.pyplot as plt
 from graphviz import Digraph
 
 from b_asic.port import InputPort, OutputPort
@@ -132,6 +133,7 @@ class Resource(HardwareBlock):
         self._collection = process_collection
         self._input_count = -1
         self._output_count = -1
+        self._assignment: Optional[List[ProcessCollection]] = None
 
     def __repr__(self):
         return self.entity_name
@@ -172,6 +174,19 @@ class Resource(HardwareBlock):
         # doc-string inherited
         return self._collection.schedule_time
 
+    def show_content(self):
+        if not self.is_assigned:
+            self._collection.show()
+        else:
+            fig, ax = plt.subplots()
+            for i, pc in enumerate(self._assignment):  # type: ignore
+                pc.plot(ax=ax, row=i)
+            fig.show()  # type: ignore
+
+    @property
+    def is_assigned(self) -> bool:
+        return self._assignment is not None
+
 
 class ProcessingElement(Resource):
     """
@@ -210,6 +225,11 @@ class ProcessingElement(Resource):
         self._entity_name = entity_name
         self._input_count = ops[0].input_count
         self._output_count = ops[0].output_count
+        self._assignment = list(
+            self._collection.split_on_execution_time(heuristic="left_edge")
+        )
+        if len(self._assignment) > 1:
+            raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
     @property
     def processes(self) -> Set[OperatorProcess]:
@@ -274,6 +294,19 @@ class Memory(Resource):
     def __iter__(self) -> Iterator[MemoryVariable]:
         # Add information about the iterator type
         return cast(Iterator[MemoryVariable], iter(self._collection))
+
+    def _assign_ram(self, heuristic: str = "left_edge"):
+        """
+        Perform RAM-type assignment of MemoryVariables in this Memory.
+
+        Parameters
+        ----------
+        heuristic : {'left_edge', 'graph_color'}
+            The underlying heuristic to use when performing RAM assignment.
+        """
+        self._assignment = list(
+            self._collection.split_on_execution_time(heuristic=heuristic)
+        )
 
 
 class Architecture(HardwareBlock):
