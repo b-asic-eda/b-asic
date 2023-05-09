@@ -163,20 +163,24 @@ class _ForwardBackwardEntry:
         outputs_from: Optional[int] = None,
     ):
         """
-        Single entry in a _ForwardBackwardTable. Aggregate type of input, output and list of registers.
+        Single entry in a _ForwardBackwardTable.
+
+        Aggregate type of input, output and list of registers.
 
         Parameters
         ----------
-        inputs : List[Process], optional
+        inputs : list of Process, optional
             input
-        outputs : List[Process], optional
+        outputs : list of Process, optional
             output
-        regs : List[Optional[Process]], optional
+        regs : list of Process, optional
             regs
         back_edge_to : dict, optional
-            Dictionary containing back edges of this entry to registers in the next entry.
+            Dictionary containing back edges of this entry to registers in the next
+            entry.
         back_edge_from : dict, optional
-            Dictionary containing the back edge of the previous entry to registers in this entry.
+            Dictionary containing the back edge of the previous entry to registers in
+            this entry.
         outputs_from : int, optional
         """
         self.inputs: List[Process] = [] if inputs is None else inputs
@@ -192,8 +196,10 @@ class _ForwardBackwardEntry:
 class _ForwardBackwardTable:
     def __init__(self, collection: 'ProcessCollection'):
         """
-        Forward-Backward allocation table for ProcessCollections. This structure implements the forward-backward
-        register allocation algorithm, which is used to generate hardware from MemoryVariables in a ProcessCollection.
+        Forward-Backward allocation table for ProcessCollections.
+
+        This structure implements the forward-backward register allocation algorithm,
+        which is used to generate hardware from MemoryVariables in a ProcessCollection.
 
         Parameters
         ----------
@@ -218,10 +224,12 @@ class _ForwardBackwardTable:
             self.table.append(entry)
 
         # Insert all processes (one per time-slot) to the table input
-        # TODO: "Input each variable at the time step corresponding to the beginning of its lifetime. If multiple
-        #        variables are input in a given cycle, theses are allocated to multple registers such that the variable
-        #        with the longest lifetime is allocated to the inital register and the other variables are allocated to
-        #        consecutive registers in decreasing order of lifetime." -- K. Parhi
+        # TODO: "Input each variable at the time step corresponding to the beginning of
+        #        its lifetime. If multiple variables are input in a given cycle, these
+        #        are allocated to multple registers such that the variable with the
+        #        longest lifetime is allocated to the inital register and the other
+        #        variables are allocated to consecutive registers in decreasing order
+        #        of lifetime." -- K. Parhi
         for mv in collection:
             self.table[mv.start_time].inputs.append(mv)
             if mv.execution_time:
@@ -245,13 +253,15 @@ class _ForwardBackwardTable:
 
     def _do_forward_allocation(self):
         """
-        Forward all Processes as far as possible in the register chain. Processes are forwarded until they reach their
-        end time (at which they are added to the output list), or until they reach the end of the register chain.
+        Forward all Processes as far as possible in the register chain.
+
+        Processes are forwarded until they reach their end time (at which they are
+        added to the output list), or until they reach the end of the register chain.
         """
         rows = len(self.table)
         cols = len(self.table[0].regs)
-        # Note that two passes of the forward allocation need to be done, since variables may loop around the schedule
-        # cycle boundary.
+        # Note that two passes of the forward allocation need to be done, since
+        # variables may loop around the schedule cycle boundary.
         for _ in range(2):
             for time, entry in enumerate(self.table):
                 for reg_idx, reg in enumerate(entry.regs):
@@ -282,9 +292,9 @@ class _ForwardBackwardTable:
         cols = len(self.table[0].regs)
         outputs = {out for e in self.table for out in e.outputs}
         #
-        # Pass #1: Find any (one) non-dead variable from the last register and try to backward allocate it to a
-        # previous register where it is not blocking an open path. This heuristic helps minimize forward allocation
-        # moves later.
+        # Pass #1: Find any (one) non-dead variable from the last register and try to
+        # backward allocate it to a previous register where it is not blocking an open
+        # path. This heuristic helps minimize forward allocation moves later.
         #
         for time, entry in enumerate(self.table):
             reg = entry.regs[-1]
@@ -299,7 +309,8 @@ class _ForwardBackwardTable:
                         next_entry.back_edge_from[nreg_idx] = cols - 1
                         return
         #
-        # Pass #2: Backward allocate the first non-dead variable from the last registers to an empty register.
+        # Pass #2: Backward allocate the first non-dead variable from the last
+        # registers to an empty register.
         #
         for time, entry in enumerate(self.table):
             reg = entry.regs[-1]
@@ -480,12 +491,12 @@ class ProcessCollection:
         show_markers : bool, default True
             Show markers at read and write times.
         row : int, optional
-            Render all processes in this collection on a specified row in the matplotlib axes object.
-            Defaults to None, which renders all processes on separate rows. This option is useful when
-            drawing cell assignments.
+            Render all processes in this collection on a specified row in the Matplotlib
+            axes object. Defaults to None, which renders all processes on separate rows.
+            This option is useful when drawing cell assignments.
         allow_excessive_lifetimes : bool, default False
-            If set to true, the plot method allows ploting collections of variables with a greater lifetime
-            than the schedule time.
+            If set to true, the plot method allows ploting collections of variables with
+            a greater lifetime than the schedule time.
 
         Returns
         -------
@@ -606,8 +617,9 @@ class ProcessCollection:
     ) -> None:
         """
         Show the process collection using the current Matplotlib backend.
-        Equivalent to creating a Matplotlib figure, passing it and arguments to :func:`plot`
-        and invoking :py:meth:`matplotlib.figure.Figure.show`.
+
+        Equivalent to creating a Matplotlib figure, passing it and arguments to
+        :meth:`plot` and invoking :py:meth:`matplotlib.figure.Figure.show`.
 
         Parameters
         ----------
@@ -624,8 +636,8 @@ class ProcessCollection:
         show_markers : bool, default True
             Show markers at read and write times.
         allow_excessive_lifetimes : bool, default False
-            If set to true, the plot method allows ploting collections of variables with a greater lifetime
-            than the schedule time.
+            If set to True, the plot method allows ploting collections of variables with
+            a greater lifetime than the schedule time.
         title : str, optional
             Title of plot.
         """
@@ -690,7 +702,6 @@ class ProcessCollection:
         exclusion_graph = nx.Graph()
         exclusion_graph.add_nodes_from(self._collection)
         for node1 in exclusion_graph:
-            # node1_stop_time = (node1.start_time + node1.execution_time) % self.schedule_time
             node1_stop_times = tuple(
                 read_time % self.schedule_time for read_time in node1.read_times
             )
@@ -701,7 +712,6 @@ class ProcessCollection:
                 if node1 == node2:
                     continue
                 else:
-                    # node2_stop_time = (node2.start_time + node2.execution_time) % self.schedule_time
                     node2_stop_times = tuple(
                         read_time % self.schedule_time for read_time in node2.read_times
                     )
@@ -795,7 +805,8 @@ class ProcessCollection:
             The heuristic used when splitting based on execution times.
 
         coloring_strategy : str, default: 'saturation_largest_first'
-            Node ordering strategy passed to :func:`networkx.algorithms.coloring.greedy_color`.
+            Node ordering strategy passed to
+            :func:`networkx.algorithms.coloring.greedy_color`.
             This parameter is only considered if *heuristic* is set to 'graph_color'.
             One of
 
@@ -887,7 +898,8 @@ class ProcessCollection:
             The total number of ports used when splitting process collection based on
             memory variable access.
         coloring_strategy : str, default: 'saturation_largest_first'
-            Node ordering strategy passed to :func:`networkx.algorithms.coloring.greedy_color`
+            Node ordering strategy passed to
+            :func:`networkx.algorithms.coloring.greedy_color`
             One of
             * 'largest_first'
             * 'random_sequential'
@@ -911,7 +923,8 @@ class ProcessCollection:
         coloring: Dict[Process, int],
     ) -> Set["ProcessCollection"]:
         """
-        Split :class:`Process` objects into a set of :class:`ProcessesCollection` objects based on a provided graph coloring.
+        Split :class:`Process` objects into a set of :class:`ProcessesCollection`
+        objects based on a provided graph coloring.
 
         Resulting :class:`ProcessCollection` will have the same schedule time and cyclic
         property as self.
@@ -960,17 +973,21 @@ class ProcessCollection:
         coloring: Optional[Dict[Process, int]] = None,
     ) -> Set["ProcessCollection"]:
         """
-        Perform cell assignment of the processes in this collection using graph coloring.
+        Perform cell assignment of the processes in this collection using graph
+        coloring.
 
-        Two or more processes can share a single cell if, and only if, they have no overlaping time alive.
+        Two or more processes can share a single cell if, and only if, they have no
+        overlaping time alive.
 
         Parameters
         ----------
         coloring_strategy : str, default: "saturation_largest_first"
-            Graph coloring strategy passed to :func:`networkx.algorithms.coloring.greedy_color`.
+            Graph coloring strategy passed to
+            :func:`networkx.algorithms.coloring.greedy_color`.
         coloring : dictionary, optional
-            An optional graph coloring, dictionary with Process and its associated color (int).
-            If a graph coloring is not provided throught this parameter, one will be created when calling this method.
+            An optional graph coloring, dictionary with Process and its associated color
+            (int). If a graph coloring is not provided throught this parameter, one will
+            be created when calling this method.
 
         Returns
         -------
@@ -991,9 +1008,11 @@ class ProcessCollection:
 
     def left_edge_cell_assignment(self) -> Dict[int, "ProcessCollection"]:
         """
-        Perform cell assignment of the processes in this collection using the left-edge algorithm.
+        Perform cell assignment of the processes in this collection using the left-edge
+        algorithm.
 
-        Two or more processes can share a single cell if, and only if, they have no overlaping time alive.
+        Two or more processes can share a single cell if, and only if, they have no
+        overlaping time alive.
 
         Returns
         -------
