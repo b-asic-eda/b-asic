@@ -309,7 +309,15 @@ class OperationItem(QGraphicsItemGroup):
         menu.addAction(swap)
         swap.setEnabled(self._operation.is_swappable)
         swap.triggered.connect(self._swap_io)
+        execution_time_plot = QAction(
+            f"Show execution times for {self._operation.type_name()}"
+        )
+        menu.addAction(execution_time_plot)
+        execution_time_plot.triggered.connect(self._execution_time_plot)
         menu.exec_(self.cursor().pos())
 
     def _swap_io(self, event=None) -> None:
         self._parent._swap_io_of_operation(self._operation.graph_id)
+
+    def _execution_time_plot(self, event=None) -> None:
+        self._parent._execution_time_plot(self._operation.type_name())
