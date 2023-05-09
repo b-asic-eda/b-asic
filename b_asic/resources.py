@@ -550,8 +550,8 @@ class ProcessCollection:
                 else bar_start % self._schedule_time
             )
             bar_end = (
-                bar_end
-                if bar_end == self._schedule_time
+                self.schedule_time
+                if bar_end and bar_end % self._schedule_time == 0
                 else bar_end % self._schedule_time
             )
             if show_markers:
@@ -564,8 +564,8 @@ class ProcessCollection:
                 )
                 for end_time in process.read_times:
                     end_time = (
-                        end_time
-                        if end_time == self._schedule_time
+                        self.schedule_time
+                        if end_time and end_time % self.schedule_time == 0
                         else end_time % self._schedule_time
                     )
                     _ax.scatter(  # type: ignore
@@ -583,15 +583,19 @@ class ProcessCollection:
                     color=_WARNING_COLOR,
                 )
             elif process.execution_time == 0:
-                # Execution time zero, don't draw the bar
-                pass
+                # Execution time zero, draw a slim bar
+                _ax.broken_barh(  # type: ignore
+                    [(PAD_L + bar_start, bar_end - bar_start - PAD_L - PAD_R)],
+                    (bar_row + 0.55, 0.9),
+                    color=bar_color,
+                )
             elif bar_end > bar_start:
                 _ax.broken_barh(  # type: ignore
                     [(PAD_L + bar_start, bar_end - bar_start - PAD_L - PAD_R)],
                     (bar_row + 0.55, 0.9),
                     color=bar_color,
                 )
-            else:  # bar_end < bar_start
+            else:  # bar_end <= bar_start
                 _ax.broken_barh(  # type: ignore
                     [
                         (
@@ -1224,7 +1228,7 @@ class ProcessCollection:
         Forward-Backward Register Allocation [1].
 
         [1]: K. Parhi: VLSI Digital Signal Processing Systems: Design and
-            Implementation, Ch. 6.3.2
+             Implementation, Ch. 6.3.2
 
         Parameters
         ----------

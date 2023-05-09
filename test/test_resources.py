@@ -1,4 +1,3 @@
-import pickle
 import re
 
 import matplotlib.pyplot as plt
@@ -145,3 +144,57 @@ class TestProcessCollectionPlainMemoryVariable:
         simple_collection.remove_process(new_proc)
         assert len(simple_collection) == 7
         assert new_proc not in simple_collection
+
+    @pytest.mark.mpl_image_compare(style='mpl20')
+    def test_max_min_lifetime_bar_plot(self):
+        fig, ax = plt.subplots()
+        collection = ProcessCollection(
+            {
+                # Process starting exactly at scheudle start
+                PlainMemoryVariable(0, 0, {0: 0}, "S1"),
+                PlainMemoryVariable(0, 0, {0: 5}, "S2"),
+                # Process starting somewhere between schedule start and end
+                PlainMemoryVariable(2, 0, {0: 0}, "M1"),
+                PlainMemoryVariable(2, 0, {0: 5}, "M2"),
+                # Process starting at the schedule end
+                PlainMemoryVariable(5, 0, {0: 0}, "E1"),
+                PlainMemoryVariable(5, 0, {0: 5}, "E2"),
+            },
+            schedule_time=5,
+        )
+        collection.plot(ax)
+        return fig
+
+    def test_multiple_reads_exclusion_greaph(self):
+        # Initial collection
+        p0 = PlainMemoryVariable(0, 0, {0: 3}, 'P0')
+        p1 = PlainMemoryVariable(1, 0, {0: 2}, 'P1')
+        p2 = PlainMemoryVariable(2, 0, {0: 2}, 'P2')
+        p3 = PlainMemoryVariable(3, 0, {0: 3}, 'P3')
+        collection = ProcessCollection({p0, p1, p2, p3}, 5, cyclic=True)
+        exclusion_graph = collection.create_exclusion_graph_from_ports(
+            read_ports=1,
+            write_ports=1,
+            total_ports=1,
+        )
+        for p in [p0, p1, p2, p3]:
+            assert p in exclusion_graph
+        assert exclusion_graph.degree(p0) == 2
+        assert exclusion_graph.degree(p1) == 2
+        assert exclusion_graph.degree(p2) == 0
+        assert exclusion_graph.degree(p3) == 2
+
+        # Add multi-read process
+        p4 = PlainMemoryVariable(0, 0, {0: 1, 1: 2, 2: 3, 3: 4}, 'P4')
+        collection.add_process(p4)
+        exclusion_graph = collection.create_exclusion_graph_from_ports(
+            read_ports=1,
+            write_ports=1,
+            total_ports=1,
+        )
+        for p in [p0, p1, p2, p3, p4]:
+            assert p in exclusion_graph
+        assert exclusion_graph.degree(p0) == 3
+        assert exclusion_graph.degree(p1) == 3
+        assert exclusion_graph.degree(p2) == 1
+        assert exclusion_graph.degree(p3) == 3
