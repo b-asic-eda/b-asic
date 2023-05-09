@@ -26,14 +26,14 @@ def memory_based_storage(
 
     Parameters
     ----------
+    f : TextIOWrapper
+        File object (or other TextIOWrapper object) to write the architecture onto.
     assignment : dict
         A possible cell assignment to use when generating the memory based storage.
         The cell assignment is a dictionary int to ProcessCollection where the integer
         corresponds to the cell to assign all MemoryVariables in corresponding process
         collection.
         If unset, each MemoryVariable will be assigned to a unique cell.
-    f : TextIOWrapper
-        File object (or other TextIOWrapper object) to write the architecture onto.
     word_length : int
         Word length of the memory variable objects.
     read_ports : int

@@ -110,6 +110,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
             'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{{<in0> in0}|MEM0|{<out0>'
             ' out0}}"]\n}'
         )
+        assert memory.schedule_time == 18
         assert memory._digraph().source in (s, s + '\n')
 
     # Create architecture from
@@ -117,9 +118,12 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         processing_elements, memories, direct_interconnects=direct_conn
     )
 
+    assert architecture.schedule_time == 18
+
     # assert architecture._digraph().source == "foo"
     for pe in processing_elements:
         print(pe)
+        assert pe.schedule_time == 18
         for operation in pe._collection:
             operation = cast(OperatorProcess, operation)
             print(f'  {operation}')

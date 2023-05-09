@@ -2,6 +2,7 @@
 B-ASIC architecture classes.
 """
 from collections import defaultdict
+from io import TextIOWrapper
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union, cast
 
 from graphviz import Digraph
@@ -77,6 +78,37 @@ class HardwareBlock:
     def _digraph(self) -> Digraph:
         raise NotImplementedError()
 
+    @property
+    def schedule_time(self) -> int:
+        """The schedule time for hardware block"""
+        raise NotImplementedError()
+
+    def write_component_declaration(self, f: TextIOWrapper, indent: int = 1) -> None:
+        """
+        Write component declaration of hardware block.
+
+        Parameters
+        ----------
+        f : TextIOWrapper
+            File object (or other TextIOWrapper object) to write the declaration to.
+        indent : int, default: 1
+            Indentation level to use for this process.
+        """
+        raise NotImplementedError()
+
+    def write_component_instantiation(self, f: TextIOWrapper, indent: int = 1) -> None:
+        """
+        Write component instantiation of hardware block.
+
+        Parameters
+        ----------
+        f : TextIOWrapper
+            File object (or other TextIOWrapper object) to write the instantiation to.
+        indent : int, default: 1
+            Indentation level to use for this process.
+        """
+        raise NotImplementedError()
+
 
 class Resource(HardwareBlock):
     """
@@ -134,6 +166,11 @@ class Resource(HardwareBlock):
             outstrs = [f"<{outstr}> {outstr}" for outstr in outputs]
             ret += f"|{{{'|'.join(outstrs)}}}"
         return "{" + ret + "}"
+
+    @property
+    def schedule_time(self) -> int:
+        # doc-string inherited
+        return self._collection.schedule_time
 
 
 class ProcessingElement(Resource):
@@ -277,10 +314,24 @@ of :class:`~b_asic.architecture.ProcessingElement`
         self._operation_inport_to_resource: Dict[InputPort, Resource] = {}
         self._operation_outport_to_resource: Dict[OutputPort, Resource] = {}
 
+        self._schedule_time = self._check_and_get_schedule_time()
+
         # Validate input and output ports
         self.validate_ports()
 
         self._build_dicts()
+
+    def _check_and_get_schedule_time(self) -> int:
+        schedule_times = set()
+        for memory in self._memories:
+            schedule_times.add(memory.schedule_time)
+        for pe in self._processing_elements:
+            schedule_times.add(pe.schedule_time)
+        if self._direct_interconnects is not None:
+            schedule_times.add(self._direct_interconnects.schedule_time)
+        if len(schedule_times) != 1:
+            raise ValueError(f"Different schedule times: {schedule_times}")
+        return schedule_times.pop()
 
     def _build_dicts(self):
         for pe in self.processing_elements:
@@ -446,3 +497,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
     @property
     def direct_interconnects(self) -> Optional[ProcessCollection]:
         return self._direct_interconnects
+
+    @property
+    def schedule_time(self) -> int:
+        # doc-string inherited
+        return self._schedule_time
