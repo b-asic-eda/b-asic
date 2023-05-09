@@ -22,3 +22,8 @@ repos:
     rev: 0.0.11
     hooks:
     - id: velin
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    # Ruff version.
+    rev: "v0.0.265"
+    hooks:
+      - id: ruff
