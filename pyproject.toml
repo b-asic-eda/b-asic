@@ -76,3 +76,6 @@ ignore_missing_imports = true
 
 [tool.coverage.report]
 precision = 2
+
+[tool.ruff]
+ignore = ["F403"]

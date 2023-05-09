@@ -1620,8 +1620,9 @@ class SFG(AbstractOperation):
                         delay = Delay(name=op.name)
                         delay.graph_id = op.graph_id
 
-                        # Since we're adding a new operation instead of bypassing as in the
-                        # common case, we also need to hook up the inputs to the delay.
+                        # Since we're adding a new operation instead of bypassing as in
+                        # the common case, we also need to hook up the inputs to the
+                        # delay.
                         delay.inputs[0].connect(source_op_output)
 
                         new_source_op = delay
@@ -1633,7 +1634,8 @@ class SFG(AbstractOperation):
                     for out_signal in op.outputs[0].signals:
                         sink_port = out_signal.destination
                         if sink_port is None:
-                            # It would be weird if we found a signal that wasn't connected anywhere
+                            # It would be weird if we found a signal that wasn't
+                            # connected anywhere
                             raise ValueError("Dangling output port in sfg")
 
                         sink_op_idx = id_idx_map[sink_port.operation.graph_id]
@@ -1673,15 +1675,15 @@ class SFG(AbstractOperation):
 
         all_ops = [op for op_list in new_ops for op in op_list]
 
-        # To get the input order correct, we need to know the input order in the original
-        # sfg and which operations they correspond to
+        # To get the input order correct, we need to know the input order in the
+        # original sfg and which operations they correspond to
         input_ids = [op.graph_id for op in self.input_operations]
         output_ids = [op.graph_id for op in self.output_operations]
 
         # Re-order the inputs to the correct order. Internal order of the inputs should
-        # be preserved, i.e. for a graph with 2 inputs (in1, in2), in1 must occur before in2,
-        # but the "time" order should be reversed. I.e. the input from layer `factor-1` is the
-        # first input
+        # be preserved, i.e. for a graph with 2 inputs (in1, in2), in1 must occur before
+        # in2, but the "time" order should be reversed. I.e. the input from layer
+        # `factor-1` is the first input
         all_inputs = list(
             itertools.chain.from_iterable(
                 [

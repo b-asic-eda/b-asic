@@ -58,9 +58,10 @@ def _sanitize_port_option(
 
     Returns
     -------
-    Returns a triple int tuple (read_ports, write_ports, total_ports) equal to the input, or sanitized if one of the input equals None.
-    If total_ports is set to None at the input, it is set to read_ports+write_ports at the output.
-    If read_ports or write_ports is set to None at the input, it is set to total_ports at the output.
+    Returns a triple int tuple (read_ports, write_ports, total_ports) equal to the
+    input, or sanitized if one of the input equals None. If total_ports is set to None
+    at the input, it is set to read_ports+write_ports at the output. If read_ports or
+    write_ports is set to None at the input, it is set to total_ports at the output.
 
     """
     if total_ports is None:
@@ -1091,18 +1092,18 @@ class ProcessCollection:
             Word length of the memory variable objects.
         assignment : set
             A possible cell assignment to use when generating the memory based storage.
-            The cell assignment is a dictionary int to ProcessCollection where the integer
-            corresponds to the cell to assign all MemoryVariables in corresponding process
-            collection.
+            The cell assignment is a dictionary int to ProcessCollection where the
+            integer corresponds to the cell to assign all MemoryVariables in
+            corresponding process collection.
             If unset, each MemoryVariable will be assigned to a unique single cell.
         read_ports : int, default: 1
             The number of read ports used when splitting process collection based on
-            memory variable access. If total ports in unset, this parameter has to be set
-            and total_ports is assumed to be read_ports + write_ports.
+            memory variable access. If total ports in unset, this parameter has to be
+            set and total_ports is assumed to be read_ports + write_ports.
         write_ports : int, default: 1
             The number of write ports used when splitting process collection based on
-            memory variable access. If total ports is unset, this parameter has to be set
-            and total_ports is assumed to be read_ports + write_ports.
+            memory variable access. If total ports is unset, this parameter has to be
+            set and total_ports is assumed to be read_ports + write_ports.
         total_ports : int, default: 2
             The total number of ports used when splitting process collection based on
             memory variable access.
@@ -1219,9 +1220,11 @@ class ProcessCollection:
         total_ports: int = 2,
     ):
         """
-        Generate VHDL code for register based storages of processes based on Forward-Backward Register Allocation [1].
+        Generate VHDL code for register based storages of processes based on
+        Forward-Backward Register Allocation [1].
 
-        [1]: K. Parhi: VLSI Digital Signal Processing Systems: Design and Implementation, Ch. 6.3.2
+        [1]: K. Parhi: VLSI Digital Signal Processing Systems: Design and
+            Implementation, Ch. 6.3.2
 
         Parameters
         ----------
@@ -1233,12 +1236,12 @@ class ProcessCollection:
             Name used for the VHDL entity.
         read_ports : int, default: 1
             The number of read ports used when splitting process collection based on
-            memory variable access. If total ports in unset, this parameter has to be set
-            and total_ports is assumed to be read_ports + write_ports.
+            memory variable access. If total ports in unset, this parameter has to be
+            set and total_ports is assumed to be read_ports + write_ports.
         write_ports : int, default: 1
             The number of write ports used when splitting process collection based on
-            memory variable access. If total ports is unset, this parameter has to be set
-            and total_ports is assumed to be read_ports + write_ports.
+            memory variable access. If total ports is unset, this parameter has to be
+            set and total_ports is assumed to be read_ports + write_ports.
         total_ports : int, default: 2
             The total number of ports used when splitting process collection based on
             memory variable access.

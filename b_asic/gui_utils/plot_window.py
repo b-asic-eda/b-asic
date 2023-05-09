@@ -11,7 +11,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import (  # QFrame,; QScrollArea,; QLineEdit,; QSizePolicy,; QLabel,; QFileDialog,; QShortcut,
+from qtpy.QtWidgets import (
     QApplication,
     QCheckBox,
     QHBoxLayout,
@@ -35,7 +35,8 @@ class PlotWindow(QWidget):
     Parameters
     ----------
     sim_result : dict
-        Simulation results of the form obtained from :attr:`~b_asic.simulation.Simulation.results`.
+        Simulation results of the form obtained from
+        :attr:`~b_asic.simulation.Simulation.results`.
     sfg_name : str, optional
         The name of the SFG.
     parent : optional
@@ -161,9 +162,7 @@ class PlotWindow(QWidget):
             list_item = QListWidgetItem(key)
             listitems[key] = list_item
             self._checklist.addItem(list_item)
-            list_item.setCheckState(
-                Qt.CheckState.Unchecked  # CheckState: Qt.CheckState.{Unchecked, PartiallyChecked, Checked}
-            )
+            list_item.setCheckState(Qt.CheckState.Unchecked)
         for key in initially_checked:
             listitems[key].setCheckState(Qt.CheckState.Checked)
         # self._checklist.setFixedWidth(150)
@@ -201,13 +200,6 @@ class PlotWindow(QWidget):
             if check_state == Qt.CheckState.Checked:
                 self._legend = self._plot_axes.legend()
             self._plot_canvas.draw()
-
-    # def _ontop_checkbox_change(self, checkState):
-    # Bugg: It seems the window closes if you change the WindowStaysOnTopHint.
-    # (Nothing happens if "changing" from False to False or True to True)
-    # self.setWindowFlag(Qt.WindowStaysOnTopHint, on = (checkState == Qt.CheckState.Checked))
-    # self.setWindowFlag(Qt.WindowStaysOnTopHint, on = True)
-    # print("_ontop_checkbox_change")
 
     def _button_all_click(self, event):
         self._auto_redraw = False
@@ -253,7 +245,8 @@ def start_simulation_dialog(
     Parameters
     ----------
     sim_results : dict
-        Simulation results of the form obtained from :attr:`~b_asic.simulation.Simulation.results`.
+        Simulation results of the form obtained from
+        :attr:`~b_asic.simulation.Simulation.results`.
     sfg_name : str, optional
         The name of the SFG.
     """

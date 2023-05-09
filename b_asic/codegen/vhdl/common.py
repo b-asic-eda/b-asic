@@ -24,7 +24,7 @@ def b_asic_preamble(f: TextIOWrapper):
     try:
         process = Popen(['git', 'rev-parse', '--short', 'HEAD'], stdout=PIPE)
         git_commit_id = process.communicate()[0].decode('utf-8').strip()
-    except:
+    except:  # noqa: E722
         pass
     vhdl.write_lines(
         f,
