@@ -22,7 +22,7 @@ def memory_based_storage(
     input_sync: bool = True,
 ):
     """
-    Generate the VHDL architecture for a memory based architecture from a process collection of memory variables.
+    Generate the VHDL architecture for a memory-based storage architecture.
 
     Parameters
     ----------
@@ -44,8 +44,9 @@ def memory_based_storage(
         Total concurrent memory accesses possible.
     input_sync : bool, default: True
         Add registers to the input signals (enable signal and data input signals).
-        Adding registers to the inputs allow pipelining of address generation (which is added automatically).
-        For large interleavers, this can improve timing significantly.
+        Adding registers to the inputs allow pipelining of address generation (which
+        is added automatically). For large interleavers, this can improve timing
+        significantly.
     """
 
     # Code settings
@@ -230,7 +231,8 @@ def memory_based_storage(
                     f,
                     4,
                     'when'
-                    f' {(mv.start_time+read_time-int(not(input_sync))) % schedule_time} =>',
+                    f' {(mv.start_time+read_time-int(not(input_sync))) % schedule_time}'
+                    ' =>',
                 )
                 vhdl.write_lines(
                     f,

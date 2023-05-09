@@ -51,7 +51,8 @@ def ieee_header(
     numeric_std: bool = True,
 ):
     """
-    Write the standard IEEE VHDL use header with includes of std_logic_1164 and numeric_std.
+    Write the standard IEEE VHDL use header with includes of std_logic_1164 and
+    numeric_std.
 
     Parameters
     ----------
@@ -97,11 +98,13 @@ def signal_decl(
     name_pad : int, optional
         An optional left padding value applied to the name.
     vivado_ram_style : string, optional
-        An optional Xilinx Vivado RAM style attribute to apply to this signal delcaration.
-        If set, exactly one of: "block", "distributed", "registers", "ultra", "mixed" or "auto".
+        An optional Xilinx Vivado RAM style attribute to apply to this signal
+        declaration. If set, exactly one of: "block", "distributed", "registers",
+        "ultra", "mixed" or "auto".
     quartus_ram_style : string, optional
-        An optional Quartus Prime RAM style attribute to apply to this signal delcaration.
-        If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K", "MLAB" or "logic".
+        An optional Quartus Prime RAM style attribute to apply to this signal
+        declaration. If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K",
+        "MLAB" or "logic".
     """
     # Spacing of VHDL signals declaration always with a single tab
     name_pad = name_pad or 0
@@ -182,7 +185,7 @@ def process_prologue(
     name: Optional[str] = None,
 ):
     """
-    Write only the prologue of a regular VHDL process with a user provided sensitivity list.
+    Write the prologue of a regular VHDL process with a user provided sensitivity list.
 
     This method should almost always be followed by a :func:`process_epilogue`.
 
@@ -238,10 +241,12 @@ def synchronous_process_prologue(
     name: Optional[str] = None,
 ):
     """
-    Write only the prologue of a regular VHDL synchronous process with a single clock object in the sensitivity list
-    triggering a rising edge block by some body of VHDL code.
+    Write the prologue of a regular VHDL synchronous process with a single clock object.
 
-    This method should almost always be followed by a :func:`synchronous_process_epilogue`.
+    The clock is the only item in the sensitivity list and is triggering a rising edge
+    block by some body of VHDL code.
+
+    This method is almost always followed by a :func:`synchronous_process_epilogue`.
 
     Parameters
     ----------
@@ -265,8 +270,10 @@ def synchronous_process_epilogue(
     name: Optional[str] = None,
 ):
     """
-    Write only the epilogue of a regular VHDL synchronous process with a single clock object in the sensitivity list
-    triggering a rising edge block by some body of VHDL code.
+    Write only the epilogue of a regular VHDL synchronous process with a single clock.
+
+    The clock is the only item in the sensitivity list and is triggering a rising edge
+    block by some body of VHDL code.
 
     Parameters
     ----------
@@ -292,8 +299,10 @@ def synchronous_process(
     name: Optional[str] = None,
 ):
     """
-    Write a regular VHDL synchronous process with a single clock object in the sensitivity list triggering
-    a rising edge block by some body of VHDL code.
+    Write a regular VHDL synchronous process with a single clock.
+
+    The clock is the only item in the sensitivity list and is triggering a rising edge
+    block by some body of VHDL code.
 
     Parameters
     ----------

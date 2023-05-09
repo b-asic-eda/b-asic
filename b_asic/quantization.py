@@ -51,12 +51,13 @@ def quantize(
     Quantization happens before overflow, so, e.g., rounding may lead to an overflow.
 
     The total number of bits is *fractional_bits* + *integer_bits*. However, there is
-    no check that this will be a positive number. Note that the sign bit is included in these
-    bits. If *integer_bits* is not given, then use 1, i.e., the result is between
+    no check that this will be a positive number. Note that the sign bit is included in
+    these bits. If *integer_bits* is not given, then use 1, i.e., the result is between
 
     .. math::   -1 \leq \text{value} \leq 1-2^{-\text{fractional_bits}}
 
-    If *value* is a complex number, the real and imaginary parts are quantized separately.
+    If *value* is a complex number, the real and imaginary parts are quantized
+    separately.
 
     Parameters
     ----------

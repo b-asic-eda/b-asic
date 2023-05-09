@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from b_asic.GUI.drag_button import DragButton
     from b_asic.GUI.main_window import SFGMainWindow
     from b_asic.GUI.port_button import PortButton
+    from b_asic.operation import Operation
     from b_asic.port import InputPort, OutputPort
 
 

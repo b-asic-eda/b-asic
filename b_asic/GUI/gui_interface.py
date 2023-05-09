@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Originally generated from QT designer, but now manually maintained
 
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtWidgets
 
 
 class Ui_main_window(object):

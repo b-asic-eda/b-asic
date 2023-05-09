@@ -37,8 +37,8 @@ def _check_filenames(*filenames: str) -> None:
 
 def _check_qt_version() -> None:
     """
-    Check if PySide2, PyQt5, PySide6, or PyQt6 is installed, otherwise raise AssertionError
-    exception.
+    Check if PySide2, PyQt5, PySide6, or PyQt6 is installed, otherwise raise
+    AssertionError exception.
     """
     assert (
         uic.PYSIDE2 or uic.PYQT5 or uic.PYSIDE6 or uic.PYQT6

@@ -95,7 +95,9 @@ class Port(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Return a name consisting of *graph_id* of the related operation and the port number.
+        """
+        Return a name consisting of *graph_id* of the related operation and the port
+        number.
         """
 
 
