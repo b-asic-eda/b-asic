@@ -245,9 +245,11 @@ class Architecture(HardwareBlock):
 
     Parameters
     ----------
-    processing_elements : :class:`~b_asic.architecture.ProcessingElement` or iterable of :class:`~b_asic.architecture.ProcessingElement`
+    processing_elements : :class:`~b_asic.architecture.ProcessingElement` or iterable \
+of :class:`~b_asic.architecture.ProcessingElement`
         The processing elements in the architecture.
-    memories : :class:`~b_asic.architecture.Memory` or iterable of :class:`~b_asic.architecture.Memory`
+    memories : :class:`~b_asic.architecture.Memory` or iterable of \
+:class:`~b_asic.architecture.Memory`
         The memories in the architecture.
     entity_name : str, default: "arch"
         Name for the top-level entity.

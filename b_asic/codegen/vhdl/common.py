@@ -10,7 +10,7 @@ from typing import Any, Optional, Set, Tuple
 from b_asic.codegen import vhdl
 
 
-def write_b_asic_vhdl_preamble(f: TextIOWrapper):
+def b_asic_preamble(f: TextIOWrapper):
     """
     Write a standard BASIC VHDL preamble comment.
 
@@ -45,7 +45,7 @@ def write_b_asic_vhdl_preamble(f: TextIOWrapper):
     )
 
 
-def write_ieee_header(
+def ieee_header(
     f: TextIOWrapper,
     std_logic_1164: bool = True,
     numeric_std: bool = True,
@@ -70,10 +70,10 @@ def write_ieee_header(
     vhdl.write(f, 0, '')
 
 
-def write_signal_decl(
+def signal_decl(
     f: TextIOWrapper,
     name: str,
-    type: str,
+    signal_type: str,
     default_value: Optional[str] = None,
     name_pad: Optional[int] = None,
     vivado_ram_style: Optional[str] = None,
@@ -90,7 +90,7 @@ def write_signal_decl(
         The TextIOWrapper object to write the IEEE header to.
     name : str
         Signal name.
-    type : str
+    signal_type : str
         Signal type.
     default_value : string, optional
         An optional default value to the signal.
@@ -105,7 +105,7 @@ def write_signal_decl(
     """
     # Spacing of VHDL signals declaration always with a single tab
     name_pad = name_pad or 0
-    vhdl.write(f, 1, f'signal {name:<{name_pad}} : {type}', end='')
+    vhdl.write(f, 1, f'signal {name:<{name_pad}} : {signal_type}', end='')
     if default_value is not None:
         vhdl.write(f, 0, f' := {default_value}', end='')
     vhdl.write(f, 0, ';')
@@ -127,10 +127,10 @@ def write_signal_decl(
         )
 
 
-def write_constant_decl(
+def constant_declaration(
     f: TextIOWrapper,
     name: str,
-    type: str,
+    signal_type: str,
     value: Any,
     name_pad: Optional[int] = None,
     type_pad: Optional[int] = None,
@@ -144,7 +144,7 @@ def write_constant_decl(
         The TextIOWrapper object to write the constant declaration to.
     name : str
         Signal name.
-    type : str
+    signal_type : str
         Signal type.
     value : anything convertable to str
         Default value to the signal.
@@ -152,10 +152,10 @@ def write_constant_decl(
         An optional left padding value applied to the name.
     """
     name_pad = 0 if name_pad is None else name_pad
-    vhdl.write(f, 1, f'constant {name:<{name_pad}} : {type} := {str(value)};')
+    vhdl.write(f, 1, f'constant {name:<{name_pad}} : {signal_type} := {str(value)};')
 
 
-def write_type_decl(
+def type_declaration(
     f: TextIOWrapper,
     name: str,
     alias: str,
@@ -175,7 +175,7 @@ def write_type_decl(
     vhdl.write(f, 1, f'type {name} is {alias};')
 
 
-def write_process_prologue(
+def process_prologue(
     f: TextIOWrapper,
     sensitivity_list: str,
     indent: int = 1,
@@ -183,7 +183,8 @@ def write_process_prologue(
 ):
     """
     Write only the prologue of a regular VHDL process with a user provided sensitivity list.
-    This method should almost always guarantely be followed by a write_process_epilogue.
+
+    This method should almost always be followed by a :func:`process_epilogue`.
 
     Parameters
     ----------
@@ -203,7 +204,7 @@ def write_process_prologue(
     vhdl.write(f, indent, 'begin')
 
 
-def write_process_epilogue(
+def process_epilogue(
     f: TextIOWrapper,
     sensitivity_list: Optional[str] = None,
     indent: int = 1,
@@ -215,7 +216,7 @@ def write_process_epilogue(
     f : :class:`io.TextIOWrapper`
         The TextIOWrapper object to write the type declaration to.
     sensitivity_list : str
-        Content of the process sensitivity list. Not needed when writing the epligoue.
+        Content of the process sensitivity list. Not needed when writing the epilogue.
     indent : int, default: 1
         Indentation level to use for this process.
     indent : int, default: 1
@@ -230,7 +231,7 @@ def write_process_epilogue(
     vhdl.write(f, 0, ';')
 
 
-def write_synchronous_process_prologue(
+def synchronous_process_prologue(
     f: TextIOWrapper,
     clk: str,
     indent: int = 1,
@@ -239,7 +240,8 @@ def write_synchronous_process_prologue(
     """
     Write only the prologue of a regular VHDL synchronous process with a single clock object in the sensitivity list
     triggering a rising edge block by some body of VHDL code.
-    This method should almost always guarantely be followed by a write_synchronous_process_epilogue.
+
+    This method should almost always be followed by a :func:`synchronous_process_epilogue`.
 
     Parameters
     ----------
@@ -252,11 +254,11 @@ def write_synchronous_process_prologue(
     name : Optional[str]
         An optional name for the process.
     """
-    write_process_prologue(f, sensitivity_list=clk, indent=indent, name=name)
+    process_prologue(f, sensitivity_list=clk, indent=indent, name=name)
     vhdl.write(f, indent + 1, 'if rising_edge(clk) then')
 
 
-def write_synchronous_process_epilogue(
+def synchronous_process_epilogue(
     f: TextIOWrapper,
     clk: Optional[str],
     indent: int = 1,
@@ -265,7 +267,6 @@ def write_synchronous_process_epilogue(
     """
     Write only the epilogue of a regular VHDL synchronous process with a single clock object in the sensitivity list
     triggering a rising edge block by some body of VHDL code.
-    This method should almost always guarantely be followed by a write_synchronous_process_epilogue.
 
     Parameters
     ----------
@@ -280,10 +281,10 @@ def write_synchronous_process_epilogue(
     """
     _ = clk
     vhdl.write(f, indent + 1, 'end if;')
-    write_process_epilogue(f, sensitivity_list=clk, indent=indent, name=name)
+    process_epilogue(f, sensitivity_list=clk, indent=indent, name=name)
 
 
-def write_synchronous_process(
+def synchronous_process(
     f: TextIOWrapper,
     clk: str,
     body: str,
@@ -307,14 +308,14 @@ def write_synchronous_process(
     name : Optional[str]
         An optional name for the process
     """
-    write_synchronous_process_prologue(f, clk, indent, name)
+    synchronous_process_prologue(f, clk, indent, name)
     for line in body.split('\n'):
         if len(line):
             vhdl.write(f, indent + 2, f'{line}')
-    write_synchronous_process_epilogue(f, clk, indent, name)
+    synchronous_process_epilogue(f, clk, indent, name)
 
 
-def write_synchronous_memory(
+def synchronous_memory(
     f: TextIOWrapper,
     clk: str,
     read_ports: Set[Tuple[str, str, str]],
@@ -339,7 +340,7 @@ def write_synchronous_memory(
     """
     assert len(read_ports) >= 1
     assert len(write_ports) >= 1
-    write_synchronous_process_prologue(f, clk=clk, name=name)
+    synchronous_process_prologue(f, clk=clk, name=name)
     for read_name, address, re in read_ports:
         vhdl.write_lines(
             f,
@@ -358,10 +359,10 @@ def write_synchronous_memory(
                 (3, 'end if;'),
             ],
         )
-    write_synchronous_process_epilogue(f, clk=clk, name=name)
+    synchronous_process_epilogue(f, clk=clk, name=name)
 
 
-def write_asynchronous_read_memory(
+def asynchronous_read_memory(
     f: TextIOWrapper,
     clk: str,
     read_ports: Set[Tuple[str, str, str]],
@@ -386,7 +387,7 @@ def write_asynchronous_read_memory(
     """
     assert len(read_ports) >= 1
     assert len(write_ports) >= 1
-    write_synchronous_process_prologue(f, clk=clk, name=name)
+    synchronous_process_prologue(f, clk=clk, name=name)
     for write_name, address, we in write_ports:
         vhdl.write_lines(
             f,
@@ -396,6 +397,6 @@ def write_asynchronous_read_memory(
                 (3, 'end if;'),
             ],
         )
-    write_synchronous_process_epilogue(f, clk=clk, name=name)
+    synchronous_process_epilogue(f, clk=clk, name=name)
     for read_name, address, _ in read_ports:
         vhdl.write(f, 1, f'{read_name} <= memory({address});')

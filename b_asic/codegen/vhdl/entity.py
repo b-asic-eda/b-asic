@@ -11,7 +11,7 @@ from b_asic.process import MemoryVariable, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 
 
-def write_memory_based_storage(
+def memory_based_storage(
     f: TextIOWrapper, entity_name: str, collection: ProcessCollection, word_length: int
 ):
     # Check that this is a ProcessCollection of (Plain)MemoryVariables
@@ -77,7 +77,7 @@ def write_memory_based_storage(
     f.write(f'end entity {entity_name};\n\n')
 
 
-def write_register_based_storage(
+def register_based_storage(
     f: TextIOWrapper, entity_name: str, collection: ProcessCollection, word_length: int
 ):
-    write_memory_based_storage(f, entity_name, collection, word_length)
+    memory_based_storage(f, entity_name, collection, word_length)

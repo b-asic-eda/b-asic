@@ -1002,7 +1002,7 @@ class ProcessCollection:
         coloring_strategy : str, default: "saturation_largest_first"
             Graph coloring strategy passed to
             :func:`networkx.algorithms.coloring.greedy_color`.
-        coloring : dictionary, optional
+        coloring : dict, optional
             An optional graph coloring, dictionary with Process and its associated color
             (int). If a graph coloring is not provided throught this parameter, one will
             be created when calling this method.
@@ -1049,8 +1049,9 @@ class ProcessCollection:
                     if (
                         next_process.start_time
                         < process.start_time + process.execution_time
-                        or next_process_stop_time < next_process.start_time
-                        and next_process_stop_time > process.start_time
+                        or next_process.start_time
+                        > next_process_stop_time
+                        > process.start_time
                     ):
                         insert_to_this_cell = False
                         break
@@ -1107,8 +1108,9 @@ class ProcessCollection:
             memory variable access.
         input_sync : bool, default: True
             Add registers to the input signals (enable signal and data input signals).
-            Adding registers to the inputs allow pipelining of address generation (which is added automatically).
-            For large interleavers, this can improve timing significantly.
+            Adding registers to the inputs allow pipelining of address generation
+            (which is added automatically). For large interleavers, this can improve
+            timing significantly.
         """
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
         is_memory_variable = all(
@@ -1163,12 +1165,12 @@ class ProcessCollection:
         with open(filename, 'w') as f:
             from b_asic.codegen.vhdl import architecture, common, entity
 
-            common.write_b_asic_vhdl_preamble(f)
-            common.write_ieee_header(f)
-            entity.write_memory_based_storage(
+            common.b_asic_preamble(f)
+            common.ieee_header(f)
+            entity.memory_based_storage(
                 f, entity_name=entity_name, collection=self, word_length=word_length
             )
-            architecture.write_memory_based_storage(
+            architecture.memory_based_storage(
                 f,
                 assignment=assignment,
                 entity_name=entity_name,
@@ -1265,12 +1267,12 @@ class ProcessCollection:
         with open(filename, 'w') as f:
             from b_asic.codegen import vhdl
 
-            vhdl.common.write_b_asic_vhdl_preamble(f)
-            vhdl.common.write_ieee_header(f)
-            vhdl.entity.write_register_based_storage(
+            vhdl.common.b_asic_preamble(f)
+            vhdl.common.ieee_header(f)
+            vhdl.entity.register_based_storage(
                 f, entity_name=entity_name, collection=self, word_length=word_length
             )
-            vhdl.architecture.write_register_based_storage(
+            vhdl.architecture.register_based_storage(
                 f,
                 forward_backward_table=forward_backward_table,
                 entity_name=entity_name,
