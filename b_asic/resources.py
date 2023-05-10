@@ -10,6 +10,7 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
 
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
+from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
 from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable, Process
 from b_asic.types import TypeName
 
@@ -818,7 +819,7 @@ class ProcessCollection:
         self,
         heuristic: str = "graph_color",
         coloring_strategy: str = "saturation_largest_first",
-    ) -> Set["ProcessCollection"]:
+    ) -> List["ProcessCollection"]:
         """
         Split a ProcessCollection based on overlapping execution time.
 
@@ -843,7 +844,7 @@ class ProcessCollection:
 
         Returns
         -------
-        A set of new ProcessCollection objects with the process splitting.
+        A list of new ProcessCollection objects with the process splitting.
         """
         if heuristic == "graph_color":
             exclusion_graph = self.create_exclusion_graph_from_execution_time()
@@ -862,7 +863,7 @@ class ProcessCollection:
         read_ports: Optional[int] = None,
         write_ports: Optional[int] = None,
         total_ports: Optional[int] = None,
-    ) -> Set["ProcessCollection"]:
+    ) -> List["ProcessCollection"]:
         """
         Split this process storage based on concurrent read/write times according.
 
@@ -907,7 +908,7 @@ class ProcessCollection:
         write_ports: int,
         total_ports: int,
         coloring_strategy: str = "saturation_largest_first",
-    ) -> Set["ProcessCollection"]:
+    ) -> List["ProcessCollection"]:
         """
         Parameters
         ----------
@@ -944,7 +945,7 @@ class ProcessCollection:
     def _split_from_graph_coloring(
         self,
         coloring: Dict[Process, int],
-    ) -> Set["ProcessCollection"]:
+    ) -> List["ProcessCollection"]:
         """
         Split :class:`Process` objects into a set of :class:`ProcessesCollection`
         objects based on a provided graph coloring.
@@ -964,10 +965,10 @@ class ProcessCollection:
         process_collection_set_list = [set() for _ in range(max(coloring.values()) + 1)]
         for process, color in coloring.items():
             process_collection_set_list[color].add(process)
-        return {
+        return [
             ProcessCollection(process_collection_set, self._schedule_time, self._cyclic)
             for process_collection_set in process_collection_set_list
-        }
+        ]
 
     def _repr_svg_(self) -> str:
         """
@@ -1076,7 +1077,7 @@ class ProcessCollection:
         filename: str,
         entity_name: str,
         word_length: int,
-        assignment: Set['ProcessCollection'],
+        assignment: List['ProcessCollection'],
         read_ports: int = 1,
         write_ports: int = 1,
         total_ports: int = 2,
@@ -1116,6 +1117,10 @@ class ProcessCollection:
             (which is added automatically). For large interleavers, this can improve
             timing significantly.
         """
+        # Check that entity name is a valid VHDL identifier
+        if not is_valid_vhdl_identifier(entity_name):
+            raise KeyError(f'{entity_name} is not a valid identifier')
+
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
         is_memory_variable = all(
             isinstance(process, MemoryVariable) for process in self._collection
@@ -1249,6 +1254,10 @@ class ProcessCollection:
             The total number of ports used when splitting process collection based on
             memory variable access.
         """
+        # Check that entity name is a valid VHDL identifier
+        if not is_valid_vhdl_identifier(entity_name):
+            raise KeyError(f'{entity_name} is not a valid identifier')
+
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
         is_memory_variable = all(
             isinstance(process, MemoryVariable) for process in self._collection

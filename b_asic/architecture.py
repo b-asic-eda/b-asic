@@ -8,6 +8,7 @@ from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union, 
 import matplotlib.pyplot as plt
 from graphviz import Digraph
 
+from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
@@ -42,10 +43,8 @@ class HardwareBlock:
         entity_name : str
             The entity name.
         """
-        # Should be a better check.
-        # See https://stackoverflow.com/questions/7959587/regex-for-vhdl-identifier
-        if " " in entity_name:
-            raise ValueError("Cannot have space in entity name")
+        if not is_valid_vhdl_identifier(entity_name):
+            raise ValueError(f'{entity_name} is not a valid VHDL indentifier')
         self._entity_name = entity_name
 
     def write_code(self, path: str) -> None:
@@ -57,7 +56,7 @@ class HardwareBlock:
         path : str
             Directory to write code in.
         """
-        if not self._entity_name:
+        if not self.entity_name:
             raise ValueError("Entity name must be set")
         raise NotImplementedError
 

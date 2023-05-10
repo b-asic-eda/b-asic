@@ -64,8 +64,8 @@ outputs.show(title="Output executions")
 
 p1 = ProcessingElement(adders, entity_name="adder")
 p2 = ProcessingElement(mults, entity_name="cmul")
-p_in = ProcessingElement(inputs, entity_name='in')
-p_out = ProcessingElement(outputs, entity_name='out')
+p_in = ProcessingElement(inputs, entity_name='input')
+p_out = ProcessingElement(outputs, entity_name='output')
 
 # %%
 # Extract memory variables

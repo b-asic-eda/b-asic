@@ -2,6 +2,7 @@
 Generation of common VHDL constructs
 """
 
+import re
 from datetime import datetime
 from io import TextIOWrapper
 from subprocess import PIPE, Popen
@@ -350,11 +351,11 @@ def synchronous_memory(
     assert len(read_ports) >= 1
     assert len(write_ports) >= 1
     synchronous_process_prologue(f, clk=clk, name=name)
-    for read_name, address, re in read_ports:
+    for read_name, address, read_enable in read_ports:
         vhdl.write_lines(
             f,
             [
-                (3, f'if {re} = \'1\' then'),
+                (3, f'if {read_enable} = \'1\' then'),
                 (4, f'{read_name} <= memory({address});'),
                 (3, 'end if;'),
             ],
@@ -409,3 +410,165 @@ def asynchronous_read_memory(
     synchronous_process_epilogue(f, clk=clk, name=name)
     for read_name, address, _ in read_ports:
         vhdl.write(f, 1, f'{read_name} <= memory({address});')
+
+
+def is_valid_vhdl_identifier(identifier: str) -> bool:
+    """
+    Test if identifier is a valid VHDL identifier, as specified by VHDL 2019.
+
+    An indentifier is a valid VHDL identifier if it is not a VHDL reserved keyword and
+    it is a valid basic identifier as specified by IEEE STD 1076-2019 (VHDL standard).
+
+    Parameters
+    ----------
+    identifier : str
+        The identifier to test.
+
+    Returns
+    -------
+    Returns True if identifier is a valid VHDL identifier, False otherwise.
+    """
+    # IEEE STD 1076-2019:
+    # Sec. 15.4.2, Basic identifiers:
+    # * A basic identifier consists only of letters, digits, and underlines.
+    # * A basic identifier is not a reserved VHDL keyword
+    is_basic_identifier = (
+        re.fullmatch(pattern=r'[a-zA-Z][0-9a-zA-Z_]*', string=identifier) is not None
+    )
+    return is_basic_identifier and not is_vhdl_reserved_keyword(identifier)
+
+
+def is_vhdl_reserved_keyword(identifier: str) -> bool:
+    """
+    Test if identifier is a reserved VHDL keyword.
+
+    Parameters
+    ----------
+    identifier : str
+        The identifier to test.
+
+    Returns
+    -------
+    Returns True if identifier is reserved, False otherwise.
+    """
+    # List of reserved keyword in IEEE STD 1076-2019.
+    # Sec. 15.10, Reserved words:
+    reserved_keywords = (
+        "abs",
+        "access",
+        "after",
+        "alias",
+        "all",
+        "and",
+        "architecture",
+        "array",
+        "assert",
+        "assume",
+        "attribute",
+        "begin",
+        "block",
+        "body",
+        "buffer",
+        "bus",
+        "case",
+        "component",
+        "configuration",
+        "constant",
+        "context",
+        "cover",
+        "default",
+        "disconnect",
+        "downto",
+        "else",
+        "elsif",
+        "end",
+        "entity",
+        "exit",
+        "fairness",
+        "file",
+        "for",
+        "force",
+        "function",
+        "generate",
+        "generic",
+        "group",
+        "guarded",
+        "if",
+        "impure",
+        "in",
+        "inertial",
+        "inout",
+        "is",
+        "label",
+        "library",
+        "linkage",
+        "literal",
+        "loop",
+        "map",
+        "mod",
+        "nand",
+        "new",
+        "next",
+        "nor",
+        "not",
+        "null",
+        "of",
+        "on",
+        "open",
+        "or",
+        "others",
+        "out",
+        "package",
+        "parameter",
+        "port",
+        "postponed",
+        "procedure",
+        "process",
+        "property",
+        "protected",
+        "private",
+        "pure",
+        "range",
+        "record",
+        "register",
+        "reject",
+        "release",
+        "rem",
+        "report",
+        "restrict",
+        "return",
+        "rol",
+        "ror",
+        "select",
+        "sequence",
+        "severity",
+        "signal",
+        "shared",
+        "sla",
+        "sll",
+        "sra",
+        "srl",
+        "strong",
+        "subtype",
+        "then",
+        "to",
+        "transport",
+        "type",
+        "unaffected",
+        "units",
+        "until",
+        "use",
+        "variable",
+        "view",
+        "vpkg",
+        "vmode",
+        "vprop",
+        "vunit",
+        "wait",
+        "when",
+        "while",
+        "with",
+        "xnor",
+        "xor",
+    )
+    return identifier.lower() in reserved_keywords
