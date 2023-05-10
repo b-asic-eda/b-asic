@@ -8,6 +8,7 @@ from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union, 
 import matplotlib.pyplot as plt
 from graphviz import Digraph
 
+from b_asic.mpl_utils import FigureWrapper
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
@@ -174,18 +175,33 @@ class Resource(HardwareBlock):
         # doc-string inherited
         return self._collection.schedule_time
 
-    def show_content(self):
+    def plot_content(self, ax: plt.Axes) -> None:
         if not self.is_assigned:
-            self._collection.show()
+            self._collection.plot(ax)
         else:
-            fig, ax = plt.subplots()
             for i, pc in enumerate(self._assignment):  # type: ignore
                 pc.plot(ax=ax, row=i)
-            fig.show()  # type: ignore
+
+    def show_content(self):
+        fig, ax = plt.subplots()
+        self.plot_content(ax)
+        fig.show()  # type: ignore
 
     @property
     def is_assigned(self) -> bool:
         return self._assignment is not None
+
+    @property
+    def content(self) -> FigureWrapper:
+        """
+        Return a graphical representation of the content.
+
+        This is visible in enriched shells, but the object in itself has no further
+        meaning.
+        """
+        fig, ax = plt.subplots()
+        self.plot_content(ax)
+        return FigureWrapper(fig)
 
 
 class ProcessingElement(Resource):
