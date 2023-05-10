@@ -54,6 +54,7 @@ To generate the documentation, the following additional packages are required:
     -   [Sphinx-Gallery](https://sphinx-gallery.github.io/)
     -   [mplsignal](https://mplsignal.readthedocs.io/)
     -   [jupyters-sphinx](https://jupyter-sphinx.readthedocs.io/)
+    -   [qtgallery](https://github.com/ixjlyons/qtgallery)
 
 ### Using setuptools to create a package
 

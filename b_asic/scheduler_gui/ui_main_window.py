@@ -186,6 +186,7 @@ class Ui_MainWindow(object):
         self.menu_save_as.setObjectName("menu_save_as")
         self.menu_exit_dialog = QtWidgets.QAction(MainWindow)
         self.menu_exit_dialog.setCheckable(True)
+        self.menu_exit_dialog.setChecked(True)
         icon = QtGui.QIcon.fromTheme("view-close")
         self.menu_exit_dialog.setIcon(icon)
         self.menu_exit_dialog.setObjectName("menu_exit_dialog")

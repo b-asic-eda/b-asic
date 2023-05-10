@@ -577,7 +577,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         'hide_exit_dialog' in settings.
         """
         settings = QSettings()
-        hide_dialog = settings.value("scheduler/hide_exit_dialog", False, bool)
+        hide_dialog = settings.value("scheduler/hide_exit_dialog", True, bool)
         ret = QMessageBox.StandardButton.Yes
 
         if not hide_dialog:

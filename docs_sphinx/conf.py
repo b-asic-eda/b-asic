@@ -5,7 +5,10 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+
 import shutil
+
+import qtgallery
 
 project = 'B-ASIC'
 copyright = '2020-2023, Oscar Gustafsson et al'
@@ -25,6 +28,7 @@ extensions = [
     'sphinx_gallery.gen_gallery',
     'numpydoc',  # Needs to be loaded *after* autodoc.
     'jupyter_sphinx',
+    'qtgallery',
 ]
 
 templates_path = ['_templates']
@@ -66,4 +70,19 @@ sphinx_gallery_conf = {
     'filename_pattern': '.',
     'doc_module': ('b_asic',),
     'reference_url': {'b_asic': None},
+    'image_scrapers': (
+        'matplotlib',
+        qtgallery.qtscraper,
+    ),
+    'reset_modules': (
+        'matplotlib',
+        qtgallery.reset_qapp,
+    ),
+}
+
+qtgallery_conf = {
+    "xvfb_size": (640, 480),
+    "xvfb_color_depth": 24,
+    "xfvb_use_xauth": False,
+    "xfvb_extra_args": [],
 }
