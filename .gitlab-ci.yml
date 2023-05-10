@@ -138,6 +138,7 @@ pages:
   stage: deploy
   image: python:3.10
   script:
+    - apt-get install --yes optipng
     - pip install -r requirements_doc.txt
     - sphinx-build -b html docs_sphinx public
   artifacts:
