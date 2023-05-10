@@ -8,7 +8,6 @@ from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union, 
 import matplotlib.pyplot as plt
 from graphviz import Digraph
 
-from b_asic.mpl_utils import FigureWrapper
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
@@ -192,16 +191,16 @@ class Resource(HardwareBlock):
         return self._assignment is not None
 
     @property
-    def content(self) -> FigureWrapper:
+    def content(self) -> plt.Figure:
         """
         Return a graphical representation of the content.
 
-        This is visible in enriched shells, but the object in itself has no further
-        meaning.
+        This is visible in enriched shells, but the object itself has no further
+        meaning (it is a Matplotlib Figure).
         """
         fig, ax = plt.subplots()
         self.plot_content(ax)
-        return FigureWrapper(fig)
+        return fig
 
 
 class ProcessingElement(Resource):
