@@ -223,6 +223,10 @@ class SchedulerEvent:  # PyQt5
                 math.ceil(pos_y),
                 (pos_y % 1) != 0,
             )
+            print(
+                f"schedule.move_y_location({item.operation.graph_id!r},"
+                f" {math.ceil(pos_y)}, {(pos_y % 1) != 0})"
+            )
             self._signals.redraw_all.emit()
         # Operation has been moved in x-direction
         if redraw:

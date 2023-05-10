@@ -35,6 +35,7 @@ from b_asic.process import MemoryVariable, OperatorProcess
 from b_asic.resources import ProcessCollection
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.types import TypeName
 
 # Need RGB from 0 to 1
 _EXECUTION_TIME_COLOR = tuple(c / 255 for c in EXECUTION_TIME_COLOR)
@@ -557,7 +558,6 @@ class Schedule:
         time : int
             The time to move. If positive move forward, if negative move backward.
         """
-        print(f"schedule.move_operation({graph_id!r}, {time})")
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
 
@@ -781,6 +781,10 @@ class Schedule:
             self.schedule_time,
             self.cyclic,
         )
+
+    def get_used_type_names(self) -> List[TypeName]:
+        """Get a list of all TypeNames used in the Schedule."""
+        return self._sfg.get_used_type_names()
 
     def _get_y_position(
         self, graph_id, operation_height=1.0, operation_gap=None

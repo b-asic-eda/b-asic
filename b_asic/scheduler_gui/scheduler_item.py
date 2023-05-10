@@ -227,6 +227,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         move_time = new_start_time - op_start_time
         if move_time:
             self.schedule.move_operation(item.graph_id, move_time)
+            print(f"schedule.move_operation({item.graph_id!r}, {move_time})")
 
     def is_valid_delta_time(self, delta_time: int) -> bool:
         """

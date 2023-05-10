@@ -1716,3 +1716,9 @@ class SFG(AbstractOperation):
     @property
     def is_constant(self) -> bool:
         return all(output.is_constant for output in self._output_operations)
+
+    def get_used_type_names(self) -> List[TypeName]:
+        """Get a list of all TypeNames used in the SFG."""
+        ret = list({op.type_name() for op in self.operations})
+        ret.sort()
+        return ret

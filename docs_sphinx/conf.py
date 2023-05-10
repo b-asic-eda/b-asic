@@ -71,17 +71,17 @@ sphinx_gallery_conf = {
     'doc_module': ('b_asic',),
     'reference_url': {'b_asic': None},
     'image_scrapers': (
-        'matplotlib',
         qtgallery.qtscraper,
+        'matplotlib',
     ),
     'reset_modules': (
-        'matplotlib',
         qtgallery.reset_qapp,
+        'matplotlib',
     ),
 }
 
 qtgallery_conf = {
-    "xvfb_size": (640, 480),
+    "xvfb_size": (800, 600),
     "xvfb_color_depth": 24,
     "xfvb_use_xauth": False,
     "xfvb_extra_args": [],

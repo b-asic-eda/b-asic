@@ -83,7 +83,8 @@ class TestPrintSfg:
             sfg.__str__()
             == "id: no_id, \tname: SFG1, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
             + "Internal Operations:\n"
-            + "----------------------------------------------------------------------------------------------------\n"
+            + "--------------------------------------------------------------------"
+            + "--------------------------------\n"
             + str(sfg.find_by_name("INP1")[0])
             + "\n"
             + str(sfg.find_by_name("INP2")[0])
@@ -92,7 +93,8 @@ class TestPrintSfg:
             + "\n"
             + str(sfg.find_by_name("OUT1")[0])
             + "\n"
-            + "----------------------------------------------------------------------------------------------------\n"
+            + "--------------------------------------------------------------------"
+            + "--------------------------------\n"
         )
 
     def test_add_mul(self):
@@ -108,7 +110,8 @@ class TestPrintSfg:
             sfg.__str__()
             == "id: no_id, \tname: mac_sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
             + "Internal Operations:\n"
-            + "----------------------------------------------------------------------------------------------------\n"
+            + "--------------------------------------------------------------------"
+            + "--------------------------------\n"
             + str(sfg.find_by_name("INP1")[0])
             + "\n"
             + str(sfg.find_by_name("INP2")[0])
@@ -121,7 +124,8 @@ class TestPrintSfg:
             + "\n"
             + str(sfg.find_by_name("OUT1")[0])
             + "\n"
-            + "----------------------------------------------------------------------------------------------------\n"
+            + "--------------------------------------------------------------------"
+            + "--------------------------------\n"
         )
 
     def test_constant(self):
@@ -136,7 +140,8 @@ class TestPrintSfg:
             sfg.__str__()
             == "id: no_id, \tname: sfg, \tinputs: {0: '-'}, \toutputs: {0: '-'}\n"
             + "Internal Operations:\n"
-            + "----------------------------------------------------------------------------------------------------\n"
+            + "--------------------------------------------------------------------"
+            + "--------------------------------\n"
             + str(sfg.find_by_name("CONST")[0])
             + "\n"
             + str(sfg.find_by_name("INP1")[0])
@@ -145,7 +150,8 @@ class TestPrintSfg:
             + "\n"
             + str(sfg.find_by_name("OUT1")[0])
             + "\n"
-            + "----------------------------------------------------------------------------------------------------\n"
+            + "--------------------------------------------------------------------"
+            + "--------------------------------\n"
         )
 
     def test_simple_filter(self, sfg_simple_filter):
@@ -154,7 +160,8 @@ class TestPrintSfg:
             == "id: no_id, \tname: simple_filter, \tinputs: {0: '-'},"
             " \toutputs: {0: '-'}\n"
             + "Internal Operations:\n"
-            + "----------------------------------------------------------------------------------------------------\n"
+            + "--------------------------------------------------------------------"
+            + "--------------------------------\n"
             + str(sfg_simple_filter.find_by_name("IN1")[0])
             + "\n"
             + str(sfg_simple_filter.find_by_name("ADD1")[0])
@@ -165,7 +172,8 @@ class TestPrintSfg:
             + "\n"
             + str(sfg_simple_filter.find_by_name("OUT1")[0])
             + "\n"
-            + "----------------------------------------------------------------------------------------------------\n"
+            + "--------------------------------------------------------------------"
+            + "--------------------------------\n"
         )
 
 
@@ -818,7 +826,8 @@ class TestConnectExternalSignalsToComponentsSoloComp:
     def test_connect_external_signals_to_components_operation_tree(
         self, operation_tree
     ):
-        """Replaces an SFG with only a operation_tree component with its inner components
+        """
+        Replaces an SFG with only a operation_tree component with its inner components
         """
         sfg1 = SFG(outputs=[Output(operation_tree)])
         out1 = Output(None, "OUT1")
@@ -832,7 +841,9 @@ class TestConnectExternalSignalsToComponentsSoloComp:
     def test_connect_external_signals_to_components_large_operation_tree(
         self, large_operation_tree
     ):
-        """Replaces an SFG with only a large_operation_tree component with its inner components
+        """
+        Replaces an SFG with only a large_operation_tree component with its inner
+        components
         """
         sfg1 = SFG(outputs=[Output(large_operation_tree)])
         out1 = Output(None, "OUT1")
@@ -1474,8 +1485,8 @@ class TestUnfold:
         for k in count1.keys():
             assert count1[k] * multiple == count2[k]
 
-    # This is horrifying, but I can't figure out a way to run the test on multiple fixtures,
-    # so this is an ugly hack until someone that knows pytest comes along
+    # This is horrifying, but I can't figure out a way to run the test on multiple
+    # fixtures, so this is an ugly hack until someone that knows pytest comes along
     def test_two_inputs_two_outputs(self, sfg_two_inputs_two_outputs: SFG):
         self.do_tests(sfg_two_inputs_two_outputs)
 
@@ -1639,3 +1650,15 @@ class TestInsertComponentAfter:
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
         with pytest.raises(ValueError, match="Unknown component:"):
             sfg.insert_operation_after('foo', SquareRoot())
+
+
+class TestGetUsedTypeNames:
+    def test_single_accumulator(self, sfg_simple_accumulator: SFG):
+        assert sfg_simple_accumulator.get_used_type_names() == ['add', 'in', 'out', 't']
+
+    def test_sfg_nested(self, sfg_nested: SFG):
+        assert sfg_nested.get_used_type_names() == ['in', 'out', 'sfg']
+
+    def test_large_operation_tree(self, large_operation_tree):
+        sfg = SFG(outputs=[Output(large_operation_tree)])
+        assert sfg.get_used_type_names() == ['add', 'c', 'out']

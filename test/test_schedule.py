@@ -499,6 +499,11 @@ class TestProcesses:
         pc = secondorder_iir_schedule.get_memory_variables()
         assert len(pc) == 12
 
+    def test_get_operations(self, secondorder_iir_schedule_with_execution_times):
+        pc = secondorder_iir_schedule_with_execution_times.get_operations()
+        assert len(pc) == 13
+        assert all(isinstance(operand, OperatorProcess) for operand in pc.collection)
+
 
 class TestFigureGeneration:
     @pytest.mark.mpl_image_compare(remove_text=True, style='mpl20')
@@ -564,7 +569,12 @@ class TestErrors:
         ):
             Schedule(sfg_simple_filter, scheduling_algorithm="foo")
 
-    def test_get_operations(self, secondorder_iir_schedule_with_execution_times):
-        pc = secondorder_iir_schedule_with_execution_times.get_operations()
-        assert len(pc) == 13
-        assert all(isinstance(operand, OperatorProcess) for operand in pc.collection)
+
+class TestGetUsedTypeNames:
+    def test_secondorder_iir_schedule(self, secondorder_iir_schedule):
+        assert secondorder_iir_schedule.get_used_type_names() == [
+            'add',
+            'cmul',
+            'in',
+            'out',
+        ]
