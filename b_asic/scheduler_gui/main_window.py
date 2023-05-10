@@ -52,6 +52,7 @@ from b_asic._version import __version__
 from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.icons import get_icon
+from b_asic.gui_utils.mpl_window import MPLWindow
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
@@ -122,7 +123,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._file_name = None
         self._show_incorrect_execution_time = True
         self._show_port_numbers = True
-
+        self._execution_time_for_variables = None
         # Recent files
         self._max_recent_files = 4
         self._recent_files_actions: List[QAction] = []
@@ -161,6 +162,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_show_port_numbers.triggered.connect(self._toggle_port_number)
         self.actionPlot_schedule.setIcon(get_icon('plot-schedule'))
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
+        self.action_view_variables.triggered.connect(
+            self._show_execution_times_for_variables
+        )
         self.actionZoom_to_fit.setIcon(get_icon('zoom-to-fit'))
         self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
         self.actionToggle_full_screen.setIcon(get_icon('full-screen'))
@@ -408,6 +412,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.info_table_clear()
             self.update_statusbar("Closed schedule")
             self._toggle_file_loaded(False)
+            self.action_view_variables.setEnabled(False)
+            self.menu_view_execution_times.setEnabled(False)
 
     @Slot()
     def save(self) -> None:
@@ -643,6 +649,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._graph._signals.redraw_all.connect(self._redraw_all)
         self._graph._signals.reopen.connect(self._reopen_schedule)
         self.info_table_fill_schedule(self._schedule)
+        self._update_operation_types()
+        self.action_view_variables.setEnabled(True)
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def _redraw_all(self) -> None:
@@ -801,6 +809,29 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.menu_Recent_Schedule.addAction(recent_file_action)
 
         self._update_recent_file_list()
+
+    def _update_operation_types(self):
+        self.menu_view_execution_times.setEnabled(True)
+        for action in self.menu_view_execution_times.actions():
+            self.menu_view_execution_times.removeAction(action)
+        for type_name in self._schedule.get_used_type_names():
+            type_action = QAction(self.menu_view_execution_times)
+            type_action.setText(type_name)
+            type_action.triggered.connect(
+                lambda b=0, x=type_name: self._show_execution_times_for_type(x)
+            )
+            self.menu_view_execution_times.addAction(type_action)
+
+    def _show_execution_times_for_type(self, type_name):
+        self._graph._execution_time_plot(type_name)
+
+    def _show_execution_times_for_variables(self):
+        print("Show")
+        self._execution_time_for_variables = MPLWindow("Execution times for variables")
+        self._schedule.get_memory_variables().plot(
+            self._execution_time_for_variables.axes, allow_excessive_lifetimes=True
+        )
+        self._execution_time_for_variables.show()
 
     def _update_recent_file_list(self):
         settings = QSettings()

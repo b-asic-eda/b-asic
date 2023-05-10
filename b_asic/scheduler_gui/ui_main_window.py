@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file './main_window.ui'
+# Form implementation generated from reading ui file '.\main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
 #
@@ -135,6 +135,9 @@ class Ui_MainWindow(object):
         self.menu_Recent_Schedule.setObjectName("menu_Recent_Schedule")
         self.menuView = QtWidgets.QMenu(self.menubar)
         self.menuView.setObjectName("menuView")
+        self.menu_view_execution_times = QtWidgets.QMenu(self.menuView)
+        self.menu_view_execution_times.setEnabled(False)
+        self.menu_view_execution_times.setObjectName("menu_view_execution_times")
         self.menu_Edit = QtWidgets.QMenu(self.menubar)
         self.menu_Edit.setObjectName("menu_Edit")
         self.menuWindow = QtWidgets.QMenu(self.menubar)
@@ -203,6 +206,9 @@ class Ui_MainWindow(object):
         self.actionReorder.setObjectName("actionReorder")
         self.actionPlot_schedule = QtWidgets.QAction(MainWindow)
         self.actionPlot_schedule.setObjectName("actionPlot_schedule")
+        self.action_view_variables = QtWidgets.QAction(MainWindow)
+        self.action_view_variables.setEnabled(False)
+        self.action_view_variables.setObjectName("action_view_variables")
         self.actionUndo = QtWidgets.QAction(MainWindow)
         self.actionUndo.setEnabled(False)
         self.actionUndo.setObjectName("actionUndo")
@@ -260,6 +266,8 @@ class Ui_MainWindow(object):
         self.menuView.addAction(self.action_show_port_numbers)
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionPlot_schedule)
+        self.menuView.addAction(self.action_view_variables)
+        self.menuView.addAction(self.menu_view_execution_times.menuAction())
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionZoom_to_fit)
         self.menuView.addAction(self.actionToggle_full_screen)
@@ -313,6 +321,9 @@ class Ui_MainWindow(object):
         self.menuFile.setTitle(_translate("MainWindow", "&File"))
         self.menu_Recent_Schedule.setTitle(_translate("MainWindow", "Open &recent"))
         self.menuView.setTitle(_translate("MainWindow", "&View"))
+        self.menu_view_execution_times.setTitle(
+            _translate("MainWindow", "View execution times of type")
+        )
         self.menu_Edit.setTitle(_translate("MainWindow", "&Edit"))
         self.menuWindow.setTitle(_translate("MainWindow", "&Window"))
         self.menuHelp.setTitle(_translate("MainWindow", "&Help"))
@@ -353,6 +364,12 @@ class Ui_MainWindow(object):
         )
         self.actionPlot_schedule.setText(_translate("MainWindow", "&Plot schedule"))
         self.actionPlot_schedule.setToolTip(_translate("MainWindow", "Plot schedule"))
+        self.action_view_variables.setText(
+            _translate("MainWindow", "View execution times of variables")
+        )
+        self.action_view_variables.setToolTip(
+            _translate("MainWindow", "View all variables")
+        )
         self.actionUndo.setText(_translate("MainWindow", "Undo"))
         self.actionUndo.setShortcut(_translate("MainWindow", "Ctrl+Z"))
         self.actionRedo.setText(_translate("MainWindow", "Redo"))

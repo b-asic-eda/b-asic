@@ -41,7 +41,3 @@ sfg.set_execution_time_of_type(Addition.type_name(), 1)
 
 schedule = Schedule(sfg, cyclic=True)
 schedule.show()
-
-# %%
-# To edit the schedule in the GUI use:
-schedule.edit()

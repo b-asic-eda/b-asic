@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <author>Andreas Bolin</author>
+ <author>Andreas Bolin and Oscar Gustafsson</author>
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
@@ -228,6 +228,14 @@
     <property name="title">
      <string>&amp;View</string>
     </property>
+    <widget class="QMenu" name="menu_view_execution_times">
+     <property name="title">
+      <string>View execution times of type</string>
+     </property>
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+    </widget>
     <addaction name="menu_node_info"/>
     <addaction name="actionToolbar"/>
     <addaction name="actionStatus_bar"/>
@@ -235,6 +243,8 @@
     <addaction name="action_show_port_numbers"/>
     <addaction name="separator"/>
     <addaction name="actionPlot_schedule"/>
+    <addaction name="action_view_variables"/>
+    <addaction name="menu_view_execution_times"/>
     <addaction name="separator"/>
     <addaction name="actionZoom_to_fit"/>
     <addaction name="actionToggle_full_screen"/>
@@ -441,6 +451,17 @@
    </property>
    <property name="toolTip">
     <string>Plot schedule</string>
+   </property>
+  </action>
+  <action name="action_view_variables">
+   <property name="text">
+    <string>View execution times of variables</string>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="toolTip">
+    <string>View all variables</string>
    </property>
   </action>
   <action name="actionUndo">
