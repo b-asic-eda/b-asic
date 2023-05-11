@@ -210,3 +210,25 @@ class TestProcessCollectionPlainMemoryVariable:
         assert exclusion_graph.degree(p1) == 3
         assert exclusion_graph.degree(p2) == 1
         assert exclusion_graph.degree(p3) == 3
+
+    def test_left_edge_maximum_lifetime(self):
+        a = PlainMemoryVariable(2, 0, {0: 1}, "cmul1.0")
+        b = PlainMemoryVariable(4, 0, {0: 7}, "cmul4.0")
+        c = PlainMemoryVariable(5, 0, {0: 4}, "cmul5.0")
+        collection = ProcessCollection([a, b, c], schedule_time=7, cyclic=True)
+        for heuristic in ("graph_color", "left_edge"):
+            assignment = collection.split_on_execution_time(heuristic)
+            assert len(assignment) == 2
+            a_idx = 0 if a in assignment[0] else 1
+            assert b not in assignment[a_idx]
+            assert c in assignment[a_idx]
+
+    def test_split_on_execution_lifetime_assert(self):
+        a = PlainMemoryVariable(3, 0, {0: 10}, "MV0")
+        collection = ProcessCollection([a], schedule_time=9, cyclic=True)
+        for heuristic in ("graph_color", "left_edge"):
+            with pytest.raises(
+                ValueError,
+                match="MV0 has execution time greater than the schedule time",
+            ):
+                collection.split_on_execution_time(heuristic)

@@ -876,11 +876,7 @@ class ProcessCollection:
         A list of new ProcessCollection objects with the process splitting.
         """
         if heuristic == "graph_color":
-            exclusion_graph = self.create_exclusion_graph_from_execution_time()
-            coloring = nx.coloring.greedy_color(
-                exclusion_graph, strategy=coloring_strategy
-            )
-            return self._split_from_graph_coloring(coloring)
+            return self._graph_color_assignment(coloring_strategy)
         elif heuristic == "left_edge":
             return self._left_edge_assignment()
         else:
@@ -1046,6 +1042,13 @@ class ProcessCollection:
         List[ProcessCollection]
 
         """
+        for process in self:
+            if process.execution_time > self.schedule_time:
+                # Can not assign process to any cell
+                raise ValueError(
+                    f"{process} has execution time greater than the schedule time"
+                )
+
         cell_assignment: Dict[int, ProcessCollection] = dict()
         exclusion_graph = self.create_exclusion_graph_from_execution_time()
         if coloring is None:
@@ -1066,40 +1069,64 @@ class ProcessCollection:
         Two or more processes can share a single resource if, and only if, they have no
         overlaping execution time.
 
+        Raises :class:`ValueError` if any process in this collection has an execution
+        time which is greater than the collection schedule time.
+
         Returns
         -------
         List[ProcessCollection]
         """
-        next_empty_cell = 0
-        cell_assignment: Dict[int, ProcessCollection] = dict()
+        assignment: List[ProcessCollection] = []
         for next_process in sorted(self):
-            insert_to_new_cell = True
-            for cell in cell_assignment:
-                insert_to_this_cell = True
-                for process in cell_assignment[cell]:
-                    next_process_stop_time = (
-                        next_process.start_time + next_process.execution_time
-                    ) % self._schedule_time
-                    if (
-                        next_process.start_time
-                        < process.start_time + process.execution_time
-                        or next_process.start_time
-                        > next_process_stop_time
-                        > process.start_time
-                    ):
-                        insert_to_this_cell = False
-                        break
-                if insert_to_this_cell:
-                    cell_assignment[cell].add_process(next_process)
-                    insert_to_new_cell = False
-                    break
-            if insert_to_new_cell:
-                cell_assignment[next_empty_cell] = ProcessCollection(
-                    collection=[], schedule_time=self._schedule_time
+            if next_process.execution_time > self.schedule_time:
+                # Can not assign process to any cell
+                raise ValueError(
+                    f"{next_process} has execution time greater than the schedule time"
                 )
-                cell_assignment[next_empty_cell].add_process(next_process)
-                next_empty_cell += 1
-        return [pc for pc in cell_assignment.values()]
+            elif next_process.execution_time == self.schedule_time:
+                # Always assign maximum lifetime process to new cell
+                assignment.append(
+                    ProcessCollection(
+                        (next_process,),
+                        schedule_time=self.schedule_time,
+                        cyclic=self._cyclic,
+                    )
+                )
+                continue  # Continue assigning next process
+            else:
+                next_process_stop_time = (
+                    next_process.start_time + next_process.execution_time
+                ) % self._schedule_time
+                insert_to_new_cell = True
+                for cell_assignment in assignment:
+                    insert_to_this_cell = True
+                    for process in cell_assignment:
+                        # The next_process start_time is always greater than or equal to
+                        # the start time of all other assigned processes
+                        process_end_time = process.start_time + process.execution_time
+                        if next_process.start_time < process_end_time:
+                            insert_to_this_cell = False
+                            break
+                        if (
+                            next_process.start_time
+                            > next_process_stop_time
+                            > process.start_time
+                        ):
+                            insert_to_this_cell = False
+                            break
+                    if insert_to_this_cell:
+                        cell_assignment.add_process(next_process)
+                        insert_to_new_cell = False
+                        break
+                if insert_to_new_cell:
+                    assignment.append(
+                        ProcessCollection(
+                            (next_process,),
+                            schedule_time=self.schedule_time,
+                            cyclic=self._cyclic,
+                        )
+                    )
+        return assignment
 
     def generate_memory_based_storage_vhdl(
         self,
