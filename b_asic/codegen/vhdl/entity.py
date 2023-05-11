@@ -4,8 +4,7 @@ Module for code generation of VHDL entity declarations
 from io import TextIOWrapper
 from typing import Set
 
-from b_asic.codegen import vhdl
-from b_asic.codegen.vhdl import VHDL_TAB
+from b_asic.codegen.vhdl import VHDL_TAB, write_lines
 from b_asic.port import Port
 from b_asic.process import MemoryVariable, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
@@ -29,7 +28,7 @@ def memory_based_storage(
     entity_name = entity_name
 
     # Write the entity header
-    vhdl.write_lines(
+    write_lines(
         f,
         [
             (0, f'entity {entity_name} is'),
@@ -42,7 +41,7 @@ def memory_based_storage(
     )
 
     # Write the clock and reset signal
-    vhdl.write_lines(
+    write_lines(
         f,
         [
             (0, '-- Clock, synchronous reset and enable signals'),

@@ -1282,14 +1282,14 @@ class ProcessCollection:
         forward_backward_table = _ForwardBackwardTable(self)
 
         with open(filename, 'w') as f:
-            from b_asic.codegen import vhdl
+            from b_asic.codegen.vhdl import architecture, common, entity
 
-            vhdl.common.b_asic_preamble(f)
-            vhdl.common.ieee_header(f)
-            vhdl.entity.register_based_storage(
+            common.b_asic_preamble(f)
+            common.ieee_header(f)
+            entity.register_based_storage(
                 f, entity_name=entity_name, collection=self, word_length=word_length
             )
-            vhdl.architecture.register_based_storage(
+            architecture.register_based_storage(
                 f,
                 forward_backward_table=forward_backward_table,
                 entity_name=entity_name,

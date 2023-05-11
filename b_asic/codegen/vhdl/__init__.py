@@ -21,7 +21,7 @@ def write(
     Base VHDL code generation utility.
 
     `f'{VHDL_TAB*indent_level}'` is first written to the :class:`io.TextIOWrapper`
-    object `f`. Immediatly after the indentation, `text` is written to `f`. Finally,
+    object `f`. Immediately after the indentation, `text` is written to `f`. Finally,
     `text` is also written to `f`.
 
     Parameters
@@ -64,8 +64,8 @@ def write_lines(
     """
     for tpl in lines:
         if len(tpl) == 2:
-            write(f, indent_level=tpl[0], text=tpl[1])
+            write(f, indent_level=tpl[0], text=str(tpl[1]))
         elif len(tpl) == 3:
-            write(f, indent_level=tpl[0], text=tpl[1], end=tpl[2])
+            write(f, indent_level=tpl[0], text=str(tpl[1]), end=str(tpl[2]))
         else:
             raise ValueError('All tuples in list `lines` must have length 2 or 3')

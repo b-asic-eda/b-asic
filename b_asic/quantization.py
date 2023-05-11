@@ -33,7 +33,7 @@ class Overflow(Enum):
 
     SATURATION = 2
     """
-    Two's complement saturation, i.e., overflow return the most postive/negative
+    Two's complement saturation, i.e., overflow return the most positive/negative
     number.
     """
 

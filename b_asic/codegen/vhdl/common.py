@@ -8,7 +8,7 @@ from io import TextIOWrapper
 from subprocess import PIPE, Popen
 from typing import Any, Optional, Set, Tuple
 
-from b_asic.codegen import vhdl
+from b_asic.codegen.vhdl import write, write_lines
 
 
 def b_asic_preamble(f: TextIOWrapper):
@@ -27,7 +27,7 @@ def b_asic_preamble(f: TextIOWrapper):
         git_commit_id = process.communicate()[0].decode('utf-8').strip()
     except:  # noqa: E722
         pass
-    vhdl.write_lines(
+    write_lines(
         f,
         [
             (0, '--'),
@@ -36,8 +36,8 @@ def b_asic_preamble(f: TextIOWrapper):
         ],
     )
     if git_commit_id:
-        vhdl.write(f, 0, f'-- B-ASIC short commit hash: {git_commit_id}')
-    vhdl.write_lines(
+        write(f, 0, f'-- B-ASIC short commit hash: {git_commit_id}')
+    write_lines(
         f,
         [
             (0, '-- URL: https://gitlab.liu.se/da/B-ASIC'),
@@ -64,12 +64,12 @@ def ieee_header(
     numeric_std : bool, default: True
         Include the numeric_std header.
     """
-    vhdl.write(f, 0, 'library ieee;')
+    write(f, 0, 'library ieee;')
     if std_logic_1164:
-        vhdl.write(f, 0, 'use ieee.std_logic_1164.all;')
+        write(f, 0, 'use ieee.std_logic_1164.all;')
     if numeric_std:
-        vhdl.write(f, 0, 'use ieee.numeric_std.all;')
-    vhdl.write(f, 0, '')
+        write(f, 0, 'use ieee.numeric_std.all;')
+    write(f, 0, '')
 
 
 def signal_decl(
@@ -109,12 +109,12 @@ def signal_decl(
     """
     # Spacing of VHDL signals declaration always with a single tab
     name_pad = name_pad or 0
-    vhdl.write(f, 1, f'signal {name:<{name_pad}} : {signal_type}', end='')
+    write(f, 1, f'signal {name:<{name_pad}} : {signal_type}', end='')
     if default_value is not None:
-        vhdl.write(f, 0, f' := {default_value}', end='')
-    vhdl.write(f, 0, ';')
+        write(f, 0, f' := {default_value}', end='')
+    write(f, 0, ';')
     if vivado_ram_style is not None:
-        vhdl.write_lines(
+        write_lines(
             f,
             [
                 (1, 'attribute ram_style : string;'),
@@ -122,7 +122,7 @@ def signal_decl(
             ],
         )
     if quartus_ram_style is not None:
-        vhdl.write_lines(
+        write_lines(
             f,
             [
                 (1, 'attribute ramstyle : string;'),
@@ -156,7 +156,7 @@ def constant_declaration(
         An optional left padding value applied to the name.
     """
     name_pad = 0 if name_pad is None else name_pad
-    vhdl.write(f, 1, f'constant {name:<{name_pad}} : {signal_type} := {str(value)};')
+    write(f, 1, f'constant {name:<{name_pad}} : {signal_type} := {str(value)};')
 
 
 def type_declaration(
@@ -176,7 +176,7 @@ def type_declaration(
     alias : str
         The type to tie the new name to.
     """
-    vhdl.write(f, 1, f'type {name} is {alias};')
+    write(f, 1, f'type {name} is {alias};')
 
 
 def process_prologue(
@@ -202,10 +202,10 @@ def process_prologue(
         An optional name for the process.
     """
     if name is not None:
-        vhdl.write(f, indent, f'{name}: process({sensitivity_list})')
+        write(f, indent, f'{name}: process({sensitivity_list})')
     else:
-        vhdl.write(f, indent, f'process({sensitivity_list})')
-    vhdl.write(f, indent, 'begin')
+        write(f, indent, f'process({sensitivity_list})')
+    write(f, indent, 'begin')
 
 
 def process_epilogue(
@@ -229,10 +229,10 @@ def process_epilogue(
         An optional name of the ending process.
     """
     _ = sensitivity_list
-    vhdl.write(f, indent, 'end process', end="")
+    write(f, indent, 'end process', end="")
     if name is not None:
-        vhdl.write(f, 0, ' ' + name, end="")
-    vhdl.write(f, 0, ';')
+        write(f, 0, ' ' + name, end="")
+    write(f, 0, ';')
 
 
 def synchronous_process_prologue(
@@ -261,7 +261,7 @@ def synchronous_process_prologue(
         An optional name for the process.
     """
     process_prologue(f, sensitivity_list=clk, indent=indent, name=name)
-    vhdl.write(f, indent + 1, 'if rising_edge(clk) then')
+    write(f, indent + 1, 'if rising_edge(clk) then')
 
 
 def synchronous_process_epilogue(
@@ -288,7 +288,7 @@ def synchronous_process_epilogue(
         An optional name for the process
     """
     _ = clk
-    vhdl.write(f, indent + 1, 'end if;')
+    write(f, indent + 1, 'end if;')
     process_epilogue(f, sensitivity_list=clk, indent=indent, name=name)
 
 
@@ -321,7 +321,7 @@ def synchronous_process(
     synchronous_process_prologue(f, clk, indent, name)
     for line in body.split('\n'):
         if len(line):
-            vhdl.write(f, indent + 2, f'{line}')
+            write(f, indent + 2, f'{line}')
     synchronous_process_epilogue(f, clk, indent, name)
 
 
@@ -352,7 +352,7 @@ def synchronous_memory(
     assert len(write_ports) >= 1
     synchronous_process_prologue(f, clk=clk, name=name)
     for read_name, address, read_enable in read_ports:
-        vhdl.write_lines(
+        write_lines(
             f,
             [
                 (3, f'if {read_enable} = \'1\' then'),
@@ -361,7 +361,7 @@ def synchronous_memory(
             ],
         )
     for write_name, address, we in write_ports:
-        vhdl.write_lines(
+        write_lines(
             f,
             [
                 (3, f'if {we} = \'1\' then'),
@@ -399,7 +399,7 @@ def asynchronous_read_memory(
     assert len(write_ports) >= 1
     synchronous_process_prologue(f, clk=clk, name=name)
     for write_name, address, we in write_ports:
-        vhdl.write_lines(
+        write_lines(
             f,
             [
                 (3, f'if {we} = \'1\' then'),
@@ -409,14 +409,14 @@ def asynchronous_read_memory(
         )
     synchronous_process_epilogue(f, clk=clk, name=name)
     for read_name, address, _ in read_ports:
-        vhdl.write(f, 1, f'{read_name} <= memory({address});')
+        write(f, 1, f'{read_name} <= memory({address});')
 
 
 def is_valid_vhdl_identifier(identifier: str) -> bool:
     """
     Test if identifier is a valid VHDL identifier, as specified by VHDL 2019.
 
-    An indentifier is a valid VHDL identifier if it is not a VHDL reserved keyword and
+    An identifier is a valid VHDL identifier if it is not a VHDL reserved keyword and
     it is a valid basic identifier as specified by IEEE STD 1076-2019 (VHDL standard).
 
     Parameters
