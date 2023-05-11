@@ -139,16 +139,19 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def _redraw_all_lines(self) -> None:
         """Redraw all lines in schedule."""
-        s = set()
-        for signals in self._signal_dict.values():
-            s.update(signals)
-        for signal in s:
+        for signal in self._get_all_signals():
             signal.update_path()
 
     def _redraw_lines(self, item: OperationItem) -> None:
         """Update lines connected to *item*."""
         for signal in self._signal_dict[item]:
             signal.update_path()
+
+    def _get_all_signals(self):
+        s = set()
+        for signals in self._signal_dict.values():
+            s.update(signals)
+        return s
 
     def set_warnings(self, warnings: bool = True):
         """
@@ -162,10 +165,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         """
         if warnings != self._warnings:
             self._warnings = warnings
-            s = set()
-            for signals in self._signal_dict.values():
-                s.update(signals)
-            for signal in s:
+            for signal in self._get_all_signals():
                 signal.set_inactive()
 
     def set_port_numbers(self, port_numbers: bool = True):

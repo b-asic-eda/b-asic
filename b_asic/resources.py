@@ -2,7 +2,7 @@ import io
 import re
 from collections import Counter
 from functools import reduce
-from typing import Dict, Iterable, List, Optional, Set, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -84,7 +84,7 @@ def _sanitize_port_option(
         raise ValueError(
             f'Total ports ({total_ports}) less then write ports ({write_ports})'
         )
-    return (read_ports, write_ports, total_ports)
+    return read_ports, write_ports, total_ports
 
 
 def draw_exclusion_graph_coloring(
@@ -209,12 +209,12 @@ class _ForwardBackwardTable:
             ProcessCollection to apply forward-backward allocation on
         """
         # Generate an alive variable list
-        self._collection = collection
-        self._live_variables: List[int] = [0] * collection._schedule_time
+        self._collection = set(collection.collection)
+        self._live_variables: List[int] = [0] * collection.schedule_time
         for mv in self._collection:
             stop_time = mv.start_time + mv.execution_time
             for alive_time in range(mv.start_time, stop_time):
-                self._live_variables[alive_time % collection._schedule_time] += 1
+                self._live_variables[alive_time % collection.schedule_time] += 1
 
         # First, create an empty forward-backward table with the right dimensions
         self.table: List[_ForwardBackwardEntry] = []
@@ -251,7 +251,7 @@ class _ForwardBackwardTable:
 
     def _forward_backward_is_complete(self) -> bool:
         s = {proc for e in self.table for proc in e.outputs}
-        return len(self._collection._collection - s) == 0
+        return len(self._collection - s) == 0
 
     def _do_forward_allocation(self):
         """
@@ -428,16 +428,16 @@ class ProcessCollection:
 
     def __init__(
         self,
-        collection: Set[Process],
+        collection: Iterable[Process],
         schedule_time: int,
         cyclic: bool = False,
     ):
-        self._collection = collection
+        self._collection = list(collection)
         self._schedule_time = schedule_time
         self._cyclic = cyclic
 
     @property
-    def collection(self) -> Set[Process]:
+    def collection(self) -> List[Process]:
         return self._collection
 
     @property
@@ -456,7 +456,9 @@ class ProcessCollection:
         process : Process
             The process object to be added to the collection.
         """
-        self.collection.add(process)
+        if process in self.collection:
+            raise ValueError("Process already in ProcessCollection")
+        self.collection.append(process)
 
     def remove_process(self, process: Process):
         """
@@ -962,9 +964,9 @@ class ProcessCollection:
         -------
         A set of new ProcessCollections.
         """
-        process_collection_set_list = [set() for _ in range(max(coloring.values()) + 1)]
+        process_collection_set_list = [[] for _ in range(max(coloring.values()) + 1)]
         for process, color in coloring.items():
-            process_collection_set_list[color].add(process)
+            process_collection_set_list[color].append(process)
         return [
             ProcessCollection(process_collection_set, self._schedule_time, self._cyclic)
             for process_collection_set in process_collection_set_list
@@ -1025,7 +1027,7 @@ class ProcessCollection:
             )
         for process, cell in coloring.items():
             if cell not in cell_assignment:
-                cell_assignment[cell] = ProcessCollection(set(), self._schedule_time)
+                cell_assignment[cell] = ProcessCollection([], self._schedule_time)
             cell_assignment[cell].add_process(process)
         return list(cell_assignment.values())
 
@@ -1066,7 +1068,7 @@ class ProcessCollection:
                     break
             if insert_to_new_cell:
                 cell_assignment[next_empty_cell] = ProcessCollection(
-                    collection=set(), schedule_time=self._schedule_time
+                    collection=[], schedule_time=self._schedule_time
                 )
                 cell_assignment[next_empty_cell].add_process(next_process)
                 next_empty_cell += 1
@@ -1139,7 +1141,7 @@ class ProcessCollection:
             read_ports, write_ports, total_ports
         )
 
-        # Make sure the provided assignment (Set[ProcessCollection]) only
+        # Make sure the provided assignment (List[ProcessCollection]) only
         # contains memory variables from this (self).
         for collection in assignment:
             for mv in collection:
@@ -1207,13 +1209,13 @@ class ProcessCollection:
         A tuple of two ProcessCollections, one with shorter than or equal execution
         times and one with longer execution times.
         """
-        short = set()
-        long = set()
+        short = []
+        long = []
         for process in self.collection:
             if process.execution_time <= length:
-                short.add(process)
+                short.append(process)
             else:
-                long.add(process)
+                long.append(process)
         return ProcessCollection(
             short, schedule_time=self.schedule_time
         ), ProcessCollection(long, schedule_time=self.schedule_time)

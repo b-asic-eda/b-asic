@@ -2,7 +2,7 @@
 Module for code generation of VHDL architectures.
 """
 from io import TextIOWrapper
-from typing import TYPE_CHECKING, Dict, Set, Tuple, cast
+from typing import TYPE_CHECKING, Dict, Iterable, Set, Tuple, cast
 
 from b_asic.codegen import vhdl
 from b_asic.process import MemoryVariable, PlainMemoryVariable
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def memory_based_storage(
     f: TextIOWrapper,
-    assignment: Set["ProcessCollection"],
+    assignment: Iterable["ProcessCollection"],
     entity_name: str,
     word_length: int,
     read_ports: int,
