@@ -45,7 +45,7 @@ class HardwareBlock:
         if entity_name is not None:
             self.set_entity_name(entity_name)
 
-    def set_entity_name(self, entity_name: str):
+    def set_entity_name(self, entity_name: str) -> None:
         """
         Set entity name of hardware block.
 
@@ -55,7 +55,7 @@ class HardwareBlock:
             The entity name.
         """
         if not is_valid_vhdl_identifier(entity_name):
-            raise ValueError(f'{entity_name} is not a valid VHDL indentifier')
+            raise ValueError(f'{entity_name} is not a valid VHDL identifier')
         self._entity_name = entity_name
 
     def write_code(self, path: str) -> None:
@@ -184,16 +184,41 @@ class Resource(HardwareBlock):
         # doc-string inherited
         return self._collection.schedule_time
 
-    def plot_content(self, ax: plt.Axes) -> None:
+    def plot_content(self, ax: plt.Axes, **kwargs) -> None:
+        """
+        Plot the content of the resource.
+
+        This plots the assigned processes executed on this resource.
+
+        Parameters
+        ----------
+        ax : Axes
+            Matplotlib Axes to plot in.
+        **kwargs
+            Passed to :meth:`b_asic.resources.ProcessCollection.plot`
+        """
         if not self.is_assigned:
-            self._collection.plot(ax)
+            self._collection.plot(ax, **kwargs)
         else:
             for i, pc in enumerate(self._assignment):  # type: ignore
-                pc.plot(ax=ax, row=i)
+                pc.plot(ax=ax, row=i, **kwargs)
 
-    def show_content(self):
+    def show_content(self, title=None, **kwargs) -> None:
+        """
+        Display the content of the resource.
+
+        This displays the assigned processes executed on this resource.
+
+        Parameters
+        ----------
+        title : str, optional
+        **kwargs
+            Passed to :meth:`b_asic.resources.ProcessCollection.plot`
+        """
         fig, ax = plt.subplots()
-        self.plot_content(ax)
+        self.plot_content(ax, **kwargs)
+        if title:
+            fig.suptitle(title)
         fig.show()  # type: ignore
 
     @property
@@ -335,6 +360,27 @@ class Memory(Resource):
             self._collection.split_on_execution_time(heuristic=heuristic)
         )
 
+    def assign(self, heuristic: str = "left_edge") -> None:
+        """
+        Perform assignment of the memory variables.
+
+        Parameters
+        ----------
+        heuristic : str
+            The assignment algorithm. Depending on memory type the following are
+            available:
+
+                * 'RAM'
+                    * 'left_edge': Left-edge algorithm.
+                    * 'graph_color': Graph-coloring based on exclusion graph.
+                * 'register'
+                    * ...
+        """
+        if self._memory_type == "RAM":
+            self._assign_ram(heuristic=heuristic)
+        else:  # "register"
+            raise NotImplementedError()
+
 
 class Architecture(HardwareBlock):
     """
@@ -393,7 +439,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             raise ValueError(f"Different schedule times: {schedule_times}")
         return schedule_times.pop()
 
-    def _build_dicts(self):
+    def _build_dicts(self) -> None:
         for pe in self.processing_elements:
             for operator in pe.processes:
                 for input_port in operator.operation.inputs:
@@ -419,7 +465,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                         read_port.index,
                     )
 
-    def validate_ports(self):
+    def validate_ports(self) -> None:
         # Validate inputs and outputs of memory variables in all the memories in this
         # architecture
         memory_read_ports = set()
@@ -455,7 +501,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
             )
         # Make sure all inputs and outputs in the architecture are in use
 
-    def get_interconnects_for_memory(self, mem: Memory):
+    def get_interconnects_for_memory(
+        self, mem: Memory
+    ) -> Tuple[Dict[Resource, int], Dict[Resource, int]]:
         """
         Return a dictionary with interconnect information for a Memory.
 
@@ -520,7 +568,6 @@ of :class:`~b_asic.architecture.ProcessingElement`
     def _digraph(self) -> Digraph:
         edges: Set[Tuple[str, str, str]] = set()
         dg = Digraph(node_attr={'shape': 'record'})
-        # dg.attr(rankdir="LR")
         for i, mem in enumerate(self._memories):
             dg.node(mem.entity_name, mem._struct_def())
         for i, pe in enumerate(self._processing_elements):
@@ -536,8 +583,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
                             f"{cnt}",
                         )
                     )
-            for o, outp in enumerate(outputs):
-                for (dest, port), cnt in outp.items():
+            for o, output in enumerate(outputs):
+                for (dest, port), cnt in output.items():
                     edges.add(
                         (
                             f"{pe.entity_name}:out{o}",

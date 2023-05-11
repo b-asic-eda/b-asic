@@ -42,7 +42,7 @@ schedule = Schedule(sfg, cyclic=True)
 schedule.show(title='Original schedule')
 
 # %%
-# Rescheudle to only require one adder and one multiplier
+# Reschedule to only require one adder and one multiplier
 schedule.move_operation('add4', 2)
 schedule.move_operation('cmul5', -4)
 schedule.move_operation('cmul4', -5)
@@ -68,18 +68,22 @@ p_in = ProcessingElement(inputs, entity_name='input')
 p_out = ProcessingElement(outputs, entity_name='output')
 
 # %%
-# Extract memory variables
+# Extract and assign memory variables
 mem_vars = schedule.get_memory_variables()
 mem_vars.show(title="All memory variables")
 direct, mem_vars = mem_vars.split_on_length()
-direct.show(title="Direct interconnects")
 mem_vars.show(title="Non-zero time memory variables")
 mem_vars_set = mem_vars.split_on_ports(read_ports=1, write_ports=1, total_ports=2)
 
-memories = set()
+memories = []
 for i, mem in enumerate(mem_vars_set):
-    memories.add(Memory(mem, entity_name=f"memory{i}"))
-    mem.show(title=f"memory{i}")
+    memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
+    memories.append(memory)
+    mem.show(title=f"{memory.entity_name}")
+    memory.assign("left_edge")
+    memory.show_content(title=f"Assigned {memory.entity_name}")
+
+direct.show(title="Direct interconnects")
 
 # %%
 # Create architecture

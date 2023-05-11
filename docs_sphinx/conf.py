@@ -8,7 +8,7 @@
 
 import shutil
 
-import qtgallery
+# import qtgallery
 
 project = 'B-ASIC'
 copyright = '2020-2023, Oscar Gustafsson et al'
@@ -28,7 +28,7 @@ extensions = [
     'sphinx_gallery.gen_gallery',
     'numpydoc',  # Needs to be loaded *after* autodoc.
     'jupyter_sphinx',
-    'qtgallery',
+    #    'qtgallery',
 ]
 
 templates_path = ['_templates']
@@ -71,11 +71,11 @@ sphinx_gallery_conf = {
     'doc_module': ('b_asic',),
     'reference_url': {'b_asic': None},
     'image_scrapers': (
-        qtgallery.qtscraper,
+        #    qtgallery.qtscraper,
         'matplotlib',
     ),
     'reset_modules': (
-        qtgallery.reset_qapp,
+        #    qtgallery.reset_qapp,
         'matplotlib',
     ),
 }
