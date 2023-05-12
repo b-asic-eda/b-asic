@@ -1,6 +1,6 @@
 """B-ASIC classes representing resource usage."""
 
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -105,7 +105,149 @@ class OperatorProcess(Process):
         return f"OperatorProcess({self.start_time}, {self.operation}, {self.name!r})"
 
 
-class MemoryVariable(Process):
+class MemoryProcess(Process):
+    """
+    Intermediate class (abstract) for memory processes.
+
+    Different from regular :class:`Processe` objects, :class:`MemoryProcess` objects
+    can contain multiple read accesses and can be split into two new
+    :class:`MemoryProcess` objects based on these read times.
+
+    Parameters
+    ----------
+    write_time : int
+        Start time of process.
+    life_times : list of int
+        List of ints representing times after ``start_time`` this process is accessed.
+    name : str, default=""
+        Name of the process.
+    """
+
+    def __init__(
+        self,
+        write_time: int,
+        life_times: List[int],
+        name: str = "",
+    ):
+        pass
+        self._life_times = life_times
+        super().__init__(
+            start_time=write_time,
+            execution_time=max(self._life_times),
+            name=name,
+        )
+
+    @property
+    def read_times(self) -> List[int]:
+        return list(self.start_time + read for read in self._life_times)
+
+    @property
+    def life_times(self) -> List[int]:
+        return self._life_times
+
+    @property
+    def reads(self) -> Dict[Any, int]:
+        raise NotImplementedError("MultiReadProcess should be derived from")
+
+    @property
+    def read_ports(self) -> List[Any]:
+        raise NotImplementedError("MultiReadProcess should be derived from")
+
+    @property
+    def write_port(self) -> Any:
+        raise NotImplementedError("MultiReadProcess should be derived from")
+
+    def split_on_length(
+        self,
+        length: int = 0,
+    ) -> Tuple[Optional["MemoryProcess"], Optional["MemoryProcess"]]:
+        """
+        Split this :class:`MemoryProcess` into two new :class:`MemoryProcess` objects,
+        based on lifetimes of the read accesses.
+
+        Parameters
+        ----------
+        length : int, default: 0
+            The life time length to split on. Length is inclusive for the smaller
+            process.
+
+        Returns
+        -------
+        Two-tuple where the first element is a :class:`MemoryProcess` consisting
+        of reads with read times smaller than or equal to ``length`` (or None if no such
+        reads exists), and vice-versa for the other tuple element.
+        """
+        reads = self.reads
+        short_reads = {k: v for k, v in filter(lambda t: t[1] <= length, reads.items())}
+        long_reads = {k: v for k, v in filter(lambda t: t[1] > length, reads.items())}
+        short_process = None
+        long_process = None
+        if short_reads:
+            # Create a new Process of type self (which is a derived variant of
+            # MultiReadProcess) by calling the self constructor
+            short_process = type(self)(
+                self.start_time,  # type: ignore
+                self.write_port,  # type: ignore
+                short_reads,  # type: ignore
+                self.name,  # type: ignore
+            )
+        if long_reads:
+            # Create a new Process of type self (which is a derived variant of
+            # MultiReadProcess) by calling the self constructor
+            long_process = type(self)(
+                self.start_time,  # type: ignore
+                self.write_port,  # type: ignore
+                long_reads,  # type: ignore
+                self.name,  # type: ignore
+            )
+        return short_process, long_process
+
+    def _add_life_time(self, life_time: int):
+        """
+        Add a lifetime to this :class:`~b_asic.process.MultiReadProcess` set of
+        lifetimes.
+
+        If the lifetime specified by ``life_time`` is already in this
+        :class:`~b_asic.process.MultiReadProcess`, nothing happens
+
+        After adding a lifetime from this :class:`~b_asic.process.MultiReadProcess`,
+        the execution time is re-evaluated.
+
+        Parameters
+        ----------
+        life_time : int
+            The lifetime to add to this :class:`~b_asic.process.MultiReadProcess`.
+        """
+        if life_time not in self.life_times:
+            self._life_times.append(life_time)
+            self._execution_time = max(self.life_times)
+
+    def _remove_life_time(self, life_time: int):
+        """
+        Remove a lifetime from this :class:`~b_asic.process.MultiReadProcess`
+        set of lifetimes.
+
+        After removing a lifetime from this :class:`~b_asic.process.MultiReadProcess`,
+        the execution time is re-evaluated.
+
+        Raises :class:`KeyError` if the specified lifetime is not a lifetime of this
+        :class:`~b_asic.process.MultiReadProcess`.
+
+        Parameters
+        ----------
+        life_time : int
+            The lifetime to remove from this :class:`~b_asic.process.MultiReadProcess`.
+        """
+        if life_time not in self.life_times:
+            raise KeyError(
+                f"Process {self.name}: {life_time} not in life_times: {self.life_times}"
+            )
+        else:
+            self._life_times.remove(life_time)
+            self._execution_time = max(self.life_times)
+
+
+class MemoryVariable(MemoryProcess):
     """
     Object that corresponds to a memory variable.
 
@@ -130,13 +272,12 @@ class MemoryVariable(Process):
         reads: Dict[InputPort, int],
         name: Optional[str] = None,
     ):
-        self._read_ports = tuple(reads.keys())
-        self._life_times = tuple(reads.values())
+        self._read_ports = list(reads.keys())
         self._reads = reads
         self._write_port = write_port
         super().__init__(
-            start_time=write_time,
-            execution_time=max(self._life_times),
+            write_time=write_time,
+            life_times=list(reads.values()),
             name=name,
         )
 
@@ -145,11 +286,7 @@ class MemoryVariable(Process):
         return self._reads
 
     @property
-    def life_times(self) -> Tuple[int, ...]:
-        return self._life_times
-
-    @property
-    def read_ports(self) -> Tuple[InputPort, ...]:
+    def read_ports(self) -> List[InputPort]:
         return self._read_ports
 
     @property
@@ -163,12 +300,36 @@ class MemoryVariable(Process):
             f" {reads!r}, {self.name!r})"
         )
 
-    @property
-    def read_times(self) -> Tuple[int, ...]:
-        return tuple(self.start_time + read for read in self._life_times)
+    def split_on_length(
+        self,
+        length: int = 0,
+    ) -> Tuple[Optional["MemoryVariable"], Optional["MemoryVariable"]]:
+        """
+        Split this :class:`MemoryVariable` into two new :class:`MemoryVariable` objects,
+        based on lifetimes of read accesses.
+
+        Parameters
+        ----------
+        length : int, default: 0
+            The lifetime length to split on. Length is inclusive for the smaller
+            process.
+
+        Returns
+        -------
+        Two-tuple where the first element is a :class:`MemoryVariable` consisting
+        of reads with read times smaller than or equal to ``length`` (or None if no such
+        reads exists), and vice-versa for the other tuple element.
+        """
+        # This method exists only for documentation purposes and for generating correct
+        # type annotations when calling it. Just call super().split_on_length() in here.
+        short_process, long_process = super().split_on_length(length)
+        return (
+            cast(Optional["MemoryVariable"], short_process),
+            cast(Optional["MemoryVariable"], long_process),
+        )
 
 
-class PlainMemoryVariable(Process):
+class PlainMemoryVariable(MemoryProcess):
     """
     Object that corresponds to a memory variable which only use numbers for ports.
 
@@ -196,8 +357,7 @@ class PlainMemoryVariable(Process):
         reads: Dict[int, int],
         name: Optional[str] = None,
     ):
-        self._read_ports = tuple(reads.keys())
-        self._life_times = tuple(reads.values())
+        self._read_ports = list(reads.keys())
         self._write_port = write_port
         self._reads = reads
         if name is None:
@@ -205,8 +365,8 @@ class PlainMemoryVariable(Process):
             PlainMemoryVariable._name_cnt += 1
 
         super().__init__(
-            start_time=write_time,
-            execution_time=max(self._life_times),
+            write_time=write_time,
+            life_times=list(reads.values()),
             name=name,
         )
 
@@ -215,11 +375,7 @@ class PlainMemoryVariable(Process):
         return self._reads
 
     @property
-    def life_times(self) -> Tuple[int, ...]:
-        return self._life_times
-
-    @property
-    def read_ports(self) -> Tuple[int, ...]:
+    def read_ports(self) -> List[int]:
         return self._read_ports
 
     @property
@@ -233,9 +389,33 @@ class PlainMemoryVariable(Process):
             f" {reads!r}, {self.name!r})"
         )
 
-    @property
-    def read_times(self) -> Tuple[int, ...]:
-        return tuple(self.start_time + read for read in self._life_times)
+    def split_on_length(
+        self,
+        length: int = 0,
+    ) -> Tuple[Optional["PlainMemoryVariable"], Optional["PlainMemoryVariable"]]:
+        """
+        Split this :class:`PlainMemoryVariable` into two new
+        :class:`PlainMemoryVariable` objects, based on lifetimes of read accesses.
+
+        Parameters
+        ----------
+        length : int, default: 0
+            The lifetime length to split on. Length is inclusive for the smaller
+            process.
+
+        Returns
+        -------
+        Two-tuple where the first element is a :class:`PlainMemoryVariable` consisting
+        of reads with read times smaller than or equal to ``length`` (or None if no such
+        reads exists), and vice-versa for the other tuple element.
+        """
+        # This method exists only for documentation purposes and for generating correct
+        # type annotations when calling it. Just call super().split_on_length() in here.
+        short_process, long_process = super().split_on_length(length)
+        return (
+            cast(Optional["PlainMemoryVariable"], short_process),
+            cast(Optional["PlainMemoryVariable"], long_process),
+        )
 
     # Static counter for default names
     _name_cnt = 0

@@ -11,7 +11,13 @@ from matplotlib.ticker import MaxNLocator
 
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
 from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
-from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable, Process
+from b_asic.process import (
+    MemoryProcess,
+    MemoryVariable,
+    OperatorProcess,
+    PlainMemoryVariable,
+    Process,
+)
 from b_asic.types import TypeName
 
 # Default latency coloring RGB tuple
@@ -1272,10 +1278,20 @@ class ProcessCollection:
             if process.execution_time <= length:
                 short.append(process)
             else:
-                long.append(process)
-        return ProcessCollection(
-            short, schedule_time=self.schedule_time
-        ), ProcessCollection(long, schedule_time=self.schedule_time)
+                if isinstance(process, MemoryProcess):
+                    # Split this MultiReadProcess into two new processes
+                    p_short, p_long = process.split_on_length(length)
+                    if p_short is not None:
+                        short.append(p_short)
+                    if p_long is not None:
+                        long.append(p_long)
+                else:
+                    # Not a MultiReadProcess: has only a single read
+                    long.append(process)
+        return (
+            ProcessCollection(short, self.schedule_time, self._cyclic),
+            ProcessCollection(long, self.schedule_time, self._cyclic),
+        )
 
     def generate_register_based_storage_vhdl(
         self,

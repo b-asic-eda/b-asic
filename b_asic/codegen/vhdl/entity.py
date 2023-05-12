@@ -55,7 +55,7 @@ def memory_based_storage(
     # Write the input port specification
     f.write(f'{2*VHDL_TAB}-- Memory port I/O\n')
     read_ports: set[Port] = set(
-        sum((mv.read_ports for mv in collection), ())
+        read_port for mv in collection for read_port in mv.read_ports
     )  # type: ignore
     for idx, read_port in enumerate(read_ports):
         port_name = read_port if isinstance(read_port, int) else read_port.name
