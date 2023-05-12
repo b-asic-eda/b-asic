@@ -28,6 +28,7 @@ extensions = [
     'sphinx_gallery.gen_gallery',
     'numpydoc',  # Needs to be loaded *after* autodoc.
     'jupyter_sphinx',
+    'sphinx_copybutton',
     #    'qtgallery',
 ]
 

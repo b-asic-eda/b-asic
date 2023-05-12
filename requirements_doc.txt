@@ -5,3 +5,4 @@ sphinx-gallery
 mplsignal
 jupyter-sphinx
 qtgallery
+sphinx-copybutton
