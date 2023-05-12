@@ -225,6 +225,14 @@ class Resource(HardwareBlock):
     def is_assigned(self) -> bool:
         return self._assignment is not None
 
+    def assign(self, heuristic: str = 'left_edge'):
+        """
+        Perform assignment of processes to resource.
+
+        See the specific resource types for more information.
+        """
+        raise NotImplementedError()
+
     @property
     def content(self) -> plt.Figure:
         """
@@ -277,15 +285,30 @@ class ProcessingElement(Resource):
         self._type_name = op_type.type_name()
         self._input_count = ops[0].input_count
         self._output_count = ops[0].output_count
-        self._assignment = list(
-            self._collection.split_on_execution_time(heuristic="left_edge")
-        )
-        if len(self._assignment) > 1:
-            raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
+        self.assign()
 
     @property
     def processes(self) -> List[OperatorProcess]:
         return [cast(OperatorProcess, p) for p in self._collection]
+
+    def assign(self, heuristic: str = "left_edge") -> None:
+        """
+        Perform assignment of the processes.
+
+        Parameters
+        ----------
+        heuristic : str, default: 'left_edge'
+            The assignment algorithm.
+
+                * 'left_edge': Left-edge algorithm.
+                * 'graph_color': Graph-coloring based on exclusion graph.
+        """
+        self._assignment = list(
+            self._collection.split_on_execution_time(heuristic=heuristic)
+        )
+        if len(self._assignment) > 1:
+            self._assignment = None
+            raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
 
 class Memory(Resource):
@@ -347,26 +370,13 @@ class Memory(Resource):
         # Add information about the iterator type
         return cast(Iterator[MemoryVariable], iter(self._collection))
 
-    def _assign_ram(self, heuristic: str = "left_edge"):
-        """
-        Perform RAM-type assignment of MemoryVariables in this Memory.
-
-        Parameters
-        ----------
-        heuristic : {'left_edge', 'graph_color'}
-            The underlying heuristic to use when performing RAM assignment.
-        """
-        self._assignment = list(
-            self._collection.split_on_execution_time(heuristic=heuristic)
-        )
-
     def assign(self, heuristic: str = "left_edge") -> None:
         """
         Perform assignment of the memory variables.
 
         Parameters
         ----------
-        heuristic : str
+        heuristic : str, default: 'left_edge'
             The assignment algorithm. Depending on memory type the following are
             available:
 
@@ -377,7 +387,9 @@ class Memory(Resource):
                     * ...
         """
         if self._memory_type == "RAM":
-            self._assign_ram(heuristic=heuristic)
+            self._assignment = self._collection.split_on_execution_time(
+                heuristic=heuristic
+            )
         else:  # "register"
             raise NotImplementedError()
 
