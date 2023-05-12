@@ -479,6 +479,23 @@ class Schedule:
         self._schedule_time = self._schedule_time // factor
         return self
 
+    def set_execution_time_of_type(
+        self, type_name: TypeName, execution_time: int
+    ) -> None:
+        """
+        Set the execution time of all operations with the given type name.
+
+        Parameters
+        ----------
+        type_name : TypeName
+            The type name of the operation. For example, obtained as
+            ``Addition.type_name()``.
+        execution_time : int
+            The execution time of the operation.
+        """
+        self._sfg.set_execution_time_of_type(type_name, execution_time)
+        self._original_sfg.set_execution_time_of_type(type_name, execution_time)
+
     def move_y_location(
         self, graph_id: GraphID, new_y: int, insert: bool = False
     ) -> None:
