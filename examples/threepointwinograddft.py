@@ -38,6 +38,10 @@ sfg = SFG(
 )
 
 # %%
+# The SFG looks like
+sfg
+
+# %%
 # Set latencies and execution times
 sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
 sfg.set_latency_of_type(Addition.type_name(), 1)

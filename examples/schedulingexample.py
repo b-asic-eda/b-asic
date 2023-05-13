@@ -28,3 +28,6 @@ node3 = node2 + node5
 node4 << node3
 
 sfg = SFG([node1], [out], name="Scheduling example")
+# %%
+# THe SFG looks like
+sfg

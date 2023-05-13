@@ -1006,6 +1006,9 @@ class ProcessCollection:
         fig.savefig(f, format="svg")  # type: ignore
         return f.getvalue()
 
+    # SVG is valid HTML. This is useful for e.g. sphinx-gallery
+    _repr_html_ = _repr_svg_
+
     def __repr__(self):
         return (
             f"ProcessCollection({self._collection}, {self._schedule_time},"

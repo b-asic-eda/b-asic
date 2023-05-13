@@ -1064,3 +1064,6 @@ class Schedule:
         fig.savefig(buffer, format="svg")
 
         return buffer.getvalue()
+
+    # SVG is valid HTML. This is useful for e.g. sphinx-gallery
+    _repr_html_ = _repr_svg_

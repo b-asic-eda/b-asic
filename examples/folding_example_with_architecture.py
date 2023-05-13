@@ -36,6 +36,10 @@ out1 = Output(add1 + add3, "OUT")
 sfg = SFG(inputs=[in1], outputs=[out1], name="Bi-quad folding example")
 
 # %%
+# The SFG looks like:
+sfg
+
+# %%
 # Set latencies and execution times
 sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
 sfg.set_latency_of_type(Addition.type_name(), 1)

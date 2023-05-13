@@ -1490,6 +1490,14 @@ class SFG(AbstractOperation):
     def _repr_png_(self):
         return self.sfg_digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
 
+    def _repr_svg_(self):
+        return self.sfg_digraph()._repr_mimebundle_(include=["image/svg+xml"])[
+            "image/svg+xml"
+        ]
+
+    # SVG is valid HTML. This is useful for e.g. sphinx-gallery
+    _repr_html_ = _repr_svg_
+
     def show(
         self,
         fmt: Optional[str] = None,
