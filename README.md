@@ -53,8 +53,6 @@ To generate the documentation, the following additional packages are required:
     -   [numpydoc](https://numpydoc.readthedocs.io/)
     -   [Sphinx-Gallery](https://sphinx-gallery.github.io/)
     -   [mplsignal](https://mplsignal.readthedocs.io/)
-    -   [jupyters-sphinx](https://jupyter-sphinx.readthedocs.io/)
-    -   [qtgallery](https://github.com/ixjlyons/qtgallery)
     -   [sphinx-copybutton](https://sphinx-copybutton.readthedocs.io/)
 
 ### Using setuptools to create a package

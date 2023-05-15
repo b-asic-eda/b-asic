@@ -8,8 +8,6 @@
 
 import shutil
 
-# import qtgallery
-
 project = 'B-ASIC'
 copyright = '2020-2023, Oscar Gustafsson et al'
 author = 'Oscar Gustafsson et al'
@@ -27,9 +25,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_gallery.gen_gallery',
     'numpydoc',  # Needs to be loaded *after* autodoc.
-    'jupyter_sphinx',
     'sphinx_copybutton',
-    #    'qtgallery',
 ]
 
 templates_path = ['_templates']
@@ -79,11 +75,4 @@ sphinx_gallery_conf = {
         #    qtgallery.reset_qapp,
         'matplotlib',
     ),
-}
-
-qtgallery_conf = {
-    "xvfb_size": (800, 600),
-    "xvfb_color_depth": 24,
-    "xfvb_use_xauth": False,
-    "xfvb_extra_args": [],
 }

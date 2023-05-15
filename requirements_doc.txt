@@ -3,6 +3,4 @@ furo
 numpydoc
 sphinx-gallery
 mplsignal
-jupyter-sphinx
-qtgallery
 sphinx-copybutton
