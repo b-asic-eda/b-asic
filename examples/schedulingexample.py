@@ -29,5 +29,5 @@ node4 << node3
 
 sfg = SFG([node1], [out], name="Scheduling example")
 # %%
-# THe SFG looks like
+# The SFG looks like
 sfg

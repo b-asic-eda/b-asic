@@ -1393,7 +1393,7 @@ class SFG(AbstractOperation):
         self,
         show_id: bool = False,
         engine: Optional[str] = None,
-        branch_node: bool = False,
+        branch_node: bool = True,
         port_numbering: bool = True,
         splines: str = "spline",
     ) -> Digraph:
@@ -1409,7 +1409,7 @@ class SFG(AbstractOperation):
         engine : string, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
-        branch_node : bool, default: False
+        branch_node : bool, default: True
             Add a branch node in case the fan-out of a signal is two or more.
         port_numbering : bool, default: True
             Show the port number in case the number of ports (input or output) is two or
@@ -1503,7 +1503,7 @@ class SFG(AbstractOperation):
         fmt: Optional[str] = None,
         show_id: bool = False,
         engine: Optional[str] = None,
-        branch_node: bool = False,
+        branch_node: bool = True,
         port_numbering: bool = True,
         splines: str = "spline",
     ) -> None:
@@ -1522,7 +1522,7 @@ class SFG(AbstractOperation):
         engine : string, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
-        branch_node : bool, default: False
+        branch_node : bool, default: True
             Add a branch node in case the fan-out of a signal is two or more.
         port_numbering : bool, default: True
             Show the port number in case the number of ports (input or output) is two or

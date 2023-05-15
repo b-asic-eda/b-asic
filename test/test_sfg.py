@@ -1250,7 +1250,10 @@ class TestSFGGraph:
             ' [shape=ellipse]\n\tcmul1 -> add1 [headlabel=1]\n\tcmul1'
             ' [shape=ellipse]\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 -> cmul1\n}'
         )
-        assert sfg_simple_filter.sfg_digraph().source in (res, res + "\n")
+        assert sfg_simple_filter.sfg_digraph(branch_node=False).source in (
+            res,
+            res + "\n",
+        )
 
     def test_sfg_show_id(self, sfg_simple_filter):
         res = (
@@ -1261,7 +1264,9 @@ class TestSFGGraph:
             ' [shape=square]\n\tt1 -> cmul1 [label=s5]\n}'
         )
 
-        assert sfg_simple_filter.sfg_digraph(show_id=True).source in (
+        assert sfg_simple_filter.sfg_digraph(
+            show_id=True, branch_node=False
+        ).source in (
             res,
             res + "\n",
         )
@@ -1276,7 +1281,7 @@ class TestSFGGraph:
             ' cmul1\n}'
         )
 
-        assert sfg_simple_filter.sfg_digraph(branch_node=True).source in (
+        assert sfg_simple_filter.sfg_digraph().source in (
             res,
             res + "\n",
         )
@@ -1289,7 +1294,9 @@ class TestSFGGraph:
             ' -> cmul1\n}'
         )
 
-        assert sfg_simple_filter.sfg_digraph(port_numbering=False).source in (
+        assert sfg_simple_filter.sfg_digraph(
+            port_numbering=False, branch_node=False
+        ).source in (
             res,
             res + "\n",
         )

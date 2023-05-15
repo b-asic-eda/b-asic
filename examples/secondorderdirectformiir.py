@@ -30,6 +30,10 @@ out1 = Output(add4, "OUT1")
 sfg = SFG(inputs=[in1], outputs=[out1], name="Second-order direct form IIR filter")
 
 # %%
+# The SFG looks like
+sfg
+
+# %%
 # Set latencies and execution times
 sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
 sfg.set_latency_of_type(Addition.type_name(), 1)

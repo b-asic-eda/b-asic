@@ -120,11 +120,12 @@ arch = Architecture({p1, p2, p_in, p_out}, memories, direct_interconnects=direct
 #        cmul [label="{{<in0> in0}|cmul|{<out0> out0}}"]
 #        memory1:out0 -> adder:in1 [label=2]
 #        cmul:out0 -> adder:in0 [label=2]
-#        memory0:out0 -> cmul:in0 [label=4]
+#        memory0:out0 -> cmul:in0 [label=3]
 #        adder:out0 -> output:in0 [label=1]
 #        input:out0 -> adder:in0 [label=1]
 #        adder:out0 -> memory0:in0 [label=1]
 #        adder:out0 -> adder:in1 [label=2]
 #        memory0:out0 -> adder:in0 [label=1]
+#        adder:out0 -> cmul:in0 [label=1]
 #        cmul:out0 -> memory1:in0 [label=2]
 #    }
