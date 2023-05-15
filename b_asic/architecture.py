@@ -3,6 +3,7 @@ B-ASIC architecture classes.
 """
 from collections import defaultdict
 from io import TextIOWrapper
+from itertools import chain
 from typing import (
     DefaultDict,
     Dict,
@@ -12,6 +13,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     Union,
     cast,
 )
@@ -20,8 +22,9 @@ import matplotlib.pyplot as plt
 from graphviz import Digraph
 
 from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
+from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
-from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable
+from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
 from b_asic.resources import ProcessCollection
 
 
@@ -249,6 +252,36 @@ class Resource(HardwareBlock):
     def collection(self) -> ProcessCollection:
         return self._collection
 
+    @property
+    def operation_type(self) -> Union[Type[MemoryProcess], Type[OperatorProcess]]:
+        raise NotImplementedError("ABC Resource does not implement operation_type")
+
+    def add_process(self, proc: Process):
+        """
+        Add a :class:`~b_asic.process.Process` to this :class:`Resource`.
+
+        Raises :class:`KeyError` if the process being added is not of the same type
+        as the other processes.
+
+        Parameters
+        ----------
+        proc : :class:`~b_asic.process.Process`
+            The process to add.
+        """
+        if isinstance(proc, OperatorProcess):
+            # operation_type marks OperatorProcess associated operation.
+            if not isinstance(proc._operation, self.operation_type):
+                raise KeyError(f"{proc} not of type {self.operation_type}")
+        else:
+            # operation_type is MemoryVariable or PlainMemoryVariable
+            if not isinstance(proc, self.operation_type):
+                raise KeyError(f"{proc} not of type {self.operation_type}")
+        self.collection.add_process(proc)
+
+    def remove_process(self, proc):
+        self.collection.remove_process(proc)
+        self._assignment = None
+
 
 class ProcessingElement(Resource):
     """
@@ -310,6 +343,10 @@ class ProcessingElement(Resource):
             self._assignment = None
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
+    @property
+    def operation_type(self) -> Type[Operation]:
+        return self._operation_type
+
 
 class Memory(Resource):
     """
@@ -339,12 +376,11 @@ class Memory(Resource):
     ):
         super().__init__(process_collection=process_collection, entity_name=entity_name)
         if not all(
-            isinstance(operator, (MemoryVariable, PlainMemoryVariable))
+            isinstance(operator, MemoryProcess)
             for operator in process_collection.collection
         ):
             raise TypeError(
-                "Can only have MemoryVariable or PlainMemoryVariable in"
-                " ProcessCollection when creating Memory"
+                "Can only have MemoryProcess in ProcessCollection when creating Memory"
             )
         if memory_type not in ("RAM", "register"):
             raise ValueError(
@@ -365,6 +401,14 @@ class Memory(Resource):
                 raise ValueError(f"At least {write_ports_bound} write ports required")
             self._input_count = write_ports
         self._memory_type = memory_type
+
+        memory_processes = [
+            cast(MemoryProcess, process) for process in process_collection
+        ]
+        mem_proc_type = type(memory_processes[0])
+        if not all(isinstance(proc, mem_proc_type) for proc in memory_processes):
+            raise TypeError("Different MemoryProcess types in ProcessCollection")
+        self._operation_type = mem_proc_type
 
     def __iter__(self) -> Iterator[MemoryVariable]:
         # Add information about the iterator type
@@ -392,6 +436,10 @@ class Memory(Resource):
             )
         else:  # "register"
             raise NotImplementedError()
+
+    @property
+    def operation_type(self) -> Type[MemoryProcess]:
+        return self._operation_type
 
 
 class Architecture(HardwareBlock):
@@ -576,6 +624,51 @@ of :class:`~b_asic.architecture.ProcessingElement`
             for i, output in enumerate(var.operation.outputs):
                 d_out[i][self._variable_outport_to_resource[output]] += 1
         return [dict(d) for d in d_in], [dict(d) for d in d_out]
+
+    def resource_from_name(self, name: str):
+        re = {p.entity_name: p for p in chain(self.memories, self.processing_elements)}
+        return re[name]
+
+    def move_process(
+        self,
+        proc: Union[str, Process],
+        re_from: Union[str, Resource],
+        re_to: Union[str, Resource],
+    ):
+        """
+        Move a :class:`b_asic.process.Process` from one resource to another in the
+        architecture.
+
+        Both the resource moved from and will become unassigned after a process has been
+        moved.
+
+        Raises :class:`KeyError` if ``proc`` is not present in resource ``re_from``.
+
+        Parameters
+        ----------
+        proc : :class:`b_asic.process.Process` or string
+            The process (or its given name) to move.
+        re_from : :class:`b_asic.architecture.Resource` or string
+            The resource (or its given name) to move the process from.
+        re_to : :class:`b_asic.architecture.Resource` or string
+            The resource (or its given name) to move the process to.
+        """
+        # Extract resouces from name
+        if isinstance(re_from, str):
+            re_from = self.resource_from_name(re_from)
+        if isinstance(re_to, str):
+            re_to = self.resource_from_name(re_to)
+
+        # Extract process from name
+        if isinstance(proc, str):
+            proc = re_from.collection.from_name(proc)
+
+        # Move the process.
+        if proc not in re_from.collection:
+            raise KeyError(f"{proc} not in {re_from}")
+        else:
+            re_to.add_process(proc)
+            re_from.remove_process(proc)
 
     def _digraph(self) -> Digraph:
         edges: Set[Tuple[str, str, str]] = set()

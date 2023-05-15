@@ -257,3 +257,10 @@ class TestProcessCollectionPlainMemoryVariable:
         for split_time in [1, 2]:
             short, long = collection.split_on_length(split_time)
             assert len(short) == 1 and len(long) == 1
+
+    def test_from_name(self):
+        a = PlainMemoryVariable(0, 0, {0: 2}, name="cool name 1337")
+        collection = ProcessCollection([a], schedule_time=5, cyclic=True)
+        with pytest.raises(KeyError, match="epic_name not in ..."):
+            collection.from_name("epic_name")
+        assert a == collection.from_name("cool name 1337")

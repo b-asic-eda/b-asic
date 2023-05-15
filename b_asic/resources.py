@@ -1427,3 +1427,21 @@ class ProcessCollection:
         writes = [process.start_time for process in self._collection]
         count = Counter(writes)
         return max(count.values())
+
+    def from_name(self, name: str):
+        """
+        Get a :class:`~b_asic.process.Process` from this collection from its name.
+
+        Raises :class:`KeyError` if no processes with ``name`` is found in this
+        colleciton.
+
+        Parameters
+        ----------
+        name : str
+            The name of the process to retrieve.
+        """
+        name_to_proc = {p.name: p for p in self.collection}
+        if name not in name_to_proc:
+            raise KeyError(f'{name} not in {self}')
+        else:
+            return name_to_proc[name]

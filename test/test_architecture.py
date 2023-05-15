@@ -5,7 +5,7 @@ import pytest
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import Addition, ConstantMultiplication
-from b_asic.process import MemoryVariable, OperatorProcess
+from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
 from b_asic.special_operations import Input, Output
@@ -23,6 +23,24 @@ def test_processing_element_exceptions(schedule_direct_form_iir_lp_filter: Sched
         ValueError, match="Do not create Resource with empty ProcessCollection"
     ):
         ProcessingElement(empty_collection)
+
+
+def test_add_remove_process_from_resource(schedule_direct_form_iir_lp_filter: Schedule):
+    mvs = schedule_direct_form_iir_lp_filter.get_memory_variables()
+    operations = schedule_direct_form_iir_lp_filter.get_operations()
+    memory = Memory(mvs)
+    pe = ProcessingElement(
+        operations.get_by_type_name(ConstantMultiplication.type_name())
+    )
+    for process in operations:
+        with pytest.raises(KeyError, match=f"{process} not of type"):
+            memory.add_process(process)
+    for process in mvs:
+        with pytest.raises(KeyError, match=f"{process} not of type"):
+            pe.add_process(process)
+
+    with pytest.raises(KeyError, match="PlainMV not of type"):
+        memory.add_process(PlainMemoryVariable(0, 0, {0: 2}, "PlainMV"))
 
 
 def test_extract_processing_elements(schedule_direct_form_iir_lp_filter: Schedule):
@@ -53,9 +71,7 @@ def test_memory_exceptions(schedule_direct_form_iir_lp_filter: Schedule):
         ValueError, match="Do not create Resource with empty ProcessCollection"
     ):
         Memory(empty_collection)
-    with pytest.raises(
-        TypeError, match="Can only have MemoryVariable or PlainMemoryVariable"
-    ):
+    with pytest.raises(TypeError, match="Can only have MemoryProcess"):
         Memory(operations)
     # No exception
     Memory(mvs)
@@ -137,3 +153,67 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
             mv = cast(MemoryVariable, mv)
             print(f'  {mv.start_time} -> {mv.execution_time}: {mv.write_port.name}')
         print(architecture.get_interconnects_for_memory(memory))
+
+
+def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
+    # Resources
+    mvs = schedule_direct_form_iir_lp_filter.get_memory_variables()
+    operations = schedule_direct_form_iir_lp_filter.get_operations()
+    adders1, adders2 = operations.get_by_type_name(Addition.type_name()).split_on_ports(
+        total_ports=1
+    )
+    adders1 = [adders1]  # Fake two PEs needed for the adders
+    adders2 = [adders2]  # Fake two PEs needed for the adders
+    const_mults = operations.get_by_type_name(
+        ConstantMultiplication.type_name()
+    ).split_on_execution_time()
+    inputs = operations.get_by_type_name(Input.type_name()).split_on_execution_time()
+    outputs = operations.get_by_type_name(Output.type_name()).split_on_execution_time()
+
+    # Create necessary processing elements
+    processing_elements: List[ProcessingElement] = [
+        ProcessingElement(operation, entity_name=f'pe{i}')
+        for i, operation in enumerate(chain(adders1, adders2, const_mults))
+    ]
+    for i, pc in enumerate(inputs):
+        processing_elements.append(ProcessingElement(pc, entity_name=f'input{i}'))
+    for i, pc in enumerate(outputs):
+        processing_elements.append(ProcessingElement(pc, entity_name=f'output{i}'))
+
+    # Extract zero-length memory variables
+    direct_conn, mvs = mvs.split_on_length()
+
+    # Create Memories from the memory variables (split on length to get two memories)
+    memories: List[Memory] = [Memory(pc) for pc in mvs.split_on_length(6)]
+
+    # Create architecture
+    architecture = Architecture(
+        processing_elements, memories, direct_interconnects=direct_conn
+    )
+
+    # Some movement that must work
+    assert memories[1].collection.from_name('cmul4.0')
+    architecture.move_process('cmul4.0', memories[1], memories[0])
+    assert memories[0].collection.from_name('cmul4.0')
+
+    assert memories[1].collection.from_name('in1.0')
+    architecture.move_process('in1.0', memories[1], memories[0])
+    assert memories[0].collection.from_name('in1.0')
+
+    assert processing_elements[1].collection.from_name('add1')
+    architecture.move_process('add1', processing_elements[1], processing_elements[0])
+    assert processing_elements[0].collection.from_name('add1')
+
+    # Processes leave the resources they have moved from
+    with pytest.raises(KeyError):
+        memories[1].collection.from_name('cmul4.0')
+    with pytest.raises(KeyError):
+        memories[1].collection.from_name('in1.0')
+    with pytest.raises(KeyError):
+        processing_elements[1].collection.from_name('add1')
+
+    # Processes can only be moved when the source and destination process-types match
+    with pytest.raises(KeyError, match="cmul4.0 not of type"):
+        architecture.move_process('cmul4.0', memories[0], processing_elements[0])
+    with pytest.raises(KeyError, match="invalid_name not in"):
+        architecture.move_process('invalid_name', memories[0], processing_elements[1])
