@@ -177,16 +177,17 @@ class Resource(HardwareBlock):
         return self._output_count
 
     def _struct_def(self) -> str:
+        # Create GraphViz struct
         inputs = [f"in{i}" for i in range(self._input_count)]
         outputs = [f"out{i}" for i in range(self._output_count)]
         ret = ""
         if inputs:
-            instrs = [f"<{instr}> {instr}" for instr in inputs]
-            ret += f"{{{'|'.join(instrs)}}}|"
+            in_strs = [f"<{in_str}> {in_str}" for in_str in inputs]
+            ret += f"{{{'|'.join(in_strs)}}}|"
         ret += f"{self.entity_name}"
         if outputs:
-            outstrs = [f"<{outstr}> {outstr}" for outstr in outputs]
-            ret += f"|{{{'|'.join(outstrs)}}}"
+            out_strs = [f"<{out_str}> {out_str}" for out_str in outputs]
+            ret += f"|{{{'|'.join(out_strs)}}}"
         return "{" + ret + "}"
 
     @property
@@ -263,7 +264,7 @@ class Resource(HardwareBlock):
     def operation_type(self) -> Union[Type[MemoryProcess], Type[OperatorProcess]]:
         raise NotImplementedError("ABC Resource does not implement operation_type")
 
-    def add_process(self, proc: Process):
+    def add_process(self, proc: Process, assign=False):
         """
         Add a :class:`~b_asic.process.Process` to this :class:`Resource`.
 
@@ -274,6 +275,8 @@ class Resource(HardwareBlock):
         ----------
         proc : :class:`~b_asic.process.Process`
             The process to add.
+        assign : bool, default=False
+            Whether to perform assignment of the resource after adding.
         """
         if isinstance(proc, OperatorProcess):
             # operation_type marks OperatorProcess associated operation.
@@ -284,11 +287,30 @@ class Resource(HardwareBlock):
             if not isinstance(proc, self.operation_type):
                 raise KeyError(f"{proc} not of type {self.operation_type}")
         self.collection.add_process(proc)
-        self._assignment = None
+        if assign:
+            self.assign()
+        else:
+            self._assignment = None
 
-    def remove_process(self, proc):
+    def remove_process(self, proc: Process, assign: bool = False):
+        """
+        Remove a :class:`~b_asic.process.Process` from this :class:`Resource`.
+
+        Raises :class:`KeyError` if the process being added is not of the same type
+        as the other processes.
+
+        Parameters
+        ----------
+        proc : :class:`~b_asic.process.Process`
+            The process to remove.
+        assign : bool, default=False
+            Whether to perform assignment of the resource after removal.
+        """
         self.collection.remove_process(proc)
-        self._assignment = None
+        if assign:
+            self.assign()
+        else:
+            self._assignment = None
 
 
 class ProcessingElement(Resource):
@@ -674,6 +696,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         proc: Union[str, Process],
         re_from: Union[str, Resource],
         re_to: Union[str, Resource],
+        assign: bool = False,
     ):
         """
         Move a :class:`b_asic.process.Process` from one resource to another in the
@@ -692,8 +715,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
             The resource (or its given name) to move the process from.
         re_to : :class:`b_asic.architecture.Resource` or string
             The resource (or its given name) to move the process to.
+        assign : bool, default=False
+            Whether to perform assignment of the resources after moving.
         """
-        # Extract resouces from name
+        # Extract resources from name
         if isinstance(re_from, str):
             re_from = self.resource_from_name(re_from)
         if isinstance(re_to, str):
@@ -703,21 +728,24 @@ of :class:`~b_asic.architecture.ProcessingElement`
         if isinstance(proc, str):
             proc = re_from.collection.from_name(proc)
 
-        # Move the process.
+        # Move the process
         if proc in re_from:
-            re_to.add_process(proc)
-            re_from.remove_process(proc)
+            re_to.add_process(proc, assign=assign)
+            re_from.remove_process(proc, assign=assign)
         else:
             raise KeyError(f"{proc} not in {re_from.entity_name}")
         self._build_dicts()
 
     def _digraph(self, branch_node=True) -> Digraph:
-        edges: DefaultDict[str, Set[Tuple[str, str]]] = defaultdict(set)
         dg = Digraph(node_attr={'shape': 'record'})
+        # Add nodes for memories and PEs to graph
         for i, mem in enumerate(self._memories):
             dg.node(mem.entity_name, mem._struct_def())
         for i, pe in enumerate(self._processing_elements):
             dg.node(pe.entity_name, pe._struct_def())
+
+        # Create list of interconnects
+        edges: DefaultDict[str, Set[Tuple[str, str]]] = defaultdict(set)
         for pe in self._processing_elements:
             inputs, outputs = self.get_interconnects_for_pe(pe)
             for i, inp in enumerate(inputs):
@@ -729,21 +757,22 @@ of :class:`~b_asic.architecture.ProcessingElement`
                         )
                     )
             for o, output in enumerate(outputs):
-                for (dest, port), cnt in output.items():
+                for (destination, port), cnt in output.items():
                     edges[f"{pe.entity_name}:out{o}"].add(
                         (
-                            f"{dest.entity_name}:in{port}",
+                            f"{destination.entity_name}:in{port}",
                             f"{cnt}",
                         )
                     )
-        for src_str, dest_cnts in edges.items():
-            if len(dest_cnts) > 1 and branch_node:
+        # Add edges to graph
+        for src_str, destination_counts in edges.items():
+            if len(destination_counts) > 1 and branch_node:
                 branch = f"{src_str}_branch".replace(":", "")
                 dg.node(branch, shape='point')
-                dg.edge(src_str, branch)
+                dg.edge(src_str, branch, arrowhead='none')
                 src_str = branch
-            for dest_str, cnt_str in dest_cnts:
-                dg.edge(src_str, dest_str, label=cnt_str)
+            for destination_str, cnt_str in destination_counts:
+                dg.edge(src_str, destination_str, label=cnt_str)
         return dg
 
     @property

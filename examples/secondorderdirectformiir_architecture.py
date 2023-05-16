@@ -95,8 +95,8 @@ arch
 
 # %%
 # To reduce the amount of interconnect, the ``cuml3.0`` variable can be moved from
-# ``memory0`` to ``memory2``.  In this way, ``memory0``only gets variables from the
-# adder and an input multiplexer can be avoided. The memoried must be assigned again as
+# ``memory0`` to ``memory2``.  In this way, ``memory0`` only gets variables from the
+# adder and an input multiplexer can be avoided. The memories must be assigned again as
 # the contents have changed.
 arch.move_process('cmul3.0', 'memory0', 'memory2')
 memories[0].assign()
@@ -112,10 +112,8 @@ arch
 
 # %%
 # It is of course also possible to move ``add4.0`` to ``memory2`` to save one memory
-# cell.
-arch.move_process('add4.0', 'memory0', 'memory2')
-memories[0].assign()
-memories[2].assign()
+# cell. It is possible to pass ``assign=True`` to perform assignment after moving.
+arch.move_process('add4.0', 'memory0', 'memory2', assign=True)
 
 memories[0].show_content("New assigned memory0")
 memories[2].show_content("New assigned memory2")
