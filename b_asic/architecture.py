@@ -83,6 +83,13 @@ class HardwareBlock:
     def _repr_png_(self):
         return self._digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
 
+    def _repr_svg_(self):
+        return self._digraph()._repr_mimebundle_(include=["image/svg+xml"])[
+            "image/svg+xml"
+        ]
+
+    _repr_html_ = _repr_svg_
+
     @property
     def entity_name(self) -> str:
         if self._entity_name is None:
@@ -488,8 +495,12 @@ of :class:`~b_asic.architecture.ProcessingElement`
         )
         self._memories = [memories] if isinstance(memories, Memory) else list(memories)
         self._direct_interconnects = direct_interconnects
-        self._variable_inport_to_resource: Dict[InputPort, Tuple[Resource, int]] = {}
-        self._variable_outport_to_resource: Dict[OutputPort, Tuple[Resource, int]] = {}
+        self._variable_inport_to_resource: DefaultDict[
+            InputPort, Set[Tuple[Resource, int]]
+        ] = defaultdict(set)
+        self._variable_outport_to_resource: DefaultDict[
+            OutputPort, Set[Tuple[Resource, int]]
+        ] = defaultdict(set)
         self._operation_inport_to_resource: Dict[InputPort, Resource] = {}
         self._operation_outport_to_resource: Dict[OutputPort, Resource] = {}
 
@@ -513,10 +524,14 @@ of :class:`~b_asic.architecture.ProcessingElement`
         return schedule_times.pop()
 
     def _build_dicts(self) -> None:
-        self._variable_inport_to_resource: Dict[InputPort, Tuple[Resource, int]] = {}
-        self._variable_outport_to_resource: Dict[OutputPort, Tuple[Resource, int]] = {}
-        self._operation_inport_to_resource: Dict[InputPort, Resource] = {}
-        self._operation_outport_to_resource: Dict[OutputPort, Resource] = {}
+        self._variable_inport_to_resource: DefaultDict[
+            InputPort, Set[Tuple[Resource, int]]
+        ] = defaultdict(set)
+        self._variable_outport_to_resource: DefaultDict[
+            OutputPort, Set[Tuple[Resource, int]]
+        ] = defaultdict(set)
+        self._operation_inport_to_resource = {}
+        self._operation_outport_to_resource = {}
         for pe in self.processing_elements:
             for operator in pe.processes:
                 for input_port in operator.operation.inputs:
@@ -527,19 +542,25 @@ of :class:`~b_asic.architecture.ProcessingElement`
         for memory in self.memories:
             for mv in memory:
                 for read_port in mv.read_ports:
-                    self._variable_inport_to_resource[read_port] = (memory, 0)  # Fix
-                self._variable_outport_to_resource[mv.write_port] = (memory, 0)  # Fix
+                    self._variable_inport_to_resource[read_port].add((memory, 0))  # Fix
+                self._variable_outport_to_resource[mv.write_port].add(
+                    (memory, 0)
+                )  # Fix
         if self._direct_interconnects:
             for di in self._direct_interconnects:
                 di = cast(MemoryVariable, di)
                 for read_port in di.read_ports:
-                    self._variable_inport_to_resource[read_port] = (
-                        self._operation_outport_to_resource[di.write_port],
-                        di.write_port.index,
+                    self._variable_inport_to_resource[read_port].add(
+                        (
+                            self._operation_outport_to_resource[di.write_port],
+                            di.write_port.index,
+                        )
                     )
-                    self._variable_outport_to_resource[di.write_port] = (
-                        self._operation_inport_to_resource[read_port],
-                        read_port.index,
+                    self._variable_outport_to_resource[di.write_port].add(
+                        (
+                            self._operation_inport_to_resource[read_port],
+                            read_port.index,
+                        )
                     )
 
     def validate_ports(self) -> None:
@@ -637,9 +658,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
         for var in pe.collection:
             var = cast(OperatorProcess, var)
             for i, input_ in enumerate(var.operation.inputs):
-                d_in[i][self._variable_inport_to_resource[input_]] += 1
+                for v in self._variable_inport_to_resource[input_]:
+                    d_in[i][v] += 1
             for i, output in enumerate(var.operation.outputs):
-                d_out[i][self._variable_outport_to_resource[output]] += 1
+                for v in self._variable_outport_to_resource[output]:
+                    d_out[i][v] += 1
         return [dict(d) for d in d_in], [dict(d) for d in d_out]
 
     def resource_from_name(self, name: str):
@@ -688,8 +711,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             raise KeyError(f"{proc} not in {re_from.entity_name}")
         self._build_dicts()
 
-    def _digraph(self) -> Digraph:
-        edges: Set[Tuple[str, str, str]] = set()
+    def _digraph(self, branch_node=True) -> Digraph:
+        edges: DefaultDict[str, Set[Tuple[str, str]]] = defaultdict(set)
         dg = Digraph(node_attr={'shape': 'record'})
         for i, mem in enumerate(self._memories):
             dg.node(mem.entity_name, mem._struct_def())
@@ -699,24 +722,28 @@ of :class:`~b_asic.architecture.ProcessingElement`
             inputs, outputs = self.get_interconnects_for_pe(pe)
             for i, inp in enumerate(inputs):
                 for (source, port), cnt in inp.items():
-                    edges.add(
+                    edges[f"{source.entity_name}:out{port}"].add(
                         (
-                            f"{source.entity_name}:out{port}",
                             f"{pe.entity_name}:in{i}",
                             f"{cnt}",
                         )
                     )
             for o, output in enumerate(outputs):
                 for (dest, port), cnt in output.items():
-                    edges.add(
+                    edges[f"{pe.entity_name}:out{o}"].add(
                         (
-                            f"{pe.entity_name}:out{o}",
                             f"{dest.entity_name}:in{port}",
                             f"{cnt}",
                         )
                     )
-        for src_str, dest_str, cnt_str in edges:
-            dg.edge(src_str, dest_str, label=cnt_str)
+        for src_str, dest_cnts in edges.items():
+            if len(dest_cnts) > 1 and branch_node:
+                branch = f"{src_str}_branch".replace(":", "")
+                dg.node(branch, shape='point')
+                dg.edge(src_str, branch)
+                src_str = branch
+            for dest_str, cnt_str in dest_cnts:
+                dg.edge(src_str, dest_str, label=cnt_str)
         return dg
 
     @property

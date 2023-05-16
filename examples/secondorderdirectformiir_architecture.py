@@ -91,28 +91,35 @@ arch = Architecture({p1, p2, p_in, p_out}, memories, direct_interconnects=direct
 
 # %%
 # The architecture can be rendered in enriched shells.
-#
-# .. graphviz::
-#
-#        digraph {
-#             node [shape=record]
-#             memory1 [label="{{<in0> in0}|memory1|{<out0> out0}}"]
-#             memory0 [label="{{<in0> in0}|memory0|{<out0> out0}}"]
-#             memory2 [label="{{<in0> in0}|memory2|{<out0> out0}}"]
-#             in [label="{in|{<out0> out0}}"]
-#             out [label="{{<in0> in0}|out}"]
-#             cmul [label="{{<in0> in0}|cmul|{<out0> out0}}"]
-#             adder [label="{{<in0> in0|<in1> in1}|adder|{<out0> out0}}"]
-#             memory1:out0 -> adder:in1 [label=1]
-#             cmul:out0 -> adder:in0 [label=1]
-#             cmul:out0 -> memory0:in0 [label=3]
-#             memory0:out0 -> adder:in0 [label=1]
-#             adder:out0 -> adder:in1 [label=1]
-#             memory1:out0 -> cmul:in0 [label=5]
-#             memory0:out0 -> adder:in1 [label=2]
-#             adder:out0 -> memory1:in0 [label=2]
-#             adder:out0 -> out:in0 [label=1]
-#             memory2:out0 -> adder:in0 [label=2]
-#             cmul:out0 -> memory2:in0 [label=2]
-#             in:out0 -> cmul:in0 [label=1]
-#        }
+arch
+
+# %%
+# To reduce the amount of interconnect, the ``cuml3.0`` variable can be moved from
+# ``memory0`` to ``memory2``.  In this way, ``memory0``only gets variables from the
+# adder and an input multiplexer can be avoided. The memoried must be assigned again as
+# the contents have changed.
+arch.move_process('cmul3.0', 'memory0', 'memory2')
+memories[0].assign()
+memories[2].assign()
+
+memories[0].show_content("New assigned memory0")
+memories[2].show_content("New assigned memory2")
+
+# %%
+# Looking at the architecture it is clear that there is now only one input to
+# ``memory0``, so no input multiplexer required.
+arch
+
+# %%
+# It is of course also possible to move ``add4.0`` to ``memory2`` to save one memory
+# cell.
+arch.move_process('add4.0', 'memory0', 'memory2')
+memories[0].assign()
+memories[2].assign()
+
+memories[0].show_content("New assigned memory0")
+memories[2].show_content("New assigned memory2")
+
+# %%
+# However, this comes at the expense of an additional input to ``memory2``.
+arch
