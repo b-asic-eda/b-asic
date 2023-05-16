@@ -277,6 +277,7 @@ class Resource(HardwareBlock):
             if not isinstance(proc, self.operation_type):
                 raise KeyError(f"{proc} not of type {self.operation_type}")
         self.collection.add_process(proc)
+        self._assignment = None
 
     def remove_process(self, proc):
         self.collection.remove_process(proc)
@@ -512,6 +513,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         return schedule_times.pop()
 
     def _build_dicts(self) -> None:
+        self._variable_inport_to_resource: Dict[InputPort, Tuple[Resource, int]] = {}
+        self._variable_outport_to_resource: Dict[OutputPort, Tuple[Resource, int]] = {}
+        self._operation_inport_to_resource: Dict[InputPort, Resource] = {}
+        self._operation_outport_to_resource: Dict[OutputPort, Resource] = {}
         for pe in self.processing_elements:
             for operator in pe.processes:
                 for input_port in operator.operation.inputs:
@@ -676,11 +681,12 @@ of :class:`~b_asic.architecture.ProcessingElement`
             proc = re_from.collection.from_name(proc)
 
         # Move the process.
-        if proc not in re_from.collection:
-            raise KeyError(f"{proc} not in {re_from}")
-        else:
+        if proc in re_from:
             re_to.add_process(proc)
             re_from.remove_process(proc)
+        else:
+            raise KeyError(f"{proc} not in {re_from.entity_name}")
+        self._build_dicts()
 
     def _digraph(self) -> Digraph:
         edges: Set[Tuple[str, str, str]] = set()
