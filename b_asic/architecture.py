@@ -293,10 +293,15 @@ class ProcessingElement(Resource):
         Process collection containing operations to map to processing element.
     entity_name : str, optional
         Name of processing element entity.
+    assign : bool, default True
+        Perform assignment when creating the ProcessingElement.
     """
 
     def __init__(
-        self, process_collection: ProcessCollection, entity_name: Optional[str] = None
+        self,
+        process_collection: ProcessCollection,
+        entity_name: Optional[str] = None,
+        assign: bool = True,
     ):
         super().__init__(process_collection=process_collection, entity_name=entity_name)
         if not all(
@@ -318,7 +323,8 @@ class ProcessingElement(Resource):
         self._type_name = op_type.type_name()
         self._input_count = ops[0].input_count
         self._output_count = ops[0].output_count
-        self.assign()
+        if assign:
+            self.assign()
 
     @property
     def processes(self) -> List[OperatorProcess]:
@@ -364,6 +370,9 @@ class Memory(Resource):
         Number of read ports for memory.
     write_ports : int, optional
         Number of write ports for memory.
+    assign : bool, default False
+        Perform assignment when creating the Memory (using the default properties).
+
     """
 
     def __init__(
@@ -373,6 +382,7 @@ class Memory(Resource):
         entity_name: Optional[str] = None,
         read_ports: Optional[int] = None,
         write_ports: Optional[int] = None,
+        assign: bool = False,
     ):
         super().__init__(process_collection=process_collection, entity_name=entity_name)
         if not all(
@@ -401,6 +411,8 @@ class Memory(Resource):
                 raise ValueError(f"At least {write_ports_bound} write ports required")
             self._input_count = write_ports
         self._memory_type = memory_type
+        if assign:
+            self.assign()
 
         memory_processes = [
             cast(MemoryProcess, process) for process in process_collection
