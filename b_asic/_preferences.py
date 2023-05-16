@@ -10,3 +10,11 @@ OPERATION_GAP: float = 0.5
 SCHEDULE_OFFSET: float = 0.2
 
 SPLINE_OFFSET: float = 0.2
+
+PE_COLOR = (0, 185, 231)  # LiuBlue
+PE_CLUSTER_COLOR = (210, 238, 249)  # LiuBlue5
+MEMORY_COLOR = (0, 207, 181)  # LiuGreen
+MEMORY_CLUSTER_COLOR = (213, 241, 235)  # LiuGreen5
+IO_COLOR = (23, 199, 210)  # LiuTurqoise
+IO_CLUSTER_COLOR = (215, 239, 242)  # LiuTurqoise5
+MUX_COLOR = (255, 100, 66)  # LiuOrange

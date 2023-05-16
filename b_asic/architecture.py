@@ -21,6 +21,15 @@ from typing import (
 import matplotlib.pyplot as plt
 from graphviz import Digraph
 
+from b_asic._preferences import (
+    IO_CLUSTER_COLOR,
+    IO_COLOR,
+    MEMORY_CLUSTER_COLOR,
+    MEMORY_COLOR,
+    MUX_COLOR,
+    PE_CLUSTER_COLOR,
+    PE_COLOR,
+)
 from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -163,7 +172,9 @@ class Resource(HardwareBlock):
 
     def _digraph(self) -> Digraph:
         dg = Digraph(node_attr={'shape': 'record'})
-        dg.node(self.entity_name, self._struct_def())
+        dg.node(
+            self.entity_name, self._struct_def(), style='filled', fillcolor=self._color
+        )
         return dg
 
     @property
@@ -330,6 +341,8 @@ class ProcessingElement(Resource):
         Perform assignment when creating the ProcessingElement.
     """
 
+    _color = f"#{''.join(f'{v:0>2X}' for v in PE_COLOR)}"
+
     def __init__(
         self,
         process_collection: ProcessCollection,
@@ -407,6 +420,8 @@ class Memory(Resource):
         Perform assignment when creating the Memory (using the default properties).
 
     """
+
+    _color = f"#{''.join(f'{v:0>2X}' for v in MEMORY_COLOR)}"
 
     def __init__(
         self,
@@ -617,6 +632,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 pe_input_ports.update(operator.operation.inputs)
                 pe_output_ports.update(operator.operation.outputs)
 
+        # Make sure all inputs and outputs in the architecture are in use
         read_port_diff = memory_read_ports.symmetric_difference(pe_input_ports)
         write_port_diff = memory_write_ports.symmetric_difference(pe_output_ports)
         if read_port_diff:
@@ -629,18 +645,17 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 "Memory read port and PE output port difference:"
                 f" {[port.name for port in write_port_diff]}"
             )
-        # Make sure all inputs and outputs in the architecture are in use
 
     def get_interconnects_for_memory(
-        self, mem: Memory
+        self, mem: Union[Memory, str]
     ) -> Tuple[Dict[Resource, int], Dict[Resource, int]]:
         """
         Return a dictionary with interconnect information for a Memory.
 
         Parameters
         ----------
-        mem : :class:`Memory`
-            The memory to obtain information about.
+        mem : :class:`Memory` or str
+            The memory or entity name to obtain information about.
 
         Returns
         -------
@@ -648,6 +663,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
             A dictionary with the ProcessingElements that are connected to the write and
             read ports, respectively, with counts of the number of accesses.
         """
+        if isinstance(mem, str):
+            mem = cast(Memory, self.resource_from_name(mem))
+
         d_in: DefaultDict[Resource, int] = defaultdict(_interconnect_dict)
         d_out: DefaultDict[Resource, int] = defaultdict(_interconnect_dict)
         for var in mem.collection:
@@ -658,7 +676,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         return dict(d_in), dict(d_out)
 
     def get_interconnects_for_pe(
-        self, pe: ProcessingElement
+        self, pe: Union[str, ProcessingElement]
     ) -> Tuple[
         List[Dict[Tuple[Resource, int], int]], List[Dict[Tuple[Resource, int], int]]
     ]:
@@ -668,8 +686,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         Parameters
         ----------
-        pe : :class:`ProcessingElement`
-            The processing element to get information for.
+        pe : :class:`ProcessingElement` or str
+            The processing element or entity name to get information for.
 
         Returns
         -------
@@ -681,6 +699,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
             frequency of accesses.
 
         """
+        if isinstance(pe, str):
+            pe = cast(ProcessingElement, self.resource_from_name(pe))
+
         d_in: List[DefaultDict[Tuple[Resource, int], int]] = [
             defaultdict(_interconnect_dict) for _ in range(pe.input_count)
         ]
@@ -720,11 +741,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
         Parameters
         ----------
         proc : :class:`b_asic.process.Process` or string
-            The process (or its given name) to move.
-        re_from : :class:`b_asic.architecture.Resource` or string
-            The resource (or its given name) to move the process from.
-        re_to : :class:`b_asic.architecture.Resource` or string
-            The resource (or its given name) to move the process to.
+            The process (or its name) to move.
+        re_from : :class:`b_asic.architecture.Resource` or str
+            The resource (or its entity name) to move the process from.
+        re_to : :class:`b_asic.architecture.Resource` or str
+            The resource (or its entity name) to move the process to.
         assign : bool, default=False
             Whether to perform assignment of the resources after moving.
         """
@@ -753,43 +774,118 @@ of :class:`~b_asic.architecture.ProcessingElement`
         splines: str = "spline",
         io_cluster: bool = True,
         show_multiplexers: bool = True,
+        colored: bool = True,
     ) -> Digraph:
+        """
+        Parameters
+        ----------
+        branch_node : bool, default: True
+            Whether to create a branch node for outputs with fan-out of two or higher.
+        cluster : bool, default: True
+            Whether to draw memories and PEs in separate clusters.
+        splines : str, default: "spline"
+            The type of interconnect to use for graph drawing.
+        io_cluster : bool, default: True
+            Whether Inputs and Outputs are drawn inside an IO cluster.
+        show_multiplexers : bool, default: True
+            Whether input multiplexers are included.
+        colored : bool, default: True
+            Whether to color the nodes.
+        """
         dg = Digraph(node_attr={'shape': 'record'})
         dg.attr(splines=splines)
+        # Setup colors
+        pe_color = (
+            f"#{''.join(f'{v:0>2X}' for v in PE_COLOR)}" if colored else "transparent"
+        )
+        pe_cluster_color = (
+            f"#{''.join(f'{v:0>2X}' for v in PE_CLUSTER_COLOR)}"
+            if colored
+            else "transparent"
+        )
+        memory_color = (
+            f"#{''.join(f'{v:0>2X}' for v in MEMORY_COLOR)}"
+            if colored
+            else "transparent"
+        )
+        memory_cluster_color = (
+            f"#{''.join(f'{v:0>2X}' for v in MEMORY_CLUSTER_COLOR)}"
+            if colored
+            else "transparent"
+        )
+        io_color = (
+            f"#{''.join(f'{v:0>2X}' for v in IO_COLOR)}" if colored else "transparent"
+        )
+        io_cluster_color = (
+            f"#{''.join(f'{v:0>2X}' for v in IO_CLUSTER_COLOR)}"
+            if colored
+            else "transparent"
+        )
+        mux_color = (
+            f"#{''.join(f'{v:0>2X}' for v in MUX_COLOR)}" if colored else "transparent"
+        )
+
         # Add nodes for memories and PEs to graph
         if cluster:
             # Add subgraphs
             if len(self._memories):
                 with dg.subgraph(name='cluster_memories') as c:
                     for mem in self._memories:
-                        c.node(mem.entity_name, mem._struct_def())
+                        c.node(
+                            mem.entity_name,
+                            mem._struct_def(),
+                            style='filled',
+                            fillcolor=memory_color,
+                        )
                     label = "Memory" if len(self._memories) <= 1 else "Memories"
-                    c.attr(label=label)
+                    c.attr(label=label, bgcolor=memory_cluster_color)
             with dg.subgraph(name='cluster_pes') as c:
                 for pe in self._processing_elements:
                     if pe._type_name not in ('in', 'out'):
-                        c.node(pe.entity_name, pe._struct_def())
+                        c.node(
+                            pe.entity_name,
+                            pe._struct_def(),
+                            style='filled',
+                            fillcolor=pe_color,
+                        )
                 label = (
                     "Processing element"
                     if len(self._processing_elements) <= 1
                     else "Processing elements"
                 )
-                c.attr(label=label)
+                c.attr(label=label, bgcolor=pe_cluster_color)
             if io_cluster:
                 with dg.subgraph(name='cluster_io') as c:
                     for pe in self._processing_elements:
                         if pe._type_name in ('in', 'out'):
-                            c.node(pe.entity_name, pe._struct_def())
-                    c.attr(label="IO")
+                            c.node(
+                                pe.entity_name,
+                                pe._struct_def(),
+                                style='filled',
+                                fillcolor=io_color,
+                            )
+                    c.attr(label="IO", bgcolor=io_cluster_color)
             else:
                 for pe in self._processing_elements:
                     if pe._type_name in ('in', 'out'):
-                        dg.node(pe.entity_name, pe._struct_def())
+                        dg.node(
+                            pe.entity_name,
+                            pe._struct_def(),
+                            style='filled',
+                            fillcolor=io_color,
+                        )
         else:
             for i, mem in enumerate(self._memories):
-                dg.node(mem.entity_name, mem._struct_def())
+                dg.node(
+                    mem.entity_name,
+                    mem._struct_def(),
+                    style='filled',
+                    fillcolor=memory_color,
+                )
             for i, pe in enumerate(self._processing_elements):
-                dg.node(pe.entity_name, pe._struct_def())
+                dg.node(
+                    pe.entity_name, pe._struct_def(), style='filled', fillcolor=pe_color
+                )
 
         # Create list of interconnects
         edges: DefaultDict[str, Set[Tuple[str, str]]] = defaultdict(set)
@@ -830,9 +926,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     ret += f"{{{'|'.join(in_strs)}}}|"
                     name = f"{destination.replace(':', '_')}_mux"
                     ret += f"<{name}> {name}"
-                    ret += "|<out> out"
-                    dg.node(name, "{" + ret + "}")
-                    dg.edge(f"{name}:out", destination)
+                    ret += "|<out0> out0"
+                    dg.node(name, "{" + ret + "}", style='filled', fillcolor=mux_color)
+                    # Add edge from mux output to resource input
+                    dg.edge(f"{name}:out0", destination)
 
         # Add edges to graph
         for src_str, destination_counts in edges.items():

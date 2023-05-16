@@ -1,11 +1,11 @@
 from itertools import chain
-from typing import List, cast
+from typing import List
 
 import pytest
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import Addition, ConstantMultiplication
-from b_asic.process import MemoryVariable, OperatorProcess, PlainMemoryVariable
+from b_asic.process import PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
 from b_asic.special_operations import Input, Output
@@ -95,21 +95,24 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     assert len(outputs) == 1
 
     # Create necessary processing elements
+    adder = ProcessingElement(adders[0], entity_name="adder")
+    multiplier = ProcessingElement(const_mults[0], entity_name="multiplier")
+    input_pe = ProcessingElement(inputs[0], entity_name="input")
+    output_pe = ProcessingElement(outputs[0], entity_name="output")
     processing_elements: List[ProcessingElement] = [
-        ProcessingElement(operation)
-        for operation in chain(adders, const_mults, inputs, outputs)
+        adder,
+        multiplier,
+        input_pe,
+        output_pe,
     ]
-    for i, pe in enumerate(processing_elements):
-        pe.set_entity_name(f"{pe._type_name.upper()}{i}")
-        if pe._type_name == 'add':
-            s = (
-                'digraph {\n\tnode [shape=record]\n\t'
-                + pe.entity_name
-                + ' [label="{{<in0> in0|<in1> in1}|'
-                + f'<{pe.entity_name}> {pe.entity_name}'
-                + '|{<out0> out0}}"]\n}'
-            )
-            assert pe._digraph().source in (s, s + '\n')
+    s = (
+        'digraph {\n\tnode [shape=record]\n\t'
+        + "adder"
+        + ' [label="{{<in0> in0|<in1> in1}|'
+        + '<adder> adder'
+        + '|{<out0> out0}}" fillcolor="#00B9E7" style=filled]\n}'
+    )
+    assert adder._digraph().source in (s, s + '\n')
 
     # Extract zero-length memory variables
     direct_conn, mvs = mvs.split_on_length()
@@ -124,16 +127,28 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         memory.set_entity_name(f"MEM{i}")
         s = (
             'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{{<in0> in0}|<MEM0>'
-            ' MEM0|{<out0> out0}}"]\n}'
+            ' MEM0|{<out0> out0}}" fillcolor="#00CFB5" style=filled]\n}'
         )
         assert memory.schedule_time == 18
         assert memory._digraph().source in (s, s + '\n')
+        assert not memory.is_assigned
+        memory.assign()
+        assert memory.is_assigned
+        assert len(memory._assignment) == 4
+
+    # Set invalid name
+    with pytest.raises(ValueError, match='32 is not a valid VHDL identifier'):
+        adder.set_entity_name("32")
+    assert adder.entity_name == "adder"
 
     # Create architecture from
     architecture = Architecture(
         processing_elements, memories, direct_interconnects=direct_conn
     )
 
+    assert architecture.direct_interconnects == direct_conn
+
+    # Graph representation
     # Parts are non-deterministic, but this first part seems OK
     s = (
         'digraph {\n\tnode [shape=record]\n\tsplines=spline\n\tsubgraph'
@@ -144,23 +159,10 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     assert architecture._digraph(cluster=False).source.startswith(s)
     assert architecture.schedule_time == 18
 
-    # assert architecture._digraph().source == "foo"
     for pe in processing_elements:
-        print(pe)
         assert pe.schedule_time == 18
-        for operation in pe._collection:
-            operation = cast(OperatorProcess, operation)
-            print(f'  {operation}')
-        print(architecture.get_interconnects_for_pe(pe))
 
-    print("")
-    print("")
-    for memory in memories:
-        print(memory)
-        for mv in memory._collection:
-            mv = cast(MemoryVariable, mv)
-            print(f'  {mv.start_time} -> {mv.execution_time}: {mv.write_port.name}')
-        print(architecture.get_interconnects_for_memory(memory))
+    assert architecture.resource_from_name('adder') == adder
 
 
 def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
