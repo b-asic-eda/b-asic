@@ -30,19 +30,23 @@ out1 = Output(add4, "OUT1")
 sfg = SFG(inputs=[in1], outputs=[out1], name="Second-order direct form IIR filter")
 
 # %%
-# Set latencies and execution times
+# The SFG is
+sfg
+
+# %%
+# Set latencies and execution times.
 sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
 sfg.set_latency_of_type(Addition.type_name(), 1)
 sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
 sfg.set_execution_time_of_type(Addition.type_name(), 1)
 
 # %%
-# Create schedule
+# Create schedule.
 schedule = Schedule(sfg, cyclic=True)
 schedule.show(title='Original schedule')
 
 # %%
-# Reschedule to only require one adder and one multiplier
+# Reschedule to only require one adder and one multiplier.
 schedule.move_operation('add4', 2)
 schedule.move_operation('cmul5', -4)
 schedule.move_operation('cmul4', -5)
@@ -51,7 +55,7 @@ schedule.move_operation('cmul3', 1)
 schedule.show(title='Improved schedule')
 
 # %%
-# Extract operations and create processing elements
+# Extract operations and create processing elements.
 operations = schedule.get_operations()
 adders = operations.get_by_type_name('add')
 adders.show(title="Adder executions")
@@ -62,13 +66,13 @@ inputs.show(title="Input executions")
 outputs = operations.get_by_type_name('out')
 outputs.show(title="Output executions")
 
-p1 = ProcessingElement(adders, entity_name="adder")
-p2 = ProcessingElement(mults, entity_name="cmul")
-p_in = ProcessingElement(inputs, entity_name='input')
-p_out = ProcessingElement(outputs, entity_name='output')
+adder = ProcessingElement(adders, entity_name="adder")
+multiplier = ProcessingElement(mults, entity_name="multiplier")
+pe_in = ProcessingElement(inputs, entity_name='input')
+pe_out = ProcessingElement(outputs, entity_name='output')
 
 # %%
-# Extract and assign memory variables
+# Extract and assign memory variables.
 mem_vars = schedule.get_memory_variables()
 mem_vars.show(title="All memory variables")
 direct, mem_vars = mem_vars.split_on_length()
@@ -86,8 +90,10 @@ for i, mem in enumerate(mem_vars_set):
 direct.show(title="Direct interconnects")
 
 # %%
-# Create architecture
-arch = Architecture({p1, p2, p_in, p_out}, memories, direct_interconnects=direct)
+# Create architecture.
+arch = Architecture(
+    {adder, multiplier, pe_in, pe_out}, memories, direct_interconnects=direct
+)
 
 # %%
 # The architecture can be rendered in enriched shells.
@@ -107,7 +113,7 @@ memories[2].show_content("New assigned memory2")
 
 # %%
 # Looking at the architecture it is clear that there is now only one input to
-# ``memory0``, so no input multiplexer required.
+# ``memory0``, so no input multiplexer is required.
 arch
 
 # %%
@@ -120,4 +126,15 @@ memories[2].show_content("New assigned memory2")
 
 # %%
 # However, this comes at the expense of an additional input to ``memory2``.
+arch
+
+# %%
+# Finally, by noting that ``cmul1.0`` is the only variable from ``memory1`` going to
+# ``in0`` of ``adder``, another multiplexer can be reduced by:
+arch.move_process('cmul1.0', 'memory1', 'memory2', assign=True)
+memories[1].show_content("New assigned memory1")
+memories[2].show_content("New assigned memory2")
+
+# %%
+# Leading to
 arch
