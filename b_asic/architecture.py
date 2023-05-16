@@ -184,11 +184,14 @@ class Resource(HardwareBlock):
         if inputs:
             in_strs = [f"<{in_str}> {in_str}" for in_str in inputs]
             ret += f"{{{'|'.join(in_strs)}}}|"
-        ret += f"{self.entity_name}"
+        ret += f"<{self.entity_name}> {self.entity_name}{self._info()}"
         if outputs:
             out_strs = [f"<{out_str}> {out_str}" for out_str in outputs]
             ret += f"|{{{'|'.join(out_strs)}}}"
         return "{" + ret + "}"
+
+    def _info(self):
+        return ""
 
     @property
     def schedule_time(self) -> int:
@@ -455,6 +458,13 @@ class Memory(Resource):
     def __iter__(self) -> Iterator[MemoryVariable]:
         # Add information about the iterator type
         return cast(Iterator[MemoryVariable], iter(self._collection))
+
+    def _info(self):
+        if self.is_assigned:
+            if self._memory_type == "RAM":
+                plural_s = 's' if len(self._assignment) >= 2 else ''
+                return f": (RAM, {len(self._assignment)} cell{plural_s})"
+        return ""
 
     def assign(self, heuristic: str = "left_edge") -> None:
         """
@@ -819,7 +829,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     in_strs = [f"<{in_str}> {in_str}" for in_str in inputs]
                     ret += f"{{{'|'.join(in_strs)}}}|"
                     name = f"{destination.replace(':', '_')}_mux"
-                    ret += name
+                    ret += f"<{name}> {name}"
                     ret += "|<out> out"
                     dg.node(name, "{" + ret + "}")
                     dg.edge(f"{name}:out", destination)

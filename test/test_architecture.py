@@ -104,9 +104,9 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         if pe._type_name == 'add':
             s = (
                 'digraph {\n\tnode [shape=record]\n\t'
-                + pe._entity_name
+                + pe.entity_name
                 + ' [label="{{<in0> in0|<in1> in1}|'
-                + pe._entity_name
+                + f'<{pe.entity_name}> {pe.entity_name}'
                 + '|{<out0> out0}}"]\n}'
             )
             assert pe._digraph().source in (s, s + '\n')
@@ -123,8 +123,8 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     for i, memory in enumerate(memories):
         memory.set_entity_name(f"MEM{i}")
         s = (
-            'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{{<in0> in0}|MEM0|{<out0>'
-            ' out0}}"]\n}'
+            'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{{<in0> in0}|<MEM0>'
+            ' MEM0|{<out0> out0}}"]\n}'
         )
         assert memory.schedule_time == 18
         assert memory._digraph().source in (s, s + '\n')
@@ -134,6 +134,14 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         processing_elements, memories, direct_interconnects=direct_conn
     )
 
+    # Parts are non-deterministic, but this first part seems OK
+    s = (
+        'digraph {\n\tnode [shape=record]\n\tsplines=spline\n\tsubgraph'
+        ' cluster_memories'
+    )
+    assert architecture._digraph().source.startswith(s)
+    s = 'digraph {\n\tnode [shape=record]\n\tsplines=spline\n\tMEM0'
+    assert architecture._digraph(cluster=False).source.startswith(s)
     assert architecture.schedule_time == 18
 
     # assert architecture._digraph().source == "foo"
