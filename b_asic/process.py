@@ -168,7 +168,7 @@ class MemoryProcess(Process):
         Parameters
         ----------
         length : int, default: 0
-            The life time length to split on. Length is inclusive for the smaller
+            The lifetime length to split on. Length is inclusive for the smaller
             process.
 
         Returns

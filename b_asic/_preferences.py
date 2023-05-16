@@ -11,6 +11,7 @@ SCHEDULE_OFFSET: float = 0.2
 
 SPLINE_OFFSET: float = 0.2
 
+# Colors for architecture Digraph
 PE_COLOR = (0, 185, 231)  # LiuBlue
 PE_CLUSTER_COLOR = (210, 238, 249)  # LiuBlue5
 MEMORY_COLOR = (0, 207, 181)  # LiuGreen

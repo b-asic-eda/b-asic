@@ -338,10 +338,10 @@ class Schedule:
         --------
         get_max_time
         """
-        if time < self.get_max_end_time():
+        max_end_time = self.get_max_end_time()
+        if time < max_end_time:
             raise ValueError(
-                f"New schedule time ({time}) too short, minimum:"
-                f" {self.get_max_end_time()}."
+                f"New schedule time ({time}) too short, minimum: {max_end_time}."
             )
         self._schedule_time = time
         return self
@@ -758,7 +758,8 @@ class Schedule:
                 }
                 ret.append(
                     MemoryVariable(
-                        start_time + cast(int, outport.latency_offset),
+                        (start_time + cast(int, outport.latency_offset))
+                        % self.schedule_time,
                         outport,
                         reads,
                         outport.name,

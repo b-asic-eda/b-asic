@@ -762,9 +762,10 @@ class ProcessCollection:
         exclusion_graph = nx.Graph()
         exclusion_graph.add_nodes_from(self._collection)
         for node1 in exclusion_graph:
-            node1_stop_times = tuple(
+            node1_stop_times = set(
                 read_time % self.schedule_time for read_time in node1.read_times
             )
+            node1_start_time = node1.start_time % self.schedule_time
             if total_ports == 1 and node1.start_time in node1_stop_times:
                 print(node1.start_time, node1_stop_times)
                 raise ValueError("Cannot read and write in same cycle.")
@@ -775,24 +776,18 @@ class ProcessCollection:
                     node2_stop_times = tuple(
                         read_time % self.schedule_time for read_time in node2.read_times
                     )
-                    for node1_stop_time in node1_stop_times:
-                        for node2_stop_time in node2_stop_times:
-                            if total_ports == 1:
-                                # Single-port assignment
-                                if node1.start_time == node2.start_time:
-                                    exclusion_graph.add_edge(node1, node2)
-                                elif node1_stop_time == node2_stop_time:
-                                    exclusion_graph.add_edge(node1, node2)
-                                elif node1.start_time == node2_stop_time:
-                                    exclusion_graph.add_edge(node1, node2)
-                                elif node1_stop_time == node2.start_time:
-                                    exclusion_graph.add_edge(node1, node2)
-                            else:
-                                # Dual-port assignment
-                                if node1.start_time == node2.start_time:
-                                    exclusion_graph.add_edge(node1, node2)
-                                elif node1_stop_time == node2_stop_time:
-                                    exclusion_graph.add_edge(node1, node2)
+                    node2_start_time = node2.start_time % self.schedule_time
+                    if write_ports == 1 and node1_start_time == node2_start_time:
+                        exclusion_graph.add_edge(node1, node2)
+                    if read_ports == 1 and node1_stop_times.intersection(
+                        node2_stop_times
+                    ):
+                        exclusion_graph.add_edge(node1, node2)
+                    if total_ports == 1 and (
+                        node1_start_time in node2_stop_times
+                        or node2_start_time in node1_stop_times
+                    ):
+                        exclusion_graph.add_edge(node1, node2)
         return exclusion_graph
 
     def create_exclusion_graph_from_execution_time(self) -> nx.Graph:

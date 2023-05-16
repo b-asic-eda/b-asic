@@ -773,7 +773,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         cluster: bool = True,
         splines: str = "spline",
         io_cluster: bool = True,
-        show_multiplexers: bool = True,
+        multiplexers: bool = True,
         colored: bool = True,
     ) -> Digraph:
         """
@@ -786,8 +786,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
         splines : str, default: "spline"
             The type of interconnect to use for graph drawing.
         io_cluster : bool, default: True
-            Whether Inputs and Outputs are drawn inside an IO cluster.
-        show_multiplexers : bool, default: True
+            Whether Inputs and Outputs are drawn inside an IO cluster. Only relevant
+            if *cluster* is True.
+        multiplexers : bool, default: True
             Whether input multiplexers are included.
         colored : bool, default: True
             Whether to color the nodes.
@@ -916,7 +917,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     destination_edges[destination_str].add(source_str)
 
         destination_list = {k: list(v) for k, v in destination_edges.items()}
-        if show_multiplexers:
+        if multiplexers:
             for destination, source_list in destination_list.items():
                 if len(source_list) > 1:
                     # Create GraphViz struct for multiplexer
@@ -940,7 +941,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 dg.edge(src_str, branch, arrowhead='none')
                 src_str = branch
             for destination_str, cnt_str in destination_counts:
-                if show_multiplexers and len(destination_list[destination_str]) > 1:
+                if multiplexers and len(destination_list[destination_str]) > 1:
                     idx = destination_list[destination_str].index(original_src_str)
                     destination_str = f"{destination_str.replace(':', '_')}_mux:in{idx}"
                 dg.edge(src_str, destination_str, label=cnt_str)
