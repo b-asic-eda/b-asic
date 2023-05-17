@@ -190,6 +190,7 @@ mem_vars = schedule.get_memory_variables()
 mem_vars.show(title="All memory variables")
 direct, mem_vars = mem_vars.split_on_length()
 mem_vars.show(title="Non-zero time memory variables")
+direct.show(title="Direct interconnects")
 mem_vars_set = mem_vars.split_on_ports(read_ports=1, write_ports=1, total_ports=2)
 
 memories = []
@@ -200,7 +201,6 @@ for i, mem in enumerate(mem_vars_set):
     memory.assign("left_edge")
     memory.show_content(title=f"Assigned {memory.entity_name}")
 
-direct.show(title="Direct interconnects")
 
 arch = Architecture(
     {addsub, butterfly, multiplier, pe_in, pe_out},

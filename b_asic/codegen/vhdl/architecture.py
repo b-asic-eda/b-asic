@@ -1,8 +1,7 @@
 """
 Module for code generation of VHDL architectures.
 """
-from io import TextIOWrapper
-from typing import TYPE_CHECKING, Dict, Iterable, Set, Tuple, cast
+from typing import TYPE_CHECKING, Dict, List, Set, TextIO, Tuple, cast
 
 from b_asic.codegen.vhdl import common, write, write_lines
 from b_asic.process import MemoryVariable, PlainMemoryVariable
@@ -12,8 +11,8 @@ if TYPE_CHECKING:
 
 
 def memory_based_storage(
-    f: TextIOWrapper,
-    assignment: Iterable["ProcessCollection"],
+    f: TextIO,
+    assignment: List["ProcessCollection"],
     entity_name: str,
     word_length: int,
     read_ports: int,
@@ -26,9 +25,9 @@ def memory_based_storage(
 
     Parameters
     ----------
-    f : TextIOWrapper
-        File object (or other TextIOWrapper object) to write the architecture onto.
-    assignment : dict
+    f : TextIO
+        File object (or other TextIO object) to write the architecture onto.
+    assignment : list
         A possible cell assignment to use when generating the memory based storage.
         The cell assignment is a dictionary int to ProcessCollection where the integer
         corresponds to the cell to assign all MemoryVariables in corresponding process
@@ -58,7 +57,7 @@ def memory_based_storage(
     write(f, 0, f'architecture {architecture_name} of {entity_name} is', end='\n\n')
 
     #
-    # Architecture declerative region begin
+    # Architecture declarative region begin
     #
     write(f, 1, '-- HDL memory description')
     common.constant_declaration(
@@ -70,7 +69,7 @@ def memory_based_storage(
     common.type_declaration(
         f, 'mem_type', 'array(0 to MEM_DEPTH-1) of std_logic_vector(MEM_WL-1 downto 0)'
     )
-    common.signal_decl(
+    common.signal_declaration(
         f,
         name='memory',
         signal_type='mem_type',
@@ -78,25 +77,25 @@ def memory_based_storage(
         vivado_ram_style='distributed',
     )
     for i in range(read_ports):
-        common.signal_decl(
+        common.signal_declaration(
             f, f'read_port_{i}', 'std_logic_vector(MEM_WL-1 downto 0)', name_pad=14
         )
-        common.signal_decl(
+        common.signal_declaration(
             f, f'read_adr_{i}', f'integer range 0 to {schedule_time}-1', name_pad=14
         )
-        common.signal_decl(f, f'read_en_{i}', 'std_logic', name_pad=14)
+        common.signal_declaration(f, f'read_en_{i}', 'std_logic', name_pad=14)
     for i in range(write_ports):
-        common.signal_decl(
+        common.signal_declaration(
             f, f'write_port_{i}', 'std_logic_vector(MEM_WL-1 downto 0)', name_pad=14
         )
-        common.signal_decl(
+        common.signal_declaration(
             f, f'write_adr_{i}', f'integer range 0 to {schedule_time}-1', name_pad=14
         )
-        common.signal_decl(f, f'write_en_{i}', 'std_logic', name_pad=14)
+        common.signal_declaration(f, f'write_en_{i}', 'std_logic', name_pad=14)
 
     # Schedule time counter
     write(f, 1, '-- Schedule counter', start='\n')
-    common.signal_decl(
+    common.signal_declaration(
         f,
         name='schedule_cnt',
         signal_type=f'integer range 0 to {schedule_time}-1',
@@ -107,7 +106,7 @@ def memory_based_storage(
     if input_sync:
         write(f, 1, '-- Input synchronization', start='\n')
         for i in range(read_ports):
-            common.signal_decl(
+            common.signal_declaration(
                 f, f'p_{i}_in_sync', 'std_logic_vector(WL-1 downto 0)', name_pad=14
             )
 
@@ -191,7 +190,7 @@ def memory_based_storage(
                     f,
                     [
                         (4, f'-- {mv!r}'),
-                        (4, f'when {(mv.start_time) % schedule_time} =>'),
+                        (4, f'when {mv.start_time % schedule_time} =>'),
                         (5, f'write_adr_0 <= {i};'),
                         (5, 'write_en_0 <= \'1\';'),
                     ],
@@ -283,7 +282,7 @@ def memory_based_storage(
 
 
 def register_based_storage(
-    f: TextIOWrapper,
+    f: TextIO,
     forward_backward_table: "_ForwardBackwardTable",
     entity_name: str,
     word_length: int,
@@ -326,7 +325,7 @@ def register_based_storage(
 
     # Schedule time counter
     write(f, 1, '-- Schedule counter')
-    common.signal_decl(
+    common.signal_declaration(
         f,
         name='schedule_cnt',
         signal_type=f'integer range 0 to {schedule_time}-1',
@@ -341,7 +340,7 @@ def register_based_storage(
         name='shift_reg_type',
         alias=f'array(0 to {reg_cnt}-1) of std_logic_vector(WL-1 downto 0)',
     )
-    common.signal_decl(
+    common.signal_declaration(
         f,
         name='shift_reg',
         signal_type='shift_reg_type',
@@ -350,7 +349,7 @@ def register_based_storage(
 
     # Back edge mux decoder
     write(f, 1, '-- Back-edge mux select signal', start='\n')
-    common.signal_decl(
+    common.signal_declaration(
         f,
         name='back_edge_mux_sel',
         signal_type=f'integer range 0 to {len(back_edges)}',
@@ -359,7 +358,7 @@ def register_based_storage(
 
     # Output mux selector
     write(f, 1, '-- Output mux select signal', start='\n')
-    common.signal_decl(
+    common.signal_declaration(
         f,
         name='out_mux_sel',
         signal_type=f'integer range 0 to {len(output_regs) - 1}',
@@ -478,7 +477,7 @@ def register_based_storage(
     )
 
     # Output multiplexer decoding logic
-    write(f, 1, '-- Output muliplexer decoding logic', start='\n')
+    write(f, 1, '-- Output multiplexer decoding logic', start='\n')
     common.synchronous_process_prologue(f, clk='clk', name='out_mux_decode_proc')
     write(f, 3, 'case schedule_cnt is')
     for i, entry in enumerate(forward_backward_table):
@@ -490,7 +489,7 @@ def register_based_storage(
     common.synchronous_process_epilogue(f, clk='clk', name='out_mux_decode_proc')
 
     # Output multiplexer logic
-    write(f, 1, '-- Output muliplexer', start='\n')
+    write(f, 1, '-- Output multiplexer', start='\n')
     common.synchronous_process_prologue(
         f,
         clk='clk',

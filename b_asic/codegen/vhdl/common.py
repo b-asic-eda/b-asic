@@ -4,20 +4,19 @@ Generation of common VHDL constructs
 
 import re
 from datetime import datetime
-from io import TextIOWrapper
 from subprocess import PIPE, Popen
-from typing import Any, Optional, Set, Tuple
+from typing import Any, Optional, Set, TextIO, Tuple
 
 from b_asic.codegen.vhdl import write, write_lines
 
 
-def b_asic_preamble(f: TextIOWrapper):
+def b_asic_preamble(f: TextIO):
     """
     Write a standard BASIC VHDL preamble comment.
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
+    f : TextIO
         The file object to write the header to.
     """
     # Try to acquire the current git commit hash
@@ -47,7 +46,7 @@ def b_asic_preamble(f: TextIOWrapper):
 
 
 def ieee_header(
-    f: TextIOWrapper,
+    f: TextIO,
     std_logic_1164: bool = True,
     numeric_std: bool = True,
 ):
@@ -57,8 +56,8 @@ def ieee_header(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper object to write the IEEE header to.
+    f : TextIO
+        The TextIO object to write the IEEE header to.
     std_logic_1164 : bool, default: True
         Include the std_logic_1164 header.
     numeric_std : bool, default: True
@@ -72,8 +71,8 @@ def ieee_header(
     write(f, 0, '')
 
 
-def signal_decl(
-    f: TextIOWrapper,
+def signal_declaration(
+    f: TextIO,
     name: str,
     signal_type: str,
     default_value: Optional[str] = None,
@@ -88,8 +87,8 @@ def signal_decl(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper object to write the IEEE header to.
+    f : TextIO
+        The TextIO object to write the IEEE header to.
     name : str
         Signal name.
     signal_type : str
@@ -132,7 +131,7 @@ def signal_decl(
 
 
 def constant_declaration(
-    f: TextIOWrapper,
+    f: TextIO,
     name: str,
     signal_type: str,
     value: Any,
@@ -144,8 +143,8 @@ def constant_declaration(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper object to write the constant declaration to.
+    f : TextIO
+        The TextIO object to write the constant declaration to.
     name : str
         Signal name.
     signal_type : str
@@ -160,7 +159,7 @@ def constant_declaration(
 
 
 def type_declaration(
-    f: TextIOWrapper,
+    f: TextIO,
     name: str,
     alias: str,
 ):
@@ -169,8 +168,8 @@ def type_declaration(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper object to write the type declaration to.
+    f : TextIO
+        The TextIO object to write the type declaration to.
     name : str
         Type name alias.
     alias : str
@@ -180,7 +179,7 @@ def type_declaration(
 
 
 def process_prologue(
-    f: TextIOWrapper,
+    f: TextIO,
     sensitivity_list: str,
     indent: int = 1,
     name: Optional[str] = None,
@@ -192,8 +191,8 @@ def process_prologue(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper object to write the type declaration to.
+    f : TextIO
+        The TextIO object to write the type declaration to.
     sensitivity_list : str
         Content of the process sensitivity list.
     indent : int, default: 1
@@ -209,7 +208,7 @@ def process_prologue(
 
 
 def process_epilogue(
-    f: TextIOWrapper,
+    f: TextIO,
     sensitivity_list: Optional[str] = None,
     indent: int = 1,
     name: Optional[str] = None,
@@ -217,8 +216,8 @@ def process_epilogue(
     """
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper object to write the type declaration to.
+    f : TextIO
+        The TextIO object to write the type declaration to.
     sensitivity_list : str
         Content of the process sensitivity list. Not needed when writing the epilogue.
     indent : int, default: 1
@@ -236,7 +235,7 @@ def process_epilogue(
 
 
 def synchronous_process_prologue(
-    f: TextIOWrapper,
+    f: TextIO,
     clk: str,
     indent: int = 1,
     name: Optional[str] = None,
@@ -251,8 +250,8 @@ def synchronous_process_prologue(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper to write the VHDL code onto.
+    f : TextIO
+        The TextIO to write the VHDL code onto.
     clk : str
         Name of the clock.
     indent : int, default: 1
@@ -265,7 +264,7 @@ def synchronous_process_prologue(
 
 
 def synchronous_process_epilogue(
-    f: TextIOWrapper,
+    f: TextIO,
     clk: Optional[str],
     indent: int = 1,
     name: Optional[str] = None,
@@ -278,8 +277,8 @@ def synchronous_process_epilogue(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper to write the VHDL code onto.
+    f : TextIO
+        The TextIO to write the VHDL code onto.
     clk : str
         Name of the clock.
     indent : int, default: 1
@@ -293,7 +292,7 @@ def synchronous_process_epilogue(
 
 
 def synchronous_process(
-    f: TextIOWrapper,
+    f: TextIO,
     clk: str,
     body: str,
     indent: int = 1,
@@ -307,8 +306,8 @@ def synchronous_process(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper to write the VHDL code onto.
+    f : TextIO
+        The TextIO to write the VHDL code onto.
     clk : str
         Name of the clock.
     body : str
@@ -326,7 +325,7 @@ def synchronous_process(
 
 
 def synchronous_memory(
-    f: TextIOWrapper,
+    f: TextIO,
     clk: str,
     read_ports: Set[Tuple[str, str, str]],
     write_ports: Set[Tuple[str, str, str]],
@@ -337,8 +336,8 @@ def synchronous_memory(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper to write the VHDL code onto.
+    f : TextIO
+        The TextIO to write the VHDL code onto.
     clk : str
         Name of clock identifier to the synchronous memory.
     read_ports : Set[Tuple[str,str]]
@@ -373,7 +372,7 @@ def synchronous_memory(
 
 
 def asynchronous_read_memory(
-    f: TextIOWrapper,
+    f: TextIO,
     clk: str,
     read_ports: Set[Tuple[str, str, str]],
     write_ports: Set[Tuple[str, str, str]],
@@ -384,8 +383,8 @@ def asynchronous_read_memory(
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
-        The TextIOWrapper to write the VHDL code onto.
+    f : TextIO
+        The TextIO to write the VHDL code onto.
     clk : str
         Name of clock identifier to the synchronous memory.
     read_ports : Set[Tuple[str,str]]

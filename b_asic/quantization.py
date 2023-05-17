@@ -19,10 +19,13 @@ class Quantization(Enum):
     "Magnitude truncation, i.e., round towards zero."
 
     JAMMING = 4
-    "Jamming/von Neumann rounding, i.e., set the LSB to one"
+    "Jamming/von Neumann rounding, i.e., set the LSB to one."
 
     UNBIASED_ROUNDING = 5
     "Unbiased rounding, i.e., tie rounds towards even."
+
+    UNBIASED_JAMMING = 6
+    "Unbiased jamming/von Neumann rounding."
 
 
 class Overflow(Enum):
@@ -125,8 +128,13 @@ def quantize(
             v = math.ceil(v)
     elif quantization is Quantization.JAMMING:
         v = math.floor(v) | 1
-    else:  # Quantization.UNBIASED_ROUNDING
+    elif quantization is Quantization.UNBIASED_ROUNDING:
         v = round(v)
+    elif quantization is Quantization.UNBIASED_JAMMING:
+        f = math.floor(v)
+        v = f if v - f == 0 else f | 1
+    else:
+        raise TypeError("Unknown quantization method: {quantization!r}")
 
     v = v / b
     i = 2 ** (integer_bits - 1)

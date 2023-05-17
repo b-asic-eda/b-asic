@@ -2,15 +2,14 @@
 Module for basic VHDL code generation.
 """
 
-from io import TextIOWrapper
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, TextIO, Tuple, Union
 
 # VHDL code generation tab length
 VHDL_TAB = r"    "
 
 
 def write(
-    f: TextIOWrapper,
+    f: TextIO,
     indent_level: int,
     text: str,
     *,
@@ -20,13 +19,13 @@ def write(
     """
     Base VHDL code generation utility.
 
-    `f'{VHDL_TAB*indent_level}'` is first written to the :class:`io.TextIOWrapper`
-    object `f`. Immediately after the indentation, `text` is written to `f`. Finally,
-    `text` is also written to `f`.
+    ``f'{VHDL_TAB*indent_level}'`` is first written to the TextIO
+    object *f*. Immediately after the indentation, *text* is written to *f*. Finally,
+    *text* is also written to *f*.
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
+    f : TextIO
         The file object to emit VHDL code to.
     indent_level : int
         Indentation level to use. Exactly ``f'{VHDL_TAB*indent_level}`` is written
@@ -43,24 +42,22 @@ def write(
     f.write(f'{VHDL_TAB*indent_level}{text}{end}')
 
 
-def write_lines(
-    f: TextIOWrapper, lines: List[Union[Tuple[int, str], Tuple[int, str, str]]]
-):
+def write_lines(f: TextIO, lines: List[Union[Tuple[int, str], Tuple[int, str, str]]]):
     """
     Multiline VHDL code generation utility.
 
-    Each tuple (int, str, [int]) in the list `lines` is written to the
-    :class:`io.TextIOWrapper` object `f` using the :function:`vhdl.write` function.
+    Each tuple ``(int, str, [int])`` in the list *lines* is written to the
+    TextIO object *f* using the :function:`vhdl.write` function.
 
     Parameters
     ----------
-    f : :class:`io.TextIOWrapper`
+    f : TextIO
         The file object to emit VHDL code to.
     lines : list of tuple (int,str) [1], or list of tuple (int,str,str) [2]
-        [1]: The first `int` of the tuple is used as indentation level for the line and
-             the second `str` of the tuple is the content of the line.
-        [2]: Same as [1], but the third `str` of the tuple is passed to parameter `end`
-             when calling :function:`vhdl.write`.
+        [1]: The first ``int`` of the tuple is used as indentation level for the line
+             and the second ``str`` of the tuple is the content of the line.
+        [2]: Same as [1], but the third ``str`` of the tuple is passed to parameter
+             *end* when calling :function:`vhdl.write`.
     """
     for tpl in lines:
         if len(tpl) == 2:

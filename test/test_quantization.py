@@ -8,10 +8,14 @@ def test_quantization():
     assert quantize(a, 4, quantization=Quantization.ROUNDING) == 0.3125
     assert quantize(a, 4, quantization=Quantization.MAGNITUDE_TRUNCATION) == 0.25
     assert quantize(a, 4, quantization=Quantization.JAMMING) == 0.3125
+    assert quantize(a, 4, quantization=Quantization.UNBIASED_ROUNDING) == 0.3125
+    assert quantize(a, 4, quantization=Quantization.UNBIASED_JAMMING) == 0.3125
     assert quantize(-a, 4, quantization=Quantization.TRUNCATION) == -0.3125
     assert quantize(-a, 4, quantization=Quantization.ROUNDING) == -0.3125
     assert quantize(-a, 4, quantization=Quantization.MAGNITUDE_TRUNCATION) == -0.25
     assert quantize(-a, 4, quantization=Quantization.JAMMING) == -0.3125
+    assert quantize(-a, 4, quantization=Quantization.UNBIASED_ROUNDING) == -0.3125
+    assert quantize(-a, 4, quantization=Quantization.UNBIASED_JAMMING) == -0.3125
     assert quantize(complex(a, -a), 4) == complex(0.25, -0.3125)
     assert quantize(
         complex(a, -a), 4, quantization=Quantization.MAGNITUDE_TRUNCATION
@@ -26,3 +30,8 @@ def test_quantization():
         )
         == 0.9375
     )
+
+    assert quantize(0.3125, 3, quantization=Quantization.ROUNDING) == 0.375
+    assert quantize(0.3125, 3, quantization=Quantization.UNBIASED_ROUNDING) == 0.25
+    assert quantize(0.25, 3, quantization=Quantization.JAMMING) == 0.375
+    assert quantize(0.25, 3, quantization=Quantization.UNBIASED_JAMMING) == 0.25

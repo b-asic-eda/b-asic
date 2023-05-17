@@ -651,8 +651,12 @@ class ProcessCollection:
                 )
         _ax.grid(True)  # type: ignore
 
-        _ax.xaxis.set_major_locator(MaxNLocator(integer=True))  # type: ignore
-        _ax.yaxis.set_major_locator(MaxNLocator(integer=True))  # type: ignore
+        _ax.xaxis.set_major_locator(
+            MaxNLocator(integer=True, min_n_ticks=1)
+        )  # type: ignore
+        _ax.yaxis.set_major_locator(
+            MaxNLocator(integer=True, min_n_ticks=1)
+        )  # type: ignore
         _ax.set_xlim(0, self._schedule_time)  # type: ignore
         if row is None:
             _ax.set_ylim(0.25, len(self._collection) + 0.75)  # type: ignore
@@ -1154,7 +1158,7 @@ class ProcessCollection:
             Name used for the VHDL entity.
         word_length : int
             Word length of the memory variable objects.
-        assignment : set
+        assignment : list
             A possible cell assignment to use when generating the memory based storage.
             The cell assignment is a dictionary int to ProcessCollection where the
             integer corresponds to the cell to assign all MemoryVariables in

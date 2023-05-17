@@ -7,7 +7,7 @@ Contains the schedule class for scheduling operations in an SFG.
 import io
 import sys
 from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Tuple, cast
+from typing import Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,9 +38,15 @@ from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
 
 # Need RGB from 0 to 1
-_EXECUTION_TIME_COLOR = tuple(c / 255 for c in EXECUTION_TIME_COLOR)
-_LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
-_SIGNAL_COLOR = tuple(c / 255 for c in SIGNAL_COLOR)
+_EXECUTION_TIME_COLOR: Union[
+    Tuple[float, float, float], Tuple[float, float, float, float]
+] = tuple(float(c / 255) for c in EXECUTION_TIME_COLOR)
+_LATENCY_COLOR: Union[
+    Tuple[float, float, float], Tuple[float, float, float, float]
+] = tuple(float(c / 255) for c in LATENCY_COLOR)
+_SIGNAL_COLOR: Union[
+    Tuple[float, float, float], Tuple[float, float, float, float]
+] = tuple(float(c / 255) for c in SIGNAL_COLOR)
 
 
 def _laps_default():
@@ -443,11 +449,11 @@ class Schedule:
     def get_possible_time_resolution_decrements(self) -> List[int]:
         """Return a list with possible factors to reduce time resolution."""
         vals = self._get_all_times()
-        maxloop = min(val for val in vals if val)
-        if maxloop <= 1:
+        max_loop = min(val for val in vals if val)
+        if max_loop <= 1:
             return [1]
         ret = [1]
-        for candidate in range(2, maxloop + 1):
+        for candidate in range(2, max_loop + 1):
             if not any(val % candidate for val in vals):
                 ret.append(candidate)
         return ret
@@ -700,7 +706,6 @@ class Schedule:
                             )
                         source_port = inport.signals[0].source
 
-                        source_end_time = None
                         if source_port.operation.graph_id in non_schedulable_ops:
                             source_end_time = 0
                         else:
@@ -793,7 +798,9 @@ class Schedule:
         """
         return ProcessCollection(
             {
-                OperatorProcess(start_time, self._sfg.find_by_id(graph_id))
+                OperatorProcess(
+                    start_time, cast(Operation, self._sfg.find_by_id(graph_id))
+                )
                 for graph_id, start_time in self._start_times.items()
             },
             self.schedule_time,
@@ -987,7 +994,7 @@ class Schedule:
             + (OPERATION_GAP if operation_gap is None else operation_gap)
         )
         ax.axis([-1, self._schedule_time + 1, y_position_max, 0])  # Inverted y-axis
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))
         ax.axvline(
             0,
             linestyle="--",
