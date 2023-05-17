@@ -10,7 +10,7 @@ def secondorder_iir_schedule(precedence_sfg_delays):
     precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
     precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
-    schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+    schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
     return schedule
 
 
@@ -23,7 +23,7 @@ def secondorder_iir_schedule_with_execution_times(precedence_sfg_delays):
         ConstantMultiplication.type_name(), 1
     )
 
-    schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+    schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
     return schedule
 
 
@@ -37,9 +37,7 @@ def schedule_direct_form_iir_lp_filter(sfg_direct_form_iir_lp_filter: SFG):
     sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
         ConstantMultiplication.type_name(), 1
     )
-    schedule = Schedule(
-        sfg_direct_form_iir_lp_filter, scheduling_algorithm="ASAP", cyclic=True
-    )
+    schedule = Schedule(sfg_direct_form_iir_lp_filter, algorithm="ASAP", cyclic=True)
     schedule.move_operation('cmul4', -1)
     schedule.move_operation('cmul3', -1)
     schedule.move_operation('cmul4', -10)

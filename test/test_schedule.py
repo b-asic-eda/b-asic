@@ -31,7 +31,7 @@ class TestInit:
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
 
         for op in schedule._sfg.get_operations_topological_order():
             print(op.latency_offsets)
@@ -53,6 +53,39 @@ class TestInit:
             "A1": 0,
             "A2": 0,
             "ADD3": 3,
+            "ADD4": 17,
+            "OUT1": 21,
+        }
+        assert schedule.schedule_time == 21
+
+    def test_complicated_single_outputs_normal_latency_alap(
+        self, precedence_sfg_delays
+    ):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+
+        schedule = Schedule(precedence_sfg_delays, algorithm="ALAP")
+
+        for op in schedule._sfg.get_operations_topological_order():
+            print(op.latency_offsets)
+
+        start_times_names = {}
+        for op_id, start_time in schedule._start_times.items():
+            op_name = precedence_sfg_delays.find_by_id(op_id).name
+            start_times_names[op_name] = start_time
+
+        assert start_times_names == {
+            "IN1": 4,
+            "C0": 4,
+            "B1": 0,
+            "B2": 0,
+            "ADD2": 3,
+            "ADD1": 7,
+            "Q1": 11,
+            "A0": 14,
+            "A1": 10,
+            "A2": 10,
+            "ADD3": 13,
             "ADD4": 17,
             "OUT1": 21,
         }
@@ -120,7 +153,7 @@ class TestInit:
             {"in0": 6, "in1": 7, "out0": 9}
         )
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
 
         start_times_names = {}
         for op_id, start_time in schedule._start_times.items():
@@ -148,7 +181,7 @@ class TestInit:
     def test_independent_sfg(self, sfg_two_inputs_two_outputs_independent_with_cmul):
         schedule = Schedule(
             sfg_two_inputs_two_outputs_independent_with_cmul,
-            scheduling_algorithm="ASAP",
+            algorithm="ASAP",
         )
 
         start_times_names = {}
@@ -177,7 +210,7 @@ class TestSlacks:
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         assert (
             schedule.forward_slack(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id
@@ -206,7 +239,7 @@ class TestSlacks:
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         assert schedule.slacks(
             precedence_sfg_delays.find_by_name("ADD3")[0].graph_id
         ) == (0, 7)
@@ -220,7 +253,7 @@ class TestRescheduling:
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
 
         schedule.move_operation(
             precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, 4
@@ -252,7 +285,7 @@ class TestRescheduling:
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         add3_id = precedence_sfg_delays.find_by_name("ADD3")[0].graph_id
         schedule.move_operation(add3_id, 4)
         assert schedule.forward_slack(add3_id) == 3
@@ -274,7 +307,7 @@ class TestRescheduling:
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         with pytest.raises(
             ValueError,
             match="Operation add4 got incorrect move: -4. Must be between 0 and 7.",
@@ -287,7 +320,7 @@ class TestRescheduling:
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
-        schedule = Schedule(precedence_sfg_delays, scheduling_algorithm="ASAP")
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         with pytest.raises(
             ValueError,
             match="Operation add4 got incorrect move: 10. Must be between 0 and 7.",
@@ -315,51 +348,43 @@ class TestRescheduling:
 
         # Move and scheduling algorithm behaves differently
         schedule.move_operation("out1", 0)
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
         assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
         assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule._start_times["out1"] == 0
+        assert schedule._start_times["out1"] == 1
         assert schedule._start_times["add1"] == 0
 
         # Increase schedule time
         schedule.set_schedule_time(2)
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
         assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
         assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule._start_times["out1"] == 0
+        assert schedule._start_times["out1"] == 1
         assert schedule._start_times["add1"] == 0
 
         # Move out one time unit
         schedule.move_operation("out1", 1)
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
         assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
         assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule._start_times["out1"] == 1
+        assert schedule._start_times["out1"] == 2
         assert schedule._start_times["add1"] == 0
 
         # Move add one time unit
         schedule.move_operation("add1", 1)
         assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
         assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
         assert schedule._start_times["add1"] == 1
-        assert schedule._start_times["out1"] == 1
-
-        # Move out back one time unit
-        schedule.move_operation("out1", -1)
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 1
-        assert schedule._start_times["out1"] == 0
-        assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
-        assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule._start_times["add1"] == 1
+        assert schedule._start_times["out1"] == 2
 
         # Move add back one time unit
         schedule.move_operation("add1", -1)
         assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
         assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
         assert schedule._start_times["add1"] == 0
-        assert schedule._start_times["out1"] == 0
+        assert schedule._start_times["out1"] == 2
 
 
 class TestTimeResolution:
@@ -368,7 +393,7 @@ class TestTimeResolution:
     ):
         schedule = Schedule(
             sfg_two_inputs_two_outputs_independent_with_cmul,
-            scheduling_algorithm="ASAP",
+            algorithm="ASAP",
         )
         old_schedule_time = schedule.schedule_time
         assert schedule.get_possible_time_resolution_decrements() == [1]
@@ -402,7 +427,7 @@ class TestTimeResolution:
     ):
         schedule = Schedule(
             sfg_two_inputs_two_outputs_independent_with_cmul,
-            scheduling_algorithm="ASAP",
+            algorithm="ASAP",
         )
         old_schedule_time = schedule.schedule_time
 
@@ -439,7 +464,7 @@ class TestTimeResolution:
     ):
         schedule = Schedule(
             sfg_two_inputs_two_outputs_independent_with_cmul,
-            scheduling_algorithm="ASAP",
+            algorithm="ASAP",
         )
         old_schedule_time = schedule.schedule_time
         assert schedule.get_possible_time_resolution_decrements() == [1]
@@ -567,7 +592,7 @@ class TestErrors:
         with pytest.raises(
             NotImplementedError, match="No algorithm with name: foo defined."
         ):
-            Schedule(sfg_simple_filter, scheduling_algorithm="foo")
+            Schedule(sfg_simple_filter, algorithm="foo")
 
 
 class TestGetUsedTypeNames:

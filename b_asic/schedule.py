@@ -72,15 +72,22 @@ class Schedule:
         algorithm.
     cyclic : bool, default: False
         If the schedule is cyclic.
-    scheduling_algorithm : {'ASAP', 'provided'}, optional
-        The scheduling algorithm to use. Currently, only "ASAP" is supported.
+    algorithm : {'ASAP', 'ALAP', 'provided'}, optional
+        The scheduling algorithm to use. The following algorithm are available:
+           * ``'ASAP'``: As-soon-as-possible scheduling.
+           * ``'ALAP'``: As-late-as-possible scheduling.
         If 'provided', use provided *start_times*  and *laps* dictionaries.
     start_times : dict, optional
         Dictionary with GraphIDs as keys and start times as values.
-        Used when *scheduling_algorithm* is 'provided'.
+        Used when *algorithm* is 'provided'.
     laps : dict, optional
         Dictionary with GraphIDs as keys and laps as values.
-        Used when *scheduling_algorithm* is 'provided'.
+        Used when *algorithm* is 'provided'.
+    max_resources : dict, optional
+        Dictionary like ``{'cmul': 2}`` denoting the maximum number of resources
+        for a given operation type if the scheduling algorithm considers that.
+        If not provided, or an operation type is not provided, at most one resource is
+        used.
     """
 
     _sfg: SFG
@@ -95,9 +102,10 @@ class Schedule:
         sfg: SFG,
         schedule_time: Optional[int] = None,
         cyclic: bool = False,
-        scheduling_algorithm: str = "ASAP",
+        algorithm: str = "ASAP",
         start_times: Optional[Dict[GraphID, int]] = None,
         laps: Optional[Dict[GraphID, int]] = None,
+        max_resources: Optional[Dict[TypeName, int]] = None,
     ):
         """Construct a Schedule from an SFG."""
         if not isinstance(sfg, SFG):
@@ -109,9 +117,12 @@ class Schedule:
         self._laps = defaultdict(_laps_default)
         self._cyclic = cyclic
         self._y_locations = defaultdict(_y_locations_default)
-        if scheduling_algorithm == "ASAP":
+        self._schedule_time = schedule_time
+        if algorithm == "ASAP":
             self._schedule_asap()
-        elif scheduling_algorithm == "provided":
+        elif algorithm == "ALAP":
+            self._schedule_alap()
+        elif algorithm == "provided":
             if start_times is None:
                 raise ValueError("Must provide start_times when using 'provided'")
             if laps is None:
@@ -120,9 +131,7 @@ class Schedule:
             self._laps.update(laps)
             self._remove_delays_no_laps()
         else:
-            raise NotImplementedError(
-                f"No algorithm with name: {scheduling_algorithm} defined."
-            )
+            raise NotImplementedError(f"No algorithm with name: {algorithm} defined.")
 
         max_end_time = self.get_max_end_time()
 
@@ -130,8 +139,6 @@ class Schedule:
             self._schedule_time = max_end_time
         elif schedule_time < max_end_time:
             raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
-        else:
-            self._schedule_time = schedule_time
 
     def start_time_of_operation(self, graph_id: GraphID) -> int:
         """
@@ -636,10 +643,24 @@ class Schedule:
                 # schedule period
                 if new_available == 0 and (new_slack > 0 or next_usage == 0):
                     new_available = self._schedule_time
-                if next_usage < new_available:
+                if (
+                    next_usage < new_available
+                    and self._start_times[signal.destination_operation.graph_id]
+                    != self.schedule_time
+                ):
                     laps += 1
                 self._laps[signal.graph_id] = laps
 
+        # Outputs should not start at 0, but at schedule time
+        op = self._sfg.find_by_id(graph_id)
+        if (
+            new_start == 0
+            and isinstance(op, Output)
+            and self._laps[op.input(0).signals[0].graph_id] != 0
+        ):
+            new_start = self._schedule_time
+            self._laps[op.input(0).signals[0].graph_id] -= 1
+            print(f"Moved {graph_id}")
         # Set new start time
         self._start_times[graph_id] = new_start
         return self
@@ -714,6 +735,29 @@ class Schedule:
                 self._laps[output_id] += 1 + self._laps[delay_input_id]
             del self._laps[delay_input_id]
             delay_list = self._sfg.find_by_type_name(Delay.type_name())
+
+    def _schedule_alap(self) -> None:
+        """Schedule the operations using as-late-as-possible scheduling."""
+        precedence_list = self._sfg.get_precedence_list()
+        self._schedule_asap()
+        max_end_time = self.get_max_end_time()
+
+        if self.schedule_time is None:
+            self._schedule_time = max_end_time
+        elif self.schedule_time < max_end_time:
+            raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
+
+        for output in self._sfg.find_by_type_name(Output.type_name()):
+            output = cast(Output, output)
+            self.move_operation_alap(output.graph_id)
+        for step in reversed(precedence_list):
+            graph_ids = {
+                outport.operation.graph_id
+                for outport in step
+                if not isinstance(outport.operation, Delay)
+            }
+            for graph_id in graph_ids:
+                self.move_operation_alap(graph_id)
 
     def _schedule_asap(self) -> None:
         """Schedule the operations using as-soon-as-possible scheduling."""

@@ -1548,7 +1548,7 @@ class SFG(AbstractOperation):
         # Import here needed to avoid circular imports
         from b_asic.schedule import Schedule
 
-        return Schedule(self, scheduling_algorithm="ASAP").schedule_time
+        return Schedule(self, algorithm="ASAP").schedule_time
 
     def iteration_period_bound(self) -> int:
         """
