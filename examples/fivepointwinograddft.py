@@ -130,6 +130,7 @@ schedule.move_operation('bfly3', -2)
 schedule.move_operation('bfly4', -1)
 schedule.show()
 
+# %%
 # Extract memory variables and operation executions
 operations = schedule.get_operations()
 adders = operations.get_by_type_name(AddSub.type_name())
@@ -168,6 +169,8 @@ fig, ax = plt.subplots()
 fig.suptitle('Exclusion graph based on ports')
 nx.draw(mem_vars.create_exclusion_graph_from_ports(1, 1, 2), ax=ax)
 
+# %%
+# Create architecture
 arch = Architecture(
     [addsub, butterfly, multiplier, pe_in, pe_out],
     memories,

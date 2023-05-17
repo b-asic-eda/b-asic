@@ -72,7 +72,7 @@ class Schedule:
         algorithm.
     cyclic : bool, default: False
         If the schedule is cyclic.
-    algorithm : {'ASAP', 'ALAP', 'provided'}, optional
+    algorithm : {'ASAP', 'ALAP', 'provided'}, default: 'ASAP'
         The scheduling algorithm to use. The following algorithm are available:
            * ``'ASAP'``: As-soon-as-possible scheduling.
            * ``'ALAP'``: As-late-as-possible scheduling.
@@ -84,10 +84,10 @@ class Schedule:
         Dictionary with GraphIDs as keys and laps as values.
         Used when *algorithm* is 'provided'.
     max_resources : dict, optional
-        Dictionary like ``{'cmul': 2}`` denoting the maximum number of resources
-        for a given operation type if the scheduling algorithm considers that.
-        If not provided, or an operation type is not provided, at most one resource is
-        used.
+        Dictionary like ``{Addition.type_name(): 2}`` denoting the maximum number of
+        resources for a given operation type if the scheduling algorithm considers
+        that. If not provided, or an operation type is not provided, at most one
+        resource is used.
     """
 
     _sfg: SFG
@@ -181,13 +181,16 @@ class Schedule:
         """
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
-        slack = sys.maxsize
         output_slacks = self._forward_slacks(graph_id)
-        # Make more pythonic
-        for signal_slacks in output_slacks.values():
-            for signal_slack in signal_slacks.values():
-                slack = min(slack, signal_slack)
-        return slack
+        return min(
+            sum(
+                (
+                    list(signal_slacks.values())
+                    for signal_slacks in output_slacks.values()
+                ),
+                [sys.maxsize],
+            )
+        )
 
     def _forward_slacks(
         self, graph_id: GraphID
@@ -241,13 +244,16 @@ class Schedule:
         """
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
-        slack = sys.maxsize
         input_slacks = self._backward_slacks(graph_id)
-        # Make more pythonic
-        for signal_slacks in input_slacks.values():
-            for signal_slack in signal_slacks.values():
-                slack = min(slack, signal_slack)
-        return slack
+        return min(
+            sum(
+                (
+                    list(signal_slacks.values())
+                    for signal_slacks in input_slacks.values()
+                ),
+                [sys.maxsize],
+            )
+        )
 
     def _backward_slacks(self, graph_id: GraphID) -> Dict[InputPort, Dict[Signal, int]]:
         ret = {}

@@ -1409,11 +1409,13 @@ class ProcessCollection:
         return max(self.read_port_accesses().values())
 
     def read_port_accesses(self) -> Dict[int, int]:
-        reads = []
-        for process in self._collection:
-            reads.extend(
-                set(read_time % self.schedule_time for read_time in process.read_times)
-            )
+        reads = sum(
+            (
+                [read_time % self.schedule_time for read_time in process.read_times]
+                for process in self._collection
+            ),
+            [],
+        )
         return dict(sorted(Counter(reads).items()))
 
     def write_ports_bound(self) -> int:
@@ -1444,13 +1446,14 @@ class ProcessCollection:
         return max(self.total_port_accesses().values())
 
     def total_port_accesses(self) -> Dict[int, int]:
-        accesses = [
-            process.start_time % self.schedule_time for process in self._collection
-        ]
-        for process in self._collection:
-            accesses.extend(
-                set(read_time % self.schedule_time for read_time in process.read_times)
-            )
+        accesses = sum(
+            (
+                list(read_time % self.schedule_time for read_time in process.read_times)
+                for process in self._collection
+            ),
+            [process.start_time % self.schedule_time for process in self._collection],
+        )
+
         return dict(sorted(Counter(accesses).items()))
 
     def from_name(self, name: str):

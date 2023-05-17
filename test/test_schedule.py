@@ -70,9 +70,9 @@ class TestInit:
             print(op.latency_offsets)
 
         start_times_names = {}
-        for op_id, start_time in schedule._start_times.items():
+        for op_id in schedule.start_times:
             op_name = precedence_sfg_delays.find_by_id(op_id).name
-            start_times_names[op_name] = start_time
+            start_times_names[op_name] = schedule.start_time_of_operation(op_id)
 
         assert start_times_names == {
             "IN1": 4,
