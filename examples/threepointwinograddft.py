@@ -6,6 +6,9 @@ Three-point Winograd DFT
 
 from math import cos, pi, sin
 
+import matplotlib.pyplot as plt
+import networkx as nx
+
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import AddSub, ConstantMultiplication
 from b_asic.schedule import Schedule
@@ -113,6 +116,11 @@ mem_vars.show(title="All memory variables")
 direct, mem_vars = mem_vars.split_on_length()
 mem_vars.show(title="Non-zero time memory variables")
 mem_vars_set = mem_vars.split_on_ports(read_ports=1, write_ports=1, total_ports=2)
+direct.show(title="Direct interconnects")
+
+fig, ax = plt.subplots()
+fig.suptitle('Exclusion graph based on ports')
+nx.draw(mem_vars.create_exclusion_graph_from_ports(1, 1, 2), ax=ax)
 
 memories = []
 for i, mem in enumerate(mem_vars_set):
@@ -122,10 +130,20 @@ for i, mem in enumerate(mem_vars_set):
     memory.assign("left_edge")
     memory.show_content(title=f"Assigned {memory.entity_name}")
 
-direct.show(title="Direct interconnects")
 
 arch = Architecture(
     {addsub, multiplier, pe_in, pe_out}, memories, direct_interconnects=direct
 )
+
+arch
+
+# %%
+# Move memory variables
+arch.move_process('addsub2.0', memories[2], memories[1])
+arch.move_process('addsub4.0', memories[1], memories[2], assign=True)
+memories[1].assign()
+
+memories[1].show_content(title="Assigned memory1")
+memories[2].show_content(title="Assigned memory2")
 
 arch
