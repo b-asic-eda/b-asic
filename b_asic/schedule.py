@@ -644,6 +644,56 @@ class Schedule:
         self._start_times[graph_id] = new_start
         return self
 
+    def move_operation_alap(self, graph_id: GraphID) -> "Schedule":
+        """
+        Move an operation as late as possible in the schedule.
+
+        This is basically the same as::
+
+            schedule.move_operation(graph_id, schedule.forward_slack(graph_id))
+
+        but Outputs will only move to the end of the schedule.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The graph id of the operation to move.
+        """
+        op = self._sfg.find_by_id(graph_id)
+        if op is None:
+            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
+        if isinstance(op, Output):
+            self.move_operation(
+                graph_id, self.schedule_time - self._start_times[graph_id]
+            )
+        else:
+            self.move_operation(graph_id, self.forward_slack(graph_id))
+        return self
+
+    def move_operation_asap(self, graph_id: GraphID) -> "Schedule":
+        """
+        Move an operation as soon as possible in the schedule.
+
+        This is basically the same as::
+
+            schedule.move_operation(graph_id, -schedule.backward_slack(graph_id))
+
+        but Inputs will only move to the start of the schedule.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The graph id of the operation to move.
+        """
+        op = self._sfg.find_by_id(graph_id)
+        if op is None:
+            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
+        if isinstance(op, Input):
+            self.move_operation(graph_id, -self._start_times[graph_id])
+        else:
+            self.move_operation(graph_id, -self.backward_slack(graph_id))
+        return self
+
     def _remove_delays_no_laps(self) -> None:
         """Remove delay elements without updating laps. Used when loading schedule."""
         delay_list = self._sfg.find_by_type_name(Delay.type_name())

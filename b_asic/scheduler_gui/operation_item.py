@@ -21,8 +21,10 @@ from qtpy.QtWidgets import (
     QMenu,
 )
 
-# B-ASIC
 from b_asic.graph_component import GraphID
+
+# B-ASIC
+from b_asic.gui_utils.icons import get_icon
 from b_asic.operation import Operation
 from b_asic.scheduler_gui._preferences import (
     OPERATION_EXECUTION_TIME_INACTIVE,
@@ -305,10 +307,20 @@ class OperationItem(QGraphicsItemGroup):
 
     def _open_context_menu(self):
         menu = QMenu()
-        swap = QAction("Swap")
+        swap = QAction(get_icon('swap'), "Swap")
         menu.addAction(swap)
         swap.setEnabled(self._operation.is_swappable)
         swap.triggered.connect(self._swap_io)
+        slacks = self._parent._schedule.slacks(self._operation.graph_id)
+        asap = QAction(get_icon('asap'), "Move as soon as possible")
+        asap.triggered.connect(self._move_asap)
+        asap.setEnabled(slacks[0] > 0)
+        menu.addAction(asap)
+        alap = QAction(get_icon('alap'), "Move as late as possible")
+        alap.triggered.connect(self._move_alap)
+        alap.setEnabled(slacks[1] > 0)
+        menu.addAction(alap)
+        menu.addSeparator()
         execution_time_plot = QAction(
             f"Show execution times for {self._operation.type_name()}"
         )
@@ -321,3 +333,9 @@ class OperationItem(QGraphicsItemGroup):
 
     def _execution_time_plot(self, event=None) -> None:
         self._parent._execution_time_plot(self._operation.type_name())
+
+    def _move_asap(self, event=None):
+        self._parent._schedule.move_operation_asap(self._operation.graph_id)
+
+    def _move_alap(self, event=None):
+        self._parent._schedule.move_operation_alap(self._operation.graph_id)

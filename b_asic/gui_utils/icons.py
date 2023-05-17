@@ -33,6 +33,9 @@ ICONS = {
     'full-screen-exit': 'mdi6.fullscreen-exit',
     'warning': 'fa5s.exclamation-triangle',
     'port-numbers': 'fa5s.hashtag',
+    'swap': 'fa5s.arrows-alt-v',
+    'asap': 'fa5s.fast-backward',
+    'alap': 'fa5s.fast-forward',
 }
 
 
