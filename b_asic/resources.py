@@ -243,8 +243,8 @@ class _ForwardBackwardTable:
         # Insert all processes (one per time-slot) to the table input
         # TODO: "Input each variable at the time step corresponding to the beginning of
         #        its lifetime. If multiple variables are input in a given cycle, these
-        #        are allocated to multple registers such that the variable with the
-        #        longest lifetime is allocated to the inital register and the other
+        #        are allocated to multiple registers such that the variable with the
+        #        longest lifetime is allocated to the initial register and the other
         #        variables are allocated to consecutive registers in decreasing order
         #        of lifetime." -- K. Parhi
         for mv in collection:
@@ -262,7 +262,7 @@ class _ForwardBackwardTable:
                 self._do_forward_allocation()
             else:
                 self._do_single_backward_allocation()
-            forward = not (forward)
+            forward = not forward
 
     def _forward_backward_is_complete(self) -> bool:
         s = {proc for e in self.table for proc in e.outputs}
@@ -355,7 +355,7 @@ class _ForwardBackwardTable:
         return len(self.table)
 
     def __str__(self):
-        # ANSI escape codes for coloring in the forward-backward table stirng
+        # ANSI escape codes for coloring in the forward-backward table string
         GREEN_BACKGROUND_ANSI = "\u001b[42m"
         BROWN_BACKGROUND_ANSI = "\u001b[43m"
         RESET_BACKGROUND_ANSI = "\033[0m"
@@ -391,8 +391,8 @@ class _ForwardBackwardTable:
 
             # Input column
             inputs_str = ''
-            for input in entry.inputs:
-                inputs_str += input.name + ','
+            for input_ in entry.inputs:
+                inputs_str += input_.name + ','
             if inputs_str:
                 inputs_str = inputs_str[:-1]
             res += f'{inputs_str:^{input_col_w-1}}|'
@@ -440,7 +440,7 @@ class ProcessCollection:
         The scheduling time associated with this
         :class:`~b_asic.resources.ProcessCollection`.
     cyclic : bool, default: False
-        Whether the processes operates cyclically, i.e., if time
+        Whether the processes operate cyclically, i.e., if time
 
         .. math:: t = t \bmod T_{\textrm{schedule}}.
     """
@@ -520,9 +520,9 @@ class ProcessCollection:
         If the ``ax`` parameter is not specified, a new Matplotlib figure is created.
 
         Raises :class:`KeyError` if any :class:`~b_asic.process.Process` lifetime
-        excedes this :class:`~b_asic.resources.ProcessCollection` schedule time,
+        exceedes this :class:`~b_asic.resources.ProcessCollection` schedule time,
         unless ``allow_excessive_lifetimes`` is specified. In that case,
-        :class:`~b_asic.process.Process` objects whose lifetime exceed the scheudle
+        :class:`~b_asic.process.Process` objects whose lifetime exceed the schedule
         time are drawn using the B-ASIC warning color.
 
         Parameters
@@ -548,8 +548,8 @@ class ProcessCollection:
             axes object. Defaults to None, which renders all processes on separate rows.
             This option is useful when drawing cell assignments.
         allow_excessive_lifetimes : bool, default False
-            If set to true, the plot method allows ploting collections of variables with
-            a greater lifetime than the schedule time.
+            If set to true, the plot method allows plotting collections of variables
+            with a longer lifetime than the schedule time.
 
         Returns
         -------
@@ -568,8 +568,8 @@ class ProcessCollection:
         if not allow_excessive_lifetimes and max_execution_time > self._schedule_time:
             # Schedule time needs to be greater than or equal to the maximum process
             # lifetime
-            raise KeyError(
-                f'Error: Schedule time: {self._schedule_time} < Max execution'
+            raise ValueError(
+                f'Schedule time: {self._schedule_time} < Max execution'
                 f' time: {max_execution_time}'
             )
 
@@ -1033,7 +1033,7 @@ class ProcessCollection:
         Perform assignment of the processes in this collection using graph coloring.
 
         Two or more processes can share a single resource if, and only if, they have no
-        overlaping execution time.
+        overlapping execution time.
 
         Parameters
         ----------
@@ -1042,7 +1042,7 @@ class ProcessCollection:
             :func:`networkx.algorithms.coloring.greedy_color`.
         coloring : dict, optional
             An optional graph coloring, dictionary with Process and its associated color
-            (int). If a graph coloring is not provided throught this parameter, one will
+            (int). If a graph coloring is not provided through this parameter, one will
             be created when calling this method.
 
         Returns
@@ -1406,26 +1406,52 @@ class ProcessCollection:
         -------
         int
         """
+        return max(self.read_port_accesses().values())
+
+    def read_port_accesses(self) -> Dict[int, int]:
         reads = []
         for process in self._collection:
             reads.extend(
                 set(read_time % self.schedule_time for read_time in process.read_times)
             )
-        count = Counter(reads)
-        return max(count.values())
+        return dict(sorted(Counter(reads).items()))
 
     def write_ports_bound(self) -> int:
         """
-        Get the write port lower-bound (maximum number of concurrent writes) of this
+        Get the total port lower-bound (maximum number of concurrent writes) of this
         :class:`~b_asic.resources.ProcessCollection`.
 
         Returns
         -------
         int
         """
-        writes = [process.start_time for process in self._collection]
-        count = Counter(writes)
-        return max(count.values())
+        return max(self.write_port_accesses().values())
+
+    def write_port_accesses(self) -> Dict[int, int]:
+        writes = [
+            process.start_time % self.schedule_time for process in self._collection
+        ]
+        return dict(sorted(Counter(writes).items()))
+
+    def total_ports_bound(self) -> int:
+        """
+        Get the total port lower-bound (maximum number of concurrent reads and writes).
+
+        Returns
+        -------
+        int
+        """
+        return max(self.total_port_accesses().values())
+
+    def total_port_accesses(self) -> Dict[int, int]:
+        accesses = [
+            process.start_time % self.schedule_time for process in self._collection
+        ]
+        for process in self._collection:
+            accesses.extend(
+                set(read_time % self.schedule_time for read_time in process.read_times)
+            )
+        return dict(sorted(Counter(accesses).items()))
 
     def from_name(self, name: str):
         """
@@ -1440,7 +1466,7 @@ class ProcessCollection:
             The name of the process to retrieve.
         """
         name_to_proc = {p.name: p for p in self.collection}
-        if name not in name_to_proc:
-            raise KeyError(f'{name} not in {self}')
-        else:
+        if name in name_to_proc:
             return name_to_proc[name]
+        else:
+            raise KeyError(f'{name} not in {self}')

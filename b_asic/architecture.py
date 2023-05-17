@@ -189,8 +189,8 @@ class Resource(HardwareBlock):
 
     def _struct_def(self) -> str:
         # Create GraphViz struct
-        inputs = [f"in{i}" for i in range(self._input_count)]
-        outputs = [f"out{i}" for i in range(self._output_count)]
+        inputs = [f"in{i}" for i in range(self.input_count)]
+        outputs = [f"out{i}" for i in range(self.output_count)]
         ret = ""
         if inputs:
             in_strs = [f"<{in_str}> {in_str}" for in_str in inputs]
