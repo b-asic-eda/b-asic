@@ -1,4 +1,5 @@
 """B-ASIC test suite for the core operations."""
+import pytest
 
 from b_asic import (
     Absolute,
@@ -9,10 +10,13 @@ from b_asic import (
     Constant,
     ConstantMultiplication,
     Division,
+    LeftShift,
     Max,
     Min,
     Multiplication,
     Reciprocal,
+    RightShift,
+    Shift,
     SquareRoot,
     Subtraction,
     SymmetricTwoportAdaptor,
@@ -25,6 +29,7 @@ class TestConstant:
     def test_constant_positive(self):
         test_operation = Constant(3)
         assert test_operation.evaluate_output(0, []) == 3
+        assert test_operation.value == 3
 
     def test_constant_negative(self):
         test_operation = Constant(-3)
@@ -83,6 +88,7 @@ class TestAddSub:
     def test_addition_negative(self):
         test_operation = AddSub(is_add=True)
         assert test_operation.evaluate_output(0, [-3, -5]) == -8
+        assert test_operation.is_add
 
     def test_addition_complex(self):
         test_operation = AddSub(is_add=True)
@@ -91,6 +97,7 @@ class TestAddSub:
     def test_addsub_subtraction_positive(self):
         test_operation = AddSub(is_add=False)
         assert test_operation.evaluate_output(0, [5, 3]) == 2
+        assert not test_operation.is_add
 
     def test_addsub_subtraction_negative(self):
         test_operation = AddSub(is_add=False)
@@ -214,6 +221,7 @@ class TestConstantMultiplication:
     def test_constantmultiplication_positive(self):
         test_operation = ConstantMultiplication(5)
         assert test_operation.evaluate_output(0, [20]) == 100
+        assert test_operation.value == 5
 
     def test_constantmultiplication_negative(self):
         test_operation = ConstantMultiplication(5)
@@ -222,6 +230,101 @@ class TestConstantMultiplication:
     def test_constantmultiplication_complex(self):
         test_operation = ConstantMultiplication(3 + 2j)
         assert test_operation.evaluate_output(0, [3 + 4j]) == 1 + 18j
+
+
+class TestRightShift:
+    """Tests for RightShift class."""
+
+    def test_rightshift_positive(self):
+        test_operation = RightShift(2)
+        assert test_operation.evaluate_output(0, [20]) == 5
+        assert test_operation.value == 2
+
+    def test_rightshift_negative(self):
+        test_operation = RightShift(2)
+        assert test_operation.evaluate_output(0, [-5]) == -1.25
+
+    def test_rightshift_complex(self):
+        test_operation = RightShift(2)
+        assert test_operation.evaluate_output(0, [2 + 1j]) == 0.5 + 0.25j
+
+    def test_rightshift_errors(self):
+        with pytest.raises(TypeError, match="value must be an int"):
+            _ = RightShift(0.5)
+        test_operation = RightShift(0)
+        with pytest.raises(TypeError, match="value must be an int"):
+            test_operation.value = 0.5
+
+        with pytest.raises(ValueError, match="value must be non-negative"):
+            _ = RightShift(-1)
+        test_operation = RightShift(0)
+        with pytest.raises(ValueError, match="value must be non-negative"):
+            test_operation.value = -1
+
+
+class TestLeftShift:
+    """Tests for LeftShift class."""
+
+    def test_leftshift_positive(self):
+        test_operation = LeftShift(2)
+        assert test_operation.evaluate_output(0, [5]) == 20
+        assert test_operation.value == 2
+
+    def test_leftshift_negative(self):
+        test_operation = LeftShift(2)
+        assert test_operation.evaluate_output(0, [-5]) == -20
+
+    def test_leftshift_complex(self):
+        test_operation = LeftShift(2)
+        assert test_operation.evaluate_output(0, [0.5 + 0.25j]) == 2 + 1j
+
+    def test_leftshift_errors(self):
+        with pytest.raises(TypeError, match="value must be an int"):
+            _ = LeftShift(0.5)
+        test_operation = LeftShift(0)
+        with pytest.raises(TypeError, match="value must be an int"):
+            test_operation.value = 0.5
+
+        with pytest.raises(ValueError, match="value must be non-negative"):
+            _ = LeftShift(-1)
+        test_operation = LeftShift(0)
+        with pytest.raises(ValueError, match="value must be non-negative"):
+            test_operation.value = -1
+
+
+class TestShift:
+    """Tests for Shift class."""
+
+    def test_shift_positive(self):
+        test_operation = Shift(2)
+        assert test_operation.evaluate_output(0, [5]) == 20
+        assert test_operation.value == 2
+
+        test_operation = Shift(-2)
+        assert test_operation.evaluate_output(0, [5]) == 1.25
+        assert test_operation.value == -2
+
+    def test_shift_negative(self):
+        test_operation = Shift(2)
+        assert test_operation.evaluate_output(0, [-5]) == -20
+
+        test_operation = Shift(-2)
+        assert test_operation.evaluate_output(0, [-5]) == -1.25
+
+    def test_shift_complex(self):
+        test_operation = Shift(2)
+        assert test_operation.evaluate_output(0, [0.5 + 0.25j]) == 2 + 1j
+
+        test_operation = Shift(-2)
+        assert test_operation.evaluate_output(0, [2 + 1j]) == 0.5 + 0.25j
+
+    @pytest.mark.parametrize("val", (-0.5, 0.5))
+    def test_leftshift_errors(self, val):
+        with pytest.raises(TypeError, match="value must be an int"):
+            _ = Shift(val)
+        test_operation = Shift(0)
+        with pytest.raises(TypeError, match="value must be an int"):
+            test_operation.value = val
 
 
 class TestButterfly:
@@ -237,7 +340,7 @@ class TestButterfly:
         assert test_operation.evaluate_output(0, [-2, -3]) == -5
         assert test_operation.evaluate_output(1, [-2, -3]) == 1
 
-    def test_buttefly_complex(self):
+    def test_butterfly_complex(self):
         test_operation = Butterfly()
         assert test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == 5 - 1j
         assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == -1 + 3j
@@ -250,6 +353,7 @@ class TestSymmetricTwoportAdaptor:
         test_operation = SymmetricTwoportAdaptor(0.5)
         assert test_operation.evaluate_output(0, [2, 3]) == 3.5
         assert test_operation.evaluate_output(1, [2, 3]) == 2.5
+        assert test_operation.value == 0.5
 
     def test_symmetrictwoportadaptor_negative(self):
         test_operation = SymmetricTwoportAdaptor(0.5)
@@ -266,6 +370,13 @@ class TestSymmetricTwoportAdaptor:
         assert test_operation.value == 0.5
         test_operation.swap_io()
         assert test_operation.value == -0.5
+
+    def test_symmetrictwoportadaptor_error(self):
+        with pytest.raises(ValueError, match="value must be between -1 and 1"):
+            _ = SymmetricTwoportAdaptor(-2)
+        test_operation = SymmetricTwoportAdaptor(0)
+        with pytest.raises(ValueError, match="value must be between -1 and 1"):
+            test_operation.value = 2
 
 
 class TestReciprocal:

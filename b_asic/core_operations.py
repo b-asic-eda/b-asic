@@ -783,7 +783,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
-        self.set_param("value", value)
+        self.value = value
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -801,7 +801,10 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     @value.setter
     def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
-        self.set_param("value", value)
+        if -1 <= value <= 1:
+            self.set_param("value", value)
+        else:
+            raise ValueError('value must be between -1 and 1 (inclusive)')
 
     def swap_io(self) -> None:
         # Swap inputs and outputs and change sign of coefficient
@@ -852,3 +855,233 @@ class Reciprocal(AbstractOperation):
 
     def evaluate(self, a):
         return 1 / a
+
+
+class RightShift(AbstractOperation):
+    r"""
+    Arithmetic right-shift operation.
+
+    Shifts the input to the right assuming a fixed-point representation, so
+    a multiplication by a power of two.
+
+    .. math:: y = x \gg \text{value} = 2^{-\text{value}}x \text{ where value} \geq 0
+
+    Parameters
+    ----------
+    value : int
+        Number of bits to shift right.
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to shift right.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
+    --------
+    LeftShift
+    Shift
+    """
+
+    is_linear = True
+
+    def __init__(
+        self,
+        value: int = 0,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = Name(""),
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
+    ):
+        """Construct a RightShift operation with the given value."""
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self.value = value
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("rshift")
+
+    def evaluate(self, a):
+        return a * 2 ** (-self.param("value"))
+
+    @property
+    def value(self) -> int:
+        """Get the constant value of this operation."""
+        return self.param("value")
+
+    @value.setter
+    def value(self, value: int) -> None:
+        """Set the constant value of this operation."""
+        if not isinstance(value, int):
+            raise TypeError("value must be an int")
+        if value < 0:
+            raise ValueError("value must be non-negative")
+        self.set_param("value", value)
+
+
+class LeftShift(AbstractOperation):
+    r"""
+    Arithmetic left-shift operation.
+
+    Shifts the input to the left assuming a fixed-point representation, so
+    a multiplication by a power of two.
+
+    .. math:: y = x \ll \text{value} = 2^{\text{value}}x \text{ where value} \geq 0
+
+    Parameters
+    ----------
+    value : int
+        Number of bits to shift left.
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to shift left.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
+    --------
+    RightShift
+    Shift
+    """
+
+    is_linear = True
+
+    def __init__(
+        self,
+        value: int = 0,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = Name(""),
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
+    ):
+        """Construct a RightShift operation with the given value."""
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self.value = value
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("lshift")
+
+    def evaluate(self, a):
+        return a * 2 ** (self.param("value"))
+
+    @property
+    def value(self) -> int:
+        """Get the constant value of this operation."""
+        return self.param("value")
+
+    @value.setter
+    def value(self, value: int) -> None:
+        """Set the constant value of this operation."""
+        if not isinstance(value, int):
+            raise TypeError("value must be an int")
+        if value < 0:
+            raise ValueError("value must be non-negative")
+        self.set_param("value", value)
+
+
+class Shift(AbstractOperation):
+    r"""
+    Arithmetic shift operation.
+
+    Shifts the input to the left or right assuming a fixed-point representation, so
+    a multiplication by a power of two. By definition a positive value is a shift to
+    the left.
+
+    .. math:: y = x \ll \text{value} = 2^{\text{value}}x
+
+    Parameters
+    ----------
+    value : int
+        Number of bits to shift. Positive *value* shifts to the left.
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to shift.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
+    --------
+    LeftShift
+    RightShift
+    """
+
+    is_linear = True
+
+    def __init__(
+        self,
+        value: int = 0,
+        src0: Optional[SignalSourceProvider] = None,
+        name: Name = Name(""),
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
+    ):
+        """Construct a Shift operation with the given value."""
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self.value = value
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("shift")
+
+    def evaluate(self, a):
+        return a * 2 ** (self.param("value"))
+
+    @property
+    def value(self) -> int:
+        """Get the constant value of this operation."""
+        return self.param("value")
+
+    @value.setter
+    def value(self, value: int) -> None:
+        """Set the constant value of this operation."""
+        if not isinstance(value, int):
+            raise TypeError("value must be an int")
+        self.set_param("value", value)
