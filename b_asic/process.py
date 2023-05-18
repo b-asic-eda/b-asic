@@ -109,7 +109,7 @@ class MemoryProcess(Process):
     """
     Intermediate class (abstract) for memory processes.
 
-    Different from regular :class:`Processe` objects, :class:`MemoryProcess` objects
+    Different from regular :class:`Process` objects, :class:`MemoryProcess` objects
     can contain multiple read accesses and can be split into two new
     :class:`MemoryProcess` objects based on these read times.
 

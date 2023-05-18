@@ -74,7 +74,7 @@ firstorderiir
 firstorderiir.print_precedence_graph()
 
 # %%
-# Executing ``firstorderiir.precedence_graph()`` will show something like
+# Executing ``firstorderiir.precedence_graph`` will show something like
 #
 # .. graphviz::
 #

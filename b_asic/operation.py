@@ -336,8 +336,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def latency(self) -> int:
         """
-        Get the latency of the operation, which is the longest time it takes from one of
-        the operations inputport to one of the operations outputport.
+        Get the latency of the operation.
+
+        This is the longest time it takes from one of the input ports to one of the
+        output ports.
         """
         raise NotImplementedError
 
@@ -368,7 +370,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         latency_offsets dictionary.
 
         The latency offsets dictionary should be {'in0': 2, 'out1': 4} if you want to
-        set the latency offset for the inport port with index 0 to 2, and the latency
+        set the latency offset for the input port with index 0 to 2, and the latency
         offset of the output port with index 1 to 4.
         """
         raise NotImplementedError

@@ -520,7 +520,7 @@ class ProcessCollection:
         If the ``ax`` parameter is not specified, a new Matplotlib figure is created.
 
         Raises :class:`KeyError` if any :class:`~b_asic.process.Process` lifetime
-        exceedes this :class:`~b_asic.resources.ProcessCollection` schedule time,
+        exceeds this :class:`~b_asic.resources.ProcessCollection` schedule time,
         unless ``allow_excessive_lifetimes`` is specified. In that case,
         :class:`~b_asic.process.Process` objects whose lifetime exceed the schedule
         time are drawn using the B-ASIC warning color.
@@ -698,7 +698,7 @@ class ProcessCollection:
         show_markers : bool, default True
             Show markers at read and write times.
         allow_excessive_lifetimes : bool, default False
-            If set to True, the plot method allows ploting collections of variables with
+            If True, the plot method allows plotting collections of variables with
             a greater lifetime than the schedule time.
         title : str, optional
             Title of plot.
@@ -897,7 +897,7 @@ class ProcessCollection:
         """
         Split this process storage based on concurrent read/write times according.
 
-        Different heurstic methods can be used.
+        Different heuristic methods can be used.
 
         Parameters
         ----------
@@ -1075,7 +1075,7 @@ class ProcessCollection:
         algorithm.
 
         Two or more processes can share a single resource if, and only if, they have no
-        overlaping execution time.
+        overlapping execution time.
 
         Raises :class:`ValueError` if any process in this collection has an execution
         time which is greater than the collection schedule time.
@@ -1461,7 +1461,7 @@ class ProcessCollection:
         Get a :class:`~b_asic.process.Process` from this collection from its name.
 
         Raises :class:`KeyError` if no processes with ``name`` is found in this
-        colleciton.
+        collection.
 
         Parameters
         ----------

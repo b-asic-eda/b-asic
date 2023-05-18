@@ -1239,7 +1239,7 @@ class TestPrecedenceGraph:
             ' shape=square]\n\tadd1 -> "add1.0"\n\tadd1 [label=add1 shape=ellipse]\n}'
         )
 
-        assert sfg_simple_filter.precedence_graph().source in (res, res + "\n")
+        assert sfg_simple_filter.precedence_graph.source in (res, res + "\n")
 
 
 class TestSFGGraph:

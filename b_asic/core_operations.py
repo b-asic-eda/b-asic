@@ -307,16 +307,16 @@ class Multiplication(AbstractOperation):
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
-        Used if inputs have different arrival times, e.g.,
-        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
-        time unit later than *src0*. If not provided and *latency* is
-        provided, set to zero if not explicitly provided. So the previous
-        example can be written as ``{"in1": 1}`` only.
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        corresponds to *src1* arriving one time unit later than *src0* and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
     execution_time : int, optional
-        Operation execution time (time units before operator can be
-        reused).
+        Operation execution time (time units before operator can be reused).
 
-    See also
+    See Also
     ========
     ConstantMultiplication
 
@@ -365,7 +365,26 @@ class Division(AbstractOperation):
 
     .. math:: y = \frac{x_0}{x_1}
 
-    See also
+    Parameters
+    ==========
+
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to divide.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        corresponds to *src1* arriving one time unit later than *src0* and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
     ========
     Reciprocal
     """
@@ -412,7 +431,26 @@ class Min(AbstractOperation):
 
     .. note:: Only real-valued numbers are supported.
 
-    See also
+    Parameters
+    ==========
+
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to determine the min of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        corresponds to *src1* arriving one time unit later than *src0* and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
     ========
     Max
     """
@@ -458,7 +496,26 @@ class Max(AbstractOperation):
 
     .. note:: Only real-valued numbers are supported.
 
-    See also
+    Parameters
+    ==========
+
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to determine the min of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        corresponds to *src1* arriving one time unit later than *src0* and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
     ========
     Min
     """
@@ -501,6 +558,22 @@ class SquareRoot(AbstractOperation):
     Gives the square root of its input.
 
     .. math:: y = \sqrt{x}
+
+    Parameters
+    ----------
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to compute the square root of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
     """
 
     def __init__(
@@ -537,6 +610,22 @@ class ComplexConjugate(AbstractOperation):
     Gives the complex conjugate of its input.
 
     .. math:: y = x^*
+
+    Parameters
+    ----------
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to compute the complex conjugate of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
     """
 
     def __init__(
@@ -573,6 +662,22 @@ class Absolute(AbstractOperation):
     Gives the absolute value of its input.
 
     .. math:: y = |x|
+
+    Parameters
+    ----------
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to compute the absolute value of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
     """
 
     def __init__(
@@ -609,6 +714,27 @@ class ConstantMultiplication(AbstractOperation):
     Gives the result of multiplying its input by a specified value.
 
     .. math:: y = x_0 \times \text{value}
+
+    Parameters
+    ----------
+    value : int
+        Value to multiply with.
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to multiply.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
+    --------
+    Multiplication
     """
     is_linear = True
 
@@ -653,16 +779,35 @@ class ConstantMultiplication(AbstractOperation):
 
 class Butterfly(AbstractOperation):
     r"""
-    Radix-2 Butterfly operation.
+    Radix-2 Butterfly operation for FFTs.
 
-    Gives the result of adding its two inputs, as well as the result of
-    subtracting the second input from the first one.
+    Gives the result of adding its two inputs, as well as the result of subtracting the
+    second input from the first one. This corresponds to a 2-point DFT.
 
     .. math::
         \begin{eqnarray}
         y_0 & = & x_0 + x_1\\
         y_1 & = & x_0 - x_1
         \end{eqnarray}
+
+    Parameters
+    ==========
+
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to compute the 2-point DFT of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        corresponds to *src1* arriving one time unit later than *src0* and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
     """
     is_linear = True
 
@@ -702,6 +847,28 @@ class MAD(AbstractOperation):
     then adding the third input.
 
     .. math:: y = x_0 \times x_1 + x_2
+
+    Parameters
+    ==========
+
+    src0, src1, src2 : SignalSourceProvider, optional
+        The three signals to determine the multiply-add operation of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 0, "in2": 2}``
+        which corresponds to *src2*, i.e., the term to be added, arriving two time
+        units later than *src0* and *src1*. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
+
     """
     is_swappable = True
 
@@ -752,7 +919,7 @@ class MAD(AbstractOperation):
 
 class SymmetricTwoportAdaptor(AbstractOperation):
     r"""
-    Symmetric twoport-adaptor operation.
+    Wave digital filter symmetric twoport-adaptor operation.
 
     .. math::
         \begin{eqnarray}
@@ -824,6 +991,21 @@ class Reciprocal(AbstractOperation):
     Gives the reciprocal of its input.
 
     .. math:: y = \frac{1}{x}
+
+    Parameters
+    ----------
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to compute the reciprocal of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
 
     See also
     ========

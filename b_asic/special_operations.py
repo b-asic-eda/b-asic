@@ -146,10 +146,6 @@ class Output(AbstractOperation):
     def latency(self) -> int:
         return self.latency_offsets["in0"]
 
-    @property
-    def is_linear(self) -> bool:
-        return True
-
 
 class Delay(AbstractOperation):
     """

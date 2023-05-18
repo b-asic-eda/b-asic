@@ -400,7 +400,8 @@ class SFG(AbstractOperation):
 
     def connect_external_signals_to_components(self) -> bool:
         """
-        Connects any external signals to this SFG's internal operations.
+        Connects any external signals to the internal operations of SFG.
+
         This SFG becomes unconnected to the SFG it is a component off,
         causing it to become invalid afterwards. Returns True if successful,
         False otherwise.
@@ -836,11 +837,12 @@ class SFG(AbstractOperation):
         """
         Display the output of :func:`precedence_graph` in the system viewer.
         """
-        self.precedence_graph().view()
+        self.precedence_graph.view()
 
+    @property
     def precedence_graph(self) -> Digraph:
         """
-        Return the SFG in prededence form in Graphviz format.
+        The SFG in precedence form in Graphviz format.
 
         This can be rendered in enriched shells.
 
@@ -906,7 +908,8 @@ class SFG(AbstractOperation):
 
     def print_precedence_graph(self) -> None:
         """
-        Print a representation of the SFG's precedence list to the standard out.
+        Print a representation of the SFG precedence list to the standard out.
+
         If the precedence list already has been calculated then it uses the
         cached version, otherwise it calculates the precedence list and then
         prints it.
@@ -1655,7 +1658,7 @@ class SFG(AbstractOperation):
                         new_destination = new_dest_op.inputs[sink_op_output_index]
                         new_destination.connect(new_source_port)
                 else:
-                    # Other opreations need to be re-targeted to the corresponding
+                    # Other operations need to be re-targeted to the corresponding
                     # output in the current layer, as long as that output is not a
                     # delay, as that has been solved above.
                     # To avoid double connections, we'll only re-connect inputs

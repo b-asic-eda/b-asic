@@ -174,8 +174,8 @@ def direct_form_fir(
 
     prev_delay = input_op
     prev_add = None
-    for i, coeff in enumerate(np_coefficients):
-        tmp_mul = ConstantMultiplication(coeff, prev_delay, **mult_properties)
+    for i, coefficient in enumerate(np_coefficients):
+        tmp_mul = ConstantMultiplication(coefficient, prev_delay, **mult_properties)
         prev_add = (
             tmp_mul
             if prev_add is None
@@ -241,8 +241,8 @@ def transposed_direct_form_fir(
     output = Output()
 
     prev_delay = None
-    for i, coeff in enumerate(reversed(np_coefficients)):
-        tmp_mul = ConstantMultiplication(coeff, input_op, **mult_properties)
+    for i, coefficient in enumerate(reversed(np_coefficients)):
+        tmp_mul = ConstantMultiplication(coefficient, input_op, **mult_properties)
         tmp_add = (
             tmp_mul
             if prev_delay is None
