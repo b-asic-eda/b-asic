@@ -123,6 +123,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._show_incorrect_execution_time = True
         self._show_port_numbers = True
         self._execution_time_for_variables = None
+        self._ports_accesses_for_storage = None
+
         # Recent files
         self._max_recent_files = 4
         self._recent_files_actions: List[QAction] = []
@@ -164,9 +166,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_view_variables.triggered.connect(
             self._show_execution_times_for_variables
         )
-        # self.action_view_port_accesses.triggered.connect(
-        #     self._show_ports_accesses_for_storage
-        # )
+        self.action_view_port_accesses.triggered.connect(
+            self._show_ports_accesses_for_storage
+        )
         self.actionZoom_to_fit.setIcon(get_icon('zoom-to-fit'))
         self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
         self.actionToggle_full_screen.setIcon(get_icon('full-screen'))
@@ -415,6 +417,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.update_statusbar("Closed schedule")
             self._toggle_file_loaded(False)
             self.action_view_variables.setEnabled(False)
+            self.action_view_port_accesses.setEnabled(False)
             self.menu_view_execution_times.setEnabled(False)
 
     @Slot()
@@ -620,6 +623,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                 settings.setValue("scheduler/hide_exit_dialog", checkbox.isChecked())
             self._write_settings()
             log.info(f"Exit: {os.path.basename(__file__)}")
+            if self._ports_accesses_for_storage:
+                self._ports_accesses_for_storage.close()
+            if self._execution_time_for_variables:
+                self._execution_time_for_variables.close()
             event.accept()
         else:
             event.ignore()
@@ -661,6 +668,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.info_table_fill_schedule(self._schedule)
         self._update_operation_types()
         self.action_view_variables.setEnabled(True)
+        self.action_view_port_accesses.setEnabled(True)
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def _redraw_all(self) -> None:
@@ -845,20 +853,44 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _show_execution_times_for_variables(self):
         self._execution_time_for_variables = MPLWindow("Execution times for variables")
-        self._schedule.get_memory_variables().plot(
-            self._execution_time_for_variables.axes, allow_excessive_lifetimes=True
+        self._execution_time_for_variables.finished.connect(
+            self._execution_times_for_variables_closed
         )
+        self._update_execution_times_for_variables()
         self._execution_time_for_variables.show()
+
+    def _update_execution_times_for_variables(self):
+        if self._execution_time_for_variables:
+            self._execution_time_for_variables.axes.clear()
+            self._schedule.get_memory_variables().plot(
+                self._execution_time_for_variables.axes, allow_excessive_lifetimes=True
+            )
+
+    @Slot()
+    def _execution_times_for_variables_closed(self):
+        self._execution_time_for_variables = None
 
     def _show_ports_accesses_for_storage(self):
         self._ports_accesses_for_storage = MPLWindow(
             "Port accesses for storage", subplots=(3, 1)
         )
-        mem_vars = self._schedule.get_memory_variables()
-        _, mem_vars = mem_vars.split_on_length()
-
-        mem_vars.plot_port_accesses(self._ports_accesses_for_storage.axes)
+        self._ports_accesses_for_storage.finished.connect(
+            self._ports_accesses_for_storage_closed
+        )
+        self._update_ports_accesses_for_storage()
         self._ports_accesses_for_storage.show()
+
+    def _update_ports_accesses_for_storage(self) -> None:
+        if self._ports_accesses_for_storage:
+            for ax in self._ports_accesses_for_storage.axes:
+                ax.clear()
+            mem_vars = self._schedule.get_memory_variables()
+            _, mem_vars = mem_vars.split_on_length()
+            mem_vars.plot_port_accesses(self._ports_accesses_for_storage.axes)
+
+    @Slot()
+    def _ports_accesses_for_storage_closed(self) -> None:
+        self._ports_accesses_for_storage = None
 
     def _update_recent_file_list(self):
         settings = QSettings()

@@ -244,6 +244,7 @@
     <addaction name="separator"/>
     <addaction name="actionPlot_schedule"/>
     <addaction name="action_view_variables"/>
+    <addaction name="action_view_port_accesses"/>
     <addaction name="menu_view_execution_times"/>
     <addaction name="separator"/>
     <addaction name="actionZoom_to_fit"/>
@@ -462,6 +463,17 @@
    </property>
    <property name="toolTip">
     <string>View all variables</string>
+   </property>
+  </action>
+  <action name="action_view_port_accesses">
+   <property name="text">
+    <string>View port access statistics</string>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="toolTip">
+    <string>View port access statistics for storage</string>
    </property>
   </action>
   <action name="actionUndo">

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Form implementation generated from reading ui file '.\main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
@@ -11,7 +9,7 @@
 from qtpy import QtCore, QtGui, QtWidgets
 
 
-class Ui_MainWindow(object):
+class Ui_MainWindow:
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
@@ -209,6 +207,9 @@ class Ui_MainWindow(object):
         self.action_view_variables = QtWidgets.QAction(MainWindow)
         self.action_view_variables.setEnabled(False)
         self.action_view_variables.setObjectName("action_view_variables")
+        self.action_view_port_accesses = QtWidgets.QAction(MainWindow)
+        self.action_view_port_accesses.setEnabled(False)
+        self.action_view_port_accesses.setObjectName("action_view_port_accesses")
         self.actionUndo = QtWidgets.QAction(MainWindow)
         self.actionUndo.setEnabled(False)
         self.actionUndo.setObjectName("actionUndo")
@@ -267,6 +268,7 @@ class Ui_MainWindow(object):
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionPlot_schedule)
         self.menuView.addAction(self.action_view_variables)
+        self.menuView.addAction(self.action_view_port_accesses)
         self.menuView.addAction(self.menu_view_execution_times.menuAction())
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionZoom_to_fit)
@@ -369,6 +371,12 @@ class Ui_MainWindow(object):
         )
         self.action_view_variables.setToolTip(
             _translate("MainWindow", "View all variables")
+        )
+        self.action_view_port_accesses.setText(
+            _translate("MainWindow", "View port access statistics")
+        )
+        self.action_view_port_accesses.setToolTip(
+            _translate("MainWindow", "View port access statistics for storage")
         )
         self.actionUndo.setText(_translate("MainWindow", "Undo"))
         self.actionUndo.setShortcut(_translate("MainWindow", "Ctrl+Z"))
