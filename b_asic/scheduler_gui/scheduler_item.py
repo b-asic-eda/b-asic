@@ -11,10 +11,10 @@ from pprint import pprint
 from typing import Dict, List, Optional, Set, cast
 
 # QGraphics and QPainter imports
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
 
 # B-ASIC
-from b_asic.gui_utils.mpl_window import MPLWindow
 from b_asic.operation import Operation
 from b_asic.port import InputPort
 from b_asic.schedule import Schedule
@@ -89,11 +89,11 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         self._operation_items = {}
         self._x_axis_indent = SCHEDULE_INDENT
         self._event_items = []
-        self._execution_time_plot_dialogs = {}
         self._signal_dict = defaultdict(set)
         self._make_graph()
         self.set_warnings(warnings)
         self.set_port_numbers(show_port_numbers)
+        self._schedule_changed = Signal()
 
     def clear(self) -> None:
         """
@@ -298,6 +298,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         self._redraw_all_lines()
         self._update_axes()
 
+    def _execution_time_plot(self, type_name: str):
+        self._signals.execution_time_plot.emit(type_name)
+
     def _redraw_all(self) -> None:
         for graph_id in self._operation_items:
             self._set_position(graph_id)
@@ -358,15 +361,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         self._schedule.swap_io_of_operation(graph_id)
         print(f"schedule.swap_io_of_operation({graph_id!r})")
         self._signals.reopen.emit()
-
-    def _execution_time_plot(self, type_name: str) -> None:
-        self._execution_time_plot_dialogs[type_name] = MPLWindow(
-            f"Execution times for {type_name}"
-        )
-        self._schedule.get_operations().get_by_type_name(type_name).plot(
-            self._execution_time_plot_dialogs[type_name].axes
-        )
-        self._execution_time_plot_dialogs[type_name].show()
 
 
 pprint(SchedulerItem.__mro__)

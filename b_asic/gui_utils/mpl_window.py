@@ -37,3 +37,6 @@ class MPLWindow(QDialog):
     @property
     def axes(self):
         return self._plot_axes
+
+    def redraw(self):
+        self._plot_canvas.draw()

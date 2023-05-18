@@ -11,7 +11,7 @@ import os
 import pickle
 import sys
 import webbrowser
-from collections import deque
+from collections import defaultdict, deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
 from typing import TYPE_CHECKING, Deque, List, Optional, cast
@@ -123,6 +123,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._show_incorrect_execution_time = True
         self._show_port_numbers = True
         self._execution_time_for_variables = None
+        self._execution_time_plot_dialogs = defaultdict(lambda: None)
         self._ports_accesses_for_storage = None
 
         # Recent files
@@ -402,7 +403,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._graph._signals.schedule_time_changed.disconnect(
                 self.info_table_update_schedule
             )
+            self._graph._signals.schedule_time_changed.disconnect(
+                self._schedule_changed
+            )
             self._graph._signals.reopen.disconnect(self._reopen_schedule)
+            self._graph._signals.execution_time_plot.disconnect(
+                self._execution_time_plot
+            )
             self._graph.removeSceneEventFilters(self._graph.event_items)
             self._scene.removeItem(self._graph)
             self.menu_close_schedule.setEnabled(False)
@@ -627,6 +634,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                 self._ports_accesses_for_storage.close()
             if self._execution_time_for_variables:
                 self._execution_time_for_variables.close()
+            for dialog in self._execution_time_plot_dialogs.values():
+                if dialog:
+                    dialog.close()
             event.accept()
         else:
             event.ignore()
@@ -660,11 +670,14 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.info_table_update_component
         )
         self._graph._signals.component_moved.connect(self.info_table_update_component)
+        self._graph._signals.component_moved.connect(self._schedule_changed)
         self._graph._signals.schedule_time_changed.connect(
             self.info_table_update_schedule
         )
+        self._graph._signals.schedule_time_changed.connect(self._schedule_changed)
         self._graph._signals.redraw_all.connect(self._redraw_all)
         self._graph._signals.reopen.connect(self._reopen_schedule)
+        self._graph._signals.execution_time_plot.connect(self._execution_time_plot)
         self.info_table_fill_schedule(self._schedule)
         self._update_operation_types()
         self.action_view_variables.setEnabled(True)
@@ -848,8 +861,30 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             )
             self.menu_view_execution_times.addAction(type_action)
 
+    @Slot(str)
     def _show_execution_times_for_type(self, type_name):
-        self._graph._execution_time_plot(type_name)
+        self._execution_time_plot(type_name)
+
+    def _closed_execution_times_for_type(self, type_name):
+        self._execution_time_plot_dialogs[type_name] = None
+
+    def _execution_time_plot(self, type_name: str) -> None:
+        self._execution_time_plot_dialogs[type_name] = MPLWindow(
+            f"Execution times for {type_name}"
+        )
+        self._execution_time_plot_dialogs[type_name].finished.connect(
+            lambda b=0, x=type_name: self._closed_execution_times_for_type(x)
+        )
+        self._update_execution_times_for_type(type_name)
+        self._execution_time_plot_dialogs[type_name].show()
+
+    def _update_execution_times_for_type(self, type_name):
+        if self._execution_time_plot_dialogs[type_name]:
+            self._execution_time_plot_dialogs[type_name].axes.clear()
+            self._schedule.get_operations().get_by_type_name(type_name).plot(
+                self._execution_time_plot_dialogs[type_name].axes
+            )
+            self._execution_time_plot_dialogs[type_name].redraw()
 
     def _show_execution_times_for_variables(self):
         self._execution_time_for_variables = MPLWindow("Execution times for variables")
@@ -865,6 +900,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._schedule.get_memory_variables().plot(
                 self._execution_time_for_variables.axes, allow_excessive_lifetimes=True
             )
+            self._execution_time_for_variables.redraw()
 
     @Slot()
     def _execution_times_for_variables_closed(self):
@@ -887,10 +923,20 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             mem_vars = self._schedule.get_memory_variables()
             _, mem_vars = mem_vars.split_on_length()
             mem_vars.plot_port_accesses(self._ports_accesses_for_storage.axes)
+            self._ports_accesses_for_storage.redraw()
 
     @Slot()
     def _ports_accesses_for_storage_closed(self) -> None:
         self._ports_accesses_for_storage = None
+
+    @Slot()
+    @Slot(str)
+    def _schedule_changed(self, type_name: Optional[str] = None):
+        self._update_execution_times_for_variables()
+        self._update_ports_accesses_for_storage()
+        for key, dialog in self._execution_time_plot_dialogs.items():
+            if dialog:
+                self._update_execution_times_for_type(key)
 
     def _update_recent_file_list(self):
         settings = QSettings()
