@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 B-ASIC Scheduler-GUI Module.
 
@@ -75,18 +74,18 @@ if __debug__:
     from qtpy import QtCore
 
     QT_API = os.environ.get("QT_API", "")
-    log.debug("Qt version (runtime):      {}".format(QtCore.qVersion()))
-    log.debug("Qt version (compile time): {}".format(QtCore.__version__))
-    log.debug("QT_API:                    {}".format(QT_API))
+    log.debug(f"Qt version (runtime):      {QtCore.qVersion()}")
+    log.debug(f"Qt version (compile time): {QtCore.__version__}")
+    log.debug(f"QT_API:                    {QT_API}")
     if QT_API.lower().startswith("pyside"):
         import PySide2
 
-        log.debug("PySide version:           {}".format(PySide2.__version__))
+        log.debug(f"PySide version:           {PySide2.__version__}")
     if QT_API.lower().startswith("pyqt"):
         from qtpy.QtCore import PYQT_VERSION_STR
 
-        log.debug("PyQt version:             {}".format(PYQT_VERSION_STR))
-    log.debug("QtPy version:             {}".format(qtpy.__version__))
+        log.debug(f"PyQt version:             {PYQT_VERSION_STR}")
+    log.debug(f"QtPy version:             {qtpy.__version__}")
 
 
 # The following QCoreApplication values is used for QSettings among others
@@ -318,11 +317,11 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         Load a python script as a module and search for a Schedule object. If
         found, opens it.
         """
-        log.debug("abs_path_filename = {}.".format(abs_path_filename))
+        log.debug(f"abs_path_filename = {abs_path_filename}.")
 
         module_name = inspect.getmodulename(abs_path_filename)
         if not module_name:  # return if empty module name
-            log.error("Could not load module from file '{}'.".format(abs_path_filename))
+            log.error(f"Could not load module from file '{abs_path_filename}'.")
             return
 
         try:
@@ -519,6 +518,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot(bool)
     def hide_exit_dialog(self, checked: bool) -> None:
         """
+        Update state of exit dialog setting.
+
         SLOT(bool) for SIGNAL(menu_exit_dialog.triggered)
         Takes in a boolean and stores 'checked' in 'hide_exit_dialog' item in
         settings.
@@ -546,6 +547,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot(str)
     def info_table_update_component(self, graph_id: GraphID) -> None:
         """
+        Fill the 'Operation' part of the info table.
+
         SLOT(str) for SIGNAL(_graph._signals.component_selected)
         Takes in an operator-id, first clears the 'Operator' part of the info
         table and then fill in the table with new values from the operator
@@ -557,6 +560,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def info_table_update_schedule(self) -> None:
         """
+        Update the 'Schedule' part of the info table.
+
         SLOT() for SIGNAL(_graph._signals.schedule_time_changed)
         Updates the 'Schedule' part of the info table.
         """
@@ -566,6 +571,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot(QRectF)
     def shrink_scene_to_min_size(self, rect: QRectF) -> None:
         """
+        Make scene minimum size.
+
         SLOT(QRectF) for SIGNAL(_scene.sceneRectChanged)
         Takes in a QRectF (unused) and shrink the scene bounding rectangle to
         its minimum size, when the bounding rectangle signals a change in
@@ -609,7 +616,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if not hide_dialog:
                 settings.setValue("scheduler/hide_exit_dialog", checkbox.isChecked())
             self._write_settings()
-            log.info("Exit: {}".format(os.path.basename(__file__)))
+            log.info(f"Exit: {os.path.basename(__file__)}")
             event.accept()
         else:
             event.ignore()
@@ -685,7 +692,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         settings.setValue("scheduler/splitter/pos", self.splitter.sizes()[1])
 
         if settings.isWritable():
-            log.debug("Settings written to '{}'.".format(settings.fileName()))
+            log.debug(f"Settings written to '{settings.fileName()}'.")
         else:
             log.warning("Settings cant be saved to file, read-only.")
 
@@ -709,12 +716,16 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             settings.value("scheduler/hide_exit_dialog", False, bool)
         )
 
-        log.debug("Settings read from '{}'.".format(settings.fileName()))
+        log.debug(f"Settings read from '{settings.fileName()}'.")
 
     def info_table_fill_schedule(self, schedule: Schedule) -> None:
         """
-        Take a Schedule and fill in the 'Schedule' part of the info table
-        with values from *schedule*.
+        Fill the 'Schedule' part of the info table.
+
+        Parameters
+        ----------
+        schedule : Schedule
+            The Schedule to get information from.
         """
         self.info_table.insertRow(1)
         self.info_table.insertRow(1)
@@ -725,8 +736,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _info_table_fill_component(self, graph_id: GraphID) -> None:
         """
-        Take an operator-id and fill in the 'Operator' part of the info
-        table with values from the operator associated with *graph_id*.
+        Fill the 'Operator' part of the info table.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The GraphID of the operator to get information from.
         """
         if self.schedule is None:
             return
@@ -769,12 +784,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         si += 1
 
     def info_table_clear(self) -> None:
-        """Clears the info table."""
+        """Clear the info table."""
         self.info_table_clear_component()
         self.info_table_clear_schedule()
 
     def info_table_clear_schedule(self) -> None:
-        """Clears the schedule part of the info table."""
+        """Clear the schedule part of the info table."""
         row = self.info_table.findItems("Operator", Qt.MatchFlag.MatchExactly)
         if row:
             row = row[0].row()
@@ -789,7 +804,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         QApplication.quit()
 
     def info_table_clear_component(self) -> None:
-        """Clears the component part of the info table."""
+        """Clear the component part of the info table."""
         row = self.info_table.findItems("Operator", Qt.MatchFlag.MatchExactly)
         if row:
             row = row[0].row()
@@ -826,7 +841,6 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._graph._execution_time_plot(type_name)
 
     def _show_execution_times_for_variables(self):
-        print("Show")
         self._execution_time_for_variables = MPLWindow("Execution times for variables")
         self._schedule.get_memory_variables().plot(
             self._execution_time_for_variables.axes, allow_excessive_lifetimes=True

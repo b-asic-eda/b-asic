@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 B-ASIC Scheduler-GUI Scheduler Item Module.
 
@@ -50,12 +49,11 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         Whether to draw processes with execution time longer than schedule time in
         a different color.
 
-    port_numbers : bool, default: False
+    show_port_numbers : bool, default: False
         Whether to show port numbers on the operations.
 
-
     parent : QGraphicsItem, optional
-        The parent. Passed to the constructor of QGraphicsItemGroup
+        The parent. Passed to the constructor of QGraphicsItemGroup.
     """
 
     _axes: Optional[AxesItem]
@@ -72,8 +70,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         parent: Optional[QGraphicsItem] = None,
     ):
         """
-        Construct a SchedulerItem. *parent* is passed to QGraphicsItemGroup's
-        constructor.
+        Construct a SchedulerItem.
+
+        *parent* is passed to QGraphicsItemGroup's constructor.
         """
         # QGraphicsItemGroup.__init__(self, self)
         # SchedulerEvent.__init__(self)
@@ -107,8 +106,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def is_component_valid_pos(self, item: OperationItem, pos: float) -> bool:
         """
-        Take in a component position and return True if the component's new
-        position is valid, False otherwise.
+        Take in a component position and return True if the new position is valid.
 
         Parameters
         ----------
@@ -184,13 +182,14 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def set_item_active(self, item: OperationItem) -> None:
         """
-        Set *item* as active, i.e., draw it and connecting signals in special colors.
+        Set *item* as active.
+
+        This means draw it and connecting signals in special colors.
 
         Parameters
         ----------
         item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
-
         """
         item.set_active()
         for signal in self._signal_dict[item]:
@@ -198,14 +197,14 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def set_item_inactive(self, item: OperationItem) -> None:
         """
-        Set *item* as inactive, i.e., draw it and connecting signals in standard
-        colors.
+        Set *item* as inactive.
+
+        This means draw it and connecting signals in standard colors.
 
         Parameters
         ----------
         item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
-
         """
         item.set_inactive()
         for signal in self._signal_dict[item]:
@@ -219,7 +218,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         ----------
         item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
-
         """
         pos = item.x()
         op_start_time = self.schedule.start_time_of_operation(item.graph_id)
@@ -237,7 +235,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         ----------
         delta_time : int
             The time difference to check for.
-
         """
         # TODO: implement
         # item = self.scene().mouseGrabberItem()

@@ -30,7 +30,6 @@ class Constant(AbstractOperation):
         The constant value.
     name : Name, optional
         Operation name.
-
     """
 
     _execution_time = 0
@@ -105,7 +104,6 @@ class Addition(AbstractOperation):
     See also
     ========
     AddSub
-
     """
 
     is_linear = True
@@ -319,7 +317,6 @@ class Multiplication(AbstractOperation):
     See Also
     ========
     ConstantMultiplication
-
     """
     is_swappable = True
 
@@ -573,7 +570,6 @@ class SquareRoot(AbstractOperation):
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
-
     """
 
     def __init__(
@@ -625,7 +621,6 @@ class ComplexConjugate(AbstractOperation):
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
-
     """
 
     def __init__(
@@ -677,7 +672,6 @@ class Absolute(AbstractOperation):
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
-
     """
 
     def __init__(
@@ -868,7 +862,9 @@ class MAD(AbstractOperation):
         Operation execution time (time units before operator can be reused).
 
     See Also
-
+    --------
+    Multiplication
+    Addition
     """
     is_swappable = True
 

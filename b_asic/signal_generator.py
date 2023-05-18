@@ -13,9 +13,11 @@ if you want more information.
 
 from math import pi, sin
 from numbers import Number
-from typing import Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import numpy as np
+
+from b_asic.types import Num
 
 
 class SignalGenerator:
@@ -169,13 +171,13 @@ class FromFile(SignalGenerator):
 
     Parameters
     ----------
-    path : string
+    path : str
         Path to input file.
     """
 
     def __init__(self, path) -> None:
         self._path = path
-        data = np.loadtxt(path, dtype=complex).tolist()
+        data: List[Num] = np.loadtxt(path, dtype=complex).tolist()
         self._data = data
         self._len = len(data)
 
@@ -226,10 +228,10 @@ class Gaussian(SignalGenerator):
     ----------
     seed : int, optional
         The seed of the random number generator.
-    scale : float, default: 1.0
-        The standard deviation of the noise.
     loc : float, default: 0.0
         The average value of the noise.
+    scale : float, default: 1.0
+        The standard deviation of the noise.
     """
 
     def __init__(
@@ -260,7 +262,6 @@ class Uniform(SignalGenerator):
     Signal generator with uniform noise.
 
     See :py:meth:`numpy.random.Generator.normal` for further details.
-
 
     Parameters
     ----------

@@ -20,8 +20,11 @@ class PortButton(QPushButton):
     Parameters
     ----------
     name : str
+        The name of the button.
     operation_button : :class:`~b_asic.GUI.drag_button.DragButton`
+        The parent DragButton.
     port : :class:`~b_asic.port.Port`
+        The SFG Port.
     """
 
     connectionRequested = Signal(QPushButton)
@@ -109,11 +112,6 @@ class PortButton(QPushButton):
         ----------
         modifiers : optional
             Qt keyboard modifier.
-
-        Returns
-        -------
-
-
         """
         if modifiers != Qt.KeyboardModifier.ControlModifier:
             for port in self._window._pressed_ports:
@@ -121,7 +119,6 @@ class PortButton(QPushButton):
 
             self._toggle_port(self.pressed)
             self._window._pressed_ports = [self]
-
         else:
             self._toggle_port(self.pressed)
             if self in self._window._pressed_ports:

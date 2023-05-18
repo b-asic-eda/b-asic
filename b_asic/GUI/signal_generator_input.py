@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from qtpy.QtWidgets import (
     QFileDialog,
     QGridLayout,
@@ -66,7 +65,7 @@ class DelayInput(SignalGeneratorInput):
 
 class ImpulseInput(DelayInput):
     """
-    Class for graphically configuring and generating a
+    Class for graphically configuring and generating an
     :class:`~b_asic.signal_generators.Impulse` signal generator.
     """
 

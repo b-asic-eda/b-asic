@@ -150,7 +150,6 @@ class Resource(HardwareBlock):
         The process collection containing processes to be mapped to resource.
     entity_name : str, optional
         The name of the resulting entity.
-
     """
 
     def __init__(
@@ -220,7 +219,7 @@ class Resource(HardwareBlock):
         ax : Axes
             Matplotlib Axes to plot in.
         **kwargs
-            Passed to :meth:`b_asic.resources.ProcessCollection.plot`
+            Passed to :meth:`b_asic.resources.ProcessCollection.plot`.
         """
         if not self.is_assigned:
             self._collection.plot(ax, **kwargs)
@@ -238,7 +237,7 @@ class Resource(HardwareBlock):
         ----------
         title : str, optional
         **kwargs
-            Passed to :meth:`b_asic.resources.ProcessCollection.plot`
+            Passed to :meth:`b_asic.resources.ProcessCollection.plot`.
         """
         fig, ax = plt.subplots()
         self.plot_content(ax, **kwargs)
@@ -254,7 +253,15 @@ class Resource(HardwareBlock):
         """
         Perform assignment of processes to resource.
 
-        See the specific resource types for more information.
+        Parameters
+        ----------
+        heuristic : str
+            See the specific resource types for more information.
+
+        See Also
+        --------
+        Memory.assign
+        ProcessingElement.assign
         """
         raise NotImplementedError()
 
@@ -418,7 +425,6 @@ class Memory(Resource):
         Number of write ports for memory.
     assign : bool, default False
         Perform assignment when creating the Memory (using the default properties).
-
     """
 
     _color = f"#{''.join(f'{v:0>2X}' for v in MEMORY_COLOR)}"
@@ -681,8 +687,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
         List[Dict[Tuple[Resource, int], int]], List[Dict[Tuple[Resource, int], int]]
     ]:
         """
-        Return lists of dictionaries with interconnect information for a
-        ProcessingElement.
+        Return with interconnect information for a ProcessingElement.
+
+        The information is tuple, where each element is a lists of dictionaries.
 
         Parameters
         ----------
@@ -697,7 +704,6 @@ of :class:`~b_asic.architecture.ProcessingElement`
         list
             List of dictionaries indicating the sources for each outport and the
             frequency of accesses.
-
         """
         if isinstance(pe, str):
             pe = cast(ProcessingElement, self.resource_from_name(pe))

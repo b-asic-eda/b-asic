@@ -111,7 +111,6 @@ class SFG(AbstractOperation):
     name : Name, optional
 
     input_sources :
-
     """
 
     _components_by_id: Dict[GraphID, GraphComponent]
@@ -535,6 +534,7 @@ class SFG(AbstractOperation):
     def find_by_type_name(self, type_name: TypeName) -> Sequence[GraphComponent]:
         """
         Find all components in this graph with the specified type name.
+
         Returns an empty sequence if no components were found.
 
         Parameters
@@ -552,6 +552,7 @@ class SFG(AbstractOperation):
     def find_by_id(self, graph_id: GraphID) -> Optional[GraphComponent]:
         """
         Find the graph component with the specified ID.
+
         Returns None if the component was not found.
 
         Parameters
@@ -564,6 +565,7 @@ class SFG(AbstractOperation):
     def find_by_name(self, name: Name) -> Sequence[GraphComponent]:
         """
         Find all graph components with the specified name.
+
         Returns an empty sequence if no components were found.
 
         Parameters
@@ -577,8 +579,9 @@ class SFG(AbstractOperation):
         self, name: Name, output_index: int = 0
     ) -> Sequence[ResultKey]:
         """
-        Find all graph components with the specified name and
-        return a sequence of the keys to use when fetching their results
+        Find all graph components with the specified name.
+
+        Return a sequence of the keys to use when fetching their results
         from a simulation.
 
         Parameters
@@ -756,7 +759,6 @@ class SFG(AbstractOperation):
         ----------
         operation_id : GraphID
             The GraphID of the operation to swap.
-
         """
         operation = cast(Operation, self.find_by_id(operation_id))
         if operation is not None:
@@ -775,7 +777,6 @@ class SFG(AbstractOperation):
         ----------
         operation_id : GraphID
             The GraphID of the operation to remove.
-
         """
         sfg_copy = self()
         operation = cast(Operation, sfg_copy.find_by_id(operation_id))
@@ -845,7 +846,6 @@ class SFG(AbstractOperation):
         The SFG in precedence form in Graphviz format.
 
         This can be rendered in enriched shells.
-
         """
         p_list = self.get_precedence_list()
         pg = Digraph()
@@ -1052,7 +1052,6 @@ class SFG(AbstractOperation):
             ``Addition.type_name()``.
         latency : int
             The latency of the operation.
-
         """
         for op in self.find_by_type_name(type_name):
             cast(Operation, op).set_latency(latency)
@@ -1401,7 +1400,7 @@ class SFG(AbstractOperation):
         splines: str = "spline",
     ) -> Digraph:
         """
-        Returns a Digraph of the SFG.
+        Return a Digraph of the SFG.
 
         Can be directly displayed in IPython.
 
@@ -1409,7 +1408,7 @@ class SFG(AbstractOperation):
         ----------
         show_id : bool, default: False
             If True, the graph_id:s of signals are shown.
-        engine : string, optional
+        engine : str, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
         branch_node : bool, default: True
@@ -1424,7 +1423,6 @@ class SFG(AbstractOperation):
         -------
         Digraph
             Digraph of the SFG.
-
         """
         dg = Digraph()
         dg.attr(rankdir="LR", splines=splines)
@@ -1515,14 +1513,14 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        fmt : string, optional
+        fmt : str, optional
             File format of the generated graph. Output formats can be found at
             https://www.graphviz.org/doc/info/output.html
             Most common are "pdf", "eps", "png", and "svg". Default is None which
             leads to PDF.
         show_id : bool, default: False
             If True, the graph_id:s of signals are shown.
-        engine : string, optional
+        engine : str, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
         branch_node : bool, default: True
@@ -1532,7 +1530,6 @@ class SFG(AbstractOperation):
             more.
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
-
         """
 
         dg = self.sfg_digraph(
@@ -1577,7 +1574,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        factor : string, optional
+        factor : int
             Number of times to unfold
         """
 

@@ -67,9 +67,15 @@ class Port(ABC):
     @abstractmethod
     def add_signal(self, signal: Signal) -> None:
         """
-        Connect this port to the entered signal. If the entered signal is not
-        connected to this port then connect the entered signal to the port as
-        well.
+        Connect this port to the entered signal.
+
+        If the entered signal is not connected to this port then connect the entered
+        signal to the port as well.
+
+        Parameters
+        ----------
+        signal : Signal
+            Signal to add.
         """
         raise NotImplementedError
 
@@ -77,6 +83,7 @@ class Port(ABC):
     def remove_signal(self, signal: Signal) -> None:
         """
         Remove the signal that was entered from the Ports signals.
+
         If the entered signal still is connected to this port then disconnect the
         entered signal from the port as well.
 
@@ -96,8 +103,9 @@ class Port(ABC):
     @abstractmethod
     def name(self) -> str:
         """
-        Return a name consisting of *graph_id* of the related operation and the port
-        number.
+        Return a name of the port.
+
+        This name consists of *graph_id* of the related operation and the port number.
         """
 
 
@@ -203,14 +211,16 @@ class InputPort(AbstractPort):
     @property
     def connected_source(self) -> Optional["OutputPort"]:
         """
-        Get the output port that is currently connected to this input port,
-        or None if it is unconnected.
+        Get the output port that is currently connected to this input port.
+
+        Return None if it is unconnected.
         """
         return None if self._source_signal is None else self._source_signal.source
 
     def connect(self, src: SignalSourceProvider, name: Name = Name("")) -> Signal:
         """
         Connect the provided signal source to this input port by creating a new signal.
+
         Returns the new signal.
         """
         if self._source_signal is not None:

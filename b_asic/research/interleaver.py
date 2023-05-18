@@ -32,8 +32,7 @@ def generate_random_interleaver(
     size: int, min_lifetime: int = 0, cyclic: bool = True, parallelism: int = 1
 ) -> ProcessCollection:
     """
-    Generate a ProcessCollection with memory variable corresponding to a random
-    interleaver with length *size*.
+    Generate a ProcessCollection for a random interleaver.
 
     Parameters
     ----------
@@ -41,7 +40,7 @@ def generate_random_interleaver(
         The size of the random interleaver sequence.
     min_lifetime : int, default: 0
         The minimum lifetime for a memory variable. Default is 0 meaning that at least
-        one variable is passed from the input to the output directly,
+        one variable is passed from the input to the output directly.
     cyclic : bool, default: True
         If the interleaver should operate continuously in a cyclic manner. That is,
         start a new interleaving operation directly after the previous.
@@ -51,7 +50,6 @@ def generate_random_interleaver(
     Returns
     -------
     ProcessCollection
-
     """
     inputorders = list(product(range(size), range(parallelism)))
     outputorders = inputorders[:]
@@ -79,9 +77,11 @@ def generate_matrix_transposer(
     parallelism: int = 1,
 ) -> ProcessCollection:
     r"""
-    Generate a ProcessCollection with memory variable corresponding to transposing a
-    matrix of size *rows* :math:`\times` *cols*. If *cols* is not provided, a
-    square matrix of size *rows* :math:`\times` *rows* is used.
+    Generate a ProcessCollection for a matrix transposer.
+
+    The transposer is transposing a matrix of size *rows* :math:`\times` *cols*.
+    If *cols* is not provided, a square matrix of size *rows* :math:`\times` *rows*
+    is used.
 
     Parameters
     ----------
@@ -92,7 +92,7 @@ def generate_matrix_transposer(
         to *rows*, i.e., a square matrix.
     min_lifetime : int, default: 0
         The minimum lifetime for a memory variable. Default is 0 meaning that at
-        least one variable is passed from the input to the output directly,
+        least one variable is passed from the input to the output directly.
     cyclic : bool, default: True
         If the interleaver should operate continuously in a cyclic manner. That is,
         start a new interleaving operation directly after the previous.

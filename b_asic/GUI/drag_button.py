@@ -37,7 +37,8 @@ class DragButton(QPushButton):
         Whether to show the name.
     window : SFGMainWindow
         Parent MainWindow.
-    parent
+    parent : unknown, optional
+        Passed to QPushButton.
     """
 
     connectionRequested = Signal(QPushButton)

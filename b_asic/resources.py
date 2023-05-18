@@ -61,7 +61,7 @@ def _sanitize_port_option(
     write_ports : int, optional
         The number of write ports.
     total_ports : int, optional
-        The total number of ports
+        The total number of ports.
 
     Returns
     -------
@@ -69,7 +69,6 @@ def _sanitize_port_option(
     input, or sanitized if one of the input equals None. If total_ports is set to None
     at the input, it is set to read_ports+write_ports at the output. If read_ports or
     write_ports is set to None at the input, it is set to total_ports at the output.
-
     """
     if total_ports is None:
         if read_ports is None or write_ports is None:
@@ -112,9 +111,9 @@ def draw_exclusion_graph_coloring(
         _, ax = plt.subplots()
         collection = ProcessCollection(...)
         exclusion_graph = collection.create_exclusion_graph_from_ports(
-            read_ports = 1,
-            write_ports = 1,
-            total_ports = 2,
+            read_ports=1,
+            write_ports=1,
+            total_ports=2,
         )
         coloring = nx.greedy_color(exclusion_graph)
         draw_exclusion_graph_coloring(exclusion_graph, coloring, ax=ax)
@@ -468,8 +467,7 @@ class ProcessCollection:
 
     def add_process(self, process: Process):
         """
-        Add a new :class:`~b_asic.process.Process` to this
-        :class:`~b_asic.resources.ProcessCollection`.
+        Add a :class:`~b_asic.process.Process`.
 
         Parameters
         ----------
@@ -482,8 +480,7 @@ class ProcessCollection:
 
     def remove_process(self, process: Process):
         """
-        Remove a :class:`~b_asic.process.Process` from this
-        :class:`~b_asic.resources.ProcessCollection`.
+        Remove a :class:`~b_asic.process.Process`.
 
         Raises :class:`KeyError` if the specified :class:`~b_asic.process.Process` is
         not in this collection.
@@ -514,6 +511,8 @@ class ProcessCollection:
         allow_excessive_lifetimes: bool = False,
     ):
         """
+        Plot lifetime diagram.
+
         Plot all :class:`~b_asic.process.Process` objects of this
         :class:`~b_asic.resources.ProcessCollection` in a lifetime diagram.
 
@@ -553,7 +552,8 @@ class ProcessCollection:
 
         Returns
         -------
-        ax : Associated Matplotlib Axes (or array of Axes) object
+        ax : :class:`matplotlib.axes.Axes`
+            Associated Matplotlib Axes (or array of Axes) object
         """
 
         # Set up the Axes object
@@ -677,8 +677,7 @@ class ProcessCollection:
         title: Optional[str] = None,
     ) -> None:
         """
-        Display this :class:`~b_asic.resources.ProcessCollection` using the current
-        Matplotlib backend.
+        Display lifetime diagram using the current Matplotlib backend.
 
         Equivalent to creating a Matplotlib figure, passing it and arguments to
         :meth:`plot` and invoking :py:meth:`matplotlib.figure.Figure.show`.
@@ -725,9 +724,7 @@ class ProcessCollection:
         total_ports: Optional[int] = None,
     ) -> nx.Graph:
         """
-        Create an exclusion graph from a given number of read and write ports based on
-        concurrent read and write accesses to this
-        :class:`~b_asic.resources.ProcessCollection`.
+        Create an exclusion graph based on concurrent read and write accesses.
 
         Parameters
         ----------
@@ -743,8 +740,8 @@ class ProcessCollection:
 
         Returns
         -------
-        A :class:`networkx.Graph` object.
-
+        :class:`networkx.Graph`
+            An undirected exclusion graph.
         """
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
@@ -766,9 +763,9 @@ class ProcessCollection:
         exclusion_graph = nx.Graph()
         exclusion_graph.add_nodes_from(self._collection)
         for node1 in exclusion_graph:
-            node1_stop_times = set(
+            node1_stop_times = {
                 read_time % self.schedule_time for read_time in node1.read_times
-            )
+            }
             node1_start_time = node1.start_time % self.schedule_time
             if total_ports == 1 and node1.start_time in node1_stop_times:
                 print(node1.start_time, node1_stop_times)
@@ -800,7 +797,7 @@ class ProcessCollection:
 
         Returns
         -------
-        A :class:`networkx.Graph` object.
+        :class:`networkx.Graph`
         """
         exclusion_graph = nx.Graph()
         exclusion_graph.add_nodes_from(self._collection)
@@ -855,7 +852,7 @@ class ProcessCollection:
         coloring_strategy: str = "saturation_largest_first",
     ) -> List["ProcessCollection"]:
         """
-        Split a ProcessCollection based on overlapping execution time.
+        Split based on overlapping execution time.
 
         Parameters
         ----------
@@ -895,7 +892,7 @@ class ProcessCollection:
         total_ports: Optional[int] = None,
     ) -> List["ProcessCollection"]:
         """
-        Split this process storage based on concurrent read/write times according.
+        Split based on concurrent read and write accesses.
 
         Different heuristic methods can be used.
 
@@ -1002,8 +999,9 @@ class ProcessCollection:
 
     def _repr_svg_(self) -> str:
         """
-        Generate an SVG_ of the resource collection. This is automatically displayed in
-        e.g. Jupyter Qt console.
+        Generate an SVG_ of the resource collection.
+
+        This is automatically displayed in e.g. Jupyter Qt console.
         """
         fig, ax = plt.subplots()
         self.plot(ax=ax, show_markers=False)
@@ -1048,7 +1046,6 @@ class ProcessCollection:
         Returns
         -------
         List[ProcessCollection]
-
         """
         for process in self:
             if process.execution_time > self.schedule_time:
@@ -1258,7 +1255,7 @@ class ProcessCollection:
         self, length: int = 0
     ) -> Tuple["ProcessCollection", "ProcessCollection"]:
         """
-        Split into two new ProcessCollections based on execution time length.
+        Split into two ProcessCollections based on execution time length.
 
         Parameters
         ----------
@@ -1268,8 +1265,9 @@ class ProcessCollection:
 
         Returns
         -------
-        A tuple of two ProcessCollections, one with shorter than or equal execution
-        times and one with longer execution times.
+        tuple(ProcessCollection, ProcessCollection)
+            A tuple of two ProcessCollections, one with shorter than or equal execution
+            times and one with longer execution times.
         """
         short = []
         long = []
@@ -1302,8 +1300,9 @@ class ProcessCollection:
         total_ports: int = 2,
     ):
         """
-        Generate VHDL code for register based storages of processes based on
-        Forward-Backward Register Allocation [1].
+        Generate VHDL code for register based storage.
+
+        This is based on Forward-Backward Register Allocation [1].
 
         [1]: K. Parhi: VLSI Digital Signal Processing Systems: Design and
         Implementation, Ch. 6.3.2
@@ -1384,7 +1383,6 @@ class ProcessCollection:
         Returns
         -------
         A new :class:`~b_asic.resources.ProcessCollection`.
-
         """
         return ProcessCollection(
             {
@@ -1399,8 +1397,9 @@ class ProcessCollection:
 
     def read_ports_bound(self) -> int:
         """
-        Get the read port lower-bound (maximum number of concurrent reads) of this
-        :class:`~b_asic.resources.ProcessCollection`.
+        Get the read port lower-bound.
+
+        That is, the maximum number of concurrent reads.
 
         Returns
         -------
@@ -1420,8 +1419,9 @@ class ProcessCollection:
 
     def write_ports_bound(self) -> int:
         """
-        Get the total port lower-bound (maximum number of concurrent writes) of this
-        :class:`~b_asic.resources.ProcessCollection`.
+        Get the total port lower-bound.
+
+        That is, the maximum number of concurrent writes.
 
         Returns
         -------
@@ -1437,7 +1437,9 @@ class ProcessCollection:
 
     def total_ports_bound(self) -> int:
         """
-        Get the total port lower-bound (maximum number of concurrent reads and writes).
+        Get the total port lower-bound.
+
+        That is the maximum number of concurrent reads and writes.
 
         Returns
         -------
@@ -1458,15 +1460,17 @@ class ProcessCollection:
 
     def from_name(self, name: str):
         """
-        Get a :class:`~b_asic.process.Process` from this collection from its name.
-
-        Raises :class:`KeyError` if no processes with ``name`` is found in this
-        collection.
+        Get a :class:`~b_asic.process.Process` from its name.
 
         Parameters
         ----------
         name : str
             The name of the process to retrieve.
+
+        Raises
+        ------
+        :class:`KeyError`
+            If no processes with ``name`` is found in this collection.
         """
         name_to_proc = {p.name: p for p in self.collection}
         if name in name_to_proc:

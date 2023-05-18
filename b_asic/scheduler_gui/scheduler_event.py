@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 B-ASIC Scheduler-GUI Graphics Scheduler Event Module.
 
@@ -78,9 +77,10 @@ class SchedulerEvent:  # PyQt5
 
     def installSceneEventFilters(self, filterItems) -> None:
         """
-        Installs an event filter for *filterItems* on 'self', causing all events
-        for *filterItems* to first pass through 'self's ``sceneEventFilter()``
-        method. *filterItems* can be one object or a list of objects.
+        Install an event filter for *filterItems* on 'self'.
+
+        This causes all events for *filterItems* to first pass through
+        :meth:`sceneEventFilter`. *filterItems* can be one object or a list of objects.
         """
         item: OperationItem
         for item in filterItems:
@@ -96,8 +96,9 @@ class SchedulerEvent:  # PyQt5
 
     def removeSceneEventFilters(self, filterItems) -> None:
         """
-        Removes an event filter on *filterItems* from *self*. *filterItems* can
-        be one object or a list of objects.
+        Remove an event filter on *filterItems* from *self*.
+
+        *filterItems* can be one object or a list of objects.
         """
         item: OperationItem
         for item in filterItems:
@@ -105,7 +106,8 @@ class SchedulerEvent:  # PyQt5
 
     def sceneEventFilter(self, item: QGraphicsItem, event: QEvent) -> bool:
         """
-        Returns True if the event was filtered (i.e. stopped), otherwise False.
+        Return True if the event was filtered (i.e. stopped), otherwise False.
+
         If False is returned, the event is forwarded to the appropriate child in
         the event chain.
         """
@@ -143,8 +145,9 @@ class SchedulerEvent:  # PyQt5
 
     def operation_mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
-        Set the position of the graphical element in the graphic scene,
-        translate coordinates of the cursor within the graphic element in the
+        Set the position of the graphical element in the graphic scene.
+
+        This translates coordinates of the cursor within the graphic element in the
         coordinate system of the parent object.
         """
 
@@ -176,10 +179,12 @@ class SchedulerEvent:  # PyQt5
 
     def operation_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
-        Changes the cursor to ClosedHandCursor when grabbing an object and
-        stores the current position in item's parent coordinates. *event* will
-        by default be accepted, and this item is then the mouse grabber. This
-        allows the item to receive future move, release and double-click events.
+        Change the cursor to ClosedHandCursor or open context menu.
+
+        This is used when grabbing an object and stores the current position in item's
+        parent coordinates. *event* will by default be accepted, and this item is then
+        the mouse grabber. This allows the item to receive future move, release and
+        double-click events.
         """
         item: OperationItem = self.scene().mouseGrabberItem()
         if event.button() == Qt.MouseButton.LeftButton:
@@ -239,8 +244,9 @@ class SchedulerEvent:  # PyQt5
     ###################################
     def timeline_mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
-        Set the position of the graphical element in the graphic scene,
-        translate coordinates of the cursor within the graphic element in the
+        Set the position of the graphical element in the graphic scene.
+
+        This translates coordinates of the cursor within the graphic element in the
         coordinate system of the parent object. The object can only move
         horizontally in x-axis scale steps.
         """
@@ -262,9 +268,10 @@ class SchedulerEvent:  # PyQt5
 
     def timeline_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
-        Store the current position in item's parent coordinates. *event* will
-        by default be accepted, and this item is then the mouse grabber. This
-        allows the item to receive future move, release and double-click events.
+        Store the current position in item's parent coordinates.
+
+        *event* will by default be accepted, and this item is then the mouse grabber.
+        This allows the item to receive future move, release and double-click events.
         """
         item: TimelineItem = self.scene().mouseGrabberItem()
         self._delta_time = 0
@@ -274,7 +281,7 @@ class SchedulerEvent:  # PyQt5
         event.accept()
 
     def timeline_mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-        """Updates the schedule time."""
+        """Update the schedule time."""
         item: TimelineItem = self.scene().mouseGrabberItem()
         item.hide_label()
         if self._delta_time != 0:

@@ -53,7 +53,14 @@ class Arrow(QGraphicsPathItem):
         self._destination_port_button.moved.connect(self.update_arrow)
 
     def contextMenuEvent(self, event):
-        """Open right-click menu."""
+        """
+        Open right-click menu.
+
+        Parameters
+        ----------
+        event : QEvent
+            The event.
+        """
         menu = QMenu()
         menu.addAction("Delete", self.remove)
         menu.exec_(self.cursor().pos())
@@ -99,11 +106,11 @@ class Arrow(QGraphicsPathItem):
         return cast("InputPort", self._destination_port_button.port)
 
     def set_source_operation(self, source: "Operation"):
-        """Set operation of the source DragButton"""
+        """Set operation of the source DragButton."""
         self._source_port_button._operation_button.operation = source
 
     def set_destination_operation(self, destination: "Operation"):
-        """Set operation of the destination DragButton"""
+        """Set operation of the destination DragButton."""
         self._destination_port_button._operation_button.operation = destination
 
     def remove(self):

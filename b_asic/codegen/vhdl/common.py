@@ -93,15 +93,15 @@ def signal_declaration(
         Signal name.
     signal_type : str
         Signal type.
-    default_value : string, optional
+    default_value : str, optional
         An optional default value to the signal.
     name_pad : int, optional
         An optional left padding value applied to the name.
-    vivado_ram_style : string, optional
+    vivado_ram_style : str, optional
         An optional Xilinx Vivado RAM style attribute to apply to this signal
         declaration. If set, exactly one of: "block", "distributed", "registers",
         "ultra", "mixed" or "auto".
-    quartus_ram_style : string, optional
+    quartus_ram_style : str, optional
         An optional Quartus Prime RAM style attribute to apply to this signal
         declaration. If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K",
         "MLAB" or "logic".

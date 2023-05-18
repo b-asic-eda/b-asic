@@ -115,6 +115,5 @@ def decompose(a: Sequence[Num], factor: int) -> List[List[Num]]:
     [[0, 2, 4], [1, 3, 5]]
     >>> decompose(a, 3)
     [[0, 3], [1, 4], [2, 5]]
-
     """
     return [downsample(a, factor, phase) for phase in range(factor)]

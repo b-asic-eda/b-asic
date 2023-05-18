@@ -41,12 +41,12 @@ from b_asic.types import TypeName
 _EXECUTION_TIME_COLOR: Union[
     Tuple[float, float, float], Tuple[float, float, float, float]
 ] = tuple(float(c / 255) for c in EXECUTION_TIME_COLOR)
-_LATENCY_COLOR: Union[
-    Tuple[float, float, float], Tuple[float, float, float, float]
-] = tuple(float(c / 255) for c in LATENCY_COLOR)
-_SIGNAL_COLOR: Union[
-    Tuple[float, float, float], Tuple[float, float, float, float]
-] = tuple(float(c / 255) for c in SIGNAL_COLOR)
+_LATENCY_COLOR: Union[Tuple[float, float, float], Tuple[float, float, float, float]] = (
+    tuple(float(c / 255) for c in LATENCY_COLOR)
+)
+_SIGNAL_COLOR: Union[Tuple[float, float, float], Tuple[float, float, float, float]] = (
+    tuple(float(c / 255) for c in SIGNAL_COLOR)
+)
 
 
 def _laps_default():
@@ -143,6 +143,11 @@ class Schedule:
     def start_time_of_operation(self, graph_id: GraphID) -> int:
         """
         Return the start time of the operation with the specified by *graph_id*.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The graph id of the operation to get the start time for.
         """
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
@@ -171,8 +176,9 @@ class Schedule:
 
         Returns
         -------
-        The number of time steps the operation with *graph_id* can ba moved
-        forward in time.
+        int
+            The number of time steps the operation with *graph_id* can ba moved
+            forward in time.
 
         See Also
         --------
@@ -232,10 +238,12 @@ class Schedule:
 
         Returns
         -------
-        The number of time steps the operation with *graph_id* can ba moved
+        int
+            The number of time steps the operation with *graph_id* can ba moved
             backward in time.
-        .. note:: The backward slack is positive, but a call to :func:`move_operation`
-            should be negative to move the operation backward.
+        .. note:: The backward slack is positive, but a call to
+            :func:`move_operation` should be negative to move the operation
+            backward.
 
         See Also
         --------
@@ -284,8 +292,9 @@ class Schedule:
 
     def slacks(self, graph_id: GraphID) -> Tuple[int, int]:
         """
-        Return the backward and forward slacks of operation *graph_id*. That is, how
-        much the operation can be moved backward and forward in time.
+        Return the backward and forward slacks of operation *graph_id*.
+
+        That is, how much the operation can be moved backward and forward in time.
 
         Parameters
         ----------
@@ -294,7 +303,8 @@ class Schedule:
 
         Returns
         -------
-        A tuple as ``(backward_slack, forward_slack)``.
+        tuple(int, int)
+            The backward and forward slacks, respectively.
         .. note:: The backward slack is positive, but a call to :func:`move_operation`
             should be negative to move the operation backward.
 
@@ -302,7 +312,6 @@ class Schedule:
         --------
         backward_slack
         forward_slack
-
         """
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
@@ -320,7 +329,6 @@ class Schedule:
             * 0: alphabetical on Graph ID
             * 1: backward slack
             * 2: forward slack
-
         """
         res = [
             (
@@ -373,7 +381,6 @@ class Schedule:
         ----------
         operation_id : GraphID
             The GraphID of the operation to swap.
-
         """
         self._original_sfg.swap_io_of_operation(operation_id)
         self._sfg.swap_io_of_operation(operation_id)
@@ -443,8 +450,9 @@ class Schedule:
 
     def _get_all_times(self) -> List[int]:
         """
-        Return a list of all times for the schedule. Used to check how the
-        resolution can be modified.
+        Return a list of all times for the schedule.
+
+        Used to check how the resolution can be modified.
         """
         # Local values
         ret = [self._schedule_time, *self._start_times.values()]
@@ -530,7 +538,6 @@ class Schedule:
         insert : bool, optional
             If True, all operations on that y-position will be moved one position.
             The default is False.
-
         """
         if insert:
             for gid in self._y_locations:
@@ -565,7 +572,6 @@ class Schedule:
         -------
         int
             The y-position of the operation.
-
         """
         return self._y_locations[graph_id]
 
@@ -579,7 +585,6 @@ class Schedule:
             The GraphID of the operation to move.
         y_location : int
             The new y-position of the operation.
-
         """
         self._y_locations[graph_id] = y_location
 
@@ -880,7 +885,6 @@ class Schedule:
         Returns
         -------
         ProcessCollection
-
         """
         return ProcessCollection(
             set(self._get_memory_variables_list()), self.schedule_time
@@ -894,7 +898,6 @@ class Schedule:
         Returns
         -------
         ProcessCollection
-
         """
         return ProcessCollection(
             {
@@ -919,7 +922,7 @@ class Schedule:
         y_location = self._y_locations[graph_id]
         if y_location is None:
             # Assign the lowest row number not yet in use
-            used = set(loc for loc in self._y_locations.values() if loc is not None)
+            used = {loc for loc in self._y_locations.values() if loc is not None}
             possible = set(range(len(self._start_times))) - used
             y_location = min(possible)
             self._y_locations[graph_id] = y_location

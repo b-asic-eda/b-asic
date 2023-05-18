@@ -74,8 +74,7 @@ class Simulation:
 
     def set_input(self, index: int, input_provider: InputProvider) -> None:
         """
-        Set the input used to get values for the specific input at the given index of\
- the internal SFG.
+        Set the input used to for a specific input index.
 
         Parameters
         ----------
@@ -135,8 +134,10 @@ class Simulation:
         quantize: bool = True,
     ) -> Sequence[Num]:
         """
-        Run the simulation until its iteration is greater than or equal to the given\
- iteration and return the output values of the last iteration.
+        Run the simulation a given number of iterations.
+
+        Will run until the number of iterations is greater than or equal to the given
+        iteration and return the output values of the last iteration.
         """
         result: Sequence[Num] = []
         while self._iteration < iteration:
@@ -167,8 +168,9 @@ class Simulation:
         quantize: bool = True,
     ) -> Sequence[Num]:
         """
-        Run a given number of iterations of the simulation and return the output\
- values of the last iteration.
+        Run a given number of iterations of the simulation.
+
+        Return the output values of the last iteration.
         """
         return self.run_until(
             self._iteration + iterations, save_results, bits_override, quantize
@@ -181,8 +183,9 @@ class Simulation:
         quantize: bool = True,
     ) -> Sequence[Num]:
         """
-        Run the simulation until the end of its input arrays and return the output\
- values of the last iteration.
+        Run the simulation until the end of its input arrays.
+
+        Return the output values of the last iteration.
         """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")
@@ -202,8 +205,8 @@ class Simulation:
         that was run with *save_results* enabled.
         The mapping is indexed using the ``key()`` method of Operation with the
         appropriate output index.
-        Example result after 3 iterations::
 
+        Example result after 3 iterations::
             {"c1": [3, 6, 7], "c2": [4, 5, 5], "bfly1.0": [7, 0, 0], "bfly1.1":\
  [-1, 0, 2], "0": [7, -2, -1]}
         """

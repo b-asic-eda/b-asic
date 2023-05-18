@@ -31,7 +31,6 @@ def sfg_to_python(
         String to append at the end of the result.
     schedule : bool, default: False
         True if printing a schedule.
-
     """
     if not isinstance(sfg, SFG):
         raise TypeError("An SFG must be provided")

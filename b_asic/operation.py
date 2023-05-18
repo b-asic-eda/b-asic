@@ -65,7 +65,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __add__(self, src: Union[SignalSourceProvider, Num]) -> "Addition":
         """
-        Overloads the addition operator to make it return a new Addition operation
+        Overload the addition operator to make it return a new Addition operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -73,7 +73,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __radd__(self, src: Union[SignalSourceProvider, Num]) -> "Addition":
         """
-        Overloads the addition operator to make it return a new Addition operation
+        Overload the addition operator to make it return a new Addition operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -81,7 +81,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __sub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
         """
-        Overloads the subtraction operator to make it return a new Subtraction
+        Overload the subtraction operator to make it return a new Subtraction
         operation object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -99,7 +99,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         self, src: Union[SignalSourceProvider, Num]
     ) -> Union["Multiplication", "ConstantMultiplication"]:
         """
-        Overloads the multiplication operator to make it return a new Multiplication
+        Overload the multiplication operator to make it return a new Multiplication
         operation object that is connected to the self and other objects.
 
         If *src* is a number, then returns a ConstantMultiplication operation object
@@ -112,7 +112,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         self, src: Union[SignalSourceProvider, Num]
     ) -> Union["Multiplication", "ConstantMultiplication"]:
         """
-        Overloads the multiplication operator to make it return a new Multiplication
+        Overload the multiplication operator to make it return a new Multiplication
         operation object that is connected to the self and other objects.
 
         If *src* is a number, then returns a ConstantMultiplication operation object
@@ -123,7 +123,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __truediv__(self, src: Union[SignalSourceProvider, Num]) -> "Division":
         """
-        Overloads the division operator to make it return a new Division operation
+        Overload the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -133,7 +133,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         self, src: Union[SignalSourceProvider, Num]
     ) -> Union["Division", "Reciprocal"]:
         """
-        Overloads the division operator to make it return a new Division operation
+        Overload the division operator to make it return a new Division operation
         object that is connected to the self and other objects.
         """
         raise NotImplementedError
@@ -141,7 +141,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __lshift__(self, src: SignalSourceProvider) -> Signal:
         """
-        Overloads the left shift operator to make it connect the provided signal source
+        Overload the left shift operator to make it connect the provided signal source
         to this operation's input, assuming it has exactly 1 input port.
         Returns the new signal.
         """
@@ -185,8 +185,9 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def input_signals(self) -> Sequence[Signal]:
         """
-        Get all the signals that are connected to this operation's input ports,
-        in no particular order.
+        Get all the signals that are connected to this operation's input ports.
+
+        The signals are ore not ordered.
         """
         raise NotImplementedError
 
@@ -194,16 +195,19 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def output_signals(self) -> Sequence[Signal]:
         """
-        Get all the signals that are connected to this operation's output ports,
-        in no particular order.
+        Get all the signals that are connected to this operation's output ports.
+
+        The signals are ore not ordered.
         """
         raise NotImplementedError
 
     @abstractmethod
     def key(self, index: int, prefix: str = "") -> ResultKey:
         """
-        Get the key used to access the output of a certain output of this operation
-        from the output parameter passed to current_output(s) or evaluate_output(s).
+        Get the key used to access the output of a certain index.
+
+        This keu can be used to access the simulation results and used as
+        the *output* parameter passed to current_output(s) or evaluate_output(s).
         """
         raise NotImplementedError
 
@@ -292,7 +296,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     ) -> Sequence[Num]:
         """
         Evaluate all outputs of this operation given the input values.
-        See evaluate_output for more information.
+
+        See Also
+        --------
+        evaluate_output
         """
         raise NotImplementedError
 
@@ -354,20 +361,27 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def set_latency(self, latency: int) -> None:
         """
-        Sets the latency of the operation to the specified integer value.
+        Set the latency of the operation to the specified integer value.
 
         This is done by setting the latency-offsets of operations input ports to 0
         and the latency-offsets of the operations output ports to the specified value.
 
+        The latency is the time it takes to produce an output from the corresponding
+        input of the underlying operator.
+
         The latency cannot be a negative integer.
+
+        Parameters
+        ----------
+        latency : int
+            Non-negative int corresponding to the latency of the operation.
         """
         raise NotImplementedError
 
     @abstractmethod
     def set_latency_offsets(self, latency_offsets: Dict[str, int]) -> None:
         """
-        Sets the latency-offsets for the operations ports specified in the
-        latency_offsets dictionary.
+        Set the latency-offsets for the operations port.
 
         The latency offsets dictionary should be {'in0': 2, 'out1': 4} if you want to
         set the latency offset for the input port with index 0 to 2, and the latency
@@ -381,17 +395,27 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         Get the execution time of the operation.
 
-        This is the time it takes before the processing element implementing the
-        operation can be reused for starting another operation.
+        The execution time is the time between executing two operations on the
+        underlying operator. This is also called initiation interval.
         """
         raise NotImplementedError
 
     @execution_time.setter
     @abstractmethod
-    def execution_time(self, latency: Optional[int]) -> None:
+    def execution_time(self, execution_time: Optional[int]) -> None:
         """
-        Sets the execution time of the operation to the specified integer
-        value. The execution time cannot be a negative integer.
+        Set the execution time of the operation.
+
+        The execution time is the time between executing two operations on the
+        underlying operator. This is also called initiation interval.
+
+        The execution time cannot be a negative integer.
+
+        Parameters
+        ----------
+        execution_time : int or None
+            Non-negative integer corresponding to the execution time of the operation.
+            Unset execution time by passing ``None``.
         """
         raise NotImplementedError
 
@@ -400,7 +424,9 @@ class Operation(GraphComponent, SignalSourceProvider):
         self,
     ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
         """
-        Return a tuple containing coordinates for the two polygons outlining
+        Return coordinates for the latency and execution time polygons.
+
+        This returns a tuple containing coordinates for the two polygons outlining
         the latency and execution time of the operation.
         The polygons are corresponding to a start time of 0 and are of height 1.
         """
@@ -412,6 +438,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     ) -> Tuple[Tuple[float, float], ...]:
         """
         Return coordinates for inputs.
+
         These maps to the polygons and are corresponding to a start time of 0
         and height 1.
 
@@ -427,13 +454,13 @@ class Operation(GraphComponent, SignalSourceProvider):
     ) -> Tuple[Tuple[float, float], ...]:
         """
         Return coordinates for outputs.
+
         These maps to the polygons and are corresponding to a start time of 0
         and height 1.
 
         See Also
         --------
         get_input_coordinates
-
         """
         raise NotImplementedError
 
@@ -442,6 +469,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     def source(self) -> OutputPort:
         """
         Return the OutputPort if there is only one output port.
+
         If not, raise a TypeError.
         """
         raise NotImplementedError
@@ -451,6 +479,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     def destination(self) -> InputPort:
         """
         Return the InputPort if there is only one input port.
+
         If not, raise a TypeError.
         """
         raise NotImplementedError
@@ -487,8 +516,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def is_swappable(self) -> bool:
         """
-        Return True if the inputs (and outputs) to the operation can be swapped and
-        retain the same function.
+        Return True if the inputs (and outputs) to the operation can be swapped.
+
+        Swapping require that the operation retains the same function, but it is allowed
+        to modify values to do so.
         """
         raise NotImplementedError
 
@@ -586,8 +617,12 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @abstractmethod
     def evaluate(self, *inputs):  # pylint: disable=arguments-differ
         """
-        Evaluate the operation and generate a list of output values given a
-        list of input values.
+        Evaluate the operation and generate a list of output values.
+
+        Parameters
+        ----------
+        *inputs
+            List of input values.
         """
         raise NotImplementedError
 

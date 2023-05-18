@@ -1,6 +1,6 @@
 stages:
- - test
- - deploy
+  - test
+  - deploy
 
 before_script:
   - apt-get update --yes
@@ -29,12 +29,11 @@ before_script:
     # - lcov --list coverage.info
     # - find . -name '*.gc*' -delete
   artifacts:
-      reports:
-        coverage_report:
-          coverage_format: cobertura
-          path: cov.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: cov.xml
   coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
-
 
 run-test-3.8-pyside2:
   variables:
@@ -107,11 +106,11 @@ run-vhdl-tests:
   image: python:3.10
   stage: test
   script:
-      - pytest
-      - pip install vunit_hdl
-      - apt install -y ghdl
-      - cd b_asic/codegen/testbench
-      - python test.py
+    - pytest
+    - pip install vunit_hdl
+    - apt install -y ghdl
+    - cd b_asic/codegen/testbench
+    - python test.py
 
 run-doc-test:
   variables:

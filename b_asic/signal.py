@@ -141,7 +141,6 @@ class Signal(AbstractGraphComponent):
             changing the destination of the argument Signal will not affect this Signal.
             If Operation, it must have a single input, otherwise a TypeError
             is raised.
-
         """
         # import here to avoid cyclic imports
         from b_asic.operation import Operation

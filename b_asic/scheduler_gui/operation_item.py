@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 B-ASIC Scheduler-GUI Operation Item Module.
 
@@ -73,8 +72,9 @@ class OperationItem(QGraphicsItemGroup):
         height: float = OPERATION_HEIGHT,
     ):
         """
-        Construct a OperationItem. *parent* is passed to QGraphicsItemGroup's
-        constructor.
+        Construct a OperationItem.
+
+        *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)
         self._operation = operation
@@ -118,19 +118,19 @@ class OperationItem(QGraphicsItemGroup):
     #     return True
 
     def clear(self) -> None:
-        """Sets all children's parent to None and delete the axis."""
+        """Set all children's parent to None and delete the axis."""
         for item in self.childItems():
             item.setParentItem(None)
             del item
 
     @property
     def graph_id(self) -> GraphID:
-        """The graph-id of the operation that the item corresponds to."""
+        """GraphID of the operation that the item corresponds to."""
         return self._operation.graph_id
 
     @property
     def name(self) -> str:
-        """The name of the operation that the item corresponds to."""
+        """Name of the operation that the item corresponds to."""
         return self._operation.name
 
     @property
@@ -141,8 +141,9 @@ class OperationItem(QGraphicsItemGroup):
     @property
     def height(self) -> float:
         """
-        Get or set the current component height. Setting the height to a new
-        value will update the component automatically.
+        Get or set the current component height.
+
+        Setting the height to a new value will update the component automatically.
         """
         return self._height
 
@@ -214,7 +215,7 @@ class OperationItem(QGraphicsItemGroup):
         self._latency_item.setBrush(brush)
 
     def _make_component(self) -> None:
-        """Makes a new component out of the stored attributes."""
+        """Make a new component out of the stored attributes."""
         latency_outline_pen = QPen(Qt.GlobalColor.black)  # used by component outline
         latency_outline_pen.setWidthF(2 / self._scale)
         # latency_outline_pen.setCapStyle(Qt.RoundCap)

@@ -834,7 +834,6 @@ class SFGMainWindow(QMainWindow):
         Returns
         -------
         None.
-
         """
         signal_exists = (
             signal

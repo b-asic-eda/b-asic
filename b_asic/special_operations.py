@@ -23,6 +23,11 @@ class Input(AbstractOperation):
 
     Represents an input port to an SFG.
     Its value will be updated on each iteration when simulating the SFG.
+
+    Parameters
+    ==========
+    name : Name, optional
+        Operation name.
     """
 
     is_linear = True
@@ -99,6 +104,14 @@ class Output(AbstractOperation):
     Represents an output port to an SFG.
     The SFG will forward its input to the corresponding output signal
     destinations.
+
+    Parameters
+    ==========
+
+    src0 : SignalSourceProvider, optional
+        The signal connected to the Output operation.
+    name : Name, optional
+        Operation name.
     """
 
     is_linear = True

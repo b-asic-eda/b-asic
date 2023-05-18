@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 B-ASIC Scheduler-gui Axes Item Module.
 
@@ -111,7 +110,7 @@ class AxesItem(QGraphicsItemGroup):
         self._make_base()
 
     def clear(self) -> None:
-        """Sets all children's parent to 'None' and delete the axes."""
+        """Set all children's parent to None and delete the axes."""
         # TODO: update, needed?
         # self._timeline.setParentItem(None)
         self._event_items = []
@@ -119,22 +118,24 @@ class AxesItem(QGraphicsItemGroup):
     @property
     def width(self) -> int:
         """
-        Get or set the current x-axis width. Setting the width to a new
-        value will update the axes automatically.
+        Get or set the current x-axis width.
+
+        Setting the width to a new value will update the axes automatically.
         """
         return self._width
 
     @property
     def height(self) -> float:
         """
-        Get or set the current y-axis height. Setting the height to a new
-        value will update the axes automatically.
+        Get or set the current y-axis height.
+
+        Setting the height to a new value will update the axes automatically.
         """
         return self._height
 
     @property
     def event_items(self) -> List[QGraphicsItem]:
-        """Return a list of objects, that receives events."""
+        """Return a list of objects that receives events."""
         return [self._x_ledger[-1]]
 
     def _register_event_item(self, item: QGraphicsItem) -> None:
