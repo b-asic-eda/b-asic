@@ -34,7 +34,7 @@ def wdf_allpass(
     Parameters
     ----------
     coefficients : 1D-array
-        Coefficients to use for the allpass section
+        Coefficients to use for the allpass section.
 
     name : Name, optional
         The name of the SFG. If None, "WDF allpass section".
@@ -141,7 +141,7 @@ def direct_form_fir(
     Parameters
     ----------
     coefficients : 1D-array
-        Coefficients to use for the FIR filter section
+        Coefficients to use for the FIR filter section.
     name : Name, optional
         The name of the SFG. If None, "Direct-form FIR filter".
     mult_properties : dictionary, optional
@@ -209,7 +209,7 @@ def transposed_direct_form_fir(
     Parameters
     ----------
     coefficients : 1D-array
-        Coefficients to use for the FIR filter section
+        Coefficients to use for the FIR filter section.
     name : Name, optional
         The name of the SFG. If None, "Transposed direct-form FIR filter".
     mult_properties : dictionary, optional

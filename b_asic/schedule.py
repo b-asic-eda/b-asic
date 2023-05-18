@@ -74,8 +74,10 @@ class Schedule:
         If the schedule is cyclic.
     algorithm : {'ASAP', 'ALAP', 'provided'}, default: 'ASAP'
         The scheduling algorithm to use. The following algorithm are available:
-           * ``'ASAP'``: As-soon-as-possible scheduling.
-           * ``'ALAP'``: As-late-as-possible scheduling.
+
+        * ``'ASAP'``: As-soon-as-possible scheduling.
+        * ``'ALAP'``: As-late-as-possible scheduling.
+
         If 'provided', use provided *start_times*  and *laps* dictionaries.
     start_times : dict, optional
         Dictionary with GraphIDs as keys and start times as values.

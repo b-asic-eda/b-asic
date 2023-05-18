@@ -110,7 +110,7 @@ class HardwareBlock:
 
     @property
     def schedule_time(self) -> int:
-        """The schedule time for hardware block"""
+        """The schedule time for hardware block."""
         raise NotImplementedError()
 
     def write_component_declaration(self, f: TextIOWrapper, indent: int = 1) -> None:
@@ -236,6 +236,7 @@ class Resource(HardwareBlock):
         Parameters
         ----------
         title : str, optional
+            Figure title.
         **kwargs
             Passed to :meth:`b_asic.resources.ProcessCollection.plot`.
         """
@@ -289,24 +290,26 @@ class Resource(HardwareBlock):
         """
         Add a :class:`~b_asic.process.Process` to this :class:`Resource`.
 
-        Raises :class:`KeyError` if the process being added is not of the same type
-        as the other processes.
-
         Parameters
         ----------
         proc : :class:`~b_asic.process.Process`
             The process to add.
         assign : bool, default=False
             Whether to perform assignment of the resource after adding.
+
+        Raises
+        ------
+        :class:`TypeError`
+            If the process being added is not of the same type as the other processes.
         """
         if isinstance(proc, OperatorProcess):
             # operation_type marks OperatorProcess associated operation.
             if not isinstance(proc._operation, self.operation_type):
-                raise KeyError(f"{proc} not of type {self.operation_type}")
+                raise TypeError(f"{proc} not of type {self.operation_type}")
         else:
             # operation_type is MemoryVariable or PlainMemoryVariable
             if not isinstance(proc, self.operation_type):
-                raise KeyError(f"{proc} not of type {self.operation_type}")
+                raise TypeError(f"{proc} not of type {self.operation_type}")
         self.collection.add_process(proc)
         if assign:
             self.assign()
@@ -326,6 +329,11 @@ class Resource(HardwareBlock):
             The process to remove.
         assign : bool, default=False
             Whether to perform assignment of the resource after removal.
+
+        Raises
+        ------
+        :class:`KeyError`
+            If *proc* is not present in resource.
         """
         self.collection.remove_process(proc)
         if assign:
@@ -392,8 +400,8 @@ class ProcessingElement(Resource):
         heuristic : str, default: 'left_edge'
             The assignment algorithm.
 
-                * 'left_edge': Left-edge algorithm.
-                * 'graph_color': Graph-coloring based on exclusion graph.
+            * 'left_edge': Left-edge algorithm.
+            * 'graph_color': Graph-coloring based on exclusion graph.
         """
         self._assignment = list(
             self._collection.split_on_execution_time(heuristic=heuristic)
@@ -497,11 +505,11 @@ class Memory(Resource):
             The assignment algorithm. Depending on memory type the following are
             available:
 
-                * 'RAM'
-                    * 'left_edge': Left-edge algorithm.
-                    * 'graph_color': Graph-coloring based on exclusion graph.
-                * 'register'
-                    * ...
+            * 'RAM'
+                * 'left_edge': Left-edge algorithm.
+                * 'graph_color': Graph-coloring based on exclusion graph.
+            * 'register'
+                * ...
         """
         if self._memory_type == "RAM":
             self._assignment = self._collection.split_on_execution_time(
@@ -736,17 +744,14 @@ of :class:`~b_asic.architecture.ProcessingElement`
         assign: bool = False,
     ):
         """
-        Move a :class:`b_asic.process.Process` from one resource to another in the
-        architecture.
+        Move a :class:`b_asic.process.Process` from one resource to another.
 
         Both the resource moved from and will become unassigned after a process has been
-        moved.
-
-        Raises :class:`KeyError` if ``proc`` is not present in resource ``re_from``.
+        moved, unless *assign* is set to True.
 
         Parameters
         ----------
-        proc : :class:`b_asic.process.Process` or string
+        proc : :class:`b_asic.process.Process` or str
             The process (or its name) to move.
         re_from : :class:`b_asic.architecture.Resource` or str
             The resource (or its entity name) to move the process from.
@@ -754,6 +759,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
             The resource (or its entity name) to move the process to.
         assign : bool, default=False
             Whether to perform assignment of the resources after moving.
+
+        Raises
+        ------
+        :class:`KeyError`
+            If *proc* is not present in resource *re_from*.
         """
         # Extract resources from name
         if isinstance(re_from, str):

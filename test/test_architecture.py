@@ -33,13 +33,13 @@ def test_add_remove_process_from_resource(schedule_direct_form_iir_lp_filter: Sc
         operations.get_by_type_name(ConstantMultiplication.type_name())
     )
     for process in operations:
-        with pytest.raises(KeyError, match=f"{process} not of type"):
+        with pytest.raises(TypeError, match=f"{process} not of type"):
             memory.add_process(process)
     for process in mvs:
-        with pytest.raises(KeyError, match=f"{process} not of type"):
+        with pytest.raises(TypeError, match=f"{process} not of type"):
             pe.add_process(process)
 
-    with pytest.raises(KeyError, match="PlainMV not of type"):
+    with pytest.raises(TypeError, match="PlainMV not of type"):
         memory.add_process(PlainMemoryVariable(0, 0, {0: 2}, "PlainMV"))
 
 
@@ -223,7 +223,7 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
         processing_elements[1].collection.from_name('add1')
 
     # Processes can only be moved when the source and destination process-types match
-    with pytest.raises(KeyError, match="cmul4.0 not of type"):
+    with pytest.raises(TypeError, match="cmul4.0 not of type"):
         architecture.move_process('cmul4.0', memories[0], processing_elements[0])
     with pytest.raises(KeyError, match="invalid_name not in"):
         architecture.move_process('invalid_name', memories[0], processing_elements[1])

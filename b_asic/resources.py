@@ -700,7 +700,7 @@ class ProcessCollection:
             If True, the plot method allows plotting collections of variables with
             a greater lifetime than the schedule time.
         title : str, optional
-            Title of plot.
+            Figure title.
         """
         fig, ax = plt.subplots()
         self.plot(

@@ -363,9 +363,11 @@ class SFG(AbstractOperation):
         # Set the values of our input operations to the given input values.
         for op, arg in zip(
             self._input_operations,
-            self.quantize_inputs(input_values, bits_override)
-            if quantize
-            else input_values,
+            (
+                self.quantize_inputs(input_values, bits_override)
+                if quantize
+                else input_values
+            ),
         ):
             op.value = arg
 
@@ -399,7 +401,7 @@ class SFG(AbstractOperation):
 
     def connect_external_signals_to_components(self) -> bool:
         """
-        Connects any external signals to the internal operations of SFG.
+        Connect any external signals to the internal operations of SFG.
 
         This SFG becomes unconnected to the SFG it is a component off,
         causing it to become invalid afterwards. Returns True if successful,
@@ -441,16 +443,14 @@ class SFG(AbstractOperation):
     @property
     def input_operations(self) -> Sequence[Operation]:
         """
-        Get the internal input operations in the same order as their respective input
-        ports.
+        Internal input operations in the same order as their respective input ports.
         """
         return self._input_operations
 
     @property
     def output_operations(self) -> Sequence[Operation]:
         """
-        Get the internal output operations in the same order as their respective output
-        ports.
+        Internal output operations in the same order as their respective output ports.
         """
         return self._output_operations
 
@@ -571,7 +571,7 @@ class SFG(AbstractOperation):
         Parameters
         ----------
         name : Name
-            Name of the desired component(s)
+            Name of the desired component(s).
         """
         return self._components_by_name.get(name, [])
 
@@ -587,9 +587,9 @@ class SFG(AbstractOperation):
         Parameters
         ----------
         name : Name
-            Name of the desired component(s)
+            Name of the desired component(s).
         output_index : int, default: 0
-            The desired output index to get the result from
+            The desired output index to get the result from.
         """
         keys = []
         for comp in self.find_by_name(name):
@@ -606,7 +606,7 @@ class SFG(AbstractOperation):
         Parameters
         ----------
         component : Operation
-            The new operation(s), e.g. Multiplication
+            The new operation(s), e.g. Multiplication.
         graph_id : GraphID
             The GraphID to match the operation to replace.
         """
@@ -766,6 +766,8 @@ class SFG(AbstractOperation):
 
     def remove_operation(self, operation_id: GraphID) -> Union["SFG", None]:
         """
+        Remove operation.
+
         Returns a version of the SFG where the operation with the specified GraphID
         removed.
 
@@ -813,10 +815,11 @@ class SFG(AbstractOperation):
 
     def get_precedence_list(self) -> Sequence[Sequence[OutputPort]]:
         """
-        Returns a precedence list of the SFG where each element in n:th the
-        list consists of elements that are executed in the n:th step. If the
-        precedence list already has been calculated for the current SFG then
-        return the cached version.
+        Return a precedence list of the SFG.
+
+        In the precedence list each element in n:th the list consists of elements that
+        are executed in the n:th step. If the precedence list already has been
+        calculated for the current SFG then return the cached version.
         """
         if self._precedence_list:
             return self._precedence_list
@@ -942,6 +945,7 @@ class SFG(AbstractOperation):
     def get_operations_topological_order(self) -> Iterable[Operation]:
         """
         Return an Iterable of the Operations in the SFG in topological order.
+
         Feedback loops makes an absolutely correct topological order impossible,
         so an approximate topological Order is returned in such cases in this
         implementation.
@@ -1509,7 +1513,7 @@ class SFG(AbstractOperation):
         splines: str = "spline",
     ) -> None:
         """
-        Shows a visual representation of the SFG using the default system viewer.
+        Display a visual representation of the SFG using the default system viewer.
 
         Parameters
         ----------
@@ -1575,7 +1579,7 @@ class SFG(AbstractOperation):
         Parameters
         ----------
         factor : int
-            Number of times to unfold
+            Number of times to unfold.
         """
 
         if factor == 0:
