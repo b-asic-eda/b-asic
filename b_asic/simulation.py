@@ -106,6 +106,10 @@ class Simulation:
     def set_inputs(self, input_providers: Sequence[Optional[InputProvider]]) -> None:
         """
         Set the input functions used to get values for the inputs to the internal SFG.
+
+        Parameters
+        ----------
+        input_providers : array of list, callable, or number
         """
         if len(input_providers) != self._sfg.input_count:
             raise ValueError(
@@ -122,7 +126,14 @@ class Simulation:
         bits_override: Optional[int] = None,
         quantize: bool = True,
     ) -> Sequence[Num]:
-        """Run one iteration of the simulation and return the resulting output values.
+        """
+        Run one iteration of the simulation and return the resulting output values.
+
+        Parameters
+        ----------
+        save_results : bool, default: True
+        bits_override : int, optional
+        quantize : bool, default: True
         """
         return self.run_for(1, save_results, bits_override, quantize)
 
@@ -134,10 +145,19 @@ class Simulation:
         quantize: bool = True,
     ) -> Sequence[Num]:
         """
-        Run the simulation a given number of iterations.
+        Run the simulation until the iteration number.
 
         Will run until the number of iterations is greater than or equal to the given
-        iteration and return the output values of the last iteration.
+        iteration and return the output values of the last iteration. The number of
+        iterations actually simulated depends on the current state of the Simulation.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration number to stop the simulation at.
+        save_results : bool, default: True
+        bits_override : int, optional
+        quantize : bool, default: True
         """
         result: Sequence[Num] = []
         while self._iteration < iteration:
@@ -171,6 +191,14 @@ class Simulation:
         Run a given number of iterations of the simulation.
 
         Return the output values of the last iteration.
+
+        Parameters
+        ----------
+        iterations : int
+            Number of iterations to simulate.
+        save_results : bool, default: True
+        bits_override : int, optional
+        quantize : bool, default: True
         """
         return self.run_until(
             self._iteration + iterations, save_results, bits_override, quantize
@@ -186,6 +214,12 @@ class Simulation:
         Run the simulation until the end of its input arrays.
 
         Return the output values of the last iteration.
+
+        Parameters
+        ----------
+        save_results : bool, default: True
+        bits_override : int, optional
+        quantize : bool, default: True
         """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")
@@ -199,7 +233,7 @@ class Simulation:
     @property
     def results(self) -> ResultArrayMap:
         """
-        Get a mapping from result keys to numpy arrays containing all results.
+        A mapping from result keys to numpy arrays containing all results.
 
         This includes intermediate values, calculated for each iteration up until now
         that was run with *save_results* enabled.

@@ -30,8 +30,8 @@ class AxesItem(QGraphicsItemGroup):
 
     Parameters
     ----------
-    width
-    height
+    width : int
+    height : float
     width_indent : float, default: {SCHEDULE_INDENT}
     height_indent : float, default: {SCHEDULE_INDENT}
     width_padding : float, default: 0.6

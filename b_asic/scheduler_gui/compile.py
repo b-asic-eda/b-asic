@@ -2,7 +2,7 @@
 """
 B-ASIC Scheduler-gui Resource and Form Compiler Module.
 
-Compiles Qt5 resource and form files. Requires PySide2 or PyQt5 to be installed.
+Compile Qt5 resource and form files. Requires PySide2 or PyQt5 to be installed.
 If no arguments is given, the compiler search for and compiles all form (.ui)
 files.
 """
@@ -37,8 +37,9 @@ def _check_filenames(*filenames: str) -> None:
 
 def _check_qt_version() -> None:
     """
-    Check if PySide2, PyQt5, PySide6, or PyQt6 is installed, otherwise raise
-    AssertionError exception.
+    Check if PySide2, PyQt5, PySide6, or PyQt6 is installed.
+
+    Otherwise, raise AssertionError exception.
     """
     assert (
         uic.PYSIDE2 or uic.PYQT5 or uic.PYSIDE6 or uic.PYQT6
@@ -46,8 +47,15 @@ def _check_qt_version() -> None:
 
 
 def replace_qt_bindings(filename: str) -> None:
-    """Replaces qt-binding API in *filename* from PySide2/6 or PyQt5/6 to qtpy."""
-    with open(f"{filename}", "r") as file:
+    """
+    Replace qt-binding API in *filename* from PySide2/6 or PyQt5/6 to qtpy.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the file to replace bindings in.
+    """
+    with open(f"{filename}") as file:
         filedata = file.read()
         filedata = filedata.replace("from PyQt5", "from qtpy")
         filedata = filedata.replace("from PySide2", "from qtpy")
@@ -59,8 +67,15 @@ def replace_qt_bindings(filename: str) -> None:
 
 def compile_rc(*filenames: str) -> None:
     """
-    Compile resource file(s) given by *filenames*. If no arguments are given,
-    the compiler will search for resource (.qrc) files and compile accordingly.
+    Compile resource file(s) given by *filenames*.
+
+    If no arguments are given, the compiler will search for resource (.qrc) files and
+    compile accordingly.
+
+    Parameters
+    ----------
+    *filenames : str
+        One or more file names.
     """
     _check_qt_version()
 
@@ -127,8 +142,15 @@ def compile_rc(*filenames: str) -> None:
 
 def compile_ui(*filenames: str) -> None:
     """
-    Compile form file(s) given by *filenames*. If no arguments are given, the
-    compiler will search for form (.ui) files and compile accordingly.
+    Compile form file(s) given by *filenames*.
+
+    If no arguments are given, the compiler will search for form (.ui) files and
+    compile accordingly.
+
+    Parameters
+    ----------
+    *filenames : str
+        One or more file names.
     """
     _check_qt_version()
 
@@ -228,6 +250,8 @@ def compile_ui(*filenames: str) -> None:
 
 def compile_all() -> None:
     """
+    Compile all .qrc and .ui files.
+
     The compiler will search for resource (.qrc) files and form (.ui) files
     and compile accordingly.
     """
@@ -246,37 +270,26 @@ if __name__ == "__main__":
         "-v", "--version", action="version", version=f"%(prog)s v{version}"
     )
 
-    if sys.version_info >= (3, 8):
-        parser.add_argument(
-            "--ui",
-            metavar="<file>",
-            action="extend",
-            nargs="*",
-            help=(
-                "compile form file(s) if <file> is given, otherwise search\n"
-                "for all form (*.ui) files and compile them all (default)"
-            ),
-        )
-        parser.add_argument(
-            "--rc",
-            metavar="<file>",
-            action="extend",
-            nargs="*",
-            help=(
-                "compile resource file(s) if <file> is given, otherwise\n"
-                "search for all resource (*.ui) files and compile them all"
-            ),
-        )
-    else:
-        parser.add_argument(
-            "--ui", metavar="<file>", action="append", help="compile form file"
-        )
-        parser.add_argument(
-            "--rc",
-            metavar="<file>",
-            action="append",
-            help="compile resource file",
-        )
+    parser.add_argument(
+        "--ui",
+        metavar="<file>",
+        action="extend",
+        nargs="*",
+        help=(
+            "compile form file(s) if <file> is given, otherwise search\n"
+            "for all form (*.ui) files and compile them all (default)"
+        ),
+    )
+    parser.add_argument(
+        "--rc",
+        metavar="<file>",
+        action="extend",
+        nargs="*",
+        help=(
+            "compile resource file(s) if <file> is given, otherwise\n"
+            "search for all resource (*.ui) files and compile them all"
+        ),
+    )
 
     parser.add_argument(
         "--all",

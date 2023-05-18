@@ -1458,6 +1458,43 @@ class ProcessCollection:
 
         return dict(sorted(Counter(accesses).items()))
 
+    def show_port_accesses(self, title: str = ""):
+        """
+        Show read, write, and total accesses.
+
+        Parameters
+        ----------
+        title : str
+            Figure title.
+        """
+        fig, axes = plt.subplots(3, 1)
+        self.plot_port_accesses(axes)
+        if title:
+            fig.suptitle(title)
+        fig.show()  # type: ignore
+
+    def plot_port_accesses(self, axes):
+        """
+        Plot read, write, and total accesses.
+
+        This is plot as bar graphs.
+
+        Parameters
+        ----------
+        axes : list of three :class:`matplotlib.axes.Axes`
+            Three Axes to plot in.
+        """
+        axes[0].bar(*zip(*self.read_port_accesses().items()))
+        axes[0].set_title("Read port accesses")
+        axes[1].bar(*zip(*self.write_port_accesses().items()))
+        axes[1].set_title("Write port accesses")
+        axes[2].bar(*zip(*self.total_port_accesses().items()))
+        axes[2].set_title("Total port accesses")
+        for ax in axes:
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))
+            ax.set_xlim(-0.5, self.schedule_time - 0.5)
+
     def from_name(self, name: str):
         """
         Get a :class:`~b_asic.process.Process` from its name.

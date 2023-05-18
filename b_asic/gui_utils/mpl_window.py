@@ -12,7 +12,7 @@ class MPLWindow(QDialog):
     Dialog for plotting Matplotlib things.
     """
 
-    def __init__(self, title: str = "B-ASIC"):
+    def __init__(self, title: str = "B-ASIC", subplots=(1, 1)):
         super().__init__()
         self.setWindowFlags(
             Qt.WindowTitleHint
@@ -26,7 +26,7 @@ class MPLWindow(QDialog):
         self.setLayout(self._dialog_layout)
 
         self._plot_fig = Figure(figsize=(5, 4), layout="compressed")
-        self._plot_axes = self._plot_fig.add_subplot(111)
+        self._plot_axes = self._plot_fig.subplots(*subplots)
 
         self._plot_canvas = FigureCanvas(self._plot_fig)
         self._toolbar = NavigationToolbar(self._plot_canvas, self)

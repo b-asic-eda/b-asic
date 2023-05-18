@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 B-ASIC Scheduler-GUI Timeline Item Module.
 
@@ -78,7 +77,14 @@ class TimelineItem(QGraphicsLineItem):
     #     return self._delta_time_label
 
     def set_text(self, number: int) -> None:
-        """Set the label text to *number*."""
+        """
+        Set the label text to *number*.
+
+        Parameters
+        ----------
+        number : int
+            The label number.
+        """
         # self.prepareGeometryChange()
         self._delta_time_label.setPlainText(f"( {number:+} )")
         self._delta_time_label.setX(
@@ -106,6 +112,14 @@ class TimelineItem(QGraphicsLineItem):
         self._delta_time_label.hide()
 
     def set_text_scale(self, scale: float) -> None:
+        """
+        Set the text scale.
+
+        Parameters
+        ----------
+        scale : float
+            The text scale.
+        """
         self._delta_time_label.setScale(scale)
 
     @property

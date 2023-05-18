@@ -164,6 +164,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_view_variables.triggered.connect(
             self._show_execution_times_for_variables
         )
+        # self.action_view_port_accesses.triggered.connect(
+        #     self._show_ports_accesses_for_storage
+        # )
         self.actionZoom_to_fit.setIcon(get_icon('zoom-to-fit'))
         self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
         self.actionToggle_full_screen.setIcon(get_icon('full-screen'))
@@ -846,6 +849,16 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._execution_time_for_variables.axes, allow_excessive_lifetimes=True
         )
         self._execution_time_for_variables.show()
+
+    def _show_ports_accesses_for_storage(self):
+        self._ports_accesses_for_storage = MPLWindow(
+            "Port accesses for storage", subplots=(3, 1)
+        )
+        mem_vars = self._schedule.get_memory_variables()
+        _, mem_vars = mem_vars.split_on_length()
+
+        mem_vars.plot_port_accesses(self._ports_accesses_for_storage.axes)
+        self._ports_accesses_for_storage.show()
 
     def _update_recent_file_list(self):
         settings = QSettings()
