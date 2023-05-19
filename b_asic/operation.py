@@ -31,15 +31,6 @@ from b_asic.signal import Signal
 from b_asic.types import Num
 
 if TYPE_CHECKING:
-    # Conditionally imported to avoid circular imports
-    from b_asic.core_operations import (
-        Addition,
-        ConstantMultiplication,
-        Division,
-        Multiplication,
-        Reciprocal,
-        Subtraction,
-    )
     from b_asic.signal_flow_graph import SFG
 
 
@@ -61,82 +52,6 @@ class Operation(GraphComponent, SignalSourceProvider):
     Operations can be evaluated independently using evaluate_output().
     Operations may specify how to quantize inputs through quantize_input().
     """
-
-    @abstractmethod
-    def __add__(self, src: Union[SignalSourceProvider, Num]) -> "Addition":
-        """
-        Overload the addition operator to make it return a new Addition operation
-        object that is connected to the self and other objects.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __radd__(self, src: Union[SignalSourceProvider, Num]) -> "Addition":
-        """
-        Overload the addition operator to make it return a new Addition operation
-        object that is connected to the self and other objects.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __sub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
-        """
-        Overload the subtraction operator to make it return a new Subtraction
-        operation object that is connected to the self and other objects.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __rsub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
-        """
-        Overloads the subtraction operator to make it return a new Subtraction
-        operation object that is connected to the self and other objects.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __mul__(
-        self, src: Union[SignalSourceProvider, Num]
-    ) -> Union["Multiplication", "ConstantMultiplication"]:
-        """
-        Overload the multiplication operator to make it return a new Multiplication
-        operation object that is connected to the self and other objects.
-
-        If *src* is a number, then returns a ConstantMultiplication operation object
-        instead.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __rmul__(
-        self, src: Union[SignalSourceProvider, Num]
-    ) -> Union["Multiplication", "ConstantMultiplication"]:
-        """
-        Overload the multiplication operator to make it return a new Multiplication
-        operation object that is connected to the self and other objects.
-
-        If *src* is a number, then returns a ConstantMultiplication operation object
-        instead.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __truediv__(self, src: Union[SignalSourceProvider, Num]) -> "Division":
-        """
-        Overload the division operator to make it return a new Division operation
-        object that is connected to the self and other objects.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def __rtruediv__(
-        self, src: Union[SignalSourceProvider, Num]
-    ) -> Union["Division", "Reciprocal"]:
-        """
-        Overload the division operator to make it return a new Division operation
-        object that is connected to the self and other objects.
-        """
-        raise NotImplementedError
 
     @abstractmethod
     def __lshift__(self, src: SignalSourceProvider) -> Signal:
@@ -625,76 +540,6 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             List of input values.
         """
         raise NotImplementedError
-
-    def __add__(self, src: Union[SignalSourceProvider, Num]) -> "Addition":
-        # Import here to avoid circular imports.
-        from b_asic.core_operations import Addition, Constant
-
-        if isinstance(src, Number):
-            return Addition(self, Constant(src))
-        else:
-            return Addition(self, src)
-
-    def __radd__(self, src: Union[SignalSourceProvider, Num]) -> "Addition":
-        # Import here to avoid circular imports.
-        from b_asic.core_operations import Addition, Constant
-
-        return Addition(Constant(src) if isinstance(src, Number) else src, self)
-
-    def __sub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
-        # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Subtraction
-
-        return Subtraction(self, Constant(src) if isinstance(src, Number) else src)
-
-    def __rsub__(self, src: Union[SignalSourceProvider, Num]) -> "Subtraction":
-        # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Subtraction
-
-        return Subtraction(Constant(src) if isinstance(src, Number) else src, self)
-
-    def __mul__(
-        self, src: Union[SignalSourceProvider, Num]
-    ) -> Union["Multiplication", "ConstantMultiplication"]:
-        # Import here to avoid circular imports.
-        from b_asic.core_operations import ConstantMultiplication, Multiplication
-
-        return (
-            ConstantMultiplication(src, self)
-            if isinstance(src, Number)
-            else Multiplication(self, src)
-        )
-
-    def __rmul__(
-        self, src: Union[SignalSourceProvider, Num]
-    ) -> Union["Multiplication", "ConstantMultiplication"]:
-        # Import here to avoid circular imports.
-        from b_asic.core_operations import ConstantMultiplication, Multiplication
-
-        return (
-            ConstantMultiplication(src, self)
-            if isinstance(src, Number)
-            else Multiplication(src, self)
-        )
-
-    def __truediv__(self, src: Union[SignalSourceProvider, Num]) -> "Division":
-        # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Division
-
-        return Division(self, Constant(src) if isinstance(src, Number) else src)
-
-    def __rtruediv__(
-        self, src: Union[SignalSourceProvider, Num]
-    ) -> Union["Division", "Reciprocal"]:
-        # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Division, Reciprocal
-
-        if isinstance(src, Number):
-            if src == 1:
-                return Reciprocal(self)
-            else:
-                return Division(Constant(src), self)
-        return Division(src, self)
 
     def __lshift__(self, src: SignalSourceProvider) -> Signal:
         if self.input_count != 1:

@@ -40,6 +40,12 @@ class TestOperationOverloading:
         assert add5.input(0).signals[0].source.operation.value == 5
         assert add5.input(1).signals == add4.output(0).signals
 
+        bfly = Butterfly()
+        add6 = bfly.output(0) + add5
+        assert isinstance(add6, Addition)
+        assert add6.input(0).signals == bfly.output(0).signals
+        assert add6.input(1).signals == add5.output(0).signals
+
     def test_subtraction_overload(self):
         """Tests subtraction overloading for both operation and number argument."""
         add1 = Addition(None, None, "add1")
@@ -59,6 +65,12 @@ class TestOperationOverloading:
         assert isinstance(sub3, Subtraction)
         assert sub3.input(0).signals[0].source.operation.value == 5
         assert sub3.input(1).signals == sub2.output(0).signals
+
+        bfly = Butterfly()
+        sub4 = bfly.output(0) - sub3
+        assert isinstance(sub4, Subtraction)
+        assert sub4.input(0).signals == bfly.output(0).signals
+        assert sub4.input(1).signals == sub3.output(0).signals
 
     def test_multiplication_overload(self):
         """Tests multiplication overloading for both operation and number argument."""

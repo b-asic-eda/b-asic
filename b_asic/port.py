@@ -6,12 +6,22 @@ Contains classes for managing the ports of operations.
 
 from abc import ABC, abstractmethod
 from copy import copy
-from typing import TYPE_CHECKING, List, Optional, Sequence
+from numbers import Number
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from b_asic.graph_component import Name
 from b_asic.signal import Signal
+from b_asic.types import Num
 
 if TYPE_CHECKING:
+    from b_asic.core_operations import (
+        Addition,
+        ConstantMultiplication,
+        Division,
+        Multiplication,
+        Reciprocal,
+        Subtraction,
+    )
     from b_asic.operation import Operation
 
 
@@ -166,6 +176,76 @@ class SignalSourceProvider(ABC):
     def source(self) -> "OutputPort":
         """Get the main source port provided by this object."""
         raise NotImplementedError
+
+    def __add__(self, src: Union["SignalSourceProvider", Num]) -> "Addition":
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import Addition, Constant
+
+        if isinstance(src, Number):
+            return Addition(self, Constant(src))
+        else:
+            return Addition(self, src)
+
+    def __radd__(self, src: Union["SignalSourceProvider", Num]) -> "Addition":
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import Addition, Constant
+
+        return Addition(Constant(src) if isinstance(src, Number) else src, self)
+
+    def __sub__(self, src: Union["SignalSourceProvider", Num]) -> "Subtraction":
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import Constant, Subtraction
+
+        return Subtraction(self, Constant(src) if isinstance(src, Number) else src)
+
+    def __rsub__(self, src: Union["SignalSourceProvider", Num]) -> "Subtraction":
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import Constant, Subtraction
+
+        return Subtraction(Constant(src) if isinstance(src, Number) else src, self)
+
+    def __mul__(
+        self, src: Union["SignalSourceProvider", Num]
+    ) -> Union["Multiplication", "ConstantMultiplication"]:
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import ConstantMultiplication, Multiplication
+
+        return (
+            ConstantMultiplication(src, self)
+            if isinstance(src, Number)
+            else Multiplication(self, src)
+        )
+
+    def __rmul__(
+        self, src: Union["SignalSourceProvider", Num]
+    ) -> Union["Multiplication", "ConstantMultiplication"]:
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import ConstantMultiplication, Multiplication
+
+        return (
+            ConstantMultiplication(src, self)
+            if isinstance(src, Number)
+            else Multiplication(src, self)
+        )
+
+    def __truediv__(self, src: Union["SignalSourceProvider", Num]) -> "Division":
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import Constant, Division
+
+        return Division(self, Constant(src) if isinstance(src, Number) else src)
+
+    def __rtruediv__(
+        self, src: Union["SignalSourceProvider", Num]
+    ) -> Union["Division", "Reciprocal"]:
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import Constant, Division, Reciprocal
+
+        if isinstance(src, Number):
+            if src == 1:
+                return Reciprocal(self)
+            else:
+                return Division(Constant(src), self)
+        return Division(src, self)
 
 
 class InputPort(AbstractPort):
