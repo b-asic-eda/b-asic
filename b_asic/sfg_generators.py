@@ -117,7 +117,7 @@ def wdf_allpass(
                 signal_out = Signal(adaptor1.output(0))
             else:
                 signal_out = Signal(delay2)
-    output << signal_out
+    output <<= signal_out
     return SFG([input_op], [output], name=Name(name))
 
 
@@ -184,7 +184,7 @@ def direct_form_fir(
         if i < taps - 1:
             prev_delay = Delay(prev_delay)
 
-    output << prev_add
+    output <<= prev_add
 
     return SFG([input_op], [output], name=Name(name))
 
@@ -251,6 +251,6 @@ def transposed_direct_form_fir(
         if i < taps - 1:
             prev_delay = Delay(tmp_add)
 
-    output << tmp_add
+    output <<= tmp_add
 
     return SFG([input_op], [output], name=Name(name))

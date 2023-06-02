@@ -23,8 +23,8 @@ allpass1 = wdf_allpass([0.2, 0.5])
 allpass2 = wdf_allpass([-0.5, 0.2, 0.5])
 
 in_lwdf = Input()
-allpass1 << in_lwdf
-allpass2 << in_lwdf
+allpass1 <<= in_lwdf
+allpass2 <<= in_lwdf
 out_lwdf = Output((allpass1 + allpass2) * 0.5)
 
 # Create SFG of LWDF with two internal SFGs

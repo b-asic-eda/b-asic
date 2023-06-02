@@ -12,8 +12,11 @@ from b_asic import (
     Constant,
     ConstantMultiplication,
     Division,
+    LeftShift,
     Multiplication,
     Reciprocal,
+    RightShift,
+    Shift,
     SquareRoot,
     Subtraction,
 )
@@ -115,6 +118,26 @@ class TestOperationOverloading:
         div4 = 1 / div3
         assert isinstance(div4, Reciprocal)
         assert div4.input(0).signals == div3.output(0).signals
+
+    def test_shift_overload(self):
+        """Tests multiplication overloading for both operation and number argument."""
+        add1 = Addition(None, None, "add1")
+
+        ls1 = add1 << 2
+        assert isinstance(ls1, LeftShift)
+        assert ls1.input(0).signals == add1.output(0).signals
+
+        ls2 = ls1 << -2
+        assert isinstance(ls2, Shift)
+        assert ls2.input(0).signals == ls1.output(0).signals
+
+        rs1 = ls2 >> 2
+        assert isinstance(rs1, RightShift)
+        assert rs1.input(0).signals == ls2.output(0).signals
+
+        rs2 = rs1 >> -2
+        assert isinstance(rs2, Shift)
+        assert rs2.input(0).signals == rs1.output(0).signals
 
 
 class TestTraverse:

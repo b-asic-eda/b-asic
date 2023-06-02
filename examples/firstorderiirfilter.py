@@ -40,9 +40,9 @@ b1.input(0).connect(delay)
 # graph, e.g., for recursive algorithms. In this example, we could not connect the
 # output of the delay as that was not yet available.
 #
-# There is also a shorthand form to connect signals using the ``<<`` operator:
+# There is also a shorthand form to connect signals using the ``<<=`` operator:
 
-delay << first_addition
+delay <<= first_addition
 
 # %%
 # Naturally, it is also possible to write expressions when instantiating operations:

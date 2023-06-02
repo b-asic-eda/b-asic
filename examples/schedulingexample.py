@@ -25,7 +25,7 @@ node7 = node6 + node4
 out = Output(node7)
 node5 = 0.75 * node4
 node3 = node2 + node5
-node4 << node3
+node4 <<= node3
 
 sfg = SFG([node1], [out], name="Scheduling example")
 # %%

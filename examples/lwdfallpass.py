@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ================================
 LWDF first-order allpass section
@@ -19,7 +18,7 @@ d0 = Delay()
 adaptor0 = SymmetricTwoportAdaptor(
     0.5, in0, d0, latency_offsets={"in0": 0, "in1": 1, "out0": 5, "out1": 6}
 )
-d0 << adaptor0.output(1)
+d0 <<= adaptor0.output(1)
 out0 = Output(adaptor0.output(0))
 adaptor0.execution_time = 2
 sfg = SFG([in0], [out0])

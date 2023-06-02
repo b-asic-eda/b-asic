@@ -20,7 +20,7 @@ D0 = Delay(in0)
 D1 = Delay()
 D2 = Delay(D1)
 s = SymmetricTwoportAdaptor(-0.375, in0, D2)
-D1 << s.output(1)
+D1 <<= s.output(1)
 a = s.output(0) + D0
 out0 = Output(a, "y")
 

@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to B-ASIC's documentation!
-==================================
+B-ASIC's documentation
+======================
 
 B-ASIC is a toolbox for Python 3 that simplifies implementing application-specific
 circuits, primarily aimed at signal processing algorithms for both standard-cell and
@@ -24,7 +24,7 @@ The development of B-ASIC happens at
 
 It is not yet fully functional, but several parts of the design flow works,
 while others are missing/buggy. The goal is to have a working design path from
-algorithm downto a HDL-description of a custom architecture. Once it becomes a
+algorithm down to a HDL-description of a custom architecture. Once it becomes a
 bit more mature, we expect to make it available on pypi and conda-forge so
 that it will becomes easier to access.
 

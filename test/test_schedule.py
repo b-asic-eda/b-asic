@@ -334,7 +334,7 @@ class TestRescheduling:
         d = Delay()
         a = d + in0
         out0 = Output(a)
-        d << a
+        d <<= a
         sfg = SFG([in0], [out0])
         sfg.set_latency_of_type(Addition.type_name(), 1)
         schedule = Schedule(sfg, cyclic=True)

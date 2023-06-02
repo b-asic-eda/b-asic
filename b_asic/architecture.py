@@ -204,6 +204,10 @@ class Resource(HardwareBlock):
         return ""
 
     @property
+    def _color(self):
+        raise NotImplementedError
+
+    @property
     def schedule_time(self) -> int:
         # doc-string inherited
         return self._collection.schedule_time
@@ -304,7 +308,7 @@ class Resource(HardwareBlock):
         """
         if isinstance(proc, OperatorProcess):
             # operation_type marks OperatorProcess associated operation.
-            if not isinstance(proc._operation, self.operation_type):
+            if not isinstance(proc.operation, self.operation_type):
                 raise TypeError(f"{proc} not of type {self.operation_type}")
         else:
             # operation_type is MemoryVariable or PlainMemoryVariable

@@ -54,11 +54,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     """
 
     @abstractmethod
-    def __lshift__(self, src: SignalSourceProvider) -> Signal:
+    def __ilshift__(self, src: SignalSourceProvider) -> "Operation":
         """
-        Overload the left shift operator to make it connect the provided signal source
-        to this operation's input, assuming it has exactly 1 input port.
-        Returns the new signal.
+        Overload the inline left shift operator to make it connect the provided signal
+        source to this operation's input, assuming it has exactly one input port.
         """
         raise NotImplementedError
 
@@ -541,14 +540,15 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         """
         raise NotImplementedError
 
-    def __lshift__(self, src: SignalSourceProvider) -> Signal:
+    def __ilshift__(self, src: SignalSourceProvider) -> "Operation":
         if self.input_count != 1:
             diff = "more" if self.input_count > 1 else "less"
             raise TypeError(
                 f"{self.__class__.__name__} cannot be used as a destination"
                 f" because it has {diff} than 1 input"
             )
-        return self.input(0).connect(src)
+        self.input(0).connect(src)
+        return self
 
     def __str__(self) -> str:
         """Get a string representation of this operation."""

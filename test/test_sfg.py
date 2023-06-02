@@ -504,54 +504,40 @@ class TestGetPrecedenceList:
         # Cached precedence list
         assert len(precedence_sfg_delays._precedence_list) == 7
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[0]
-            ]
-        ) == {"IN1", "T1", "T2"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[0]
+        } == {"IN1", "T1", "T2"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[1]
-            ]
-        ) == {"C0", "B1", "B2", "A1", "A2"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[1]
+        } == {"C0", "B1", "B2", "A1", "A2"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[2]
-            ]
-        ) == {"ADD2", "ADD3"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[2]
+        } == {"ADD2", "ADD3"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[3]
-            ]
-        ) == {"ADD1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[3]
+        } == {"ADD1"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[4]
-            ]
-        ) == {"Q1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[4]
+        } == {"Q1"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[5]
-            ]
-        ) == {"A0"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[5]
+        } == {"A0"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[6]
-            ]
-        ) == {"ADD4"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[6]
+        } == {"ADD4"}
 
         # Trigger cache
         precedence_list = precedence_sfg_delays.get_precedence_list()
@@ -565,54 +551,40 @@ class TestGetPrecedenceList:
 
         assert len(precedence_list) == 7
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[0]
-            ]
-        ) == {"IN1", "T1", "CONST1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[0]
+        } == {"IN1", "T1", "CONST1"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[1]
-            ]
-        ) == {"C0", "B1", "B2", "A1", "A2"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[1]
+        } == {"C0", "B1", "B2", "A1", "A2"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[2]
-            ]
-        ) == {"ADD2", "ADD3"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[2]
+        } == {"ADD2", "ADD3"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[3]
-            ]
-        ) == {"ADD1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[3]
+        } == {"ADD1"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[4]
-            ]
-        ) == {"Q1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[4]
+        } == {"Q1"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[5]
-            ]
-        ) == {"A0"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[5]
+        } == {"A0"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[6]
-            ]
-        ) == {"BFLY1.0", "BFLY1.1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[6]
+        } == {"BFLY1.0", "BFLY1.1"}
 
     def test_precedence_multiple_outputs_same_precedence(
         self, sfg_two_inputs_two_outputs
@@ -635,26 +607,20 @@ class TestGetPrecedenceList:
 
         assert len(precedence_list) == 3
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[0]
-            ]
-        ) == {"IN1", "IN2"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[0]
+        } == {"IN1", "IN2"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[1]
-            ]
-        ) == {"CMUL1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[1]
+        } == {"CMUL1"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[2]
-            ]
-        ) == {"NESTED_SFG.0", "NESTED_SFG.1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[2]
+        } == {"NESTED_SFG.0", "NESTED_SFG.1"}
 
     def test_precedence_sfg_multiple_outputs_different_precedences(
         self, sfg_two_inputs_two_outputs_independent
@@ -676,26 +642,20 @@ class TestGetPrecedenceList:
 
         assert len(precedence_list) == 3
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[0]
-            ]
-        ) == {"IN1", "IN2"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[0]
+        } == {"IN1", "IN2"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[1]
-            ]
-        ) == {"CMUL1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[1]
+        } == {"CMUL1"}
 
-        assert set(
-            [
-                port.operation.key(port.index, port.operation.name)
-                for port in precedence_list[2]
-            ]
-        ) == {"NESTED_SFG.0", "NESTED_SFG.1"}
+        assert {
+            port.operation.key(port.index, port.operation.name)
+            for port in precedence_list[2]
+        } == {"NESTED_SFG.0", "NESTED_SFG.1"}
 
 
 class TestPrintPrecedence:
@@ -924,8 +884,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         return SFG(inputs=[inp1, inp2], outputs=[out1])
 
     def test_connect_external_signals_to_components_many_op(self, large_operation_tree):
-        """Replaces an sfg component in a larger SFG with several component operations
-        """
+        """Replace an sfg component in a larger SFG with several component operations"""
         inp1 = Input("INP1")
         inp2 = Input("INP2")
         inp3 = Input("INP3")
@@ -963,8 +922,8 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         in2 = Input()
 
         output = Output(c1_sfg + c2_sfg)
-        c1_sfg << in1
-        c2_sfg << in2
+        c1_sfg <<= in1
+        c2_sfg <<= in2
 
         sfg = SFG([in1, in2], [output])
         assert not sfg.find_by_type_name(ConstantMultiplication.type_name())
@@ -1030,31 +989,29 @@ class TestRemove:
     def test_remove_single_input_outputs(self, sfg_simple_filter):
         new_sfg = sfg_simple_filter.remove_operation("cmul1")
 
-        assert set(
+        assert {
             op.name
             for op in sfg_simple_filter.find_by_name("T1")[0].subsequent_operations
-        ) == {"CMUL1", "OUT1"}
-        assert set(
+        } == {"CMUL1", "OUT1"}
+        assert {
             op.name for op in new_sfg.find_by_name("T1")[0].subsequent_operations
-        ) == {"ADD1", "OUT1"}
+        } == {"ADD1", "OUT1"}
 
-        assert set(
+        assert {
             op.name
             for op in sfg_simple_filter.find_by_name("ADD1")[0].preceding_operations
-        ) == {"CMUL1", "IN1"}
-        assert set(
+        } == {"CMUL1", "IN1"}
+        assert {
             op.name for op in new_sfg.find_by_name("ADD1")[0].preceding_operations
-        ) == {"T1", "IN1"}
+        } == {"T1", "IN1"}
 
-        assert "S1" in set(
-            [
-                sig.name
-                for sig in sfg_simple_filter.find_by_name("T1")[0].output(0).signals
-            ]
-        )
-        assert "S2" in set(
-            [sig.name for sig in new_sfg.find_by_name("T1")[0].output(0).signals]
-        )
+        assert "S1" in {
+            sig.name
+            for sig in sfg_simple_filter.find_by_name("T1")[0].output(0).signals
+        }
+        assert "S2" in {
+            sig.name for sig in new_sfg.find_by_name("T1")[0].output(0).signals
+        }
 
     def test_remove_multiple_inputs_outputs(self, butterfly_operation_tree):
         out1 = Output(butterfly_operation_tree.output(0), "OUT1")
@@ -1109,7 +1066,7 @@ class TestRemove:
         assert sfg_source_1.operation.name == "bfly2"
         assert new_sfg_source_1.operation.name == "bfly3"
 
-        assert "bfly2" not in set(op.name for op in new_sfg.operations)
+        assert "bfly2" not in {op.name for op in new_sfg.operations}
 
     def remove_different_number_inputs_outputs(self, sfg_simple_filter):
         with pytest.raises(ValueError):
@@ -1134,7 +1091,7 @@ class TestSaveLoadSFG:
 
         assert path.exists(path_)
 
-        with open(path_, "r") as file_obj:
+        with open(path_) as file_obj:
             assert file_obj.read() == result
 
         remove(path_)
@@ -1149,7 +1106,7 @@ class TestSaveLoadSFG:
 
         assert path.exists(path_)
 
-        with open(path_, "r") as file_obj:
+        with open(path_) as file_obj:
             assert file_obj.read() == result
 
         remove(path_)

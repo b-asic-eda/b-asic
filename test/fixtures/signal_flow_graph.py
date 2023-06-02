@@ -145,7 +145,7 @@ def sfg_accumulator():
     data_in = Input()
     reset = Input()
     t = Delay()
-    t << (t + data_in) * (1 - reset)
+    t <<= (t + data_in) * (1 - reset)
     data_out = Output(t)
     return SFG(inputs=[data_in, reset], outputs=[data_out])
 
@@ -164,7 +164,7 @@ def sfg_simple_accumulator():
     in1 = Input()
     t1 = Delay()
     add1 = in1 + t1
-    t1 << add1
+    t1 <<= add1
     out1 = Output(add1)
     return SFG(inputs=[in1], outputs=[out1])
 
@@ -330,5 +330,5 @@ def sfg_direct_form_iir_lp_filter():
     top_node = d0 * b1 + d1 * b2 + x
     d0.input(0).connect(top_node)
     d1.input(0).connect(d0)
-    y << a1 * d0 + a2 * d1 + a0 * top_node
+    y <<= a1 * d0 + a2 * d1 + a0 * top_node
     return SFG(inputs=[x], outputs=[y], name='Direct Form 2 IIR Lowpass filter')

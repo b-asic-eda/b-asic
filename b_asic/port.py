@@ -18,8 +18,11 @@ if TYPE_CHECKING:
         Addition,
         ConstantMultiplication,
         Division,
+        LeftShift,
         Multiplication,
         Reciprocal,
+        RightShift,
+        Shift,
         Subtraction,
     )
     from b_asic.operation import Operation
@@ -247,6 +250,24 @@ class SignalSourceProvider(ABC):
                 return Division(Constant(src), self)
         return Division(src, self)
 
+    def __lshift__(self, src: int) -> Union["LeftShift", "Shift"]:
+        from b_asic.core_operations import LeftShift, Shift
+
+        if not isinstance(src, int):
+            raise TypeError("Can only shift with an int")
+        if src >= 0:
+            return LeftShift(src, self)
+        return Shift(src, self)
+
+    def __rshift__(self, src: int) -> Union["RightShift", "Shift"]:
+        from b_asic.core_operations import RightShift, Shift
+
+        if not isinstance(src, int):
+            raise TypeError("Can only shift with an int")
+        if src >= 0:
+            return RightShift(src, self)
+        return Shift(-src, self)
+
 
 class InputPort(AbstractPort):
     """
@@ -311,12 +332,13 @@ class InputPort(AbstractPort):
         # self._source_signal is set by the signal constructor.
         return Signal(source=src.source, destination=self, name=Name(name))
 
-    def __lshift__(self, src: SignalSourceProvider) -> Signal:
+    def __ilshift__(self, src: SignalSourceProvider) -> "InputPort":
         """
-        Overloads the left shift operator to make it connect the provided
+        Overloads the inline left shift operator to make it connect the provided
         signal source to this input port. Returns the new signal.
         """
-        return self.connect(src)
+        self.connect(src)
+        return self
 
 
 class OutputPort(AbstractPort, SignalSourceProvider):

@@ -30,7 +30,7 @@ d = ConstantMultiplication(0.6, T2, "d")
 add2 = a + c
 add1 = in1 + add2
 add3 = b + d
-T1 << add1
+T1 <<= add1
 out1 = Output(add1 + add3, "OUT")
 
 sfg = SFG(inputs=[in1], outputs=[out1], name="Bi-quad folding example")
