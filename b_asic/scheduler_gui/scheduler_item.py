@@ -27,6 +27,7 @@ from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.scheduler_event import SchedulerEvent
 from b_asic.scheduler_gui.signal_item import SignalItem
+from b_asic.types import GraphID
 
 
 class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
@@ -310,13 +311,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
     def _update_axes(self, build=False) -> None:
         # build axes
         schedule_time = self.schedule.schedule_time
-        max_pos_graph_id = max(
-            self.schedule._y_locations, key=self.schedule._y_locations.get
-        )
-        y_pos_min = self.schedule._get_y_position(
-            max_pos_graph_id, OPERATION_HEIGHT, OPERATION_GAP
-        )
-
+        y_pos_min = self.schedule._get_minimum_height(OPERATION_HEIGHT, OPERATION_GAP)
         if self._axes is None or build:
             self._axes = AxesItem(schedule_time, y_pos_min + 0.5)
             self._event_items += self._axes.event_items
@@ -357,7 +352,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
                     self._signal_dict[component].add(gui_signal)
                     self._signal_dict[destination_component].add(gui_signal)
 
-    def _swap_io_of_operation(self, graph_id: str) -> None:
+    def _swap_io_of_operation(self, graph_id: GraphID) -> None:
         self._schedule.swap_io_of_operation(graph_id)
         print(f"schedule.swap_io_of_operation({graph_id!r})")
         self._signals.reopen.emit()

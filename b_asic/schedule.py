@@ -190,14 +190,17 @@ class Schedule:
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
         output_slacks = self._forward_slacks(graph_id)
-        return min(
-            sum(
-                (
-                    list(signal_slacks.values())
-                    for signal_slacks in output_slacks.values()
-                ),
-                [sys.maxsize],
-            )
+        return cast(
+            int,
+            min(
+                sum(
+                    (
+                        list(signal_slacks.values())
+                        for signal_slacks in output_slacks.values()
+                    ),
+                    [sys.maxsize],
+                )
+            ),
         )
 
     def _forward_slacks(
@@ -255,14 +258,17 @@ class Schedule:
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id} in schedule")
         input_slacks = self._backward_slacks(graph_id)
-        return min(
-            sum(
-                (
-                    list(signal_slacks.values())
-                    for signal_slacks in input_slacks.values()
-                ),
-                [sys.maxsize],
-            )
+        return cast(
+            int,
+            min(
+                sum(
+                    (
+                        list(signal_slacks.values())
+                        for signal_slacks in input_slacks.values()
+                    ),
+                    [sys.maxsize],
+                )
+            ),
         )
 
     def _backward_slacks(self, graph_id: GraphID) -> Dict[InputPort, Dict[Signal, int]]:
@@ -332,15 +338,16 @@ class Schedule:
             * 1: backward slack
             * 2: forward slack
         """
-        res = [
+        res: List[Tuple[GraphID, int, int]] = [
             (
                 op.graph_id,
-                self.backward_slack(op.graph_id),
+                cast(int, self.backward_slack(op.graph_id)),
                 self.forward_slack(op.graph_id),
             )
             for op in self._sfg.operations
         ]
-        res = [
+        res.sort(key=lambda tup: tup[order])
+        res_str = [
             (
                 r[0],
                 f"{r[1]}".rjust(8) if r[1] < sys.maxsize else "oo".rjust(8),
@@ -348,10 +355,9 @@ class Schedule:
             )
             for r in res
         ]
-        res.sort(key=lambda tup: tup[order])
         print("Graph ID | Backward |  Forward")
         print("---------|----------|---------")
-        for r in res:
+        for r in res_str:
             print(f"{r[0]:8} | {r[1]} | {r[2]}")
 
     def set_schedule_time(self, time: int) -> "Schedule":
@@ -589,6 +595,12 @@ class Schedule:
             The new y-position of the operation.
         """
         self._y_locations[graph_id] = y_location
+
+    def _get_minimum_height(
+        self, operation_height: float = 1.0, operation_gap: float = OPERATION_GAP
+    ):
+        max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
+        return self._get_y_position(max_pos_graph_id, operation_height, operation_gap)
 
     def move_operation(self, graph_id: GraphID, time: int) -> "Schedule":
         """
@@ -917,10 +929,8 @@ class Schedule:
         return self._sfg.get_used_type_names()
 
     def _get_y_position(
-        self, graph_id, operation_height=1.0, operation_gap=None
+        self, graph_id, operation_height=1.0, operation_gap=OPERATION_GAP
     ) -> float:
-        if operation_gap is None:
-            operation_gap = OPERATION_GAP
         y_location = self._y_locations[graph_id]
         if y_location is None:
             # Assign the lowest row number not yet in use
@@ -930,7 +940,7 @@ class Schedule:
             self._y_locations[graph_id] = y_location
         return operation_gap + y_location * (operation_height + operation_gap)
 
-    def _plot_schedule(self, ax: Axes, operation_gap: Optional[float] = None) -> None:
+    def _plot_schedule(self, ax: Axes, operation_gap: float = OPERATION_GAP) -> None:
         """Draw the schedule."""
         line_cache = []
 
@@ -969,45 +979,30 @@ class Schedule:
                 )
                 line_cache.append(start)
 
-            elif end[0] == start[0]:
-                path = Path(
-                    [
-                        start,
-                        [start[0] + SPLINE_OFFSET, start[1]],
-                        [start[0] + SPLINE_OFFSET, (start[1] + end[1]) / 2],
-                        [start[0], (start[1] + end[1]) / 2],
-                        [start[0] - SPLINE_OFFSET, (start[1] + end[1]) / 2],
-                        [start[0] - SPLINE_OFFSET, end[1]],
-                        end,
-                    ],
-                    [
-                        Path.MOVETO,
-                        Path.CURVE4,
-                        Path.CURVE4,
-                        Path.CURVE4,
-                        Path.CURVE4,
-                        Path.CURVE4,
-                        Path.CURVE4,
-                    ],
-                )
-                path_patch = PathPatch(
-                    path,
-                    fc='none',
-                    ec=_SIGNAL_COLOR,
-                    lw=SIGNAL_LINEWIDTH,
-                    zorder=10,
-                )
-                ax.add_patch(path_patch)
             else:
-                path = Path(
-                    [
-                        start,
-                        [(start[0] + end[0]) / 2, start[1]],
-                        [(start[0] + end[0]) / 2, end[1]],
-                        end,
-                    ],
-                    [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4],
-                )
+                if end[0] == start[0]:
+                    path = Path(
+                        [
+                            start,
+                            [start[0] + SPLINE_OFFSET, start[1]],
+                            [start[0] + SPLINE_OFFSET, (start[1] + end[1]) / 2],
+                            [start[0], (start[1] + end[1]) / 2],
+                            [start[0] - SPLINE_OFFSET, (start[1] + end[1]) / 2],
+                            [start[0] - SPLINE_OFFSET, end[1]],
+                            end,
+                        ],
+                        [Path.MOVETO] + [Path.CURVE4] * 6,
+                    )
+                else:
+                    path = Path(
+                        [
+                            start,
+                            [(start[0] + end[0]) / 2, start[1]],
+                            [(start[0] + end[0]) / 2, end[1]],
+                            end,
+                        ],
+                        [Path.MOVETO] + [Path.CURVE4] * 3,
+                    )
                 path_patch = PathPatch(
                     path,
                     fc='none',
@@ -1115,7 +1110,7 @@ class Schedule:
         """Reset all the y-locations in the schedule to None"""
         self._y_locations = defaultdict(_y_locations_default)
 
-    def plot(self, ax: Axes, operation_gap: Optional[float] = None) -> None:
+    def plot(self, ax: Axes, operation_gap: OPERATION_GAP) -> None:
         """
         Plot the schedule in a :class:`matplotlib.axes.Axes` or subclass.
 
@@ -1130,7 +1125,7 @@ class Schedule:
         self._plot_schedule(ax, operation_gap=operation_gap)
 
     def show(
-        self, operation_gap: Optional[float] = None, title: Optional[str] = None
+        self, operation_gap: float = OPERATION_GAP, title: Optional[str] = None
     ) -> None:
         """
         Show the schedule. Will display based on the current Matplotlib backend.
@@ -1148,7 +1143,7 @@ class Schedule:
             fig.suptitle(title)
         fig.show()
 
-    def _get_figure(self, operation_gap: Optional[float] = None) -> Figure:
+    def _get_figure(self, operation_gap: float = OPERATION_GAP) -> Figure:
         """
         Create a Figure and an Axes and plot schedule in the Axes.
 

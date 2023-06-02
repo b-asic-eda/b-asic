@@ -269,23 +269,16 @@ class OperationItem(QGraphicsItemGroup):
                 new_port.setBrush(self._port_filling_brush)
                 new_port.setPos(port_pos.x(), port_pos.y())
                 self._ports[key]["item"] = new_port
+                # Add port numbers
+                port_item = QGraphicsSimpleTextItem(str(i))
+                port_item.setScale(port_item.scale() / self._scale)
+                center = port_item.boundingRect().center() / self._scale
+                x_offset = center.x() if prefix == "in" else -3 * center.x()
+                port_item.setPos(QPointF(x + x_offset, y * self._height - center.y()))
+                self._port_number_items.append(port_item)
 
         create_ports(self._operation.get_input_coordinates(), "in")
         create_ports(self._operation.get_output_coordinates(), "out")
-
-        for i, (x, y) in enumerate(self._operation.get_input_coordinates()):
-            port_item = QGraphicsSimpleTextItem(str(i))
-            port_item.setScale(port_item.scale() / self._scale)
-            center = port_item.boundingRect().center() / self._scale
-            port_item.setPos(QPointF(x + center.x(), y * self._height - center.y()))
-            self._port_number_items.append(port_item)
-
-        for i, (x, y) in enumerate(self._operation.get_output_coordinates()):
-            port_item = QGraphicsSimpleTextItem(str(i))
-            port_item.setScale(port_item.scale() / self._scale)
-            center = port_item.boundingRect().center() / self._scale
-            port_item.setPos(QPointF(x - 3 * center.x(), y * self._height - center.y()))
-            self._port_number_items.append(port_item)
 
         # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)
@@ -312,7 +305,7 @@ class OperationItem(QGraphicsItemGroup):
         menu.addAction(swap)
         swap.setEnabled(self._operation.is_swappable)
         swap.triggered.connect(self._swap_io)
-        slacks = self._parent._schedule.slacks(self._operation.graph_id)
+        slacks = self._parent.schedule.slacks(self._operation.graph_id)
         asap = QAction(get_icon('asap'), "Move as soon as possible")
         asap.triggered.connect(self._move_asap)
         asap.setEnabled(slacks[0] > 0)
@@ -336,7 +329,7 @@ class OperationItem(QGraphicsItemGroup):
         self._parent._execution_time_plot(self._operation.type_name())
 
     def _move_asap(self, event=None):
-        self._parent._schedule.move_operation_asap(self._operation.graph_id)
+        self._parent.schedule.move_operation_asap(self._operation.graph_id)
 
     def _move_alap(self, event=None):
-        self._parent._schedule.move_operation_alap(self._operation.graph_id)
+        self._parent.schedule.move_operation_alap(self._operation.graph_id)
