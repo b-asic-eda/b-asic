@@ -23,7 +23,7 @@ before_script:
 .run-test:
   stage: test
   script:
-    - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --color=yes test --mpl --timeout=20 --durations=10
+    - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --cov-branch --color=yes test --mpl --timeout=20 --durations=10
     # - lcov --capture --directory . --output-file coverage.info
     # - lcov --output-file coverage.info --extract coverage.info $PWD/src/'*' $PWD/b_asic/'*'
     # - lcov --list coverage.info
