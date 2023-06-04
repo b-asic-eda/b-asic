@@ -118,18 +118,26 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
             'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{{<in0> in0}|<MEM0>'
             ' MEM0|{<out0> out0}}" fillcolor="#00CFB5" style=filled]\n}'
         )
-        assert memory.schedule_time == 18
         assert memory._digraph().source in (s, s + '\n')
+        assert memory.schedule_time == 18
+        # Smoke test
+        memory.show_content()
         assert not memory.is_assigned
         memory.assign()
         assert memory.is_assigned
         assert len(memory._assignment) == 4
+
+        # Smoke test
+        memory.show_content()
 
     # Set invalid name
     with pytest.raises(ValueError, match='32 is not a valid VHDL identifier'):
         adder.set_entity_name("32")
     assert adder.entity_name == "adder"
     assert repr(adder) == "adder"
+
+    # Smoke test
+    adder.show_content()
 
     # Create architecture from
     architecture = Architecture(
@@ -153,6 +161,18 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         assert pe.schedule_time == 18
 
     assert architecture.resource_from_name('adder') == adder
+
+    assert architecture.get_interconnects_for_memory('MEM0') == (
+        {adder: 2, multiplier: 2, input_pe: 1},
+        {adder: 4, multiplier: 4},
+    )
+    assert architecture.get_interconnects_for_pe('adder') == (
+        [
+            {(multiplier, 0): 2, (memory, 0): 1, (adder, 0): 1},
+            {(memory, 0): 3, (multiplier, 0): 1},
+        ],
+        [{(adder, 0): 1, (output_pe, 0): 1, (memory, 0): 2, (multiplier, 0): 1}],
+    )
 
 
 def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
