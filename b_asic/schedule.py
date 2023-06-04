@@ -152,7 +152,7 @@ class Schedule:
             The graph id of the operation to get the start time for.
         """
         if graph_id not in self._start_times:
-            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
+            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
         return self._start_times[graph_id]
 
     def get_max_end_time(self) -> int:
@@ -188,7 +188,7 @@ class Schedule:
         slacks
         """
         if graph_id not in self._start_times:
-            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
+            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
         output_slacks = self._forward_slacks(graph_id)
         return cast(
             int,
@@ -256,7 +256,7 @@ class Schedule:
         slacks
         """
         if graph_id not in self._start_times:
-            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
+            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
         input_slacks = self._backward_slacks(graph_id)
         return cast(
             int,
@@ -322,7 +322,7 @@ class Schedule:
         forward_slack
         """
         if graph_id not in self._start_times:
-            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
+            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
         return self.backward_slack(graph_id), self.forward_slack(graph_id)
 
     def print_slacks(self, order: int = 0) -> None:
@@ -614,12 +614,14 @@ class Schedule:
             The time to move. If positive move forward, if negative move backward.
         """
         if graph_id not in self._start_times:
-            raise ValueError(f"No operation with graph_id {graph_id} in schedule")
+            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
 
+        if time == 0:
+            return self
         (backward_slack, forward_slack) = self.slacks(graph_id)
         if not -backward_slack <= time <= forward_slack:
             raise ValueError(
-                f"Operation {graph_id} got incorrect move: {time}. Must be"
+                f"Operation {graph_id!r} got incorrect move: {time}. Must be"
                 f" between {-backward_slack} and {forward_slack}."
             )
 
@@ -685,7 +687,6 @@ class Schedule:
         ):
             new_start = self._schedule_time
             self._laps[op.input(0).signals[0].graph_id] -= 1
-            print(f"Moved {graph_id}")
         # Set new start time
         self._start_times[graph_id] = new_start
         return self
@@ -698,22 +699,21 @@ class Schedule:
 
             schedule.move_operation(graph_id, schedule.forward_slack(graph_id))
 
-        but Outputs will only move to the end of the schedule.
+        but operations with no succeeding operation (Outputs) will only move to the end
+        of the schedule.
 
         Parameters
         ----------
         graph_id : GraphID
             The graph id of the operation to move.
         """
-        op = self._sfg.find_by_id(graph_id)
-        if op is None:
-            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
-        if isinstance(op, Output):
+        forward_slack = self.forward_slack(graph_id)
+        if forward_slack == sys.maxsize:
             self.move_operation(
                 graph_id, self.schedule_time - self._start_times[graph_id]
             )
         else:
-            self.move_operation(graph_id, self.forward_slack(graph_id))
+            self.move_operation(graph_id, forward_slack)
         return self
 
     def move_operation_asap(self, graph_id: GraphID) -> "Schedule":
@@ -724,20 +724,19 @@ class Schedule:
 
             schedule.move_operation(graph_id, -schedule.backward_slack(graph_id))
 
-        but Inputs will only move to the start of the schedule.
+        but operations that do not have a preceeding operation (Inputs and Constants)
+        will only move to the start of the schedule.
 
         Parameters
         ----------
         graph_id : GraphID
             The graph id of the operation to move.
         """
-        op = self._sfg.find_by_id(graph_id)
-        if op is None:
-            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
-        if isinstance(op, Input):
+        backward_slack = self.backward_slack(graph_id)
+        if backward_slack == sys.maxsize:
             self.move_operation(graph_id, -self._start_times[graph_id])
         else:
-            self.move_operation(graph_id, -self.backward_slack(graph_id))
+            self.move_operation(graph_id, -backward_slack)
         return self
 
     def _remove_delays_no_laps(self) -> None:
@@ -789,8 +788,7 @@ class Schedule:
         precedence_list = self._sfg.get_precedence_list()
 
         if len(precedence_list) < 2:
-            print("Empty signal flow graph cannot be scheduled.")
-            return
+            raise ValueError("Empty signal flow graph cannot be scheduled.")
 
         non_schedulable_ops = set()
         for outport in precedence_list[0]:

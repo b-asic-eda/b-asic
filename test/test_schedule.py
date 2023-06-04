@@ -27,14 +27,16 @@ class TestInit:
         }
         assert schedule.schedule_time == 9
 
+        with pytest.raises(
+            ValueError, match="No operation with graph_id 'foo' in schedule"
+        ):
+            schedule.start_time_of_operation("foo")
+
     def test_complicated_single_outputs_normal_latency(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
-
-        for op in schedule._sfg.get_operations_topological_order():
-            print(op.latency_offsets)
 
         start_times_names = {}
         for op_id, start_time in schedule._start_times.items():
@@ -66,9 +68,6 @@ class TestInit:
 
         schedule = Schedule(precedence_sfg_delays, algorithm="ALAP")
 
-        for op in schedule._sfg.get_operations_topological_order():
-            print(op.latency_offsets)
-
         start_times_names = {}
         for op_id in schedule.start_times:
             op_name = precedence_sfg_delays.find_by_id(op_id).name
@@ -90,6 +89,44 @@ class TestInit:
             "OUT1": 21,
         }
         assert schedule.schedule_time == 21
+
+    def test_complicated_single_outputs_normal_latency_alap_with_schedule_time(
+        self, precedence_sfg_delays
+    ):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+
+        schedule = Schedule(precedence_sfg_delays, schedule_time=25, algorithm="ALAP")
+
+        start_times_names = {}
+        for op_id in schedule.start_times:
+            op_name = precedence_sfg_delays.find_by_id(op_id).name
+            start_times_names[op_name] = schedule.start_time_of_operation(op_id)
+
+        assert start_times_names == {
+            "IN1": 8,
+            "C0": 8,
+            "B1": 4,
+            "B2": 4,
+            "ADD2": 7,
+            "ADD1": 11,
+            "Q1": 15,
+            "A0": 18,
+            "A1": 14,
+            "A2": 14,
+            "ADD3": 17,
+            "ADD4": 21,
+            "OUT1": 25,
+        }
+        assert schedule.schedule_time == 25
+
+    def test_complicated_single_outputs_normal_latency_alap_too_short_schedule_time(
+        self, precedence_sfg_delays
+    ):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        with pytest.raises(ValueError, match="Too short schedule time. Minimum is 21."):
+            Schedule(precedence_sfg_delays, schedule_time=19, algorithm="ALAP")
 
     def test_complicated_single_outputs_normal_latency_from_fixture(
         self, secondorder_iir_schedule
@@ -247,6 +284,74 @@ class TestSlacks:
             precedence_sfg_delays.find_by_name("A2")[0].graph_id
         ) == (16, 0)
 
+    def test_print_slacks(self, capsys, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
+        schedule.print_slacks()
+        captured = capsys.readouterr()
+        assert captured.out == """Graph ID | Backward |  Forward
+---------|----------|---------
+add1     |        0 |        0
+add2     |        0 |        0
+add3     |        0 |        0
+add4     |        0 |        7
+cmul1    |        0 |        1
+cmul2    |        0 |        0
+cmul3    |        0 |        0
+cmul4    |        4 |        0
+cmul5    |       16 |        0
+cmul6    |       16 |        0
+cmul7    |        4 |        0
+in1      |       oo |        0
+out1     |        0 |       oo
+"""
+        assert captured.err == ""
+
+    def test_print_slacks_sorting(self, capsys, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
+        schedule.print_slacks(1)
+        captured = capsys.readouterr()
+        assert captured.out == """Graph ID | Backward |  Forward
+---------|----------|---------
+cmul1    |        0 |        1
+add1     |        0 |        0
+add2     |        0 |        0
+cmul2    |        0 |        0
+cmul3    |        0 |        0
+add4     |        0 |        7
+add3     |        0 |        0
+out1     |        0 |       oo
+cmul4    |        4 |        0
+cmul7    |        4 |        0
+cmul5    |       16 |        0
+cmul6    |       16 |        0
+in1      |       oo |        0
+"""
+        assert captured.err == ""
+
+    def test_slacks_errors(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
+        with pytest.raises(
+            ValueError, match="No operation with graph_id 'foo' in schedule"
+        ):
+            schedule.forward_slack("foo")
+        with pytest.raises(
+            ValueError, match="No operation with graph_id 'foo' in schedule"
+        ):
+            schedule.backward_slack("foo")
+        with pytest.raises(
+            ValueError, match="No operation with graph_id 'foo' in schedule"
+        ):
+            schedule.slacks("foo")
+
 
 class TestRescheduling:
     def test_move_operation(self, precedence_sfg_delays):
@@ -281,6 +386,11 @@ class TestRescheduling:
             "OUT1": 21,
         }
 
+        with pytest.raises(
+            ValueError, match="No operation with graph_id 'foo' in schedule"
+        ):
+            schedule.move_operation("foo", 0)
+
     def test_move_operation_slack_after_rescheduling(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
@@ -310,7 +420,7 @@ class TestRescheduling:
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         with pytest.raises(
             ValueError,
-            match="Operation add4 got incorrect move: -4. Must be between 0 and 7.",
+            match="Operation 'add4' got incorrect move: -4. Must be between 0 and 7.",
         ):
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, -4
@@ -323,11 +433,34 @@ class TestRescheduling:
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         with pytest.raises(
             ValueError,
-            match="Operation add4 got incorrect move: 10. Must be between 0 and 7.",
+            match="Operation 'add4' got incorrect move: 10. Must be between 0 and 7.",
         ):
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, 10
             )
+
+    def test_move_operation_asap(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
+        assert schedule.backward_slack('cmul6') == 16
+        assert schedule.forward_slack('cmul6') == 0
+        schedule.move_operation_asap('cmul6')
+        assert schedule.start_time_of_operation('in1') == 0
+        assert schedule.laps['cmul6'] == 0
+        assert schedule.backward_slack('cmul6') == 0
+        assert schedule.forward_slack('cmul6') == 16
+
+    def test_move_input_asap_does_not_mess_up_laps(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
+        old_laps = schedule.laps['in1']
+        schedule.move_operation_asap('in1')
+        assert schedule.start_time_of_operation('in1') == 0
+        assert schedule.laps['in1'] == old_laps
 
     def test_move_operation_acc(self):
         in0 = Input()
@@ -594,6 +727,24 @@ class TestErrors:
         ):
             Schedule(sfg_simple_filter, algorithm="foo")
 
+    def test_no_sfg(self):
+        with pytest.raises(TypeError, match="An SFG must be provided"):
+            Schedule(1)
+
+    def test_provided_no_start_times(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        with pytest.raises(
+            ValueError, match="Must provide start_times when using 'provided'"
+        ):
+            Schedule(sfg_simple_filter, algorithm="provided")
+
+    def test_provided_no_laps(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        with pytest.raises(ValueError, match="Must provide laps when using 'provided'"):
+            Schedule(sfg_simple_filter, algorithm="provided", start_times={'in0': 0})
+
 
 class TestGetUsedTypeNames:
     def test_secondorder_iir_schedule(self, secondorder_iir_schedule):
@@ -603,3 +754,18 @@ class TestGetUsedTypeNames:
             'in',
             'out',
         ]
+
+
+class TestYLocations:
+    def test_provided_no_laps(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        schedule = Schedule(sfg_simple_filter)
+        # Assign locations
+        schedule.show()
+        print(schedule._y_locations)
+        assert schedule._y_locations == {'in1': 0, 'cmul1': 1, 'add1': 2, 'out1': 3}
+        schedule.move_y_location('add1', 1, insert=True)
+        assert schedule._y_locations == {'in1': 0, 'cmul1': 2, 'add1': 1, 'out1': 3}
+        schedule.move_y_location('out1', 1)
+        assert schedule._y_locations == {'in1': 0, 'cmul1': 2, 'add1': 1, 'out1': 1}
