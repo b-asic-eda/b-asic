@@ -1,3 +1,4 @@
+import re
 from itertools import chain
 from typing import List
 
@@ -43,26 +44,6 @@ def test_add_remove_process_from_resource(schedule_direct_form_iir_lp_filter: Sc
         memory.add_process(PlainMemoryVariable(0, 0, {0: 2}, "PlainMV"))
 
 
-def test_extract_processing_elements(schedule_direct_form_iir_lp_filter: Schedule):
-    # Extract operations from schedule
-    operations = schedule_direct_form_iir_lp_filter.get_operations()
-
-    # Split into new process collections on overlapping execution time
-    adders = operations.get_by_type_name(Addition.type_name()).split_on_execution_time()
-    const_mults = operations.get_by_type_name(
-        ConstantMultiplication.type_name()
-    ).split_on_execution_time()
-
-    # List of ProcessingElements
-    processing_elements: List[ProcessingElement] = []
-    for adder_collection in adders:
-        processing_elements.append(ProcessingElement(adder_collection))
-    for const_mult_collection in const_mults:
-        processing_elements.append(ProcessingElement(const_mult_collection))
-
-    assert len(processing_elements) == len(adders) + len(const_mults)
-
-
 def test_memory_exceptions(schedule_direct_form_iir_lp_filter: Schedule):
     mvs = schedule_direct_form_iir_lp_filter.get_memory_variables()
     operations = schedule_direct_form_iir_lp_filter.get_operations()
@@ -82,6 +63,11 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     mvs = schedule_direct_form_iir_lp_filter.get_memory_variables()
     operations = schedule_direct_form_iir_lp_filter.get_operations()
 
+    with pytest.raises(
+        TypeError, match="Different Operation types in ProcessCollection"
+    ):
+        ProcessingElement(operations)
+
     # Split operations further into chunks
     adders = operations.get_by_type_name(Addition.type_name()).split_on_execution_time()
     assert len(adders) == 1
@@ -96,7 +82,10 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
 
     # Create necessary processing elements
     adder = ProcessingElement(adders[0], entity_name="adder")
-    multiplier = ProcessingElement(const_mults[0], entity_name="multiplier")
+    multiplier = ProcessingElement(const_mults[0])
+    assert multiplier.entity_name == "Undefined entity name"
+    multiplier.set_entity_name("multiplier")
+    assert multiplier.entity_name == "multiplier"
     input_pe = ProcessingElement(inputs[0], entity_name="input")
     output_pe = ProcessingElement(outputs[0], entity_name="output")
     processing_elements: List[ProcessingElement] = [
@@ -140,6 +129,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     with pytest.raises(ValueError, match='32 is not a valid VHDL identifier'):
         adder.set_entity_name("32")
     assert adder.entity_name == "adder"
+    assert repr(adder) == "adder"
 
     # Create architecture from
     architecture = Architecture(
@@ -227,3 +217,47 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
         architecture.move_process('cmul4.0', memories[0], processing_elements[0])
     with pytest.raises(KeyError, match="invalid_name not in"):
         architecture.move_process('invalid_name', memories[0], processing_elements[1])
+
+
+def test_resource_errors(precedence_sfg_delays):
+    precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+    precedence_sfg_delays.set_execution_time_of_type(Addition.type_name(), 1)
+    precedence_sfg_delays.set_execution_time_of_type(
+        ConstantMultiplication.type_name(), 1
+    )
+
+    schedule = Schedule(precedence_sfg_delays)
+    operations = schedule.get_operations()
+    additions = operations.get_by_type_name(Addition.type_name())
+    with pytest.raises(
+        ValueError, match='Cannot map ProcessCollection to single ProcessingElement'
+    ):
+        ProcessingElement(additions)
+
+    mv = schedule.get_memory_variables()
+    with pytest.raises(
+        ValueError,
+        match=(
+            "If total_ports is unset, both read_ports and write_ports must be provided."
+        ),
+    ):
+        Memory(mv, read_ports=1)
+    with pytest.raises(
+        ValueError, match=re.escape("Total ports (2) less then read ports (6)")
+    ):
+        Memory(mv, read_ports=6, total_ports=2)
+    with pytest.raises(
+        ValueError, match=re.escape("Total ports (6) less then write ports (7)")
+    ):
+        Memory(mv, read_ports=6, write_ports=7, total_ports=6)
+    with pytest.raises(ValueError, match="At least 6 read ports required"):
+        Memory(mv, read_ports=1, write_ports=1)
+    with pytest.raises(ValueError, match="At least 5 write ports required"):
+        Memory(mv, read_ports=6, write_ports=1)
+    with pytest.raises(ValueError, match="At least 9 total ports required"):
+        Memory(mv, read_ports=6, write_ports=5, total_ports=6)
+    with pytest.raises(
+        ValueError, match="memory_type must be 'RAM' or 'register', not 'foo'"
+    ):
+        Memory(mv, read_ports=6, write_ports=5, total_ports=6, memory_type="foo")

@@ -34,7 +34,7 @@ from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
-from b_asic.resources import ProcessCollection
+from b_asic.resources import ProcessCollection, _sanitize_port_option
 
 
 def _interconnect_dict() -> int:
@@ -435,6 +435,8 @@ class Memory(Resource):
         Number of read ports for memory.
     write_ports : int, optional
         Number of write ports for memory.
+    total_ports : int, optional
+        Total number of read and write ports for memory.
     assign : bool, default False
         Perform assignment when creating the Memory (using the default properties).
     """
@@ -448,6 +450,7 @@ class Memory(Resource):
         entity_name: Optional[str] = None,
         read_ports: Optional[int] = None,
         write_ports: Optional[int] = None,
+        total_ports: Optional[int] = None,
         assign: bool = False,
     ):
         super().__init__(process_collection=process_collection, entity_name=entity_name)
@@ -461,6 +464,10 @@ class Memory(Resource):
         if memory_type not in ("RAM", "register"):
             raise ValueError(
                 f"memory_type must be 'RAM' or 'register', not {memory_type!r}"
+            )
+        if read_ports is not None or write_ports is not None or total_ports is not None:
+            read_ports, write_ports, total_ports = _sanitize_port_option(
+                read_ports, write_ports, total_ports
             )
         read_ports_bound = self._collection.read_ports_bound()
         if read_ports is None:
@@ -476,6 +483,11 @@ class Memory(Resource):
             if write_ports < write_ports_bound:
                 raise ValueError(f"At least {write_ports_bound} write ports required")
             self._input_count = write_ports
+
+        total_ports_bound = self._collection.total_ports_bound()
+        if total_ports is not None and total_ports < total_ports_bound:
+            raise ValueError(f"At least {total_ports_bound} total ports required")
+
         self._memory_type = memory_type
         if assign:
             self.assign()
