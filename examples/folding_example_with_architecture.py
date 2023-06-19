@@ -53,17 +53,17 @@ schedule.show(title='Original schedule')
 
 # %%
 # Reschedule to only require one adder and one multiplier
-schedule.move_operation('out1', 2)
-schedule.move_operation('add3', 2)
-schedule.move_operation('cmul3', -3)
-schedule.move_operation('add4', 3)
+schedule.move_operation('out0', 2)
+schedule.move_operation('add2', 2)
 schedule.move_operation('cmul2', -3)
+schedule.move_operation('add3', 3)
+schedule.move_operation('cmul1', -3)
 schedule.set_schedule_time(4)
-schedule.move_operation('cmul2', 1)
 schedule.move_operation('cmul1', 1)
-schedule.move_operation('in1', 3)
-schedule.move_operation('cmul3', -1)
-schedule.move_operation('cmul1', 1)
+schedule.move_operation('cmul0', 1)
+schedule.move_operation('in0', 3)
+schedule.move_operation('cmul2', -1)
+schedule.move_operation('cmul0', 1)
 schedule.show(title='Improved schedule')
 
 # %%

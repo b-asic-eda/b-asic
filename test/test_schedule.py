@@ -20,10 +20,10 @@ class TestInit:
         schedule = Schedule(sfg_simple_filter)
 
         assert schedule._start_times == {
-            "in1": 0,
-            "add1": 4,
-            "cmul1": 0,
-            "out1": 0,
+            "in0": 0,
+            "add0": 4,
+            "cmul0": 0,
+            "out0": 0,
         }
         assert schedule.schedule_time == 9
 
@@ -293,19 +293,19 @@ class TestSlacks:
         captured = capsys.readouterr()
         assert captured.out == """Graph ID | Backward |  Forward
 ---------|----------|---------
+add0     |        0 |        0
 add1     |        0 |        0
 add2     |        0 |        0
-add3     |        0 |        0
-add4     |        0 |        7
-cmul1    |        0 |        1
+add3     |        0 |        7
+cmul0    |        0 |        1
+cmul1    |        0 |        0
 cmul2    |        0 |        0
-cmul3    |        0 |        0
-cmul4    |        4 |        0
+cmul3    |        4 |        0
+cmul4    |       16 |        0
 cmul5    |       16 |        0
-cmul6    |       16 |        0
-cmul7    |        4 |        0
-in1      |       oo |        0
-out1     |        0 |       oo
+cmul6    |        4 |        0
+in0      |       oo |        0
+out0     |        0 |       oo
 """
         assert captured.err == ""
 
@@ -318,19 +318,19 @@ out1     |        0 |       oo
         captured = capsys.readouterr()
         assert captured.out == """Graph ID | Backward |  Forward
 ---------|----------|---------
-cmul1    |        0 |        1
+cmul0    |        0 |        1
+add0     |        0 |        0
 add1     |        0 |        0
-add2     |        0 |        0
+cmul1    |        0 |        0
 cmul2    |        0 |        0
-cmul3    |        0 |        0
-add4     |        0 |        7
-add3     |        0 |        0
-out1     |        0 |       oo
-cmul4    |        4 |        0
-cmul7    |        4 |        0
+add3     |        0 |        7
+add2     |        0 |        0
+out0     |        0 |       oo
+cmul3    |        4 |        0
+cmul6    |        4 |        0
+cmul4    |       16 |        0
 cmul5    |       16 |        0
-cmul6    |       16 |        0
-in1      |       oo |        0
+in0      |       oo |        0
 """
         assert captured.err == ""
 
@@ -420,7 +420,7 @@ class TestRescheduling:
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         with pytest.raises(
             ValueError,
-            match="Operation 'add4' got incorrect move: -4. Must be between 0 and 7.",
+            match="Operation 'add3' got incorrect move: -4. Must be between 0 and 7.",
         ):
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, -4
@@ -433,7 +433,7 @@ class TestRescheduling:
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         with pytest.raises(
             ValueError,
-            match="Operation 'add4' got incorrect move: 10. Must be between 0 and 7.",
+            match="Operation 'add3' got incorrect move: 10. Must be between 0 and 7.",
         ):
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, 10
@@ -444,23 +444,23 @@ class TestRescheduling:
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
-        assert schedule.backward_slack('cmul6') == 16
-        assert schedule.forward_slack('cmul6') == 0
-        schedule.move_operation_asap('cmul6')
-        assert schedule.start_time_of_operation('in1') == 0
-        assert schedule.laps['cmul6'] == 0
-        assert schedule.backward_slack('cmul6') == 0
-        assert schedule.forward_slack('cmul6') == 16
+        assert schedule.backward_slack('cmul5') == 16
+        assert schedule.forward_slack('cmul5') == 0
+        schedule.move_operation_asap('cmul5')
+        assert schedule.start_time_of_operation('in0') == 0
+        assert schedule.laps['cmul5'] == 0
+        assert schedule.backward_slack('cmul5') == 0
+        assert schedule.forward_slack('cmul5') == 16
 
     def test_move_input_asap_does_not_mess_up_laps(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
 
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
-        old_laps = schedule.laps['in1']
-        schedule.move_operation_asap('in1')
-        assert schedule.start_time_of_operation('in1') == 0
-        assert schedule.laps['in1'] == old_laps
+        old_laps = schedule.laps['in0']
+        schedule.move_operation_asap('in0')
+        assert schedule.start_time_of_operation('in0') == 0
+        assert schedule.laps['in0'] == old_laps
 
     def test_move_operation_acc(self):
         in0 = Input()
@@ -473,51 +473,51 @@ class TestRescheduling:
         schedule = Schedule(sfg, cyclic=True)
 
         # Check initial conditions
-        assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
-        assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule._start_times["add1"] == 0
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
-        assert schedule._start_times["out1"] == 1
+        assert schedule.laps[sfg.find_by_id("add0").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("add0").input(1).signals[0].graph_id] == 0
+        assert schedule._start_times["add0"] == 0
+        assert schedule.laps[sfg.find_by_id("out0").input(0).signals[0].graph_id] == 0
+        assert schedule._start_times["out0"] == 1
 
         # Move and scheduling algorithm behaves differently
-        schedule.move_operation("out1", 0)
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
-        assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
-        assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule._start_times["out1"] == 1
-        assert schedule._start_times["add1"] == 0
+        schedule.move_operation("out0", 0)
+        assert schedule.laps[sfg.find_by_id("out0").input(0).signals[0].graph_id] == 0
+        assert schedule.laps[sfg.find_by_id("add0").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("add0").input(1).signals[0].graph_id] == 0
+        assert schedule._start_times["out0"] == 1
+        assert schedule._start_times["add0"] == 0
 
         # Increase schedule time
         schedule.set_schedule_time(2)
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
-        assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
-        assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule._start_times["out1"] == 1
-        assert schedule._start_times["add1"] == 0
+        assert schedule.laps[sfg.find_by_id("out0").input(0).signals[0].graph_id] == 0
+        assert schedule.laps[sfg.find_by_id("add0").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("add0").input(1).signals[0].graph_id] == 0
+        assert schedule._start_times["out0"] == 1
+        assert schedule._start_times["add0"] == 0
 
         # Move out one time unit
-        schedule.move_operation("out1", 1)
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
-        assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
-        assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule._start_times["out1"] == 2
-        assert schedule._start_times["add1"] == 0
+        schedule.move_operation("out0", 1)
+        assert schedule.laps[sfg.find_by_id("out0").input(0).signals[0].graph_id] == 0
+        assert schedule.laps[sfg.find_by_id("add0").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("add0").input(1).signals[0].graph_id] == 0
+        assert schedule._start_times["out0"] == 2
+        assert schedule._start_times["add0"] == 0
 
         # Move add one time unit
-        schedule.move_operation("add1", 1)
-        assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
-        assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
-        assert schedule._start_times["add1"] == 1
-        assert schedule._start_times["out1"] == 2
+        schedule.move_operation("add0", 1)
+        assert schedule.laps[sfg.find_by_id("add0").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("add0").input(1).signals[0].graph_id] == 0
+        assert schedule.laps[sfg.find_by_id("out0").input(0).signals[0].graph_id] == 0
+        assert schedule._start_times["add0"] == 1
+        assert schedule._start_times["out0"] == 2
 
         # Move add back one time unit
-        schedule.move_operation("add1", -1)
-        assert schedule.laps[sfg.find_by_id("add1").input(0).signals[0].graph_id] == 1
-        assert schedule.laps[sfg.find_by_id("add1").input(1).signals[0].graph_id] == 0
-        assert schedule.laps[sfg.find_by_id("out1").input(0).signals[0].graph_id] == 0
-        assert schedule._start_times["add1"] == 0
-        assert schedule._start_times["out1"] == 2
+        schedule.move_operation("add0", -1)
+        assert schedule.laps[sfg.find_by_id("add0").input(0).signals[0].graph_id] == 1
+        assert schedule.laps[sfg.find_by_id("add0").input(1).signals[0].graph_id] == 0
+        assert schedule.laps[sfg.find_by_id("out0").input(0).signals[0].graph_id] == 0
+        assert schedule._start_times["add0"] == 0
+        assert schedule._start_times["out0"] == 2
 
 
 class TestTimeResolution:
@@ -673,7 +673,7 @@ class TestErrors:
     def test_no_latency(self, sfg_simple_filter):
         with pytest.raises(
             ValueError,
-            match="Input port 0 of operation add1 has no latency-offset.",
+            match="Input port 0 of operation add0 has no latency-offset.",
         ):
             Schedule(sfg_simple_filter)
 
@@ -686,7 +686,7 @@ class TestErrors:
         sfg = SFG([in1, in2], [out1, out2])
         with pytest.raises(
             ValueError,
-            match="Output port 1 of operation bfly1 has no latency-offset.",
+            match="Output port 1 of operation bfly0 has no latency-offset.",
         ):
             Schedule(sfg)
         in1 = Input()
@@ -702,7 +702,7 @@ class TestErrors:
         sfg = SFG([in1, in2], [out1, out2])
         with pytest.raises(
             ValueError,
-            match="Output port 0 of operation bfly1 has no latency-offset.",
+            match="Output port 0 of operation bfly0 has no latency-offset.",
         ):
             Schedule(sfg)
 
@@ -764,8 +764,8 @@ class TestYLocations:
         # Assign locations
         schedule.show()
         print(schedule._y_locations)
-        assert schedule._y_locations == {'in1': 0, 'cmul1': 1, 'add1': 2, 'out1': 3}
-        schedule.move_y_location('add1', 1, insert=True)
-        assert schedule._y_locations == {'in1': 0, 'cmul1': 2, 'add1': 1, 'out1': 3}
-        schedule.move_y_location('out1', 1)
-        assert schedule._y_locations == {'in1': 0, 'cmul1': 2, 'add1': 1, 'out1': 1}
+        assert schedule._y_locations == {'in0': 0, 'cmul0': 1, 'add0': 2, 'out0': 3}
+        schedule.move_y_location('add0', 1, insert=True)
+        assert schedule._y_locations == {'in0': 0, 'cmul0': 2, 'add0': 1, 'out0': 3}
+        schedule.move_y_location('out0', 1)
+        assert schedule._y_locations == {'in0': 0, 'cmul0': 2, 'add0': 1, 'out0': 1}

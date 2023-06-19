@@ -303,7 +303,7 @@ class TestComponents:
 class TestReplaceOperation:
     def test_replace_addition_by_id(self, operation_tree):
         sfg = SFG(outputs=[Output(operation_tree)])
-        component_id = "add1"
+        component_id = "add0"
 
         sfg = sfg.replace_operation(Multiplication(name="Multi"), graph_id=component_id)
         assert component_id not in sfg._components_by_id.keys()
@@ -311,7 +311,7 @@ class TestReplaceOperation:
 
     def test_replace_addition_large_tree(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
-        component_id = "add3"
+        component_id = "add2"
 
         sfg = sfg.replace_operation(Multiplication(name="Multi"), graph_id=component_id)
         assert "Multi" in sfg._components_by_name.keys()
@@ -319,7 +319,7 @@ class TestReplaceOperation:
 
     def test_replace_no_input_component(self, operation_tree):
         sfg = SFG(outputs=[Output(operation_tree)])
-        component_id = "c1"
+        component_id = "c0"
         const_ = sfg.find_by_id(component_id)
 
         sfg = sfg.replace_operation(Constant(1), graph_id=component_id)
@@ -327,7 +327,7 @@ class TestReplaceOperation:
 
     def test_no_match_on_replace(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
-        component_id = "addd1"
+        component_id = "addd0"
 
         with pytest.raises(
             ValueError, match="No operation matching the criteria found"
@@ -338,7 +338,7 @@ class TestReplaceOperation:
 
     def test_not_equal_input(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
-        component_id = "c1"
+        component_id = "c0"
 
         with pytest.raises(
             TypeError,
@@ -374,13 +374,13 @@ class TestInsertComponent:
 
         assert sfg.find_by_name("constant4")[0].output(0).signals[
             0
-        ].destination.operation is sfg.find_by_id("add3")
+        ].destination.operation is sfg.find_by_id("add2")
         assert _sfg.find_by_name("constant4")[0].output(0).signals[
             0
-        ].destination.operation is not _sfg.find_by_id("add3")
-        assert _sfg.find_by_id("sqrt1").output(0).signals[
+        ].destination.operation is not _sfg.find_by_id("add2")
+        assert _sfg.find_by_id("sqrt0").output(0).signals[
             0
-        ].destination.operation is _sfg.find_by_id("add3")
+        ].destination.operation is _sfg.find_by_id("add2")
 
     def test_insert_invalid_component_in_sfg(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
@@ -388,7 +388,7 @@ class TestInsertComponent:
         # Should raise an exception for not matching input count to output count.
         add4 = Addition()
         with pytest.raises(TypeError, match="Source operation output count"):
-            sfg.insert_operation(add4, "c1")
+            sfg.insert_operation(add4, "c0")
 
     def test_insert_at_output(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
@@ -396,11 +396,11 @@ class TestInsertComponent:
         # Should raise an exception for trying to insert an operation after an output.
         sqrt = SquareRoot()
         with pytest.raises(TypeError, match="Source operation cannot be an"):
-            _ = sfg.insert_operation(sqrt, "out1")
+            _ = sfg.insert_operation(sqrt, "out0")
 
     def test_insert_multiple_output_ports(self, butterfly_operation_tree):
         sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
-        _sfg = sfg.insert_operation(Butterfly(name="n_bfly"), "bfly3")
+        _sfg = sfg.insert_operation(Butterfly(name="n_bfly"), "bfly2")
 
         assert sfg.evaluate() != _sfg.evaluate()
 
@@ -987,7 +987,7 @@ class TestTopologicalOrderOperations:
 
 class TestRemove:
     def test_remove_single_input_outputs(self, sfg_simple_filter):
-        new_sfg = sfg_simple_filter.remove_operation("cmul1")
+        new_sfg = sfg_simple_filter.remove_operation("cmul0")
 
         assert {
             op.name
@@ -1181,19 +1181,19 @@ class TestGetComponentsOfType:
 class TestPrecedenceGraph:
     def test_precedence_graph(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR\n\tsubgraph cluster_0 {\n\t\tlabel=N0\n\t\t"in1.0"'
-            ' [label=in1 height=0.1 shape=rectangle width=0.1]\n\t\t"t1.0" [label=t1'
+            'digraph {\n\trankdir=LR\n\tsubgraph cluster_0 {\n\t\tlabel=N0\n\t\t"in0.0"'
+            ' [label=in0 height=0.1 shape=rectangle width=0.1]\n\t\t"t0.0" [label=t0'
             ' height=0.1 shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_1'
-            ' {\n\t\tlabel=N1\n\t\t"cmul1.0" [label=cmul1 height=0.1 shape=rectangle'
-            ' width=0.1]\n\t}\n\tsubgraph cluster_2 {\n\t\tlabel=N2\n\t\t"add1.0"'
-            ' [label=add1 height=0.1 shape=rectangle width=0.1]\n\t}\n\t"in1.0" ->'
-            ' add1\n\tadd1 [label=add1 shape=ellipse]\n\tin1 -> "in1.0"\n\tin1'
-            ' [label=in1 shape=cds]\n\t"t1.0" -> cmul1\n\tcmul1 [label=cmul1'
-            ' shape=ellipse]\n\t"t1.0" -> out1\n\tout1 [label=out1 shape=cds]\n\tt1Out'
-            ' -> "t1.0"\n\tt1Out [label=t1 shape=square]\n\t"cmul1.0" -> add1\n\tadd1'
-            ' [label=add1 shape=ellipse]\n\tcmul1 -> "cmul1.0"\n\tcmul1 [label=cmul1'
-            ' shape=ellipse]\n\t"add1.0" -> t1In\n\tt1In [label=t1'
-            ' shape=square]\n\tadd1 -> "add1.0"\n\tadd1 [label=add1 shape=ellipse]\n}'
+            ' {\n\t\tlabel=N1\n\t\t"cmul0.0" [label=cmul0 height=0.1 shape=rectangle'
+            ' width=0.1]\n\t}\n\tsubgraph cluster_2 {\n\t\tlabel=N2\n\t\t"add0.0"'
+            ' [label=add0 height=0.1 shape=rectangle width=0.1]\n\t}\n\t"in0.0" ->'
+            ' add0\n\tadd0 [label=add0 shape=ellipse]\n\tin0 -> "in0.0"\n\tin0'
+            ' [label=in0 shape=cds]\n\t"t0.0" -> cmul0\n\tcmul0 [label=cmul0'
+            ' shape=ellipse]\n\t"t0.0" -> out0\n\tout0 [label=out0 shape=cds]\n\tt0Out'
+            ' -> "t0.0"\n\tt0Out [label=t0 shape=square]\n\t"cmul0.0" -> add0\n\tadd0'
+            ' [label=add0 shape=ellipse]\n\tcmul0 -> "cmul0.0"\n\tcmul0 [label=cmul0'
+            ' shape=ellipse]\n\t"add0.0" -> t0In\n\tt0In [label=t0'
+            ' shape=square]\n\tadd0 -> "add0.0"\n\tadd0 [label=add0 shape=ellipse]\n}'
         )
 
         assert sfg_simple_filter.precedence_graph.source in (res, res + "\n")
@@ -1202,10 +1202,10 @@ class TestPrecedenceGraph:
 class TestSFGGraph:
     def test_sfg(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR splines=spline\n\tin1 [shape=cds]\n\tin1 -> add1'
-            ' [headlabel=0]\n\tout1 [shape=cds]\n\tt1 -> out1\n\tadd1'
-            ' [shape=ellipse]\n\tcmul1 -> add1 [headlabel=1]\n\tcmul1'
-            ' [shape=ellipse]\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1 -> cmul1\n}'
+            'digraph {\n\trankdir=LR splines=spline\n\tin0 [shape=cds]\n\tin0 -> add0'
+            ' [headlabel=0]\n\tout0 [shape=cds]\n\tt0 -> out0\n\tadd0'
+            ' [shape=ellipse]\n\tcmul0 -> add0 [headlabel=1]\n\tcmul0'
+            ' [shape=ellipse]\n\tadd0 -> t0\n\tt0 [shape=square]\n\tt0 -> cmul0\n}'
         )
         assert sfg_simple_filter.sfg_digraph(branch_node=False).source in (
             res,
@@ -1214,11 +1214,11 @@ class TestSFGGraph:
 
     def test_sfg_show_id(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR splines=spline\n\tin1 [shape=cds]\n\tin1 -> add1'
-            ' [label=s1 headlabel=0]\n\tout1 [shape=cds]\n\tt1 -> out1'
-            ' [label=s2]\n\tadd1 [shape=ellipse]\n\tcmul1 -> add1 [label=s3'
-            ' headlabel=1]\n\tcmul1 [shape=ellipse]\n\tadd1 -> t1 [label=s4]\n\tt1'
-            ' [shape=square]\n\tt1 -> cmul1 [label=s5]\n}'
+            'digraph {\n\trankdir=LR splines=spline\n\tin0 [shape=cds]\n\tin0 -> add0'
+            ' [label=s0 headlabel=0]\n\tout0 [shape=cds]\n\tt0 -> out0'
+            ' [label=s1]\n\tadd0 [shape=ellipse]\n\tcmul0 -> add0 [label=s2'
+            ' headlabel=1]\n\tcmul0 [shape=ellipse]\n\tadd0 -> t0 [label=s3]\n\tt0'
+            ' [shape=square]\n\tt0 -> cmul0 [label=s4]\n}'
         )
 
         assert sfg_simple_filter.sfg_digraph(
@@ -1230,12 +1230,12 @@ class TestSFGGraph:
 
     def test_sfg_branch(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR splines=spline\n\tin1 [shape=cds]\n\tin1 -> add1'
-            ' [headlabel=0]\n\tout1 [shape=cds]\n\t"t1.0" -> out1\n\t"t1.0"'
-            ' [shape=point]\n\tt1 -> "t1.0" [arrowhead=none]\n\tadd1'
-            ' [shape=ellipse]\n\tcmul1 -> add1 [headlabel=1]\n\tcmul1'
-            ' [shape=ellipse]\n\tadd1 -> t1\n\tt1 [shape=square]\n\t"t1.0" ->'
-            ' cmul1\n}'
+            'digraph {\n\trankdir=LR splines=spline\n\tin0 [shape=cds]\n\tin0 -> add0'
+            ' [headlabel=0]\n\tout0 [shape=cds]\n\t"t0.0" -> out0\n\t"t0.0"'
+            ' [shape=point]\n\tt0 -> "t0.0" [arrowhead=none]\n\tadd0'
+            ' [shape=ellipse]\n\tcmul0 -> add0 [headlabel=1]\n\tcmul0'
+            ' [shape=ellipse]\n\tadd0 -> t0\n\tt0 [shape=square]\n\t"t0.0" ->'
+            ' cmul0\n}'
         )
 
         assert sfg_simple_filter.sfg_digraph().source in (
@@ -1245,10 +1245,10 @@ class TestSFGGraph:
 
     def test_sfg_no_port_numbering(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR splines=spline\n\tin1 [shape=cds]\n\tin1 ->'
-            ' add1\n\tout1 [shape=cds]\n\tt1 -> out1\n\tadd1 [shape=ellipse]\n\tcmul1'
-            ' -> add1\n\tcmul1 [shape=ellipse]\n\tadd1 -> t1\n\tt1 [shape=square]\n\tt1'
-            ' -> cmul1\n}'
+            'digraph {\n\trankdir=LR splines=spline\n\tin0 [shape=cds]\n\tin0 ->'
+            ' add0\n\tout0 [shape=cds]\n\tt0 -> out0\n\tadd0 [shape=ellipse]\n\tcmul0'
+            ' -> add0\n\tcmul0 [shape=ellipse]\n\tadd0 -> t0\n\tt0 [shape=square]\n\tt0'
+            ' -> cmul0\n}'
         )
 
         assert sfg_simple_filter.sfg_digraph(
@@ -1384,7 +1384,7 @@ class TestSFGErrors:
             ValueError,
             match="Different number of input and output ports of operation with",
         ):
-            sfg.remove_operation('add1')
+            sfg.remove_operation('add0')
 
     def test_inputs_required_for_output(self):
         in1 = Input()
@@ -1591,13 +1591,13 @@ class TestInsertComponentAfter:
 
         assert sfg.find_by_name("constant4")[0].output(0).signals[
             0
-        ].destination.operation is sfg.find_by_id("add3")
+        ].destination.operation is sfg.find_by_id("add2")
         assert _sfg.find_by_name("constant4")[0].output(0).signals[
             0
-        ].destination.operation is not _sfg.find_by_id("add3")
-        assert _sfg.find_by_id("sqrt1").output(0).signals[
+        ].destination.operation is not _sfg.find_by_id("add2")
+        assert _sfg.find_by_id("sqrt0").output(0).signals[
             0
-        ].destination.operation is _sfg.find_by_id("add3")
+        ].destination.operation is _sfg.find_by_id("add2")
 
     def test_insert_component_after_mimo_operation_error(
         self, large_operation_tree_names

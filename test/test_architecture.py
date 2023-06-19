@@ -212,29 +212,29 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     )
 
     # Some movement that must work
-    assert memories[1].collection.from_name('cmul4.0')
-    architecture.move_process('cmul4.0', memories[1], memories[0])
-    assert memories[0].collection.from_name('cmul4.0')
+    assert memories[1].collection.from_name('cmul3.0')
+    architecture.move_process('cmul3.0', memories[1], memories[0])
+    assert memories[0].collection.from_name('cmul3.0')
 
-    assert memories[1].collection.from_name('in1.0')
-    architecture.move_process('in1.0', memories[1], memories[0])
-    assert memories[0].collection.from_name('in1.0')
+    assert memories[1].collection.from_name('in0.0')
+    architecture.move_process('in0.0', memories[1], memories[0])
+    assert memories[0].collection.from_name('in0.0')
 
-    assert processing_elements[1].collection.from_name('add1')
-    architecture.move_process('add1', processing_elements[1], processing_elements[0])
-    assert processing_elements[0].collection.from_name('add1')
+    assert processing_elements[1].collection.from_name('add0')
+    architecture.move_process('add0', processing_elements[1], processing_elements[0])
+    assert processing_elements[0].collection.from_name('add0')
 
     # Processes leave the resources they have moved from
     with pytest.raises(KeyError):
-        memories[1].collection.from_name('cmul4.0')
+        memories[1].collection.from_name('cmul3.0')
     with pytest.raises(KeyError):
-        memories[1].collection.from_name('in1.0')
+        memories[1].collection.from_name('in0.0')
     with pytest.raises(KeyError):
-        processing_elements[1].collection.from_name('add1')
+        processing_elements[1].collection.from_name('add0')
 
     # Processes can only be moved when the source and destination process-types match
-    with pytest.raises(TypeError, match="cmul4.0 not of type"):
-        architecture.move_process('cmul4.0', memories[0], processing_elements[0])
+    with pytest.raises(TypeError, match="cmul3.0 not of type"):
+        architecture.move_process('cmul3.0', memories[0], processing_elements[0])
     with pytest.raises(KeyError, match="invalid_name not in"):
         architecture.move_process('invalid_name', memories[0], processing_elements[1])
 

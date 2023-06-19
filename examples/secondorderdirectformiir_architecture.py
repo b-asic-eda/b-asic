@@ -47,11 +47,11 @@ schedule.show(title='Original schedule')
 
 # %%
 # Reschedule to only require one adder and one multiplier.
-schedule.move_operation('add4', 2)
-schedule.move_operation('cmul5', -4)
-schedule.move_operation('cmul4', -5)
-schedule.move_operation('cmul6', -2)
-schedule.move_operation('cmul3', 1)
+schedule.move_operation('add3', 2)
+schedule.move_operation('cmul4', -4)
+schedule.move_operation('cmul3', -5)
+schedule.move_operation('cmul5', -2)
+schedule.move_operation('cmul2', 1)
 schedule.show(title='Improved schedule')
 
 # %%
@@ -100,11 +100,11 @@ arch = Architecture(
 arch
 
 # %%
-# To reduce the amount of interconnect, the ``cuml3.0`` variable can be moved from
+# To reduce the amount of interconnect, the ``cuml2.0`` variable can be moved from
 # ``memory0`` to ``memory2``.  In this way, ``memory0`` only gets variables from the
 # adder and an input multiplexer can be avoided. The memories must be assigned again as
 # the contents have changed.
-arch.move_process('cmul3.0', 'memory0', 'memory2')
+arch.move_process('cmul2.0', 'memory0', 'memory2')
 memories[0].assign()
 memories[2].assign()
 
@@ -117,9 +117,9 @@ memories[2].show_content("New assigned memory2")
 arch
 
 # %%
-# It is of course also possible to move ``add4.0`` to ``memory2`` to save one memory
+# It is of course also possible to move ``add3.0`` to ``memory2`` to save one memory
 # cell. It is possible to pass ``assign=True`` to perform assignment after moving.
-arch.move_process('add4.0', 'memory0', 'memory2', assign=True)
+arch.move_process('add3.0', 'memory0', 'memory2', assign=True)
 
 memories[0].show_content("New assigned memory0")
 memories[2].show_content("New assigned memory2")
@@ -129,9 +129,9 @@ memories[2].show_content("New assigned memory2")
 arch
 
 # %%
-# Finally, by noting that ``cmul1.0`` is the only variable from ``memory1`` going to
+# Finally, by noting that ``cmul0.0`` is the only variable from ``memory1`` going to
 # ``in0`` of ``adder``, another multiplexer can be reduced by:
-arch.move_process('cmul1.0', 'memory1', 'memory2', assign=True)
+arch.move_process('cmul0.0', 'memory1', 'memory2', assign=True)
 memories[1].show_content("New assigned memory1")
 memories[2].show_content("New assigned memory2")
 

@@ -78,59 +78,59 @@ firstorderiir.print_precedence_graph()
 #
 # .. graphviz::
 #
-#     digraph {
-#     	rankdir=LR
-#     	subgraph cluster_0 {
-#     		label=N0
-#     		"in1.0" [label=in1 height=0.1 shape=rectangle width=0.1]
-#     		"t1.0" [label=t1 height=0.1 shape=rectangle width=0.1]
-#     	}
-#     	subgraph cluster_1 {
-#     		label=N1
-#     		"cmul2.0" [label=cmul2 height=0.1 shape=rectangle width=0.1]
-#     		"cmul1.0" [label=cmul1 height=0.1 shape=rectangle width=0.1]
-#     	}
-#     	subgraph cluster_2 {
-#     		label=N2
-#     		"add1.0" [label=add1 height=0.1 shape=rectangle width=0.1]
-#     	}
-#     	subgraph cluster_3 {
-#     		label=N3
-#     		"add2.0" [label=add2 height=0.1 shape=rectangle width=0.1]
-#     	}
-#     	"in1.0" -> add1
-#     	add1 [label=add1 shape=ellipse]
-#     	in1 -> "in1.0"
-#     	in1 [label=in1 shape=cds]
-#     	"t1.0" -> cmul2
-#     	cmul2 [label=cmul2 shape=ellipse]
-#     	"t1.0" -> cmul1
-#     	cmul1 [label=cmul1 shape=ellipse]
-#     	t1Out -> "t1.0"
-#     	t1Out [label=t1 shape=square]
-#     	"cmul2.0" -> add2
-#     	add2 [label=add2 shape=ellipse]
-#     	cmul2 -> "cmul2.0"
-#     	cmul2 [label=cmul2 shape=ellipse]
-#     	"cmul1.0" -> add1
-#     	add1 [label=add1 shape=ellipse]
-#     	cmul1 -> "cmul1.0"
-#     	cmul1 [label=cmul1 shape=ellipse]
-#     	"add1.0" -> t1In
-#     	t1In [label=t1 shape=square]
-#     	"add1.0" -> add2
-#     	add2 [label=add2 shape=ellipse]
-#     	add1 -> "add1.0"
-#     	add1 [label=add1 shape=ellipse]
-#     	"add2.0" -> out1
-#     	out1 [label=out1 shape=cds]
-#     	add2 -> "add2.0"
-#     	add2 [label=add2 shape=ellipse]
-#     }
-#
+#   digraph {
+#   	rankdir=LR
+#   	subgraph cluster_0 {
+#   		label=N0
+#   		"in0.0" [label=in0 height=0.1 shape=rectangle width=0.1]
+#   		"t0.0" [label=t0 height=0.1 shape=rectangle width=0.1]
+#   	}
+#   	subgraph cluster_1 {
+#   		label=N1
+#   		"cmul1.0" [label=cmul1 height=0.1 shape=rectangle width=0.1]
+#   		"cmul0.0" [label=cmul0 height=0.1 shape=rectangle width=0.1]
+#   	}
+#   	subgraph cluster_2 {
+#   		label=N2
+#   		"add0.0" [label=add0 height=0.1 shape=rectangle width=0.1]
+#   	}
+#   	subgraph cluster_3 {
+#   		label=N3
+#   		"add1.0" [label=add1 height=0.1 shape=rectangle width=0.1]
+#   	}
+#   	"in0.0" -> add0
+#   	add0 [label=add0 shape=ellipse]
+#   	in0 -> "in0.0"
+#   	in0 [label=in0 shape=cds]
+#   	"t0.0" -> cmul1
+#   	cmul1 [label=cmul1 shape=ellipse]
+#   	"t0.0" -> cmul0
+#   	cmul0 [label=cmul0 shape=ellipse]
+#   	t0Out -> "t0.0"
+#   	t0Out [label=t0 shape=square]
+#   	"cmul1.0" -> add1
+#   	add1 [label=add1 shape=ellipse]
+#   	cmul1 -> "cmul1.0"
+#   	cmul1 [label=cmul1 shape=ellipse]
+#   	"cmul0.0" -> add0
+#   	add0 [label=add0 shape=ellipse]
+#   	cmul0 -> "cmul0.0"
+#   	cmul0 [label=cmul0 shape=ellipse]
+#   	"add0.0" -> t0In
+#   	t0In [label=t0 shape=square]
+#   	"add0.0" -> add1
+#   	add1 [label=add1 shape=ellipse]
+#   	add0 -> "add0.0"
+#   	add0 [label=add0 shape=ellipse]
+#   	"add1.0" -> out0
+#   	out0 [label=out0 shape=cds]
+#   	add1 -> "add1.0"
+#   	add1 [label=add1 shape=ellipse]
+#   }
+# 
 # As seen, each operation has an id, in addition to the optional name.
 # This can be used to access the operation. For example,
-firstorderiir.find_by_id('cmul1')
+firstorderiir.find_by_id('cmul0')
 
 # %%
 # Note that this operation differs from ``a1`` defined above as the operations are
@@ -170,7 +170,7 @@ sim.results
 import matplotlib.pyplot as plt  # noqa: E402
 
 plt.plot(sim.results['0'], label="Output")
-plt.plot(sim.results['add1'], label="After first addition")
+plt.plot(sim.results['add0'], label="After first addition")
 plt.legend()
 plt.show()
 
