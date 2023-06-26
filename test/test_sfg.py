@@ -25,6 +25,7 @@ from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 from b_asic.signal_flow_graph import SFG, GraphID
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
+from b_asic.sfg_generators import wdf_allpass
 
 
 class TestInit:
@@ -814,6 +815,20 @@ class TestConnectExternalSignalsToComponentsSoloComp:
         assert test_sfg.evaluate_output(0, []) == 14
         assert not test_sfg.connect_external_signals_to_components()
 
+    def test_connect_external_signals_to_components_multiple_operations_after_input(
+        self
+    ):
+        """
+        Replaces an SFG with a symmetric two-port adaptor to test when the input
+        port goes to multiple operations
+        """
+        sfg1 = wdf_allpass(0.5)
+        sfg2 = sfg1.replace_operation(sfg1.find_by_id('sym2p0').to_sfg(), 'sym2p0')
+        sfg2.find_by_id('sfg0').connect_external_signals_to_components()
+        test_sfg = SFG(sfg2.input_operations, sfg2.output_operations)
+        assert sfg1.evaluate(1) == -0.5
+        assert test_sfg.evaluate(1) == -0.5
+        assert not test_sfg.connect_external_signals_to_components()
 
 class TestConnectExternalSignalsToComponentsMultipleComp:
     def test_connect_external_signals_to_components_operation_tree(

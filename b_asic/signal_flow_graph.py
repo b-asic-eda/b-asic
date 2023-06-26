@@ -431,6 +431,12 @@ class SFG(AbstractOperation):
                 raise ValueError("Missing destination in signal.")
             destination.clear()
             input_port.signals[0].set_destination(destination)
+            for signal in input_operation.output(0).signals[1:]:
+                other_destination = signal.destination
+                if other_destination is None:
+                    raise ValueError("Missing destination in signal.")
+                other_destination.clear()
+                other_destination.add_signal(Signal(destination.signals[0]))
         # For each output_signal, connect it to the corresponding operation
         for output_port, output_operation in zip(self.outputs, self.output_operations):
             src = output_operation.input(0).signals[0].source
