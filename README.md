@@ -127,12 +127,14 @@ pytest
 pytest --cov=b_asic --cov-report=html test
 ```
 
-#### Test including plots
+#### Generate new baseline images for the tests
+
+In `B-ASIC`:
 
 ```
-pytest --mpl
+pytest      # The image comparison tests will fail
+cp -a result_images/* test/baseline_images/
 ```
-
 
 ### Generating documentation
 

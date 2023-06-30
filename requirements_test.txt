@@ -1,7 +1,6 @@
 pytest
 pytest-cov
 pytest-qt
-pytest-mpl
 pytest-timeout
 pytest-xvfb
 pytest-xdist

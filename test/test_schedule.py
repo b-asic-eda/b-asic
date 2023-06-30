@@ -4,6 +4,7 @@ B-ASIC test suite for the schedule module and Schedule class.
 import re
 
 import pytest
+import matplotlib.testing.decorators
 
 from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
 from b_asic.process import OperatorProcess
@@ -664,7 +665,7 @@ class TestProcesses:
 
 
 class TestFigureGeneration:
-    @pytest.mark.mpl_image_compare(remove_text=True, style='mpl20')
+    @matplotlib.testing.decorators.image_comparison(['test__get_figure_no_execution_times.png'], remove_text=True)
     def test__get_figure_no_execution_times(self, secondorder_iir_schedule):
         return secondorder_iir_schedule._get_figure()
 

@@ -2,6 +2,7 @@ import re
 
 import matplotlib.pyplot as plt
 import pytest
+import matplotlib.testing.decorators
 
 from b_asic.core_operations import ConstantMultiplication
 from b_asic.process import PlainMemoryVariable
@@ -13,13 +14,13 @@ from b_asic.resources import ProcessCollection, _ForwardBackwardTable
 
 
 class TestProcessCollectionPlainMemoryVariable:
-    @pytest.mark.mpl_image_compare(style='mpl20')
+    @matplotlib.testing.decorators.image_comparison(['test_draw_process_collection.png'])
     def test_draw_process_collection(self, simple_collection):
         fig, ax = plt.subplots()
         simple_collection.plot(ax=ax, show_markers=False)
         return fig
 
-    @pytest.mark.mpl_image_compare(style='mpl20')
+    @matplotlib.testing.decorators.image_comparison(['test_draw_matrix_transposer_4.png'])
     def test_draw_matrix_transposer_4(self):
         fig, ax = plt.subplots()
         generate_matrix_transposer(4).plot(ax=ax)  # type: ignore
@@ -31,7 +32,7 @@ class TestProcessCollectionPlainMemoryVariable:
         )
         assert len(collection_split) == 3
 
-    @pytest.mark.mpl_image_compare(style='mpl20')
+    @matplotlib.testing.decorators.image_comparison(['test_left_edge_cell_assignment.png'])
     def test_left_edge_cell_assignment(self, simple_collection: ProcessCollection):
         fig, ax = plt.subplots(1, 2)
         assignment = list(simple_collection._left_edge_assignment())
@@ -157,7 +158,7 @@ class TestProcessCollectionPlainMemoryVariable:
         assert len(simple_collection) == 7
         assert new_proc not in simple_collection
 
-    @pytest.mark.mpl_image_compare(style='mpl20')
+    @matplotlib.testing.decorators.image_comparison(['test_max_min_lifetime_bar_plot.png'])
     def test_max_min_lifetime_bar_plot(self):
         fig, ax = plt.subplots()
         collection = ProcessCollection(
