@@ -95,11 +95,14 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         output_pe,
     ]
     s = (
-        'digraph {\n\tnode [shape=record]\n\t'
-        + "adder"
-        + ' [label="{{<in0> in0|<in1> in1}|'
-        + '<adder> adder'
-        + '|{<out0> out0}}" fillcolor="#00B9E7" style=filled]\n}'
+        'digraph {\n\tnode [shape=box]\n\t'
+        + 'adder'
+        + ' [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
+        + '<TR><TD COLSPAN="1" PORT="in0">in0</TD>'
+        + '<TD COLSPAN="1" PORT="in1">in1</TD></TR>'
+        + '<TR><TD COLSPAN="2"><B>adder</B></TD></TR>'
+        + '<TR><TD COLSPAN="2" PORT="out0">out0</TD></TR>'
+        + '</TABLE>> fillcolor="#00B9E7" fontname="Times New Roman" style=filled]\n}'
     )
     assert adder._digraph().source in (s, s + '\n')
 
@@ -115,8 +118,14 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     for i, memory in enumerate(memories):
         memory.set_entity_name(f"MEM{i}")
         s = (
-            'digraph {\n\tnode [shape=record]\n\tMEM0 [label="{{<in0> in0}|<MEM0>'
-            ' MEM0|{<out0> out0}}" fillcolor="#00CFB5" style=filled]\n}'
+            'digraph {\n\tnode [shape=box]\n\tMEM0'
+            + ' [label=<<TABLE BORDER="0" CELLBORDER="1"'
+            + ' CELLSPACING="0" CELLPADDING="4">'
+            + '<TR><TD COLSPAN="1" PORT="in0">in0</TD></TR>'
+            + '<TR><TD COLSPAN="1"><B>MEM0</B></TD></TR>'
+            + '<TR><TD COLSPAN="1" PORT="out0">out0</TD></TR>'
+            + '</TABLE>> fillcolor="#00CFB5" fontname="Times New Roman" '
+            + 'style=filled]\n}'
         )
         assert memory._digraph().source in (s, s + '\n')
         assert memory.schedule_time == 18
@@ -149,11 +158,11 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     # Graph representation
     # Parts are non-deterministic, but this first part seems OK
     s = (
-        'digraph {\n\tnode [shape=record]\n\tsplines=spline\n\tsubgraph'
+        'digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tsubgraph'
         ' cluster_memories'
     )
     assert architecture._digraph().source.startswith(s)
-    s = 'digraph {\n\tnode [shape=record]\n\tsplines=spline\n\tMEM0'
+    s = 'digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tMEM0'
     assert architecture._digraph(cluster=False).source.startswith(s)
     assert architecture.schedule_time == 18
 

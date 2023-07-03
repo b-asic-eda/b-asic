@@ -170,9 +170,13 @@ class Resource(HardwareBlock):
         return iter(self._collection)
 
     def _digraph(self) -> Digraph:
-        dg = Digraph(node_attr={'shape': 'record'})
+        dg = Digraph(node_attr={'shape': 'box'})
         dg.node(
-            self.entity_name, self._struct_def(), style='filled', fillcolor=self._color
+            self.entity_name,
+            self._struct_def(),
+            style='filled',
+            fillcolor=self._color,
+            fontname='Times New Roman',
         )
         return dg
 
@@ -190,15 +194,27 @@ class Resource(HardwareBlock):
         # Create GraphViz struct
         inputs = [f"in{i}" for i in range(self.input_count)]
         outputs = [f"out{i}" for i in range(self.output_count)]
-        ret = ""
+        ret = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
+        table_width = max(len(inputs), len(outputs), 1)
         if inputs:
-            in_strs = [f"<{in_str}> {in_str}" for in_str in inputs]
-            ret += f"{{{'|'.join(in_strs)}}}|"
-        ret += f"<{self.entity_name}> {self.entity_name}{self._info()}"
+            in_strs = [
+                f'<TD COLSPAN="{int(table_width/len(inputs))}"'
+                f' PORT="{in_str}">{in_str}</TD>'
+                for in_str in inputs
+            ]
+            ret += f"<TR>{''.join(in_strs)}</TR>"
+        ret += (
+            f'<TR><TD COLSPAN="{table_width}">'
+            f'<B>{self.entity_name}{self._info()}</B></TD></TR>'
+        )
         if outputs:
-            out_strs = [f"<{out_str}> {out_str}" for out_str in outputs]
-            ret += f"|{{{'|'.join(out_strs)}}}"
-        return "{" + ret + "}"
+            out_strs = [
+                f'<TD COLSPAN="{int(table_width/len(outputs))}"'
+                f' PORT="{out_str}">{out_str}</TD>'
+                for out_str in outputs
+            ]
+            ret += f"<TR>{''.join(out_strs)}</TR>"
+        return ret + "</TABLE>>"
 
     def _info(self):
         return ""
@@ -825,7 +841,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         colored : bool, default: True
             Whether to color the nodes.
         """
-        dg = Digraph(node_attr={'shape': 'record'})
+        dg = Digraph(node_attr={'shape': 'box'})
         dg.attr(splines=splines)
         # Setup colors
         pe_color = (
@@ -869,6 +885,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                             mem._struct_def(),
                             style='filled',
                             fillcolor=memory_color,
+                            fontname='Times New Roman',
                         )
                     label = "Memory" if len(self._memories) <= 1 else "Memories"
                     c.attr(label=label, bgcolor=memory_cluster_color)
@@ -880,6 +897,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                             pe._struct_def(),
                             style='filled',
                             fillcolor=pe_color,
+                            fontname='Times New Roman',
                         )
                 label = (
                     "Processing element"
@@ -896,6 +914,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                                 pe._struct_def(),
                                 style='filled',
                                 fillcolor=io_color,
+                                fontname='Times New Roman',
                             )
                     c.attr(label="IO", bgcolor=io_cluster_color)
             else:
@@ -906,6 +925,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                             pe._struct_def(),
                             style='filled',
                             fillcolor=io_color,
+                            fontname='Times New Roman',
                         )
         else:
             for i, mem in enumerate(self._memories):
@@ -914,6 +934,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     mem._struct_def(),
                     style='filled',
                     fillcolor=memory_color,
+                    fontname='Times New Roman',
                 )
             for i, pe in enumerate(self._processing_elements):
                 dg.node(
@@ -954,13 +975,28 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 if len(source_list) > 1:
                     # Create GraphViz struct for multiplexer
                     inputs = [f"in{i}" for i in range(len(source_list))]
-                    ret = ""
-                    in_strs = [f"<{in_str}> {in_str}" for in_str in inputs]
-                    ret += f"{{{'|'.join(in_strs)}}}|"
+                    ret = (
+                        '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"'
+                        ' CELLPADDING="4">'
+                    )
+                    in_strs = [
+                        f'<TD COLSPAN="1" PORT="{in_str}">{in_str}</TD>'
+                        for in_str in inputs
+                    ]
+                    ret += f"<TR>{''.join(in_strs)}</TR>"
                     name = f"{destination.replace(':', '_')}_mux"
-                    ret += f"<{name}> {name}"
-                    ret += "|<out0> out0"
-                    dg.node(name, "{" + ret + "}", style='filled', fillcolor=mux_color)
+                    ret += (
+                        f'<TR><TD COLSPAN="{len(inputs)}"'
+                        f' PORT="{name}"><B>{name}</B></TD></TR>'
+                    )
+                    ret += f'<TR><TD COLSPAN="{len(inputs)}" PORT="out0">out0</TD></TR>'
+                    dg.node(
+                        name,
+                        ret + "</TABLE>>",
+                        style='filled',
+                        fillcolor=mux_color,
+                        fontname='Times New Roman',
+                    )
                     # Add edge from mux output to resource input
                     dg.edge(f"{name}:out0", destination)
 
