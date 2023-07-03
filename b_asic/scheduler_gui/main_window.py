@@ -439,7 +439,6 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.save_as()
             return
         self._schedule._sfg._graph_id_generator = None
-        self._schedule._original_sfg._graph_id_generator = None
         with open(self._file_name, 'wb') as f:
             pickle.dump(self._schedule, f)
         self._add_recent_file(self._file_name)
@@ -462,7 +461,6 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             filename += '.bsc'
         self._file_name = filename
         self._schedule._sfg._graph_id_generator = None
-        self._schedule._original_sfg._graph_id_generator = None
         with open(self._file_name, 'wb') as f:
             pickle.dump(self._schedule, f)
         self._add_recent_file(self._file_name)

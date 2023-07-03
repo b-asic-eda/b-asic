@@ -520,6 +520,23 @@ class TestRescheduling:
         assert schedule._start_times["add0"] == 0
         assert schedule._start_times["out0"] == 2
 
+    def test_reintroduce_delays(self, precedence_sfg_delays, sfg_direct_form_iir_lp_filter):
+        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 1)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+
+        schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
+        sfg = schedule.sfg
+        assert precedence_sfg_delays.evaluate(5) == sfg.evaluate(5)
+
+        schedule = Schedule(sfg_direct_form_iir_lp_filter, algorithm="ASAP")
+        sfg = schedule.sfg
+        assert sfg_direct_form_iir_lp_filter.evaluate(5) == sfg.evaluate(5)
+
+
+
+
 
 class TestTimeResolution:
     def test_increase_time_resolution(

@@ -113,7 +113,6 @@ class Schedule:
         if not isinstance(sfg, SFG):
             raise TypeError("An SFG must be provided")
 
-        self._original_sfg = sfg()  # Make a copy
         self._sfg = sfg
         self._start_times = {}
         self._laps = defaultdict(_laps_default)
@@ -390,13 +389,14 @@ class Schedule:
         operation_id : GraphID
             The GraphID of the operation to swap.
         """
-        self._original_sfg.swap_io_of_operation(operation_id)
         self._sfg.swap_io_of_operation(operation_id)
 
     @property
     def sfg(self) -> SFG:
-        """The SFG of the current schedule."""
-        return self._original_sfg
+        """The SFG corresponding to the current schedule."""
+        reconstructed_sfg = self._reintroduce_delays()
+        simplified_sfg = reconstructed_sfg.simplify_delay_element_placement()
+        return simplified_sfg
 
     @property
     def start_times(self) -> Dict[GraphID, int]:
@@ -529,7 +529,6 @@ class Schedule:
             The execution time of the operation.
         """
         self._sfg.set_execution_time_of_type(type_name, execution_time)
-        self._original_sfg.set_execution_time_of_type(type_name, execution_time)
 
     def move_y_location(
         self, graph_id: GraphID, new_y: int, insert: bool = False
@@ -759,6 +758,16 @@ class Schedule:
                 self._laps[output_id] += 1 + self._laps[delay_input_id]
             del self._laps[delay_input_id]
             delay_list = self._sfg.find_by_type_name(Delay.type_name())
+
+    def _reintroduce_delays(self) -> SFG:
+        """
+        Reintroduce delay elements to each signal according to the ``_laps`` variable.
+        """
+        new_sfg = self._sfg()
+        for signal_id,lap in self._laps.items():
+            for delays in range(lap):
+                new_sfg = new_sfg.insert_operation_after(signal_id, Delay())
+        return new_sfg()
 
     def _schedule_alap(self) -> None:
         """Schedule the operations using as-late-as-possible scheduling."""
