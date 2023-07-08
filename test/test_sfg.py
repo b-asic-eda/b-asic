@@ -1630,6 +1630,57 @@ class TestInsertComponentAfter:
         with pytest.raises(ValueError, match="Unknown component:"):
             sfg.insert_operation_after('foo', SquareRoot())
 
+class TestInsertComponentBefore:
+    def test_insert_component_before_in_sfg(self, butterfly_operation_tree):
+        sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
+        sqrt = SquareRoot()
+
+        _sfg = sfg.insert_operation_before(
+            sfg.find_by_name("bfly1")[0].graph_id, sqrt, port=0
+        )
+        assert _sfg.evaluate() != sfg.evaluate()
+
+        assert any([isinstance(comp, SquareRoot) for comp in _sfg.operations])
+        assert not any([isinstance(comp, SquareRoot) for comp in sfg.operations])
+
+        assert not isinstance(
+            sfg.find_by_name("bfly1")[0].input(0).signals[0].source.operation,
+            SquareRoot,
+        )
+        assert isinstance(
+            _sfg.find_by_name("bfly1")[0]
+            .input(0)
+            .signals[0]
+            .source.operation,
+            SquareRoot,
+        )
+
+        assert sfg.find_by_name("bfly1")[0].input(0).signals[
+            0
+        ].source.operation is sfg.find_by_name("bfly2")[0]
+        assert _sfg.find_by_name("bfly1")[0].input(0).signals[
+            0
+        ].destination.operation is not _sfg.find_by_name("bfly2")[0]
+        assert _sfg.find_by_id("sqrt0").input(0).signals[
+            0
+        ].source.operation is _sfg.find_by_name("bfly2")[0]
+
+    def test_insert_component_before_mimo_operation_error(
+        self, large_operation_tree_names
+    ):
+        sfg = SFG(outputs=[Output(large_operation_tree_names)])
+        with pytest.raises(
+            TypeError, match="Only operations with one input and one output"
+        ):
+            sfg.insert_operation_before('add0', SymmetricTwoportAdaptor(0.5), port=0)
+
+    def test_insert_component_before_unknown_component_error(
+        self, large_operation_tree_names
+    ):
+        sfg = SFG(outputs=[Output(large_operation_tree_names)])
+        with pytest.raises(ValueError, match="Unknown component:"):
+            sfg.insert_operation_before('foo', SquareRoot())
+
 
 class TestGetUsedTypeNames:
     def test_single_accumulator(self, sfg_simple_accumulator: SFG):

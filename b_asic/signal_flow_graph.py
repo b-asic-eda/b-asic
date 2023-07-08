@@ -736,6 +736,56 @@ class SFG(AbstractOperation):
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
 
+    def insert_operation_before(
+        self,
+        input_comp_id: GraphID,
+        new_operation: Operation,
+        port: Optional[int] = None
+    ) -> Optional["SFG"]:
+        """
+        Insert an operation in the SFG before a given source operation.
+
+        Then return a new deepcopy of the sfg with the inserted component.
+
+        The graph_id can be an Operation or a Signal. If the operation has multiple
+        inputs, (copies of) the same operation will be inserted on every port.
+        To specify a port use the ``port`` parameter.
+
+        Currently, the new operation must have one input and one output.
+
+        Parameters
+        ----------
+        input_comp_id : GraphID
+            The source operation GraphID to connect to.
+        new_operation : Operation
+            The new operation, e.g. Multiplication.
+        port : Optional[int]
+            The number of the InputPort before which the new operation shall be inserted
+        """
+
+        # Preserve the original SFG by creating a copy.
+        sfg_copy = self()
+        if new_operation.output_count != 1 or new_operation.input_count != 1:
+            raise TypeError(
+                "Only operations with one input and one output can be inserted."
+            )
+
+        input_comp = sfg_copy.find_by_id(input_comp_id)
+        if input_comp is None:
+            raise ValueError(f"Unknown component: {input_comp_id!r}")
+        if isinstance(input_comp, Operation):
+            if port is None:
+                sfg_copy._insert_operation_before_operation(input_comp, new_operation)
+            else:
+                sfg_copy._insert_operation_before_inputport(
+                    input_comp.input(port), new_operation
+                )
+        elif isinstance(input_comp, Signal):
+            sfg_copy._insert_operation_after_signal(input_comp, new_operation)
+
+        # Recreate the newly coupled SFG so that all attributes are correct.
+        return sfg_copy()
+
     def simplify_delay_element_placement(self) -> "SFG":
         """
         Simplify an SFG by removing some redundant delay elements.
@@ -746,30 +796,42 @@ class SFG(AbstractOperation):
         """
 
         sfg_copy = self()
-        for delay_element in sfg_copy.find_by_type_name(Delay.type_name()):
-            neighboring_delays = []
-            if len(delay_element.inputs[0].signals) > 0:
-                for signal in delay_element.inputs[0].signals[0].source.signals:
-                    if isinstance(signal.destination.operation, Delay):
-                        neighboring_delays.append(signal.destination.operation)
+        no_of_delays = len(sfg_copy.find_by_type_name(Delay.type_name()))
+        while True:
+            for delay_element in sfg_copy.find_by_type_name(Delay.type_name()):
+                neighboring_delays = []
+                if len(delay_element.inputs[0].signals) > 0:
+                    for signal in delay_element.inputs[0].signals[0].source.signals:
+                        if isinstance(signal.destination.operation, Delay):
+                            neighboring_delays.append(signal.destination.operation)
 
-            if delay_element in neighboring_delays:
-                neighboring_delays.remove(delay_element)
+                if delay_element in neighboring_delays:
+                    neighboring_delays.remove(delay_element)
 
-            for delay in neighboring_delays:
-                for output in delay.outputs[0].signals:
-                    output.set_source(delay_element.outputs[0])
-                in_sig = delay.input(0).signals[0]
-                delay.input(0).remove_signal(in_sig)
-                in_sig.source.remove_signal(in_sig)
+                for delay in neighboring_delays:
+                    for output in delay.outputs[0].signals:
+                        output.set_source(delay_element.outputs[0])
+                    in_sig = delay.input(0).signals[0]
+                    delay.input(0).remove_signal(in_sig)
+                    in_sig.source.remove_signal(in_sig)
+            sfg_copy = sfg_copy()
+            if no_of_delays <= len(sfg_copy.find_by_type_name(Delay.type_name())):
+                break
+            no_of_delays = len(sfg_copy.find_by_type_name(Delay.type_name()))
 
-        return sfg_copy()
+        return sfg_copy
 
     def _insert_operation_after_operation(
         self, output_operation: Operation, new_operation: Operation
     ):
         for output in output_operation.outputs:
             self._insert_operation_after_outputport(output, new_operation.copy())
+
+    def _insert_operation_before_operation(
+        self, input_operation: Operation, new_operation: Operation
+    ):
+        for port in input_operation.inputs:
+            self._insert_operation_before_inputport(port, new_operation.copy())
 
     def _insert_operation_after_outputport(
         self, output_port: OutputPort, new_operation: Operation
@@ -780,11 +842,24 @@ class SFG(AbstractOperation):
             signal.set_source(new_operation)
         new_operation.input(0).connect(output_port)
 
+    def _insert_operation_before_inputport(
+        self, input_port: InputPort, new_operation: Operation
+    ):
+        # Make copy as list will be updated
+        input_port.signals[0].set_destination(new_operation)
+        new_operation.output(0).add_signal(Signal(destination=input_port))
+
     def _insert_operation_before_signal(self, signal: Signal, new_operation: Operation):
         output_port = signal.source
         output_port.remove_signal(signal)
         Signal(output_port, new_operation)
         signal.set_source(new_operation)
+
+    def _insert_operation_after_signal(self, signal: Signal, new_operation: Operation):
+        input_port = signal.destination
+        input_port.remove_signal(signal)
+        Signal(new_operation, input_port)
+        signal.set_destination(new_operation)
 
     def swap_io_of_operation(self, operation_id: GraphID) -> None:
         """

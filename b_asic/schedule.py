@@ -764,9 +764,13 @@ class Schedule:
         Reintroduce delay elements to each signal according to the ``_laps`` variable.
         """
         new_sfg = self._sfg()
+        destination_laps = []
         for signal_id,lap in self._laps.items():
+            port = new_sfg.find_by_id(signal_id).destination
+            destination_laps.append((port.operation.graph_id, port.index, lap))
+        for op,port,lap in destination_laps:
             for delays in range(lap):
-                new_sfg = new_sfg.insert_operation_after(signal_id, Delay())
+                new_sfg = new_sfg.insert_operation_before(op, Delay(), port)
         return new_sfg()
 
     def _schedule_alap(self) -> None:

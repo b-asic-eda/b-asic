@@ -11,6 +11,7 @@ from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.sfg_generators import direct_form_fir
 
 
 class TestInit:
@@ -534,9 +535,20 @@ class TestRescheduling:
         sfg = schedule.sfg
         assert sfg_direct_form_iir_lp_filter.evaluate(5) == sfg.evaluate(5)
 
-
-
-
+        fir_sfg = direct_form_fir(
+                list(range(1, 10)),
+                mult_properties={
+                    'latency': 2,
+                    'execution_time': 1
+                    },
+                add_properties={
+                    'latency': 2,
+                    'execution_time': 1
+                    }
+                )
+        schedule = Schedule(fir_sfg, algorithm="ASAP")
+        sfg = schedule.sfg
+        assert fir_sfg.evaluate(5) == sfg.evaluate(5)
 
 class TestTimeResolution:
     def test_increase_time_resolution(
