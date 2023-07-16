@@ -1480,6 +1480,11 @@ class TestUnfold:
     ):
         self.do_tests(sfg_two_inputs_two_outputs_independent)
 
+    def test_threetapiir(
+        self, sfg_direct_form_iir_lp_filter: SFG
+    ):
+        self.do_tests(sfg_direct_form_iir_lp_filter)
+
     def do_tests(self, sfg: SFG):
         for factor in range(2, 4):
             # Ensure that the correct number of operations get created
