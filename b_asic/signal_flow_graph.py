@@ -1728,11 +1728,13 @@ class SFG(AbstractOperation):
 
         sfgs = [new_sfg() for _ in range(factor)] # Copy the SFG factor times
 
-        # Add suffixes to all graphIDs in the SFGs in order to keep them separated
+        # Add suffixes to all graphIDs and names in order to keep them separated
         for i in range(factor):
             for operation in sfgs[i].operations:
                 suffix = f'_{i}'
                 operation.graph_id = operation.graph_id + suffix
+                if operation.name[:7] not in ['', 'input_t', 'output_']:
+                    operation.name = operation.name + suffix
 
         input_name_to_idx = {} # save the input port indices for future reference
         new_inputs = []
