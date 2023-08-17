@@ -2,6 +2,7 @@ import io
 import re
 from collections import Counter, defaultdict
 from functools import reduce
+from math import log2
 from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import matplotlib.pyplot as plt
@@ -1239,7 +1240,10 @@ class ProcessCollection:
         read_ports: int = 1,
         write_ports: int = 1,
         total_ports: int = 2,
+        *,
         input_sync: bool = True,
+        adr_mux_size: Optional[int] = None,
+        adr_pipe_depth: Optional[int] = None,
     ):
         """
         Generate VHDL code for memory based storage of processes (MemoryVariables).
@@ -1274,6 +1278,13 @@ class ProcessCollection:
             Adding registers to the inputs allow pipelining of address generation
             (which is added automatically). For large interleavers, this can improve
             timing significantly.
+        adr_mux_size : int, optional
+            Size of multiplexer if using address generation pipelining. Set to `None`
+            for no multiplexer pipelining. If any other value than `None`, `input_sync`
+            must also be set.
+        adr_pipe_depth : int, optional
+            Depth of address generation pipelining. Set to `None` for no multiplexer
+            pipelining. If any other value than None, `input_sync` must also be set.
         """
         # Check that entity name is a valid VHDL identifier
         if not is_valid_vhdl_identifier(entity_name):
@@ -1328,6 +1339,39 @@ class ProcessCollection:
                     f'More than {read_ports} read ports needed ({needed_read_ports}) to'
                     ' generate HDL for this ProcessCollection'
                 )
+        (
+            # Sanitize the address logic pipeline settings
+            adr_mux_size <= adr_mux_size
+            if adr_mux_size
+            else None
+        )
+        adr_pipe_depth <= adr_pipe_depth if adr_pipe_depth else None
+        if adr_mux_size is not None and adr_pipe_depth is not None:
+            if adr_mux_size <= 1:
+                raise ValueError(
+                    f'adr_mux_size={adr_mux_size} need to be greater than one'
+                )
+            if adr_pipe_depth <= 0:
+                raise ValueError(
+                    f'adr_pipe_depth={adr_pipe_depth} needs to be greater than zero'
+                )
+            if not input_sync:
+                raise ValueError('input_sync needs to be set to use address pipelining')
+            if not log2(adr_mux_size).is_integer():
+                raise ValueError(
+                    f'adr_mux_size={adr_mux_size} needs to be power of two'
+                )
+            if adr_mux_size**adr_pipe_depth > assignment[0].schedule_time:
+                raise ValueError(
+                    f'adr_mux_size={adr_mux_size}, adr_pipe_depth={adr_pipe_depth} => '
+                    'more multiplexer inputs than schedule_time='
+                    f'{assignment[0].schedule_time}'
+                )
+        else:
+            if adr_mux_size is not None or adr_pipe_depth is not None:
+                raise ValueError(
+                    'both or none of adr_mux_size and adr_pipe_depth needs to be set'
+                )
 
         with open(filename, 'w') as f:
             from b_asic.codegen.vhdl import architecture, common, entity
@@ -1346,6 +1390,8 @@ class ProcessCollection:
                 write_ports=write_ports,
                 total_ports=total_ports,
                 input_sync=input_sync,
+                adr_mux_size=1 if adr_mux_size is None else adr_mux_size,
+                adr_pipe_depth=0 if adr_pipe_depth is None else adr_pipe_depth,
             )
 
     def split_on_length(

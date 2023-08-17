@@ -133,6 +133,17 @@ def signal_declaration(
         )
 
 
+def alias_declaration(
+    f: TextIO,
+    name: str,
+    signal_type: str,
+    value: Optional[str] = None,
+    name_pad: Optional[int] = None,
+):
+    name_pad = name_pad or 0
+    write(f, 1, f'alias {name:<{name_pad}} : {signal_type} is {value};')
+
+
 def constant_declaration(
     f: TextIO,
     name: str,
