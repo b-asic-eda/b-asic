@@ -40,7 +40,7 @@ begin
     -- Input generation
     input_gen_proc: process begin
         wait until en = '1';
-        for i in 0 to ROWS*COLS-1 loop
+        for i in 0 to 4*ROWS*COLS-1 loop
             wait until clk = '0';
             input <= std_logic_vector(to_unsigned(i, input'length));
         end loop;
@@ -51,10 +51,17 @@ begin
     output_test_proc: process begin
         wait until en = '1';
         wait until output = std_logic_vector(to_unsigned(0, output'length));
-        for col in 0 to COLS-1 loop
-            for row in 0 to ROWS-1 loop
-                wait until clk = '0';
-                --check(output = std_logic_vector(to_unsigned(row*COLS + col, output'length)));
+        for i in 0 to 3 loop
+            for col in 0 to COLS-1 loop
+                for row in 0 to ROWS-1 loop
+                    wait until clk = '0';
+                    check(
+                        output =
+                        std_logic_vector(
+                            to_unsigned(i*ROWS*COLS + row*COLS + col, output'length)
+                        )
+                    );
+                end loop;
             end loop;
         end loop;
         done <= true;
