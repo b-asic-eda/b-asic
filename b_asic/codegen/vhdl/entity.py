@@ -43,7 +43,7 @@ def memory_based_storage(
     write_lines(
         f,
         [
-            (0, '-- Clock, synchronous reset and enable signals'),
+            (2, '-- Clock, synchronous reset and enable signals'),
             (2, 'clk : in std_logic;'),
             (2, 'rst : in std_logic;'),
             (2, 'en  : in std_logic;'),
@@ -53,9 +53,9 @@ def memory_based_storage(
 
     # Write the input port specification
     f.write(f'{2*VHDL_TAB}-- Memory port I/O\n')
-    read_ports: set[Port] = set(
+    read_ports: set[Port] = {
         read_port for mv in collection for read_port in mv.read_ports
-    )  # type: ignore
+    }  # type: ignore
     for idx, read_port in enumerate(read_ports):
         port_name = read_port if isinstance(read_port, int) else read_port.name
         port_name = 'p_' + str(port_name) + '_in'

@@ -47,6 +47,13 @@ begin
         wait;
     end process;
 
+    -- Timeout test
+    timeout_test_proc: process begin
+        wait until en = '1';
+        wait for 1 ms;
+        report "Timeout failure: 1 ms passed after enable=1" severity failure;
+    end process;
+
     -- Output testing
     output_test_proc: process begin
         wait until en = '1';

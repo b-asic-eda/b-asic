@@ -83,16 +83,18 @@ class TestProcessCollectionPlainMemoryVariable:
         assert len(assignment_graph_color) == 16
 
     def test_generate_memory_based_vhdl(self):
+        # fmt: off
         variants = [
-            #  rows ,  cols , #mux , #pipe
-            # ----------------------------
-            (2, 2, None, None),
-            (3, 3, 2, 1),
-            (4, 4, 4, 1),
-            (5, 5, 4, 2),
-            (7, 7, 4, 3),
-            (4, 8, 2, 2),
+            #  rows ,  cols , #mux  , #pipe  #
+            # ------------------------------ #
+            (   2   ,   2   ,  None ,  None ),
+            (   3   ,   3   ,   1   ,   0   ),
+            (   4   ,   4   ,   4   ,   1   ),
+            (   5   ,   5   ,   4   ,   2   ),
+            (   7   ,   7   ,   4   ,   3   ),
+            (   4   ,   8   ,   2   ,   2   ),
         ]
+        # fmt: on
         for rows, cols, mux_size, pipe_depth in variants:
             collection = generate_matrix_transposer(
                 rows=rows, cols=cols, min_lifetime=0

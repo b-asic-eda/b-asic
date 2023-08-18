@@ -1347,13 +1347,13 @@ class ProcessCollection:
         )
         adr_pipe_depth <= adr_pipe_depth if adr_pipe_depth else None
         if adr_mux_size is not None and adr_pipe_depth is not None:
-            if adr_mux_size <= 1:
+            if adr_mux_size <= 0:
                 raise ValueError(
-                    f'adr_mux_size={adr_mux_size} need to be greater than one'
+                    f'adr_mux_size={adr_mux_size} need to be greater than zero'
                 )
-            if adr_pipe_depth <= 0:
+            if adr_pipe_depth < 0:
                 raise ValueError(
-                    f'adr_pipe_depth={adr_pipe_depth} needs to be greater than zero'
+                    f'adr_pipe_depth={adr_pipe_depth} needs to be greater positive'
                 )
             if not input_sync:
                 raise ValueError('input_sync needs to be set to use address pipelining')
