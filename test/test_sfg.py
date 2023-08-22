@@ -1697,3 +1697,33 @@ class TestGetUsedTypeNames:
     def test_large_operation_tree(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
         assert sfg.get_used_type_names() == ['add', 'c', 'out']
+
+
+class TestInsertDelays:
+    def test_insert_delays_before_operation(self):
+        in1 = Input()
+        bfly = Butterfly()
+        d1 = bfly.input(0).delay(2)
+        d2 = bfly.input(1).delay(1)
+        d1 <<= in1
+        d2 <<= in1
+        out1 = Output(bfly.output(0))
+        out2 = Output(bfly.output(1))
+        sfg = SFG([in1], [out1, out2])
+
+        d_type_name = d1.operation.type_name()
+
+        assert len(sfg.find_by_type_name(d_type_name)) == 3
+
+        sfg.find_by_id('out1').input(0).delay(3)
+        sfg = sfg()
+
+        assert len(sfg.find_by_type_name(d_type_name)) == 6
+        source1 = sfg.find_by_id('out1').input(0).signals[0].source.operation
+        source2 = source1.input(0).signals[0].source.operation
+        source3 = source2.input(0).signals[0].source.operation
+        source4 = source3.input(0).signals[0].source.operation
+        assert source1.type_name() == d_type_name
+        assert source2.type_name() == d_type_name
+        assert source3.type_name() == d_type_name
+        assert source4.type_name() == bfly.type_name()

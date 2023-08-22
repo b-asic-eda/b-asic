@@ -340,6 +340,28 @@ class InputPort(AbstractPort):
         self.connect(src)
         return self
 
+    def delay(self, number: int) -> "InputPort":
+        """
+        Inserts `number` amount of delay elements before the input port.
+
+        Returns the input port of the first delay element in the chain.
+        """
+        from b_asic.special_operations import Delay
+        if not isinstance(number, int) or number < 0:
+            raise TypeError("Number of delays must be a positive integer")
+        tmp_signal = None
+        if any(self.signals):
+            tmp_signal = self.signals[0]
+            tmp_signal.remove_destination()
+        current = self
+        for i in range(number):
+            d = Delay()
+            current.connect(d)
+            current = d.input(0)
+        if tmp_signal is not None:
+            tmp_signal.set_destination(current)
+        return current
+
 
 class OutputPort(AbstractPort, SignalSourceProvider):
     """
