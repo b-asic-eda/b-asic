@@ -10,9 +10,10 @@ use ieee.numeric_std.all;
 
 entity streaming_matrix_transposition_tester is
     generic(
-        WL          : integer;
-        ROWS        : integer;
-        COLS        : integer
+        WL              : integer;
+        ROWS            : integer;
+        COLS            : integer;
+        ENABLE_DEL_CC   : integer := 0  -- CCs after enable to start feeding the circuit
     );
     port(
         clk, rst, en : out std_logic;
@@ -40,6 +41,7 @@ begin
     -- Input generation
     input_gen_proc: process begin
         wait until en = '1';
+        wait for ENABLE_DEL_CC*10 ns;
         for i in 0 to 4*ROWS*COLS-1 loop
             wait until clk = '0';
             input <= std_logic_vector(to_unsigned(i, input'length));
@@ -189,7 +191,8 @@ begin
     dut : entity work.streaming_matrix_transposition_memory_4x4
         generic map(WL=>WL) port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>4, COLS=>4) port map(clk, rst, en, input, output, done);
+        generic map (WL=>WL, ROWS=>4, COLS=>4, ENABLE_DEL_CC=>1)
+        port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -226,7 +229,8 @@ begin
     dut : entity work.streaming_matrix_transposition_memory_5x5
         generic map(WL=>WL) port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>5, COLS=>5) port map(clk, rst, en, input, output, done);
+        generic map (WL=>WL, ROWS=>5, COLS=>5, ENABLE_DEL_CC=>2)
+        port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -263,7 +267,8 @@ begin
     dut : entity work.streaming_matrix_transposition_memory_7x7
         generic map(WL=>WL) port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>7, COLS=>7) port map(clk, rst, en, input, output, done);
+        generic map (WL=>WL, ROWS=>7, COLS=>7, ENABLE_DEL_CC=>3)
+        port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -301,7 +306,8 @@ begin
     dut : entity work.streaming_matrix_transposition_memory_4x8
         generic map(WL=>WL) port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>4, COLS=>8) port map(clk, rst, en, input, output, done);
+        generic map (WL=>WL, ROWS=>4, COLS=>8, ENABLE_DEL_CC=>2)
+        port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 

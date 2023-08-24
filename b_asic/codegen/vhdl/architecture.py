@@ -143,7 +143,7 @@ def memory_based_storage(
             f, f'read_port_{i}', 'std_logic_vector(MEM_WL-1 downto 0)', name_pad=18
         )
         common.signal_declaration(
-            f, f'read_adr_{i}', f'integer range 0 to {schedule_time}-1', name_pad=18
+            f, f'read_adr_{i}', 'integer range 0 to MEM_DEPTH-1', name_pad=18
         )
         common.signal_declaration(f, f'read_en_{i}', 'std_logic', name_pad=18)
     for i in range(write_ports):
@@ -151,7 +151,7 @@ def memory_based_storage(
             f, f'write_port_{i}', 'std_logic_vector(MEM_WL-1 downto 0)', name_pad=18
         )
         common.signal_declaration(
-            f, f'write_adr_{i}', f'integer range 0 to {schedule_time}-1', name_pad=18
+            f, f'write_adr_{i}', 'integer range 0 to MEM_DEPTH-1', name_pad=18
         )
         common.signal_declaration(f, f'write_en_{i}', 'std_logic', name_pad=18)
 
@@ -163,7 +163,7 @@ def memory_based_storage(
                 common.signal_declaration(
                     f,
                     f'write_adr_{write_port_idx}_{depth}_{rom}',
-                    signal_type=f'integer range 0 to {schedule_time}-1',
+                    signal_type='integer range 0 to MEM_DEPTH-1',
                     name_pad=18,
                 )
     for write_port_idx in range(write_ports):
@@ -181,7 +181,7 @@ def memory_based_storage(
                 common.signal_declaration(
                     f,
                     f'read_adr_{read_port_idx}_{depth}_{rom}',
-                    signal_type=f'integer range 0 to {schedule_time}-1',
+                    signal_type='integer range 0 to MEM_DEPTH-1',
                     name_pad=18,
                 )
 
@@ -192,13 +192,6 @@ def memory_based_storage(
             common.signal_declaration(
                 f, f'p_{i}_in_sync', 'std_logic_vector(WL-1 downto 0)', name_pad=18
             )
-            for pipe_idx in range(adr_pipe_depth):
-                common.signal_declaration(
-                    f,
-                    f'p_{i}_{pipe_idx}',
-                    'std_logic_vector(WL-1 downto 0)',
-                    name_pad=18,
-                )
 
     #
     # Architecture body begin
@@ -245,11 +238,6 @@ def memory_based_storage(
         )
         for i in range(read_ports):
             write(f, 3, f'p_{i}_in_sync <= p_{i}_in;')
-            for pipe_idx in range(adr_pipe_depth):
-                if pipe_idx == 0:
-                    write(f, 3, f'p_{i}_{pipe_idx} <= p_{i}_in_sync;')
-                else:
-                    write(f, 3, f'p_{i}_{pipe_idx} <= p_{i}_{pipe_idx-1};')
         common.synchronous_process_epilogue(
             f=f,
             name='input_sync_proc',
@@ -275,10 +263,7 @@ def memory_based_storage(
     write(f, 1, f'write_adr_0 <= write_adr_0_{adr_pipe_depth}_0;')
     write(f, 1, f'write_en_0 <= write_en_0_{adr_pipe_depth}_0;')
     if input_sync:
-        if adr_pipe_depth == 0:
-            write(f, 1, 'write_port_0 <= p_0_in_sync;')
-        else:
-            write(f, 1, f'write_port_0 <= p_0_{adr_pipe_depth-1};')
+        write(f, 1, 'write_port_0 <= p_0_in_sync;')
     else:
         write(f, 1, 'write_port_0 <= p_0_in;')
 
@@ -300,10 +285,7 @@ def memory_based_storage(
                 write(
                     f,
                     4,
-                    (
-                        f'when {write_time}+{adr_pipe_depth} => '
-                        f'p_0_out <= p_0_{adr_pipe_depth-1};'
-                    ),
+                    f'when {write_time}+{adr_pipe_depth} => p_0_out <= p_0_in_sync;',
                 )
             else:
                 write(f, 4, f'when {write_time} => p_0_out <= p_0_in_sync;')
