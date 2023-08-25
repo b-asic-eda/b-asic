@@ -1,11 +1,7 @@
 import numpy as np
 import pytest
 
-from b_asic.core_operations import (
-    Addition,
-    ConstantMultiplication,
-    SymmetricTwoportAdaptor,
-)
+from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.sfg_generators import (
     direct_form_fir,
     transposed_direct_form_fir,
@@ -14,6 +10,7 @@ from b_asic.sfg_generators import (
 from b_asic.signal_generator import Impulse
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
 def test_wdf_allpass():

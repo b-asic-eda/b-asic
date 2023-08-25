@@ -668,13 +668,12 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 f" {self.input_count}, got {len(input_values)})"
             )
 
-        values = self.evaluate(
-            *(
-                self.quantize_inputs(input_values, bits_override)
-                if quantize
-                else input_values
-            )
+        input_values = (
+            self.quantize_inputs(input_values, bits_override)
+            if quantize
+            else input_values
         )
+        values = self.evaluate(*input_values)
         if isinstance(values, collections.abc.Sequence):
             if len(values) != self.output_count:
                 raise RuntimeError(
