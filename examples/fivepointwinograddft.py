@@ -2,6 +2,8 @@
 =======================
 Five-point Winograd DFT
 =======================
+
+First, define the SFG/block diagram
 """
 
 from math import cos, pi, sin
@@ -77,7 +79,8 @@ schedule = Schedule(sfg, cyclic=True)
 schedule.show()
 
 # %%
-# Reschedule to only use one AddSub and one multiplier
+# Reschedule to only use one AddSub, one Butterfly, and one ConstantMultiplication per
+# time unit
 
 schedule.set_schedule_time(10)
 schedule.move_operation('out4', 12)
@@ -161,7 +164,7 @@ memories = []
 for i, mem in enumerate(mem_vars_set):
     memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
     memories.append(memory)
-    mem.show(title=f"{memory.entity_name}")
+    mem.show(title=f"{memory.entity_name} variables")
     memory.assign("left_edge")
     memory.show_content(title=f"Assigned {memory.entity_name}")
 
