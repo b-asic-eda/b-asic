@@ -13,6 +13,8 @@ from qtpy.QtWidgets import (
 
 
 class PrecedenceGraphWindow(QDialog):
+    """Precedence graph window."""
+
     pc = Signal()
 
     def __init__(self, window):

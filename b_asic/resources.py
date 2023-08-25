@@ -553,7 +553,7 @@ class ProcessCollection:
         Returns
         -------
         ax : :class:`matplotlib.axes.Axes`
-            Associated Matplotlib Axes (or array of Axes) object
+            Associated Matplotlib Axes (or array of Axes) object.
         """
 
         # Set up the Axes object
@@ -1302,10 +1302,7 @@ class ProcessCollection:
         """
         Generate VHDL code for register based storage.
 
-        This is based on Forward-Backward Register Allocation [1].
-
-        [1]: K. Parhi: VLSI Digital Signal Processing Systems: Design and
-        Implementation, Ch. 6.3.2
+        This is based on Forward-Backward Register Allocation.
 
         Parameters
         ----------
@@ -1326,6 +1323,12 @@ class ProcessCollection:
         total_ports : int, default: 2
             The total number of ports used when splitting process collection based on
             memory variable access.
+
+        References
+        ----------
+        - K. Parhi: VLSI Digital Signal Processing Systems: Design and
+          Implementation, Ch. 6.3.2
+
         """
         # Check that entity name is a valid VHDL identifier
         if not is_valid_vhdl_identifier(entity_name):
@@ -1372,8 +1375,7 @@ class ProcessCollection:
 
     def get_by_type_name(self, type_name: TypeName) -> "ProcessCollection":
         """
-        Return a new :class:`~b_asic.resources.ProcessCollection` with only a given
-        type of operation.
+        Return a new ProcessCollection with only a given type of operation.
 
         Parameters
         ----------

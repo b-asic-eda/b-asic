@@ -70,6 +70,7 @@ class GraphComponent(ABC):
     def param(self, name: str) -> Any:
         """
         Get the value of a parameter.
+
         Returns None if the parameter is not defined.
         """
         raise NotImplementedError
@@ -78,6 +79,7 @@ class GraphComponent(ABC):
     def set_param(self, name: str, value: Any) -> None:
         """
         Set the value of a parameter.
+
         Adds the parameter if it is not already defined.
         """
         raise NotImplementedError
@@ -85,8 +87,9 @@ class GraphComponent(ABC):
     @abstractmethod
     def copy(self, *args, **kwargs) -> "GraphComponent":
         """
-        Get a new instance of this graph component type with the same name, id and
-        parameters.
+        Get a new instance of this graph component type.
+
+        The new instance will have the same name, id, and parameters.
         """
         raise NotImplementedError
 
@@ -99,7 +102,9 @@ class GraphComponent(ABC):
     @abstractmethod
     def traverse(self) -> Generator["GraphComponent", None, None]:
         """
-        Get a generator that recursively iterates through all components that
+        Get a generator for traversing the all connected components.
+
+        The generator recursively iterates through all components that
         are connected to this operation,
         as well as the ones that they are connected to.
         """

@@ -765,10 +765,10 @@ class Schedule:
         """
         new_sfg = self._sfg()
         destination_laps = []
-        for signal_id,lap in self._laps.items():
+        for signal_id, lap in self._laps.items():
             port = new_sfg.find_by_id(signal_id).destination
             destination_laps.append((port.operation.graph_id, port.index, lap))
-        for op,port,lap in destination_laps:
+        for op, port, lap in destination_laps:
             for delays in range(lap):
                 new_sfg = new_sfg.insert_operation_before(op, Delay(), port)
         return new_sfg()
@@ -904,12 +904,11 @@ class Schedule:
 
     def get_memory_variables(self) -> ProcessCollection:
         """
-        Return a :class:`~b_asic.resources.ProcessCollection` containing all
-        memory variables.
+        Return a ProcessCollection containing all memory variables.
 
         Returns
         -------
-        ProcessCollection
+        :class:`~b_asic.resources.ProcessCollection`
         """
         return ProcessCollection(
             set(self._get_memory_variables_list()), self.schedule_time
@@ -917,12 +916,11 @@ class Schedule:
 
     def get_operations(self) -> ProcessCollection:
         """
-        Return a :class:`~b_asic.resources.ProcessCollection` containing all
-        operations.
+        Return a ProcessCollection containing all operations.
 
         Returns
         -------
-        ProcessCollection
+        :class:`~b_asic.resources.ProcessCollection`
         """
         return ProcessCollection(
             {

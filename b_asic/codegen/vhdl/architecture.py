@@ -33,6 +33,8 @@ def memory_based_storage(
         corresponds to the cell to assign all MemoryVariables in corresponding process
         collection.
         If unset, each MemoryVariable will be assigned to a unique cell.
+    entity_name : str
+        The entity name for the resulting HDL.
     word_length : int
         Word length of the memory variable objects.
     read_ports : int
@@ -220,12 +222,13 @@ def memory_based_storage(
             mv = cast(PlainMemoryVariable, mv)
             write(f, 4, f'-- {mv!r}')
             for read_time in mv.reads.values():
+                val = (
+                    mv.start_time + read_time - int(not (input_sync))
+                ) % schedule_time
                 write(
                     f,
                     4,
-                    'when'
-                    f' {(mv.start_time+read_time-int(not(input_sync))) % schedule_time}'
-                    ' =>',
+                    f'when {val} =>',
                 )
                 write_lines(
                     f,

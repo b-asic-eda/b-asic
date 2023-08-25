@@ -154,8 +154,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         quantize: bool = True,
     ) -> Num:
         """
-        Evaluate the output at the given index of this operation with the given input
-        values.
+        Evaluate the output at the given index with the given input values.
 
         Parameters
         ----------

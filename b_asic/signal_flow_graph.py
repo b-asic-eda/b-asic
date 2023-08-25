@@ -741,7 +741,7 @@ class SFG(AbstractOperation):
         self,
         input_comp_id: GraphID,
         new_operation: Operation,
-        port: Optional[int] = None
+        port: Optional[int] = None,
     ) -> Optional["SFG"]:
         """
         Insert an operation in the SFG before a given source operation.
@@ -761,7 +761,8 @@ class SFG(AbstractOperation):
         new_operation : Operation
             The new operation, e.g. Multiplication.
         port : Optional[int]
-            The number of the InputPort before which the new operation shall be inserted
+            The number of the InputPort before which the new operation shall be
+            inserted.
         """
 
         # Preserve the original SFG by creating a copy.
@@ -1696,7 +1697,7 @@ class SFG(AbstractOperation):
         if factor == 0:
             raise ValueError("Unfolding 0 times removes the SFG")
 
-        sfg = self() # copy the sfg
+        sfg = self()  # copy the sfg
 
         inputs = sfg.input_operations
         outputs = sfg.output_operations
@@ -1706,9 +1707,8 @@ class SFG(AbstractOperation):
         for delay in sfg.find_by_type_name(Delay.type_name()):
             i = Input(name="input_" + delay.graph_id)
             o = Output(
-                    src0=delay.input(0).signals[0].source,
-                    name="output_" + delay.graph_id
-                )
+                src0=delay.input(0).signals[0].source, name="output_" + delay.graph_id
+            )
 
             inputs.append(i)
             outputs.append(o)
@@ -1724,9 +1724,9 @@ class SFG(AbstractOperation):
             delay.input(0).signals[0].remove_source()
             delay.input(0).clear()
 
-        new_sfg = SFG(inputs, outputs) # The new sfg without the delays
+        new_sfg = SFG(inputs, outputs)  # The new sfg without the delays
 
-        sfgs = [new_sfg() for _ in range(factor)] # Copy the SFG factor times
+        sfgs = [new_sfg() for _ in range(factor)]  # Copy the SFG factor times
 
         # Add suffixes to all graphIDs and names in order to keep them separated
         for i in range(factor):
@@ -1736,12 +1736,12 @@ class SFG(AbstractOperation):
                 if operation.name[:7] not in ['', 'input_t', 'output_']:
                     operation.name = operation.name + suffix
 
-        input_name_to_idx = {} # save the input port indices for future reference
+        input_name_to_idx = {}  # save the input port indices for future reference
         new_inputs = []
         # For each copy of the SFG, create new input operations for every "original"
         # input operation and connect them to begin creating the unfolded SFG
         for i in range(factor):
-            for port,operation in zip(sfgs[i].inputs, sfgs[i].input_operations):
+            for port, operation in zip(sfgs[i].inputs, sfgs[i].input_operations):
                 if not operation.name.startswith("input_t"):
                     i = Input()
                     new_inputs.append(i)
@@ -1758,22 +1758,24 @@ class SFG(AbstractOperation):
         new_outputs = []
         delay_placements = {}
         for i in range(factor):
-            for port,operation in zip(sfgs[i].outputs, sfgs[i].output_operations):
+            for port, operation in zip(sfgs[i].outputs, sfgs[i].output_operations):
                 if not operation.name.startswith("output_t"):
                     new_outputs.append(Output(port))
                 else:
-                    index = operation.name[8:] # Remove the "output_t" prefix
+                    index = operation.name[8:]  # Remove the "output_t" prefix
                     j = (i + 1) % factor
-                    number_of_delays_between = (i + 1)//factor
+                    number_of_delays_between = (i + 1) // factor
                     input_port = sfgs[j].input(input_name_to_idx["input_t" + index])
                     input_port.connect(port)
-                    delay_placements[port] = [i,number_of_delays_between]
-            sfgs[i].graph_id = f'sfg{i}' # deterministically set the graphID of the sfgs
+                    delay_placements[port] = [i, number_of_delays_between]
+            sfgs[i].graph_id = (
+                f'sfg{i}'  # deterministically set the graphID of the sfgs
+            )
 
-        sfg = SFG(new_inputs, new_outputs) # create a new SFG to remove floating nodes
+        sfg = SFG(new_inputs, new_outputs)  # create a new SFG to remove floating nodes
 
         # Insert the interconnect delays according to what is saved in delay_placements
-        for port,val in delay_placements.items():
+        for port, val in delay_placements.items():
             i, no_of_delays = val
             for _ in range(no_of_delays):
                 sfg = sfg.insert_operation_after(f'sfg{i}.{port.index}', Delay())
@@ -1784,7 +1786,6 @@ class SFG(AbstractOperation):
             sfg = sfg()
 
         return sfg
-
 
     @property
     def is_linear(self) -> bool:

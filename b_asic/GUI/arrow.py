@@ -106,11 +106,26 @@ class Arrow(QGraphicsPathItem):
         return cast("InputPort", self._destination_port_button.port)
 
     def set_source_operation(self, source: "Operation"):
-        """Set operation of the source DragButton."""
+        """
+        Set operation of the source DragButton.
+
+        Parameters
+        ----------
+        source : :class:`~b_asic.operation.Operation`
+            The operation to use as source.
+        """
         self._source_port_button._operation_button.operation = source
 
     def set_destination_operation(self, destination: "Operation"):
-        """Set operation of the destination DragButton."""
+        """
+        Set operation of the destination DragButton.
+
+        Parameters
+        ----------
+        destination : :class:`~b_asic.operation.Operation`
+            The operation to use as destination.
+
+        """
         self._destination_port_button._operation_button.operation = destination
 
     def remove(self):

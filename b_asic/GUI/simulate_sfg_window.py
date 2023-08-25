@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 
 class SimulateSFGWindow(QDialog):
+    """Simulation window."""
+
     simulate = Signal()
 
     def __init__(self, window):

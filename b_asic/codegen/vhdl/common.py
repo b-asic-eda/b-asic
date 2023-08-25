@@ -51,8 +51,9 @@ def ieee_header(
     numeric_std: bool = True,
 ):
     """
-    Write the standard IEEE VHDL use header with includes of std_logic_1164 and
-    numeric_std.
+    Write the standard IEEE VHDL use header.
+
+    This includes std_logic_1164 and numeric_std.
 
     Parameters
     ----------
@@ -81,7 +82,9 @@ def signal_declaration(
     quartus_ram_style: Optional[str] = None,
 ):
     """
-    Create a VHDL signal declaration: ::
+    Create a VHDL signal declaration.
+
+    The declaration looks like::
 
         signal {name} : {type} [:= {default_value}];
 
@@ -136,7 +139,6 @@ def constant_declaration(
     signal_type: str,
     value: Any,
     name_pad: Optional[int] = None,
-    type_pad: Optional[int] = None,
 ):
     """
     Write a VHDL constant declaration with a name, a type and a value.
@@ -197,7 +199,7 @@ def process_prologue(
         Content of the process sensitivity list.
     indent : int, default: 1
         Indentation level to use for this process.
-    name : Optional[str]
+    name : str, optional
         An optional name for the process.
     """
     if name is not None:
@@ -214,17 +216,19 @@ def process_epilogue(
     name: Optional[str] = None,
 ):
     """
+    Write the epilogue of a regular VHDL process.
+
     Parameters
     ----------
     f : TextIO
         The TextIO object to write the type declaration to.
-    sensitivity_list : str
+    sensitivity_list : str, optional
         Content of the process sensitivity list. Not needed when writing the epilogue.
     indent : int, default: 1
         Indentation level to use for this process.
     indent : int, default: 1
         Indentation level to use for this process.
-    name : Optional[str]
+    name : str, optional
         An optional name of the ending process.
     """
     _ = sensitivity_list
@@ -256,7 +260,7 @@ def synchronous_process_prologue(
         Name of the clock.
     indent : int, default: 1
         Indentation level to use for this process.
-    name : Optional[str]
+    name : str, optional
         An optional name for the process.
     """
     process_prologue(f, sensitivity_list=clk, indent=indent, name=name)
@@ -265,12 +269,12 @@ def synchronous_process_prologue(
 
 def synchronous_process_epilogue(
     f: TextIO,
-    clk: Optional[str],
+    clk: Optional[str] = None,
     indent: int = 1,
     name: Optional[str] = None,
 ):
     """
-    Write only the epilogue of a regular VHDL synchronous process with a single clock.
+    Write the epilogue of a regular VHDL synchronous process with a single clock.
 
     The clock is the only item in the sensitivity list and is triggering a rising edge
     block by some body of VHDL code.
@@ -279,12 +283,12 @@ def synchronous_process_epilogue(
     ----------
     f : TextIO
         The TextIO to write the VHDL code onto.
-    clk : str
+    clk : str, optional
         Name of the clock.
     indent : int, default: 1
         Indentation level to use for this process.
-    name : Optional[str]
-        An optional name for the process
+    name : str, optional
+        An optional name for the process.
     """
     _ = clk
     write(f, indent + 1, 'end if;')
@@ -314,8 +318,8 @@ def synchronous_process(
         Body of the `if rising_edge(clk) then` block.
     indent : int, default: 1
         Indentation level to use for this process.
-    name : Optional[str]
-        An optional name for the process
+    name : str, optional
+        An optional name for the process.
     """
     synchronous_process_prologue(f, clk, indent, name)
     for line in body.split('\n'):
@@ -344,7 +348,7 @@ def synchronous_memory(
         A set of strings used as identifiers for the read ports of the memory.
     write_ports : Set[Tuple[str,str,str]]
         A set of strings used as identifiers for the write ports of the memory.
-    name : Optional[str]
+    name : str, optional
         An optional name for the memory process.
     """
     assert len(read_ports) >= 1
@@ -391,7 +395,7 @@ def asynchronous_read_memory(
         A set of strings used as identifiers for the read ports of the memory.
     write_ports : Set[Tuple[str,str,str]]
         A set of strings used as identifiers for the write ports of the memory.
-    name : Optional[str]
+    name : str, optional
         An optional name for the memory process.
     """
     assert len(read_ports) >= 1

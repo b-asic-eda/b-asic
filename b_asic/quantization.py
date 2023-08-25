@@ -10,34 +10,22 @@ class Quantization(Enum):
     """Quantization types."""
 
     ROUNDING = 1
-    """
-    Standard two's complement rounding, i.e, tie rounds towards infinity.
-    """
+    """Standard two's complement rounding, i.e, tie rounds towards infinity."""
 
     TRUNCATION = 2
-    """
-    Two's complement truncation, i.e., round towards negative infinity.
-    """
+    """Two's complement truncation, i.e., round towards negative infinity."""
 
     MAGNITUDE_TRUNCATION = 3
-    """
-    Magnitude truncation, i.e., round towards zero.
-    """
+    """Magnitude truncation, i.e., round towards zero."""
 
     JAMMING = 4
-    """
-    Jamming/von Neumann rounding, i.e., set the LSB to one.
-    """
+    """Jamming/von Neumann rounding, i.e., set the LSB to one."""
 
     UNBIASED_ROUNDING = 5
-    """
-    Unbiased rounding, i.e., tie rounds towards even.
-    """
+    """Unbiased rounding, i.e., tie rounds towards even."""
 
     UNBIASED_JAMMING = 6
-    """
-    Unbiased jamming/von Neumann rounding.
-    """
+    """Unbiased jamming/von Neumann rounding."""
 
 
 class Overflow(Enum):
