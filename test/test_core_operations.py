@@ -20,6 +20,8 @@ from b_asic import (
     SquareRoot,
     Subtraction,
     SymmetricTwoportAdaptor,
+    Sink,
+    SFG,
 )
 
 
@@ -404,3 +406,16 @@ class TestDepends:
         bfly1 = Butterfly()
         assert set(bfly1.inputs_required_for_output(0)) == {0, 1}
         assert set(bfly1.inputs_required_for_output(1)) == {0, 1}
+
+class TestSink:
+    def test_create_sfg_with_sink(self):
+        bfly = Butterfly()
+        sfg = bfly.to_sfg()
+        s = Sink()
+        sfg1 = sfg.replace_operation(s, "out0")
+        sfg2 = SFG(sfg1.input_operations, sfg1.output_operations[1:])
+
+        assert sfg2.output_count == 1
+        assert sfg2.input_count == 2
+
+        assert sfg.evaluate_output(1, [0,1]) == sfg2.evaluate_output(0, [0,1])

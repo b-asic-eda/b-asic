@@ -73,7 +73,6 @@ class Constant(AbstractOperation):
     def __str__(self) -> str:
         return f"{self.value}"
 
-
 class Addition(AbstractOperation):
     """
     Binary addition operation.
@@ -1263,3 +1262,45 @@ class Shift(AbstractOperation):
         if not isinstance(value, int):
             raise TypeError("value must be an int")
         self.set_param("value", value)
+
+class Sink(AbstractOperation):
+    r"""
+    Sink operation.
+
+    Used for ignoring the output from another operation to avoid dangling output nodes.
+
+    Parameters
+    ==========
+
+    name : Name, optional
+        Operation name.
+    """
+
+    _execution_time = 0
+    is_linear = True
+
+    def __init__(self, name: Name = ""):
+        """Construct a Sink operation."""
+        super().__init__(
+            input_count=1,
+            output_count=0,
+            name=name,
+            latency_offsets={"in0": 0},
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("sink")
+
+    def evaluate(self):
+        raise NotImplementedError
+
+    @property
+    def latency(self) -> int:
+        return self.latency_offsets["in0"]
+
+    def __repr__(self) -> str:
+        return "Sink()"
+
+    def __str__(self) -> str:
+        return "sink"
