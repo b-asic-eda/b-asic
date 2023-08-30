@@ -57,6 +57,7 @@ sfg.set_execution_time_of_type(AddSub.type_name(), 1)
 schedule = Schedule(sfg, cyclic=True)
 schedule.show()
 
+# %%
 # Reschedule to only use one AddSub and one ConstantMultiplication per time unit
 schedule.set_schedule_time(10)
 schedule.move_operation('out0', 11)
@@ -88,6 +89,7 @@ schedule.move_operation('addsub2', -1)
 schedule.move_operation('addsub4', -4)
 schedule.show()
 
+# %%
 # Extract memory variables and operation executions
 operations = schedule.get_operations()
 adders = operations.get_by_type_name(AddSub.type_name())
@@ -123,7 +125,8 @@ for i, mem in enumerate(mem_vars_set):
     memory.assign("left_edge")
     memory.show_content(title=f"Assigned {memory.entity_name}")
 
-
+# %%
+# Create architecture
 arch = Architecture(
     {addsub, multiplier, pe_in, pe_out}, memories, direct_interconnects=direct
 )
@@ -131,7 +134,7 @@ arch = Architecture(
 arch
 
 # %%
-# Move memory variables
+# Move memory variables to reduce the size of memory1
 arch.move_process('addsub1.0', memories[2], memories[1])
 arch.move_process('addsub3.0', memories[1], memories[2], assign=True)
 memories[1].assign()

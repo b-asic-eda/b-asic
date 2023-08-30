@@ -963,13 +963,14 @@ class ProcessCollection:
         total_ports : int
             The total number of ports used when splitting process collection based on
             memory variable access.
-        sequence: list of `Process`
+        sequence : list of `Process`
             A list of the processes used to determine the order in which processes are
             assigned.
 
         Returns
         -------
-        A set of new ProcessCollection objects with the process splitting.
+        list of `ProcessCollection`
+            A set of new ProcessCollection objects with the process splitting.
         """
 
         def ports_collide(proc: Process, collection: ProcessCollection):

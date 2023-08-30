@@ -181,3 +181,17 @@ arch = Architecture(
 )
 
 arch
+
+# %%
+# Move memory variables to optimize architecture
+arch.move_process('addsub2.0', 'memory3', 'memory2')
+arch.move_process('bfly2.0', 'memory2', 'memory3')
+memories[2].assign()
+memories[3].assign()
+
+arch.move_process('cmul2.0', 'memory1', 'memory0')
+arch.move_process('bfly3.0', 'memory0', 'memory1')
+arch.move_process('bfly3.1', 'memory4', 'memory0')
+memories[0].assign()
+memories[1].assign()
+memories[4].assign()
