@@ -1,6 +1,6 @@
 import io
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from functools import reduce
 from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
@@ -886,7 +886,7 @@ class ProcessCollection:
 
     def split_on_ports(
         self,
-        heuristic: str = "graph_color",
+        heuristic: str = "left_edge",
         read_ports: Optional[int] = None,
         write_ports: Optional[int] = None,
         total_ports: Optional[int] = None,
@@ -903,7 +903,7 @@ class ProcessCollection:
             Valid options are:
 
             * "graph_color"
-            * "..."
+            * "left_edge"
 
         read_ports : int, optional
             The number of read ports used when splitting process collection based on
@@ -926,8 +926,104 @@ class ProcessCollection:
         )
         if heuristic == "graph_color":
             return self._split_ports_graph_color(read_ports, write_ports, total_ports)
+        elif heuristic == "left_edge":
+            return self.split_ports_sequentially(
+                read_ports,
+                write_ports,
+                total_ports,
+                sequence=sorted(self),
+            )
         else:
             raise ValueError("Invalid heuristic provided.")
+
+    def split_ports_sequentially(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        sequence: List[Process],
+    ) -> List["ProcessCollection"]:
+        """
+        Split this collection into multiple new collections by sequentially assigning
+        processes in the order of `sequence`.
+
+        This method takes the processes from `sequence`, in order, and assignes them to
+        to multiple new `ProcessCollection` based on port collisions in a first-come
+        first-served manner. The first `Process` in `sequence` is assigned first, and
+        the last `Proccess` in `sequence is assigned last.
+
+        Parameters
+        ----------
+        read_ports : int
+            The number of read ports used when splitting process collection based on
+            memory variable access.
+        write_ports : int
+            The number of write ports used when splitting process collection based on
+            memory variable access.
+        total_ports : int
+            The total number of ports used when splitting process collection based on
+            memory variable access.
+        sequence: list of `Process`
+            A list of the processes used to determine the order in which processes are
+            assigned.
+
+        Returns
+        -------
+        A set of new ProcessCollection objects with the process splitting.
+        """
+
+        def ports_collide(proc: Process, collection: ProcessCollection):
+            """
+            Predicate test if insertion of a process `proc` results in colliding ports
+            when inserted to `collection` based on the `read_ports`, `write_ports`, and
+            `total_ports`.
+            """
+
+            # Test the number of concurrent write accesses
+            collection_writes = defaultdict(int, collection.write_port_accesses())
+            if collection_writes[proc.start_time] >= write_ports:
+                return True
+
+            # Test the number of concurrent read accesses
+            collection_reads = defaultdict(int, collection.read_port_accesses())
+            for proc_read_time in proc.read_times:
+                if collection_reads[proc_read_time % self.schedule_time] >= read_ports:
+                    return True
+
+            # Test the number of total accesses
+            collection_total_accesses = defaultdict(
+                int, Counter(collection_writes) + Counter(collection_reads)
+            )
+            for access_time in [proc.start_time, *proc.read_times]:
+                if collection_total_accesses[access_time] >= total_ports:
+                    return True
+
+            # No collision detected
+            return False
+
+        # Make sure that processes from `sequence` and and `self` are equal
+        if set(self.collection) != set(sequence):
+            raise KeyError("processes in `sequence` must be equal to processes in self")
+
+        collections: List[ProcessCollection] = []
+        for process in sequence:
+            process_added = False
+            for collection in collections:
+                if not ports_collide(process, collection):
+                    collection.add_process(process)
+                    process_added = True
+                    break
+            if not process_added:
+                # Stuff the process in a new collection
+                collections.append(
+                    ProcessCollection(
+                        [process],
+                        schedule_time=self.schedule_time,
+                        cyclic=self._cyclic,
+                    )
+                )
+        # Return the list of created ProcessCollections
+        return collections
 
     def _split_ports_graph_color(
         self,

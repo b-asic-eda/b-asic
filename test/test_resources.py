@@ -1,8 +1,8 @@
 import re
 
 import matplotlib.pyplot as plt
-import pytest
 import matplotlib.testing.decorators
+import pytest
 
 from b_asic.core_operations import ConstantMultiplication
 from b_asic.process import PlainMemoryVariable
@@ -14,25 +14,57 @@ from b_asic.resources import ProcessCollection, _ForwardBackwardTable
 
 
 class TestProcessCollectionPlainMemoryVariable:
-    @matplotlib.testing.decorators.image_comparison(['test_draw_process_collection.png'])
+    @matplotlib.testing.decorators.image_comparison(
+        ['test_draw_process_collection.png']
+    )
     def test_draw_process_collection(self, simple_collection):
         fig, ax = plt.subplots()
         simple_collection.plot(ax=ax, show_markers=False)
         return fig
 
-    @matplotlib.testing.decorators.image_comparison(['test_draw_matrix_transposer_4.png'])
+    @matplotlib.testing.decorators.image_comparison(
+        ['test_draw_matrix_transposer_4.png']
+    )
     def test_draw_matrix_transposer_4(self):
         fig, ax = plt.subplots()
         generate_matrix_transposer(4).plot(ax=ax)  # type: ignore
         return fig
 
-    def test_split_memory_variable(self, simple_collection: ProcessCollection):
+    def test_split_memory_variable_graph_color(
+        self, simple_collection: ProcessCollection
+    ):
         collection_split = simple_collection.split_on_ports(
             heuristic="graph_color", read_ports=1, write_ports=1, total_ports=2
         )
         assert len(collection_split) == 3
 
-    @matplotlib.testing.decorators.image_comparison(['test_left_edge_cell_assignment.png'])
+    def test_split_sequence_raises(self, simple_collection: ProcessCollection):
+        with pytest.raises(KeyError, match="processes in `sequence` must be"):
+            simple_collection.split_ports_sequentially(
+                read_ports=1, write_ports=1, total_ports=2, sequence=[]
+            )
+
+    def test_split_memory_variable_left_edge(
+        self, simple_collection: ProcessCollection
+    ):
+        split = simple_collection.split_on_ports(
+            heuristic="left_edge", read_ports=1, write_ports=1, total_ports=2
+        )
+        assert len(split) == 3
+
+        split = simple_collection.split_on_ports(
+            heuristic="left_edge", read_ports=1, write_ports=2, total_ports=2
+        )
+        assert len(split) == 3
+
+        split = simple_collection.split_on_ports(
+            heuristic="left_edge", read_ports=2, write_ports=2, total_ports=2
+        )
+        assert len(split) == 2
+
+    @matplotlib.testing.decorators.image_comparison(
+        ['test_left_edge_cell_assignment.png']
+    )
     def test_left_edge_cell_assignment(self, simple_collection: ProcessCollection):
         fig, ax = plt.subplots(1, 2)
         assignment = list(simple_collection._left_edge_assignment())
@@ -158,7 +190,9 @@ class TestProcessCollectionPlainMemoryVariable:
         assert len(simple_collection) == 7
         assert new_proc not in simple_collection
 
-    @matplotlib.testing.decorators.image_comparison(['test_max_min_lifetime_bar_plot.png'])
+    @matplotlib.testing.decorators.image_comparison(
+        ['test_max_min_lifetime_bar_plot.png']
+    )
     def test_max_min_lifetime_bar_plot(self):
         fig, ax = plt.subplots()
         collection = ProcessCollection(

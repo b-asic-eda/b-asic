@@ -157,10 +157,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
 
     # Graph representation
     # Parts are non-deterministic, but this first part seems OK
-    s = (
-        'digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tsubgraph'
-        ' cluster_memories'
-    )
+    s = 'digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tsubgraph cluster_memories'
     assert architecture._digraph().source.startswith(s)
     s = 'digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tMEM0'
     assert architecture._digraph(cluster=False).source.startswith(s)
@@ -229,9 +226,9 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     architecture.move_process('in0.0', memories[1], memories[0])
     assert memories[0].collection.from_name('in0.0')
 
-    assert processing_elements[1].collection.from_name('add0')
-    architecture.move_process('add0', processing_elements[1], processing_elements[0])
     assert processing_elements[0].collection.from_name('add0')
+    architecture.move_process('add0', processing_elements[0], processing_elements[1])
+    assert processing_elements[1].collection.from_name('add0')
 
     # Processes leave the resources they have moved from
     with pytest.raises(KeyError):
@@ -239,7 +236,7 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     with pytest.raises(KeyError):
         memories[1].collection.from_name('in0.0')
     with pytest.raises(KeyError):
-        processing_elements[1].collection.from_name('add0')
+        processing_elements[0].collection.from_name('add0')
 
     # Processes can only be moved when the source and destination process-types match
     with pytest.raises(TypeError, match="cmul3.0 not of type"):
