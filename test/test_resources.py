@@ -77,7 +77,7 @@ class TestProcessCollectionPlainMemoryVariable:
         collection = generate_matrix_transposer(4, min_lifetime=5)
         assignment_left_edge = collection._left_edge_assignment()
         assignment_graph_color = collection.split_on_execution_time(
-            coloring_strategy='saturation_largest_first'
+            heuristic="graph_color", coloring_strategy='saturation_largest_first'
         )
         assert len(assignment_left_edge) == 18
         assert len(assignment_graph_color) == 16

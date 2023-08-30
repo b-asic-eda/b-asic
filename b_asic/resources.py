@@ -848,7 +848,7 @@ class ProcessCollection:
 
     def split_on_execution_time(
         self,
-        heuristic: str = "graph_color",
+        heuristic: str = "left_edge",
         coloring_strategy: str = "saturation_largest_first",
     ) -> List["ProcessCollection"]:
         """
