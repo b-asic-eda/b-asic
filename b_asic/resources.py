@@ -98,6 +98,7 @@ def draw_exclusion_graph_coloring(
     color_dict: Dict[Process, int],
     ax: Optional[Axes] = None,
     color_list: Optional[Union[List[str], List[Tuple[float, float, float]]]] = None,
+    **kwargs,
 ) -> None:
     """
     Helper function for drawing a colored exclusion graphs.
@@ -132,6 +133,8 @@ def draw_exclusion_graph_coloring(
         A Matplotlib :class:`~matplotlib.axes.Axes` object to draw the exclusion graph.
     color_list : iterable of color, optional
         A list of colors in Matplotlib format.
+    **kwargs : Any
+        Named arguments passed on to :func:`networkx.draw_networkx`
 
     Returns
     -------
@@ -166,6 +169,7 @@ def draw_exclusion_graph_coloring(
         node_color=node_color_list,
         ax=ax,
         pos=nx.spring_layout(exclusion_graph, seed=1),
+        **kwargs,
     )
 
 
