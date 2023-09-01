@@ -764,9 +764,65 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     d_out[i][v] += 1
         return [dict(d) for d in d_in], [dict(d) for d in d_out]
 
-    def resource_from_name(self, name: str):
+    def resource_from_name(self, name: str) -> Resource:
+        """
+        Get :class:`Resource` based on name.
+
+        Parameters
+        ----------
+        name : str
+            Name of the resource.
+
+        Returns
+        -------
+        :class:`Resource`
+
+        """
         re = {p.entity_name: p for p in chain(self.memories, self.processing_elements)}
         return re[name]
+
+    def remove_resource(
+        self,
+        resource: Union[str, Resource],
+    ) -> None:
+        """
+        Remove an empty :class:`Resource` from the architecture.
+
+        Parameters
+        ----------
+        resource : :class:`b_asic.architecture.Resource` or str
+            The resource or the resource name to remove.
+        """
+        if isinstance(resource, str):
+            resource = self.resource_from_name(resource)
+
+        if resource.collection:
+            raise ValueError("Resource must be empty")
+
+        if resource in self.memories:
+            self.memories.remove(resource)
+        elif resource in self.processing_elements:
+            self.processing_elements.remove(resource)
+        else:
+            raise ValueError('Resource not in architecture')
+
+    def assign_resources(self, heuristic: str = "left_edge") -> None:
+        """
+        Convenience method to assign all resources in the architecture.
+
+        Parameters
+        ----------
+        heuristic : str, default: "left_edge"
+            The heurstic to use.
+
+        See Also
+        --------
+        Memory.assign
+        ProcessingElement.assign
+
+        """
+        for resource in chain(self.memories, self.processing_elements):
+            resource.assign(heuristic=heuristic)
 
     def move_process(
         self,
@@ -774,9 +830,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
         re_from: Union[str, Resource],
         re_to: Union[str, Resource],
         assign: bool = False,
-    ):
+    ) -> None:
         """
-        Move a :class:`b_asic.process.Process` from one resource to another.
+        Move a :class:`b_asic.process.Process` from one :class:`Resource`  to another.
 
         Both the resource moved from and will become unassigned after a process has been
         moved, unless *assign* is set to True.
