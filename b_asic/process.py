@@ -30,9 +30,17 @@ class Process:
         self._name = name
 
     def __lt__(self, other):
-        return self._start_time < other.start_time or (
-            self._start_time == other.start_time
-            and self.execution_time > other.execution_time
+        return (
+            self._start_time < other.start_time
+            or (
+                self._start_time == other.start_time
+                and self.execution_time > other.execution_time
+            )
+            or (  # Sorting on name to possibly get deterministic behavior
+                self._start_time == other.start_time
+                and self.execution_time == other.execution_time
+                and self._name < other.name
+            )
         )
 
     @property

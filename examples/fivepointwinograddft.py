@@ -191,7 +191,12 @@ memories[3].assign()
 
 arch.move_process('cmul2.0', 'memory1', 'memory0')
 arch.move_process('bfly3.0', 'memory0', 'memory1')
-arch.move_process('bfly3.1', 'memory4', 'memory0')
+arch.move_process('cmul3.0', 'memory4', 'memory0')
 memories[0].assign()
 memories[1].assign()
 memories[4].assign()
+
+for memory in memories:
+    memory.show_content(title=f"Improved {memory.entity_name}")
+
+arch
