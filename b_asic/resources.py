@@ -502,6 +502,17 @@ class ProcessCollection:
         else:
             self.collection.remove(process)
 
+    def __contains__(self, process: Process) -> bool:
+        """
+        Test if a process is part of this ProcessCollection
+
+        Parameters
+        ----------
+        process : :class:`~b_asic.process.Process`
+            The process to test.
+        """
+        return process in self.collection
+
     def plot(
         self,
         ax: Optional[Axes] = None,

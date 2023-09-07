@@ -38,6 +38,15 @@ class TestProcessCollectionPlainMemoryVariable:
         )
         assert len(collection_split) == 3
 
+    def test_contains(self):
+        collection = ProcessCollection([], schedule_time=10, cyclic=True)
+        m1 = PlainMemoryVariable(0, 0, {0: 3})
+        assert m1 not in collection
+        collection.add_process(m1)
+        assert m1 in collection
+        collection.remove_process(m1)
+        assert m1 not in collection
+
     def test_split_sequence_raises(self, simple_collection: ProcessCollection):
         with pytest.raises(KeyError, match="processes in `sequence` must be"):
             simple_collection.split_ports_sequentially(
