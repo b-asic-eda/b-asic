@@ -101,7 +101,7 @@ def draw_exclusion_graph_coloring(
     **kwargs,
 ) -> None:
     """
-    Helper function for drawing a colored exclusion graphs.
+    Helper function for drawing colored exclusion graphs.
 
     Example usage:
 
@@ -1343,27 +1343,22 @@ class ProcessCollection:
                     f'More than {read_ports} read ports needed ({needed_read_ports}) to'
                     ' generate HDL for this ProcessCollection'
                 )
-        (
-            # Sanitize the address logic pipeline settings
-            adr_mux_size <= adr_mux_size
-            if adr_mux_size
-            else None
-        )
-        adr_pipe_depth <= adr_pipe_depth if adr_pipe_depth else None
+
+        # Sanitize the address logic pipeline settings
         if adr_mux_size is not None and adr_pipe_depth is not None:
-            if adr_mux_size <= 0:
+            if adr_mux_size < 1:
                 raise ValueError(
                     f'adr_mux_size={adr_mux_size} need to be greater than zero'
                 )
             if adr_pipe_depth < 0:
                 raise ValueError(
-                    f'adr_pipe_depth={adr_pipe_depth} needs to be greater positive'
+                    f'adr_pipe_depth={adr_pipe_depth} needs to be non-negative'
                 )
             if not input_sync:
                 raise ValueError('input_sync needs to be set to use address pipelining')
             if not log2(adr_mux_size).is_integer():
                 raise ValueError(
-                    f'adr_mux_size={adr_mux_size} needs to be power of two'
+                    f'adr_mux_size={adr_mux_size} needs to be interger power of two'
                 )
             if adr_mux_size**adr_pipe_depth > assignment[0].schedule_time:
                 raise ValueError(
