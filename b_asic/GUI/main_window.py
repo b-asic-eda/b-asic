@@ -979,6 +979,7 @@ def start_editor(sfg: Optional[SFG] = None) -> Dict[str, SFG]:
         All SFGs currently in the editor.
     """
     if not QApplication.instance():
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
         app = QApplication(sys.argv)
     else:
         app = QApplication.instance()

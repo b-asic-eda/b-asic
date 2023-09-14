@@ -251,6 +251,7 @@ def start_simulation_dialog(
         The name of the SFG.
     """
     if not QApplication.instance():
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
         app = QApplication(sys.argv)
     else:
         app = QApplication.instance()

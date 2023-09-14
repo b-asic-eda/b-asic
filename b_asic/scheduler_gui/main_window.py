@@ -1021,6 +1021,7 @@ def start_scheduler(schedule: Optional[Schedule] = None) -> Schedule:
         The edited schedule.
     """
     if not QApplication.instance():
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
         app = QApplication(sys.argv)
     else:
         app = QApplication.instance()
