@@ -2,6 +2,7 @@
 import pytest
 
 from b_asic import (
+    SFG,
     Absolute,
     Addition,
     AddSub,
@@ -17,11 +18,9 @@ from b_asic import (
     Reciprocal,
     RightShift,
     Shift,
+    Sink,
     SquareRoot,
     Subtraction,
-    SymmetricTwoportAdaptor,
-    Sink,
-    SFG,
 )
 
 
@@ -348,39 +347,6 @@ class TestButterfly:
         assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == -1 + 3j
 
 
-class TestSymmetricTwoportAdaptor:
-    """Tests for SymmetricTwoportAdaptor class."""
-
-    def test_symmetrictwoportadaptor_positive(self):
-        test_operation = SymmetricTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [2, 3]) == 3.5
-        assert test_operation.evaluate_output(1, [2, 3]) == 2.5
-        assert test_operation.value == 0.5
-
-    def test_symmetrictwoportadaptor_negative(self):
-        test_operation = SymmetricTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [-2, -3]) == -3.5
-        assert test_operation.evaluate_output(1, [-2, -3]) == -2.5
-
-    def test_symmetrictwoportadaptor_complex(self):
-        test_operation = SymmetricTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == 3.5 - 3.5j
-        assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == 2.5 - 0.5j
-
-    def test_symmetrictwoportadaptor_swap_io(self):
-        test_operation = SymmetricTwoportAdaptor(0.5)
-        assert test_operation.value == 0.5
-        test_operation.swap_io()
-        assert test_operation.value == -0.5
-
-    def test_symmetrictwoportadaptor_error(self):
-        with pytest.raises(ValueError, match="value must be between -1 and 1"):
-            _ = SymmetricTwoportAdaptor(-2)
-        test_operation = SymmetricTwoportAdaptor(0)
-        with pytest.raises(ValueError, match="value must be between -1 and 1"):
-            test_operation.value = 2
-
-
 class TestReciprocal:
     """Tests for Absolute class."""
 
@@ -407,6 +373,7 @@ class TestDepends:
         assert set(bfly1.inputs_required_for_output(0)) == {0, 1}
         assert set(bfly1.inputs_required_for_output(1)) == {0, 1}
 
+
 class TestSink:
     def test_create_sfg_with_sink(self):
         bfly = Butterfly()
@@ -418,4 +385,4 @@ class TestSink:
         assert sfg2.output_count == 1
         assert sfg2.input_count == 2
 
-        assert sfg.evaluate_output(1, [0,1]) == sfg2.evaluate_output(0, [0,1])
+        assert sfg.evaluate_output(1, [0, 1]) == sfg2.evaluate_output(0, [0, 1])

@@ -18,14 +18,14 @@ from b_asic.core_operations import (
     Multiplication,
     SquareRoot,
     Subtraction,
-    SymmetricTwoportAdaptor,
 )
 from b_asic.operation import ResultKey
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.sfg_generators import wdf_allpass
 from b_asic.signal_flow_graph import SFG, GraphID
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
-from b_asic.sfg_generators import wdf_allpass
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
 class TestInit:
@@ -816,7 +816,7 @@ class TestConnectExternalSignalsToComponentsSoloComp:
         assert not test_sfg.connect_external_signals_to_components()
 
     def test_connect_external_signals_to_components_multiple_operations_after_input(
-        self
+        self,
     ):
         """
         Replaces an SFG with a symmetric two-port adaptor to test when the input
@@ -829,6 +829,7 @@ class TestConnectExternalSignalsToComponentsSoloComp:
         assert sfg1.evaluate(1) == -0.5
         assert test_sfg.evaluate(1) == -0.5
         assert not test_sfg.connect_external_signals_to_components()
+
 
 class TestConnectExternalSignalsToComponentsMultipleComp:
     def test_connect_external_signals_to_components_operation_tree(
@@ -1480,9 +1481,7 @@ class TestUnfold:
     ):
         self.do_tests(sfg_two_inputs_two_outputs_independent)
 
-    def test_threetapiir(
-        self, sfg_direct_form_iir_lp_filter: SFG
-    ):
+    def test_threetapiir(self, sfg_direct_form_iir_lp_filter: SFG):
         self.do_tests(sfg_direct_form_iir_lp_filter)
 
     def do_tests(self, sfg: SFG):
@@ -1635,6 +1634,7 @@ class TestInsertComponentAfter:
         with pytest.raises(ValueError, match="Unknown component:"):
             sfg.insert_operation_after('foo', SquareRoot())
 
+
 class TestInsertComponentBefore:
     def test_insert_component_before_in_sfg(self, butterfly_operation_tree):
         sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
@@ -1653,22 +1653,22 @@ class TestInsertComponentBefore:
             SquareRoot,
         )
         assert isinstance(
-            _sfg.find_by_name("bfly1")[0]
-            .input(0)
-            .signals[0]
-            .source.operation,
+            _sfg.find_by_name("bfly1")[0].input(0).signals[0].source.operation,
             SquareRoot,
         )
 
-        assert sfg.find_by_name("bfly1")[0].input(0).signals[
-            0
-        ].source.operation is sfg.find_by_name("bfly2")[0]
-        assert _sfg.find_by_name("bfly1")[0].input(0).signals[
-            0
-        ].destination.operation is not _sfg.find_by_name("bfly2")[0]
-        assert _sfg.find_by_id("sqrt0").input(0).signals[
-            0
-        ].source.operation is _sfg.find_by_name("bfly2")[0]
+        assert (
+            sfg.find_by_name("bfly1")[0].input(0).signals[0].source.operation
+            is sfg.find_by_name("bfly2")[0]
+        )
+        assert (
+            _sfg.find_by_name("bfly1")[0].input(0).signals[0].destination.operation
+            is not _sfg.find_by_name("bfly2")[0]
+        )
+        assert (
+            _sfg.find_by_id("sqrt0").input(0).signals[0].source.operation
+            is _sfg.find_by_name("bfly2")[0]
+        )
 
     def test_insert_component_before_mimo_operation_error(
         self, large_operation_tree_names

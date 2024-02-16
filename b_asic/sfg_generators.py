@@ -7,15 +7,11 @@ from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 
-from b_asic.core_operations import (
-    Addition,
-    ConstantMultiplication,
-    Name,
-    SymmetricTwoportAdaptor,
-)
+from b_asic.core_operations import Addition, ConstantMultiplication, Name
 from b_asic.signal import Signal
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
 def wdf_allpass(
