@@ -85,6 +85,12 @@ run-test-3.11-pyqt5:
   image: python:3.11
   extends: ".run-test"
 
+run-test-3.12-pyqt5:
+  variables:
+    QT_API: pyqt5
+  image: python:3.12
+  extends: ".run-test"
+
 # Seemingly works with Qt6, but tests stall on closing scheduler GUI due to modal dialog(?)
 #run-test-3.10-pyside6:
 #  variables:
