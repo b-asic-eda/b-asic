@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: mixed-line-ending
         exclude_types: [svg]
@@ -13,41 +13,46 @@ repos:
         exclude_types: [svg]
       - id: check-toml
 
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.20.7
+    hooks:
+      - id: typos
+
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 24.3.0
     hooks:
       - id: black
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
         name: isort (python)
 
   - repo: https://github.com/Carreau/velin
-    rev: 0.0.11
+    rev: 0.0.12
     hooks:
       - id: velin
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.0.267"
+    rev: "v0.3.5"
     hooks:
       - id: ruff
 
   - repo: https://github.com/adamchainz/blacken-docs
-    rev: 1.13.0
+    rev: 1.16.0
     hooks:
       - id: blacken-docs
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.4.0
+    rev: v3.15.2
     hooks:
       - id: pyupgrade
         args: [--py38-plus]
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.0-alpha.9-for-vscode
+    rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
         files: \.(html|md|yml|yaml|toml)
