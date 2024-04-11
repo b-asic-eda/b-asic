@@ -7,6 +7,7 @@ In this example, a direct form first-order IIR filter is designed.
 
 First, we need to import the operations that will be used in the example:
 """
+
 from b_asic.core_operations import ConstantMultiplication
 from b_asic.special_operations import Delay, Input, Output
 
@@ -127,7 +128,7 @@ firstorderiir.print_precedence_graph()
 #   	add1 -> "add1.0"
 #   	add1 [label=add1 shape=ellipse]
 #   }
-# 
+#
 # As seen, each operation has an id, in addition to the optional name.
 # This can be used to access the operation. For example,
 firstorderiir.find_by_id('cmul0')

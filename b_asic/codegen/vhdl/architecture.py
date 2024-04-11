@@ -1,6 +1,7 @@
 """
 Module for code generation of VHDL architectures.
 """
+
 from math import ceil, log2
 from typing import TYPE_CHECKING, Dict, List, Optional, Set, TextIO, Tuple, cast
 
@@ -320,7 +321,7 @@ def memory_based_storage(
         for mv in collection:
             mv = cast(MemoryVariable, mv)
             if mv.start_time >= schedule_time:
-                raise ValueError('start_time greater than scheudle_time')
+                raise ValueError('start_time greater than schedule_time')
             if mv.execution_time:
                 write_list[mv.start_time] = (i, mv)
 

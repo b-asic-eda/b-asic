@@ -552,12 +552,12 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def __str__(self) -> str:
         """Get a string representation of this operation."""
         inputs_dict: Dict[int, Union[List[GraphID], str]] = {}
-        for i, inport in enumerate(self.inputs):
-            if inport.signal_count == 0:
+        for i, current_input in enumerate(self.inputs):
+            if current_input.signal_count == 0:
                 inputs_dict[i] = "-"
                 break
             dict_ele = []
-            for signal in inport.signals:
+            for signal in current_input.signals:
                 if signal.source:
                     if signal.source_operation.graph_id:
                         dict_ele.append(signal.source_operation.graph_id)
@@ -919,8 +919,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def set_latency(self, latency: int) -> None:
         if latency < 0:
             raise ValueError("Latency cannot be negative")
-        for inport in self.inputs:
-            inport.latency_offset = 0
+        for current_input in self.inputs:
+            current_input.latency_offset = 0
         for outport in self.outputs:
             outport.latency_offset = latency
 

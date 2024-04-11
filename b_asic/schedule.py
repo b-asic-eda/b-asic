@@ -178,7 +178,7 @@ class Schedule:
         Returns
         -------
         int
-            The number of time steps the operation with *graph_id* can ba moved
+            The number of time steps the operation with *graph_id* can be moved
             forward in time.
 
         See Also
@@ -243,7 +243,7 @@ class Schedule:
         Returns
         -------
         int
-            The number of time steps the operation with *graph_id* can ba moved
+            The number of time steps the operation with *graph_id* can be moved
             backward in time.
         .. note:: The backward slack is positive, but a call to
             :func:`move_operation` should be negative to move the operation
@@ -723,7 +723,7 @@ class Schedule:
 
             schedule.move_operation(graph_id, -schedule.backward_slack(graph_id))
 
-        but operations that do not have a preceeding operation (Inputs and Constants)
+        but operations that do not have a preceding operation (Inputs and Constants)
         will only move to the start of the schedule.
 
         Parameters
@@ -825,16 +825,16 @@ class Schedule:
                 if operation.graph_id not in self._start_times:
                     # Schedule the operation if it does not have a start time yet.
                     op_start_time = 0
-                    for inport in operation.inputs:
-                        if len(inport.signals) != 1:
+                    for current_input in operation.inputs:
+                        if len(current_input.signals) != 1:
                             raise ValueError(
                                 "Error in scheduling, dangling input port detected."
                             )
-                        if inport.signals[0].source is None:
+                        if current_input.signals[0].source is None:
                             raise ValueError(
                                 "Error in scheduling, signal with no source detected."
                             )
-                        source_port = inport.signals[0].source
+                        source_port = current_input.signals[0].source
 
                         if source_port.operation.graph_id in non_schedulable_ops:
                             source_end_time = 0
@@ -855,13 +855,15 @@ class Schedule:
                                 source_op_time + source_port.latency_offset
                             )
 
-                        if inport.latency_offset is None:
+                        if current_input.latency_offset is None:
                             raise ValueError(
-                                f"Input port {inport.index} of operation"
-                                f" {inport.operation.graph_id} has no"
+                                f"Input port {current_input.index} of operation"
+                                f" {current_input.operation.graph_id} has no"
                                 " latency-offset."
                             )
-                        op_start_time_from_in = source_end_time - inport.latency_offset
+                        op_start_time_from_in = (
+                            source_end_time - current_input.latency_offset
+                        )
                         op_start_time = max(op_start_time, op_start_time_from_in)
 
                     self._start_times[operation.graph_id] = op_start_time

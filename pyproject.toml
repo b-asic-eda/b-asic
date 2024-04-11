@@ -59,7 +59,7 @@ documentation = "https://da.gitlab-pages.liu.se/B-ASIC/"
 skip-string-normalization = true
 preview = true
 line-length = 88
-exclude = ["test/test_gui", "b_asic/scheduler_gui/ui_main_window.py"]
+exclude = "(test/test_gui/*|b_asic/scheduler_gui/ui_main_window.py)"
 
 [tool.isort]
 profile = "black"
@@ -77,3 +77,6 @@ precision = 2
 
 [tool.ruff]
 ignore = ["F403"]
+
+[tool.typos]
+default.extend-identifiers = { addd0 = "addd0" }

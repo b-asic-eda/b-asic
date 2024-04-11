@@ -963,10 +963,10 @@ class ProcessCollection:
         Split this collection into multiple new collections by sequentially assigning
         processes in the order of `sequence`.
 
-        This method takes the processes from `sequence`, in order, and assignes them to
+        This method takes the processes from `sequence`, in order, and assigns them to
         to multiple new `ProcessCollection` based on port collisions in a first-come
         first-served manner. The first `Process` in `sequence` is assigned first, and
-        the last `Proccess` in `sequence is assigned last.
+        the last `Process` in `sequence is assigned last.
 
         Parameters
         ----------
@@ -1369,7 +1369,7 @@ class ProcessCollection:
                 raise ValueError('input_sync needs to be set to use address pipelining')
             if not log2(adr_mux_size).is_integer():
                 raise ValueError(
-                    f'adr_mux_size={adr_mux_size} needs to be interger power of two'
+                    f'adr_mux_size={adr_mux_size} needs to be integer power of two'
                 )
             if adr_mux_size**adr_pipe_depth > assignment[0].schedule_time:
                 raise ValueError(

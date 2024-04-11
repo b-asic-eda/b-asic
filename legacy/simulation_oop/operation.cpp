@@ -64,7 +64,7 @@ number abstract_operation::quantize_input(std::size_t index, number value, std::
 	}
 	if (bits > 64) {
 		throw py::value_error{
-			fmt::format("Cannot quantize to {} (more than 64) bits as requested by the singal connected to input #{}", bits, index)};
+			fmt::format("Cannot quantize to {} (more than 64) bits as requested by the signal connected to input #{}", bits, index)};
 	}
 	return number{static_cast<number::value_type>(static_cast<std::int64_t>(value.real()) & ((std::int64_t{1} << bits) - 1))};
 }

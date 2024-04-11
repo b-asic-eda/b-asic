@@ -1,7 +1,9 @@
 """B-ASIC test suite for the core operations."""
+
 import pytest
 
 from b_asic import (
+    SFG,
     Absolute,
     Addition,
     AddSub,
@@ -17,11 +19,10 @@ from b_asic import (
     Reciprocal,
     RightShift,
     Shift,
+    Sink,
     SquareRoot,
     Subtraction,
     SymmetricTwoportAdaptor,
-    Sink,
-    SFG,
 )
 
 
@@ -407,6 +408,7 @@ class TestDepends:
         assert set(bfly1.inputs_required_for_output(0)) == {0, 1}
         assert set(bfly1.inputs_required_for_output(1)) == {0, 1}
 
+
 class TestSink:
     def test_create_sfg_with_sink(self):
         bfly = Butterfly()
@@ -418,4 +420,4 @@ class TestSink:
         assert sfg2.output_count == 1
         assert sfg2.input_count == 2
 
-        assert sfg.evaluate_output(1, [0,1]) == sfg2.evaluate_output(0, [0,1])
+        assert sfg.evaluate_output(1, [0, 1]) == sfg2.evaluate_output(0, [0, 1])

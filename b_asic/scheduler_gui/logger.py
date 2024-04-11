@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 B-ASIC Scheduler-gui Logger Module.
 

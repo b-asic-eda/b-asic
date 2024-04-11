@@ -101,7 +101,7 @@ class Arrow(QGraphicsPathItem):
         return cast("OutputPort", self._source_port_button.port)
 
     @property
-    def desination_port(self) -> "InputPort":
+    def destination_port(self) -> "InputPort":
         """The destination InputPort."""
         return cast("InputPort", self._destination_port_button.port)
 

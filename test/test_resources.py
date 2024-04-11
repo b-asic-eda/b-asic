@@ -212,7 +212,7 @@ class TestProcessCollectionPlainMemoryVariable:
         fig, ax = plt.subplots()
         collection = ProcessCollection(
             {
-                # Process starting exactly at scheudle start
+                # Process starting exactly at schedule start
                 PlainMemoryVariable(0, 0, {0: 0}, "S1"),
                 PlainMemoryVariable(0, 0, {0: 5}, "S2"),
                 # Process starting somewhere between schedule start and end
