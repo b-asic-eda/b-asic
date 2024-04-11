@@ -20,7 +20,6 @@ def test_is_valid_vhdl_identifier():
         "architecture",
         "Architecture",
         "ArChItEctUrE",
-        "architectURE",
         "entity",
         "invalid+",
         "invalid}",

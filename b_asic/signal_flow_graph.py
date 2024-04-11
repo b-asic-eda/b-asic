@@ -1224,12 +1224,12 @@ class SFG(AbstractOperation):
 
             for outport in curr_iter_ports:
                 for signal in outport.signals:
-                    new_inport = signal.destination
+                    new_input_port = signal.destination
                     # Do not traverse over delays.
-                    if new_inport is not None and not isinstance(
-                        new_inport.operation, Delay
+                    if new_input_port is not None and not isinstance(
+                        new_input_port.operation, Delay
                     ):
-                        new_op = new_inport.operation
+                        new_op = new_input_port.operation
                         remaining_inports_per_operation[new_op] -= 1
                         if remaining_inports_per_operation[new_op] == 0:
                             next_iter_ports.extend(new_op.outputs)

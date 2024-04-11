@@ -4,7 +4,6 @@ B-ASIC Signal Flow Graph Editor Module.
 This file opens the main SFG editor window of the GUI for B-ASIC when run.
 """
 
-
 import importlib.util
 import logging
 import os
@@ -814,8 +813,8 @@ class SFGMainWindow(QMainWindow):
             raise ValueError("Exactly one output port must be selected!")
 
         pressed_op_outport = pressed_op_outports[0]
-        for pressed_op_inport in pressed_op_inports:
-            self._connect_button(pressed_op_outport, pressed_op_inport)
+        for pressed_op_input_port in pressed_op_inports:
+            self._connect_button(pressed_op_outport, pressed_op_input_port)
 
         for port in self._pressed_ports:
             port.select_port()

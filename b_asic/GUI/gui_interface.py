@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 # Originally generated from QT designer, but now manually maintained
 
 from qtpy import QtCore, QtWidgets
 
 
-class Ui_main_window(object):
+class Ui_main_window:
     def setupUi(self, main_window):
         main_window.setObjectName("main_window")
         main_window.setEnabled(True)

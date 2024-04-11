@@ -1,6 +1,7 @@
 """
 B-ASIC architecture classes.
 """
+
 from collections import defaultdict
 from io import TextIOWrapper
 from itertools import chain
@@ -588,13 +589,13 @@ of :class:`~b_asic.architecture.ProcessingElement`
         )
         self._memories = [memories] if isinstance(memories, Memory) else list(memories)
         self._direct_interconnects = direct_interconnects
-        self._variable_inport_to_resource: DefaultDict[
+        self._variable_input_port_to_resource: DefaultDict[
             InputPort, Set[Tuple[Resource, int]]
         ] = defaultdict(set)
         self._variable_outport_to_resource: DefaultDict[
             OutputPort, Set[Tuple[Resource, int]]
         ] = defaultdict(set)
-        self._operation_inport_to_resource: Dict[InputPort, Resource] = {}
+        self._operation_input_port_to_resource: Dict[InputPort, Resource] = {}
         self._operation_outport_to_resource: Dict[OutputPort, Resource] = {}
 
         self._schedule_time = self._check_and_get_schedule_time()
@@ -617,25 +618,27 @@ of :class:`~b_asic.architecture.ProcessingElement`
         return schedule_times.pop()
 
     def _build_dicts(self) -> None:
-        self._variable_inport_to_resource: DefaultDict[
+        self._variable_input_port_to_resource: DefaultDict[
             InputPort, Set[Tuple[Resource, int]]
         ] = defaultdict(set)
         self._variable_outport_to_resource: DefaultDict[
             OutputPort, Set[Tuple[Resource, int]]
         ] = defaultdict(set)
-        self._operation_inport_to_resource = {}
+        self._operation_input_port_to_resource = {}
         self._operation_outport_to_resource = {}
         for pe in self.processing_elements:
             for operator in pe.processes:
                 for input_port in operator.operation.inputs:
-                    self._operation_inport_to_resource[input_port] = pe
+                    self._operation_input_port_to_resource[input_port] = pe
                 for output_port in operator.operation.outputs:
                     self._operation_outport_to_resource[output_port] = pe
 
         for memory in self.memories:
             for mv in memory:
                 for read_port in mv.read_ports:
-                    self._variable_inport_to_resource[read_port].add((memory, 0))  # Fix
+                    self._variable_input_port_to_resource[read_port].add(
+                        (memory, 0)
+                    )  # Fix
                 self._variable_outport_to_resource[mv.write_port].add(
                     (memory, 0)
                 )  # Fix
@@ -643,7 +646,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             for di in self._direct_interconnects:
                 di = cast(MemoryVariable, di)
                 for read_port in di.read_ports:
-                    self._variable_inport_to_resource[read_port].add(
+                    self._variable_input_port_to_resource[read_port].add(
                         (
                             self._operation_outport_to_resource[di.write_port],
                             di.write_port.index,
@@ -651,7 +654,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     )
                     self._variable_outport_to_resource[di.write_port].add(
                         (
-                            self._operation_inport_to_resource[read_port],
+                            self._operation_input_port_to_resource[read_port],
                             read_port.index,
                         )
                     )
@@ -718,7 +721,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             var = cast(MemoryVariable, var)
             d_in[self._operation_outport_to_resource[var.write_port]] += 1
             for read_port in var.read_ports:
-                d_out[self._operation_inport_to_resource[read_port]] += 1
+                d_out[self._operation_input_port_to_resource[read_port]] += 1
         return dict(d_in), dict(d_out)
 
     def get_interconnects_for_pe(
@@ -739,7 +742,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         Returns
         -------
         list
-            List of dictionaries indicating the sources for each inport and the
+            List of dictionaries indicating the sources for each import and the
             frequency of accesses.
         list
             List of dictionaries indicating the sources for each outport and the
@@ -757,7 +760,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         for var in pe.collection:
             var = cast(OperatorProcess, var)
             for i, input_ in enumerate(var.operation.inputs):
-                for v in self._variable_inport_to_resource[input_]:
+                for v in self._variable_input_port_to_resource[input_]:
                     d_in[i][v] += 1
             for i, output in enumerate(var.operation.outputs):
                 for v in self._variable_outport_to_resource[output]:

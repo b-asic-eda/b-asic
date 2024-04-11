@@ -1,17 +1,18 @@
 """
 B-ASIC test suite for the schedule module and Schedule class.
 """
+
 import re
 
-import pytest
 import matplotlib.testing.decorators
+import pytest
 
 from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
 from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
+from b_asic.sfg_generators import direct_form_fir
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
-from b_asic.sfg_generators import direct_form_fir
 
 
 class TestInit:
@@ -293,7 +294,9 @@ class TestSlacks:
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         schedule.print_slacks()
         captured = capsys.readouterr()
-        assert captured.out == """Graph ID | Backward |  Forward
+        assert (
+            captured.out
+            == """Graph ID | Backward |  Forward
 ---------|----------|---------
 add0     |        0 |        0
 add1     |        0 |        0
@@ -309,6 +312,7 @@ cmul6    |        4 |        0
 in0      |       oo |        0
 out0     |        0 |       oo
 """
+        )
         assert captured.err == ""
 
     def test_print_slacks_sorting(self, capsys, precedence_sfg_delays):
@@ -318,7 +322,9 @@ out0     |        0 |       oo
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         schedule.print_slacks(1)
         captured = capsys.readouterr()
-        assert captured.out == """Graph ID | Backward |  Forward
+        assert (
+            captured.out
+            == """Graph ID | Backward |  Forward
 ---------|----------|---------
 cmul0    |        0 |        1
 add0     |        0 |        0
@@ -334,6 +340,7 @@ cmul4    |       16 |        0
 cmul5    |       16 |        0
 in0      |       oo |        0
 """
+        )
         assert captured.err == ""
 
     def test_slacks_errors(self, precedence_sfg_delays):
@@ -521,11 +528,15 @@ class TestRescheduling:
         assert schedule._start_times["add0"] == 0
         assert schedule._start_times["out0"] == 2
 
-    def test_reintroduce_delays(self, precedence_sfg_delays, sfg_direct_form_iir_lp_filter):
+    def test_reintroduce_delays(
+        self, precedence_sfg_delays, sfg_direct_form_iir_lp_filter
+    ):
         precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
         sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 1)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, algorithm="ASAP")
         sfg = schedule.sfg
@@ -536,19 +547,14 @@ class TestRescheduling:
         assert sfg_direct_form_iir_lp_filter.evaluate(5) == sfg.evaluate(5)
 
         fir_sfg = direct_form_fir(
-                list(range(1, 10)),
-                mult_properties={
-                    'latency': 2,
-                    'execution_time': 1
-                    },
-                add_properties={
-                    'latency': 2,
-                    'execution_time': 1
-                    }
-                )
+            list(range(1, 10)),
+            mult_properties={'latency': 2, 'execution_time': 1},
+            add_properties={'latency': 2, 'execution_time': 1},
+        )
         schedule = Schedule(fir_sfg, algorithm="ASAP")
         sfg = schedule.sfg
         assert fir_sfg.evaluate(5) == sfg.evaluate(5)
+
 
 class TestTimeResolution:
     def test_increase_time_resolution(
@@ -694,7 +700,9 @@ class TestProcesses:
 
 
 class TestFigureGeneration:
-    @matplotlib.testing.decorators.image_comparison(['test__get_figure_no_execution_times.png'], remove_text=True)
+    @matplotlib.testing.decorators.image_comparison(
+        ['test__get_figure_no_execution_times.png'], remove_text=True
+    )
     def test__get_figure_no_execution_times(self, secondorder_iir_schedule):
         return secondorder_iir_schedule._get_figure()
 

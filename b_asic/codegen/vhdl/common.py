@@ -162,7 +162,7 @@ def constant_declaration(
         Signal name.
     signal_type : str
         Signal type.
-    value : anything convertable to str
+    value : anything convertible to str
         Default value to the signal.
     name_pad : int, optional
         An optional left padding value applied to the name.

@@ -1,7 +1,7 @@
 # Legacy files
 
-This folder contains currently unused code that is kept for acedemic purposes,
-or to be used as a refererence for future development.
+This folder contains currently unused code that is kept for academic purposes,
+or to be used as a reference for future development.
 
 ## simulation_oop
 
