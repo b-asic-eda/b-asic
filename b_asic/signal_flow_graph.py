@@ -1242,7 +1242,16 @@ class SFG(AbstractOperation):
         self, original_component: GraphComponent
     ) -> GraphComponent:
         if original_component in self._original_components_to_new:
-            raise ValueError("Tried to add duplicate SFG component")
+            id = (
+                original_component.name
+                if original_component.name
+                else (
+                    original_component.graph_id
+                    if original_component.graph_id
+                    else original_component.type_name()
+                )
+            )
+            raise ValueError(f"Tried to add duplicate SFG component: {id}")
         new_component = original_component.copy()
         self._original_components_to_new[original_component] = new_component
         if not new_component.graph_id or new_component.graph_id in self._used_ids:
@@ -1273,7 +1282,16 @@ class SFG(AbstractOperation):
             # Connect input ports to new signals.
             for original_input_port in original_op.inputs:
                 if original_input_port.signal_count < 1:
-                    raise ValueError("Unconnected input port in SFG")
+                    id = (
+                        original_op.name
+                        if original_op.name
+                        else (
+                            original_op.graph_id
+                            if original_op.graph_id
+                            else original_op.type_name()
+                        )
+                    )
+                    raise ValueError(f"Unconnected input port in SFG. Operation: {id}")
 
                 for original_signal in original_input_port.signals:
                     # Check if the signal is one of the SFG's input signals.
@@ -1509,7 +1527,7 @@ class SFG(AbstractOperation):
 
     def sfg_digraph(
         self,
-        show_id: bool = False,
+        show_signal_id: bool = False,
         engine: Optional[str] = None,
         branch_node: bool = True,
         port_numbering: bool = True,
@@ -1522,7 +1540,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        show_id : bool, default: False
+        show_signal_id : bool, default: False
             If True, the graph_id:s of signals are shown.
         engine : str, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
@@ -1554,7 +1572,7 @@ class SFG(AbstractOperation):
                     if branch_node and source.signal_count > 1
                     else source.operation.graph_id
                 )
-                label = op.graph_id if show_id else None
+                label = op.graph_id if show_signal_id else None
                 taillabel = (
                     str(source.index)
                     if source.operation.output_count > 1
@@ -1593,7 +1611,11 @@ class SFG(AbstractOperation):
                         taillabel=taillabel,
                     )
             else:
-                dg.node(op.graph_id, shape=_OPERATION_SHAPE[op.type_name()])
+                dg.node(
+                    op.graph_id,
+                    shape=_OPERATION_SHAPE[op.type_name()],
+                    label=f"{op.name}\n({op.graph_id})" if op.name else None,
+                )
         return dg
 
     def _repr_mimebundle_(self, include=None, exclude=None):
@@ -1618,7 +1640,7 @@ class SFG(AbstractOperation):
     def show(
         self,
         fmt: Optional[str] = None,
-        show_id: bool = False,
+        show_signal_id: bool = False,
         engine: Optional[str] = None,
         branch_node: bool = True,
         port_numbering: bool = True,
@@ -1634,7 +1656,7 @@ class SFG(AbstractOperation):
             https://www.graphviz.org/doc/info/output.html
             Most common are "pdf", "eps", "png", and "svg". Default is None which
             leads to PDF.
-        show_id : bool, default: False
+        show_signal_id : bool, default: False
             If True, the graph_id:s of signals are shown.
         engine : str, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
@@ -1649,7 +1671,7 @@ class SFG(AbstractOperation):
         """
 
         dg = self.sfg_digraph(
-            show_id=show_id,
+            show_signal_id=show_signal_id,
             engine=engine,
             branch_node=branch_node,
             port_numbering=port_numbering,

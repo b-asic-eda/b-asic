@@ -180,13 +180,13 @@ def sfg_simple_filter():
     in1---->add1----->t1+---->out1
          .                 .
     """
-    in1 = Input("IN1")
-    cmul1 = ConstantMultiplication(0.5, name="CMUL1")
-    add1 = Addition(in1, cmul1, "ADD1")
+    in1 = Input("IN")
+    cmul1 = ConstantMultiplication(0.5, name="CMUL")
+    add1 = Addition(in1, cmul1, "ADD")
     add1.input(1).signals[0].name = "S2"
-    t1 = Delay(add1, name="T1")
+    t1 = Delay(add1, name="T")
     cmul1.input(0).connect(t1, "S1")
-    out1 = Output(t1, "OUT1")
+    out1 = Output(t1, "OUT")
     return SFG(inputs=[in1], outputs=[out1], name="simple_filter")
 
 

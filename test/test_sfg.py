@@ -163,15 +163,15 @@ class TestPrintSfg:
             + "Internal Operations:\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
-            + str(sfg_simple_filter.find_by_name("IN1")[0])
+            + str(sfg_simple_filter.find_by_name("IN")[0])
             + "\n"
-            + str(sfg_simple_filter.find_by_name("ADD1")[0])
+            + str(sfg_simple_filter.find_by_name("ADD")[0])
             + "\n"
-            + str(sfg_simple_filter.find_by_name("T1")[0])
+            + str(sfg_simple_filter.find_by_name("T")[0])
             + "\n"
-            + str(sfg_simple_filter.find_by_name("CMUL1")[0])
+            + str(sfg_simple_filter.find_by_name("CMUL")[0])
             + "\n"
-            + str(sfg_simple_filter.find_by_name("OUT1")[0])
+            + str(sfg_simple_filter.find_by_name("OUT")[0])
             + "\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
@@ -958,11 +958,11 @@ class TestTopologicalOrderOperations:
         topological_order = sfg_simple_filter.get_operations_topological_order()
 
         assert [comp.name for comp in topological_order] == [
-            "IN1",
-            "ADD1",
-            "T1",
-            "CMUL1",
-            "OUT1",
+            "IN",
+            "ADD",
+            "T",
+            "CMUL",
+            "OUT",
         ]
 
     def test_multiple_independent_inputs(self, sfg_two_inputs_two_outputs_independent):
@@ -1007,26 +1007,25 @@ class TestRemove:
 
         assert {
             op.name
-            for op in sfg_simple_filter.find_by_name("T1")[0].subsequent_operations
-        } == {"CMUL1", "OUT1"}
+            for op in sfg_simple_filter.find_by_name("T")[0].subsequent_operations
+        } == {"CMUL", "OUT"}
         assert {
-            op.name for op in new_sfg.find_by_name("T1")[0].subsequent_operations
-        } == {"ADD1", "OUT1"}
+            op.name for op in new_sfg.find_by_name("T")[0].subsequent_operations
+        } == {"ADD", "OUT"}
 
         assert {
             op.name
-            for op in sfg_simple_filter.find_by_name("ADD1")[0].preceding_operations
-        } == {"CMUL1", "IN1"}
+            for op in sfg_simple_filter.find_by_name("ADD")[0].preceding_operations
+        } == {"CMUL", "IN"}
         assert {
-            op.name for op in new_sfg.find_by_name("ADD1")[0].preceding_operations
-        } == {"T1", "IN1"}
+            op.name for op in new_sfg.find_by_name("ADD")[0].preceding_operations
+        } == {"T", "IN"}
 
         assert "S1" in {
-            sig.name
-            for sig in sfg_simple_filter.find_by_name("T1")[0].output(0).signals
+            sig.name for sig in sfg_simple_filter.find_by_name("T")[0].output(0).signals
         }
         assert "S2" in {
-            sig.name for sig in new_sfg.find_by_name("T1")[0].output(0).signals
+            sig.name for sig in new_sfg.find_by_name("T")[0].output(0).signals
         }
 
     def test_remove_multiple_inputs_outputs(self, butterfly_operation_tree):
@@ -1217,59 +1216,105 @@ class TestPrecedenceGraph:
 
 class TestSFGGraph:
     def test_sfg(self, sfg_simple_filter):
-        res = (
-            'digraph {\n\trankdir=LR splines=spline\n\tin0 [shape=cds]\n\tin0 -> add0'
-            ' [headlabel=0]\n\tout0 [shape=cds]\n\tt0 -> out0\n\tadd0'
-            ' [shape=ellipse]\n\tcmul0 -> add0 [headlabel=1]\n\tcmul0'
-            ' [shape=ellipse]\n\tadd0 -> t0\n\tt0 [shape=square]\n\tt0 -> cmul0\n}'
-        )
-        assert sfg_simple_filter.sfg_digraph(branch_node=False).source in (
-            res,
-            res + "\n",
-        )
-
-    def test_sfg_show_id(self, sfg_simple_filter):
-        res = (
-            'digraph {\n\trankdir=LR splines=spline\n\tin0 [shape=cds]\n\tin0 -> add0'
-            ' [label=s0 headlabel=0]\n\tout0 [shape=cds]\n\tt0 -> out0'
-            ' [label=s1]\n\tadd0 [shape=ellipse]\n\tcmul0 -> add0 [label=s2'
-            ' headlabel=1]\n\tcmul0 [shape=ellipse]\n\tadd0 -> t0 [label=s3]\n\tt0'
-            ' [shape=square]\n\tt0 -> cmul0 [label=s4]\n}'
-        )
-
-        assert sfg_simple_filter.sfg_digraph(
-            show_id=True, branch_node=False
-        ).source in (
-            res,
-            res + "\n",
-        )
-
-    def test_sfg_branch(self, sfg_simple_filter):
-        res = (
-            'digraph {\n\trankdir=LR splines=spline\n\tin0 [shape=cds]\n\tin0 -> add0'
-            ' [headlabel=0]\n\tout0 [shape=cds]\n\t"t0.0" -> out0\n\t"t0.0"'
-            ' [shape=point]\n\tt0 -> "t0.0" [arrowhead=none]\n\tadd0'
-            ' [shape=ellipse]\n\tcmul0 -> add0 [headlabel=1]\n\tcmul0'
-            ' [shape=ellipse]\n\tadd0 -> t0\n\tt0 [shape=square]\n\t"t0.0" ->'
-            ' cmul0\n}'
-        )
-
+        res = """digraph {
+	rankdir=LR splines=spline
+	in0 [label="IN
+(in0)" shape=cds]
+	in0 -> add0 [headlabel=0]
+	out0 [label="OUT
+(out0)" shape=cds]
+	"t0.0" -> out0
+	"t0.0" [shape=point]
+	t0 -> "t0.0" [arrowhead=none]
+	add0 [label="ADD
+(add0)" shape=ellipse]
+	cmul0 -> add0 [headlabel=1]
+	cmul0 [label="CMUL
+(cmul0)" shape=ellipse]
+	add0 -> t0
+	t0 [label="T
+(t0)" shape=square]
+	"t0.0" -> cmul0
+}"""
         assert sfg_simple_filter.sfg_digraph().source in (
             res,
             res + "\n",
         )
 
-    def test_sfg_no_port_numbering(self, sfg_simple_filter):
-        res = (
-            'digraph {\n\trankdir=LR splines=spline\n\tin0 [shape=cds]\n\tin0 ->'
-            ' add0\n\tout0 [shape=cds]\n\tt0 -> out0\n\tadd0 [shape=ellipse]\n\tcmul0'
-            ' -> add0\n\tcmul0 [shape=ellipse]\n\tadd0 -> t0\n\tt0 [shape=square]\n\tt0'
-            ' -> cmul0\n}'
+    def test_sfg_show_signal_id(self, sfg_simple_filter):
+        res = """digraph {
+	rankdir=LR splines=spline
+	in0 [label="IN
+(in0)" shape=cds]
+	in0 -> add0 [label=s0 headlabel=0]
+	out0 [label="OUT
+(out0)" shape=cds]
+	"t0.0" -> out0 [label=s1]
+	"t0.0" [shape=point]
+	t0 -> "t0.0" [arrowhead=none]
+	add0 [label="ADD
+(add0)" shape=ellipse]
+	cmul0 -> add0 [label=s2 headlabel=1]
+	cmul0 [label="CMUL
+(cmul0)" shape=ellipse]
+	add0 -> t0 [label=s3]
+	t0 [label="T
+(t0)" shape=square]
+	"t0.0" -> cmul0 [label=s4]
+}"""
+
+        assert sfg_simple_filter.sfg_digraph(show_signal_id=True).source in (
+            res,
+            res + "\n",
         )
 
-        assert sfg_simple_filter.sfg_digraph(
-            port_numbering=False, branch_node=False
-        ).source in (
+    def test_sfg_no_branch(self, sfg_simple_filter):
+        res = """digraph {
+	rankdir=LR splines=spline
+	in0 [label="IN
+(in0)" shape=cds]
+	in0 -> add0 [headlabel=0]
+	out0 [label="OUT
+(out0)" shape=cds]
+	t0 -> out0
+	add0 [label="ADD
+(add0)" shape=ellipse]
+	cmul0 -> add0 [headlabel=1]
+	cmul0 [label="CMUL
+(cmul0)" shape=ellipse]
+	add0 -> t0
+	t0 [label="T
+(t0)" shape=square]
+	t0 -> cmul0
+}"""
+        assert sfg_simple_filter.sfg_digraph(branch_node=False).source in (
+            res,
+            res + "\n",
+        )
+
+    def test_sfg_no_port_numbering(self, sfg_simple_filter):
+        res = """digraph {
+	rankdir=LR splines=spline
+	in0 [label="IN
+(in0)" shape=cds]
+	in0 -> add0
+	out0 [label="OUT
+(out0)" shape=cds]
+	"t0.0" -> out0
+	"t0.0" [shape=point]
+	t0 -> "t0.0" [arrowhead=none]
+	add0 [label="ADD
+(add0)" shape=ellipse]
+	cmul0 -> add0
+	cmul0 [label="CMUL
+(cmul0)" shape=ellipse]
+	add0 -> t0
+	t0 [label="T
+(t0)" shape=square]
+	"t0.0" -> cmul0
+}"""
+
+        assert sfg_simple_filter.sfg_digraph(port_numbering=False).source in (
             res,
             res + "\n",
         )
