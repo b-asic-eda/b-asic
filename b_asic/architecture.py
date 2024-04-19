@@ -305,7 +305,7 @@ class Resource(HardwareBlock):
         return self._collection
 
     @property
-    def operation_type(self) -> Union[Type[MemoryProcess], Type[OperatorProcess]]:
+    def operation_type(self) -> Union[Type[MemoryProcess], Type[Operation]]:
         raise NotImplementedError("ABC Resource does not implement operation_type")
 
     def add_process(self, proc: Process, assign=False):
@@ -621,12 +621,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
         return schedule_times.pop()
 
     def _build_dicts(self) -> None:
-        self._variable_input_port_to_resource: DefaultDict[
-            InputPort, Set[Tuple[Resource, int]]
-        ] = defaultdict(set)
-        self._variable_outport_to_resource: DefaultDict[
-            OutputPort, Set[Tuple[Resource, int]]
-        ] = defaultdict(set)
+        self._variable_input_port_to_resource = defaultdict(set)
+        self._variable_outport_to_resource = defaultdict(set)
         self._operation_input_port_to_resource = {}
         self._operation_outport_to_resource = {}
         for pe in self.processing_elements:
@@ -677,8 +673,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 memory_write_ports.add(mv.write_port)
                 memory_read_ports.update(mv.read_ports)
 
-        pe_input_ports = set()
-        pe_output_ports = set()
+        pe_input_ports: Set[InputPort] = set()
+        pe_output_ports: Set[OutputPort] = set()
         for pe in self.processing_elements:
             for operator in pe.processes:
                 pe_input_ports.update(operator.operation.inputs)
@@ -806,9 +802,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
             raise ValueError("Resource must be empty")
 
         if resource in self.memories:
-            self.memories.remove(resource)
+            self.memories.remove(cast(Memory, resource))
         elif resource in self.processing_elements:
-            self.processing_elements.remove(resource)
+            self.processing_elements.remove(cast(ProcessingElement, resource))
         else:
             raise ValueError('Resource not in architecture')
 
@@ -838,10 +834,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         assign: bool = False,
     ) -> None:
         """
-        Move a :class:`b_asic.process.Process` from one :class:`Resource`  to another.
+        Move a :class:`~b_asic.process.Process` from one :class:`Resource`  to another.
 
         Both the resource moved from and will become unassigned after a process has been
-        moved, unless *assign* is set to True.
+        moved, unless *assign* is True.
 
         Parameters
         ----------
@@ -1033,25 +1029,25 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         destination_list = {k: list(v) for k, v in destination_edges.items()}
         if multiplexers:
-            for destination, source_list in destination_list.items():
+            for destination_str, source_list in destination_list.items():
                 if len(source_list) > 1:
                     # Create GraphViz struct for multiplexer
-                    inputs = [f"in{i}" for i in range(len(source_list))]
+                    input_strings = [f"in{i}" for i in range(len(source_list))]
                     ret = (
                         '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"'
                         ' CELLPADDING="4">'
                     )
                     in_strs = [
                         f'<TD COLSPAN="1" PORT="{in_str}">{in_str}</TD>'
-                        for in_str in inputs
+                        for in_str in input_strings
                     ]
                     ret += f"<TR>{''.join(in_strs)}</TR>"
-                    name = f"{destination.replace(':', '_')}_mux"
+                    name = f"{destination_str.replace(':', '_')}_mux"
                     ret += (
-                        f'<TR><TD COLSPAN="{len(inputs)}"'
+                        f'<TR><TD COLSPAN="{len(input_strings)}"'
                         f' PORT="{name}"><B>{name}</B></TD></TR>'
                     )
-                    ret += f'<TR><TD COLSPAN="{len(inputs)}" PORT="out0">out0</TD></TR>'
+                    ret += f'<TR><TD COLSPAN="{len(input_strings)}" PORT="out0">out0</TD></TR>'
                     dg.node(
                         name,
                         ret + "</TABLE>>",
@@ -1060,7 +1056,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                         fontname='Times New Roman',
                     )
                     # Add edge from mux output to resource input
-                    dg.edge(f"{name}:out0", destination)
+                    dg.edge(f"{name}:out0", destination_str)
 
         # Add edges to graph
         for src_str, destination_counts in edges.items():

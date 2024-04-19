@@ -571,13 +571,14 @@ def register_based_storage(
     reg_cnt = len(forward_backward_table[0].regs)
 
     # Set of the register indices to output from
-    output_regs = {entry.outputs_from for entry in forward_backward_table.table}
-    if None in output_regs:
-        output_regs.remove(None)
-    output_regs = cast(Set[int], output_regs)
+    output_regs = {
+        entry.outputs_from
+        for entry in forward_backward_table.table
+        if entry.outputs_from is not None
+    }
 
     # Table with mapping: register to output multiplexer index
-    output_mux_table = {reg: i for i, reg in enumerate(output_regs)}
+    output_mux_table: Dict[int, int] = {reg: i for i, reg in enumerate(output_regs)}
 
     # Back-edge register indices
     back_edges: Set[Tuple[int, int]] = {

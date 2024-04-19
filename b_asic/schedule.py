@@ -7,7 +7,7 @@ Contains the schedule class for scheduling operations in an SFG.
 import io
 import sys
 from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Dict, List, Optional, Sequence, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,15 +38,11 @@ from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
 
 # Need RGB from 0 to 1
-_EXECUTION_TIME_COLOR: Union[
-    Tuple[float, float, float], Tuple[float, float, float, float]
-] = tuple(float(c / 255) for c in EXECUTION_TIME_COLOR)
-_LATENCY_COLOR: Union[Tuple[float, float, float], Tuple[float, float, float, float]] = (
-    tuple(float(c / 255) for c in LATENCY_COLOR)
+_EXECUTION_TIME_COLOR: Tuple[float, ...] = tuple(
+    float(c / 255) for c in EXECUTION_TIME_COLOR
 )
-_SIGNAL_COLOR: Union[Tuple[float, float, float], Tuple[float, float, float, float]] = (
-    tuple(float(c / 255) for c in SIGNAL_COLOR)
-)
+_LATENCY_COLOR: Tuple[float, ...] = tuple(float(c / 255) for c in LATENCY_COLOR)
+_SIGNAL_COLOR: Tuple[float, ...] = tuple(float(c / 255) for c in SIGNAL_COLOR)
 
 
 def _laps_default():

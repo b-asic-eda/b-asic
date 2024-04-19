@@ -1006,7 +1006,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.actionToggle_full_screen.setIcon(get_icon('full-screen-exit'))
 
 
-def start_scheduler(schedule: Optional[Schedule] = None) -> Schedule:
+def start_scheduler(schedule: Optional[Schedule] = None) -> Optional[Schedule]:
     """
     Start scheduler GUI.
 

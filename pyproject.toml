@@ -76,7 +76,7 @@ ignore_missing_imports = true
 precision = 2
 
 [tool.ruff]
-ignore = ["F403"]
+lint.ignore = ["F403"]
 
 [tool.typos]
 default.extend-identifiers = { addd0 = "addd0", inout = "inout", ArChItEctUrE = "ArChItEctUrE" }

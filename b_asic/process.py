@@ -146,8 +146,8 @@ class MemoryProcess(Process):
         )
 
     @property
-    def read_times(self) -> List[int]:
-        return list(self.start_time + read for read in self._life_times)
+    def read_times(self) -> Tuple[int, ...]:
+        return tuple(self.start_time + read for read in self._life_times)
 
     @property
     def life_times(self) -> List[int]:
@@ -170,8 +170,9 @@ class MemoryProcess(Process):
         length: int = 0,
     ) -> Tuple[Optional["MemoryProcess"], Optional["MemoryProcess"]]:
         """
-        Split this :class:`MemoryProcess` into two new :class:`MemoryProcess` objects,
-        based on lifetimes of the read accesses.
+        Split this :class:`MemoryProcess` into two new :class:`MemoryProcess` objects.
+
+        This is based on the lifetimes of the read accesses.
 
         Parameters
         ----------
