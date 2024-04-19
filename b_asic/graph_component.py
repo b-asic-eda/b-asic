@@ -28,7 +28,7 @@ class GraphComponent(ABC):
     @classmethod
     @abstractmethod
     def type_name(cls) -> TypeName:
-        """Get the type name of this graph component"""
+        """Get the type name of this graph component."""
         raise NotImplementedError
 
     @property

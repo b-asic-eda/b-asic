@@ -532,11 +532,11 @@ class ProcessCollection:
         Plot all :class:`~b_asic.process.Process` objects of this
         :class:`~b_asic.resources.ProcessCollection` in a lifetime diagram.
 
-        If the ``ax`` parameter is not specified, a new Matplotlib figure is created.
+        If the *ax* parameter is not specified, a new Matplotlib figure is created.
 
         Raises :class:`KeyError` if any :class:`~b_asic.process.Process` lifetime
         exceeds this :class:`~b_asic.resources.ProcessCollection` schedule time,
-        unless ``allow_excessive_lifetimes`` is specified. In that case,
+        unless *allow_excessive_lifetimes* is True. In that case,
         :class:`~b_asic.process.Process` objects whose lifetime exceed the schedule
         time are drawn using the B-ASIC warning color.
 

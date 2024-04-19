@@ -1121,7 +1121,7 @@ class Schedule:
         """Reset all the y-locations in the schedule to None"""
         self._y_locations = defaultdict(_y_locations_default)
 
-    def plot(self, ax: Axes, operation_gap: OPERATION_GAP) -> None:
+    def plot(self, ax: Axes, operation_gap: float = OPERATION_GAP) -> None:
         """
         Plot the schedule in a :class:`matplotlib.axes.Axes` or subclass.
 

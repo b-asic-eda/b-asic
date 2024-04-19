@@ -11,6 +11,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -240,7 +241,7 @@ class Resource(HardwareBlock):
         ax : Axes
             Matplotlib Axes to plot in.
         **kwargs
-            Passed to :meth:`b_asic.resources.ProcessCollection.plot`.
+            Passed to :meth:`~b_asic.resources.ProcessCollection.plot`.
         """
         if not self.is_assigned:
             self._collection.plot(ax, **kwargs)
@@ -259,7 +260,7 @@ class Resource(HardwareBlock):
         title : str, optional
             Figure title.
         **kwargs
-            Passed to :meth:`b_asic.resources.ProcessCollection.plot`.
+            Passed to :meth:`~b_asic.resources.ProcessCollection.plot`.
         """
         fig, ax = plt.subplots()
         self.plot_content(ax, **kwargs)
@@ -412,13 +413,15 @@ class ProcessingElement(Resource):
     def processes(self) -> List[OperatorProcess]:
         return [cast(OperatorProcess, p) for p in self._collection]
 
-    def assign(self, heuristic: str = "left_edge") -> None:
+    def assign(
+        self, heuristic: Literal["left_edge", "graph_color"] = "left_edge"
+    ) -> None:
         """
         Perform assignment of the processes.
 
         Parameters
         ----------
-        heuristic : str, default: 'left_edge'
+        heuristic : {'left_edge', 'graph_color'}, default: 'left_edge'
             The assignment algorithm.
 
             * 'left_edge': Left-edge algorithm.
@@ -463,7 +466,7 @@ class Memory(Resource):
     def __init__(
         self,
         process_collection: ProcessCollection,
-        memory_type: str = "RAM",
+        memory_type: Literal["RAM", "register"] = "RAM",
         entity_name: Optional[str] = None,
         read_ports: Optional[int] = None,
         write_ports: Optional[int] = None,
@@ -793,7 +796,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         Parameters
         ----------
-        resource : :class:`b_asic.architecture.Resource` or str
+        resource : :class:`~b_asic.architecture.Resource` or str
             The resource or the resource name to remove.
         """
         if isinstance(resource, str):
@@ -830,8 +833,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
     def move_process(
         self,
         proc: Union[str, Process],
-        re_from: Union[str, Resource],
-        re_to: Union[str, Resource],
+        source: Union[str, Resource],
+        destination: Union[str, Resource],
         assign: bool = False,
     ) -> None:
         """
@@ -842,11 +845,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         Parameters
         ----------
-        proc : :class:`b_asic.process.Process` or str
+        proc : :class:`~b_asic.process.Process` or str
             The process (or its name) to move.
-        re_from : :class:`b_asic.architecture.Resource` or str
+        source : :class:`~b_asic.architecture.Resource` or str
             The resource (or its entity name) to move the process from.
-        re_to : :class:`b_asic.architecture.Resource` or str
+        destination : :class:`~b_asic.architecture.Resource` or str
             The resource (or its entity name) to move the process to.
         assign : bool, default=False
             Whether to perform assignment of the resources after moving.
@@ -854,24 +857,24 @@ of :class:`~b_asic.architecture.ProcessingElement`
         Raises
         ------
         :class:`KeyError`
-            If *proc* is not present in resource *re_from*.
+            If *proc* is not present in resource *source*.
         """
         # Extract resources from name
-        if isinstance(re_from, str):
-            re_from = self.resource_from_name(re_from)
-        if isinstance(re_to, str):
-            re_to = self.resource_from_name(re_to)
+        if isinstance(source, str):
+            source = self.resource_from_name(source)
+        if isinstance(destination, str):
+            destination = self.resource_from_name(destination)
 
         # Extract process from name
         if isinstance(proc, str):
-            proc = re_from.collection.from_name(proc)
+            proc = source.collection.from_name(proc)
 
         # Move the process
-        if proc in re_from:
-            re_to.add_process(proc, assign=assign)
-            re_from.remove_process(proc, assign=assign)
+        if proc in source:
+            destination.add_process(proc, assign=assign)
+            source.remove_process(proc, assign=assign)
         else:
-            raise KeyError(f"{proc} not in {re_from.entity_name}")
+            raise KeyError(f"{proc} not in {source.entity_name}")
         self._build_dicts()
 
     def _digraph(

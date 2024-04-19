@@ -840,7 +840,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         bits_override: Optional[int] = None,
     ) -> Sequence[Num]:
         """
-        Quantize the values to be used as inputs to the bit lengths specified
+        Quantize the values to be used as inputs.
+
+        The bit lengths are specified
         by the respective signals connected to each input.
         """
         args = []

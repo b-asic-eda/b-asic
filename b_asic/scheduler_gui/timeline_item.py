@@ -22,14 +22,16 @@ class TimelineItem(QGraphicsLineItem):
     @overload
     def __init__(self, line: QLineF, parent: Optional[QGraphicsItem] = None) -> None:
         """
-        Constructs a TimelineItem out of 'line'. 'parent' is passed to
-        QGraphicsLineItem's constructor.
+        Constructs a TimelineItem out of *line*.
+
+        *parent* is passed to QGraphicsLineItem's constructor.
         """
 
     @overload
     def __init__(self, parent: Optional[QGraphicsItem] = None) -> None:
-        """Constructs a TimelineItem. 'parent' is passed to
-        QGraphicsLineItem's constructor."""
+        """Constructs a TimelineItem.
+
+        *parent* is passed to QGraphicsLineItem's constructor."""
 
     @overload
     def __init__(
@@ -41,8 +43,9 @@ class TimelineItem(QGraphicsLineItem):
         parent: Optional[QGraphicsItem] = None,
     ) -> None:
         """
-        Constructs a TimelineItem from (x1, y1) to (x2, y2). 'parent'
-        is passed to QGraphicsLineItem's constructor.
+        Constructs a TimelineItem from (x1, y1) to (x2, y2).
+
+        *parent* is passed to QGraphicsLineItem's constructor.
         """
 
     def __init__(self, *args, **kwargs):

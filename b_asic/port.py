@@ -109,7 +109,7 @@ class Port(ABC):
 
     @abstractmethod
     def clear(self) -> None:
-        """Removes all connected signals from the Port."""
+        """Remove all connected signals from the Port."""
         raise NotImplementedError
 
     @property
@@ -334,19 +334,21 @@ class InputPort(AbstractPort):
 
     def __ilshift__(self, src: SignalSourceProvider) -> "InputPort":
         """
-        Overloads the inline left shift operator to make it connect the provided
-        signal source to this input port. Returns the new signal.
+        Connect the provided signal source to this input port.
+
+        Returns the new signal.
         """
         self.connect(src)
         return self
 
     def delay(self, number: int) -> "InputPort":
         """
-        Inserts `number` amount of delay elements before the input port.
+        Insert *number* amount of delay elements before the input port.
 
         Returns the input port of the first delay element in the chain.
         """
         from b_asic.special_operations import Delay
+
         if not isinstance(number, int) or number < 0:
             raise TypeError("Number of delays must be a positive integer")
         tmp_signal = None
