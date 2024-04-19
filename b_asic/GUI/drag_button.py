@@ -19,6 +19,8 @@ from b_asic.operation import Operation
 from b_asic.port import InputPort
 
 if TYPE_CHECKING:
+    from qtpy.QtWidgets import QGraphicsTextItem
+
     from b_asic.GUI.main_window import SFGMainWindow
 
 
@@ -90,13 +92,13 @@ class DragButton(QPushButton):
         """Return the type name of the underlying operation."""
         return self.operation.type_name()
 
-    def add_label(self, label: str) -> None:
+    def add_label(self, label: "QGraphicsTextItem") -> None:
         """
         Add label to button.
 
         Parameters
         ----------
-        label : src
+        label : QGraphicsTextItem
             The label to add.
         """
         self.label = label

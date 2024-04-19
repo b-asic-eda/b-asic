@@ -14,7 +14,7 @@ import webbrowser
 from collections import defaultdict, deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
-from typing import TYPE_CHECKING, Deque, List, Optional, cast
+from typing import TYPE_CHECKING, Deque, List, Optional, cast, overload
 
 # Qt/qtpy
 import qtpy
@@ -1004,6 +1004,18 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.showFullScreen()
             self.actionToggle_full_screen.setIcon(get_icon('full-screen-exit'))
+
+
+@overload
+def start_scheduler(schedule: Schedule) -> Schedule: ...
+
+
+@overload
+def start_scheduler(schedule: None) -> Optional[Schedule]: ...
+
+
+@overload
+def start_scheduler() -> Optional[Schedule]: ...
 
 
 def start_scheduler(schedule: Optional[Schedule] = None) -> Optional[Schedule]:

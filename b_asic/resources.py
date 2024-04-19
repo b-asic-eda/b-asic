@@ -3,7 +3,7 @@ import re
 from collections import Counter, defaultdict
 from functools import reduce
 from math import log2
-from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Literal, Optional, Tuple, TypeVar, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -864,7 +864,7 @@ class ProcessCollection:
 
     def split_on_execution_time(
         self,
-        heuristic: str = "left_edge",
+        heuristic: Literal["graph_color", "left_edge"] = "left_edge",
         coloring_strategy: str = "saturation_largest_first",
     ) -> List["ProcessCollection"]:
         """

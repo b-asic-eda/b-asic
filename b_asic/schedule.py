@@ -7,7 +7,7 @@ Contains the schedule class for scheduling operations in an SFG.
 import io
 import sys
 from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Tuple, cast
+from typing import Dict, List, Literal, Optional, Sequence, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -100,7 +100,7 @@ class Schedule:
         sfg: SFG,
         schedule_time: Optional[int] = None,
         cyclic: bool = False,
-        algorithm: str = "ASAP",
+        algorithm: Literal["ASAP", "ALAP", "provided"] = "ASAP",
         start_times: Optional[Dict[GraphID, int]] = None,
         laps: Optional[Dict[GraphID, int]] = None,
         max_resources: Optional[Dict[TypeName, int]] = None,
