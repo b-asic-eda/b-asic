@@ -454,9 +454,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     behavior.
     """
 
+    __slots__ = ("_input_ports", "_output_ports", "_execution_time")
     _input_ports: List[InputPort]
     _output_ports: List[OutputPort]
-    _execution_time: Union[int, None] = None
+    _execution_time: Optional[int]
 
     def __init__(
         self,

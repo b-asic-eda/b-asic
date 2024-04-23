@@ -130,6 +130,7 @@ class AbstractPort(Port):
     behavior.
     """
 
+    __slots__ = ("_operation", "_index", "_latency_offset")
     _operation: "Operation"
     _index: int
     _latency_offset: Optional[int]
@@ -276,6 +277,7 @@ class InputPort(AbstractPort):
     May have one or zero signals connected to it.
     """
 
+    __slots__ = ("_source_signal",)
     _source_signal: Optional[Signal]
 
     def __init__(self, operation: "Operation", index: int):
@@ -372,6 +374,7 @@ class OutputPort(AbstractPort, SignalSourceProvider):
     May have zero or more signals connected to it.
     """
 
+    __slots__ = ("_destination_signals",)
     _destination_signals: List[Signal]
 
     def __init__(self, operation: "Operation", index: int):

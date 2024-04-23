@@ -24,6 +24,11 @@ class Process:
         The name of the process.
     """
 
+    __slots__ = ("_start_time", "_execution_time", "_name")
+    _start_time: int
+    _execution_time: int
+    _name: str
+
     def __init__(self, start_time: int, execution_time: int, name: str = ""):
         self._start_time = start_time
         self._execution_time = execution_time
@@ -82,6 +87,9 @@ class OperatorProcess(Process):
         The name of the process.
     """
 
+    __slots__ = ("_operation",)
+    _operation: Operation
+
     def __init__(
         self,
         start_time: int,
@@ -130,6 +138,9 @@ class MemoryProcess(Process):
     name : str, default=""
         Name of the process.
     """
+
+    __slots__ = ("_life_times",)
+    _life_times: List[int]
 
     def __init__(
         self,
@@ -274,6 +285,11 @@ class MemoryVariable(MemoryProcess):
         The name of the process.
     """
 
+    __slots__ = ("_reads", "_read_ports", "_write_port")
+    _reads: Dict[InputPort, int]
+    _read_ports: List[InputPort]
+    _write_port: OutputPort
+
     def __init__(
         self,
         write_time: int,
@@ -358,6 +374,11 @@ class PlainMemoryVariable(MemoryProcess):
     name : str, optional
         The name of the process.
     """
+
+    __slots__ = ("_reads", "_read_ports", "_write_port")
+    _reads: Dict[int, int]
+    _read_ports: List[int]
+    _write_port: OutputPort
 
     def __init__(
         self,

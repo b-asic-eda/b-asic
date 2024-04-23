@@ -449,6 +449,11 @@ class ProcessCollection:
         .. math:: t = t \bmod T_{\textrm{schedule}}.
     """
 
+    __slots__ = ("_collection", "_schedule_time", "_cyclic")
+    _collection: List[Process]
+    _schedule_time: int
+    _cyclic: bool
+
     def __init__(
         self,
         collection: Iterable[Process],
