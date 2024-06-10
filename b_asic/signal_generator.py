@@ -92,6 +92,8 @@ class Impulse(SignalGenerator):
 
     __slots__ = ("_delay",)
 
+    _delay: int
+
     def __init__(self, delay: int = 0) -> None:
         self._delay = delay
 
@@ -113,6 +115,8 @@ class Step(SignalGenerator):
     """
 
     __slots__ = ("_delay",)
+
+    _delay: int
 
     def __init__(self, delay: int = 0) -> None:
         self._delay = delay
@@ -136,6 +140,8 @@ class Constant(SignalGenerator):
 
     __slots__ = ("_constant",)
 
+    _constant: complex
+
     def __init__(self, constant: complex = 1.0) -> None:
         self._constant = constant
 
@@ -157,6 +163,9 @@ class ZeroPad(SignalGenerator):
     """
 
     __slots__ = ("_data", "_len")
+
+    _data: Sequence[complex]
+    _len: int
 
     def __init__(self, data: Sequence[complex]) -> None:
         self._data = data
@@ -183,7 +192,13 @@ class FromFile(SignalGenerator):
         Path to input file.
     """
 
-    def __init__(self, path) -> None:
+    __slots__ = ("_data", "_len", "_path")
+
+    _path: str
+    _data: List[Num]
+    _len: int
+
+    def __init__(self, path: str) -> None:
         self._path = path
         data: List[Num] = np.loadtxt(path, dtype=complex).tolist()
         self._data = data
@@ -210,6 +225,11 @@ class Sinusoid(SignalGenerator):
     phase : float, default: 0.0
         The normalized phase offset.
     """
+
+    __slots__ = ("_frequency", "_phase")
+
+    _frequency: float
+    _phase: float
 
     def __init__(self, frequency: float, phase: float = 0.0) -> None:
         self._frequency = frequency
@@ -241,6 +261,12 @@ class Gaussian(SignalGenerator):
     scale : float, default: 1.0
         The standard deviation of the noise.
     """
+
+    __slots__ = ("_rng", "_seed", "_loc", "_scale")
+
+    _seed: Optional[int]
+    _loc: float
+    _scale: float
 
     def __init__(
         self, seed: Optional[int] = None, loc: float = 0.0, scale: float = 1.0
@@ -280,6 +306,12 @@ class Uniform(SignalGenerator):
     high : float, default: 1.0
         The upper value of the uniform range.
     """
+
+    __slots__ = ("_rng", "_seed", "_low", "_high")
+
+    _seed: Optional[int]
+    _low: float
+    _high: float
 
     def __init__(
         self, seed: Optional[int] = None, low: float = -1.0, high: float = 1.0
@@ -321,6 +353,11 @@ class Delay(SignalGenerator):
         The number of time units to delay the generated signal.
     """
 
+    __slots__ = ("_delay", "_generator")
+
+    _generator: SignalGenerator
+    _delay: int
+
     def __init__(self, generator: SignalGenerator, delay: int = 1) -> None:
         self._generator = generator
         self._delay = delay
@@ -336,6 +373,11 @@ class _AddGenerator(SignalGenerator):
     """
     Signal generator that adds two signals.
     """
+
+    __slots__ = ("_a", "_b")
+
+    _a: SignalGenerator
+    _b: SignalGenerator
 
     def __init__(self, a: SignalGenerator, b: SignalGenerator) -> None:
         self._a = a
@@ -353,6 +395,11 @@ class _SubGenerator(SignalGenerator):
     Signal generator that subtracts two signals.
     """
 
+    __slots__ = ("_a", "_b")
+
+    _a: SignalGenerator
+    _b: SignalGenerator
+
     def __init__(self, a: SignalGenerator, b: SignalGenerator) -> None:
         self._a = a
         self._b = b
@@ -368,6 +415,11 @@ class _MulGenerator(SignalGenerator):
     """
     Signal generator that multiplies two signals.
     """
+
+    __slots__ = ("_a", "_b")
+
+    _a: SignalGenerator
+    _b: SignalGenerator
 
     def __init__(self, a: SignalGenerator, b: SignalGenerator) -> None:
         self._a = a
@@ -394,6 +446,11 @@ class _DivGenerator(SignalGenerator):
     """
     Signal generator that divides two signals.
     """
+
+    __slots__ = ("_a", "_b")
+
+    _a: SignalGenerator
+    _b: SignalGenerator
 
     def __init__(self, a: SignalGenerator, b: SignalGenerator) -> None:
         self._a = a
@@ -436,6 +493,12 @@ class Upsample(SignalGenerator):
         The phase of the upsampling.
     """
 
+    __slots__ = ("_generator", "_factor", "_phase")
+
+    _generator: Union[SignalGenerator, Sequence[complex]]
+    _factor: int
+    _phase: int
+
     def __init__(
         self,
         data: Union[SignalGenerator, Sequence[complex]],
@@ -474,6 +537,12 @@ class Downsample(SignalGenerator):
     phase : int, default 0
         The phase of the downsampling.
     """
+
+    __slots__ = ("_generator", "_factor", "_phase")
+
+    _generator: Union[SignalGenerator, Sequence[complex]]
+    _factor: int
+    _phase: int
 
     def __init__(
         self,
