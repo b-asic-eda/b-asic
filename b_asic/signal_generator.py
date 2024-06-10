@@ -90,6 +90,8 @@ class Impulse(SignalGenerator):
         The delay before the signal goes to 1 for one sample.
     """
 
+    __slots__ = ("_delay",)
+
     def __init__(self, delay: int = 0) -> None:
         self._delay = delay
 
@@ -109,6 +111,8 @@ class Step(SignalGenerator):
     delay : int, default: 0
         The delay before the signal goes to 1.
     """
+
+    __slots__ = ("_delay",)
 
     def __init__(self, delay: int = 0) -> None:
         self._delay = delay
@@ -130,6 +134,8 @@ class Constant(SignalGenerator):
         The constant.
     """
 
+    __slots__ = ("_constant",)
+
     def __init__(self, constant: complex = 1.0) -> None:
         self._constant = constant
 
@@ -149,6 +155,8 @@ class ZeroPad(SignalGenerator):
     data : 1-D array
         The data that should be padded.
     """
+
+    __slots__ = ("_data", "_len")
 
     def __init__(self, data: Sequence[complex]) -> None:
         self._data = data
