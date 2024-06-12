@@ -1052,6 +1052,21 @@ class Schedule:
             y = np.array(_y)
             xy = np.stack((x + op_start_time, y + y_pos))
             ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
+
+            if 'in' in str(graph_id):
+                ax.annotate(
+                    graph_id,
+                    xy=(op_start_time - 0.48, y_pos + 0.7),
+                    color="black",
+                    size=10 - (0.05 * len(self._start_times)),
+                )
+            else:
+                ax.annotate(
+                    graph_id,
+                    xy=(op_start_time + 0.03, y_pos + 0.7),
+                    color="black",
+                    size=10 - (0.05 * len(self._start_times)),
+                )
             if execution_time_coordinates:
                 _x, _y = zip(*execution_time_coordinates)
                 x = np.array(_x)
@@ -1164,7 +1179,8 @@ class Schedule:
         -------
         The Matplotlib Figure.
         """
-        fig, ax = plt.subplots()
+        height = len(self._start_times) * 0.3 + 2
+        fig, ax = plt.subplots(figsize=(12, height))
         self._plot_schedule(ax, operation_gap=operation_gap)
         return fig
 
@@ -1173,7 +1189,8 @@ class Schedule:
         Generate an SVG of the schedule. This is automatically displayed in e.g.
         Jupyter Qt console.
         """
-        fig, ax = plt.subplots()
+        height = len(self._start_times) * 0.3 + 2
+        fig, ax = plt.subplots(figsize=(12, height))
         self._plot_schedule(ax)
         buffer = io.StringIO()
         fig.savefig(buffer, format="svg")
