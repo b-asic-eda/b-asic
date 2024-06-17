@@ -1691,13 +1691,101 @@ class SFG(AbstractOperation):
 
         return Schedule(self, algorithm="ASAP").schedule_time
 
+    def dfs(self, graph, start, end):
+        """
+        Find loop(s) in graph
+
+        Parameters
+        ----------
+        graph : dictionary
+            The dictionary that are to be searched for loops.
+        start : key in dictionary graph
+            The "node" in the dictionary that are set as the start point.
+        end : key in dictionary graph
+            The "node" in the dictionary that are set as the end point.
+        """
+        fringe = [(start, [])]
+        while fringe:
+            state, path = fringe.pop()
+            if path and state == end:
+                yield path
+                continue
+            for next_state in graph[state]:
+                if next_state in path:
+                    continue
+                fringe.append((next_state, path + [next_state]))
+
     def iteration_period_bound(self) -> int:
         """
         Return the iteration period bound of the SFG.
 
         If -1, the SFG does not have any loops and therefore no iteration period bound.
+
+        Returns
+        -------
+        The iteration period bound.
         """
-        raise NotImplementedError()
+        inputs_used = []
+        for used_input in self._used_ids:
+            if 'in' in str(used_input):
+                used_input = used_input.replace("in", "")
+                inputs_used.append(int(used_input))
+        if inputs_used == []:
+            raise ValueError("No inputs to sfg")
+        for input in inputs_used:
+            input_op = self._input_operations[input]
+        queue: Deque[Operation] = deque([input_op])
+        visited: Set[Operation] = {input_op}
+        dict_of_sfg = {}
+        while queue:
+            op = queue.popleft()
+            for output_port in op.outputs:
+                if not (isinstance(op, Input) or isinstance(op, Output)):
+                    dict_of_sfg[op.graph_id] = []
+                for signal in output_port.signals:
+                    if signal.destination is not None:
+                        new_op = signal.destination.operation
+                        if not (isinstance(op, Input) or isinstance(op, Output)):
+                            if not isinstance(new_op, Output):
+                                dict_of_sfg[op.graph_id] += [new_op.graph_id]
+                        if new_op not in visited:
+                            queue.append(new_op)
+                            visited.add(new_op)
+                    else:
+                        raise ValueError("Destination does not exist")
+        if dict_of_sfg == {}:
+            raise ValueError(
+                "the SFG does not have any loops and therefore no iteration period bound."
+            )
+        cycles = [
+            [node] + path
+            for node in dict_of_sfg
+            for path in self.dfs(dict_of_sfg, node, node)
+        ]
+        if cycles == []:
+            return -1
+        op_and_latency = {}
+        for op in self.operations:
+            for lista in cycles:
+                for element in lista:
+                    if op.type_name() not in op_and_latency:
+                        op_and_latency[op.type_name()] = op.latency
+        t_l_values = []
+        for loop in cycles:
+            loop.pop()
+            time_of_loop = 0
+            number_of_t_in_loop = 0
+            for element in loop:
+                if ''.join([i for i in element if not i.isdigit()]) == 't':
+                    number_of_t_in_loop += 1
+                for key, item in op_and_latency.items():
+                    if key in element:
+                        time_of_loop += item
+            if number_of_t_in_loop in (0, 1):
+                t_l_values.append(time_of_loop)
+            else:
+                t_l_values.append(time_of_loop / number_of_t_in_loop)
+        return max(t_l_values)
 
     def edit(self) -> Dict[str, "SFG"]:
         """Edit SFG in GUI."""
