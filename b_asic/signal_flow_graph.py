@@ -1787,6 +1787,193 @@ class SFG(AbstractOperation):
                 t_l_values.append(time_of_loop / number_of_t_in_loop)
         return max(t_l_values)
 
+    def state_space_representation(self):
+        """
+        Find the state-space representation of the SFG.
+
+        Returns
+        -------
+        The state-space representation.
+        """
+        delay_element_used = []
+        for delay_element in self._used_ids:
+            if ''.join([i for i in delay_element if not i.isdigit()]) == 't':
+                delay_element_used.append(delay_element)
+        delay_element_used.sort()
+        input_index_used = []
+        inputs_used = []
+        output_index_used = []
+        outputs_used = []
+        for used_input in self._used_ids:
+            if 'in' in str(used_input):
+                inputs_used.append(used_input)
+                input_index_used.append(int(used_input.replace("in", "")))
+        for used_output in self._used_ids:
+            if 'out' in str(used_output):
+                outputs_used.append(used_output)
+                output_index_used.append(int(used_output.replace("out", "")))
+        if input_index_used == []:
+            raise ValueError("No input(s) to sfg")
+        if output_index_used == []:
+            raise ValueError("No output(s) to sfg")
+        for input in input_index_used:
+            input_op = self._input_operations[input]
+        queue: Deque[Operation] = deque([input_op])
+        visited: Set[Operation] = {input_op}
+        dict_of_sfg = {}
+        while queue:
+            op = queue.popleft()
+            if isinstance(op, Output):
+                dict_of_sfg[op.graph_id] = []
+            for output_port in op.outputs:
+                dict_of_sfg[op.graph_id] = []
+                for signal in output_port.signals:
+                    if signal.destination is not None:
+                        new_op = signal.destination.operation
+                        dict_of_sfg[op.graph_id] += [new_op.graph_id]
+                        if new_op not in visited:
+                            queue.append(new_op)
+                            visited.add(new_op)
+                    else:
+                        raise ValueError("Destination does not exist")
+        if dict_of_sfg == {}:
+            raise ValueError(
+                "the SFG does not have any loops and therefore no iteration period bound."
+            )
+        cycles = [
+            [node] + path
+            for node in dict_of_sfg
+            if node[0] == 't'
+            for path in self.dfs(dict_of_sfg, node, node)
+        ]
+        delay_loop_list = []
+        for lista in cycles:
+            if not len(lista) < 2:
+                temp_list = []
+                for element in lista:
+                    temp_list.append(element)
+                    if element[0] == 't' and len(temp_list) > 2:
+                        delay_loop_list.append(temp_list)
+                        temp_list = [element]
+        state_space_lista = []
+        [
+            state_space_lista.append(x)
+            for x in delay_loop_list
+            if x not in state_space_lista
+        ]
+        import numpy as np
+
+        mat_row = len(delay_element_used) + len(output_index_used)
+        mat_col = len(delay_element_used) + len(input_index_used)
+        print(delay_element_used)
+        mat_content = np.zeros((mat_row, mat_col))
+        matrix_in = [0] * mat_col
+        matrix_answer = [0] * mat_row
+        for in_signal in inputs_used:
+            matrix_in[len(delay_element_used) + int(in_signal.replace('in', ''))] = (
+                in_signal.replace('in', 'x')
+            )
+            for delay_element in delay_element_used:
+                matrix_answer[delay_element_used.index(delay_element)] = (
+                    delay_element.replace('t', 'v')
+                )
+                matrix_in[delay_element_used.index(delay_element)] = (
+                    delay_element.replace('t', 'v')
+                )
+                paths = self.find_all_paths(dict_of_sfg, in_signal, delay_element)
+                for lista in paths:
+                    temp_list = []
+                    for element in lista:
+                        temp_list.append(element)
+                        if element[0] == 't':
+                            state_space_lista.append(temp_list)
+                            temp_list = [element]
+            for out_signal in outputs_used:
+                paths = self.find_all_paths(dict_of_sfg, in_signal, out_signal)
+                matrix_answer[
+                    len(delay_element_used) + int(out_signal.replace('out', ''))
+                ] = out_signal.replace('out', 'y')
+                for lista in paths:
+                    temp_list1 = []
+                    for element in lista:
+                        temp_list1.append(element)
+                        if element[0] == 't':
+                            state_space_lista.append(temp_list1)
+                            temp_list1 = [element]
+                        if "out" in element:
+                            state_space_lista.append(temp_list1)
+                            temp_list1 = []
+        state_space_list_no_dup = []
+        [
+            state_space_list_no_dup.append(x)
+            for x in state_space_lista
+            if x not in state_space_list_no_dup
+        ]
+        for lista in state_space_list_no_dup:
+            if "in" in lista[0] and lista[-1][0] == 't':
+                row = int(lista[-1].replace("t", ""))
+                column = len(delay_element_used) + int(lista[0].replace("in", ""))
+                temp_value = 1
+                for element in lista:
+                    if "cmul" in element:
+                        temp_value *= self.find_by_id(element).value
+                mat_content[row, column] += temp_value
+            elif "in" in lista[0] and "out" in lista[-1]:
+                row = len(delay_element_used) + int(lista[-1].replace("out", ""))
+                column = len(delay_element_used) + int(lista[0].replace("in", ""))
+                temp_value = 1
+                for element in lista:
+                    if "cmul" in element:
+                        temp_value *= self.find_by_id(element).value
+                mat_content[row, column] += temp_value
+            elif lista[0][0] == 't' and lista[-1][0] == 't':
+                row = int(lista[-1].replace("t", ""))
+                column = int(lista[0].replace("t", ""))
+                temp_value = 1
+                for element in lista:
+                    if "cmul" in element:
+                        temp_value *= self.find_by_id(element).value
+                mat_content[row, column] += temp_value
+            elif lista[0][0] == 't' and "out" in lista[-1]:
+                row = len(delay_element_used) + int(lista[-1].replace("out", ""))
+                column = int(lista[0].replace("t", ""))
+                temp_value = 1
+                for element in lista:
+                    if "cmul" in element:
+                        temp_value *= self.find_by_id(element).value
+                mat_content[row, column] += temp_value
+        return matrix_answer, mat_content, matrix_in
+
+    def find_all_paths(self, graph: dict, start: str, end: str, path=[]) -> list:
+        """
+        Returns all paths in graph from node start to node end
+
+        Parameters
+        ----------
+        graph : dictionary
+            The dictionary that are to be searched for loops.
+        start : key in dictionary graph
+            The "node" in the dictionary that are set as the start point.
+        end : key in dictionary graph
+            The "node" in the dictionary that are set as the end point.
+
+        Returns
+        -------
+        The state-space representation of the SFG.
+        """
+        path = path + [start]
+        if start == end:
+            return [path]
+        if start not in graph:
+            return []
+        paths = []
+        for node in graph[start]:
+            if node not in path:
+                newpaths = self.find_all_paths(graph, node, end, path)
+                for newpath in newpaths:
+                    paths.append(newpath)
+        return paths
+
     def edit(self) -> Dict[str, "SFG"]:
         """Edit SFG in GUI."""
         from b_asic.GUI.main_window import start_editor
