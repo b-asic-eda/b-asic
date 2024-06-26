@@ -660,27 +660,28 @@ class SFG(AbstractOperation):
 
         # Preserve the original SFG by creating a copy.
         sfg_copy = self()
+        comp = sfg_copy._add_component_unconnected_copy(component)
         output_comp = cast(Operation, sfg_copy.find_by_id(output_comp_id))
         if output_comp is None:
             return None
 
         if isinstance(output_comp, Output):
             raise TypeError("Source operation cannot be an output operation.")
-        if len(output_comp.output_signals) != component.input_count:
+        if len(output_comp.output_signals) != comp.input_count:
             raise TypeError(
                 "Source operation output count"
                 f" ({len(output_comp.output_signals)}) does not match input"
-                f" count for component ({component.input_count})."
+                f" count for component ({comp.input_count})."
             )
-        if len(output_comp.output_signals) != component.output_count:
+        if len(output_comp.output_signals) != comp.output_count:
             raise TypeError(
                 "Destination operation input count does not match output for component."
             )
 
         for index, signal_in in enumerate(output_comp.output_signals):
             destination = cast(InputPort, signal_in.destination)
-            signal_in.set_destination(component.input(index))
-            destination.connect(component.output(index))
+            signal_in.set_destination(comp.input(index))
+            destination.connect(comp.output(index))
 
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
@@ -725,15 +726,16 @@ class SFG(AbstractOperation):
         if output_comp is None:
             raise ValueError(f"Unknown component: {output_comp_id!r}")
         if isinstance(output_comp, Operation):
+            comp = sfg_copy._add_component_unconnected_copy(new_operation)
+
             if port_id is None:
-                sfg_copy._insert_operation_after_operation(output_comp, new_operation)
+                sfg_copy._insert_operation_after_operation(output_comp, comp)
             else:
                 sfg_copy._insert_operation_after_outputport(
-                    output_comp.output(port_id), new_operation
+                    output_comp.output(port_id), comp
                 )
         elif isinstance(output_comp, Signal):
-            sfg_copy._insert_operation_before_signal(output_comp, new_operation)
-
+            sfg_copy._insert_operation_before_signal(output_comp, comp)
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
 
@@ -776,14 +778,15 @@ class SFG(AbstractOperation):
         if input_comp is None:
             raise ValueError(f"Unknown component: {input_comp_id!r}")
         if isinstance(input_comp, Operation):
+            comp = sfg_copy._add_component_unconnected_copy(new_operation)
             if port is None:
-                sfg_copy._insert_operation_before_operation(input_comp, new_operation)
+                sfg_copy._insert_operation_before_operation(input_comp, comp)
             else:
                 sfg_copy._insert_operation_before_inputport(
-                    input_comp.input(port), new_operation
+                    input_comp.input(port), comp
                 )
         elif isinstance(input_comp, Signal):
-            sfg_copy._insert_operation_after_signal(input_comp, new_operation)
+            sfg_copy._insert_operation_after_signal(input_comp, comp)
 
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
