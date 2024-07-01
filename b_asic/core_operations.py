@@ -32,6 +32,10 @@ class Constant(AbstractOperation):
         Operation name.
     """
 
+    __slots__ = ("_value", "_name")
+    _value: Num
+    _name: Name
+
     _execution_time = 0
     is_linear = True
     is_constant = True
@@ -73,6 +77,7 @@ class Constant(AbstractOperation):
     def __str__(self) -> str:
         return f"{self.value}"
 
+
 class Addition(AbstractOperation):
     """
     Binary addition operation.
@@ -104,6 +109,21 @@ class Addition(AbstractOperation):
     ========
     AddSub
     """
+
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
 
     is_linear = True
     is_swappable = True
@@ -171,6 +191,21 @@ class Subtraction(AbstractOperation):
     """
 
     is_linear = True
+
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
 
     def __init__(
         self,
@@ -240,6 +275,24 @@ class AddSub(AbstractOperation):
     ========
     Addition, Subtraction
     """
+
+    __slots__ = (
+        "_is_add",
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _is_add: bool
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_linear = True
 
     def __init__(
@@ -317,6 +370,22 @@ class Multiplication(AbstractOperation):
     ========
     ConstantMultiplication
     """
+
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_swappable = True
 
     def __init__(
@@ -385,6 +454,21 @@ class Division(AbstractOperation):
     Reciprocal
     """
 
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
@@ -450,6 +534,22 @@ class Min(AbstractOperation):
     ========
     Max
     """
+
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_swappable = True
 
     def __init__(
@@ -515,6 +615,22 @@ class Max(AbstractOperation):
     ========
     Min
     """
+
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_swappable = True
 
     def __init__(
@@ -571,6 +687,13 @@ class SquareRoot(AbstractOperation):
         Operation execution time (time units before operator can be reused).
     """
 
+    __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
+    _src0: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
@@ -622,6 +745,13 @@ class ComplexConjugate(AbstractOperation):
         Operation execution time (time units before operator can be reused).
     """
 
+    __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
+    _src0: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
@@ -672,6 +802,13 @@ class Absolute(AbstractOperation):
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
     """
+
+    __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
+    _src0: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
 
     def __init__(
         self,
@@ -729,6 +866,22 @@ class ConstantMultiplication(AbstractOperation):
     --------
     Multiplication
     """
+
+    __slots__ = (
+        "_value",
+        "_src0",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _value: Num
+    _src0: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_linear = True
 
     def __init__(
@@ -802,6 +955,22 @@ class Butterfly(AbstractOperation):
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
     """
+
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_linear = True
 
     def __init__(
@@ -865,6 +1034,24 @@ class MAD(AbstractOperation):
     Multiplication
     Addition
     """
+
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_src2",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _src2: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_swappable = True
 
     def __init__(
@@ -922,6 +1109,22 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         y_1 & = & x_0 + \text{value}\times\left(x_1 - x_0\right)
         \end{eqnarray}
     """
+
+    __slots__ = (
+        "_src0",
+        "_src1",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_linear = True
     is_swappable = True
 
@@ -1007,6 +1210,13 @@ class Reciprocal(AbstractOperation):
     Division
     """
 
+    __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
+    _src0: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     def __init__(
         self,
         src0: Optional[SignalSourceProvider] = None,
@@ -1065,6 +1275,21 @@ class RightShift(AbstractOperation):
     LeftShift
     Shift
     """
+
+    __slots__ = (
+        "_value",
+        "_src0",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _value: Num
+    _src0: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
 
     is_linear = True
 
@@ -1142,6 +1367,21 @@ class LeftShift(AbstractOperation):
     RightShift
     Shift
     """
+
+    __slots__ = (
+        "_value",
+        "_src0",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _value: Num
+    _src0: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
 
     is_linear = True
 
@@ -1221,6 +1461,21 @@ class Shift(AbstractOperation):
     RightShift
     """
 
+    __slots__ = (
+        "_value",
+        "_src0",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _value: Num
+    _src0: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
     is_linear = True
 
     def __init__(
@@ -1263,6 +1518,7 @@ class Shift(AbstractOperation):
             raise TypeError("value must be an int")
         self.set_param("value", value)
 
+
 class Sink(AbstractOperation):
     r"""
     Sink operation.
@@ -1276,7 +1532,9 @@ class Sink(AbstractOperation):
         Operation name.
     """
 
-    _execution_time = 0
+    __slots__ = "_name"
+    _name: Name
+
     is_linear = True
 
     def __init__(self, name: Name = ""):

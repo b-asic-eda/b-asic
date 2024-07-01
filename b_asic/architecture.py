@@ -53,6 +53,8 @@ class HardwareBlock:
     entity_name : str, optional
         The name of the resulting entity.
     """
+    __slots__ = "_entity_name"
+    _entity_name: Optional[str]
 
     def __init__(self, entity_name: Optional[str] = None):
         self._entity_name: Optional[str] = None
@@ -379,6 +381,9 @@ class ProcessingElement(Resource):
     """
 
     _color = f"#{''.join(f'{v:0>2X}' for v in PE_COLOR)}"
+    __slots__ = ("_process_collection", "_entity_name")
+    _process_collection: ProcessCollection
+    _entity_name : Optional[str]
 
     def __init__(
         self,
@@ -462,6 +467,22 @@ class Memory(Resource):
     """
 
     _color = f"#{''.join(f'{v:0>2X}' for v in MEMORY_COLOR)}"
+    _slots__ = (
+        "_process_collection",
+        "_memory_type",
+        "_entity_name",
+        "_read_ports",
+        "_write_ports",
+        "_total_ports",
+        "_assign",
+    )
+    _process_collection: ProcessCollection
+    _memory_type: Literal["RAM", "register"]
+    _entity_name: Optional[str]
+    _read_ports: Optional[int]
+    _write_ports: Optional[int]
+    _total_ports: Optional[int]
+    _assign: bool
 
     def __init__(
         self,
