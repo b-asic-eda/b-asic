@@ -87,10 +87,10 @@ def butterfly_operation_tree():
         *(
             Butterfly(
                 *(Butterfly(Constant(2), Constant(4), name="bfly3").outputs),
-                name="bfly2"
+                name="bfly2",
             ).outputs
         ),
-        name="bfly1"
+        name="bfly1",
     )
 
 

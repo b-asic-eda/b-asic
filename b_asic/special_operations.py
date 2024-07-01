@@ -191,6 +191,7 @@ class Delay(AbstractOperation):
             output_count=1,
             name=Name(name),
             input_sources=[src0],
+            latency=0,
         )
         self.set_param("initial_value", initial_value)
 

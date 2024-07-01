@@ -1,6 +1,7 @@
 """
 B-ASIC window to simulate an SFG.
 """
+
 from typing import TYPE_CHECKING, Dict
 
 from qtpy.QtCore import Qt, Signal

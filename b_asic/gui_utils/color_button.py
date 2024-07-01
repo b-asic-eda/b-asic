@@ -1,6 +1,7 @@
 """
 Qt button for use in preference dialogs, selecting color.
 """
+
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QColorDialog, QPushButton

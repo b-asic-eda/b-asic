@@ -1,6 +1,7 @@
 """
 B-ASIC port button module.
 """
+
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QMimeData, Qt, Signal

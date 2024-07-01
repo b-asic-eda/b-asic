@@ -1,6 +1,7 @@
 """
 B-ASIC window to show precedence graph.
 """
+
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
     QCheckBox,

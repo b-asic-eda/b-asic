@@ -1,6 +1,7 @@
 """
 B-ASIC select SFG window.
 """
+
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Qt, Signal

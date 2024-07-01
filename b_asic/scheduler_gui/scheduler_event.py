@@ -69,12 +69,10 @@ class SchedulerEvent:  # PyQt5
     # Filters #
     ###########
     @overload
-    def installSceneEventFilters(self, filterItems: QGraphicsItem) -> None:
-        ...
+    def installSceneEventFilters(self, filterItems: QGraphicsItem) -> None: ...
 
     @overload
-    def installSceneEventFilters(self, filterItems: List[QGraphicsItem]) -> None:
-        ...
+    def installSceneEventFilters(self, filterItems: List[QGraphicsItem]) -> None: ...
 
     def installSceneEventFilters(self, filterItems) -> None:
         """
@@ -88,12 +86,10 @@ class SchedulerEvent:  # PyQt5
             item.installSceneEventFilter(self)
 
     @overload
-    def removeSceneEventFilters(self, filterItems: QGraphicsItem) -> None:
-        ...
+    def removeSceneEventFilters(self, filterItems: QGraphicsItem) -> None: ...
 
     @overload
-    def removeSceneEventFilters(self, filterItems: List[QGraphicsItem]) -> None:
-        ...
+    def removeSceneEventFilters(self, filterItems: List[QGraphicsItem]) -> None: ...
 
     def removeSceneEventFilters(self, filterItems) -> None:
         """

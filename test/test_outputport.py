@@ -1,6 +1,7 @@
 """
 B-ASIC test suite for OutputPort.
 """
+
 import pytest
 
 from b_asic import Signal

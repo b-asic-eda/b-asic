@@ -526,9 +526,7 @@ class Schedule:
         """
         self._sfg.set_execution_time_of_type(type_name, execution_time)
 
-    def set_latency_of_type(
-        self, type_name: TypeName, latency: int
-    ) -> None:
+    def set_latency_of_type(self, type_name: TypeName, latency: int) -> None:
         """
         Set the latency of all operations with the given type name.
 
@@ -542,20 +540,19 @@ class Schedule:
         """
         passed = True
         for op in self._sfg.operations:
-            if type_name == op.type_name() or type_name == op.graph_id:            
+            if type_name == op.type_name() or type_name == op.graph_id:
                 change_in_latency = latency - op.latency
                 if change_in_latency > (self.forward_slack(op.graph_id)):
                     passed = False
                     raise ValueError(
                         f"Error: Can't increase latency for all components. Try increassing forward slack time by rescheduling. "
-                        f"Error in: {op.graph_id}" 
+                        f"Error in: {op.graph_id}"
                     )
                     break
         if change_in_latency < 0 or passed:
-                for op in self._sfg.operations:            
-                    if type_name == op.type_name() or type_name == op.graph_id:           
-                        cast(Operation, op).set_latency(latency)
- 
+            for op in self._sfg.operations:
+                if type_name == op.type_name() or type_name == op.graph_id:
+                    cast(Operation, op).set_latency(latency)
 
     def move_y_location(
         self, graph_id: GraphID, new_y: int, insert: bool = False

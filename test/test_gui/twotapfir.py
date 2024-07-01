@@ -3,15 +3,8 @@ B-ASIC automatically generated SFG file.
 Name: twotapfir
 Last saved: 2023-01-24 14:38:17.654639.
 """
-from b_asic import (
-    SFG,
-    Addition,
-    ConstantMultiplication,
-    Delay,
-    Input,
-    Output,
-    Signal,
-)
+
+from b_asic import SFG, Addition, ConstantMultiplication, Delay, Input, Output, Signal
 
 # Inputs:
 in1 = Input(name="in1")
@@ -24,9 +17,7 @@ t1 = Delay(initial_value=0, name="")
 cmul1 = ConstantMultiplication(
     value=-0.5, name="cmul1", latency_offsets={'in0': None, 'out0': None}
 )
-add1 = Addition(
-    name="add1", latency_offsets={'in0': None, 'in1': None, 'out0': None}
-)
+add1 = Addition(name="add1", latency_offsets={'in0': None, 'in1': None, 'out0': None})
 cmul2 = ConstantMultiplication(
     value=0.5, name="cmul2", latency_offsets={'in0': None, 'out0': None}
 )

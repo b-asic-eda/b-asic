@@ -5,6 +5,7 @@ Third-order Bireciprocal LWDF
 
 Small bireciprocal lattice wave digital filter.
 """
+
 import numpy as np
 from mplsignal.freq_plots import freqz_fir
 

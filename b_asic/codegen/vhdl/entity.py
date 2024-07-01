@@ -1,6 +1,7 @@
 """
 Module for code generation of VHDL entity declarations
 """
+
 from typing import Set, TextIO
 
 from b_asic.codegen.vhdl import VHDL_TAB, write_lines

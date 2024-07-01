@@ -3,6 +3,7 @@
 Introduction example for the TSTE87 course
 ==========================================
 """
+
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output

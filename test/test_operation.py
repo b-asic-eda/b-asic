@@ -1,6 +1,7 @@
 """
 B-ASIC test suite for the AbstractOperation class.
 """
+
 import re
 
 import pytest

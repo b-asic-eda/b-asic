@@ -162,10 +162,12 @@ class PropertiesWindow(QDialog):
 
         self.operation.operation.set_latency_offsets(
             {
-                port: float(latency_edit.text().replace(",", "."))
-                if latency_edit.text()
-                and float(latency_edit.text().replace(",", ".")) > 0
-                else None
+                port: (
+                    float(latency_edit.text().replace(",", "."))
+                    if latency_edit.text()
+                    and float(latency_edit.text().replace(",", ".")) > 0
+                    else None
+                )
                 for port, latency_edit in self._latency_fields.items()
             }
         )

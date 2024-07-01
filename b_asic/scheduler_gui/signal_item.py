@@ -5,7 +5,6 @@ Contains the scheduler_gui SignalItem class for drawing and maintaining a signal
 in the schedule.
 """
 
-
 from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QPointF

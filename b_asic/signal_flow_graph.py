@@ -25,6 +25,7 @@ from typing import (
     cast,
 )
 
+import numpy as np
 from graphviz import Digraph
 
 from b_asic.graph_component import GraphComponent
@@ -1691,7 +1692,7 @@ class SFG(AbstractOperation):
 
         return Schedule(self, algorithm="ASAP").schedule_time
 
-    def dfs(self, graph, start, end):
+    def _dfs(self, graph, start, end):
         """
         Find loop(s) in graph
 
@@ -1753,16 +1754,16 @@ class SFG(AbstractOperation):
                             visited.add(new_op)
                     else:
                         raise ValueError("Destination does not exist")
-        if dict_of_sfg == {}:
+        if not dict_of_sfg:
             raise ValueError(
                 "the SFG does not have any loops and therefore no iteration period bound."
             )
         cycles = [
             [node] + path
             for node in dict_of_sfg
-            for path in self.dfs(dict_of_sfg, node, node)
+            for path in self._dfs(dict_of_sfg, node, node)
         ]
-        if cycles == []:
+        if not cycles:
             return -1
         op_and_latency = {}
         for op in self.operations:
@@ -1836,15 +1837,13 @@ class SFG(AbstractOperation):
                             visited.add(new_op)
                     else:
                         raise ValueError("Destination does not exist")
-        if dict_of_sfg == {}:
-            raise ValueError(
-                "the SFG does not have any loops and therefore no iteration period bound."
-            )
+        if not dict_of_sfg:
+            raise ValueError("Empty SFG")
         cycles = [
             [node] + path
             for node in dict_of_sfg
             if node[0] == 't'
-            for path in self.dfs(dict_of_sfg, node, node)
+            for path in self._dfs(dict_of_sfg, node, node)
         ]
         delay_loop_list = []
         for lista in cycles:
@@ -1861,11 +1860,9 @@ class SFG(AbstractOperation):
             for x in delay_loop_list
             if x not in state_space_lista
         ]
-        import numpy as np
 
         mat_row = len(delay_element_used) + len(output_index_used)
         mat_col = len(delay_element_used) + len(input_index_used)
-        print(delay_element_used)
         mat_content = np.zeros((mat_row, mat_col))
         matrix_in = [0] * mat_col
         matrix_answer = [0] * mat_row

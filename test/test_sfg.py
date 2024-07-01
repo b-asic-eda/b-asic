@@ -7,6 +7,7 @@ import sys
 from os import path, remove
 from typing import Counter, Dict, Type
 
+import numpy as np
 import pytest
 
 from b_asic import Input, Output, Signal
@@ -1772,3 +1773,48 @@ class TestInsertDelays:
         assert source2.type_name() == d_type_name
         assert source3.type_name() == d_type_name
         assert source4.type_name() == bfly.type_name()
+
+
+class TestIterationPeriodBound:
+    def test_accumulator(self, sfg_simple_accumulator):
+        sfg_simple_accumulator.set_latency_of_type('add', 2)
+        assert sfg_simple_accumulator.iteration_period_bound() == 2
+
+    def test_no_latency(self, sfg_simple_accumulator):
+        with pytest.raises(
+            ValueError,
+            match="All native offsets have to set to a non-negative value to",
+        ):
+            sfg_simple_accumulator.iteration_period_bound()
+
+    def test_secondorder_iir(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type('add', 2)
+        precedence_sfg_delays.set_latency_of_type('cmul', 3)
+        assert precedence_sfg_delays.iteration_period_bound() == 10
+
+    def test_no_delays(self, sfg_two_inputs_two_outputs):
+        assert sfg_two_inputs_two_outputs.iteration_period_bound() == -1
+
+
+class TestStateSpace:
+    def test_accumulator(self, sfg_simple_accumulator):
+        ss = sfg_simple_accumulator.state_space_representation()
+        assert ss[0] == ['v0', 'y0']
+        assert (ss[1] == np.array([[1.0, 1.0], [0.0, 1.0]])).all()
+        assert ss[2] == ['v0', 'x0']
+
+    def test_secondorder_iir(self, precedence_sfg_delays):
+        ss = precedence_sfg_delays.state_space_representation()
+        assert ss[0] == ['v0', 'v1', 'y0']
+
+        mat = np.array([[5.0, 2.0, 5.0], [1.0, 0.0, 0.0], [4.0, 6.0, 35.0]])
+        assert (ss[1] == mat).all()
+        assert ss[2] == ['v0', 'v1', 'x0']
+
+    @pytest.mark.xfail()
+    def test_no_delays(self, sfg_two_inputs_two_outputs):
+        ss = sfg_two_inputs_two_outputs.state_space_representation()
+
+        assert ss[0] == ['y0', 'y1']
+        assert (ss[1] == np.array([[1.0, 1.0], [1.0, 2.0]])).all()
+        assert ss[2] == ['x0', 'x1']

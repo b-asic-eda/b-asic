@@ -3,6 +3,7 @@ B-ASIC signal flow graph generators.
 
 This module contains a number of functions generating SFGs for specific functions.
 """
+
 from typing import Dict, Optional, Sequence, Union
 
 import numpy as np

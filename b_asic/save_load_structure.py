@@ -63,9 +63,11 @@ def sfg_to_python(
                 if attr != "latency" and hasattr(comp, attr)
             }
             params = {
-                attr: getattr(comp, attr)
-                if not isinstance(getattr(comp, attr), str)
-                else f'"{getattr(comp, attr)}"'
+                attr: (
+                    getattr(comp, attr)
+                    if not isinstance(getattr(comp, attr), str)
+                    else f'"{getattr(comp, attr)}"'
+                )
                 for attr in params_filtered
             }
             params = {k: v for k, v in params.items() if v}
@@ -153,9 +155,11 @@ def python_to_sfg(path: str) -> Tuple[SFG, Dict[str, Tuple[int, int]]]:
         exec(code, globals(), locals())
 
     return (
-        locals()["prop"]["name"]
-        if "prop" in locals()
-        else [v for k, v in locals().items() if isinstance(v, SFG)][0],
+        (
+            locals()["prop"]["name"]
+            if "prop" in locals()
+            else [v for k, v in locals().items() if isinstance(v, SFG)][0]
+        ),
         locals()["positions"] if "positions" in locals() else {},
     )
 

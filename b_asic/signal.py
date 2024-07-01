@@ -3,6 +3,7 @@ B-ASIC Signal Module.
 
 Contains the class for representing the connections between operations.
 """
+
 from typing import TYPE_CHECKING, Iterable, Optional, Union
 
 from b_asic.graph_component import AbstractGraphComponent, GraphComponent
