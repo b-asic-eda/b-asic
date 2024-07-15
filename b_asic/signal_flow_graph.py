@@ -6,6 +6,7 @@ Contains the signal flow graph operation.
 
 import itertools
 import re
+import warnings
 from collections import defaultdict, deque
 from io import StringIO
 from numbers import Number
@@ -66,10 +67,11 @@ class GraphIDGenerator:
     def next_id(self, type_name: TypeName, used_ids: MutableSet = set()) -> GraphID:
         """Get the next graph id for a certain graph id type."""
         new_id = type_name + str(self._next_id_number[type_name])
-        self._next_id_number[type_name] += 1
+        self._next_id_number[type_name] = 0
         while new_id in used_ids:
             self._next_id_number[type_name] += 1
             new_id = type_name + str(self._next_id_number[type_name])
+        used_ids.add(GraphID(new_id))
         return GraphID(new_id)
 
     @property
@@ -281,12 +283,18 @@ class SFG(AbstractOperation):
                 )
 
         # Search the graph inwards from each output signal.
+        output_sources = []
         for (
             signal,
             output_index,
         ) in self._original_output_signals_to_indices.items():
             # Check if already added source.
             new_signal = cast(Signal, self._original_components_to_new[signal])
+
+            if new_signal.source in output_sources:
+                warnings.warn("Two signals connected to the same output port")
+            output_sources.append(new_signal.source)
+
             if new_signal.source is None:
                 if signal.source is None:
                     raise ValueError(
@@ -294,6 +302,11 @@ class SFG(AbstractOperation):
                     )
                 if signal.source.operation not in self._original_components_to_new:
                     self._add_operation_connected_tree_copy(signal.source.operation)
+
+        if len(output_sources) != (output_operation_count + output_signal_count):
+            raise ValueError(
+                "At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal"
+            )
 
     def __str__(self) -> str:
         """Return a string representation of this SFG."""
@@ -638,6 +651,12 @@ class SFG(AbstractOperation):
             for signal in output.signals:
                 signal.remove_source()
                 signal.set_source(component.output(index_out))
+
+        if component_copy.type_name() == 'out':
+            sfg_copy._output_operations.remove(component_copy)
+            warnings.warn(f"Output port {component_copy.graph_id} has been removed")
+        if component.type_name() == 'out':
+            sfg_copy._output_operations.append(component)
 
         return sfg_copy()  # Copy again to update IDs.
 
@@ -2096,4 +2115,10 @@ class SFG(AbstractOperation):
         """Get a list of all TypeNames used in the SFG."""
         ret = list({op.type_name() for op in self.operations})
         ret.sort()
+        return ret
+
+    def get_used_graph_ids(self) -> Set[GraphID]:
+        """Get a list of all GraphID:s used in the SFG."""
+        ret = set({op.graph_id for op in self.operations})
+        sorted(ret)
         return ret

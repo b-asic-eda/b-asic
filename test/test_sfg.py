@@ -1351,8 +1351,10 @@ class TestSFGErrors:
         adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
         out1 = Output(adaptor.output(0))
         out2 = Output()
-        # No error, should be
-        SFG([in1, in2], [out1, out2])
+        with pytest.raises(
+            ValueError, match="At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal"
+        ):
+            SFG([in1, in2], [out1, out2])
 
     def test_unconnected_input(self):
         in1 = Input()
@@ -1421,8 +1423,10 @@ class TestSFGErrors:
         adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
         out1 = Output(adaptor.output(0))
         signal = Signal(adaptor.output(1))
-        # Should raise?
-        SFG([in1, in2], [out1], output_signals=[signal, signal])
+        with pytest.raises(
+            ValueError, match="At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal"
+        ):
+            SFG([in1, in2], [out1], output_signals=[signal, signal])
 
     def test_dangling_input_signal(self):
         in1 = Input()
@@ -1739,6 +1743,36 @@ class TestGetUsedTypeNames:
 
     def test_sfg_nested(self, sfg_nested: SFG):
         assert sfg_nested.get_used_type_names() == ['in', 'out', 'sfg']
+
+    def test_large_operation_tree(self, large_operation_tree):
+        sfg = SFG(outputs=[Output(large_operation_tree)])
+        assert sfg.get_used_type_names() == ['add', 'c', 'out']
+
+
+class Test_Keep_GraphIDs:
+    def test_single_accumulator(self):
+
+        i = Input()
+        d = Delay()
+        o = Output(d)
+        c = ConstantMultiplication(0.5, d)
+        a = Addition(i, c)
+        d.input(0).connect(a)
+
+        sfg = SFG([i], [o])
+        sfg = sfg.insert_operation_before('t0', ConstantMultiplication(8))
+        sfg = sfg.insert_operation_after('t0', ConstantMultiplication(8))
+        sfg = sfg.insert_operation(ConstantMultiplication(8), 't0')
+        assert sfg.get_used_graph_ids() == {
+            'add0',
+            'cmul0',
+            'cmul1',
+            'cmul2',
+            'cmul3',
+            'in0',
+            'out0',
+            't0',
+        }
 
     def test_large_operation_tree(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
