@@ -41,6 +41,8 @@ class DragButton(QPushButton):
         Parent MainWindow.
     parent : unknown, optional
         Passed to QPushButton.
+    *args, **kwargs
+        Additional arguments are passed to QPushButton.
     """
 
     connectionRequested = Signal(QPushButton)

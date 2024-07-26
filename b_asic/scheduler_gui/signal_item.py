@@ -14,12 +14,12 @@ from qtpy.QtWidgets import QGraphicsPathItem
 # B-ASIC
 from b_asic.scheduler_gui._preferences import (
     SCHEDULE_INDENT,
-    SIGNAL_ACTIVE,
-    SIGNAL_INACTIVE,
-    SIGNAL_WARNING,
     SIGNAL_WIDTH,
     SIGNAL_WIDTH_ACTIVE,
     SIGNAL_WIDTH_WARNING,
+    Active_Color,
+    Signal_Color,
+    Signal_Warning_Color,
 )
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.signal import Signal
@@ -100,13 +100,24 @@ class SignalItem(QGraphicsPathItem):
 
     def _refresh_pens(self) -> None:
         """Create pens."""
-        pen = QPen(SIGNAL_ACTIVE)
+        if Active_Color.changed:
+            pen = QPen(Active_Color.current_color)
+        else:
+            pen = QPen(Active_Color.DEFAULT)
         pen.setWidthF(SIGNAL_WIDTH_ACTIVE)
         self._active_pen = pen
-        pen = QPen(SIGNAL_INACTIVE)
+
+        if Signal_Color.changed:
+            pen = QPen(Signal_Color.current_color)
+        else:
+            pen = QPen(Signal_Color.DEFAULT)
         pen.setWidthF(SIGNAL_WIDTH)
         self._inactive_pen = pen
-        pen = QPen(SIGNAL_WARNING)
+
+        if Signal_Warning_Color.changed:
+            pen = QPen(Signal_Warning_Color.current_color)
+        else:
+            pen = QPen(Signal_Warning_Color.DEFAULT)
         pen.setWidthF(SIGNAL_WIDTH_WARNING)
         self._warning_pen = pen
 

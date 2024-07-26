@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Set, cast
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import Signal
+from qtpy.QtGui import QColor, QFont
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
 
 # B-ASIC
@@ -140,6 +141,26 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         """Redraw all lines in schedule."""
         for signal in self._get_all_signals():
             signal.update_path()
+
+    def _color_change(self, color: QColor, name: str) -> None:
+        """Change inactive color of operation item *."""
+        for op in self.components:
+            if name == "all operations":
+                op._set_background(color)
+                op._inactive_color = color
+            elif name == op.operation.type_name():
+                op._set_background(color)
+                op._inactive_color = color
+
+    def _font_change(self, font: QFont) -> None:
+        """Update font in the schedule."""
+        for op in self.components:
+            op.Set_font(font)
+
+    def _font_color_change(self, color: QColor) -> None:
+        """Update font color in the schedule."""
+        for op in self.components:
+            op.Set_fontColor(color)
 
     def _redraw_lines(self, item: OperationItem) -> None:
         """Update lines connected to *item*."""

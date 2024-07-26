@@ -38,6 +38,7 @@ class SchedulerEvent:  # PyQt5
         redraw_all = Signal()
         reopen = Signal()
         execution_time_plot = Signal(str)
+        TextSignal = Signal(str)
 
     _axes: Optional[AxesItem]
     _current_pos: QPointF

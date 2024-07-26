@@ -1,4 +1,4 @@
-from qtpy.QtGui import QColor
+from qtpy.QtGui import QColor, QFont
 
 from b_asic._preferences import EXECUTION_TIME_COLOR, LATENCY_COLOR, SIGNAL_COLOR
 
@@ -18,3 +18,67 @@ OPERATION_HEIGHT = 0.75
 OPERATION_GAP = 1 - OPERATION_HEIGHT  # TODO: For now, should really fix the bug
 
 SCHEDULE_INDENT = 0.2
+DEFAULT_FONT = QFont("Times", 12)
+DEFAULT_FONT_COLOR = QColor(*SIGNAL_COLOR)
+
+
+class ColorDataType:
+    def __init__(
+        self,
+        DEFAULT: QColor,
+        current_color: QColor = SIGNAL_INACTIVE,
+        changed: bool = False,
+        name: str = '',
+    ):
+        self.current_color = current_color
+        self.DEFAULT = DEFAULT
+        self.changed = changed
+        self.name = name
+
+
+Latency_Color = ColorDataType(
+    current_color=OPERATION_LATENCY_INACTIVE,
+    DEFAULT=OPERATION_LATENCY_INACTIVE,
+    name='Latency Color',
+)
+Execution_Time_Color = ColorDataType(
+    current_color=OPERATION_EXECUTION_TIME_ACTIVE,
+    DEFAULT=OPERATION_EXECUTION_TIME_ACTIVE,
+    name='Execution Time Color',
+)
+Signal_Warning_Color = ColorDataType(
+    current_color=SIGNAL_WARNING, DEFAULT=SIGNAL_WARNING, name='Warning Color'
+)
+Signal_Color = ColorDataType(
+    current_color=SIGNAL_INACTIVE, DEFAULT=SIGNAL_INACTIVE, name='Signal Color'
+)
+Active_Color = ColorDataType(
+    current_color=SIGNAL_ACTIVE, DEFAULT=SIGNAL_ACTIVE, name='Active Color'
+)
+
+
+class FontDataType:
+    def __init__(
+        self,
+        current_font: QFont,
+        DEFAULT: QFont = DEFAULT_FONT,
+        DEFAULT_COLOR: QColor = DEFAULT_FONT_COLOR,
+        color: QColor = DEFAULT_FONT_COLOR,
+        size: int = 12,
+        italic: bool = False,
+        bold: bool = False,
+        changed: bool = False,
+    ):
+        self.current_font = current_font
+        self.DEFAULT = DEFAULT
+        self.DEFAULT_COLOR = DEFAULT_COLOR
+        self.size = size
+        self.color = color
+        self.italic = italic
+        self.bold = bold
+        self.changed = changed
+
+
+Font = FontDataType(
+    current_font=DEFAULT_FONT, DEFAULT=DEFAULT_FONT, DEFAULT_COLOR=DEFAULT_FONT_COLOR
+)

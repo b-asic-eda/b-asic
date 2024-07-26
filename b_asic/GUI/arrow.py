@@ -124,7 +124,6 @@ class Arrow(QGraphicsPathItem):
         ----------
         destination : :class:`~b_asic.operation.Operation`
             The operation to use as destination.
-
         """
         self._destination_port_button._operation_button.operation = destination
 

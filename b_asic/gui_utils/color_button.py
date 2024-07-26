@@ -4,7 +4,7 @@ Qt button for use in preference dialogs, selecting color.
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QColorDialog, QPushButton
+from qtpy.QtWidgets import QPushButton
 
 
 class ColorButton(QPushButton):
@@ -26,7 +26,6 @@ class ColorButton(QPushButton):
 
         self._color = None
         self._default = color
-        self.pressed.connect(self.pick_color)
 
         # Set the initial/default state.
         self.set_color(self._default)
@@ -38,23 +37,18 @@ class ColorButton(QPushButton):
             self._color_changed.emit(color)
 
         if self._color:
-            self.setStyleSheet("background-color: %s;" % self._color)
+            self.setStyleSheet(f"background-color: {self._color.name()};")
         else:
             self.setStyleSheet("")
+
+    def set_text_color(self, color: QColor):
+        """Set text color."""
+        self.setStyleSheet(f"color: {color.name()};")
 
     @property
     def color(self):
         """Current color."""
         return self._color
-
-    def pick_color(self):
-        """Show color-picker dialog to select color."""
-        dlg = QColorDialog(self)
-        if self._color:
-            dlg.setCurrentColor(self._color)
-
-        if dlg.exec_():
-            self.set_color(dlg.currentColor())
 
     def mousePressEvent(self, e):
         if e.button() == Qt.RightButton:

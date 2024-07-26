@@ -53,6 +53,10 @@ class HardwareBlock:
     entity_name : str, optional
         The name of the resulting entity.
     """
+
+    __slots__ = "_entity_name"
+    _entity_name: Optional[str]
+
     __slots__ = "_entity_name"
     _entity_name: Optional[str]
 
@@ -383,7 +387,7 @@ class ProcessingElement(Resource):
     _color = f"#{''.join(f'{v:0>2X}' for v in PE_COLOR)}"
     __slots__ = ("_process_collection", "_entity_name")
     _process_collection: ProcessCollection
-    _entity_name : Optional[str]
+    _entity_name: Optional[str]
 
     def __init__(
         self,

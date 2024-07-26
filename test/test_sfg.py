@@ -1352,7 +1352,8 @@ class TestSFGErrors:
         out1 = Output(adaptor.output(0))
         out2 = Output()
         with pytest.raises(
-            ValueError, match="At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal"
+            ValueError,
+            match="At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal",
         ):
             SFG([in1, in2], [out1, out2])
 
@@ -1424,7 +1425,8 @@ class TestSFGErrors:
         out1 = Output(adaptor.output(0))
         signal = Signal(adaptor.output(1))
         with pytest.raises(
-            ValueError, match="At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal"
+            ValueError,
+            match="At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal",
         ):
             SFG([in1, in2], [out1], output_signals=[signal, signal])
 

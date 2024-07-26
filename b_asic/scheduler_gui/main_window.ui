@@ -202,7 +202,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -215,13 +215,15 @@
      </property>
     </widget>
     <addaction name="menu_open"/>
+    <addaction name="menu_Recent_Schedule"/>
+    <addaction name="menu_load_from_file"/>
+    <addaction name="separator"/>
     <addaction name="menu_save"/>
     <addaction name="menu_save_as"/>
-    <addaction name="menu_load_from_file"/>
+    <addaction name="separator"/>
+    <addaction name="actionPreferences"/>
+    <addaction name="separator"/>
     <addaction name="menu_close_schedule"/>
-    <addaction name="separator"/>
-    <addaction name="menu_Recent_Schedule"/>
-    <addaction name="separator"/>
     <addaction name="menu_quit"/>
    </widget>
    <widget class="QMenu" name="menuView">
@@ -229,11 +231,11 @@
      <string>&amp;View</string>
     </property>
     <widget class="QMenu" name="menu_view_execution_times">
-     <property name="title">
-      <string>View execution times of type</string>
-     </property>
      <property name="enabled">
       <bool>false</bool>
+     </property>
+     <property name="title">
+      <string>View execution times of type</string>
      </property>
     </widget>
     <addaction name="menu_node_info"/>
@@ -359,7 +361,7 @@
     <string>Show/hide node information</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+I</string>
+    <string>Ctrl+N</string>
    </property>
    <property name="iconVisibleInMenu">
     <bool>false</bool>
@@ -391,6 +393,9 @@
    <property name="toolTip">
     <string>Save schedule with new file name</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+S</string>
+   </property>
   </action>
   <action name="menu_exit_dialog">
    <property name="checkable">
@@ -421,6 +426,9 @@
    <property name="text">
     <string>&amp;Close schedule</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
+   </property>
   </action>
   <action name="actionAbout">
    <property name="text">
@@ -445,6 +453,9 @@
    <property name="toolTip">
     <string>Reorder schedule based on start time</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
   </action>
   <action name="actionPlot_schedule">
    <property name="text">
@@ -455,22 +466,22 @@
    </property>
   </action>
   <action name="action_view_variables">
-   <property name="text">
-    <string>View execution times of variables</string>
-   </property>
    <property name="enabled">
     <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>View execution times of variables</string>
    </property>
    <property name="toolTip">
     <string>View all variables</string>
    </property>
   </action>
   <action name="action_view_port_accesses">
-   <property name="text">
-    <string>View port access statistics</string>
-   </property>
    <property name="enabled">
     <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>View port access statistics</string>
    </property>
    <property name="toolTip">
     <string>View port access statistics for storage</string>
@@ -495,7 +506,7 @@
     <string>Redo</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+R</string>
+    <string>Ctrl+Y, Ctrl+Shift+Z</string>
    </property>
   </action>
   <action name="actionIncrease_time_resolution">
@@ -576,6 +587,9 @@
    </property>
   </action>
   <action name="menu_open">
+   <property name="icon">
+    <iconset theme="personal"/>
+   </property>
    <property name="text">
     <string>&amp;Open...</string>
    </property>
@@ -595,6 +609,20 @@
    </property>
    <property name="shortcut">
     <string>F11</string>
+   </property>
+  </action>
+  <action name="actionPreferences">
+   <property name="icon">
+    <iconset theme="preferences-desktop-personal"/>
+   </property>
+   <property name="text">
+    <string>Preferences</string>
+   </property>
+   <property name="toolTip">
+    <string>Color and Fonts</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+M</string>
    </property>
   </action>
  </widget>
