@@ -1843,14 +1843,35 @@ class TestStateSpace:
         ss = precedence_sfg_delays.state_space_representation()
         assert ss[0] == ['v0', 'v1', 'y0']
 
-        mat = np.array([[5.0, 2.0, 5.0], [1.0, 0.0, 0.0], [4.0, 6.0, 35.0]])
+        mat = np.array([[3.0, 2.0, 5.0], [1.0, 0.0, 0.0], [4.0, 6.0, 35.0]])
         assert (ss[1] == mat).all()
         assert ss[2] == ['v0', 'v1', 'x0']
 
-    @pytest.mark.xfail()
-    def test_no_delays(self, sfg_two_inputs_two_outputs):
+    # @pytest.mark.xfail()
+    def test_sfg_two_inputs_two_outputs(self, sfg_two_inputs_two_outputs):
         ss = sfg_two_inputs_two_outputs.state_space_representation()
 
         assert ss[0] == ['y0', 'y1']
         assert (ss[1] == np.array([[1.0, 1.0], [1.0, 2.0]])).all()
+        assert ss[2] == ['x0', 'x1']
+
+    def test_sfg_two_inputs_two_outputs_independent(
+        self, sfg_two_inputs_two_outputs_independent
+    ):
+        # assert sfg_two_inputs_two_outputs_independent.state_space_representation() == 1
+        ss = sfg_two_inputs_two_outputs_independent.state_space_representation()
+
+        assert ss[0] == ['y0', 'y1']
+        assert (ss[1] == np.array([[1.0, 0.0], [0.0, 4.0]])).all()
+        assert ss[2] == ['x0', 'x1']
+
+    def test_sfg_two_inputs_two_outputs_independent_with_cmul(
+        self, sfg_two_inputs_two_outputs_independent_with_cmul
+    ):
+        ss = (
+            sfg_two_inputs_two_outputs_independent_with_cmul.state_space_representation()
+        )
+
+        assert ss[0] == ['y0', 'y1']
+        assert (ss[1] == np.array([[20.0, 0.0], [0.0, 8.0]])).all()
         assert ss[2] == ['x0', 'x1']
