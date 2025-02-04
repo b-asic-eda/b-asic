@@ -14,7 +14,7 @@ How to build and debug the library during development.
 
 The following packages are required in order to build the library:
 
-- [Python](https://python.org/) 3.8+
+- [Python](https://python.org/) 3.10+
 - Python dependencies (install with `pip install -r requirements.txt` or they will be installed as part of the
   installation process):
   - [Graphviz](https://graphviz.org/)
@@ -24,11 +24,9 @@ The following packages are required in order to build the library:
   - [setuptools_scm](https://github.com/pypa/setuptools_scm/)
   - [NetworkX](https://networkx.org/)
   - [QtAwesome](https://github.com/spyder-ide/qtawesome/)
-- Qt 5 or 6, with Python bindings, one of:
-  - pyside2
-  - pyqt5
-  - pyside6
+- Qt 6, with Python bindings, one of:
   - pyqt6
+  - pyside6
 
 To build a binary distribution, the following additional packages are required:
 

@@ -17,6 +17,7 @@ shorter than the scheduling period.
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.schedule import Schedule
+from b_asic.scheduler import ASAPScheduler
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
 
@@ -48,7 +49,7 @@ sfg.set_execution_time_of_type(Addition.type_name(), 1)
 
 # %%
 # Create schedule
-schedule = Schedule(sfg, cyclic=True)
+schedule = Schedule(sfg, scheduler=ASAPScheduler(), cyclic=True)
 schedule.show(title='Original schedule')
 
 # %%

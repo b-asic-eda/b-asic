@@ -38,6 +38,7 @@ from b_asic.operation import (
     ResultKey,
 )
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
+from b_asic.scheduler import ASAPScheduler
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
@@ -1709,7 +1710,7 @@ class SFG(AbstractOperation):
         # Import here needed to avoid circular imports
         from b_asic.schedule import Schedule
 
-        return Schedule(self, algorithm="ASAP").schedule_time
+        return Schedule(self, ASAPScheduler()).schedule_time
 
     def _dfs(self, graph, start, end):
         """

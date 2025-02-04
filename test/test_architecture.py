@@ -9,6 +9,7 @@ from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.process import PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
+from b_asic.scheduler import ASAPScheduler
 from b_asic.special_operations import Input, Output
 
 
@@ -253,7 +254,7 @@ def test_resource_errors(precedence_sfg_delays):
         ConstantMultiplication.type_name(), 1
     )
 
-    schedule = Schedule(precedence_sfg_delays)
+    schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
     operations = schedule.get_operations()
     additions = operations.get_by_type_name(Addition.type_name())
     with pytest.raises(

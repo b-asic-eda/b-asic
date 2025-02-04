@@ -98,9 +98,9 @@ if __debug__:
     log.debug(f"Qt version (compile time): {QtCore.__version__}")
     log.debug(f"QT_API:                    {QT_API}")
     if QT_API.lower().startswith("pyside"):
-        import PySide2
+        import PySide6
 
-        log.debug(f"PySide version:           {PySide2.__version__}")
+        log.debug(f"PySide version:           {PySide6.__version__}")
     if QT_API.lower().startswith("pyqt"):
         from qtpy.QtCore import PYQT_VERSION_STR
 
@@ -1689,17 +1689,19 @@ def start_scheduler(schedule: Optional[Schedule] = None) -> Optional[Schedule]:
     """
     if not QApplication.instance():
         app = QApplication(sys.argv)
-        # Enforce a light palette regardless of laptop theme
-        palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QtCore.Qt.white)
-        palette.setColor(QPalette.ColorRole.WindowText, QtCore.Qt.black)
-        palette.setColor(QPalette.ColorRole.ButtonText, QtCore.Qt.black)
-        palette.setColor(QPalette.ColorRole.Base, QtCore.Qt.white)
-        palette.setColor(QPalette.ColorRole.AlternateBase, QtCore.Qt.lightGray)
-        palette.setColor(QPalette.ColorRole.Text, QtCore.Qt.black)
-        app.setPalette(palette)
     else:
         app = QApplication.instance()
+
+    # Enforce a light palette regardless of laptop theme
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.Window, QtCore.Qt.white)
+    palette.setColor(QPalette.ColorRole.WindowText, QtCore.Qt.black)
+    palette.setColor(QPalette.ColorRole.ButtonText, QtCore.Qt.black)
+    palette.setColor(QPalette.ColorRole.Base, QtCore.Qt.white)
+    palette.setColor(QPalette.ColorRole.AlternateBase, QtCore.Qt.lightGray)
+    palette.setColor(QPalette.ColorRole.Text, QtCore.Qt.black)
+    app.setPalette(palette)
+
     window = ScheduleMainWindow()
     if schedule:
         window.open(schedule)

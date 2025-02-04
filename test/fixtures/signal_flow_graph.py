@@ -332,3 +332,11 @@ def sfg_direct_form_iir_lp_filter():
     d1.input(0).connect(d0)
     y <<= a1 * d0 + a2 * d1 + a0 * top_node
     return SFG(inputs=[x], outputs=[y], name='Direct Form 2 IIR Lowpass filter')
+
+
+@pytest.fixture
+def sfg_empty():
+    """Empty SFG consisting of an Input followed by an Output."""
+    in0 = Input()
+    out0 = Output(in0)
+    return SFG(inputs=[in0], outputs=[out0])

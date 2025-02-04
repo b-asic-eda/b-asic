@@ -2,7 +2,7 @@
 """
 B-ASIC Scheduler-gui Resource and Form Compiler Module.
 
-Compile Qt5 resource and form files. Requires PySide2 or PyQt5 to be installed.
+Compile Qt6 resource and form files. Requires PySide6 or PyQt6 to be installed.
 If no arguments is given, the compiler search for and compiles all form (.ui)
 files.
 """
@@ -160,45 +160,13 @@ def compile_ui(*filenames: str) -> None:
         directory = directory if directory else "."
         outfile = f"{directory}/ui_{file}.py"
 
-        if uic.PYSIDE2:
-            uic_ = shutil.which("pyside2-uic")
-            arguments = f"-g python -o {outfile} {filename}"
-
-            if uic_ is None:
-                uic_ = shutil.which("uic")
-            if uic_ is None:
-                uic_ = shutil.which("pyuic5")
-                arguments = f"-o {outfile} {filename}"
-            assert uic_, (
-                "Qt User Interface Compiler failed, cannot find pyside2-uic,"
-                " uic, or pyuic5"
-            )
-
-            os_ = sys.platform
-            if os_.startswith("linux"):  # Linux
-                cmd = f"{uic_} {arguments}"
-                subprocess.call(cmd.split())
-
-            elif os_.startswith("win32"):  # Windows
-                # TODO: implement
-                log.error("Windows UI compiler not implemented")
-                raise NotImplementedError
-
-            elif os_.startswith("darwin"):  # macOS
-                # TODO: implement
-                log.error("macOS UI compiler not implemented")
-                raise NotImplementedError
-
-            else:  # other OS
-                log.error(f"{os_} UI compiler not supported")
-                raise NotImplementedError
-
-        elif uic.PYQT5 or uic.PYQT6:
+        if uic.PYQT6:
             from qtpy.uic import compileUi
 
             with open(outfile, "w") as ofile:
                 compileUi(filename, ofile)
-        elif uic.PYQT6:
+
+        elif uic.PYSIDE6:
             uic_ = shutil.which("pyside6-uic")
             arguments = f"-g python -o {outfile} {filename}"
 
@@ -218,9 +186,8 @@ def compile_ui(*filenames: str) -> None:
                 subprocess.call(cmd.split())
 
             elif os_.startswith("win32"):  # Windows
-                # TODO: implement
-                log.error("Windows UI compiler not implemented")
-                raise NotImplementedError
+                cmd = f"{uic_} {arguments}"
+                subprocess.call(cmd.split())
 
             elif os_.startswith("darwin"):  # macOS
                 # TODO: implement

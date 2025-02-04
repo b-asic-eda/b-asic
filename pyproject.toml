@@ -30,6 +30,10 @@ classifiers = [
 ]
 dynamic = ["version", "authors"]
 
+[project.optional-dependencies]
+pyqt6 = ["pyqt6"]
+pyside6 = ["pyside6"]
+
 [tool.setuptools]
 zip-safe = false
 

@@ -33,7 +33,7 @@ from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, OperatorProcess
 from b_asic.resources import ProcessCollection
-from b_asic.scheduler import Scheduler, SchedulingAlgorithm
+from b_asic.scheduler import Scheduler
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
@@ -64,24 +64,19 @@ class Schedule:
     ----------
     sfg : :class:`~b_asic.signal_flow_graph.SFG`
         The signal flow graph to schedule.
+    scheduler : Scheduler, default: None
+        The automatic scheduler to be used.
     schedule_time : int, optional
         The schedule time. If not provided, it will be determined by the scheduling
         algorithm.
     cyclic : bool, default: False
         If the schedule is cyclic.
-    algorithm : SchedulingAlgorithm, default: 'ASAP'
-        The scheduling algorithm to use.
     start_times : dict, optional
         Dictionary with GraphIDs as keys and start times as values.
         Used when *algorithm* is 'provided'.
     laps : dict, optional
         Dictionary with GraphIDs as keys and laps as values.
         Used when *algorithm* is 'provided'.
-    max_resources : dict, optional
-        Dictionary like ``{Addition.type_name(): 2}`` denoting the maximum number of
-        resources for a given operation type if the scheduling algorithm considers
-        that. If not provided, or an operation type is not provided, at most one
-        resource is used.
     """
 
     _sfg: SFG
@@ -94,12 +89,11 @@ class Schedule:
     def __init__(
         self,
         sfg: SFG,
+        scheduler: Optional[Scheduler] = None,
         schedule_time: Optional[int] = None,
         cyclic: bool = False,
-        algorithm: SchedulingAlgorithm = "ASAP",
         start_times: Optional[Dict[GraphID, int]] = None,
         laps: Optional[Dict[GraphID, int]] = None,
-        max_resources: Optional[Dict[TypeName, int]] = None,
     ):
         """Construct a Schedule from an SFG."""
         if not isinstance(sfg, SFG):
@@ -112,14 +106,10 @@ class Schedule:
         self._y_locations = defaultdict(_y_locations_default)
         self._schedule_time = schedule_time
 
-        self.scheduler = Scheduler(self)
-        if algorithm == "ASAP":
-            self.scheduler.schedule_asap()
-        elif algorithm == "ALAP":
-            self.scheduler.schedule_alap()
-        elif algorithm == "earliest_deadline":
-            self.scheduler.schedule_earliest_deadline([])
-        elif algorithm == "provided":
+        if scheduler:
+            self._scheduler = scheduler
+            self._scheduler.apply_scheduling(self)
+        else:
             if start_times is None:
                 raise ValueError("Must provide start_times when using 'provided'")
             if laps is None:
@@ -127,11 +117,8 @@ class Schedule:
             self._start_times = start_times
             self._laps.update(laps)
             self._remove_delays_no_laps()
-        else:
-            raise NotImplementedError(f"No algorithm with name: {algorithm} defined.")
 
         max_end_time = self.get_max_end_time()
-
         if schedule_time is None:
             self._schedule_time = max_end_time
         elif schedule_time < max_end_time:
@@ -398,6 +385,15 @@ class Schedule:
     def start_times(self) -> Dict[GraphID, int]:
         """The start times of the operations in the schedule."""
         return self._start_times
+
+    @start_times.setter
+    def start_times(self, start_times: dict[GraphID, int]) -> None:
+        if not isinstance(start_times, dict):
+            raise TypeError("start_times must be a dict")
+        for key, value in start_times.items():
+            if not isinstance(key, str) or not isinstance(value, int):
+                raise TypeError("start_times must be a dict[GraphID, int]")
+        self._start_times = start_times
 
     @property
     def laps(self) -> Dict[GraphID, int]:
@@ -770,7 +766,7 @@ class Schedule:
             self._sfg = cast(SFG, self._sfg.remove_operation(delay_op.graph_id))
             delay_list = self._sfg.find_by_type_name(Delay.type_name())
 
-    def _remove_delays(self) -> None:
+    def remove_delays(self) -> None:
         """Remove delay elements and update laps. Used after scheduling algorithm."""
         delay_list = self._sfg.find_by_type_name(Delay.type_name())
         while delay_list:
