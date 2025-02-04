@@ -255,3 +255,119 @@ def transposed_direct_form_fir(
     output <<= tmp_add
 
     return SFG([input_op], [output], name=Name(name))
+
+
+def direct_form_1_iir(
+    b: Sequence[complex],
+    a: Sequence[complex],
+    name: Optional[str] = None,
+    mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+    add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+) -> SFG:
+    """Generates a direct-form IIR filter of type I with coefficients a and b."""
+    if len(a) != len(b):
+        raise ValueError("size of coefficient lists a and b are not the same")
+    if name is None:
+        name = "Direct-form I IIR filter"
+    if mult_properties is None:
+        mult_properties = {}
+    if add_properties is None:
+        add_properties = {}
+
+    # construct the feed-forward part
+    input_op = Input()
+    muls = [ConstantMultiplication(b[0], input_op, **mult_properties)]
+    delays = []
+    prev_delay = input_op
+    for i, coeff in enumerate(b[1:]):
+        prev_delay = Delay(prev_delay)
+        delays.append(prev_delay)
+        if i < len(b) - 1:
+            muls.append(ConstantMultiplication(coeff, prev_delay, **mult_properties))
+
+    op_a = muls[-1]
+    for i in range(len(muls) - 1):
+        op_a = Addition(op_a, muls[-i - 2], **add_properties)
+
+    # construct the feedback part
+    tmp_add = Addition(op_a, None, **add_properties)
+    muls = []
+    output = Output()
+    output <<= tmp_add
+
+    delays = []
+    prev_delay = tmp_add
+    for i, coeff in enumerate(a[1:]):
+        prev_delay = Delay(prev_delay)
+        delays.append(prev_delay)
+        if i < len(a) - 1:
+            muls.append(ConstantMultiplication(-coeff, prev_delay, **mult_properties))
+
+    op_a = muls[-1]
+    for i in range(len(muls) - 1):
+        op_a = Addition(op_a, muls[-i - 2], **add_properties)
+
+    tmp_add.input(1).connect(op_a)
+
+    return SFG([input_op], [output], name=Name(name))
+
+
+def direct_form_2_iir(
+    b: Sequence[complex],
+    a: Sequence[complex],
+    name: Optional[str] = None,
+    mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+    add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+) -> SFG:
+    """Generates a direct-form IIR filter of type II with coefficients a and b."""
+    if len(a) != len(b):
+        raise ValueError("size of coefficient lists a and b are not the same")
+    if name is None:
+        name = "Direct-form II IIR filter"
+    if mult_properties is None:
+        mult_properties = {}
+    if add_properties is None:
+        add_properties = {}
+
+    # construct the repeated part of the SFG
+    left_adds = []
+    right_adds = []
+    left_muls = []
+    right_muls = []
+    delays = [Delay()]
+    op_a_left = None
+    op_a_right = None
+    for i in range(len(a) - 1):
+        a_coeff = a[-i - 1]
+        b_coeff = b[-i - 1]
+        if len(left_muls) != 0:  # not first iteration
+            new_delay = Delay()
+            delays[-1] <<= new_delay
+            delays.append(new_delay)
+        left_muls.append(
+            ConstantMultiplication(-a_coeff, delays[-1], **mult_properties)
+        )
+        right_muls.append(
+            ConstantMultiplication(b_coeff, delays[-1], **mult_properties)
+        )
+        if len(left_muls) > 1:  # not first iteration
+            left_adds.append(Addition(op_a_left, left_muls[-1], **add_properties))
+            right_adds.append(Addition(op_a_right, right_muls[-1], **add_properties))
+            op_a_left = left_adds[-1]
+            op_a_right = right_adds[-1]
+        else:
+            op_a_left = left_muls[-1]
+            op_a_right = right_muls[-1]
+
+    # finalize the SFG
+    input_op = Input()
+    if left_adds:
+        left_adds.append(Addition(input_op, left_adds[-1], **add_properties))
+    else:
+        left_adds.append(Addition(input_op, left_muls[-1], **add_properties))
+    delays[-1] <<= left_adds[-1]
+    mul = ConstantMultiplication(b[0], left_adds[-1], **mult_properties)
+    add = Addition(mul, right_adds[-1], **add_properties)
+    output = Output()
+    output <<= add
+    return SFG([input_op], [output], name=Name(name))

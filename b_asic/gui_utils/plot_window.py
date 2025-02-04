@@ -6,8 +6,8 @@ from typing import Dict, List, Mapping, Optional, Sequence  # , Union
 
 # from numpy import (array, real, imag, real_if_close, absolute, angle)
 import numpy as np
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 from qtpy.QtCore import Qt
@@ -251,7 +251,7 @@ def start_simulation_dialog(
         The name of the SFG.
     """
     if not QApplication.instance():
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+        # QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
         app = QApplication(sys.argv)
     else:
         app = QApplication.instance()
