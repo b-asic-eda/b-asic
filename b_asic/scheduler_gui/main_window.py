@@ -31,7 +31,7 @@ from qtpy.QtCore import (
     Qt,
     Slot,
 )
-from qtpy.QtGui import QCloseEvent, QColor, QFont, QIcon, QIntValidator
+from qtpy.QtGui import QCloseEvent, QColor, QFont, QIcon, QIntValidator, QPalette
 from qtpy.QtWidgets import (
     QAbstractButton,
     QAction,
@@ -1688,8 +1688,16 @@ def start_scheduler(schedule: Optional[Schedule] = None) -> Optional[Schedule]:
         The edited schedule.
     """
     if not QApplication.instance():
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
         app = QApplication(sys.argv)
+        # Enforce a light palette regardless of laptop theme
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.Window, QtCore.Qt.white)
+        palette.setColor(QPalette.ColorRole.WindowText, QtCore.Qt.black)
+        palette.setColor(QPalette.ColorRole.ButtonText, QtCore.Qt.black)
+        palette.setColor(QPalette.ColorRole.Base, QtCore.Qt.white)
+        palette.setColor(QPalette.ColorRole.AlternateBase, QtCore.Qt.lightGray)
+        palette.setColor(QPalette.ColorRole.Text, QtCore.Qt.black)
+        app.setPalette(palette)
     else:
         app = QApplication.instance()
     window = ScheduleMainWindow()

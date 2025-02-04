@@ -7,7 +7,7 @@ Contains the schedule class for scheduling operations in an SFG.
 import io
 import sys
 from collections import defaultdict
-from typing import Dict, List, Literal, Optional, Sequence, Tuple, cast
+from typing import Dict, List, Optional, Sequence, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,6 +33,7 @@ from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, OperatorProcess
 from b_asic.resources import ProcessCollection
+from b_asic.scheduler import Scheduler, SchedulingAlgorithm
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
@@ -68,13 +69,8 @@ class Schedule:
         algorithm.
     cyclic : bool, default: False
         If the schedule is cyclic.
-    algorithm : {'ASAP', 'ALAP', 'provided'}, default: 'ASAP'
-        The scheduling algorithm to use. The following algorithm are available:
-
-        * ``'ASAP'``: As-soon-as-possible scheduling.
-        * ``'ALAP'``: As-late-as-possible scheduling.
-
-        If 'provided', use provided *start_times*  and *laps* dictionaries.
+    algorithm : SchedulingAlgorithm, default: 'ASAP'
+        The scheduling algorithm to use.
     start_times : dict, optional
         Dictionary with GraphIDs as keys and start times as values.
         Used when *algorithm* is 'provided'.
@@ -100,7 +96,7 @@ class Schedule:
         sfg: SFG,
         schedule_time: Optional[int] = None,
         cyclic: bool = False,
-        algorithm: Literal["ASAP", "ALAP", "provided"] = "ASAP",
+        algorithm: SchedulingAlgorithm = "ASAP",
         start_times: Optional[Dict[GraphID, int]] = None,
         laps: Optional[Dict[GraphID, int]] = None,
         max_resources: Optional[Dict[TypeName, int]] = None,
@@ -115,10 +111,14 @@ class Schedule:
         self._cyclic = cyclic
         self._y_locations = defaultdict(_y_locations_default)
         self._schedule_time = schedule_time
+
+        self.scheduler = Scheduler(self)
         if algorithm == "ASAP":
-            self._schedule_asap()
+            self.scheduler.schedule_asap()
         elif algorithm == "ALAP":
-            self._schedule_alap()
+            self.scheduler.schedule_alap()
+        elif algorithm == "earliest_deadline":
+            self.scheduler.schedule_earliest_deadline([])
         elif algorithm == "provided":
             if start_times is None:
                 raise ValueError("Must provide start_times when using 'provided'")
@@ -797,116 +797,116 @@ class Schedule:
                 new_sfg = new_sfg.insert_operation_before(op, Delay(), port)
         return new_sfg()
 
-    def _schedule_alap(self) -> None:
-        """Schedule the operations using as-late-as-possible scheduling."""
-        precedence_list = self._sfg.get_precedence_list()
-        self._schedule_asap()
-        max_end_time = self.get_max_end_time()
+    # def _schedule_alap(self) -> None:
+    #     """Schedule the operations using as-late-as-possible scheduling."""
+    #     precedence_list = self._sfg.get_precedence_list()
+    #     self._schedule_asap()
+    #     max_end_time = self.get_max_end_time()
 
-        if self.schedule_time is None:
-            self._schedule_time = max_end_time
-        elif self.schedule_time < max_end_time:
-            raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
+    #     if self.schedule_time is None:
+    #         self._schedule_time = max_end_time
+    #     elif self.schedule_time < max_end_time:
+    #         raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
 
-        for output in self._sfg.find_by_type_name(Output.type_name()):
-            output = cast(Output, output)
-            self.move_operation_alap(output.graph_id)
-        for step in reversed(precedence_list):
-            graph_ids = {
-                outport.operation.graph_id
-                for outport in step
-                if not isinstance(outport.operation, Delay)
-            }
-            for graph_id in graph_ids:
-                self.move_operation_alap(graph_id)
+    #     for output in self._sfg.find_by_type_name(Output.type_name()):
+    #         output = cast(Output, output)
+    #         self.move_operation_alap(output.graph_id)
+    #     for step in reversed(precedence_list):
+    #         graph_ids = {
+    #             outport.operation.graph_id
+    #             for outport in step
+    #             if not isinstance(outport.operation, Delay)
+    #         }
+    #         for graph_id in graph_ids:
+    #             self.move_operation_alap(graph_id)
 
-    def _schedule_asap(self) -> None:
-        """Schedule the operations using as-soon-as-possible scheduling."""
-        precedence_list = self._sfg.get_precedence_list()
+    # def _schedule_asap(self) -> None:
+    #     """Schedule the operations using as-soon-as-possible scheduling."""
+    #     precedence_list = self._sfg.get_precedence_list()
 
-        if len(precedence_list) < 2:
-            raise ValueError("Empty signal flow graph cannot be scheduled.")
+    #     if len(precedence_list) < 2:
+    #         raise ValueError("Empty signal flow graph cannot be scheduled.")
 
-        non_schedulable_ops = set()
-        for outport in precedence_list[0]:
-            operation = outport.operation
-            if operation.type_name() not in [Delay.type_name()]:
-                if operation.graph_id not in self._start_times:
-                    # Set start time of all operations in the first iter to 0
-                    self._start_times[operation.graph_id] = 0
-            else:
-                non_schedulable_ops.add(operation.graph_id)
+    #     non_schedulable_ops = set()
+    #     for outport in precedence_list[0]:
+    #         operation = outport.operation
+    #         if operation.type_name() not in [Delay.type_name()]:
+    #             if operation.graph_id not in self._start_times:
+    #                 # Set start time of all operations in the first iter to 0
+    #                 self._start_times[operation.graph_id] = 0
+    #         else:
+    #             non_schedulable_ops.add(operation.graph_id)
 
-        for outport in precedence_list[1]:
-            operation = outport.operation
-            if operation.graph_id not in self._start_times:
-                # Set start time of all operations in the first iter to 0
-                self._start_times[operation.graph_id] = 0
+    #     for outport in precedence_list[1]:
+    #         operation = outport.operation
+    #         if operation.graph_id not in self._start_times:
+    #             # Set start time of all operations in the first iter to 0
+    #             self._start_times[operation.graph_id] = 0
 
-        for outports in precedence_list[2:]:
-            for outport in outports:
-                operation = outport.operation
-                if operation.graph_id not in self._start_times:
-                    # Schedule the operation if it does not have a start time yet.
-                    op_start_time = 0
-                    for current_input in operation.inputs:
-                        if len(current_input.signals) != 1:
-                            raise ValueError(
-                                "Error in scheduling, dangling input port detected."
-                            )
-                        if current_input.signals[0].source is None:
-                            raise ValueError(
-                                "Error in scheduling, signal with no source detected."
-                            )
-                        source_port = current_input.signals[0].source
+    #     for outports in precedence_list[2:]:
+    #         for outport in outports:
+    #             operation = outport.operation
+    #             if operation.graph_id not in self._start_times:
+    #                 # Schedule the operation if it does not have a start time yet.
+    #                 op_start_time = 0
+    #                 for current_input in operation.inputs:
+    #                     if len(current_input.signals) != 1:
+    #                         raise ValueError(
+    #                             "Error in scheduling, dangling input port detected."
+    #                         )
+    #                     if current_input.signals[0].source is None:
+    #                         raise ValueError(
+    #                             "Error in scheduling, signal with no source detected."
+    #                         )
+    #                     source_port = current_input.signals[0].source
 
-                        if source_port.operation.graph_id in non_schedulable_ops:
-                            source_end_time = 0
-                        else:
-                            source_op_time = self._start_times[
-                                source_port.operation.graph_id
-                            ]
+    #                     if source_port.operation.graph_id in non_schedulable_ops:
+    #                         source_end_time = 0
+    #                     else:
+    #                         source_op_time = self._start_times[
+    #                             source_port.operation.graph_id
+    #                         ]
 
-                            if source_port.latency_offset is None:
-                                raise ValueError(
-                                    f"Output port {source_port.index} of"
-                                    " operation"
-                                    f" {source_port.operation.graph_id} has no"
-                                    " latency-offset."
-                                )
+    #                         if source_port.latency_offset is None:
+    #                             raise ValueError(
+    #                                 f"Output port {source_port.index} of"
+    #                                 " operation"
+    #                                 f" {source_port.operation.graph_id} has no"
+    #                                 " latency-offset."
+    #                             )
 
-                            source_end_time = (
-                                source_op_time + source_port.latency_offset
-                            )
+    #                         source_end_time = (
+    #                             source_op_time + source_port.latency_offset
+    #                         )
 
-                        if current_input.latency_offset is None:
-                            raise ValueError(
-                                f"Input port {current_input.index} of operation"
-                                f" {current_input.operation.graph_id} has no"
-                                " latency-offset."
-                            )
-                        op_start_time_from_in = (
-                            source_end_time - current_input.latency_offset
-                        )
-                        op_start_time = max(op_start_time, op_start_time_from_in)
+    #                     if current_input.latency_offset is None:
+    #                         raise ValueError(
+    #                             f"Input port {current_input.index} of operation"
+    #                             f" {current_input.operation.graph_id} has no"
+    #                             " latency-offset."
+    #                         )
+    #                     op_start_time_from_in = (
+    #                         source_end_time - current_input.latency_offset
+    #                     )
+    #                     op_start_time = max(op_start_time, op_start_time_from_in)
 
-                    self._start_times[operation.graph_id] = op_start_time
-        for output in self._sfg.find_by_type_name(Output.type_name()):
-            output = cast(Output, output)
-            source_port = cast(OutputPort, output.inputs[0].signals[0].source)
-            if source_port.operation.graph_id in non_schedulable_ops:
-                self._start_times[output.graph_id] = 0
-            else:
-                if source_port.latency_offset is None:
-                    raise ValueError(
-                        f"Output port {source_port.index} of operation"
-                        f" {source_port.operation.graph_id} has no"
-                        " latency-offset."
-                    )
-                self._start_times[output.graph_id] = self._start_times[
-                    source_port.operation.graph_id
-                ] + cast(int, source_port.latency_offset)
-        self._remove_delays()
+    #                 self._start_times[operation.graph_id] = op_start_time
+    #     for output in self._sfg.find_by_type_name(Output.type_name()):
+    #         output = cast(Output, output)
+    #         source_port = cast(OutputPort, output.inputs[0].signals[0].source)
+    #         if source_port.operation.graph_id in non_schedulable_ops:
+    #             self._start_times[output.graph_id] = 0
+    #         else:
+    #             if source_port.latency_offset is None:
+    #                 raise ValueError(
+    #                     f"Output port {source_port.index} of operation"
+    #                     f" {source_port.operation.graph_id} has no"
+    #                     " latency-offset."
+    #                 )
+    #             self._start_times[output.graph_id] = self._start_times[
+    #                 source_port.operation.graph_id
+    #             ] + cast(int, source_port.latency_offset)
+    #     self._remove_delays()
 
     def _get_memory_variables_list(self) -> List[MemoryVariable]:
         ret: List[MemoryVariable] = []

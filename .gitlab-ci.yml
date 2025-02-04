@@ -6,6 +6,7 @@ before_script:
   - apt-get update --yes
   # - apt-get install --yes build-essential cmake graphviz python3-pyqt5 xvfb xdg-utils lcov
   - apt-get install --yes graphviz python3-pyqt5 xvfb xdg-utils
+  - apt-get install -y libxcb-cursor-dev
   - python -m pip install --upgrade pip
   - python --version
   - pip install -r requirements.txt
@@ -35,30 +36,6 @@ before_script:
         path: cov.xml
   coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
 
-run-test-3.8-pyside2:
-  variables:
-    QT_API: pyside2
-  image: python:3.8
-  extends: ".run-test"
-
-run-test-3.8-pyqt5:
-  variables:
-    QT_API: pyqt5
-  image: python:3.8
-  extends: ".run-test"
-
-run-test-3.9-pyside2:
-  variables:
-    QT_API: pyside2
-  image: python:3.9
-  extends: ".run-test"
-
-run-test-3.9-pyqt5:
-  variables:
-    QT_API: pyqt5
-  image: python:3.9
-  extends: ".run-test"
-
 run-test-3.10-pyside2:
   variables:
     QT_API: pyside2
@@ -71,17 +48,21 @@ run-test-3.10-pyqt5:
   image: python:3.10
   extends: ".run-test"
 
-# PySide2 does not seem to have support for 3.11, "almost works" though
-#run-test-3.11-pyside2:
-#  variables:
-#    QT_API: pyside2
-#  image: python:3.11
-#  extends: ".run-test"
-#  allow_failure: true
+run-test-3.10-pyqt6:
+  variables:
+    QT_API: pyqt6
+  image: python:3.10
+  extends: ".run-test"
 
 run-test-3.11-pyqt5:
   variables:
     QT_API: pyqt5
+  image: python:3.11
+  extends: ".run-test"
+
+run-test-3.11-pyqt6:
+  variables:
+    QT_API: pyqt6
   image: python:3.11
   extends: ".run-test"
 
@@ -91,20 +72,11 @@ run-test-3.12-pyqt5:
   image: python:3.12
   extends: ".run-test"
 
-# Seemingly works with Qt6, but tests stall on closing scheduler GUI due to modal dialog(?)
-#run-test-3.10-pyside6:
-#  variables:
-#    QT_API: pyside6
-#  image: python:3.10
-#  extends: ".run-test"
-#  allow_failure: true
-#
-#run-test-3.10-pyqt6:
-#  variables:
-#    QT_API: pyqt6
-#  image: python:3.10
-#  extends: ".run-test"
-#  allow_failure: true
+run-test-3.12-pyqt6:
+  variables:
+    QT_API: pyqt6
+  image: python:3.12
+  extends: ".run-test"
 
 run-vhdl-tests:
   variables:
