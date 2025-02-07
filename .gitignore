@@ -118,3 +118,5 @@ docs_sphinx/_build/
 docs_sphinx/examples
 result_images/
 .coverage
+Digraph.gv
+Digraph.gv.pdf
