@@ -1,6 +1,0 @@
-sphinx
-furo
-numpydoc
-sphinx-gallery
-mplsignal
-sphinx-copybutton

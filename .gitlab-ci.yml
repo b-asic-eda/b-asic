@@ -9,8 +9,7 @@ before_script:
   - apt-get install -y libxcb-cursor-dev
   - python -m pip install --upgrade pip
   - python --version
-  - pip install -r requirements.txt
-  - pip install $QT_API
+  - pip install .[$QT_API]
   - git fetch --tags
   # - export CXXFLAGS='--coverage'
   # Install without dependencies to make sure that requirements.txt is up-to-date
@@ -18,7 +17,7 @@ before_script:
   - pip show b_asic
   - export QT_API=$QT_API
   # Install test dependencies
-  - pip install -r requirements_test.txt
+  - pip install .[test]
   - export PYTEST_QT_API=$QT_API
 
 .run-test:
@@ -90,7 +89,7 @@ run-doc-test:
   image: python:3.10
   stage: test
   script:
-    - pip install -r requirements_doc.txt
+    - pip install .[doc]
     - sphinx-build -b html docs_sphinx public
     # Run linting on doc-strings
     - pip install black velin
@@ -110,7 +109,7 @@ pages:
   image: python:3.10
   script:
     - apt-get install --yes optipng
-    - pip install -r requirements_doc.txt
+    - pip install .[doc]
     - sphinx-build -b html docs_sphinx public
   artifacts:
     paths:

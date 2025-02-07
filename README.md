@@ -15,7 +15,7 @@ How to build and debug the library during development.
 The following packages are required in order to build the library:
 
 - [Python](https://python.org/) 3.10+
-- Python dependencies (install with `pip install -r requirements.txt` or they will be installed as part of the
+- Python dependencies (install with `pip install .` or they will be installed as part of the
   installation process):
   - [Graphviz](https://graphviz.org/)
   - [Matplotlib](https://matplotlib.org/)
@@ -24,7 +24,7 @@ The following packages are required in order to build the library:
   - [setuptools_scm](https://github.com/pypa/setuptools_scm/)
   - [NetworkX](https://networkx.org/)
   - [QtAwesome](https://github.com/spyder-ide/qtawesome/)
-- Qt 6, with Python bindings, one of:
+- Qt 6, with Python bindings, one of: (install with `pip install .[$BINDING_NAME]`)
   - pyqt6
   - pyside6
 
@@ -35,7 +35,7 @@ To build a binary distribution, the following additional packages are required:
 
 To run the test suite, the following additional packages are required:
 
-- Python (install with `pip install -r requirements_test.txt`):
+- Python (install with `pip install .[test]`):
   - [pytest](https://pytest.org/)
   - [pytest-qt](https://pytest-qt.readthedocs.io/)
   - [pytest-mpl](https://github.com/matplotlib/pytest-mpl/)
@@ -45,7 +45,7 @@ To run the test suite, the following additional packages are required:
 
 To generate the documentation, the following additional packages are required:
 
-- Python (install with `pip install -r requirements_doc.txt`):
+- Python (install with `pip install .[doc]`):
   - [Sphinx](https://www.sphinx-doc.org/)
   - [Furo](https://pradyunsg.me/furo/)
   - [numpydoc](https://numpydoc.readthedocs.io/)
@@ -104,7 +104,7 @@ In `B-ASIC`:
 ```bash
 python3 -m venv env
 source env/bin/activate
-pip install .
+pip install .[test]
 pytest
 ```
 
@@ -115,7 +115,7 @@ In `B-ASIC` (as admin):
 ```bash
 python3 -m venv env
 .\env\Scripts\activate.bat
-pip install .
+pip install .[test]
 pytest
 ```
 
@@ -155,7 +155,13 @@ How to build and use the library as a user.
 ### Installation
 
 ```bash
-pip install .
+pip install .[pyqt6]
+```
+
+or
+
+```bash
+pip install .[pyside6]
 ```
 
 ### Importing

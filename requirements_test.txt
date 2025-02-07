@@ -1,6 +1,0 @@
-pytest
-pytest-cov
-pytest-qt
-pytest-timeout
-pytest-xvfb
-pytest-xdist

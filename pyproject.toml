@@ -33,6 +33,22 @@ dynamic = ["version", "authors"]
 [project.optional-dependencies]
 pyqt6 = ["pyqt6"]
 pyside6 = ["pyside6"]
+test = [
+  "pytest",
+  "pytest-cov",
+  "pytest-qt",
+  "pytest-timeout",
+  "pytest-xvfb",
+  "pytest-xdist",
+]
+doc = [
+  "sphinx",
+  "furo",
+  "numpydoc",
+  "sphinx-gallery",
+  "mplsignal",
+  "sphinx-copybutton",
+]
 
 [tool.setuptools]
 zip-safe = false
