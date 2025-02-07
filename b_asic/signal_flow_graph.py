@@ -68,7 +68,6 @@ class GraphIDGenerator:
     def next_id(self, type_name: TypeName, used_ids: MutableSet = set()) -> GraphID:
         """Get the next graph id for a certain graph id type."""
         new_id = type_name + str(self._next_id_number[type_name])
-        self._next_id_number[type_name] = 0
         while new_id in used_ids:
             self._next_id_number[type_name] += 1
             new_id = type_name + str(self._next_id_number[type_name])
