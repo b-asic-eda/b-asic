@@ -71,6 +71,18 @@ run-test-3.12-pyside6:
   image: python:3.12
   extends: ".run-test"
 
+run-test-3.13-pyqt6:
+  variables:
+    QT_API: pyqt6
+  image: python:3.13
+  extends: ".run-test"
+
+run-test-3.13-pyside6:
+  variables:
+    QT_API: pyside6
+  image: python:3.13
+  extends: ".run-test"
+
 run-vhdl-tests:
   variables:
     QT_API: pyqt6

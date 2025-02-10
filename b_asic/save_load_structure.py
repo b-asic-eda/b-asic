@@ -150,18 +150,28 @@ def python_to_sfg(path: str) -> Tuple[SFG, Dict[str, Tuple[int, int]]]:
     path : str
         Path to file to read and deserialize.
     """
+    local_vars = {}
+
     with open(path) as file:
         code = compile(file.read(), path, "exec")
-        exec(code, globals(), locals())
+        exec(code, globals(), local_vars)
 
-    return (
-        (
-            locals()["prop"]["name"]
-            if "prop" in locals()
-            else [v for k, v in locals().items() if isinstance(v, SFG)][0]
-        ),
-        locals()["positions"] if "positions" in locals() else {},
-    )
+    # access variables from local_vars
+    sfg_object = None
+    if "prop" in local_vars and "name" in local_vars["prop"]:
+        sfg_object = local_vars["prop"]["name"]
+    else:
+        for v in local_vars.values():
+            if isinstance(v, SFG):
+                sfg_object = v
+                break
+
+    positions = local_vars.get("positions", {})
+
+    if sfg_object is None:
+        raise ValueError("No SFG object found in the provided file.")
+
+    return sfg_object, positions
 
 
 def schedule_to_python(schedule: Schedule) -> str:
