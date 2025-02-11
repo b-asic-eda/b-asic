@@ -7,6 +7,7 @@ except ImportError:
     pytestmark = pytest.mark.skip("Qt not setup")
 
 
+@pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend")
 def test_start(qtbot):
     widget = PlotWindow({})
     qtbot.addWidget(widget)
@@ -28,6 +29,7 @@ def test_start_with_data(qtbot):
     assert len(widget._plot_axes.lines) == 1
 
 
+@pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend")
 def test_click_buttons(qtbot):
     sim_res = {
         '0': [0.5, 0.5, 0, 0],
