@@ -120,3 +120,4 @@ result_images/
 .coverage
 Digraph.gv
 Digraph.gv.pdf
+*.pstat

@@ -1,8 +1,8 @@
 import pytest
 
 from b_asic.core_operations import Addition, ConstantMultiplication
+from b_asic.core_schedulers import ASAPScheduler
 from b_asic.schedule import Schedule
-from b_asic.scheduler import ASAPScheduler
 
 try:
     from b_asic.scheduler_gui.main_window import ScheduleMainWindow

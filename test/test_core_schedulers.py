@@ -1,8 +1,13 @@
 import pytest
 
-from b_asic.core_operations import Addition, ConstantMultiplication
+from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
+from b_asic.core_schedulers import (
+    ALAPScheduler,
+    ASAPScheduler,
+    EarliestDeadlineScheduler,
+)
 from b_asic.schedule import Schedule
-from b_asic.scheduler import ALAPScheduler, ASAPScheduler, EarliestDeadlineScheduler
+from b_asic.sfg_generators import direct_form_1_iir, radix_2_dif_fft
 
 
 class TestASAPScheduler:
@@ -12,6 +17,31 @@ class TestASAPScheduler:
         ):
             Schedule(sfg_empty, scheduler=ASAPScheduler())
 
+    def test_direct_form_1_iir(self):
+        sfg = direct_form_1_iir([1, 2, 3], [4, 5, 6])
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+
+        schedule = Schedule(sfg, scheduler=ASAPScheduler())
+
+        assert schedule.start_times == {
+            "in0": 0,
+            "cmul0": 0,
+            "cmul1": 0,
+            "cmul2": 0,
+            "cmul3": 0,
+            "cmul4": 0,
+            "add3": 2,
+            "add1": 2,
+            "add0": 5,
+            "add2": 8,
+            "out0": 11,
+        }
+        assert schedule.schedule_time == 11
+
     def test_direct_form_2_iir(self, sfg_direct_form_iir_lp_filter):
         sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
         sfg_direct_form_iir_lp_filter.set_latency_of_type(
@@ -20,7 +50,7 @@ class TestASAPScheduler:
 
         schedule = Schedule(sfg_direct_form_iir_lp_filter, scheduler=ASAPScheduler())
 
-        assert schedule._start_times == {
+        assert schedule.start_times == {
             "in0": 0,
             "cmul1": 0,
             "cmul4": 0,
@@ -47,7 +77,7 @@ class TestASAPScheduler:
             sfg_direct_form_iir_lp_filter, scheduler=ASAPScheduler(), schedule_time=30
         )
 
-        assert schedule._start_times == {
+        assert schedule.start_times == {
             "in0": 0,
             "cmul1": 0,
             "cmul4": 0,
@@ -62,6 +92,53 @@ class TestASAPScheduler:
         }
         assert schedule.schedule_time == 30
 
+    def test_radix_2_fft_8_points(self):
+        sfg = radix_2_dif_fft(points=8)
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+
+        schedule = Schedule(sfg, scheduler=ASAPScheduler())
+
+        assert schedule.start_times == {
+            "in0": 0,
+            "in1": 0,
+            "in2": 0,
+            "in3": 0,
+            "in4": 0,
+            "in5": 0,
+            "in6": 0,
+            "in7": 0,
+            "bfly0": 0,
+            "bfly6": 0,
+            "bfly8": 0,
+            "bfly11": 0,
+            "cmul3": 1,
+            "bfly7": 1,
+            "cmul2": 1,
+            "bfly1": 1,
+            "cmul0": 1,
+            "cmul4": 2,
+            "bfly9": 2,
+            "bfly5": 3,
+            "bfly2": 3,
+            "out0": 3,
+            "out4": 3,
+            "bfly10": 4,
+            "cmul1": 4,
+            "bfly3": 4,
+            "out1": 5,
+            "out2": 5,
+            "out5": 5,
+            "out6": 5,
+            "bfly4": 6,
+            "out3": 7,
+            "out7": 7,
+        }
+        assert schedule.schedule_time == 7
+
 
 class TestALAPScheduler:
     def test_empty_sfg(self, sfg_empty):
@@ -69,6 +146,31 @@ class TestALAPScheduler:
             ValueError, match="Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=ALAPScheduler())
+
+    def test_direct_form_1_iir(self):
+        sfg = direct_form_1_iir([1, 2, 3], [4, 5, 6])
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+
+        schedule = Schedule(sfg, scheduler=ALAPScheduler())
+
+        assert schedule.start_times == {
+            "cmul3": 0,
+            "cmul4": 0,
+            "add1": 2,
+            "in0": 3,
+            "cmul0": 3,
+            "cmul1": 3,
+            "cmul2": 3,
+            "add3": 5,
+            "add0": 5,
+            "add2": 8,
+            "out0": 11,
+        }
+        assert schedule.schedule_time == 11
 
     def test_direct_form_2_iir(self, sfg_direct_form_iir_lp_filter):
         sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
@@ -78,7 +180,7 @@ class TestALAPScheduler:
 
         schedule = Schedule(sfg_direct_form_iir_lp_filter, scheduler=ALAPScheduler())
 
-        assert schedule._start_times == {
+        assert schedule.start_times == {
             "cmul3": 0,
             "cmul4": 0,
             "add1": 4,
@@ -105,7 +207,7 @@ class TestALAPScheduler:
             sfg_direct_form_iir_lp_filter, scheduler=ALAPScheduler(), schedule_time=30
         )
 
-        assert schedule._start_times == {
+        assert schedule.start_times == {
             "cmul3": 7,
             "cmul4": 7,
             "add1": 11,
@@ -120,6 +222,53 @@ class TestALAPScheduler:
         }
         assert schedule.schedule_time == 30
 
+    def test_radix_2_fft_8_points(self):
+        sfg = radix_2_dif_fft(points=8)
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+
+        schedule = Schedule(sfg, scheduler=ALAPScheduler())
+
+        assert schedule.start_times == {
+            "in3": 0,
+            "in7": 0,
+            "in1": 0,
+            "in5": 0,
+            "bfly6": 0,
+            "bfly8": 0,
+            "cmul2": 1,
+            "cmul3": 1,
+            "in2": 2,
+            "in6": 2,
+            "bfly11": 2,
+            "bfly7": 3,
+            "cmul0": 3,
+            "bfly5": 3,
+            "in0": 4,
+            "in4": 4,
+            "cmul4": 4,
+            "cmul1": 4,
+            "bfly0": 4,
+            "bfly1": 5,
+            "bfly2": 5,
+            "bfly9": 6,
+            "bfly10": 6,
+            "bfly3": 6,
+            "bfly4": 6,
+            "out0": 7,
+            "out1": 7,
+            "out2": 7,
+            "out3": 7,
+            "out4": 7,
+            "out5": 7,
+            "out6": 7,
+            "out7": 7,
+        }
+        assert schedule.schedule_time == 7
+
 
 class TestEarliestDeadlineScheduler:
     def test_empty_sfg(self, sfg_empty):
@@ -127,6 +276,34 @@ class TestEarliestDeadlineScheduler:
             ValueError, match="Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=EarliestDeadlineScheduler())
+
+    def test_direct_form_1_iir(self):
+        sfg = direct_form_1_iir([1, 2, 3], [4, 5, 6])
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+
+        resources = {Addition.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        schedule = Schedule(
+            sfg, scheduler=EarliestDeadlineScheduler(max_resources=resources)
+        )
+
+        assert schedule.start_times == {
+            "cmul4": 0,
+            "cmul3": 1,
+            "in0": 2,
+            "cmul0": 2,
+            "add1": 3,
+            "cmul1": 3,
+            "cmul2": 4,
+            "add3": 6,
+            "add0": 7,
+            "add2": 10,
+            "out0": 13,
+        }
+        assert schedule.schedule_time == 13
 
     def test_direct_form_2_iir_inf_resources_no_exec_time(
         self, sfg_direct_form_iir_lp_filter
@@ -141,7 +318,7 @@ class TestEarliestDeadlineScheduler:
         )
 
         # should be the same as for ASAP due to infinite resources, except for input
-        assert schedule._start_times == {
+        assert schedule.start_times == {
             "in0": 9,
             "cmul1": 0,
             "cmul4": 0,
@@ -170,7 +347,7 @@ class TestEarliestDeadlineScheduler:
             sfg_direct_form_iir_lp_filter,
             scheduler=EarliestDeadlineScheduler(max_resources),
         )
-        assert schedule._start_times == {
+        assert schedule.start_times == {
             "cmul4": 0,
             "cmul3": 4,
             "cmul1": 8,
@@ -206,7 +383,7 @@ class TestEarliestDeadlineScheduler:
             sfg_direct_form_iir_lp_filter,
             scheduler=EarliestDeadlineScheduler(max_resources),
         )
-        assert schedule._start_times == {
+        assert schedule.start_times == {
             "cmul4": 0,
             "cmul3": 1,
             "cmul1": 2,
@@ -242,7 +419,7 @@ class TestEarliestDeadlineScheduler:
             sfg_direct_form_iir_lp_filter,
             scheduler=EarliestDeadlineScheduler(max_resources),
         )
-        assert schedule._start_times == {
+        assert schedule.start_times == {
             "cmul1": 0,
             "cmul4": 0,
             "cmul3": 0,
@@ -257,3 +434,53 @@ class TestEarliestDeadlineScheduler:
         }
 
         assert schedule.schedule_time == 12
+
+    def test_radix_2_fft_8_points(self):
+        sfg = radix_2_dif_fft(points=8)
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+
+        resources = {Butterfly.type_name(): 2, ConstantMultiplication.type_name(): 2}
+        schedule = Schedule(
+            sfg, scheduler=EarliestDeadlineScheduler(max_resources=resources)
+        )
+
+        assert schedule.start_times == {
+            "in1": 0,
+            "in3": 0,
+            "in5": 0,
+            "in7": 0,
+            "bfly6": 0,
+            "bfly8": 0,
+            "in2": 1,
+            "in6": 1,
+            "cmul2": 1,
+            "cmul3": 1,
+            "bfly11": 1,
+            "bfly7": 1,
+            "in0": 2,
+            "in4": 2,
+            "cmul0": 2,
+            "bfly0": 2,
+            "cmul4": 2,
+            "bfly5": 3,
+            "bfly1": 3,
+            "cmul1": 4,
+            "bfly2": 4,
+            "bfly9": 4,
+            "bfly10": 5,
+            "bfly3": 5,
+            "out0": 5,
+            "out4": 5,
+            "bfly4": 6,
+            "out1": 6,
+            "out2": 6,
+            "out5": 6,
+            "out6": 6,
+            "out7": 7,
+            "out3": 7,
+        }
+        assert schedule.schedule_time == 7

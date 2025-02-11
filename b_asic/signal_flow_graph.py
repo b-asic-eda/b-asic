@@ -29,6 +29,7 @@ from typing import (
 import numpy as np
 from graphviz import Digraph
 
+from b_asic.core_schedulers import ASAPScheduler
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
     AbstractOperation,
@@ -38,7 +39,6 @@ from b_asic.operation import (
     ResultKey,
 )
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
-from b_asic.scheduler import ASAPScheduler
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName

@@ -8,9 +8,9 @@ import matplotlib.testing.decorators
 import pytest
 
 from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
+from b_asic.core_schedulers import ALAPScheduler, ASAPScheduler
 from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
-from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg_generators import direct_form_fir
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
