@@ -18,7 +18,7 @@ class TestASAPScheduler:
             Schedule(sfg_empty, scheduler=ASAPScheduler())
 
     def test_direct_form_1_iir(self):
-        sfg = direct_form_1_iir([1, 2, 3], [4, 5, 6])
+        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
         sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
@@ -148,7 +148,7 @@ class TestALAPScheduler:
             Schedule(sfg_empty, scheduler=ALAPScheduler())
 
     def test_direct_form_1_iir(self):
-        sfg = direct_form_1_iir([1, 2, 3], [4, 5, 6])
+        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
         sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
@@ -278,7 +278,7 @@ class TestEarliestDeadlineScheduler:
             Schedule(sfg_empty, scheduler=EarliestDeadlineScheduler())
 
     def test_direct_form_1_iir(self):
-        sfg = direct_form_1_iir([1, 2, 3], [4, 5, 6])
+        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
         sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)

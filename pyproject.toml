@@ -40,6 +40,7 @@ test = [
   "pytest-timeout",
   "pytest-xvfb",
   "pytest-xdist",
+  "scipy",
 ]
 doc = [
   "sphinx",
@@ -99,4 +100,4 @@ precision = 2
 lint.ignore = ["F403"]
 
 [tool.typos]
-default.extend-identifiers = { addd0 = "addd0", inout = "inout", ArChItEctUrE = "ArChItEctUrE" }
+default.extend-identifiers = { ba = "ba", addd0 = "addd0", inout = "inout", ArChItEctUrE = "ArChItEctUrE" }

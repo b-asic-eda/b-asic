@@ -269,8 +269,14 @@ def direct_form_1_iir(
     add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
 ) -> SFG:
     """Generates a direct-form IIR filter of type I with coefficients a and b."""
+    if len(a) < 2 or len(b) < 2:
+        raise ValueError(
+            "Size of coefficient lists a and b needs to contain at least 2 element."
+        )
     if len(a) != len(b):
-        raise ValueError("size of coefficient lists a and b are not the same")
+        raise ValueError("Size of coefficient lists a and b are not the same.")
+    if a[0] != 1:
+        raise ValueError("The value of a[0] must be 1.")
     if name is None:
         name = "Direct-form I IIR filter"
     if mult_properties is None:
@@ -324,8 +330,14 @@ def direct_form_2_iir(
     add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
 ) -> SFG:
     """Generates a direct-form IIR filter of type II with coefficients a and b."""
+    if len(a) < 2 or len(b) < 2:
+        raise ValueError(
+            "Size of coefficient lists a and b needs to contain at least 2 element."
+        )
     if len(a) != len(b):
-        raise ValueError("size of coefficient lists a and b are not the same")
+        raise ValueError("Size of coefficient lists a and b are not the same.")
+    if a[0] != 1:
+        raise ValueError("The value of a[0] must be 1.")
     if name is None:
         name = "Direct-form II IIR filter"
     if mult_properties is None:
@@ -371,7 +383,10 @@ def direct_form_2_iir(
         left_adds.append(Addition(input_op, left_muls[-1], **add_properties))
     delays[-1] <<= left_adds[-1]
     mul = ConstantMultiplication(b[0], left_adds[-1], **mult_properties)
-    add = Addition(mul, right_adds[-1], **add_properties)
+    if right_adds:
+        add = Addition(mul, right_adds[-1], **add_properties)
+    else:
+        add = Addition(mul, right_muls[-1], **add_properties)
     output = Output()
     output <<= add
     return SFG([input_op], [output], name=Name(name))
@@ -441,27 +456,13 @@ def _construct_dif_fft_stage(
 
             twiddle_factor = twiddles[bf_index]
             if twiddle_factor != 1:
-                name = _get_formatted_complex_number(twiddle_factor, 2)
-                twiddle_mul = ConstantMultiplication(
-                    twiddles[bf_index], output2, name=name
-                )
+                twiddle_mul = ConstantMultiplication(twiddles[bf_index], output2)
                 output2 = twiddle_mul.output(0)
 
             ports[input1_index] = output1
             ports[input2_index] = output2
 
     return ports
-
-
-def _get_formatted_complex_number(number: np.complex128, digits: int) -> str:
-    real_str = str(np.round(number.real, digits))
-    imag_str = str(np.round(number.imag, digits))
-    if number.imag == 0:
-        return real_str
-    elif number.imag > 0:
-        return f"{real_str} + j{imag_str}"
-    else:
-        return f"{real_str} - j{str(-np.round(number.imag, digits))}"
 
 
 def _get_bit_reversed_number(number: int, number_of_bits: int) -> int:
