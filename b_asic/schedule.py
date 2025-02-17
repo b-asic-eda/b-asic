@@ -124,6 +124,40 @@ class Schedule:
         elif schedule_time < max_end_time:
             raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
 
+    def __str__(self) -> str:
+        """Return a string representation of this Schedule."""
+        res: List[Tuple[GraphID, int, int, int]] = [
+            (
+                op.graph_id,
+                self.start_time_of_operation(op.graph_id),
+                cast(int, self.backward_slack(op.graph_id)),
+                self.forward_slack(op.graph_id),
+            )
+            for op in self._sfg.operations
+        ]
+        res.sort(key=lambda tup: tup[0])
+        res_str = [
+            (
+                r[0],
+                r[1],
+                f"{r[2]}".rjust(8) if r[2] < sys.maxsize else "oo".rjust(8),
+                f"{r[3]}".rjust(8) if r[3] < sys.maxsize else "oo".rjust(8),
+            )
+            for r in res
+        ]
+
+        string_io = io.StringIO()
+
+        header = ["Graph ID", "Start time", "Backward slack", "Forward slack"]
+        string_io.write("|".join(f"{col:^15}" for i, col in enumerate(header)) + "\n")
+        string_io.write("-" * (15 * len(header) + len(header) - 1) + "\n")
+
+        for r in res_str:
+            row_str = "|".join(f"{str(item):^15}" for i, item in enumerate(r))
+            string_io.write(row_str + "\n")
+
+        return string_io.getvalue()
+
     def start_time_of_operation(self, graph_id: GraphID) -> int:
         """
         Return the start time of the operation with the specified by *graph_id*.
