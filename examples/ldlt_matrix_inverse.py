@@ -64,8 +64,29 @@ print("Scheduling time:", schedule.schedule_time)
 schedule.show()
 
 # %%
-# Create a HybridScheduler schedule that satisfies the resource constraints.
-schedule = Schedule(sfg, scheduler=HybridScheduler(resources))
+# Create a HybridScheduler schedule that satisfies the resource constraints with custom IO times.
+# This is the schedule we will synthesize an architecture for.
+input_times = {
+    "in0": 0,
+    "in1": 1,
+    "in2": 2,
+    "in3": 3,
+    "in4": 4,
+    "in5": 5,
+}
+output_delta_times = {
+    "out0": 0,
+    "out1": 1,
+    "out2": 2,
+    "out3": 3,
+    "out4": 4,
+    "out5": 5,
+}
+schedule = Schedule(
+    sfg,
+    scheduler=HybridScheduler(resources, input_times, output_delta_times),
+    cyclic=True,
+)
 print("Scheduling time:", schedule.schedule_time)
 schedule.show()
 

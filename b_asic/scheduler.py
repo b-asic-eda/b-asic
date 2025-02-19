@@ -45,8 +45,15 @@ class Scheduler(ABC):
 
 
 class ListScheduler(Scheduler, ABC):
-    def __init__(self, max_resources: Optional[dict[TypeName, int]] = None) -> None:
-        if max_resources:
+    def __init__(
+        self,
+        max_resources: Optional[dict[TypeName, int]] = None,
+        input_times: Optional[dict["GraphID", int]] = None,
+        output_delta_times: Optional[dict["GraphID", int]] = None,
+        cyclic: Optional[bool] = False,
+    ) -> None:
+        super()
+        if max_resources is not None:
             if not isinstance(max_resources, dict):
                 raise ValueError("max_resources must be a dictionary.")
             for key, value in max_resources.items():
@@ -54,11 +61,12 @@ class ListScheduler(Scheduler, ABC):
                     raise ValueError("max_resources key must be a valid type_name.")
                 if not isinstance(value, int):
                     raise ValueError("max_resources value must be an integer.")
-
-        if max_resources:
             self._max_resources = max_resources
         else:
             self._max_resources = {}
+
+        self._input_times = input_times if input_times else {}
+        self._output_delta_times = output_delta_times if output_delta_times else {}
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         """Applies the scheduling algorithm on the given Schedule.
@@ -75,9 +83,14 @@ class ListScheduler(Scheduler, ABC):
         remaining_resources = self._max_resources.copy()
         sorted_operations = self._get_sorted_operations(schedule)
 
-        # place all inputs at time 0
+        # initial input placement
+        if self._input_times:
+            for input_id in self._input_times:
+                start_times[input_id] = self._input_times[input_id]
+
         for input_op in sfg.find_by_type_name(Input.type_name()):
-            start_times[input_op.graph_id] = 0
+            if input_op.graph_id not in self._input_times:
+                start_times[input_op.graph_id] = 0
 
         current_time = 0
         while sorted_operations:
@@ -119,15 +132,17 @@ class ListScheduler(Scheduler, ABC):
             sorted_operations.remove(candidate.graph_id)
             start_times[candidate.graph_id] = current_time
 
-        schedule.set_schedule_time(current_time)
-
         self._handle_outputs(schedule)
+
+        if not schedule.cyclic:
+            max_start_time = max(schedule.start_times.values())
+            if current_time < max_start_time:
+                current_time = max_start_time
+            schedule.set_schedule_time(current_time)
+
         schedule.remove_delays()
 
-        # move all inputs ALAP now that operations have moved
-        for input_op in schedule.sfg.find_by_type_name(Input.type_name()):
-            input_op = cast(Input, input_op)
-            schedule.move_operation_alap(input_op.graph_id)
+        self._handle_inputs(schedule)
 
         # move all dont cares ALAP
         for dc_op in schedule.sfg.find_by_type_name(DontCare.type_name()):
@@ -168,3 +183,28 @@ class ListScheduler(Scheduler, ABC):
     @abstractmethod
     def _get_sorted_operations(schedule: "Schedule") -> list["GraphID"]:
         raise NotImplementedError
+
+    def _handle_inputs(self, schedule: "Schedule") -> None:
+        for input_op in schedule.sfg.find_by_type_name(Input.type_name()):
+            input_op = cast(Input, input_op)
+            if input_op.graph_id not in self._input_times:
+                schedule.move_operation_alap(input_op.graph_id)
+
+    def _handle_outputs(
+        self, schedule: "Schedule", non_schedulable_ops: Optional[list["GraphID"]] = []
+    ) -> None:
+        super()._handle_outputs(schedule, non_schedulable_ops)
+
+        schedule.set_schedule_time(schedule.get_max_end_time())
+
+        for output in schedule.sfg.find_by_type_name(Output.type_name()):
+            output = cast(Output, output)
+            if output.graph_id in self._output_delta_times:
+                delta_time = self._output_delta_times[output.graph_id]
+                if schedule.cyclic:
+                    schedule.start_times[output.graph_id] = schedule.schedule_time
+                    schedule.move_operation(output.graph_id, delta_time)
+                else:
+                    schedule.start_times[output.graph_id] = (
+                        schedule.schedule_time + delta_time
+                    )

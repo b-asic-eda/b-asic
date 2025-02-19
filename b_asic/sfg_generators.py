@@ -415,7 +415,7 @@ def radix_2_dif_fft(points: int) -> SFG:
 
     inputs = []
     for i in range(points):
-        inputs.append(Input(name=f"Input: {i}"))
+        inputs.append(Input())
 
     ports = inputs
     number_of_stages = int(np.log2(points))
@@ -430,7 +430,7 @@ def radix_2_dif_fft(points: int) -> SFG:
     ports = _get_bit_reversed_ports(ports)
     outputs = []
     for i, port in enumerate(ports):
-        outputs.append(Output(port, name=f"Output: {i}"))
+        outputs.append(Output(port))
 
     return SFG(inputs=inputs, outputs=outputs)
 

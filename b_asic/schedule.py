@@ -119,9 +119,9 @@ class Schedule:
             self._remove_delays_no_laps()
 
         max_end_time = self.get_max_end_time()
-        if schedule_time is None:
+        if not self._schedule_time:
             self._schedule_time = max_end_time
-        elif schedule_time < max_end_time:
+        elif self._schedule_time < max_end_time:
             raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
 
     def __str__(self) -> str:
