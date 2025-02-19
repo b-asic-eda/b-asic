@@ -3,6 +3,9 @@
 import pytest
 
 from b_asic import (
+    MAD,
+    MADS,
+    SFG,
     Absolute,
     Addition,
     AddSub,
@@ -11,10 +14,13 @@ from b_asic import (
     Constant,
     ConstantMultiplication,
     Division,
+    DontCare,
+    Input,
     LeftShift,
     Max,
     Min,
     Multiplication,
+    Output,
     Reciprocal,
     RightShift,
     Shift,
@@ -46,6 +52,14 @@ class TestConstant:
         assert test_operation.value == 3
         test_operation.value = 4
         assert test_operation.value == 4
+
+    def test_constant_repr(self):
+        test_operation = Constant(3)
+        assert repr(test_operation) == "Constant(3)"
+
+    def test_constant_str(self):
+        test_operation = Constant(3)
+        assert str(test_operation) == "3"
 
 
 class TestAddition:
@@ -83,16 +97,16 @@ class TestSubtraction:
 class TestAddSub:
     """Tests for AddSub class."""
 
-    def test_addition_positive(self):
+    def test_addsub_positive(self):
         test_operation = AddSub(is_add=True)
         assert test_operation.evaluate_output(0, [3, 5]) == 8
 
-    def test_addition_negative(self):
+    def test_addsub_negative(self):
         test_operation = AddSub(is_add=True)
         assert test_operation.evaluate_output(0, [-3, -5]) == -8
         assert test_operation.is_add
 
-    def test_addition_complex(self):
+    def test_addsub_complex(self):
         test_operation = AddSub(is_add=True)
         assert test_operation.evaluate_output(0, [3 + 5j, 4 + 6j]) == 7 + 11j
 
@@ -115,6 +129,22 @@ class TestAddSub:
 
         test_operation = AddSub(is_add=True)
         assert test_operation.is_swappable
+
+    def test_addsub_is_add_getter(self):
+        test_operation = AddSub(is_add=False)
+        assert not test_operation.is_add
+
+        test_operation = AddSub(is_add=True)
+        assert test_operation.is_add
+
+    def test_addsub_is_add_setter(self):
+        test_operation = AddSub(is_add=False)
+        test_operation.is_add = True
+        assert test_operation.is_add
+
+        test_operation = AddSub(is_add=True)
+        test_operation.is_add = False
+        assert not test_operation.is_add
 
 
 class TestMultiplication:
@@ -147,6 +177,13 @@ class TestDivision:
     def test_division_complex(self):
         test_operation = Division()
         assert test_operation.evaluate_output(0, [60 + 40j, 10 + 20j]) == 2.8 - 1.6j
+
+    def test_mads_is_linear(self):
+        test_operation = Division(Constant(3), Addition(Input(), Constant(3)))
+        assert not test_operation.is_linear
+
+        test_operation = Division(Addition(Input(), Constant(3)), Constant(3))
+        assert test_operation.is_linear
 
 
 class TestSquareRoot:
@@ -200,6 +237,13 @@ class TestMin:
         test_operation = Min()
         assert test_operation.evaluate_output(0, [-30, -5]) == -30
 
+    def test_min_complex(self):
+        test_operation = Min()
+        with pytest.raises(
+            ValueError, match="core_operations.Min does not support complex numbers."
+        ):
+            test_operation.evaluate_output(0, [-1 - 1j, 2 + 2j])
+
 
 class TestAbsolute:
     """Tests for Absolute class."""
@@ -215,6 +259,13 @@ class TestAbsolute:
     def test_absolute_complex(self):
         test_operation = Absolute()
         assert test_operation.evaluate_output(0, [3 + 4j]) == 5.0
+
+    def test_max_complex(self):
+        test_operation = Max()
+        with pytest.raises(
+            ValueError, match="core_operations.Max does not support complex numbers."
+        ):
+            test_operation.evaluate_output(0, [-1 - 1j, 2 + 2j])
 
 
 class TestConstantMultiplication:
@@ -232,6 +283,136 @@ class TestConstantMultiplication:
     def test_constantmultiplication_complex(self):
         test_operation = ConstantMultiplication(3 + 2j)
         assert test_operation.evaluate_output(0, [3 + 4j]) == 1 + 18j
+
+
+class TestMAD:
+    def test_mad_positive(self):
+        test_operation = MAD()
+        assert test_operation.evaluate_output(0, [1, 2, 3]) == 5
+
+    def test_mad_negative(self):
+        test_operation = MAD()
+        assert test_operation.evaluate_output(0, [-3, -5, -8]) == 7
+
+    def test_mad_complex(self):
+        test_operation = MAD()
+        assert test_operation.evaluate_output(0, [3 + 6j, 2 + 6j, 1 + 1j]) == -29 + 31j
+
+    def test_mad_is_linear(self):
+        test_operation = MAD(
+            Constant(3), Addition(Input(), Constant(3)), Addition(Input(), Constant(3))
+        )
+        assert test_operation.is_linear
+
+        test_operation = MAD(
+            Addition(Input(), Constant(3)), Constant(3), Addition(Input(), Constant(3))
+        )
+        assert test_operation.is_linear
+
+        test_operation = MAD(
+            Addition(Input(), Constant(3)), Addition(Input(), Constant(3)), Constant(3)
+        )
+        assert not test_operation.is_linear
+
+    def test_mad_swap_io(self):
+        test_operation = MAD()
+        assert test_operation.evaluate_output(0, [1, 2, 3]) == 5
+        test_operation.swap_io()
+        assert test_operation.evaluate_output(0, [1, 2, 3]) == 5
+
+
+class TestMADS:
+    def test_mads_positive(self):
+        test_operation = MADS(is_add=False)
+        assert test_operation.evaluate_output(0, [1, 2, 3]) == -5
+
+    def test_mads_negative(self):
+        test_operation = MADS(is_add=False)
+        assert test_operation.evaluate_output(0, [-3, -5, -8]) == -43
+
+    def test_mads_complex(self):
+        test_operation = MADS(is_add=False)
+        assert test_operation.evaluate_output(0, [3 + 6j, 2 + 6j, 1 + 1j]) == 7 - 2j
+
+    def test_mads_positive_add(self):
+        test_operation = MADS(is_add=True)
+        assert test_operation.evaluate_output(0, [1, 2, 3]) == 7
+
+    def test_mads_negative_add(self):
+        test_operation = MADS(is_add=True)
+        assert test_operation.evaluate_output(0, [-3, -5, -8]) == 37
+
+    def test_mads_complex_add(self):
+        test_operation = MADS(is_add=True)
+        assert test_operation.evaluate_output(0, [3 + 6j, 2 + 6j, 1 + 1j]) == -1 + 14j
+
+    def test_mads_zero_override(self):
+        test_operation = MADS(is_add=True, override_zero_on_src0=True)
+        assert test_operation.evaluate_output(0, [1, 1, 1]) == 1
+
+    def test_mads_sub_zero_override(self):
+        test_operation = MADS(is_add=False, override_zero_on_src0=True)
+        assert test_operation.evaluate_output(0, [1, 1, 1]) == -1
+
+    def test_mads_is_linear(self):
+        test_operation = MADS(
+            src0=Constant(3),
+            src1=Addition(Input(), Constant(3)),
+            src2=Addition(Input(), Constant(3)),
+        )
+        assert not test_operation.is_linear
+
+        test_operation = MADS(
+            src0=Addition(Input(), Constant(3)),
+            src1=Constant(3),
+            src2=Addition(Input(), Constant(3)),
+        )
+        assert test_operation.is_linear
+
+        test_operation = MADS(
+            src0=Addition(Input(), Constant(3)),
+            src1=Addition(Input(), Constant(3)),
+            src2=Constant(3),
+        )
+        assert test_operation.is_linear
+
+    def test_mads_swap_io(self):
+        test_operation = MADS(is_add=False)
+        assert test_operation.evaluate_output(0, [1, 2, 3]) == -5
+        test_operation.swap_io()
+        assert test_operation.evaluate_output(0, [1, 2, 3]) == -5
+
+    def test_mads_is_add_getter(self):
+        test_operation = MADS(is_add=False)
+        assert not test_operation.is_add
+
+        test_operation = MADS(is_add=True)
+        assert test_operation.is_add
+
+    def test_mads_is_add_setter(self):
+        test_operation = MADS(is_add=False)
+        test_operation.is_add = True
+        assert test_operation.is_add
+
+        test_operation = MADS(is_add=True)
+        test_operation.is_add = False
+        assert not test_operation.is_add
+
+    def test_mads_override_zero_on_src0_getter(self):
+        test_operation = MADS(override_zero_on_src0=False)
+        assert not test_operation.override_zero_on_src0
+
+        test_operation = MADS(override_zero_on_src0=True)
+        assert test_operation.override_zero_on_src0
+
+    def test_mads_override_zero_on_src0_setter(self):
+        test_operation = MADS(override_zero_on_src0=False)
+        test_operation.override_zero_on_src0 = True
+        assert test_operation.override_zero_on_src0
+
+        test_operation = MADS(override_zero_on_src0=True)
+        test_operation.override_zero_on_src0 = False
+        assert not test_operation.override_zero_on_src0
 
 
 class TestRightShift:
@@ -408,6 +589,33 @@ class TestDepends:
         assert set(bfly1.inputs_required_for_output(1)) == {0, 1}
 
 
+class TestDontCare:
+    def test_create_sfg_with_dontcare(self):
+        i1 = Input()
+        dc = DontCare()
+        a = Addition(i1, dc)
+        o = Output(a)
+        sfg = SFG([i1], [o])
+
+        assert sfg.output_count == 1
+        assert sfg.input_count == 1
+
+        assert sfg.evaluate_output(0, [0]) == 0
+        assert sfg.evaluate_output(0, [1]) == 1
+
+    def test_dontcare_latency_getter(self):
+        test_operation = DontCare()
+        assert test_operation.latency == 0
+
+    def test_dontcare_repr(self):
+        test_operation = DontCare()
+        assert repr(test_operation) == "DontCare()"
+
+    def test_dontcare_str(self):
+        test_operation = DontCare()
+        assert str(test_operation) == "dontcare"
+
+
 class TestSink:
     def test_create_sfg_with_sink(self):
         bfly = Butterfly()
@@ -420,3 +628,15 @@ class TestSink:
             assert sfg1.input_count == 2
 
             assert sfg.evaluate_output(1, [0, 1]) == sfg1.evaluate_output(0, [0, 1])
+
+    def test_sink_latency_getter(self):
+        test_operation = Sink()
+        assert test_operation.latency == 0
+
+    def test_sink_repr(self):
+        test_operation = Sink()
+        assert repr(test_operation) == "Sink()"
+
+    def test_sink_str(self):
+        test_operation = Sink()
+        assert str(test_operation) == "sink"

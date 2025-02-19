@@ -3,15 +3,18 @@ import pytest
 from scipy import signal
 
 from b_asic.core_operations import (
+    MADS,
     Addition,
     Butterfly,
     ConstantMultiplication,
+    Reciprocal,
     SymmetricTwoportAdaptor,
 )
 from b_asic.sfg_generators import (
     direct_form_1_iir,
     direct_form_2_iir,
     direct_form_fir,
+    ldlt_matrix_inverse,
     radix_2_dif_fft,
     transposed_direct_form_fir,
     wdf_allpass,
@@ -637,3 +640,176 @@ class TestRadix2FFT:
         POINTS = 5
         with pytest.raises(ValueError, match="Points must be a power of two."):
             radix_2_dif_fft(points=POINTS)
+
+
+class TestLdltMatrixInverse:
+    def test_1x1(self):
+        sfg = ldlt_matrix_inverse(N=1)
+
+        assert len(sfg.inputs) == 1
+        assert len(sfg.outputs) == 1
+
+        assert len(sfg.find_by_type_name(MADS.type_name())) == 0
+        assert len(sfg.find_by_type_name(Reciprocal.type_name())) == 1
+
+        A_input = [Constant(5)]
+
+        sim = Simulation(sfg, A_input)
+        sim.run_for(1)
+
+        res = sim.results
+        assert np.isclose(res["0"], 0.2)
+
+    def test_2x2_simple_spd(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        assert len(sfg.inputs) == 3
+        assert len(sfg.outputs) == 3
+
+        assert len(sfg.find_by_type_name(MADS.type_name())) == 4
+        assert len(sfg.find_by_type_name(Reciprocal.type_name())) == 2
+
+        A = np.array([[1, 2], [2, 1]])
+        A_input = [Constant(1), Constant(2), Constant(1)]
+
+        A_inv = np.linalg.inv(A)
+
+        sim = Simulation(sfg, A_input)
+        sim.run_for(1)
+
+        res = sim.results
+        assert np.isclose(res["0"], A_inv[0, 0])
+        assert np.isclose(res["1"], A_inv[0, 1])
+        assert np.isclose(res["2"], A_inv[1, 1])
+
+    def test_3x3_simple_spd(self):
+        sfg = ldlt_matrix_inverse(N=3)
+
+        assert len(sfg.inputs) == 6
+        assert len(sfg.outputs) == 6
+
+        assert len(sfg.find_by_type_name(MADS.type_name())) == 15
+        assert len(sfg.find_by_type_name(Reciprocal.type_name())) == 3
+
+        A = np.array([[2, -1, 0], [-1, 3, -1], [0, -1, 2]])
+        A_input = [
+            Constant(2),
+            Constant(-1),
+            Constant(0),
+            Constant(3),
+            Constant(-1),
+            Constant(2),
+        ]
+
+        A_inv = np.linalg.inv(A)
+
+        sim = Simulation(sfg, A_input)
+        sim.run_for(1)
+
+        res = sim.results
+        assert np.isclose(res["0"], A_inv[0, 0])
+        assert np.isclose(res["1"], A_inv[0, 1])
+        assert np.isclose(res["2"], A_inv[0, 2])
+        assert np.isclose(res["3"], A_inv[1, 1])
+        assert np.isclose(res["4"], A_inv[1, 2])
+        assert np.isclose(res["5"], A_inv[2, 2])
+
+    def test_5x5_random_spd(self):
+        N = 5
+
+        sfg = ldlt_matrix_inverse(N=N)
+
+        assert len(sfg.inputs) == 15
+        assert len(sfg.outputs) == 15
+
+        assert len(sfg.find_by_type_name(MADS.type_name())) == 70
+        assert len(sfg.find_by_type_name(Reciprocal.type_name())) == N
+
+        A = self._generate_random_spd_matrix(N)
+
+        upper_tridiag = A[np.triu_indices_from(A)]
+
+        A_input = [Constant(num) for num in upper_tridiag]
+        A_inv = np.linalg.inv(A)
+
+        sim = Simulation(sfg, A_input)
+        sim.run_for(1)
+        res = sim.results
+
+        row_indices, col_indices = np.triu_indices(N)
+        expected_values = A_inv[row_indices, col_indices]
+        actual_values = [res[str(i)] for i in range(len(expected_values))]
+
+        for i in range(len(expected_values)):
+            assert np.isclose(actual_values[i], expected_values[i])
+
+    def test_20x20_random_spd(self):
+        N = 20
+
+        sfg = ldlt_matrix_inverse(N=N)
+
+        A = self._generate_random_spd_matrix(N)
+
+        assert len(sfg.inputs) == len(A[np.triu_indices_from(A)])
+        assert len(sfg.outputs) == len(A[np.triu_indices_from(A)])
+
+        assert len(sfg.find_by_type_name(Reciprocal.type_name())) == N
+
+        upper_tridiag = A[np.triu_indices_from(A)]
+
+        A_input = [Constant(num) for num in upper_tridiag]
+        A_inv = np.linalg.inv(A)
+
+        sim = Simulation(sfg, A_input)
+        sim.run_for(1)
+        res = sim.results
+
+        row_indices, col_indices = np.triu_indices(N)
+        expected_values = A_inv[row_indices, col_indices]
+        actual_values = [res[str(i)] for i in range(len(expected_values))]
+
+        for i in range(len(expected_values)):
+            assert np.isclose(actual_values[i], expected_values[i])
+
+    # def test_2x2_random_complex_spd(self):
+    #     N = 2
+
+    #     sfg = ldlt_matrix_inverse(N=N, is_complex=True)
+
+    #     # A = self._generate_random_complex_spd_matrix(N)
+    #     A = np.array([[2, 1+1j],[1-1j, 3]])
+
+    #     assert len(sfg.inputs) == len(A[np.triu_indices_from(A)])
+    #     assert len(sfg.outputs) == len(A[np.triu_indices_from(A)])
+
+    #     assert len(sfg.find_by_type_name(Reciprocal.type_name())) == N
+
+    #     upper_tridiag = A[np.triu_indices_from(A)]
+
+    #     A_input = [Constant(num) for num in upper_tridiag]
+    #     A_inv = np.linalg.inv(A)
+
+    #     sim = Simulation(sfg, A_input)
+    #     sim.run_for(1)
+    #     res = sim.results
+
+    #     row_indices, col_indices = np.triu_indices(N)
+    #     expected_values = A_inv[row_indices, col_indices]
+    #     actual_values = [res[str(i)] for i in range(len(expected_values))]
+
+    #     for i in range(len(expected_values)):
+    #         assert np.isclose(actual_values[i], expected_values[i])
+
+    def _generate_random_spd_matrix(self, N: int) -> np.ndarray:
+        A = np.random.rand(N, N)
+        A = (A + A.T) / 2  # ensure symmetric
+        min_eig = np.min(np.linalg.eigvals(A))
+        A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
+        return A
+
+    # def _generate_random_complex_spd_matrix(self, N: int) -> np.ndarray:
+    #     A = np.random.randn(N, N) + 1j * np.random.randn(N, N)
+    #     A = (A + A.conj().T) / 2  # ensure symmetric
+    #     min_eig = np.min(np.linalg.eigvals(A))
+    #     A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
+    #     return A

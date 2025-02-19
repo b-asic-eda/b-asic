@@ -1099,6 +1099,108 @@ class MAD(AbstractOperation):
             p._index = i
 
 
+class MADS(AbstractOperation):
+    __slots__ = (
+        "_is_add",
+        "_override_zero_on_src0",
+        "_src0",
+        "_src1",
+        "_src2",
+        "_name",
+        "_latency",
+        "_latency_offsets",
+        "_execution_time",
+    )
+    _is_add: Optional[bool]
+    _override_zero_on_src0: Optional[bool]
+    _src0: Optional[SignalSourceProvider]
+    _src1: Optional[SignalSourceProvider]
+    _src2: Optional[SignalSourceProvider]
+    _name: Name
+    _latency: Optional[int]
+    _latency_offsets: Optional[Dict[str, int]]
+    _execution_time: Optional[int]
+
+    is_swappable = True
+
+    def __init__(
+        self,
+        is_add: Optional[bool] = True,
+        override_zero_on_src0: Optional[bool] = False,
+        src0: Optional[SignalSourceProvider] = None,
+        src1: Optional[SignalSourceProvider] = None,
+        src2: Optional[SignalSourceProvider] = None,
+        name: Name = Name(""),
+        latency: Optional[int] = None,
+        latency_offsets: Optional[Dict[str, int]] = None,
+        execution_time: Optional[int] = None,
+    ):
+        """Construct a MADS operation."""
+        super().__init__(
+            input_count=3,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0, src1, src2],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self.set_param("is_add", is_add)
+        self.set_param("override_zero_on_src0", override_zero_on_src0)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("mads")
+
+    def evaluate(self, a, b, c):
+        if self.is_add:
+            if self.override_zero_on_src0:
+                return b * c
+            else:
+                return a + b * c
+        else:
+            if self.override_zero_on_src0:
+                return -b * c
+            else:
+                return a - b * c
+
+    @property
+    def is_add(self) -> bool:
+        """Get if operation is an addition."""
+        return self.param("is_add")
+
+    @is_add.setter
+    def is_add(self, is_add: bool) -> None:
+        """Set if operation is an addition."""
+        self.set_param("is_add", is_add)
+
+    @property
+    def override_zero_on_src0(self) -> bool:
+        """Get if operation is overriding a zero on port src0."""
+        return self.param("override_zero_on_src0")
+
+    @override_zero_on_src0.setter
+    def override_zero_on_src0(self, override_zero_on_src0: bool) -> None:
+        """Set if operation is overriding a zero on port src0."""
+        self.set_param("override_zero_on_src0", override_zero_on_src0)
+
+    @property
+    def is_linear(self) -> bool:
+        return (
+            self.input(1).connected_source.operation.is_constant
+            or self.input(2).connected_source.operation.is_constant
+        )
+
+    def swap_io(self) -> None:
+        self._input_ports = [
+            self._input_ports[0],
+            self._input_ports[2],
+            self._input_ports[1],
+        ]
+        for i, p in enumerate(self._input_ports):
+            p._index = i
+
+
 class SymmetricTwoportAdaptor(AbstractOperation):
     r"""
     Wave digital filter symmetric twoport-adaptor operation.
@@ -1517,6 +1619,51 @@ class Shift(AbstractOperation):
         if not isinstance(value, int):
             raise TypeError("value must be an int")
         self.set_param("value", value)
+
+
+class DontCare(AbstractOperation):
+    r"""
+    Dont-care operation
+
+    Used for ignoring the input to another operation and thus avoiding dangling input nodes.
+
+    Parameters
+    ----------
+    name : Name, optional
+        Operation name.
+
+    """
+
+    __slots__ = "_name"
+    _name: Name
+
+    is_linear = True
+
+    def __init__(self, name: Name = ""):
+        """Construct a DontCare operation."""
+        super().__init__(
+            input_count=0,
+            output_count=1,
+            name=name,
+            latency_offsets={"out0": 0},
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("dontcare")
+
+    def evaluate(self):
+        return 0
+
+    @property
+    def latency(self) -> int:
+        return self.latency_offsets["out0"]
+
+    def __repr__(self) -> str:
+        return "DontCare()"
+
+    def __str__(self) -> str:
+        return "dontcare"
 
 
 class Sink(AbstractOperation):

@@ -9,10 +9,13 @@ from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 import numpy as np
 
 from b_asic.core_operations import (
+    MADS,
     Addition,
     Butterfly,
     ConstantMultiplication,
+    DontCare,
     Name,
+    Reciprocal,
     SymmetricTwoportAdaptor,
 )
 from b_asic.signal import Signal
@@ -430,6 +433,82 @@ def radix_2_dif_fft(points: int) -> SFG:
         outputs.append(Output(port, name=f"Output: {i}"))
 
     return SFG(inputs=inputs, outputs=outputs)
+
+
+def ldlt_matrix_inverse(N: int) -> SFG:
+    """Generates an SFG for the LDLT matrix inverse algorithm.
+
+    Parameters
+    ----------
+    N : int
+        Dimension of the square input matrix.
+
+    Returns
+    -------
+    SFG
+        Signal Flow Graph
+    """
+    inputs = []
+    A = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N):
+        for j in range(i, N):
+            in_op = Input()
+            A[i][j] = in_op
+            inputs.append(in_op)
+
+    D = [None for _ in range(N)]
+    for i in range(N):
+        D[i] = A[i][i]
+
+    D_inv = [None for _ in range(N)]
+
+    R = [[None for _ in range(N)] for _ in range(N)]
+    M = [[None for _ in range(N)] for _ in range(N)]
+
+    # R*di*R^T factorization
+    for i in range(N):
+        for k in range(i):
+            D[i] = MADS(False, False, D[i], M[k][i], R[k][i])
+
+        D_inv[i] = Reciprocal(D[i])
+
+        for j in range(i + 1, N):
+            R[i][j] = A[i][j]
+
+            for k in range(i):
+                R[i][j] = MADS(False, False, R[i][j], M[k][i], R[k][j])
+
+            # if is_complex:
+            #     M[i][j] = ComplexConjugate(R[i][j])
+            # else:
+            M[i][j] = R[i][j]
+
+            R[i][j] = MADS(True, True, DontCare(), R[i][j], D_inv[i])
+
+    # back substitution
+    A_inv = [[None for _ in range(N)] for _ in range(N)]
+    for i in reversed(range(N)):
+        A_inv[i][i] = D_inv[i]
+        for j in reversed(range(i + 1)):
+            for k in reversed(range(j + 1, N)):
+                if k == N - 1 and i != j:
+                    A_inv[j][i] = MADS(False, True, DontCare(), R[j][k], A_inv[i][k])
+                else:
+                    if A_inv[i][k]:
+                        A_inv[j][i] = MADS(
+                            False, False, A_inv[j][i], R[j][k], A_inv[i][k]
+                        )
+                    else:
+                        A_inv[j][i] = MADS(
+                            False, False, A_inv[j][i], R[j][k], A_inv[k][i]
+                        )
+
+    outputs = []
+    for i in range(N):
+        for j in range(i, N):
+            outputs.append(Output(A_inv[i][j]))
+
+    return SFG(inputs, outputs)
 
 
 def _construct_dif_fft_stage(
