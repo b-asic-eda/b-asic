@@ -77,6 +77,37 @@ class Constant(AbstractOperation):
     def __str__(self) -> str:
         return f"{self.value}"
 
+    def get_plot_coordinates(
+        self,
+    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
+        # Doc-string inherited
+        return (
+            (
+                (-0.5, 0),
+                (-0.5, 1),
+                (-0.25, 1),
+                (0, 0.5),
+                (-0.25, 0),
+                (-0.5, 0),
+            ),
+            (
+                (-0.5, 0),
+                (-0.5, 1),
+                (-0.25, 1),
+                (0, 0.5),
+                (-0.25, 0),
+                (-0.5, 0),
+            ),
+        )
+
+    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
+        # doc-string inherited
+        return tuple()
+
+    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
+        # doc-string inherited
+        return ((0, 0.5),)
+
 
 class Addition(AbstractOperation):
     """
@@ -1646,6 +1677,7 @@ class DontCare(AbstractOperation):
             output_count=1,
             name=name,
             latency_offsets={"out0": 0},
+            execution_time=0,
         )
 
     @classmethod
@@ -1664,6 +1696,37 @@ class DontCare(AbstractOperation):
 
     def __str__(self) -> str:
         return "dontcare"
+
+    def get_plot_coordinates(
+        self,
+    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
+        # Doc-string inherited
+        return (
+            (
+                (-0.5, 0),
+                (-0.5, 1),
+                (-0.25, 1),
+                (0, 0.5),
+                (-0.25, 0),
+                (-0.5, 0),
+            ),
+            (
+                (-0.5, 0),
+                (-0.5, 1),
+                (-0.25, 1),
+                (0, 0.5),
+                (-0.25, 0),
+                (-0.5, 0),
+            ),
+        )
+
+    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
+        # doc-string inherited
+        return tuple()
+
+    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
+        # doc-string inherited
+        return ((0, 0.5),)
 
 
 class Sink(AbstractOperation):
@@ -1691,6 +1754,7 @@ class Sink(AbstractOperation):
             output_count=0,
             name=name,
             latency_offsets={"in0": 0},
+            execution_time=0,
         )
 
     @classmethod
@@ -1709,3 +1773,20 @@ class Sink(AbstractOperation):
 
     def __str__(self) -> str:
         return "sink"
+
+    def get_plot_coordinates(
+        self,
+    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
+        # Doc-string inherited
+        return (
+            ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
+            ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
+        )
+
+    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
+        # doc-string inherited
+        return ((0, 0.5),)
+
+    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
+        # doc-string inherited
+        return tuple()

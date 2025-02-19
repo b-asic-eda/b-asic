@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, cast
 
+from b_asic.core_operations import DontCare
 from b_asic.port import OutputPort
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
@@ -45,6 +46,15 @@ class Scheduler(ABC):
 
 class ListScheduler(Scheduler, ABC):
     def __init__(self, max_resources: Optional[dict[TypeName, int]] = None) -> None:
+        if max_resources:
+            if not isinstance(max_resources, dict):
+                raise ValueError("max_resources must be a dictionary.")
+            for key, value in max_resources.items():
+                if not isinstance(key, str):
+                    raise ValueError("max_resources key must be a valid type_name.")
+                if not isinstance(value, int):
+                    raise ValueError("max_resources value must be an integer.")
+
         if max_resources:
             self._max_resources = max_resources
         else:
@@ -114,10 +124,15 @@ class ListScheduler(Scheduler, ABC):
         self._handle_outputs(schedule)
         schedule.remove_delays()
 
-        # move all inputs and outputs ALAP now that operations have moved
+        # move all inputs ALAP now that operations have moved
         for input_op in schedule.sfg.find_by_type_name(Input.type_name()):
             input_op = cast(Input, input_op)
             schedule.move_operation_alap(input_op.graph_id)
+
+        # move all dont cares ALAP
+        for dc_op in schedule.sfg.find_by_type_name(DontCare.type_name()):
+            dc_op = cast(DontCare, dc_op)
+            schedule.move_operation_alap(dc_op.graph_id)
 
     @staticmethod
     def _candidate_is_schedulable(

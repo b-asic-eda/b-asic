@@ -119,6 +119,84 @@ class EarliestDeadlineScheduler(ListScheduler):
 
     @staticmethod
     def _get_sorted_operations(schedule: "Schedule") -> list["GraphID"]:
-        schedule_copy = copy.deepcopy(schedule)
+        schedule_copy = copy.copy(schedule)
         ALAPScheduler().apply_scheduling(schedule_copy)
+
+        deadlines = {}
+        for op_id, start_time in schedule_copy.start_times.items():
+            deadlines[op_id] = start_time + schedule.sfg.find_by_id(op_id).latency
+
+        return sorted(deadlines, key=deadlines.get)
+
+
+class LeastSlackTimeScheduler(ListScheduler):
+    """Scheduler that implements the least slack time first algorithm."""
+
+    @staticmethod
+    def _get_sorted_operations(schedule: "Schedule") -> list["GraphID"]:
+        schedule_copy = copy.copy(schedule)
+        ALAPScheduler().apply_scheduling(schedule_copy)
+
         return sorted(schedule_copy.start_times, key=schedule_copy.start_times.get)
+
+
+class MaxFanOutScheduler(ListScheduler):
+    """Scheduler that implements the maximum fan-out algorithm."""
+
+    @staticmethod
+    def _get_sorted_operations(schedule: "Schedule") -> list["GraphID"]:
+        schedule_copy = copy.copy(schedule)
+        ALAPScheduler().apply_scheduling(schedule_copy)
+
+        fan_outs = {}
+        for op_id, start_time in schedule_copy.start_times.items():
+            fan_outs[op_id] = len(schedule.sfg.find_by_id(op_id).output_signals)
+
+        return sorted(fan_outs, key=fan_outs.get, reverse=True)
+
+
+class HybridScheduler(ListScheduler):
+    """Scheduler that implements a hybrid algorithm. Will receive a new name once finalized."""
+
+    @staticmethod
+    def _get_sorted_operations(schedule: "Schedule") -> list["GraphID"]:
+        # sort least-slack and then resort ties according to max-fan-out
+        schedule_copy = copy.copy(schedule)
+        ALAPScheduler().apply_scheduling(schedule_copy)
+
+        sorted_items = sorted(
+            schedule_copy.start_times.items(), key=lambda item: item[1]
+        )
+
+        fan_out_sorted_items = []
+
+        last_value = sorted_items[0][0]
+        current_group = []
+        for key, value in sorted_items:
+
+            if value != last_value:
+                # the group is completed, sort it internally
+                sorted_group = sorted(
+                    current_group,
+                    key=lambda pair: len(
+                        schedule.sfg.find_by_id(pair[0]).output_signals
+                    ),
+                    reverse=True,
+                )
+                fan_out_sorted_items += sorted_group
+                current_group = []
+
+            current_group.append((key, value))
+
+            last_value = value
+
+        sorted_group = sorted(
+            current_group,
+            key=lambda pair: len(schedule.sfg.find_by_id(pair[0]).output_signals),
+            reverse=True,
+        )
+        fan_out_sorted_items += sorted_group
+
+        sorted_op_list = [pair[0] for pair in fan_out_sorted_items]
+
+        return sorted_op_list
