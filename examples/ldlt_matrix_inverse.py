@@ -84,7 +84,9 @@ output_delta_times = {
 }
 schedule = Schedule(
     sfg,
-    scheduler=HybridScheduler(resources, input_times, output_delta_times),
+    scheduler=HybridScheduler(
+        resources, input_times=input_times, output_delta_times=output_delta_times
+    ),
     cyclic=True,
 )
 print("Scheduling time:", schedule.schedule_time)
@@ -137,4 +139,3 @@ arch = Architecture(
 
 # %%
 arch
-# schedule.edit()

@@ -877,7 +877,7 @@ class ProcessCollection:
 
         Parameters
         ----------
-        heuristic : {'graph_color', 'left_edge'}, default: 'graph_color'
+        heuristic : {'graph_color', 'left_edge'}, default: 'left_edge'
             The heuristic used when splitting based on execution times.
 
         coloring_strategy : str, default: 'saturation_largest_first'
@@ -919,7 +919,7 @@ class ProcessCollection:
 
         Parameters
         ----------
-        heuristic : str, default: "graph_color"
+        heuristic : str, default: "left_edge"
             The heuristic used when splitting this :class:`ProcessCollection`.
             Valid options are:
 

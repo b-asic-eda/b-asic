@@ -187,7 +187,7 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     mvs = schedule_direct_form_iir_lp_filter.get_memory_variables()
     operations = schedule_direct_form_iir_lp_filter.get_operations()
     adders1, adders2 = operations.get_by_type_name(Addition.type_name()).split_on_ports(
-        total_ports=1
+        heuristic="left_edge", total_ports=1
     )
     adders1 = [adders1]  # Fake two PEs needed for the adders
     adders2 = [adders2]  # Fake two PEs needed for the adders

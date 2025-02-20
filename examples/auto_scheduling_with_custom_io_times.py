@@ -52,7 +52,12 @@ output_delta_times = {
     "out7": 5,
 }
 schedule = Schedule(
-    sfg, scheduler=HybridScheduler(resources, input_times, output_delta_times)
+    sfg,
+    scheduler=HybridScheduler(
+        resources,
+        input_times=input_times,
+        output_delta_times=output_delta_times,
+    ),
 )
 schedule.show()
 
@@ -70,7 +75,11 @@ output_delta_times = {
 }
 schedule = Schedule(
     sfg,
-    scheduler=HybridScheduler(resources, input_times, output_delta_times),
+    scheduler=HybridScheduler(
+        resources,
+        input_times=input_times,
+        output_delta_times=output_delta_times,
+    ),
     cyclic=True,
 )
 schedule.show()

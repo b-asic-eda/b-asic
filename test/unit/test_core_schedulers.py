@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from b_asic.core_operations import (
@@ -21,6 +23,7 @@ from b_asic.sfg_generators import (
     ldlt_matrix_inverse,
     radix_2_dif_fft,
 )
+from b_asic.special_operations import Input, Output
 
 
 class TestASAPScheduler:
@@ -298,15 +301,20 @@ class TestEarliestDeadlineScheduler:
         sfg.set_latency_of_type(Addition.type_name(), 3)
         sfg.set_execution_time_of_type(Addition.type_name(), 1)
 
-        resources = {Addition.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
         schedule = Schedule(
             sfg, scheduler=EarliestDeadlineScheduler(max_resources=resources)
         )
 
         assert schedule.start_times == {
+            "in0": 0,
             "cmul4": 0,
             "cmul3": 1,
-            "in0": 2,
             "cmul0": 2,
             "add1": 3,
             "cmul1": 3,
@@ -318,67 +326,7 @@ class TestEarliestDeadlineScheduler:
         }
         assert schedule.schedule_time == 13
 
-    def test_direct_form_2_iir_inf_resources_no_exec_time(
-        self, sfg_direct_form_iir_lp_filter
-    ):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
-            ConstantMultiplication.type_name(), 4
-        )
-
-        schedule = Schedule(
-            sfg_direct_form_iir_lp_filter, scheduler=EarliestDeadlineScheduler()
-        )
-
-        # should be the same as for ASAP due to infinite resources, except for input
-        assert schedule.start_times == {
-            "in0": 9,
-            "cmul1": 0,
-            "cmul4": 0,
-            "cmul2": 0,
-            "cmul3": 0,
-            "add3": 4,
-            "add1": 4,
-            "add0": 9,
-            "cmul0": 14,
-            "add2": 18,
-            "out0": 23,
-        }
-        assert schedule.schedule_time == 23
-
-    def test_direct_form_2_iir_1_add_1_mul_no_exec_time(
-        self, sfg_direct_form_iir_lp_filter
-    ):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
-            ConstantMultiplication.type_name(), 4
-        )
-
-        max_resources = {ConstantMultiplication.type_name(): 1, Addition.type_name(): 1}
-
-        schedule = Schedule(
-            sfg_direct_form_iir_lp_filter,
-            scheduler=EarliestDeadlineScheduler(max_resources),
-        )
-        assert schedule.start_times == {
-            "cmul4": 0,
-            "cmul3": 4,
-            "cmul1": 8,
-            "add1": 8,
-            "cmul2": 12,
-            "in0": 13,
-            "add0": 13,
-            "add3": 18,
-            "cmul0": 18,
-            "add2": 23,
-            "out0": 28,
-        }
-
-        assert schedule.schedule_time == 28
-
-    def test_direct_form_2_iir_1_add_1_mul_exec_time_1(
-        self, sfg_direct_form_iir_lp_filter
-    ):
+    def test_direct_form_2_iir_1_add_1_mul(self, sfg_direct_form_iir_lp_filter):
         sfg_direct_form_iir_lp_filter.set_latency_of_type(
             ConstantMultiplication.type_name(), 3
         )
@@ -390,19 +338,24 @@ class TestEarliestDeadlineScheduler:
             Addition.type_name(), 1
         )
 
-        max_resources = {ConstantMultiplication.type_name(): 1, Addition.type_name(): 1}
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
 
         schedule = Schedule(
             sfg_direct_form_iir_lp_filter,
-            scheduler=EarliestDeadlineScheduler(max_resources),
+            scheduler=EarliestDeadlineScheduler(resources),
         )
         assert schedule.start_times == {
+            "in0": 0,
             "cmul4": 0,
             "cmul3": 1,
             "cmul1": 2,
             "cmul2": 3,
             "add1": 4,
-            "in0": 6,
             "add0": 6,
             "add3": 7,
             "cmul0": 8,
@@ -412,9 +365,7 @@ class TestEarliestDeadlineScheduler:
 
         assert schedule.schedule_time == 13
 
-    def test_direct_form_2_iir_2_add_3_mul_exec_time_1(
-        self, sfg_direct_form_iir_lp_filter
-    ):
+    def test_direct_form_2_iir_2_add_3_mul(self, sfg_direct_form_iir_lp_filter):
         sfg_direct_form_iir_lp_filter.set_latency_of_type(
             ConstantMultiplication.type_name(), 3
         )
@@ -426,20 +377,25 @@ class TestEarliestDeadlineScheduler:
             Addition.type_name(), 1
         )
 
-        max_resources = {ConstantMultiplication.type_name(): 3, Addition.type_name(): 2}
+        resources = {
+            Addition.type_name(): 2,
+            ConstantMultiplication.type_name(): 3,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
 
         schedule = Schedule(
             sfg_direct_form_iir_lp_filter,
-            scheduler=EarliestDeadlineScheduler(max_resources),
+            scheduler=EarliestDeadlineScheduler(resources),
         )
         assert schedule.start_times == {
+            "in0": 0,
             "cmul1": 0,
             "cmul4": 0,
             "cmul3": 0,
             "cmul2": 1,
             "add1": 3,
             "add3": 4,
-            "in0": 5,
             "add0": 5,
             "cmul0": 7,
             "add2": 10,
@@ -456,26 +412,31 @@ class TestEarliestDeadlineScheduler:
         sfg.set_latency_of_type(Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
 
-        resources = {Butterfly.type_name(): 2, ConstantMultiplication.type_name(): 2}
+        resources = {
+            Butterfly.type_name(): 2,
+            ConstantMultiplication.type_name(): 2,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
         schedule = Schedule(
             sfg, scheduler=EarliestDeadlineScheduler(max_resources=resources)
         )
 
         assert schedule.start_times == {
+            "in0": 0,
             "in1": 0,
+            "in2": 0,
             "in3": 0,
+            "in4": 0,
             "in5": 0,
+            "in6": 0,
             "in7": 0,
             "bfly6": 0,
             "bfly8": 0,
-            "in2": 1,
-            "in6": 1,
             "cmul2": 1,
             "cmul3": 1,
             "bfly11": 1,
             "bfly7": 1,
-            "in0": 2,
-            "in4": 2,
             "cmul0": 2,
             "bfly0": 2,
             "cmul4": 2,
@@ -514,15 +475,20 @@ class TestLeastSlackTimeScheduler:
         sfg.set_latency_of_type(Addition.type_name(), 3)
         sfg.set_execution_time_of_type(Addition.type_name(), 1)
 
-        resources = {Addition.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
         schedule = Schedule(
             sfg, scheduler=LeastSlackTimeScheduler(max_resources=resources)
         )
 
         assert schedule.start_times == {
+            "in0": 0,
             "cmul4": 0,
             "cmul3": 1,
-            "in0": 2,
             "cmul0": 2,
             "add1": 3,
             "cmul1": 3,
@@ -534,67 +500,7 @@ class TestLeastSlackTimeScheduler:
         }
         assert schedule.schedule_time == 13
 
-    def test_direct_form_2_iir_inf_resources_no_exec_time(
-        self, sfg_direct_form_iir_lp_filter
-    ):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
-            ConstantMultiplication.type_name(), 4
-        )
-
-        schedule = Schedule(
-            sfg_direct_form_iir_lp_filter, scheduler=LeastSlackTimeScheduler()
-        )
-
-        # should be the same as for ASAP due to infinite resources, except for input
-        assert schedule.start_times == {
-            "in0": 9,
-            "cmul1": 0,
-            "cmul4": 0,
-            "cmul2": 0,
-            "cmul3": 0,
-            "add3": 4,
-            "add1": 4,
-            "add0": 9,
-            "cmul0": 14,
-            "add2": 18,
-            "out0": 23,
-        }
-        assert schedule.schedule_time == 23
-
-    def test_direct_form_2_iir_1_add_1_mul_no_exec_time(
-        self, sfg_direct_form_iir_lp_filter
-    ):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
-            ConstantMultiplication.type_name(), 4
-        )
-
-        max_resources = {ConstantMultiplication.type_name(): 1, Addition.type_name(): 1}
-
-        schedule = Schedule(
-            sfg_direct_form_iir_lp_filter,
-            scheduler=LeastSlackTimeScheduler(max_resources),
-        )
-        assert schedule.start_times == {
-            "cmul4": 0,
-            "cmul3": 4,
-            "cmul1": 8,
-            "add1": 8,
-            "cmul2": 12,
-            "in0": 13,
-            "add0": 13,
-            "add3": 18,
-            "cmul0": 18,
-            "add2": 23,
-            "out0": 28,
-        }
-
-        assert schedule.schedule_time == 28
-
-    def test_direct_form_2_iir_1_add_1_mul_exec_time_1(
-        self, sfg_direct_form_iir_lp_filter
-    ):
+    def test_direct_form_2_iir_1_add_1_mul(self, sfg_direct_form_iir_lp_filter):
         sfg_direct_form_iir_lp_filter.set_latency_of_type(
             ConstantMultiplication.type_name(), 3
         )
@@ -606,19 +512,24 @@ class TestLeastSlackTimeScheduler:
             Addition.type_name(), 1
         )
 
-        max_resources = {ConstantMultiplication.type_name(): 1, Addition.type_name(): 1}
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
 
         schedule = Schedule(
             sfg_direct_form_iir_lp_filter,
-            scheduler=LeastSlackTimeScheduler(max_resources),
+            scheduler=LeastSlackTimeScheduler(resources),
         )
         assert schedule.start_times == {
+            "in0": 0,
             "cmul4": 0,
             "cmul3": 1,
             "cmul1": 2,
             "cmul2": 3,
             "add1": 4,
-            "in0": 6,
             "add0": 6,
             "add3": 7,
             "cmul0": 8,
@@ -628,9 +539,7 @@ class TestLeastSlackTimeScheduler:
 
         assert schedule.schedule_time == 13
 
-    def test_direct_form_2_iir_2_add_3_mul_exec_time_1(
-        self, sfg_direct_form_iir_lp_filter
-    ):
+    def test_direct_form_2_iir_2_add_3_mul(self, sfg_direct_form_iir_lp_filter):
         sfg_direct_form_iir_lp_filter.set_latency_of_type(
             ConstantMultiplication.type_name(), 3
         )
@@ -642,20 +551,25 @@ class TestLeastSlackTimeScheduler:
             Addition.type_name(), 1
         )
 
-        max_resources = {ConstantMultiplication.type_name(): 3, Addition.type_name(): 2}
+        resources = {
+            Addition.type_name(): 2,
+            ConstantMultiplication.type_name(): 3,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
 
         schedule = Schedule(
             sfg_direct_form_iir_lp_filter,
-            scheduler=LeastSlackTimeScheduler(max_resources),
+            scheduler=LeastSlackTimeScheduler(resources),
         )
         assert schedule.start_times == {
+            "in0": 0,
             "cmul1": 0,
             "cmul4": 0,
             "cmul3": 0,
             "cmul2": 1,
             "add1": 3,
             "add3": 4,
-            "in0": 5,
             "add0": 5,
             "cmul0": 7,
             "add2": 10,
@@ -672,26 +586,31 @@ class TestLeastSlackTimeScheduler:
         sfg.set_latency_of_type(Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
 
-        resources = {Butterfly.type_name(): 2, ConstantMultiplication.type_name(): 2}
+        resources = {
+            Butterfly.type_name(): 2,
+            ConstantMultiplication.type_name(): 2,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
         schedule = Schedule(
             sfg, scheduler=LeastSlackTimeScheduler(max_resources=resources)
         )
 
         assert schedule.start_times == {
+            "in0": 0,
             "in1": 0,
+            "in2": 0,
             "in3": 0,
+            "in4": 0,
             "in5": 0,
+            "in6": 0,
             "in7": 0,
             "bfly6": 0,
             "bfly8": 0,
-            "in2": 1,
-            "in6": 1,
             "cmul2": 1,
             "cmul3": 1,
             "bfly11": 1,
             "bfly7": 1,
-            "in0": 2,
-            "in4": 2,
             "cmul0": 2,
             "bfly0": 2,
             "cmul4": 2,
@@ -768,9 +687,9 @@ class TestHybridScheduler:
         schedule = Schedule(sfg, scheduler=HybridScheduler(max_resources=resources))
 
         assert schedule.start_times == {
+            "in0": 0,
             "cmul4": 0,
             "cmul3": 1,
-            "in0": 2,
             "cmul0": 2,
             "add1": 3,
             "cmul1": 3,
@@ -790,24 +709,29 @@ class TestHybridScheduler:
         sfg.set_latency_of_type(Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
 
-        resources = {Butterfly.type_name(): 2, ConstantMultiplication.type_name(): 2}
+        resources = {
+            Butterfly.type_name(): 2,
+            ConstantMultiplication.type_name(): 2,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
         schedule = Schedule(sfg, scheduler=HybridScheduler(max_resources=resources))
 
         assert schedule.start_times == {
+            "in0": 0,
             "in1": 0,
+            "in2": 0,
             "in3": 0,
+            "in4": 0,
             "in5": 0,
+            "in6": 0,
             "in7": 0,
             "bfly6": 0,
             "bfly8": 0,
-            "in2": 1,
-            "in6": 1,
             "cmul2": 1,
             "cmul3": 1,
             "bfly11": 1,
             "bfly7": 1,
-            "in0": 2,
-            "in4": 2,
             "cmul0": 2,
             "bfly0": 2,
             "cmul4": 2,
@@ -830,6 +754,59 @@ class TestHybridScheduler:
         }
         assert schedule.schedule_time == 7
 
+    def test_radix_2_fft_8_points_one_output(self):
+        sfg = radix_2_dif_fft(points=8)
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+
+        resources = {
+            Butterfly.type_name(): 2,
+            ConstantMultiplication.type_name(): 2,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): 1,
+        }
+        schedule = Schedule(sfg, scheduler=HybridScheduler(max_resources=resources))
+
+        assert schedule.start_times == {
+            "in0": 0,
+            "in1": 0,
+            "in2": 0,
+            "in3": 0,
+            "in4": 0,
+            "in5": 0,
+            "in6": 0,
+            "in7": 0,
+            "bfly6": 0,
+            "bfly8": 0,
+            "cmul2": 1,
+            "cmul3": 1,
+            "bfly11": 1,
+            "bfly7": 1,
+            "cmul0": 2,
+            "bfly0": 2,
+            "cmul4": 2,
+            "bfly5": 3,
+            "bfly1": 3,
+            "cmul1": 4,
+            "bfly2": 4,
+            "bfly9": 4,
+            "bfly10": 5,
+            "bfly3": 5,
+            "out0": 5,
+            "bfly4": 6,
+            "out1": 6,
+            "out2": 12,
+            "out3": 11,
+            "out4": 10,
+            "out5": 9,
+            "out6": 8,
+            "out7": 7,
+        }
+        assert schedule.schedule_time == 12
+
     def test_radix_2_fft_8_points_specified_IO_times_cyclic(self):
         sfg = radix_2_dif_fft(points=8)
 
@@ -838,7 +815,12 @@ class TestHybridScheduler:
         sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
 
-        resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        resources = {
+            Butterfly.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
         input_times = {
             "in0": 0,
             "in1": 1,
@@ -861,7 +843,9 @@ class TestHybridScheduler:
         }
         schedule = Schedule(
             sfg,
-            scheduler=HybridScheduler(resources, input_times, output_times),
+            scheduler=HybridScheduler(
+                resources, input_times=input_times, output_delta_times=output_times
+            ),
             cyclic=True,
         )
 
@@ -933,7 +917,9 @@ class TestHybridScheduler:
         }
         schedule = Schedule(
             sfg,
-            scheduler=HybridScheduler(resources, input_times, output_times),
+            scheduler=HybridScheduler(
+                resources, input_times=input_times, output_delta_times=output_times
+            ),
             cyclic=False,
         )
 
@@ -982,7 +968,12 @@ class TestHybridScheduler:
         sfg.set_execution_time_of_type(MADS.type_name(), 1)
         sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
 
-        resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
+        resources = {
+            MADS.type_name(): 1,
+            Reciprocal.type_name(): 1,
+            Input.type_name(): sys.maxsize,
+            Output.type_name(): sys.maxsize,
+        }
         schedule = Schedule(
             sfg,
             scheduler=HybridScheduler(resources),
@@ -990,11 +981,11 @@ class TestHybridScheduler:
 
         assert schedule.start_times == {
             "in0": 0,
+            "in1": 0,
+            "in2": 0,
             "rec0": 0,
-            "in1": 2,
             "dontcare1": 2,
             "mads0": 2,
-            "in2": 5,
             "mads3": 5,
             "rec1": 8,
             "dontcare0": 10,
@@ -1027,7 +1018,9 @@ class TestHybridScheduler:
         }
         schedule = Schedule(
             sfg,
-            scheduler=HybridScheduler(resources, input_times, output_times),
+            scheduler=HybridScheduler(
+                resources, input_times=input_times, output_delta_times=output_times
+            ),
             cyclic=True,
         )
 
@@ -1078,3 +1071,47 @@ class TestHybridScheduler:
         resources = {MADS.type_name(): "test"}
         with pytest.raises(ValueError, match="max_resources value must be an integer."):
             Schedule(sfg, scheduler=HybridScheduler(resources))
+
+    def test_ldlt_inverse_3x3_read_and_write_constrained(self):
+        sfg = ldlt_matrix_inverse(N=3)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
+
+        schedule = Schedule(
+            sfg,
+            scheduler=HybridScheduler(
+                max_resources=resources,
+                max_concurrent_reads=3,
+                max_concurrent_writes=1,
+            ),
+        )
+
+        direct, mem_vars = schedule.get_memory_variables().split_on_length()
+        assert mem_vars.read_ports_bound() == 3
+        assert mem_vars.write_ports_bound() == 1
+
+    def test_read_constrained_too_tight(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
+        with pytest.raises(
+            TimeoutError,
+            match="Algorithm did not schedule any operation for 10 time steps, try relaxing constraints.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(
+                    max_resources=resources,
+                    max_concurrent_reads=2,
+                ),
+            )

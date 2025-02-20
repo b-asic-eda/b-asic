@@ -124,8 +124,7 @@ class EarliestDeadlineScheduler(ListScheduler):
 
         deadlines = {}
         for op_id, start_time in schedule_copy.start_times.items():
-            if not op_id.startswith("in"):
-                deadlines[op_id] = start_time + schedule.sfg.find_by_id(op_id).latency
+            deadlines[op_id] = start_time + schedule.sfg.find_by_id(op_id).latency
 
         return sorted(deadlines, key=deadlines.get)
 
@@ -141,7 +140,7 @@ class LeastSlackTimeScheduler(ListScheduler):
         sorted_ops = sorted(
             schedule_copy.start_times, key=schedule_copy.start_times.get
         )
-        return [op for op in sorted_ops if not op.startswith("in")]
+        return sorted_ops
 
 
 class MaxFanOutScheduler(ListScheduler):
@@ -157,7 +156,7 @@ class MaxFanOutScheduler(ListScheduler):
             fan_outs[op_id] = len(schedule.sfg.find_by_id(op_id).output_signals)
 
         sorted_ops = sorted(fan_outs, key=fan_outs.get, reverse=True)
-        return [op for op in sorted_ops if not op.startswith("in")]
+        return sorted_ops
 
 
 class HybridScheduler(ListScheduler):
@@ -204,4 +203,4 @@ class HybridScheduler(ListScheduler):
 
         sorted_op_list = [pair[0] for pair in fan_out_sorted_items]
 
-        return [op for op in sorted_op_list if not op.startswith("in")]
+        return sorted_op_list

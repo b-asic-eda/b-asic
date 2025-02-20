@@ -396,6 +396,13 @@ class ProcessingElement(Resource):
         assign: bool = True,
     ):
         super().__init__(process_collection=process_collection, entity_name=entity_name)
+
+        if not isinstance(process_collection, ProcessCollection):
+            raise TypeError(
+                "Argument process_collection must be ProcessCollection, "
+                f"not {type(process_collection)}"
+            )
+
         if not all(
             isinstance(operator, OperatorProcess)
             for operator in process_collection.collection
