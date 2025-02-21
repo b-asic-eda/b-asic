@@ -29,7 +29,6 @@ from typing import (
 import numpy as np
 from graphviz import Digraph
 
-from b_asic.core_schedulers import ASAPScheduler
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
     AbstractOperation,
@@ -1708,6 +1707,7 @@ class SFG(AbstractOperation):
         """Return the time of the critical path."""
         # Import here needed to avoid circular imports
         from b_asic.schedule import Schedule
+        from b_asic.scheduler import ASAPScheduler
 
         return Schedule(self, ASAPScheduler()).schedule_time
 

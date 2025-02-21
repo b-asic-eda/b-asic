@@ -6,8 +6,9 @@ Auto Scheduling With Custom IO times
 """
 
 from b_asic.core_operations import Butterfly, ConstantMultiplication
-from b_asic.core_schedulers import ASAPScheduler, HybridScheduler
+from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
+from b_asic.scheduler import ASAPScheduler
 from b_asic.sfg_generators import radix_2_dif_fft
 
 sfg = radix_2_dif_fft(points=8)

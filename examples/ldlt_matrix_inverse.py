@@ -7,15 +7,14 @@ LDLT Matrix Inversion Algorithm
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import MADS, DontCare, Reciprocal
-from b_asic.core_schedulers import (
-    ALAPScheduler,
-    ASAPScheduler,
+from b_asic.list_schedulers import (
     EarliestDeadlineScheduler,
     HybridScheduler,
     LeastSlackTimeScheduler,
     MaxFanOutScheduler,
 )
 from b_asic.schedule import Schedule
+from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg_generators import ldlt_matrix_inverse
 from b_asic.special_operations import Input, Output
 
