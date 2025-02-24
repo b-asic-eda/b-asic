@@ -804,8 +804,7 @@ class TestYLocations:
         schedule = Schedule(sfg_simple_filter, ASAPScheduler())
         # Assign locations
         schedule.show()
-        print(schedule._y_locations)
-        assert schedule._y_locations == {'in0': 0, 'cmul0': 1, 'add0': 2, 'out0': 3}
+        assert schedule._y_locations == {'in0': 0, 'cmul0': 1, 'add0': 3, 'out0': 2}
         schedule.move_y_location('add0', 1, insert=True)
         assert schedule._y_locations == {'in0': 0, 'cmul0': 2, 'add0': 1, 'out0': 3}
         schedule.move_y_location('out0', 1)
