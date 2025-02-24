@@ -313,9 +313,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
 
     def _redraw_from_start(self) -> None:
         self.schedule._reset_y_locations()
-        for graph_id in dict(
-            sorted(self.schedule.start_times.items(), key=lambda item: item[1])
-        ):
+        self.schedule.sort_y_locations_on_start_times()
+        for graph_id in self.schedule.start_times.keys():
             self._set_position(graph_id)
         self._redraw_all_lines()
         self._update_axes()

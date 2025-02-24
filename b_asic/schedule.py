@@ -575,7 +575,7 @@ class Schedule:
                 if change_in_latency > (self.forward_slack(op.graph_id)):
                     passed = False
                     raise ValueError(
-                        f"Error: Can't increase latency for all components. Try increassing forward slack time by rescheduling. "
+                        f"Error: Can't increase latency for all components. Try increasing forward slack time by rescheduling. "
                         f"Error in: {op.graph_id}"
                     )
                     break
@@ -893,6 +893,12 @@ class Schedule:
             y_location = min(possible)
             self._y_locations[graph_id] = y_location
         return operation_gap + y_location * (operation_height + operation_gap)
+
+    def sort_y_locations_on_start_times(self):
+        for i, graph_id in enumerate(
+            sorted(self._start_times, key=self._start_times.get)
+        ):
+            self.set_y_location(graph_id, i)
 
     def _plot_schedule(self, ax: Axes, operation_gap: float = OPERATION_GAP) -> None:
         """Draw the schedule."""

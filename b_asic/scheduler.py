@@ -120,6 +120,8 @@ class ASAPScheduler(Scheduler):
         self._handle_outputs(schedule, non_schedulable_ops)
         schedule.remove_delays()
 
+        schedule.sort_y_locations_on_start_times()
+
 
 class ALAPScheduler(Scheduler):
     """Scheduler that implements the as-late-as-possible (ALAP) algorithm."""
@@ -150,6 +152,8 @@ class ALAPScheduler(Scheduler):
             for outport in step:
                 if not isinstance(outport.operation, Delay):
                     schedule.move_operation_alap(outport.operation.graph_id)
+
+        schedule.sort_y_locations_on_start_times()
 
 
 class ListScheduler(Scheduler, ABC):
@@ -313,6 +317,8 @@ class ListScheduler(Scheduler, ABC):
             dc_op = cast(DontCare, dc_op)
             schedule.start_times[dc_op.graph_id] = 0
             schedule.move_operation_alap(dc_op.graph_id)
+
+        schedule.sort_y_locations_on_start_times()
 
     def _get_next_op_id(
         self, ready_ops_priority_table: list[tuple["GraphID", int, ...]]
