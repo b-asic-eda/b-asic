@@ -635,6 +635,7 @@ class TestHybridScheduler:
             scheduler=HybridScheduler(
                 resources, input_times=input_times, output_delta_times=output_times
             ),
+            schedule_time=20,
             cyclic=True,
         )
 
@@ -810,6 +811,7 @@ class TestHybridScheduler:
             scheduler=HybridScheduler(
                 resources, input_times=input_times, output_delta_times=output_times
             ),
+            schedule_time=16,
             cyclic=True,
         )
 
@@ -895,7 +897,7 @@ class TestHybridScheduler:
         resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
         with pytest.raises(
             TimeoutError,
-            match="Algorithm did not schedule any operation for 10 time steps, try relaxing constraints.",
+            match="Algorithm did not manage to schedule any operation for 10 time steps, try relaxing the constraints.",
         ):
             Schedule(
                 sfg,

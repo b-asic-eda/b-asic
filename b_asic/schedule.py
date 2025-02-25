@@ -117,12 +117,9 @@ class Schedule:
             self._start_times = start_times
             self._laps.update(laps)
             self._remove_delays_no_laps()
-
         max_end_time = self.get_max_end_time()
         if not self._schedule_time:
             self._schedule_time = max_end_time
-        elif self._schedule_time < max_end_time:
-            raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
 
     def __str__(self) -> str:
         """Return a string representation of this Schedule."""
@@ -176,11 +173,14 @@ class Schedule:
         max_end_time = 0
         for graph_id, op_start_time in self._start_times.items():
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
-            for outport in operation.outputs:
-                max_end_time = max(
-                    max_end_time,
-                    op_start_time + cast(int, outport.latency_offset),
-                )
+            if graph_id.startswith("out"):
+                max_end_time = max(max_end_time, op_start_time)
+            else:
+                for outport in operation.outputs:
+                    max_end_time = max(
+                        max_end_time,
+                        op_start_time + cast(int, outport.latency_offset),
+                    )
         return max_end_time
 
     def forward_slack(self, graph_id: GraphID) -> int:
@@ -304,13 +304,16 @@ class Schedule:
         usage_time = start_time + cast(int, input_port.latency_offset)
         for signal in input_port.signals:
             source = cast(OutputPort, signal.source)
-            available_time = (
-                cast(int, source.latency_offset)
-                + self._start_times[source.operation.graph_id]
-                - self._schedule_time * self._laps[signal.graph_id]
-            )
-            if available_time > self._schedule_time:
-                available_time -= self._schedule_time
+            if source.operation.graph_id.startswith("dontcare"):
+                available_time = 0
+            else:
+                available_time = (
+                    cast(int, source.latency_offset)
+                    + self._start_times[source.operation.graph_id]
+                    - self._schedule_time * self._laps[signal.graph_id]
+                )
+                if available_time > self._schedule_time:
+                    available_time -= self._schedule_time
             input_slacks[signal] = usage_time - available_time
         return input_slacks
 
@@ -654,6 +657,44 @@ class Schedule:
     ):
         max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
         return self._get_y_position(max_pos_graph_id, operation_height, operation_gap)
+
+    def place_operation(self, op: Operation, time: int) -> None:
+        """Schedule the given operation in given time.
+
+        Parameters
+        ----------
+        op : Operation
+            Operation to schedule.
+        time : int
+            Time slot to schedule the operation in.
+            If time > schedule_time -> schedule cyclically.
+        """
+        start = time % self._schedule_time if self._schedule_time else time
+        self._start_times[op.graph_id] = start
+
+        if not self.schedule_time:
+            return
+
+        # Update input laps
+        input_slacks = self._backward_slacks(op.graph_id)
+        for in_port, signal_slacks in input_slacks.items():
+            for signal, signal_slack in signal_slacks.items():
+                new_slack = signal_slack
+                laps = 0
+                while new_slack < 0:
+                    laps += 1
+                    new_slack += self._schedule_time
+                self._laps[signal.graph_id] = laps
+
+        if (
+            start == 0
+            and isinstance(op, Output)
+            and self._laps[op.input(0).signals[0].graph_id] != 0
+        ):
+            start = self._schedule_time
+            self._laps[op.input(0).signals[0].graph_id] -= 1
+
+        self._start_times[op.graph_id] = start
 
     def move_operation(self, graph_id: GraphID, time: int) -> "Schedule":
         """

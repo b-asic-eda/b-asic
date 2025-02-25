@@ -86,6 +86,7 @@ schedule = Schedule(
     scheduler=HybridScheduler(
         resources, input_times=input_times, output_delta_times=output_delta_times
     ),
+    schedule_time=32,
     cyclic=True,
 )
 print("Scheduling time:", schedule.schedule_time)

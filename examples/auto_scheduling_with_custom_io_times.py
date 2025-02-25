@@ -34,7 +34,7 @@ schedule.show()
 # Generate a non-cyclic Schedule from HybridScheduler with custom IO times.
 resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 input_times = {f"in{i}": i for i in range(points)}
-output_delta_times = {f"out{i}": i - 2 for i in range(points)}
+output_delta_times = {f"out{i}": i for i in range(points)}
 schedule = Schedule(
     sfg,
     scheduler=HybridScheduler(
@@ -55,6 +55,37 @@ schedule = Schedule(
         input_times=input_times,
         output_delta_times=output_delta_times,
     ),
+    schedule_time=14,
+    cyclic=True,
+)
+schedule.show()
+
+# %%
+# Generate a new Schedule with even less scheduling time
+output_delta_times = {f"out{i}": i + 1 for i in range(points)}
+schedule = Schedule(
+    sfg,
+    scheduler=HybridScheduler(
+        resources,
+        input_times=input_times,
+        output_delta_times=output_delta_times,
+    ),
+    schedule_time=13,
+    cyclic=True,
+)
+schedule.show()
+
+# %%
+# Try scheduling for 12 cycles, which gives full butterfly usage
+output_delta_times = {f"out{i}": i + 2 for i in range(points)}
+schedule = Schedule(
+    sfg,
+    scheduler=HybridScheduler(
+        resources,
+        input_times=input_times,
+        output_delta_times=output_delta_times,
+    ),
+    schedule_time=12,
     cyclic=True,
 )
 schedule.show()
