@@ -31,7 +31,7 @@ from b_asic.scheduler_gui.signal_item import SignalItem
 from b_asic.types import GraphID
 
 
-class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
+class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     """
     A class to represent a schedule in a QGraphicsScene.
 
@@ -312,7 +312,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):  # PySide2 / PyQt5
         )
 
     def _redraw_from_start(self) -> None:
-        self.schedule._reset_y_locations()
+        self.schedule.reset_y_locations()
         self.schedule.sort_y_locations_on_start_times()
         for graph_id in self.schedule.start_times.keys():
             self._set_position(graph_id)

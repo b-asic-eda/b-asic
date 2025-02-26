@@ -18,7 +18,7 @@ from qtpy import uic
 from setuptools_scm import get_version
 
 try:
-    import b_asic.scheduler_gui.logger as logger
+    import b_asic.logger as logger
 
     log = logger.getLogger()
     sys.excepthook = logger.handle_exceptions
@@ -37,18 +37,16 @@ def _check_filenames(*filenames: str) -> None:
 
 def _check_qt_version() -> None:
     """
-    Check if PySide2, PyQt5, PySide6, or PyQt6 is installed.
+    Check if PySide6 or PyQt6 is installed.
 
     Otherwise, raise AssertionError exception.
     """
-    assert (
-        uic.PYSIDE2 or uic.PYQT5 or uic.PYSIDE6 or uic.PYQT6
-    ), "Python QT bindings must be installed"
+    assert uic.PYSIDE6 or uic.PYQT6, "Python QT bindings must be installed"
 
 
 def replace_qt_bindings(filename: str) -> None:
     """
-    Replace qt-binding API in *filename* from PySide2/6 or PyQt5/6 to qtpy.
+    Replace qt-binding API in *filename* from PySide6 or PyQt6 to qtpy.
 
     Parameters
     ----------
@@ -57,8 +55,6 @@ def replace_qt_bindings(filename: str) -> None:
     """
     with open(f"{filename}") as file:
         filedata = file.read()
-        filedata = filedata.replace("from PyQt5", "from qtpy")
-        filedata = filedata.replace("from PySide2", "from qtpy")
         filedata = filedata.replace("from PyQt6", "from qtpy")
         filedata = filedata.replace("from PySide6", "from qtpy")
     with open(f"{filename}", "w") as file:

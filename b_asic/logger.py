@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-B-ASIC Scheduler-gui Logger Module.
+B-ASIC Logger Module.
 
 Contains a logger that logs to the console and a file using levels. It is based
 on the :mod:`logging` module and has predefined levels of logging.
@@ -8,7 +8,7 @@ on the :mod:`logging` module and has predefined levels of logging.
 Usage:
 ------
 
-    >>> import b_asic.scheduler_gui.logger as logger
+    >>> import b_asic.logger as logger
     >>> log = logger.getLogger()
     >>> log.info('This is a log post with level INFO')
 

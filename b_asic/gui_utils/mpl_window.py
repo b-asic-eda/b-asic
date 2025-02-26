@@ -1,7 +1,7 @@
 """MPLWindow is a dialog that provides an Axes for plotting in."""
 
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QDialog, QVBoxLayout

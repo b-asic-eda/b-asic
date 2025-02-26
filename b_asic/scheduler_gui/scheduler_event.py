@@ -19,7 +19,7 @@ from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 
-class SchedulerEvent:  # PyQt5
+class SchedulerEvent:
     """
     Event filter and handlers for SchedulerItem.
 
@@ -29,7 +29,7 @@ class SchedulerEvent:  # PyQt5
         The parent QGraphicsItem.
     """
 
-    class Signals(QObject):  # PyQt5
+    class Signals(QObject):
         """A class representing signals."""
 
         component_selected = Signal(str)
@@ -43,11 +43,11 @@ class SchedulerEvent:  # PyQt5
     _axes: Optional[AxesItem]
     _current_pos: QPointF
     _delta_time: int
-    _signals: Signals  # PyQt5
+    _signals: Signals
     _schedule: Schedule
     _old_op_position: int = -1
 
-    def __init__(self, parent: Optional[QGraphicsItem] = None):  # PyQt5
+    def __init__(self, parent: Optional[QGraphicsItem] = None):
         super().__init__(parent=parent)
         self._signals = self.Signals()
 

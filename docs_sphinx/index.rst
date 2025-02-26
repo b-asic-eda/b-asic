@@ -39,7 +39,7 @@ can pull new changes without having to reinstall it. It also makes it easy to co
 any improvements.
 
 In addition to the dependencies that are automatically installed, you will also
-need a Qt-binding, but you are free to choose from the available Qt5 and Qt6 bindings.
+need a Qt-binding, but you are free to choose between PyQt6 and PySide6.
 See `https://gitlab.liu.se/da/B-ASIC <https://gitlab.liu.se/da/B-ASIC>`_ for more info.
 
 If you use B-ASIC in a publication, please acknowledge it. Later on there will be a

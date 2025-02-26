@@ -11,7 +11,7 @@ from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
 from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
-from b_asic.sfg_generators import direct_form_fir
+from b_asic.sfg_generators import direct_form_1_iir, direct_form_fir
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
 
@@ -247,6 +247,50 @@ class TestInit:
         }
         assert schedule.schedule_time == 10
 
+    def test_provided_schedule(self):
+        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
+
+        sfg.set_latency_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        start_times = {
+            "in0": 1,
+            "cmul0": 1,
+            "cmul1": 0,
+            "cmul2": 0,
+            "cmul3": 0,
+            "cmul4": 0,
+            "add3": 3,
+            "add1": 3,
+            "add0": 4,
+            "add2": 5,
+            "out0": 6,
+        }
+        laps = {
+            's8': 1,
+            's10': 2,
+            's15': 1,
+            's17': 2,
+            's0': 0,
+            's3': 0,
+            's12': 0,
+            's11': 0,
+            's14': 0,
+            's13': 0,
+            's6': 0,
+            's4': 0,
+            's5': 0,
+            's2': 0,
+        }
+
+        schedule = Schedule(sfg, start_times=start_times, laps=laps)
+
+        assert schedule.start_times == start_times
+        assert schedule.laps == laps
+        assert schedule.schedule_time == 6
+
 
 class TestSlacks:
     def test_forward_backward_slack_normal_latency(self, precedence_sfg_delays):
@@ -297,24 +341,22 @@ class TestSlacks:
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         schedule.print_slacks()
         captured = capsys.readouterr()
-        assert (
-            captured.out
-            == """Graph ID | Backward |  Forward
----------|----------|---------
-add0     |        0 |        0
-add1     |        0 |        0
-add2     |        0 |        0
-add3     |        0 |        7
-cmul0    |        0 |        1
-cmul1    |        0 |        0
-cmul2    |        0 |        0
-cmul3    |        4 |        0
-cmul4    |       16 |        0
-cmul5    |       16 |        0
-cmul6    |        4 |        0
-in0      |       oo |        0
-out0     |        0 |       oo
-"""
+        assert captured.out == (
+            "Graph ID | Backward |  Forward\n"
+            "---------|----------|---------\n"
+            "add0     |        0 |        0\n"
+            "add1     |        0 |        0\n"
+            "add2     |        0 |        0\n"
+            "add3     |        0 |        7\n"
+            "cmul0    |        0 |        1\n"
+            "cmul1    |        0 |        0\n"
+            "cmul2    |        0 |        0\n"
+            "cmul3    |        4 |        0\n"
+            "cmul4    |       16 |        0\n"
+            "cmul5    |       16 |        0\n"
+            "cmul6    |        4 |        0\n"
+            "in0      |       oo |        0\n"
+            "out0     |        0 |       oo\n"
         )
         assert captured.err == ""
 
@@ -325,24 +367,22 @@ out0     |        0 |       oo
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         schedule.print_slacks(1)
         captured = capsys.readouterr()
-        assert (
-            captured.out
-            == """Graph ID | Backward |  Forward
----------|----------|---------
-cmul0    |        0 |        1
-add0     |        0 |        0
-add1     |        0 |        0
-cmul1    |        0 |        0
-cmul2    |        0 |        0
-add3     |        0 |        7
-add2     |        0 |        0
-out0     |        0 |       oo
-cmul3    |        4 |        0
-cmul6    |        4 |        0
-cmul4    |       16 |        0
-cmul5    |       16 |        0
-in0      |       oo |        0
-"""
+        assert captured.out == (
+            "Graph ID | Backward |  Forward\n"
+            "---------|----------|---------\n"
+            "cmul0    |        0 |        1\n"
+            "add0     |        0 |        0\n"
+            "add1     |        0 |        0\n"
+            "cmul1    |        0 |        0\n"
+            "cmul2    |        0 |        0\n"
+            "add3     |        0 |        7\n"
+            "add2     |        0 |        0\n"
+            "out0     |        0 |       oo\n"
+            "cmul3    |        4 |        0\n"
+            "cmul6    |        4 |        0\n"
+            "cmul4    |       16 |        0\n"
+            "cmul5    |       16 |        0\n"
+            "in0      |       oo |        0\n"
         )
         assert captured.err == ""
 
@@ -802,10 +842,23 @@ class TestYLocations:
         sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
         sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
         schedule = Schedule(sfg_simple_filter, ASAPScheduler())
-        # Assign locations
-        schedule.show()
-        assert schedule._y_locations == {'in0': 0, 'cmul0': 1, 'add0': 3, 'out0': 2}
-        schedule.move_y_location('add0', 1, insert=True)
-        assert schedule._y_locations == {'in0': 0, 'cmul0': 2, 'add0': 1, 'out0': 3}
-        schedule.move_y_location('out0', 1)
-        assert schedule._y_locations == {'in0': 0, 'cmul0': 2, 'add0': 1, 'out0': 1}
+
+        assert schedule._y_locations == {"in0": 0, "cmul0": 1, "add0": 3, "out0": 2}
+        schedule.move_y_location("add0", 1, insert=True)
+        assert schedule._y_locations == {"in0": 0, "cmul0": 2, "add0": 1, "out0": 3}
+        schedule.move_y_location("out0", 1)
+        assert schedule._y_locations == {"in0": 0, "cmul0": 2, "add0": 1, "out0": 1}
+
+    def test_reset(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        schedule = Schedule(sfg_simple_filter, ASAPScheduler())
+
+        assert schedule._y_locations == {"in0": 0, "cmul0": 1, "add0": 3, "out0": 2}
+        schedule.reset_y_locations()
+        assert schedule._y_locations["in0"] is None
+        assert schedule._y_locations["cmul0"] is None
+        assert schedule._y_locations["add0"] is None
+        assert schedule._y_locations["add0"] is None
+        assert schedule._y_locations["out0"] is None
+        assert schedule._y_locations["foo"] is None

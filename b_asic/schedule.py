@@ -117,9 +117,12 @@ class Schedule:
             self._start_times = start_times
             self._laps.update(laps)
             self._remove_delays_no_laps()
+
         max_end_time = self.get_max_end_time()
         if not self._schedule_time:
             self._schedule_time = max_end_time
+
+        self._validate_schedule()
 
     def __str__(self) -> str:
         """Return a string representation of this Schedule."""
@@ -154,6 +157,32 @@ class Schedule:
             string_io.write(row_str + "\n")
 
         return string_io.getvalue()
+
+    def _validate_schedule(self) -> None:
+        if self._schedule_time is None:
+            raise ValueError("Schedule without set scheduling time detected.")
+        if not isinstance(self._schedule_time, int):
+            raise ValueError("Schedule with non-integer scheduling time detected.")
+
+        ops = {op.graph_id for op in self._sfg.operations}
+        missing_elems = ops - set(self._start_times)
+        extra_elems = set(self._start_times) - ops
+        if missing_elems:
+            raise ValueError(
+                f"Missing operations detected in start_times: {missing_elems}"
+            )
+        if extra_elems:
+            raise ValueError(f"Extra operations detected in start_times: {extra_elems}")
+
+        for graph_id, time in self._start_times.items():
+            if self.forward_slack(graph_id) < 0 or self.backward_slack(graph_id) < 0:
+                raise ValueError(
+                    f"Negative slack detected in Schedule for operation: {graph_id}."
+                )
+            if time > self._schedule_time:
+                raise ValueError(
+                    f"Start time larger than scheduling time detected in Schedule for operation {graph_id}"
+                )
 
     def start_time_of_operation(self, graph_id: GraphID) -> int:
         """
@@ -1122,7 +1151,7 @@ class Schedule:
             color="black",
         )
 
-    def _reset_y_locations(self) -> None:
+    def reset_y_locations(self) -> None:
         """Reset all the y-locations in the schedule to None"""
         self._y_locations = defaultdict(_y_locations_default)
 

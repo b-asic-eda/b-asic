@@ -4,7 +4,7 @@ stages:
 
 before_script:
   - apt-get update --yes
-  # - apt-get install --yes build-essential cmake graphviz python3-pyqt5 xvfb xdg-utils lcov
+  # - apt-get install --yes build-essential cmake graphviz xvfb xdg-utils lcov
   - apt-get install --yes graphviz python3-pyqt5 xvfb xdg-utils
   - apt-get install -y libxcb-cursor-dev
   - python -m pip install --upgrade pip

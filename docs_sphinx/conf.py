@@ -40,7 +40,6 @@ intersphinx_mapping = {
     'graphviz': ('https://graphviz.readthedocs.io/en/stable/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
-    'PyQt5': ("https://www.riverbankcomputing.com/static/Docs/PyQt5", None),
     'networkx': ('https://networkx.org/documentation/stable', None),
     'mplsignal': ('https://mplsignal.readthedocs.io/en/stable/', None),
 }

@@ -56,7 +56,7 @@ from qtpy.QtWidgets import (
 )
 
 # B-ASIC
-import b_asic.scheduler_gui.logger as logger
+import b_asic.logger as logger
 from b_asic._version import __version__
 from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow

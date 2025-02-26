@@ -172,6 +172,7 @@ class ListScheduler(Scheduler, ABC):
         cyclic: Optional[bool] = False,
     ) -> None:
         super()
+
         if max_resources is not None:
             if not isinstance(max_resources, dict):
                 raise ValueError("max_resources must be a dictionary.")
