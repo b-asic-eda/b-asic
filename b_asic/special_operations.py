@@ -53,7 +53,7 @@ class Input(AbstractOperation):
 
     @property
     def latency(self) -> int:
-        return self.latency_offsets["out0"]
+        return 0
 
     @property
     def value(self) -> Num:
@@ -157,7 +157,7 @@ class Output(AbstractOperation):
 
     @property
     def latency(self) -> int:
-        return self.latency_offsets["in0"]
+        return 0
 
 
 class Delay(AbstractOperation):

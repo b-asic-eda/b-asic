@@ -906,3 +906,408 @@ class TestHybridScheduler:
                     max_concurrent_reads=2,
                 ),
             )
+
+    def test_32_point_fft_custom_io_times(self):
+        POINTS = 32
+        sfg = radix_2_dif_fft(POINTS)
+
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        input_times = {f"in{i}": i for i in range(POINTS)}
+        output_delta_times = {f"out{i}": i for i in range(POINTS)}
+        schedule = Schedule(
+            sfg,
+            scheduler=HybridScheduler(
+                resources,
+                input_times=input_times,
+                output_delta_times=output_delta_times,
+            ),
+        )
+
+        for i in range(POINTS):
+            assert schedule.start_times[f"in{i}"] == i
+            assert (
+                schedule.start_times[f"out{i}"]
+                == schedule.get_max_non_io_end_time() + i
+            )
+
+    # Too slow for pipeline right now
+    # def test_64_point_fft_custom_io_times(self):
+    #     POINTS = 64
+    #     sfg = radix_2_dif_fft(POINTS)
+
+    #     sfg.set_latency_of_type(Butterfly.type_name(), 1)
+    #     sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+    #     sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+    #     sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+    #     resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+    #     input_times = {f"in{i}": i for i in range(POINTS)}
+    #     output_delta_times = {f"out{i}": i for i in range(POINTS)}
+    #     schedule = Schedule(
+    #         sfg,
+    #         scheduler=HybridScheduler(
+    #             resources,
+    #             input_times=input_times,
+    #             output_delta_times=output_delta_times,
+    #         ),
+    #     )
+
+    #     for i in range(POINTS):
+    #         assert schedule.start_times[f"in{i}"] == i
+    #         assert (
+    #             schedule.start_times[f"out{i}"]
+    #             == schedule.get_max_non_io_end_time() + i
+    #         )
+
+    def test_32_point_fft_custom_io_times_cyclic(self):
+        POINTS = 32
+        sfg = radix_2_dif_fft(POINTS)
+
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        input_times = {f"in{i}": i for i in range(POINTS)}
+        output_delta_times = {f"out{i}": i for i in range(POINTS)}
+        schedule = Schedule(
+            sfg,
+            scheduler=HybridScheduler(
+                resources,
+                input_times=input_times,
+                output_delta_times=output_delta_times,
+            ),
+            schedule_time=96,
+            cyclic=True,
+        )
+
+        for i in range(POINTS):
+            assert schedule.start_times[f"in{i}"] == i
+            assert schedule.start_times[f"out{i}"] == 96 if i == 0 else i
+
+    def test_cyclic_scheduling(self):
+        sfg = radix_2_dif_fft(points=4)
+
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        resources = {
+            Butterfly.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+        }
+        schedule_1 = Schedule(sfg, scheduler=HybridScheduler(resources))
+        schedule_2 = Schedule(
+            sfg, scheduler=HybridScheduler(resources), schedule_time=6, cyclic=True
+        )
+        schedule_3 = Schedule(
+            sfg, scheduler=HybridScheduler(resources), schedule_time=5, cyclic=True
+        )
+        schedule_4 = Schedule(
+            sfg, scheduler=HybridScheduler(resources), schedule_time=4, cyclic=True
+        )
+
+        assert schedule_1.start_times == {
+            "in1": 0,
+            "in3": 1,
+            "bfly3": 1,
+            "cmul0": 2,
+            "in0": 2,
+            "in2": 3,
+            "bfly0": 3,
+            "bfly1": 4,
+            "bfly2": 5,
+            "out0": 5,
+            "out1": 6,
+            "out3": 7,
+            "out2": 8,
+        }
+        assert schedule_1.laps == {
+            "s4": 0,
+            "s6": 0,
+            "s5": 0,
+            "s7": 0,
+            "s8": 0,
+            "s12": 0,
+            "s10": 0,
+            "s9": 0,
+            "s0": 0,
+            "s2": 0,
+            "s11": 0,
+            "s1": 0,
+            "s3": 0,
+        }
+        assert schedule_1.schedule_time == 8
+
+        assert schedule_2.start_times == {
+            "in1": 0,
+            "in3": 1,
+            "bfly3": 1,
+            "cmul0": 2,
+            "in0": 2,
+            "in2": 3,
+            "bfly0": 3,
+            "bfly1": 4,
+            "bfly2": 5,
+            "out0": 5,
+            "out1": 6,
+            "out3": 1,
+            "out2": 2,
+        }
+        assert schedule_2.laps == {
+            "s4": 0,
+            "s6": 1,
+            "s5": 0,
+            "s7": 1,
+            "s8": 0,
+            "s12": 0,
+            "s10": 0,
+            "s9": 0,
+            "s0": 0,
+            "s2": 0,
+            "s11": 0,
+            "s1": 0,
+            "s3": 0,
+        }
+        assert schedule_2.schedule_time == 6
+
+        assert schedule_3.start_times == {
+            "in1": 0,
+            "in3": 1,
+            "bfly3": 1,
+            "cmul0": 2,
+            "in0": 2,
+            "in2": 3,
+            "bfly0": 3,
+            "bfly1": 4,
+            "bfly2": 0,
+            "out0": 5,
+            "out1": 1,
+            "out3": 2,
+            "out2": 3,
+        }
+        assert schedule_3.laps == {
+            "s4": 0,
+            "s6": 1,
+            "s5": 0,
+            "s7": 0,
+            "s8": 0,
+            "s12": 0,
+            "s10": 1,
+            "s9": 1,
+            "s0": 0,
+            "s2": 0,
+            "s11": 0,
+            "s1": 0,
+            "s3": 0,
+        }
+        assert schedule_3.schedule_time == 5
+
+        assert schedule_4.start_times == {
+            "in1": 0,
+            "in3": 1,
+            "bfly3": 1,
+            "cmul0": 2,
+            "in0": 2,
+            "in2": 3,
+            "bfly0": 3,
+            "bfly1": 0,
+            "out0": 1,
+            "bfly2": 2,
+            "out2": 2,
+            "out1": 3,
+            "out3": 4,
+        }
+        assert schedule_4.laps == {
+            "s4": 0,
+            "s6": 0,
+            "s5": 0,
+            "s7": 0,
+            "s8": 1,
+            "s12": 1,
+            "s10": 0,
+            "s9": 1,
+            "s0": 0,
+            "s2": 0,
+            "s11": 0,
+            "s1": 0,
+            "s3": 0,
+        }
+        assert schedule_4.schedule_time == 4
+
+    def test_cyclic_scheduling_time_not_provided(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
+        with pytest.raises(
+            ValueError,
+            match="Scheduling time must be provided when cyclic = True.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(
+                    max_resources=resources,
+                ),
+                cyclic=True,
+            )
+
+    def test_resources_not_enough(self):
+        sfg = ldlt_matrix_inverse(N=3)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
+        with pytest.raises(
+            ValueError,
+            match="Amount of resource: mads is not enough to realize schedule for scheduling time: 5.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(
+                    max_resources=resources,
+                ),
+                schedule_time=5,
+            )
+
+    def test_scheduling_time_not_enough(self):
+        sfg = ldlt_matrix_inverse(N=3)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        resources = {MADS.type_name(): 10, Reciprocal.type_name(): 10}
+        with pytest.raises(
+            ValueError,
+            match="Provided scheduling time 5 cannot be reached, try to enable the cyclic property or increase the time to at least 30.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(
+                    max_resources=resources,
+                ),
+                schedule_time=5,
+            )
+
+    def test_cyclic_scheduling_write_and_read_constrained(self):
+        sfg = radix_2_dif_fft(points=4)
+
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        resources = {
+            Butterfly.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+        }
+        schedule = Schedule(
+            sfg,
+            scheduler=HybridScheduler(
+                resources, max_concurrent_reads=2, max_concurrent_writes=2
+            ),
+            schedule_time=6,
+            cyclic=True,
+        )
+
+        assert schedule.start_times == {
+            "in1": 0,
+            "in3": 1,
+            "bfly3": 1,
+            "cmul0": 2,
+            "in0": 3,
+            "in2": 4,
+            "bfly0": 4,
+            "bfly1": 5,
+            "bfly2": 0,
+            "out0": 6,
+            "out1": 1,
+            "out3": 2,
+            "out2": 3,
+        }
+        assert schedule.laps == {
+            "s4": 0,
+            "s6": 1,
+            "s5": 0,
+            "s7": 0,
+            "s8": 0,
+            "s12": 0,
+            "s10": 1,
+            "s9": 1,
+            "s0": 0,
+            "s2": 0,
+            "s11": 0,
+            "s1": 0,
+            "s3": 0,
+        }
+        assert schedule.schedule_time == 6
+
+        direct, mem_vars = schedule.get_memory_variables().split_on_length()
+        assert mem_vars.read_ports_bound() == 2
+        assert mem_vars.write_ports_bound() == 2
+
+    def test_cyclic_scheduling_several_inputs_and_outputs(self):
+        sfg = radix_2_dif_fft(points=4)
+
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        resources = {
+            Butterfly.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): 2,
+            Output.type_name(): 2,
+        }
+        schedule = Schedule(
+            sfg, scheduler=HybridScheduler(resources), schedule_time=4, cyclic=True
+        )
+
+        assert schedule.start_times == {
+            'in1': 0,
+            'in3': 0,
+            'bfly3': 0,
+            'cmul0': 1,
+            'in0': 1,
+            "in2": 1,
+            'bfly0': 1,
+            'bfly1': 2,
+            'out0': 3,
+            'out2': 3,
+            'bfly2': 3,
+            'out1': 4,
+            'out3': 4,
+        }
+        assert schedule.laps == {
+            's4': 0,
+            's6': 0,
+            's5': 0,
+            's7': 0,
+            's8': 0,
+            's12': 0,
+            's10': 1,
+            's9': 0,
+            's0': 0,
+            's2': 0,
+            's11': 0,
+            's1': 0,
+            's3': 0,
+        }
+        assert schedule.schedule_time == 4

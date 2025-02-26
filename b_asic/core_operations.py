@@ -69,7 +69,7 @@ class Constant(AbstractOperation):
 
     @property
     def latency(self) -> int:
-        return self.latency_offsets["out0"]
+        return 0
 
     def __repr__(self) -> str:
         return f"Constant({self.value})"
@@ -1689,7 +1689,7 @@ class DontCare(AbstractOperation):
 
     @property
     def latency(self) -> int:
-        return self.latency_offsets["out0"]
+        return 0
 
     def __repr__(self) -> str:
         return "DontCare()"
@@ -1766,7 +1766,7 @@ class Sink(AbstractOperation):
 
     @property
     def latency(self) -> int:
-        return self.latency_offsets["in0"]
+        return 0
 
     def __repr__(self) -> str:
         return "Sink()"

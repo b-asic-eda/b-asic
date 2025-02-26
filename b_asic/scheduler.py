@@ -226,7 +226,7 @@ class ListScheduler(Scheduler, ABC):
                 if resource_amount < resource_lower_bound:
                     raise ValueError(
                         f"Amount of resource: {resource_type} is not enough to "
-                        f"realize schedule for scheduling time: {self._schedule.schedule_time}"
+                        f"realize schedule for scheduling time: {self._schedule.schedule_time}."
                     )
 
         alap_schedule = copy.copy(self._schedule)
@@ -245,8 +245,20 @@ class ListScheduler(Scheduler, ABC):
 
         self._remaining_resources = self._max_resources.copy()
 
-        remaining_ops = self._sfg.operations
-        remaining_ops = [op.graph_id for op in remaining_ops]
+        self._remaining_ops = self._sfg.operations
+        self._remaining_ops = [op.graph_id for op in self._remaining_ops]
+
+        self._cached_latencies = {
+            op_id: self._sfg.find_by_id(op_id).latency for op_id in self._remaining_ops
+        }
+        self._cached_execution_times = {
+            op_id: self._sfg.find_by_id(op_id).execution_time
+            for op_id in self._remaining_ops
+        }
+
+        self._deadlines = self._calculate_deadlines(alap_start_times)
+        self._output_slacks = self._calculate_alap_output_slacks(alap_start_times)
+        self._fan_outs = self._calculate_fan_outs(alap_start_times)
 
         self._schedule.start_times = {}
         self.remaining_reads = self._max_concurrent_reads
@@ -260,23 +272,24 @@ class ListScheduler(Scheduler, ABC):
             for input_id in self._input_times:
                 self._schedule.start_times[input_id] = self._input_times[input_id]
                 self._op_laps[input_id] = 0
-            remaining_ops = [
-                elem for elem in remaining_ops if not elem.startswith("in")
+            self._remaining_ops = [
+                elem for elem in self._remaining_ops if not elem.startswith("in")
             ]
 
-        remaining_ops = [op for op in remaining_ops if not op.startswith("dontcare")]
-        remaining_ops = [op for op in remaining_ops if not op.startswith("t")]
-        remaining_ops = [
+        self._remaining_ops = [
+            op for op in self._remaining_ops if not op.startswith("dontcare")
+        ]
+        self._remaining_ops = [
+            op for op in self._remaining_ops if not op.startswith("t")
+        ]
+        self._remaining_ops = [
             op
-            for op in remaining_ops
+            for op in self._remaining_ops
             if not (op.startswith("out") and op in self._output_delta_times)
         ]
 
-        while remaining_ops:
-            ready_ops_priority_table = self._get_ready_ops_priority_table(
-                alap_start_times,
-                remaining_ops,
-            )
+        while self._remaining_ops:
+            ready_ops_priority_table = self._get_ready_ops_priority_table()
             while ready_ops_priority_table:
                 next_op = self._sfg.find_by_id(
                     self._get_next_op_id(ready_ops_priority_table)
@@ -284,8 +297,8 @@ class ListScheduler(Scheduler, ABC):
 
                 self.remaining_reads -= next_op.input_count
 
-                remaining_ops = [
-                    op_id for op_id in remaining_ops if op_id != next_op.graph_id
+                self._remaining_ops = [
+                    op_id for op_id in self._remaining_ops if op_id != next_op.graph_id
                 ]
 
                 self._time_out_counter = 0
@@ -295,25 +308,10 @@ class ListScheduler(Scheduler, ABC):
                     if self._schedule.schedule_time
                     else 0
                 )
-                if not self._schedule.cyclic and self._schedule.schedule_time:
-                    if self._current_time > self._schedule.schedule_time:
-                        raise ValueError(
-                            f"Provided scheduling time {schedule.schedule_time} cannot be reached, "
-                            "try to enable the cyclic property or increase the time."
-                        )
 
-                ready_ops_priority_table = self._get_ready_ops_priority_table(
-                    alap_start_times,
-                    remaining_ops,
-                )
+                ready_ops_priority_table = self._get_ready_ops_priority_table()
 
             self._go_to_next_time_step()
-
-            ready_ops_priority_table = self._get_ready_ops_priority_table(
-                alap_start_times,
-                remaining_ops,
-            )
-
             self.remaining_reads = self._max_concurrent_reads
 
         self._current_time -= 1
@@ -354,43 +352,35 @@ class ListScheduler(Scheduler, ABC):
         sorted_table = sorted(ready_ops_priority_table, key=sort_key)
         return sorted_table[0][0]
 
-    def _get_ready_ops_priority_table(
-        self,
-        alap_start_times: dict["GraphID", int],
-        remaining_ops: list["GraphID"],
-    ) -> list[tuple["GraphID", int, int, int]]:
+    def _get_ready_ops_priority_table(self) -> list[tuple["GraphID", int, int, int]]:
         ready_ops = [
             op_id
-            for op_id in remaining_ops
-            if self._op_is_schedulable(self._sfg.find_by_id(op_id), remaining_ops)
+            for op_id in self._remaining_ops
+            if self._op_is_schedulable(self._sfg.find_by_id(op_id))
         ]
 
-        deadlines = self._calculate_deadlines(alap_start_times)
-        output_slacks = self._calculate_alap_output_slacks(alap_start_times)
-        fan_outs = self._calculate_fan_outs(alap_start_times)
-
-        ready_ops_priority_table = []
-        for op_id in ready_ops:
-            ready_ops_priority_table.append(
-                (op_id, deadlines[op_id], output_slacks[op_id], fan_outs[op_id])
+        return [
+            (
+                op_id,
+                self._deadlines[op_id],
+                self._output_slacks[op_id],
+                self._fan_outs[op_id],
             )
-        return ready_ops_priority_table
+            for op_id in ready_ops
+        ]
 
     def _calculate_deadlines(
         self, alap_start_times: dict["GraphID", int]
     ) -> dict["GraphID", int]:
         return {
-            op_id: start_time + self._sfg.find_by_id(op_id).latency
+            op_id: start_time + self._cached_latencies[op_id]
             for op_id, start_time in alap_start_times.items()
         }
 
     def _calculate_alap_output_slacks(
         self, alap_start_times: dict["GraphID", int]
     ) -> dict["GraphID", int]:
-        return {
-            op_id: start_time - self._current_time
-            for op_id, start_time in alap_start_times.items()
-        }
+        return {op_id: start_time for op_id, start_time in alap_start_times.items()}
 
     def _calculate_fan_outs(
         self, alap_start_times: dict["GraphID", int]
@@ -412,26 +402,22 @@ class ListScheduler(Scheduler, ABC):
                 start_time = start_time % self._schedule.schedule_time
 
             if time_slot >= start_time:
-                if time_slot < start_time + max(
-                    self._sfg.find_by_id(op_id).execution_time, 1
-                ):
+                if time_slot < start_time + max(self._cached_execution_times[op_id], 1):
                     if op_id.startswith(op.type_name()):
                         if op.graph_id != op_id:
                             count += 1
 
         return count < self._remaining_resources[op.type_name()]
 
-    def _op_is_schedulable(
-        self, op: "Operation", remaining_ops: list["GraphID"]
-    ) -> bool:
+    def _op_is_schedulable(self, op: "Operation") -> bool:
         if not self._op_satisfies_resource_constraints(op):
             return False
 
-        op_finish_time = self._current_time + op.latency
+        op_finish_time = self._current_time + self._cached_latencies[op.graph_id]
         future_ops = [
             self._sfg.find_by_id(item[0])
             for item in self._schedule.start_times.items()
-            if item[1] + self._sfg.find_by_id(item[0]).latency == op_finish_time
+            if item[1] + self._cached_latencies[item[0]] == op_finish_time
         ]
 
         future_ops_writes = sum([op.input_count for op in future_ops])
@@ -451,7 +437,7 @@ class ListScheduler(Scheduler, ABC):
 
             source_op_graph_id = source_op.graph_id
 
-            if source_op_graph_id in remaining_ops:
+            if source_op_graph_id in self._remaining_ops:
                 return False
 
             if self._schedule.start_times[source_op_graph_id] != self._current_time - 1:
@@ -466,12 +452,18 @@ class ListScheduler(Scheduler, ABC):
                     self._schedule.start_times.get(source_op_graph_id)
                     + self._op_laps[source_op.graph_id] * self._schedule.schedule_time
                 )
-                proceeding_op_finish_time = proceeding_op_start_time + source_op.latency
+                proceeding_op_finish_time = (
+                    proceeding_op_start_time
+                    + self._cached_latencies[source_op.graph_id]
+                )
             else:
                 proceeding_op_start_time = self._schedule.start_times.get(
                     source_op_graph_id
                 )
-                proceeding_op_finish_time = proceeding_op_start_time + source_op.latency
+                proceeding_op_finish_time = (
+                    proceeding_op_start_time
+                    + self._cached_latencies[source_op.graph_id]
+                )
             earliest_start_time = max(earliest_start_time, proceeding_op_finish_time)
 
         return earliest_start_time <= self._current_time
@@ -502,7 +494,7 @@ class ListScheduler(Scheduler, ABC):
                 self._remaining_resources[Output.type_name()] -= count
 
                 self._current_time = new_time
-                if not self._op_is_schedulable(output, {}):
+                if not self._op_is_schedulable(output):
                     raise ValueError(
                         "Cannot schedule outputs according to the provided output_delta_times. "
                         f"Failed output: {output.graph_id}, "
