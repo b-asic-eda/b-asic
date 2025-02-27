@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from math import ceil
 from typing import TYPE_CHECKING, Optional, cast
 
+import b_asic.logger as logger
 from b_asic.core_operations import DontCare
 from b_asic.port import OutputPort
 from b_asic.special_operations import Delay, Input, Output
@@ -172,6 +173,7 @@ class ListScheduler(Scheduler, ABC):
         cyclic: Optional[bool] = False,
     ) -> None:
         super()
+        self._logger = logger.getLogger(__name__, "list_scheduler.log", "DEBUG")
 
         if max_resources is not None:
             if not isinstance(max_resources, dict):
@@ -209,6 +211,8 @@ class ListScheduler(Scheduler, ABC):
         schedule : Schedule
             Schedule to apply the scheduling algorithm on.
         """
+        self._logger.debug("--- Scheduler initializing ---")
+
         self._schedule = schedule
         self._sfg = schedule.sfg
 
@@ -267,15 +271,6 @@ class ListScheduler(Scheduler, ABC):
         self._time_out_counter = 0
         self._op_laps = {}
 
-        # initial input placement
-        if self._input_times:
-            for input_id in self._input_times:
-                self._schedule.start_times[input_id] = self._input_times[input_id]
-                self._op_laps[input_id] = 0
-            self._remaining_ops = [
-                elem for elem in self._remaining_ops if not elem.startswith("in")
-            ]
-
         self._remaining_ops = [
             op for op in self._remaining_ops if not op.startswith("dontcare")
         ]
@@ -288,6 +283,20 @@ class ListScheduler(Scheduler, ABC):
             if not (op.startswith("out") and op in self._output_delta_times)
         ]
 
+        if self._input_times:
+            self._logger.debug("--- Input placement starting ---")
+            for input_id in self._input_times:
+                self._schedule.start_times[input_id] = self._input_times[input_id]
+                self._op_laps[input_id] = 0
+                self._logger.debug(
+                    f"   {input_id} time: {self._schedule.start_times[input_id]}"
+                )
+            self._remaining_ops = [
+                elem for elem in self._remaining_ops if not elem.startswith("in")
+            ]
+            self._logger.debug("--- Input placement completed ---")
+
+        self._logger.debug("--- Operation scheduling starting ---")
         while self._remaining_ops:
             ready_ops_priority_table = self._get_ready_ops_priority_table()
             while ready_ops_priority_table:
@@ -309,14 +318,26 @@ class ListScheduler(Scheduler, ABC):
                     else 0
                 )
 
+                if self._schedule.schedule_time is not None:
+                    self._logger.debug(
+                        f"  Op: {next_op.graph_id}, time: {self._current_time % self._schedule.schedule_time}"
+                    )
+                else:
+                    self._logger.debug(
+                        f"  Op: {next_op.graph_id}, time: {self._current_time}"
+                    )
+
                 ready_ops_priority_table = self._get_ready_ops_priority_table()
 
             self._go_to_next_time_step()
             self.remaining_reads = self._max_concurrent_reads
 
+        self._logger.debug("--- Operation scheduling completed ---")
+
         self._current_time -= 1
 
-        self._handle_outputs()
+        if self._output_delta_times:
+            self._handle_outputs()
 
         if self._schedule.schedule_time is None:
             self._schedule.set_schedule_time(self._schedule.get_max_end_time())
@@ -330,6 +351,7 @@ class ListScheduler(Scheduler, ABC):
             self._schedule.move_operation_alap(dc_op.graph_id)
 
         self._schedule.sort_y_locations_on_start_times()
+        self._logger.debug("--- Scheduling completed ---")
 
     def _go_to_next_time_step(self):
         self._time_out_counter += 1
@@ -469,6 +491,7 @@ class ListScheduler(Scheduler, ABC):
         return earliest_start_time <= self._current_time
 
     def _handle_outputs(self) -> None:
+        self._logger.debug("--- Output placement starting ---")
         if self._schedule.cyclic:
             end = self._schedule.schedule_time
         else:
@@ -501,3 +524,12 @@ class ListScheduler(Scheduler, ABC):
                         f"at time: { self._schedule.start_times[output.graph_id]}, "
                         "try relaxing the constraints."
                     )
+
+                modulo_time = (
+                    new_time % self._schedule.schedule_time
+                    if self._schedule.schedule_time
+                    else new_time
+                )
+                self._logger.debug(f"   {output.graph_id} time: {modulo_time}")
+
+        self._logger.debug("--- Output placement completed ---")

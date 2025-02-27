@@ -55,15 +55,17 @@ from types import TracebackType
 from typing import Type, Union
 
 
-def getLogger(filename: str = "scheduler-gui.log", loglevel: str = "INFO") -> Logger:
+def getLogger(source: str, filename: str, loglevel: str = "INFO") -> Logger:
     """
     This function creates console- and filehandler and from those, creates a logger
     object.
 
     Parameters
     ----------
-    filename : str optional
-        Output filename. Defaults to 'scheduler-gui.log'.
+    source : str
+        Source filename.
+    filename : str
+        Output filename.
     loglevel : str, optional
         The minimum level that the logger will log. Defaults to 'INFO'.
 
@@ -74,7 +76,7 @@ def getLogger(filename: str = "scheduler-gui.log", loglevel: str = "INFO") -> Lo
 
     # logger = logging.getLogger(name)
     # logger = logging.getLogger('root')
-    logger = logging.getLogger()
+    logger = logging.getLogger(source)
 
     # if logger 'name' already exists, return it to avoid logging duplicate
     # messages by attaching multiple handlers of the same type
