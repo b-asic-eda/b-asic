@@ -5,7 +5,7 @@ Contains a GUI class for drag buttons.
 """
 
 import os.path
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QIcon
@@ -56,7 +56,7 @@ class DragButton(QPushButton):
         parent=None,
     ):
         self.name = operation.name or operation.graph_id
-        self._ports: List[PortButton] = []
+        self._ports: list[PortButton] = []
         self.show_name = show_name
         self._window = window
         self.operation = operation
@@ -115,7 +115,7 @@ class DragButton(QPushButton):
         super().mousePressEvent(event)
 
     @property
-    def port_list(self) -> List[PortButton]:
+    def port_list(self) -> list[PortButton]:
         """Return a list of PortButtons."""
         return self._ports
 

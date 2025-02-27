@@ -1,11 +1,11 @@
 """B-ASIC Utilities."""
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 from b_asic.types import Num
 
 
-def interleave(*args) -> List[Num]:
+def interleave(*args) -> list[Num]:
     """
     Interleave a number of arrays.
 
@@ -29,7 +29,7 @@ def interleave(*args) -> List[Num]:
     return [val for tup in zip(*args) for val in tup]
 
 
-def downsample(a: Sequence[Num], factor: int, phase: int = 0) -> List[Num]:
+def downsample(a: Sequence[Num], factor: int, phase: int = 0) -> list[Num]:
     """
     Downsample a sequence with an integer factor.
 
@@ -57,7 +57,7 @@ def downsample(a: Sequence[Num], factor: int, phase: int = 0) -> List[Num]:
     return a[phase::factor]
 
 
-def upsample(a: Sequence[Num], factor: int, phase: int = 0) -> List[Num]:
+def upsample(a: Sequence[Num], factor: int, phase: int = 0) -> list[Num]:
     """
     Upsample a sequence with an integer factor.
 
@@ -93,7 +93,7 @@ def upsample(a: Sequence[Num], factor: int, phase: int = 0) -> List[Num]:
     return interleave(*args)
 
 
-def decompose(a: Sequence[Num], factor: int) -> List[List[Num]]:
+def decompose(a: Sequence[Num], factor: int) -> list[list[Num]]:
     """
     Polyphase decompose signal *a* into *factor* parts.
 

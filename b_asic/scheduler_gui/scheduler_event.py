@@ -6,7 +6,7 @@ Contains the scheduler_ui SchedulerEvent class containing event filters and
 handlers for SchedulerItem objects.
 """
 import math
-from typing import List, Optional, overload
+from typing import overload
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import QEvent, QObject, QPointF, Qt, Signal
@@ -40,14 +40,14 @@ class SchedulerEvent:
         execution_time_plot = Signal(str)
         TextSignal = Signal(str)
 
-    _axes: Optional[AxesItem]
+    _axes: AxesItem | None
     _current_pos: QPointF
     _delta_time: int
     _signals: Signals
     _schedule: Schedule
     _old_op_position: int = -1
 
-    def __init__(self, parent: Optional[QGraphicsItem] = None):
+    def __init__(self, parent: QGraphicsItem | None = None):
         super().__init__(parent=parent)
         self._signals = self.Signals()
 
@@ -73,7 +73,7 @@ class SchedulerEvent:
     def installSceneEventFilters(self, filterItems: QGraphicsItem) -> None: ...
 
     @overload
-    def installSceneEventFilters(self, filterItems: List[QGraphicsItem]) -> None: ...
+    def installSceneEventFilters(self, filterItems: list[QGraphicsItem]) -> None: ...
 
     def installSceneEventFilters(self, filterItems) -> None:
         """
@@ -90,7 +90,7 @@ class SchedulerEvent:
     def removeSceneEventFilters(self, filterItems: QGraphicsItem) -> None: ...
 
     @overload
-    def removeSceneEventFilters(self, filterItems: List[QGraphicsItem]) -> None: ...
+    def removeSceneEventFilters(self, filterItems: list[QGraphicsItem]) -> None: ...
 
     def removeSceneEventFilters(self, filterItems) -> None:
         """

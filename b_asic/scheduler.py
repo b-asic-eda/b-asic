@@ -2,7 +2,7 @@ import copy
 import sys
 from abc import ABC, abstractmethod
 from math import ceil
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 import b_asic.logger as logger
 from b_asic.core_operations import DontCare
@@ -29,7 +29,7 @@ class Scheduler(ABC):
         raise NotImplementedError
 
     def _handle_outputs(
-        self, schedule: "Schedule", non_schedulable_ops: Optional[list["GraphID"]] = []
+        self, schedule: "Schedule", non_schedulable_ops: list["GraphID"] | None = []
     ) -> None:
         for output in schedule.sfg.find_by_type_name(Output.type_name()):
             output = cast(Output, output)
@@ -165,12 +165,12 @@ class ListScheduler(Scheduler, ABC):
 
     def __init__(
         self,
-        max_resources: Optional[dict[TypeName, int]] = None,
-        max_concurrent_reads: Optional[int] = None,
-        max_concurrent_writes: Optional[int] = None,
-        input_times: Optional[dict["GraphID", int]] = None,
-        output_delta_times: Optional[dict["GraphID", int]] = None,
-        cyclic: Optional[bool] = False,
+        max_resources: dict[TypeName, int] | None = None,
+        max_concurrent_reads: int | None = None,
+        max_concurrent_writes: int | None = None,
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+        cyclic: bool | None = False,
     ) -> None:
         super()
         self._logger = logger.getLogger(__name__, "list_scheduler.log", "DEBUG")

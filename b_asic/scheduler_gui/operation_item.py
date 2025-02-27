@@ -5,7 +5,7 @@ B-ASIC Scheduler-GUI Operation Item Module.
 Contains the scheduler_gui OperationItem class for drawing and maintain an operation
 in the schedule.
 """
-from typing import TYPE_CHECKING, Dict, List, Union, cast
+from typing import TYPE_CHECKING, cast
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import QPointF, Qt
@@ -56,13 +56,13 @@ class OperationItem(QGraphicsItemGroup):
     """Static, changed from MainWindow."""
     _operation: Operation
     _height: float
-    _ports: Dict[str, Dict[str, Union[float, QPointF]]]  # ['port-id']['latency/pos']
+    _ports: dict[str, dict[str, float | QPointF]]  # ['port-id']['latency/pos']
     _end_time: int
     _latency_item: QGraphicsPathItem
     _execution_time_item: QGraphicsPathItem
     _label_item: QGraphicsSimpleTextItem
-    _port_items: List[QGraphicsEllipseItem]
-    _port_number_items: List[QGraphicsSimpleTextItem]
+    _port_items: list[QGraphicsEllipseItem]
+    _port_number_items: list[QGraphicsSimpleTextItem]
     _inactive_color: QColor = Latency_Color.DEFAULT
 
     def __init__(
@@ -80,7 +80,7 @@ class OperationItem(QGraphicsItemGroup):
         self._operation = operation
         self._height = height
         operation._check_all_latencies_set()
-        latency_offsets = cast(Dict[str, int], operation.latency_offsets)
+        latency_offsets = cast(dict[str, int], operation.latency_offsets)
         self._ports = {k: {"latency": float(v)} for k, v in latency_offsets.items()}
         self._end_time = max(latency_offsets.values())
         self._port_items = []
@@ -177,7 +177,7 @@ class OperationItem(QGraphicsItemGroup):
             self._make_component()
 
     @property
-    def event_items(self) -> List[QGraphicsItem]:
+    def event_items(self) -> list[QGraphicsItem]:
         """List of objects that receives events."""
         return [self]
 

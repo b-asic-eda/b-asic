@@ -1,6 +1,6 @@
 """B-ASIC classes representing resource usage."""
 
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Optional, cast
 
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -69,7 +69,7 @@ class Process:
         return f"Process({self.start_time}, {self.execution_time}, {self.name!r})"
 
     @property
-    def read_times(self) -> Tuple[int, ...]:
+    def read_times(self) -> tuple[int, ...]:
         return (self.start_time + self.execution_time,)
 
 
@@ -94,7 +94,7 @@ class OperatorProcess(Process):
         self,
         start_time: int,
         operation: Operation,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         execution_time = operation.execution_time
         if execution_time is None:
@@ -140,12 +140,12 @@ class MemoryProcess(Process):
     """
 
     __slots__ = ("_life_times",)
-    _life_times: List[int]
+    _life_times: list[int]
 
     def __init__(
         self,
         write_time: int,
-        life_times: List[int],
+        life_times: list[int],
         name: str = "",
     ):
         pass
@@ -157,19 +157,19 @@ class MemoryProcess(Process):
         )
 
     @property
-    def read_times(self) -> Tuple[int, ...]:
+    def read_times(self) -> tuple[int, ...]:
         return tuple(self.start_time + read for read in self._life_times)
 
     @property
-    def life_times(self) -> List[int]:
+    def life_times(self) -> list[int]:
         return self._life_times
 
     @property
-    def reads(self) -> Dict[Any, int]:
+    def reads(self) -> dict[Any, int]:
         raise NotImplementedError("MultiReadProcess should be derived from")
 
     @property
-    def read_ports(self) -> List[Any]:
+    def read_ports(self) -> list[Any]:
         raise NotImplementedError("MultiReadProcess should be derived from")
 
     @property
@@ -179,7 +179,7 @@ class MemoryProcess(Process):
     def split_on_length(
         self,
         length: int = 0,
-    ) -> Tuple[Optional["MemoryProcess"], Optional["MemoryProcess"]]:
+    ) -> tuple[Optional["MemoryProcess"], Optional["MemoryProcess"]]:
         """
         Split this :class:`MemoryProcess` into two new :class:`MemoryProcess` objects.
 
@@ -286,16 +286,16 @@ class MemoryVariable(MemoryProcess):
     """
 
     __slots__ = ("_reads", "_read_ports", "_write_port")
-    _reads: Dict[InputPort, int]
-    _read_ports: List[InputPort]
+    _reads: dict[InputPort, int]
+    _read_ports: list[InputPort]
     _write_port: OutputPort
 
     def __init__(
         self,
         write_time: int,
         write_port: OutputPort,
-        reads: Dict[InputPort, int],
-        name: Optional[str] = None,
+        reads: dict[InputPort, int],
+        name: str | None = None,
     ):
         self._read_ports = list(reads.keys())
         self._reads = reads
@@ -307,11 +307,11 @@ class MemoryVariable(MemoryProcess):
         )
 
     @property
-    def reads(self) -> Dict[InputPort, int]:
+    def reads(self) -> dict[InputPort, int]:
         return self._reads
 
     @property
-    def read_ports(self) -> List[InputPort]:
+    def read_ports(self) -> list[InputPort]:
         return self._read_ports
 
     @property
@@ -328,7 +328,7 @@ class MemoryVariable(MemoryProcess):
     def split_on_length(
         self,
         length: int = 0,
-    ) -> Tuple[Optional["MemoryVariable"], Optional["MemoryVariable"]]:
+    ) -> tuple[Optional["MemoryVariable"], Optional["MemoryVariable"]]:
         """
         Split this :class:`MemoryVariable` into two new :class:`MemoryVariable` objects,
         based on lifetimes of read accesses.
@@ -376,16 +376,16 @@ class PlainMemoryVariable(MemoryProcess):
     """
 
     __slots__ = ("_reads", "_read_ports", "_write_port")
-    _reads: Dict[int, int]
-    _read_ports: List[int]
+    _reads: dict[int, int]
+    _read_ports: list[int]
     _write_port: OutputPort
 
     def __init__(
         self,
         write_time: int,
         write_port: int,
-        reads: Dict[int, int],
-        name: Optional[str] = None,
+        reads: dict[int, int],
+        name: str | None = None,
     ):
         self._read_ports = list(reads.keys())
         self._write_port = write_port
@@ -401,11 +401,11 @@ class PlainMemoryVariable(MemoryProcess):
         )
 
     @property
-    def reads(self) -> Dict[int, int]:
+    def reads(self) -> dict[int, int]:
         return self._reads
 
     @property
-    def read_ports(self) -> List[int]:
+    def read_ports(self) -> list[int]:
         return self._read_ports
 
     @property
@@ -422,7 +422,7 @@ class PlainMemoryVariable(MemoryProcess):
     def split_on_length(
         self,
         length: int = 0,
-    ) -> Tuple[Optional["PlainMemoryVariable"], Optional["PlainMemoryVariable"]]:
+    ) -> tuple[Optional["PlainMemoryVariable"], Optional["PlainMemoryVariable"]]:
         """
         Split this :class:`PlainMemoryVariable` into two new
         :class:`PlainMemoryVariable` objects, based on lifetimes of read accesses.

@@ -3,20 +3,12 @@ B-ASIC architecture classes.
 """
 
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from io import TextIOWrapper
 from itertools import chain
 from typing import (
     DefaultDict,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
     Literal,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
     cast,
 )
 
@@ -55,13 +47,13 @@ class HardwareBlock:
     """
 
     __slots__ = "_entity_name"
-    _entity_name: Optional[str]
+    _entity_name: str | None
 
     __slots__ = "_entity_name"
-    _entity_name: Optional[str]
+    _entity_name: str | None
 
-    def __init__(self, entity_name: Optional[str] = None):
-        self._entity_name: Optional[str] = None
+    def __init__(self, entity_name: str | None = None):
+        self._entity_name: str | None = None
         if entity_name is not None:
             self.set_entity_name(entity_name)
 
@@ -161,7 +153,7 @@ class Resource(HardwareBlock):
     """
 
     def __init__(
-        self, process_collection: ProcessCollection, entity_name: Optional[str] = None
+        self, process_collection: ProcessCollection, entity_name: str | None = None
     ):
         if not len(process_collection):
             raise ValueError("Do not create Resource with empty ProcessCollection")
@@ -169,7 +161,7 @@ class Resource(HardwareBlock):
         self._collection = process_collection
         self._input_count = -1
         self._output_count = -1
-        self._assignment: Optional[List[ProcessCollection]] = None
+        self._assignment: list[ProcessCollection] | None = None
 
     def __repr__(self):
         return self.entity_name
@@ -311,7 +303,7 @@ class Resource(HardwareBlock):
         return self._collection
 
     @property
-    def operation_type(self) -> Union[Type[MemoryProcess], Type[Operation]]:
+    def operation_type(self) -> type[MemoryProcess] | type[Operation]:
         raise NotImplementedError("ABC Resource does not implement operation_type")
 
     def add_process(self, proc: Process, assign=False):
@@ -387,12 +379,12 @@ class ProcessingElement(Resource):
     _color = f"#{''.join(f'{v:0>2X}' for v in PE_COLOR)}"
     __slots__ = ("_process_collection", "_entity_name")
     _process_collection: ProcessCollection
-    _entity_name: Optional[str]
+    _entity_name: str | None
 
     def __init__(
         self,
         process_collection: ProcessCollection,
-        entity_name: Optional[str] = None,
+        entity_name: str | None = None,
         assign: bool = True,
     ):
         super().__init__(process_collection=process_collection, entity_name=entity_name)
@@ -426,7 +418,7 @@ class ProcessingElement(Resource):
             self.assign()
 
     @property
-    def processes(self) -> List[OperatorProcess]:
+    def processes(self) -> list[OperatorProcess]:
         return [cast(OperatorProcess, p) for p in self._collection]
 
     def assign(
@@ -451,7 +443,7 @@ class ProcessingElement(Resource):
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
     @property
-    def operation_type(self) -> Type[Operation]:
+    def operation_type(self) -> type[Operation]:
         return self._operation_type
 
 
@@ -489,20 +481,20 @@ class Memory(Resource):
     )
     _process_collection: ProcessCollection
     _memory_type: Literal["RAM", "register"]
-    _entity_name: Optional[str]
-    _read_ports: Optional[int]
-    _write_ports: Optional[int]
-    _total_ports: Optional[int]
+    _entity_name: str | None
+    _read_ports: int | None
+    _write_ports: int | None
+    _total_ports: int | None
     _assign: bool
 
     def __init__(
         self,
         process_collection: ProcessCollection,
         memory_type: Literal["RAM", "register"] = "RAM",
-        entity_name: Optional[str] = None,
-        read_ports: Optional[int] = None,
-        write_ports: Optional[int] = None,
-        total_ports: Optional[int] = None,
+        entity_name: str | None = None,
+        read_ports: int | None = None,
+        write_ports: int | None = None,
+        total_ports: int | None = None,
         assign: bool = False,
     ):
         super().__init__(process_collection=process_collection, entity_name=entity_name)
@@ -587,7 +579,7 @@ class Memory(Resource):
             raise NotImplementedError()
 
     @property
-    def operation_type(self) -> Type[MemoryProcess]:
+    def operation_type(self) -> type[MemoryProcess]:
         return self._operation_type
 
 
@@ -611,10 +603,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
     def __init__(
         self,
-        processing_elements: Union[ProcessingElement, Iterable[ProcessingElement]],
-        memories: Union[Memory, Iterable[Memory]],
+        processing_elements: ProcessingElement | Iterable[ProcessingElement],
+        memories: Memory | Iterable[Memory],
         entity_name: str = "arch",
-        direct_interconnects: Optional[ProcessCollection] = None,
+        direct_interconnects: ProcessCollection | None = None,
     ):
         super().__init__(entity_name)
         self._processing_elements = (
@@ -625,13 +617,13 @@ of :class:`~b_asic.architecture.ProcessingElement`
         self._memories = [memories] if isinstance(memories, Memory) else list(memories)
         self._direct_interconnects = direct_interconnects
         self._variable_input_port_to_resource: DefaultDict[
-            InputPort, Set[Tuple[Resource, int]]
+            InputPort, set[tuple[Resource, int]]
         ] = defaultdict(set)
         self._variable_outport_to_resource: DefaultDict[
-            OutputPort, Set[Tuple[Resource, int]]
+            OutputPort, set[tuple[Resource, int]]
         ] = defaultdict(set)
-        self._operation_input_port_to_resource: Dict[InputPort, Resource] = {}
-        self._operation_outport_to_resource: Dict[OutputPort, Resource] = {}
+        self._operation_input_port_to_resource: dict[InputPort, Resource] = {}
+        self._operation_outport_to_resource: dict[OutputPort, Resource] = {}
 
         self._schedule_time = self._check_and_get_schedule_time()
 
@@ -705,8 +697,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 memory_write_ports.add(mv.write_port)
                 memory_read_ports.update(mv.read_ports)
 
-        pe_input_ports: Set[InputPort] = set()
-        pe_output_ports: Set[OutputPort] = set()
+        pe_input_ports: set[InputPort] = set()
+        pe_output_ports: set[OutputPort] = set()
         for pe in self.processing_elements:
             for operator in pe.processes:
                 pe_input_ports.update(operator.operation.inputs)
@@ -727,8 +719,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             )
 
     def get_interconnects_for_memory(
-        self, mem: Union[Memory, str]
-    ) -> Tuple[Dict[Resource, int], Dict[Resource, int]]:
+        self, mem: Memory | str
+    ) -> tuple[dict[Resource, int], dict[Resource, int]]:
         """
         Return a dictionary with interconnect information for a Memory.
 
@@ -756,9 +748,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
         return dict(d_in), dict(d_out)
 
     def get_interconnects_for_pe(
-        self, pe: Union[str, ProcessingElement]
-    ) -> Tuple[
-        List[Dict[Tuple[Resource, int], int]], List[Dict[Tuple[Resource, int], int]]
+        self, pe: str | ProcessingElement
+    ) -> tuple[
+        list[dict[tuple[Resource, int], int]], list[dict[tuple[Resource, int], int]]
     ]:
         """
         Return with interconnect information for a ProcessingElement.
@@ -782,10 +774,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         if isinstance(pe, str):
             pe = cast(ProcessingElement, self.resource_from_name(pe))
 
-        d_in: List[DefaultDict[Tuple[Resource, int], int]] = [
+        d_in: list[DefaultDict[tuple[Resource, int], int]] = [
             defaultdict(_interconnect_dict) for _ in range(pe.input_count)
         ]
-        d_out: List[DefaultDict[Tuple[Resource, int], int]] = [
+        d_out: list[DefaultDict[tuple[Resource, int], int]] = [
             defaultdict(_interconnect_dict) for _ in range(pe.output_count)
         ]
         for var in pe.collection:
@@ -817,7 +809,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
     def remove_resource(
         self,
-        resource: Union[str, Resource],
+        resource: str | Resource,
     ) -> None:
         """
         Remove an empty :class:`Resource` from the architecture.
@@ -860,9 +852,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
     def move_process(
         self,
-        proc: Union[str, Process],
-        source: Union[str, Resource],
-        destination: Union[str, Resource],
+        proc: str | Process,
+        source: str | Resource,
+        destination: str | Resource,
         assign: bool = False,
     ) -> None:
         """
@@ -1032,8 +1024,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 )
 
         # Create list of interconnects
-        edges: DefaultDict[str, Set[Tuple[str, str]]] = defaultdict(set)
-        destination_edges: DefaultDict[str, Set[str]] = defaultdict(set)
+        edges: DefaultDict[str, set[tuple[str, str]]] = defaultdict(set)
+        destination_edges: DefaultDict[str, set[str]] = defaultdict(set)
         for pe in self._processing_elements:
             inputs, outputs = self.get_interconnects_for_pe(pe)
             for i, inp in enumerate(inputs):
@@ -1106,15 +1098,15 @@ of :class:`~b_asic.architecture.ProcessingElement`
         return dg
 
     @property
-    def memories(self) -> List[Memory]:
+    def memories(self) -> list[Memory]:
         return self._memories
 
     @property
-    def processing_elements(self) -> List[ProcessingElement]:
+    def processing_elements(self) -> list[ProcessingElement]:
         return self._processing_elements
 
     @property
-    def direct_interconnects(self) -> Optional[ProcessCollection]:
+    def direct_interconnects(self) -> ProcessCollection | None:
         return self._direct_interconnects
 
     @property

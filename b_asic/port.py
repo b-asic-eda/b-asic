@@ -5,9 +5,10 @@ Contains classes for managing the ports of operations.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from copy import copy
 from numbers import Number
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from b_asic.graph_component import Name
 from b_asic.signal import Signal
@@ -55,7 +56,7 @@ class Port(ABC):
 
     @property
     @abstractmethod
-    def latency_offset(self) -> Optional[int]:
+    def latency_offset(self) -> int | None:
         """Get the latency_offset of the port."""
         raise NotImplementedError
 
@@ -133,13 +134,13 @@ class AbstractPort(Port):
     __slots__ = ("_operation", "_index", "_latency_offset")
     _operation: "Operation"
     _index: int
-    _latency_offset: Optional[int]
+    _latency_offset: int | None
 
     def __init__(
         self,
         operation: "Operation",
         index: int,
-        latency_offset: Optional[int] = None,
+        latency_offset: int | None = None,
     ):
         """Construct a port of the given operation at the given port index."""
         self._operation = operation
@@ -155,11 +156,11 @@ class AbstractPort(Port):
         return self._index
 
     @property
-    def latency_offset(self) -> Optional[int]:
+    def latency_offset(self) -> int | None:
         return self._latency_offset
 
     @latency_offset.setter
-    def latency_offset(self, latency_offset: Optional[int]):
+    def latency_offset(self, latency_offset: int | None):
         self._latency_offset = latency_offset
 
     @property
@@ -278,7 +279,7 @@ class InputPort(AbstractPort):
     """
 
     __slots__ = ("_source_signal",)
-    _source_signal: Optional[Signal]
+    _source_signal: Signal | None
 
     def __init__(self, operation: "Operation", index: int):
         """Construct an InputPort."""
@@ -375,7 +376,7 @@ class OutputPort(AbstractPort, SignalSourceProvider):
     """
 
     __slots__ = ("_destination_signals",)
-    _destination_signals: List[Signal]
+    _destination_signals: list[Signal]
 
     def __init__(self, operation: "Operation", index: int):
         """Construct an OutputPort."""

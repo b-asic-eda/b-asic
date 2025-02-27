@@ -7,7 +7,7 @@ stored as files.
 
 from datetime import datetime
 from inspect import signature
-from typing import Dict, Optional, Tuple, cast
+from typing import cast
 
 from b_asic.graph_component import GraphComponent
 from b_asic.port import InputPort
@@ -16,7 +16,7 @@ from b_asic.signal_flow_graph import SFG
 
 
 def sfg_to_python(
-    sfg: SFG, counter: int = 0, suffix: Optional[str] = None, schedule: bool = False
+    sfg: SFG, counter: int = 0, suffix: str | None = None, schedule: bool = False
 ) -> str:
     """
     Given an SFG structure try to serialize it for saving to a file.
@@ -141,7 +141,7 @@ def sfg_to_python(
     return result
 
 
-def python_to_sfg(path: str) -> Tuple[SFG, Dict[str, Tuple[int, int]]]:
+def python_to_sfg(path: str) -> tuple[SFG, dict[str, tuple[int, int]]]:
     """
     Given a serialized file, try to deserialize it and load it to the library.
 

@@ -11,9 +11,9 @@ This is handled by a number of private generator classes. Check out the source c
 if you want more information.
 """
 
+from collections.abc import Sequence
 from math import pi, sin
 from numbers import Number
-from typing import List, Optional, Sequence, Union
 
 import numpy as np
 
@@ -195,12 +195,12 @@ class FromFile(SignalGenerator):
     __slots__ = ("_data", "_len", "_path")
 
     _path: str
-    _data: List[Num]
+    _data: list[Num]
     _len: int
 
     def __init__(self, path: str) -> None:
         self._path = path
-        data: List[Num] = np.loadtxt(path, dtype=complex).tolist()
+        data: list[Num] = np.loadtxt(path, dtype=complex).tolist()
         self._data = data
         self._len = len(data)
 
@@ -264,12 +264,12 @@ class Gaussian(SignalGenerator):
 
     __slots__ = ("_rng", "_seed", "_loc", "_scale")
 
-    _seed: Optional[int]
+    _seed: int | None
     _loc: float
     _scale: float
 
     def __init__(
-        self, seed: Optional[int] = None, loc: float = 0.0, scale: float = 1.0
+        self, seed: int | None = None, loc: float = 0.0, scale: float = 1.0
     ) -> None:
         self._rng = np.random.default_rng(seed)
         self._seed = seed
@@ -309,12 +309,12 @@ class Uniform(SignalGenerator):
 
     __slots__ = ("_rng", "_seed", "_low", "_high")
 
-    _seed: Optional[int]
+    _seed: int | None
     _low: float
     _high: float
 
     def __init__(
-        self, seed: Optional[int] = None, low: float = -1.0, high: float = 1.0
+        self, seed: int | None = None, low: float = -1.0, high: float = 1.0
     ) -> None:
         self._rng = np.random.default_rng(seed)
         self._seed = seed
@@ -495,13 +495,13 @@ class Upsample(SignalGenerator):
 
     __slots__ = ("_generator", "_factor", "_phase")
 
-    _generator: Union[SignalGenerator, Sequence[complex]]
+    _generator: SignalGenerator | Sequence[complex]
     _factor: int
     _phase: int
 
     def __init__(
         self,
-        data: Union[SignalGenerator, Sequence[complex]],
+        data: SignalGenerator | Sequence[complex],
         factor: int,
         phase: int = 0,
     ) -> None:
@@ -540,13 +540,13 @@ class Downsample(SignalGenerator):
 
     __slots__ = ("_generator", "_factor", "_phase")
 
-    _generator: Union[SignalGenerator, Sequence[complex]]
+    _generator: SignalGenerator | Sequence[complex]
     _factor: int
     _phase: int
 
     def __init__(
         self,
-        data: Union[SignalGenerator, Sequence[complex]],
+        data: SignalGenerator | Sequence[complex],
         factor: int,
         phase: int = 0,
     ) -> None:

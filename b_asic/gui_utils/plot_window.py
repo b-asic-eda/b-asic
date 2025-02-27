@@ -2,7 +2,7 @@
 
 import re
 import sys
-from typing import Dict, List, Mapping, Optional, Sequence  # , Union
+from collections.abc import Mapping, Sequence
 
 # from numpy import (array, real, imag, real_if_close, absolute, angle)
 import numpy as np
@@ -46,7 +46,7 @@ class PlotWindow(QWidget):
     def __init__(
         self,
         sim_result: Mapping[ResultKey, Sequence[Num]],
-        sfg_name: Optional[str] = None,
+        sfg_name: str | None = None,
     ):
         super().__init__()
         self.setWindowFlags(
@@ -237,7 +237,7 @@ class PlotWindow(QWidget):
 
 
 def start_simulation_dialog(
-    sim_results: Dict[str, List[complex]], sfg_name: Optional[str] = None
+    sim_results: dict[str, list[complex]], sfg_name: str | None = None
 ):
     """
     Display the simulation results window.

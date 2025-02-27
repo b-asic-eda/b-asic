@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QPointF
 from qtpy.QtGui import QPainterPath, QPen
@@ -38,7 +38,7 @@ class Arrow(QGraphicsPathItem):
         source_port_button: "PortButton",
         destination_port_button: "PortButton",
         window: "SFGMainWindow",
-        signal: Optional[Signal] = None,
+        signal: Signal | None = None,
         parent=None,
     ):
         super().__init__(parent)

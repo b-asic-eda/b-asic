@@ -6,7 +6,6 @@ Contains the scheduler-gui AxesItem class for drawing and maintaining the
 axes in a graph.
 """
 from math import pi, sin
-from typing import List, Optional, Union
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import QPointF, Qt
@@ -51,12 +50,12 @@ class AxesItem(QGraphicsItemGroup):
     _x_axis: QGraphicsLineItem
     _x_label: QGraphicsSimpleTextItem
     _x_arrow: QGraphicsPolygonItem
-    _x_scale: List[QGraphicsLineItem]
-    _x_scale_labels: List[QGraphicsSimpleTextItem]
-    _x_ledger: List[Union[QGraphicsLineItem, TimelineItem]]
+    _x_scale: list[QGraphicsLineItem]
+    _x_scale_labels: list[QGraphicsSimpleTextItem]
+    _x_ledger: list[QGraphicsLineItem | TimelineItem]
     _x_label_offset: float
     _y_axis: QGraphicsLineItem
-    _event_items: List[QGraphicsItem]
+    _event_items: list[QGraphicsItem]
     _base_pen: QPen
     _ledger_pen: QPen
     _timeline_pen: QPen
@@ -69,7 +68,7 @@ class AxesItem(QGraphicsItemGroup):
         height_indent: float = SCHEDULE_INDENT,
         width_padding: float = 0.6,
         height_padding: float = 0.5,
-        parent: Optional[QGraphicsItem] = None,
+        parent: QGraphicsItem | None = None,
     ):
         """
         Class for an AxesItem.
@@ -134,7 +133,7 @@ class AxesItem(QGraphicsItemGroup):
         return self._height
 
     @property
-    def event_items(self) -> List[QGraphicsItem]:
+    def event_items(self) -> list[QGraphicsItem]:
         """Return a list of objects that receives events."""
         return [self._x_ledger[-1]]
 

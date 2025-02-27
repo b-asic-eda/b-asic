@@ -6,8 +6,9 @@ Contains the base for all components with an ID in a signal flow graph.
 
 from abc import ABC, abstractmethod
 from collections import deque
+from collections.abc import Generator, Iterable, Mapping
 from copy import copy, deepcopy
-from typing import Any, Dict, Generator, Iterable, Mapping, cast
+from typing import Any, cast
 
 from b_asic.types import GraphID, Name, TypeName
 
@@ -121,7 +122,7 @@ class AbstractGraphComponent(GraphComponent):
 
     _name: Name
     _graph_id: GraphID
-    _parameters: Dict[str, Any]
+    _parameters: dict[str, Any]
 
     def __init__(self, name: Name = Name("")):
         """Construct a graph component."""

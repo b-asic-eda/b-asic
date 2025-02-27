@@ -8,19 +8,12 @@ import collections
 import collections.abc
 import itertools as it
 from abc import abstractmethod
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from numbers import Number
 from typing import (
     TYPE_CHECKING,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    MutableMapping,
     NewType,
     Optional,
-    Sequence,
-    Tuple,
-    Union,
     cast,
     overload,
 )
@@ -127,8 +120,8 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @abstractmethod
     def current_output(
-        self, index: int, delays: Optional[DelayMap] = None, prefix: str = ""
-    ) -> Optional[Num]:
+        self, index: int, delays: DelayMap | None = None, prefix: str = ""
+    ) -> Num | None:
         """
         Get the current output at the given index of this operation, if available.
 
@@ -147,10 +140,10 @@ class Operation(GraphComponent, SignalSourceProvider):
         self,
         index: int,
         input_values: Sequence[Num],
-        results: Optional[MutableResultMap] = None,
-        delays: Optional[MutableDelayMap] = None,
+        results: MutableResultMap | None = None,
+        delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Num:
         """
@@ -186,8 +179,8 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @abstractmethod
     def current_outputs(
-        self, delays: Optional[DelayMap] = None, prefix: str = ""
-    ) -> Sequence[Optional[Num]]:
+        self, delays: DelayMap | None = None, prefix: str = ""
+    ) -> Sequence[Num | None]:
         """
         Get all current outputs of this operation, if available.
 
@@ -201,10 +194,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     def evaluate_outputs(
         self,
         input_values: Sequence[Num],
-        results: Optional[MutableResultMap] = None,
-        delays: Optional[MutableDelayMap] = None,
+        results: MutableResultMap | None = None,
+        delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Sequence[Num]:
         """
@@ -265,7 +258,7 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @property
     @abstractmethod
-    def latency_offsets(self) -> Dict[str, Optional[int]]:
+    def latency_offsets(self) -> dict[str, int | None]:
         """
         Get a dictionary with all the operations ports latency-offsets.
         """
@@ -292,7 +285,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def set_latency_offsets(self, latency_offsets: Dict[str, int]) -> None:
+    def set_latency_offsets(self, latency_offsets: dict[str, int]) -> None:
         """
         Set the latency-offsets for the operations port.
 
@@ -304,7 +297,7 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @property
     @abstractmethod
-    def execution_time(self) -> Optional[int]:
+    def execution_time(self) -> int | None:
         """
         Get the execution time of the operation.
 
@@ -315,7 +308,7 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @execution_time.setter
     @abstractmethod
-    def execution_time(self, execution_time: Optional[int]) -> None:
+    def execution_time(self, execution_time: int | None) -> None:
         """
         Set the execution time of the operation.
 
@@ -335,7 +328,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def get_plot_coordinates(
         self,
-    ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
+    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
         """
         Return coordinates for the latency and execution time polygons.
 
@@ -348,7 +341,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def get_input_coordinates(
         self,
-    ) -> Tuple[Tuple[float, float], ...]:
+    ) -> tuple[tuple[float, float], ...]:
         """
         Return coordinates for inputs.
 
@@ -364,7 +357,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def get_output_coordinates(
         self,
-    ) -> Tuple[Tuple[float, float], ...]:
+    ) -> tuple[tuple[float, float], ...]:
         """
         Return coordinates for outputs.
 
@@ -455,19 +448,19 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     """
 
     __slots__ = ("_input_ports", "_output_ports", "_execution_time")
-    _input_ports: List[InputPort]
-    _output_ports: List[OutputPort]
-    _execution_time: Optional[int]
+    _input_ports: list[InputPort]
+    _output_ports: list[OutputPort]
+    _execution_time: int | None
 
     def __init__(
         self,
         input_count: int,
         output_count: int,
         name: Name = Name(""),
-        input_sources: Optional[Sequence[Optional[SignalSourceProvider]]] = None,
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        input_sources: Sequence[SignalSourceProvider | None] | None = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """
         Construct an operation with the given input/output count.
@@ -520,12 +513,12 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @abstractmethod
     def evaluate(
         self, *inputs: Operation
-    ) -> List[Operation]:  # pylint: disable=arguments-differ
+    ) -> list[Operation]:  # pylint: disable=arguments-differ
         ...
 
     @overload
     @abstractmethod
-    def evaluate(self, *inputs: Num) -> List[Num]:  # pylint: disable=arguments-differ
+    def evaluate(self, *inputs: Num) -> list[Num]:  # pylint: disable=arguments-differ
         ...
 
     @abstractmethod
@@ -552,7 +545,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def __str__(self) -> str:
         """Get a string representation of this operation."""
-        inputs_dict: Dict[int, Union[List[GraphID], str]] = {}
+        inputs_dict: dict[int, list[GraphID] | str] = {}
         for i, current_input in enumerate(self.inputs):
             if current_input.signal_count == 0:
                 inputs_dict[i] = "-"
@@ -571,7 +564,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                         dict_ele.append(GraphID("no_id"))
             inputs_dict[i] = dict_ele
 
-        outputs_dict: Dict[int, Union[List[GraphID], str]] = {}
+        outputs_dict: dict[int, list[GraphID] | str] = {}
         for i, outport in enumerate(self.outputs):
             if outport.signal_count == 0:
                 outputs_dict[i] = "-"
@@ -644,18 +637,18 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return ResultKey(key)
 
     def current_output(
-        self, index: int, delays: Optional[DelayMap] = None, prefix: str = ""
-    ) -> Optional[Num]:
+        self, index: int, delays: DelayMap | None = None, prefix: str = ""
+    ) -> Num | None:
         return None
 
     def evaluate_output(
         self,
         index: int,
         input_values: Sequence[Num],
-        results: Optional[MutableResultMap] = None,
-        delays: Optional[MutableDelayMap] = None,
+        results: MutableResultMap | None = None,
+        delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Num:
         if index < 0 or index >= self.output_count:
@@ -701,8 +694,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return values[index]
 
     def current_outputs(
-        self, delays: Optional[DelayMap] = None, prefix: str = ""
-    ) -> Sequence[Optional[Num]]:
+        self, delays: DelayMap | None = None, prefix: str = ""
+    ) -> Sequence[Num | None]:
         return [
             self.current_output(i, delays, prefix) for i in range(self.output_count)
         ]
@@ -710,10 +703,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def evaluate_outputs(
         self,
         input_values: Sequence[Num],
-        results: Optional[MutableResultMap] = None,
-        delays: Optional[MutableDelayMap] = None,
+        results: MutableResultMap | None = None,
+        delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Sequence[Num]:
         return [
@@ -737,7 +730,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         if isinstance(result, collections.abc.Sequence) and all(
             isinstance(e, Operation) for e in result
         ):
-            return cast(List[Operation], result)
+            return cast(list[Operation], result)
         return [self]
 
     def to_sfg(self) -> "SFG":
@@ -838,7 +831,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def quantize_inputs(
         self,
         input_values: Sequence[Num],
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
     ) -> Sequence[Num]:
         """
         Quantize the values to be used as inputs.
@@ -879,7 +872,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         )
 
     @property
-    def latency_offsets(self) -> Dict[str, Optional[int]]:
+    def latency_offsets(self) -> dict[str, int | None]:
         latency_offsets = {}
 
         for i, input_ in enumerate(self.inputs):
@@ -897,7 +890,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         self.input_latency_offsets()
         self.output_latency_offsets()
 
-    def input_latency_offsets(self) -> List[int]:
+    def input_latency_offsets(self) -> list[int]:
         latency_offsets = [i.latency_offset for i in self.inputs]
 
         if any(val is None for val in latency_offsets):
@@ -906,9 +899,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             ]
             raise ValueError(f"Missing latencies for input(s) {missing}")
 
-        return cast(List[int], latency_offsets)
+        return cast(list[int], latency_offsets)
 
-    def output_latency_offsets(self) -> List[int]:
+    def output_latency_offsets(self) -> list[int]:
         latency_offsets = [i.latency_offset for i in self.outputs]
 
         if any(val is None for val in latency_offsets):
@@ -917,7 +910,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             ]
             raise ValueError(f"Missing latencies for output(s) {missing}")
 
-        return cast(List[int], latency_offsets)
+        return cast(list[int], latency_offsets)
 
     def set_latency(self, latency: int) -> None:
         if latency < 0:
@@ -927,7 +920,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         for outport in self.outputs:
             outport.latency_offset = latency
 
-    def set_latency_offsets(self, latency_offsets: Dict[str, int]) -> None:
+    def set_latency_offsets(self, latency_offsets: dict[str, int]) -> None:
         for port_str, latency_offset in latency_offsets.items():
             port_str = port_str.lower()
             if port_str.startswith("in"):
@@ -953,7 +946,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 )
 
     @property
-    def execution_time(self) -> Optional[int]:
+    def execution_time(self) -> int | None:
         """Execution time of operation."""
         return self._execution_time
 
@@ -979,7 +972,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
+    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
         # Doc-string inherited
         return (
             self._get_plot_coordinates_for_latency(),
@@ -988,7 +981,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def _get_plot_coordinates_for_execution_time(
         self,
-    ) -> Tuple[Tuple[float, float], ...]:
+    ) -> tuple[tuple[float, float], ...]:
         # Always a rectangle, but easier if coordinates are returned
         execution_time = self._execution_time  # Copy for type checking
         if execution_time is None:
@@ -1003,7 +996,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def _get_plot_coordinates_for_latency(
         self,
-    ) -> Tuple[Tuple[float, float], ...]:
+    ) -> tuple[tuple[float, float], ...]:
         # Points for latency polygon
         latency = []
         input_latencies = self.input_latency_offsets()
@@ -1028,7 +1021,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return tuple(latency)
 
-    def get_input_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
         num_in = self.input_count
         return tuple(
@@ -1039,7 +1032,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             for k in range(num_in)
         )
 
-    def get_output_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
         num_out = self.output_count
         return tuple(

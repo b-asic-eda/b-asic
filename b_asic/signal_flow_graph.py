@@ -8,20 +8,14 @@ import itertools
 import re
 import warnings
 from collections import defaultdict, deque
+from collections.abc import Iterable, MutableSet, Sequence
 from io import StringIO
 from numbers import Number
 from queue import PriorityQueue
 from typing import (
     DefaultDict,
     Deque,
-    Dict,
-    Iterable,
-    List,
-    MutableSet,
     Optional,
-    Sequence,
-    Set,
-    Tuple,
     Union,
     cast,
 )
@@ -42,7 +36,7 @@ from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
 
-DelayQueue = List[Tuple[str, ResultKey, OutputPort]]
+DelayQueue = list[tuple[str, ResultKey, OutputPort]]
 
 
 _OPERATION_SHAPE: DefaultDict[TypeName, str] = defaultdict(lambda: "ellipse")
@@ -115,29 +109,29 @@ class SFG(AbstractOperation):
     input_sources :
     """
 
-    _components_by_id: Dict[GraphID, GraphComponent]
-    _components_by_name: DefaultDict[Name, List[GraphComponent]]
-    _components_dfs_order: List[GraphComponent]
-    _operations_dfs_order: List[Operation]
-    _operations_topological_order: List[Operation]
+    _components_by_id: dict[GraphID, GraphComponent]
+    _components_by_name: DefaultDict[Name, list[GraphComponent]]
+    _components_dfs_order: list[GraphComponent]
+    _operations_dfs_order: list[Operation]
+    _operations_topological_order: list[Operation]
     _graph_id_generator: GraphIDGenerator
-    _input_operations: List[Input]
-    _output_operations: List[Output]
-    _original_components_to_new: Dict[GraphComponent, GraphComponent]
-    _original_input_signals_to_indices: Dict[Signal, int]
-    _original_output_signals_to_indices: Dict[Signal, int]
-    _precedence_list: Optional[List[List[OutputPort]]]
-    _used_ids: Set[GraphID] = set()
+    _input_operations: list[Input]
+    _output_operations: list[Output]
+    _original_components_to_new: dict[GraphComponent, GraphComponent]
+    _original_input_signals_to_indices: dict[Signal, int]
+    _original_output_signals_to_indices: dict[Signal, int]
+    _precedence_list: list[list[OutputPort]] | None
+    _used_ids: set[GraphID] = set()
 
     def __init__(
         self,
-        inputs: Optional[Sequence[Input]] = None,
-        outputs: Optional[Sequence[Output]] = None,
-        input_signals: Optional[Sequence[Signal]] = None,
-        output_signals: Optional[Sequence[Signal]] = None,
+        inputs: Sequence[Input] | None = None,
+        outputs: Sequence[Output] | None = None,
+        input_signals: Sequence[Signal] | None = None,
+        output_signals: Sequence[Signal] | None = None,
         id_number_offset: GraphIDNumber = GraphIDNumber(0),
         name: Name = Name(""),
-        input_sources: Optional[Sequence[Optional[SignalSourceProvider]]] = None,
+        input_sources: Sequence[SignalSourceProvider | None] | None = None,
     ):
         input_signal_count = 0 if input_signals is None else len(input_signals)
         input_operation_count = 0 if inputs is None else len(inputs)
@@ -323,7 +317,7 @@ class SFG(AbstractOperation):
         return string_io.getvalue()
 
     def __call__(
-        self, *src: Optional[SignalSourceProvider], name: Name = Name("")
+        self, *src: SignalSourceProvider | None, name: Name = Name("")
     ) -> "SFG":
         """
         Return a new independent SFG instance that is identical to this SFG
@@ -351,10 +345,10 @@ class SFG(AbstractOperation):
         self,
         index: int,
         input_values: Sequence[Num],
-        results: Optional[MutableResultMap] = None,
-        delays: Optional[MutableDelayMap] = None,
+        results: MutableResultMap | None = None,
+        delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Number:
         # doc-string inherited
@@ -506,7 +500,7 @@ class SFG(AbstractOperation):
         }
         output_op = self._output_operations[output_index]
         queue: Deque[Operation] = deque([output_op])
-        visited: Set[Operation] = {output_op}
+        visited: set[Operation] = {output_op}
         while queue:
             op = queue.popleft()
             if isinstance(op, Input):
@@ -542,12 +536,12 @@ class SFG(AbstractOperation):
         return self._graph_id_generator.id_number_offset
 
     @property
-    def components(self) -> List[GraphComponent]:
+    def components(self) -> list[GraphComponent]:
         """Get all components of this graph in depth-first order."""
         return self._components_dfs_order
 
     @property
-    def operations(self) -> List[Operation]:
+    def operations(self) -> list[Operation]:
         """Get all operations of this graph in depth-first order."""
         return list(self._operations_dfs_order)
 
@@ -569,7 +563,7 @@ class SFG(AbstractOperation):
         ]
         return components
 
-    def find_by_id(self, graph_id: GraphID) -> Optional[GraphComponent]:
+    def find_by_id(self, graph_id: GraphID) -> GraphComponent | None:
         """
         Find the graph component with the specified ID.
 
@@ -762,7 +756,7 @@ class SFG(AbstractOperation):
         self,
         input_comp_id: GraphID,
         new_operation: Operation,
-        port: Optional[int] = None,
+        port: int | None = None,
     ) -> Optional["SFG"]:
         """
         Insert an operation in the SFG before a given source operation.
@@ -1093,7 +1087,7 @@ class SFG(AbstractOperation):
         remaining_inports_per_operation = {op: op.input_count for op in self.operations}
 
         # Maps number of input counts to a queue of seen objects with such a size.
-        seen_with_inputs_dict: Dict[int, Deque] = defaultdict(deque)
+        seen_with_inputs_dict: dict[int, Deque] = defaultdict(deque)
         seen = set()
         top_order = []
 
@@ -1212,7 +1206,7 @@ class SFG(AbstractOperation):
             cast(Operation, op).execution_time = execution_time
 
     def set_latency_offsets_of_type(
-        self, type_name: TypeName, latency_offsets: Dict[str, int]
+        self, type_name: TypeName, latency_offsets: dict[str, int]
     ) -> None:
         """
         Set the latency offsets of all operations with the given type name.
@@ -1229,8 +1223,8 @@ class SFG(AbstractOperation):
             cast(Operation, op).set_latency_offsets(latency_offsets)
 
     def _traverse_for_precedence_list(
-        self, first_iter_ports: List[OutputPort]
-    ) -> List[List[OutputPort]]:
+        self, first_iter_ports: list[OutputPort]
+    ) -> list[list[OutputPort]]:
         # Find dependencies of output ports and input ports.
         remaining_inports_per_operation = {op: op.input_count for op in self.operations}
 
@@ -1474,7 +1468,7 @@ class SFG(AbstractOperation):
         results: MutableResultMap,
         delays: MutableDelayMap,
         prefix: str,
-        bits_override: Optional[int],
+        bits_override: int | None,
         quantize: bool,
         deferred_delays: DelayQueue,
     ) -> Num:
@@ -1519,7 +1513,7 @@ class SFG(AbstractOperation):
         results: MutableResultMap,
         delays: MutableDelayMap,
         prefix: str,
-        bits_override: Optional[int],
+        bits_override: int | None,
         quantize: bool,
         deferred_delays: DelayQueue,
     ) -> Num:
@@ -1550,7 +1544,7 @@ class SFG(AbstractOperation):
     def sfg_digraph(
         self,
         show_signal_id: bool = False,
-        engine: Optional[str] = None,
+        engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
         splines: str = "spline",
@@ -1661,9 +1655,9 @@ class SFG(AbstractOperation):
 
     def show(
         self,
-        fmt: Optional[str] = None,
+        fmt: str | None = None,
         show_signal_id: bool = False,
-        engine: Optional[str] = None,
+        engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
         splines: str = "spline",
@@ -1755,7 +1749,7 @@ class SFG(AbstractOperation):
         for input in inputs_used:
             input_op = self._input_operations[input]
         queue: Deque[Operation] = deque([input_op])
-        visited: Set[Operation] = {input_op}
+        visited: set[Operation] = {input_op}
         dict_of_sfg = {}
         while queue:
             op = queue.popleft()
@@ -1839,7 +1833,7 @@ class SFG(AbstractOperation):
         for output in output_index_used:
             output_op = self._output_operations[output]
             queue: Deque[Operation] = deque([output_op])
-            visited: Set[Operation] = {output_op}
+            visited: set[Operation] = {output_op}
             while queue:
                 op = queue.popleft()
                 for input_port in op.inputs:
@@ -1855,7 +1849,7 @@ class SFG(AbstractOperation):
         for input in input_index_used:
             input_op = self._input_operations[input]
             queue: Deque[Operation] = deque([input_op])
-            visited: Set[Operation] = {input_op}
+            visited: set[Operation] = {input_op}
             while queue:
                 op = queue.popleft()
                 if isinstance(op, Output):
@@ -2020,7 +2014,7 @@ class SFG(AbstractOperation):
                     paths.append(newpath)
         return paths
 
-    def edit(self) -> Dict[str, "SFG"]:
+    def edit(self) -> dict[str, "SFG"]:
         """Edit SFG in GUI."""
         from b_asic.GUI.main_window import start_editor
 
@@ -2141,13 +2135,13 @@ class SFG(AbstractOperation):
     def is_constant(self) -> bool:
         return all(output.is_constant for output in self._output_operations)
 
-    def get_used_type_names(self) -> List[TypeName]:
+    def get_used_type_names(self) -> list[TypeName]:
         """Get a list of all TypeNames used in the SFG."""
         ret = list({op.type_name() for op in self.operations})
         ret.sort()
         return ret
 
-    def get_used_graph_ids(self) -> Set[GraphID]:
+    def get_used_graph_ids(self) -> set[GraphID]:
         """Get a list of all GraphID:s used in the SFG."""
         ret = set({op.graph_id for op in self.operations})
         sorted(ret)

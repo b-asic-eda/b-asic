@@ -4,7 +4,8 @@ B-ASIC signal flow graph generators.
 This module contains a number of functions generating SFGs for specific functions.
 """
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -28,10 +29,10 @@ if TYPE_CHECKING:
 
 def wdf_allpass(
     coefficients: Sequence[float],
-    name: Optional[str] = None,
-    latency: Optional[int] = None,
-    latency_offsets: Optional[Dict[str, int]] = None,
-    execution_time: Optional[int] = None,
+    name: str | None = None,
+    latency: int | None = None,
+    latency_offsets: dict[str, int] | None = None,
+    execution_time: int | None = None,
 ) -> SFG:
     """
     Generate a signal flow graph of a WDF allpass section based on symmetric two-port\
@@ -131,9 +132,9 @@ def wdf_allpass(
 
 def direct_form_fir(
     coefficients: Sequence[complex],
-    name: Optional[str] = None,
-    mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
-    add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+    name: str | None = None,
+    mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
     r"""
     Generate a signal flow graph of a direct form FIR filter.
@@ -199,9 +200,9 @@ def direct_form_fir(
 
 def transposed_direct_form_fir(
     coefficients: Sequence[complex],
-    name: Optional[str] = None,
-    mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
-    add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+    name: str | None = None,
+    mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
     r"""
     Generate a signal flow graph of a transposed direct form FIR filter.
@@ -267,9 +268,9 @@ def transposed_direct_form_fir(
 def direct_form_1_iir(
     b: Sequence[complex],
     a: Sequence[complex],
-    name: Optional[str] = None,
-    mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
-    add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+    name: str | None = None,
+    mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
     """Generates a direct-form IIR filter of type I with coefficients a and b."""
     if len(a) < 2 or len(b) < 2:
@@ -328,9 +329,9 @@ def direct_form_1_iir(
 def direct_form_2_iir(
     b: Sequence[complex],
     a: Sequence[complex],
-    name: Optional[str] = None,
-    mult_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
-    add_properties: Optional[Union[Dict[str, int], Dict[str, Dict[str, int]]]] = None,
+    name: str | None = None,
+    mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
     """Generates a direct-form IIR filter of type II with coefficients a and b."""
     if len(a) < 2 or len(b) < 2:

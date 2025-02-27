@@ -10,8 +10,9 @@ import os
 import sys
 import webbrowser
 from collections import deque
+from collections.abc import Sequence
 from types import ModuleType
-from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Sequence, Tuple, cast
+from typing import TYPE_CHECKING, Deque, cast
 
 from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread, Slot
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
@@ -78,20 +79,20 @@ class SFGMainWindow(QMainWindow):
         self._ui.setupUi(self)
         self.setWindowIcon(QIcon("small_logo.png"))
         self._scene = QGraphicsScene(self._ui.splitter)
-        self._operations_from_name: Dict[str, Operation] = {}
+        self._operations_from_name: dict[str, Operation] = {}
         self._zoom = 1
-        self._drag_operation_scenes: Dict[DragButton, "QGraphicsProxyWidget"] = {}
-        self._drag_buttons: Dict[Operation, DragButton] = {}
+        self._drag_operation_scenes: dict[DragButton, "QGraphicsProxyWidget"] = {}
+        self._drag_buttons: dict[Operation, DragButton] = {}
         self._mouse_pressed = False
         self._mouse_dragging = False
         self._starting_port = None
-        self._pressed_operations: List[DragButton] = []
-        self._arrow_ports: Dict[Arrow, List[Tuple[PortButton, PortButton]]] = {}
-        self._operation_to_sfg: Dict[DragButton, SFG] = {}
-        self._pressed_ports: List[PortButton] = []
-        self._sfg_dict: Dict[str, SFG] = {}
-        self._plot: Dict[Simulation, PlotWindow] = {}
-        self._ports: Dict[DragButton, List[PortButton]] = {}
+        self._pressed_operations: list[DragButton] = []
+        self._arrow_ports: dict[Arrow, list[tuple[PortButton, PortButton]]] = {}
+        self._operation_to_sfg: dict[DragButton, SFG] = {}
+        self._pressed_ports: list[PortButton] = []
+        self._sfg_dict: dict[str, SFG] = {}
+        self._plot: dict[Simulation, PlotWindow] = {}
+        self._ports: dict[DragButton, list[PortButton]] = {}
 
         # Create Graphics View
         self._graphics_view = QGraphicsView(self._scene, self._ui.splitter)
@@ -119,7 +120,7 @@ class SFGMainWindow(QMainWindow):
 
         # Add operations
         self._max_recent_files = 4
-        self._recent_files_actions: List[QAction] = []
+        self._recent_files_actions: list[QAction] = []
         self._recent_files_paths: Deque[str] = deque(maxlen=self._max_recent_files)
 
         self.add_operations_from_namespace(
@@ -600,7 +601,7 @@ class SFGMainWindow(QMainWindow):
         """Callback for toggling the status bar."""
         self._statusbar.setVisible(self._statusbar_visible.isChecked())
 
-    def get_operations_from_namespace(self, namespace: ModuleType) -> List[str]:
+    def get_operations_from_namespace(self, namespace: ModuleType) -> list[str]:
         """
         Return a list of all operations defined in a namespace (module).
 
@@ -671,7 +672,7 @@ class SFGMainWindow(QMainWindow):
     def add_operation(
         self,
         op: Operation,
-        position: Optional[Tuple[float, float]] = None,
+        position: tuple[float, float] | None = None,
         is_flipped: bool = False,
     ) -> None:
         """
@@ -963,7 +964,7 @@ class SFGMainWindow(QMainWindow):
         self._keybindings_page.show()
 
 
-def start_editor(sfg: Optional[SFG] = None) -> Dict[str, SFG]:
+def start_editor(sfg: SFG | None = None) -> dict[str, SFG]:
     """
     Start the SFG editor.
 

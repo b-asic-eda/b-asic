@@ -7,7 +7,8 @@ Contains the schedule class for scheduling operations in an SFG.
 import io
 import sys
 from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Tuple, cast
+from collections.abc import Sequence
+from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,11 +40,11 @@ from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
 
 # Need RGB from 0 to 1
-_EXECUTION_TIME_COLOR: Tuple[float, ...] = tuple(
+_EXECUTION_TIME_COLOR: tuple[float, ...] = tuple(
     float(c / 255) for c in EXECUTION_TIME_COLOR
 )
-_LATENCY_COLOR: Tuple[float, ...] = tuple(float(c / 255) for c in LATENCY_COLOR)
-_SIGNAL_COLOR: Tuple[float, ...] = tuple(float(c / 255) for c in SIGNAL_COLOR)
+_LATENCY_COLOR: tuple[float, ...] = tuple(float(c / 255) for c in LATENCY_COLOR)
+_SIGNAL_COLOR: tuple[float, ...] = tuple(float(c / 255) for c in SIGNAL_COLOR)
 
 
 def _laps_default():
@@ -80,20 +81,20 @@ class Schedule:
     """
 
     _sfg: SFG
-    _start_times: Dict[GraphID, int]
-    _laps: Dict[GraphID, int]
+    _start_times: dict[GraphID, int]
+    _laps: dict[GraphID, int]
     _schedule_time: int
     _cyclic: bool
-    _y_locations: Dict[GraphID, Optional[int]]
+    _y_locations: dict[GraphID, int | None]
 
     def __init__(
         self,
         sfg: SFG,
-        scheduler: Optional[Scheduler] = None,
-        schedule_time: Optional[int] = None,
+        scheduler: Scheduler | None = None,
+        schedule_time: int | None = None,
         cyclic: bool = False,
-        start_times: Optional[Dict[GraphID, int]] = None,
-        laps: Optional[Dict[GraphID, int]] = None,
+        start_times: dict[GraphID, int] | None = None,
+        laps: dict[GraphID, int] | None = None,
     ):
         """Construct a Schedule from an SFG."""
         if not isinstance(sfg, SFG):
@@ -126,7 +127,7 @@ class Schedule:
 
     def __str__(self) -> str:
         """Return a string representation of this Schedule."""
-        res: List[Tuple[GraphID, int, int, int]] = [
+        res: list[tuple[GraphID, int, int, int]] = [
             (
                 op.graph_id,
                 self.start_time_of_operation(op.graph_id),
@@ -265,7 +266,7 @@ class Schedule:
 
     def _forward_slacks(
         self, graph_id: GraphID
-    ) -> Dict["OutputPort", Dict["Signal", int]]:
+    ) -> dict["OutputPort", dict["Signal", int]]:
         ret = {}
         start_time = self._start_times[graph_id]
         operation = cast(Operation, self._sfg.find_by_id(graph_id))
@@ -274,8 +275,8 @@ class Schedule:
         return ret
 
     def _output_slacks(
-        self, output_port: "OutputPort", start_time: Optional[int] = None
-    ) -> Dict[Signal, int]:
+        self, output_port: "OutputPort", start_time: int | None = None
+    ) -> dict[Signal, int]:
         if start_time is None:
             start_time = self._start_times[output_port.operation.graph_id]
         output_slacks = {}
@@ -331,7 +332,7 @@ class Schedule:
             ),
         )
 
-    def _backward_slacks(self, graph_id: GraphID) -> Dict[InputPort, Dict[Signal, int]]:
+    def _backward_slacks(self, graph_id: GraphID) -> dict[InputPort, dict[Signal, int]]:
         ret = {}
         start_time = self._start_times[graph_id]
         operation = cast(Operation, self._sfg.find_by_id(graph_id))
@@ -340,8 +341,8 @@ class Schedule:
         return ret
 
     def _input_slacks(
-        self, input_port: InputPort, start_time: Optional[int] = None
-    ) -> Dict[Signal, int]:
+        self, input_port: InputPort, start_time: int | None = None
+    ) -> dict[Signal, int]:
         if start_time is None:
             start_time = self._start_times[input_port.operation.graph_id]
         input_slacks = {}
@@ -361,7 +362,7 @@ class Schedule:
             input_slacks[signal] = usage_time - available_time
         return input_slacks
 
-    def slacks(self, graph_id: GraphID) -> Tuple[int, int]:
+    def slacks(self, graph_id: GraphID) -> tuple[int, int]:
         """
         Return the backward and forward slacks of operation *graph_id*.
 
@@ -401,7 +402,7 @@ class Schedule:
             * 1: backward slack
             * 2: forward slack
         """
-        res: List[Tuple[GraphID, int, int]] = [
+        res: list[tuple[GraphID, int, int]] = [
             (
                 op.graph_id,
                 cast(int, self.backward_slack(op.graph_id)),
@@ -463,7 +464,7 @@ class Schedule:
         return simplified_sfg
 
     @property
-    def start_times(self) -> Dict[GraphID, int]:
+    def start_times(self) -> dict[GraphID, int]:
         """The start times of the operations in the schedule."""
         return self._start_times
 
@@ -477,7 +478,7 @@ class Schedule:
         self._start_times = start_times
 
     @property
-    def laps(self) -> Dict[GraphID, int]:
+    def laps(self) -> dict[GraphID, int]:
         """
         The number of laps for the start times of the operations in the schedule.
         """
@@ -529,7 +530,7 @@ class Schedule:
         self._schedule_time *= factor
         return self
 
-    def _get_all_times(self) -> List[int]:
+    def _get_all_times(self) -> list[int]:
         """
         Return a list of all times for the schedule.
 
@@ -548,7 +549,7 @@ class Schedule:
         ret = [v for v in ret if v is not None]
         return ret
 
-    def get_possible_time_resolution_decrements(self) -> List[int]:
+    def get_possible_time_resolution_decrements(self) -> list[int]:
         """Return a list with possible factors to reduce time resolution."""
         vals = self._get_all_times()
         max_loop = min(val for val in vals if val)
@@ -912,8 +913,8 @@ class Schedule:
                 new_sfg = new_sfg.insert_operation_before(op, Delay(), port)
         return new_sfg()
 
-    def _get_memory_variables_list(self) -> List[MemoryVariable]:
-        ret: List[MemoryVariable] = []
+    def _get_memory_variables_list(self) -> list[MemoryVariable]:
+        ret: list[MemoryVariable] = []
         for graph_id, start_time in self._start_times.items():
             slacks = self._forward_slacks(graph_id)
             for outport, signals in slacks.items():
@@ -963,7 +964,7 @@ class Schedule:
             self.cyclic,
         )
 
-    def get_used_type_names(self) -> List[TypeName]:
+    def get_used_type_names(self) -> list[TypeName]:
         """Get a list of all TypeNames used in the Schedule."""
         return self._sfg.get_used_type_names()
 
@@ -1185,7 +1186,7 @@ class Schedule:
         self._plot_schedule(ax, operation_gap=operation_gap)
 
     def show(
-        self, operation_gap: float = OPERATION_GAP, title: Optional[str] = None
+        self, operation_gap: float = OPERATION_GAP, title: str | None = None
     ) -> None:
         """
         Show the schedule. Will display based on the current Matplotlib backend.

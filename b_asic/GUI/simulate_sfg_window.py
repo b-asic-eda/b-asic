@@ -2,7 +2,7 @@
 B-ASIC window to simulate an SFG.
 """
 
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import (
@@ -181,6 +181,6 @@ class SimulateSFGWindow(QDialog):
         self.simulate.emit()
 
     @property
-    def properties(self) -> Dict:
+    def properties(self) -> dict:
         """Return the simulation properties."""
         return self._properties

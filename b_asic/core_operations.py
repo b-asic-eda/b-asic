@@ -4,8 +4,6 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
-from typing import Dict, Optional
-
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
 
@@ -149,24 +147,24 @@ class Addition(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_linear = True
     is_swappable = True
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """
         Construct an Addition operation.
@@ -231,21 +229,21 @@ class Subtraction(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a Subtraction operation."""
         super().__init__(
@@ -317,24 +315,24 @@ class AddSub(AbstractOperation):
         "_execution_time",
     )
     _is_add: bool
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_linear = True
 
     def __init__(
         self,
         is_add: bool = True,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct an Addition/Subtraction operation."""
         super().__init__(
@@ -410,23 +408,23 @@ class Multiplication(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_swappable = True
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a Multiplication operation."""
         super().__init__(
@@ -493,21 +491,21 @@ class Division(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a Division operation."""
         super().__init__(
@@ -574,23 +572,23 @@ class Min(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_swappable = True
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a Min operation."""
         super().__init__(
@@ -655,23 +653,23 @@ class Max(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_swappable = True
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a Max operation."""
         super().__init__(
@@ -719,19 +717,19 @@ class SquareRoot(AbstractOperation):
     """
 
     __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
-    _src0: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a SquareRoot operation."""
         super().__init__(
@@ -777,19 +775,19 @@ class ComplexConjugate(AbstractOperation):
     """
 
     __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
-    _src0: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a ComplexConjugate operation."""
         super().__init__(
@@ -835,19 +833,19 @@ class Absolute(AbstractOperation):
     """
 
     __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
-    _src0: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct an Absolute operation."""
         super().__init__(
@@ -907,22 +905,22 @@ class ConstantMultiplication(AbstractOperation):
         "_execution_time",
     )
     _value: Num
-    _src0: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_linear = True
 
     def __init__(
         self,
         value: Num = 0,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a ConstantMultiplication operation with the given value."""
         super().__init__(
@@ -995,23 +993,23 @@ class Butterfly(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_linear = True
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a Butterfly operation."""
         super().__init__(
@@ -1075,25 +1073,25 @@ class MAD(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
-    _src2: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
+    _src2: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_swappable = True
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
-        src2: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
+        src2: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a MAD operation."""
         super().__init__(
@@ -1142,29 +1140,29 @@ class MADS(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _is_add: Optional[bool]
-    _override_zero_on_src0: Optional[bool]
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
-    _src2: Optional[SignalSourceProvider]
+    _is_add: bool | None
+    _override_zero_on_src0: bool | None
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
+    _src2: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_swappable = True
 
     def __init__(
         self,
-        is_add: Optional[bool] = True,
-        override_zero_on_src0: Optional[bool] = False,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
-        src2: Optional[SignalSourceProvider] = None,
+        is_add: bool | None = True,
+        override_zero_on_src0: bool | None = False,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
+        src2: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a MADS operation."""
         super().__init__(
@@ -1251,12 +1249,12 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         "_latency_offsets",
         "_execution_time",
     )
-    _src0: Optional[SignalSourceProvider]
-    _src1: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_linear = True
     is_swappable = True
@@ -1264,12 +1262,12 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     def __init__(
         self,
         value: Num = 0,
-        src0: Optional[SignalSourceProvider] = None,
-        src1: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a SymmetricTwoportAdaptor operation."""
         super().__init__(
@@ -1344,19 +1342,19 @@ class Reciprocal(AbstractOperation):
     """
 
     __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
-    _src0: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a Reciprocal operation."""
         super().__init__(
@@ -1418,22 +1416,22 @@ class RightShift(AbstractOperation):
         "_execution_time",
     )
     _value: Num
-    _src0: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_linear = True
 
     def __init__(
         self,
         value: int = 0,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a RightShift operation with the given value."""
         super().__init__(
@@ -1510,22 +1508,22 @@ class LeftShift(AbstractOperation):
         "_execution_time",
     )
     _value: Num
-    _src0: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_linear = True
 
     def __init__(
         self,
         value: int = 0,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a RightShift operation with the given value."""
         super().__init__(
@@ -1603,22 +1601,22 @@ class Shift(AbstractOperation):
         "_execution_time",
     )
     _value: Num
-    _src0: Optional[SignalSourceProvider]
+    _src0: SignalSourceProvider | None
     _name: Name
-    _latency: Optional[int]
-    _latency_offsets: Optional[Dict[str, int]]
-    _execution_time: Optional[int]
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
 
     is_linear = True
 
     def __init__(
         self,
         value: int = 0,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-        latency: Optional[int] = None,
-        latency_offsets: Optional[Dict[str, int]] = None,
-        execution_time: Optional[int] = None,
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
     ):
         """Construct a Shift operation with the given value."""
         super().__init__(

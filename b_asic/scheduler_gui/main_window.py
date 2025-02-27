@@ -14,7 +14,7 @@ import webbrowser
 from collections import defaultdict, deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
-from typing import TYPE_CHECKING, Deque, Dict, List, Optional, cast, overload
+from typing import TYPE_CHECKING, Deque, cast, overload
 
 # Qt/qtpy
 import qtpy
@@ -119,15 +119,15 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     """Schedule of an SFG with scheduled Operations."""
 
     _scene: QGraphicsScene
-    _schedule: Optional[Schedule]
-    _graph: Optional[SchedulerItem]
+    _schedule: Schedule | None
+    _graph: SchedulerItem | None
     _scale: float
     _debug_rectangles: QGraphicsItemGroup
     _splitter_pos: int
     _splitter_min: int
     _zoom: float
-    _color_per_type: Dict[str, QColor] = dict()
-    converted_colorPerType: Dict[str, str] = dict()
+    _color_per_type: dict[str, QColor] = dict()
+    converted_colorPerType: dict[str, str] = dict()
 
     def __init__(self):
         """Initialize Scheduler-GUI."""
@@ -148,11 +148,11 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._execution_time_plot_dialogs = defaultdict(lambda: None)
         self._ports_accesses_for_storage = None
         self._color_changed_perType = False
-        self.changed_operation_colors: Dict[str, QColor] = dict()
+        self.changed_operation_colors: dict[str, QColor] = dict()
 
         # Recent files
         self._max_recent_files = 4
-        self._recent_files_actions: List[QAction] = []
+        self._recent_files_actions: list[QAction] = []
         self._recent_file_paths: Deque[str] = deque(maxlen=self._max_recent_files)
         self._create_recent_file_actions_and_menus()
 
@@ -239,7 +239,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._scene.sceneRectChanged.connect(self.shrink_scene_to_min_size)
 
     @property
-    def schedule(self) -> Optional[Schedule]:
+    def schedule(self) -> Schedule | None:
         """The current schedule."""
         return self._schedule
 
@@ -1584,7 +1584,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     @Slot(str)
-    def _schedule_changed(self, type_name: Optional[str] = None):
+    def _schedule_changed(self, type_name: str | None = None):
         self._update_execution_times_for_variables()
         self._update_ports_accesses_for_storage()
         for key, dialog in self._execution_time_plot_dialogs.items():
@@ -1666,14 +1666,14 @@ def start_scheduler(schedule: Schedule) -> Schedule: ...
 
 
 @overload
-def start_scheduler(schedule: None) -> Optional[Schedule]: ...
+def start_scheduler(schedule: None) -> Schedule | None: ...
 
 
 @overload
-def start_scheduler() -> Optional[Schedule]: ...
+def start_scheduler() -> Schedule | None: ...
 
 
-def start_scheduler(schedule: Optional[Schedule] = None) -> Optional[Schedule]:
+def start_scheduler(schedule: Schedule | None = None) -> Schedule | None:
     """
     Start scheduler GUI.
 

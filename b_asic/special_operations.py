@@ -5,7 +5,7 @@ Contains operations with special purposes that may be treated differently from
 normal operations in an SFG.
 """
 
-from typing import Optional, Sequence, Tuple
+from collections.abc import Sequence
 
 from b_asic.operation import (
     AbstractOperation,
@@ -67,7 +67,7 @@ class Input(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
+    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
         # Doc-string inherited
         return (
             (
@@ -88,11 +88,11 @@ class Input(AbstractOperation):
             ),
         )
 
-    def get_input_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
         return tuple()
 
-    def get_output_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
         return ((0, 0.5),)
 
@@ -118,7 +118,7 @@ class Output(AbstractOperation):
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
     ):
         """Construct an Output operation."""
@@ -140,18 +140,18 @@ class Output(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]]:
+    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
         # Doc-string inherited
         return (
             ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
             ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
         )
 
-    def get_input_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
         return ((0, 0.5),)
 
-    def get_output_coordinates(self) -> Tuple[Tuple[float, float], ...]:
+    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
         return tuple()
 
@@ -181,7 +181,7 @@ class Delay(AbstractOperation):
 
     def __init__(
         self,
-        src0: Optional[SignalSourceProvider] = None,
+        src0: SignalSourceProvider | None = None,
         initial_value: Num = 0,
         name: Name = Name(""),
     ):
@@ -203,8 +203,8 @@ class Delay(AbstractOperation):
         return self.param("initial_value")
 
     def current_output(
-        self, index: int, delays: Optional[DelayMap] = None, prefix: str = ""
-    ) -> Optional[Num]:
+        self, index: int, delays: DelayMap | None = None, prefix: str = ""
+    ) -> Num | None:
         if delays is not None:
             return delays.get(self.key(index, prefix), self.param("initial_value"))
         return self.param("initial_value")
@@ -213,10 +213,10 @@ class Delay(AbstractOperation):
         self,
         index: int,
         input_values: Sequence[Num],
-        results: Optional[MutableResultMap] = None,
-        delays: Optional[MutableDelayMap] = None,
+        results: MutableResultMap | None = None,
+        delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Num:
         if index != 0:

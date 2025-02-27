@@ -4,19 +4,18 @@ Functions to generate memory-variable test data that are used for research.
 
 import random
 from itertools import product
-from typing import List, Optional, Tuple
 
 from b_asic.process import PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 
 
 def _insert_delays(
-    inputorder: List[Tuple[int, int]],
-    outputorder: List[Tuple[int, int]],
+    inputorder: list[tuple[int, int]],
+    outputorder: list[tuple[int, int]],
     min_lifetime: int,
     cyclic: bool,
     time: int,
-) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
     size = len(inputorder)
     maxdiff = min(outputorder[i][0] - inputorder[i][0] for i in range(size))
     outputorder = [(o[0] - maxdiff + min_lifetime, o[1]) for o in outputorder]
@@ -71,7 +70,7 @@ def generate_random_interleaver(
 
 def generate_matrix_transposer(
     rows: int,
-    cols: Optional[int] = None,
+    cols: int | None = None,
     min_lifetime: int = 0,
     cyclic: bool = True,
     parallelism: int = 1,

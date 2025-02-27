@@ -52,7 +52,6 @@ import os
 import sys
 from logging import Logger
 from types import TracebackType
-from typing import Type, Union
 
 
 def getLogger(source: str, filename: str, loglevel: str = "INFO") -> Logger:
@@ -124,9 +123,9 @@ def getLogger(source: str, filename: str, loglevel: str = "INFO") -> Logger:
 
 # log uncaught exceptions
 def handle_exceptions(
-    exc_type: Type[BaseException],
+    exc_type: type[BaseException],
     exc_value: BaseException,
-    exc_traceback: Union[TracebackType, None],
+    exc_traceback: TracebackType | None,
 ) -> None:
     # def log_exceptions(type, value, tb):
     """This function is a helper function to log uncaught exceptions. Install with:

@@ -1,9 +1,10 @@
 import io
 import re
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from functools import reduce
 from math import log2
-from typing import Dict, Iterable, List, Literal, Optional, Tuple, TypeVar, Union
+from typing import Literal, TypeVar
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -34,7 +35,7 @@ _WARNING_COLOR = tuple(c / 255 for c in WARNING_COLOR)
 _T = TypeVar('_T')
 
 
-def _sorted_nicely(to_be_sorted: Iterable[_T]) -> List[_T]:
+def _sorted_nicely(to_be_sorted: Iterable[_T]) -> list[_T]:
     """Sort the given iterable in the way that humans expect."""
 
     def convert(text):
@@ -47,10 +48,10 @@ def _sorted_nicely(to_be_sorted: Iterable[_T]) -> List[_T]:
 
 
 def _sanitize_port_option(
-    read_ports: Optional[int] = None,
-    write_ports: Optional[int] = None,
-    total_ports: Optional[int] = None,
-) -> Tuple[int, int, int]:
+    read_ports: int | None = None,
+    write_ports: int | None = None,
+    total_ports: int | None = None,
+) -> tuple[int, int, int]:
     """
     General port sanitization function used to test if a port specification makes sense.
     Raises ValueError if the port specification is in-proper.
@@ -95,9 +96,9 @@ def _sanitize_port_option(
 
 def draw_exclusion_graph_coloring(
     exclusion_graph: nx.Graph,
-    color_dict: Dict[Process, int],
-    ax: Optional[Axes] = None,
-    color_list: Optional[Union[List[str], List[Tuple[float, float, float]]]] = None,
+    color_dict: dict[Process, int],
+    ax: Axes | None = None,
+    color_list: list[str] | list[tuple[float, float, float]] | None = None,
     **kwargs,
 ) -> None:
     """
@@ -176,12 +177,12 @@ def draw_exclusion_graph_coloring(
 class _ForwardBackwardEntry:
     def __init__(
         self,
-        inputs: Optional[List[Process]] = None,
-        outputs: Optional[List[Process]] = None,
-        regs: Optional[List[Optional[Process]]] = None,
-        back_edge_to: Optional[Dict[int, int]] = None,
-        back_edge_from: Optional[Dict[int, int]] = None,
-        outputs_from: Optional[int] = None,
+        inputs: list[Process] | None = None,
+        outputs: list[Process] | None = None,
+        regs: list[Process | None] | None = None,
+        back_edge_to: dict[int, int] | None = None,
+        back_edge_from: dict[int, int] | None = None,
+        outputs_from: int | None = None,
     ):
         """
         Single entry in a _ForwardBackwardTable.
@@ -204,11 +205,11 @@ class _ForwardBackwardEntry:
             this entry.
         outputs_from : int, optional
         """
-        self.inputs: List[Process] = [] if inputs is None else inputs
-        self.outputs: List[Process] = [] if outputs is None else outputs
-        self.regs: List[Optional[Process]] = [] if regs is None else regs
-        self.back_edge_to: Dict[int, int] = {} if back_edge_to is None else back_edge_to
-        self.back_edge_from: Dict[int, int] = (
+        self.inputs: list[Process] = [] if inputs is None else inputs
+        self.outputs: list[Process] = [] if outputs is None else outputs
+        self.regs: list[Process | None] = [] if regs is None else regs
+        self.back_edge_to: dict[int, int] = {} if back_edge_to is None else back_edge_to
+        self.back_edge_from: dict[int, int] = (
             {} if back_edge_from is None else back_edge_from
         )
         self.outputs_from = outputs_from
@@ -229,14 +230,14 @@ class _ForwardBackwardTable:
         """
         # Generate an alive variable list
         self._collection = set(collection.collection)
-        self._live_variables: List[int] = [0] * collection.schedule_time
+        self._live_variables: list[int] = [0] * collection.schedule_time
         for mv in self._collection:
             stop_time = mv.start_time + mv.execution_time
             for alive_time in range(mv.start_time, stop_time):
                 self._live_variables[alive_time % collection.schedule_time] += 1
 
         # First, create an empty forward-backward table with the right dimensions
-        self.table: List[_ForwardBackwardEntry] = []
+        self.table: list[_ForwardBackwardEntry] = []
         for _ in range(collection.schedule_time):
             entry = _ForwardBackwardEntry()
             # https://github.com/microsoft/pyright/issues/1073
@@ -450,7 +451,7 @@ class ProcessCollection:
     """
 
     __slots__ = ("_collection", "_schedule_time", "_cyclic")
-    _collection: List[Process]
+    _collection: list[Process]
     _schedule_time: int
     _cyclic: bool
 
@@ -465,7 +466,7 @@ class ProcessCollection:
         self._cyclic = cyclic
 
     @property
-    def collection(self) -> List[Process]:
+    def collection(self) -> list[Process]:
         return self._collection
 
     @property
@@ -520,15 +521,15 @@ class ProcessCollection:
 
     def plot(
         self,
-        ax: Optional[Axes] = None,
+        ax: Axes | None = None,
         *,
         show_name: bool = True,
-        bar_color: Union[str, Tuple[float, ...]] = _LATENCY_COLOR,
-        marker_color: Union[str, Tuple[float, ...]] = "black",
+        bar_color: str | tuple[float, ...] = _LATENCY_COLOR,
+        marker_color: str | tuple[float, ...] = "black",
         marker_read: str = "X",
         marker_write: str = "o",
         show_markers: bool = True,
-        row: Optional[int] = None,
+        row: int | None = None,
         allow_excessive_lifetimes: bool = False,
     ):
         """
@@ -689,13 +690,13 @@ class ProcessCollection:
         self,
         *,
         show_name: bool = True,
-        bar_color: Union[str, Tuple[float, ...]] = _LATENCY_COLOR,
-        marker_color: Union[str, Tuple[float, ...]] = "black",
+        bar_color: str | tuple[float, ...] = _LATENCY_COLOR,
+        marker_color: str | tuple[float, ...] = "black",
         marker_read: str = "X",
         marker_write: str = "o",
         show_markers: bool = True,
         allow_excessive_lifetimes: bool = False,
-        title: Optional[str] = None,
+        title: str | None = None,
     ) -> None:
         """
         Display lifetime diagram using the current Matplotlib backend.
@@ -740,9 +741,9 @@ class ProcessCollection:
 
     def create_exclusion_graph_from_ports(
         self,
-        read_ports: Optional[int] = None,
-        write_ports: Optional[int] = None,
-        total_ports: Optional[int] = None,
+        read_ports: int | None = None,
+        write_ports: int | None = None,
+        total_ports: int | None = None,
     ) -> nx.Graph:
         """
         Create an exclusion graph based on concurrent read and write accesses.
@@ -871,7 +872,7 @@ class ProcessCollection:
         self,
         heuristic: Literal["graph_color", "left_edge"] = "left_edge",
         coloring_strategy: str = "saturation_largest_first",
-    ) -> List["ProcessCollection"]:
+    ) -> list["ProcessCollection"]:
         """
         Split based on overlapping execution time.
 
@@ -908,10 +909,10 @@ class ProcessCollection:
     def split_on_ports(
         self,
         heuristic: str = "left_edge",
-        read_ports: Optional[int] = None,
-        write_ports: Optional[int] = None,
-        total_ports: Optional[int] = None,
-    ) -> List["ProcessCollection"]:
+        read_ports: int | None = None,
+        write_ports: int | None = None,
+        total_ports: int | None = None,
+    ) -> list["ProcessCollection"]:
         """
         Split based on concurrent read and write accesses.
 
@@ -962,8 +963,8 @@ class ProcessCollection:
         read_ports: int,
         write_ports: int,
         total_ports: int,
-        sequence: List[Process],
-    ) -> List["ProcessCollection"]:
+        sequence: list[Process],
+    ) -> list["ProcessCollection"]:
         """
         Split this collection into multiple new collections by sequentially assigning
         processes in the order of `sequence`.
@@ -1027,7 +1028,7 @@ class ProcessCollection:
         if set(self.collection) != set(sequence):
             raise KeyError("processes in `sequence` must be equal to processes in self")
 
-        collections: List[ProcessCollection] = []
+        collections: list[ProcessCollection] = []
         for process in sequence:
             process_added = False
             for collection in collections:
@@ -1053,7 +1054,7 @@ class ProcessCollection:
         write_ports: int,
         total_ports: int,
         coloring_strategy: str = "saturation_largest_first",
-    ) -> List["ProcessCollection"]:
+    ) -> list["ProcessCollection"]:
         """
         Parameters
         ----------
@@ -1089,8 +1090,8 @@ class ProcessCollection:
 
     def _split_from_graph_coloring(
         self,
-        coloring: Dict[Process, int],
-    ) -> List["ProcessCollection"]:
+        coloring: dict[Process, int],
+    ) -> list["ProcessCollection"]:
         """
         Split :class:`Process` objects into a set of :class:`ProcessesCollection`
         objects based on a provided graph coloring.
@@ -1143,8 +1144,8 @@ class ProcessCollection:
         self,
         coloring_strategy: str = "saturation_largest_first",
         *,
-        coloring: Optional[Dict[Process, int]] = None,
-    ) -> List["ProcessCollection"]:
+        coloring: dict[Process, int] | None = None,
+    ) -> list["ProcessCollection"]:
         """
         Perform assignment of the processes in this collection using graph coloring.
 
@@ -1172,7 +1173,7 @@ class ProcessCollection:
                     f"{process} has execution time greater than the schedule time"
                 )
 
-        cell_assignment: Dict[int, ProcessCollection] = dict()
+        cell_assignment: dict[int, ProcessCollection] = dict()
         exclusion_graph = self.create_exclusion_graph_from_execution_time()
         if coloring is None:
             coloring = nx.coloring.greedy_color(
@@ -1184,7 +1185,7 @@ class ProcessCollection:
             cell_assignment[cell].add_process(process)
         return list(cell_assignment.values())
 
-    def _left_edge_assignment(self) -> List["ProcessCollection"]:
+    def _left_edge_assignment(self) -> list["ProcessCollection"]:
         """
         Perform assignment of the processes in this collection using the left-edge
         algorithm.
@@ -1199,7 +1200,7 @@ class ProcessCollection:
         -------
         List[ProcessCollection]
         """
-        assignment: List[ProcessCollection] = []
+        assignment: list[ProcessCollection] = []
         for next_process in sorted(self):
             if next_process.execution_time > self.schedule_time:
                 # Can not assign process to any cell
@@ -1256,14 +1257,14 @@ class ProcessCollection:
         filename: str,
         entity_name: str,
         word_length: int,
-        assignment: List['ProcessCollection'],
+        assignment: list['ProcessCollection'],
         read_ports: int = 1,
         write_ports: int = 1,
         total_ports: int = 2,
         *,
         input_sync: bool = True,
-        adr_mux_size: Optional[int] = None,
-        adr_pipe_depth: Optional[int] = None,
+        adr_mux_size: int | None = None,
+        adr_pipe_depth: int | None = None,
     ):
         """
         Generate VHDL code for memory based storage of processes (MemoryVariables).
@@ -1411,7 +1412,7 @@ class ProcessCollection:
 
     def split_on_length(
         self, length: int = 0
-    ) -> Tuple["ProcessCollection", "ProcessCollection"]:
+    ) -> tuple["ProcessCollection", "ProcessCollection"]:
         """
         Split into two ProcessCollections based on execution time length.
 
@@ -1567,7 +1568,7 @@ class ProcessCollection:
         """
         return max(self.read_port_accesses().values())
 
-    def read_port_accesses(self) -> Dict[int, int]:
+    def read_port_accesses(self) -> dict[int, int]:
         reads = sum(
             (
                 [read_time % self.schedule_time for read_time in process.read_times]
@@ -1589,7 +1590,7 @@ class ProcessCollection:
         """
         return max(self.write_port_accesses().values())
 
-    def write_port_accesses(self) -> Dict[int, int]:
+    def write_port_accesses(self) -> dict[int, int]:
         writes = [
             process.start_time % self.schedule_time for process in self._collection
         ]
@@ -1607,7 +1608,7 @@ class ProcessCollection:
         """
         return max(self.total_port_accesses().values())
 
-    def total_port_accesses(self) -> Dict[int, int]:
+    def total_port_accesses(self) -> dict[int, int]:
         accesses = sum(
             (
                 list(read_time % self.schedule_time for read_time in process.read_times)

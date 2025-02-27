@@ -5,15 +5,9 @@ Contains a class for simulating the result of an SFG given a set of input values
 """
 
 from collections import defaultdict
+from collections.abc import Callable, Mapping, MutableMapping, MutableSequence, Sequence
 from numbers import Number
 from typing import (
-    Callable,
-    List,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Sequence,
     Union,
 )
 
@@ -50,13 +44,13 @@ class Simulation:
     _results: MutableResultArrayMap
     _delays: MutableDelayMap
     _iteration: int
-    _input_functions: List[InputFunction]
-    _input_length: Optional[int]
+    _input_functions: list[InputFunction]
+    _input_length: int | None
 
     def __init__(
         self,
         sfg: SFG,
-        input_providers: Optional[Sequence[Optional[InputProvider]]] = None,
+        input_providers: Sequence[InputProvider | None] | None = None,
     ):
         """Construct a Simulation of an SFG."""
         if not isinstance(sfg, SFG):
@@ -103,7 +97,7 @@ class Simulation:
                 )
             self._input_functions[index] = lambda n: input_provider[n]
 
-    def set_inputs(self, input_providers: Sequence[Optional[InputProvider]]) -> None:
+    def set_inputs(self, input_providers: Sequence[InputProvider | None]) -> None:
         """
         Set the input functions used to get values for the inputs to the internal SFG.
 
@@ -123,7 +117,7 @@ class Simulation:
     def step(
         self,
         save_results: bool = True,
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Sequence[Num]:
         """
@@ -141,7 +135,7 @@ class Simulation:
         self,
         iteration: int,
         save_results: bool = True,
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Sequence[Num]:
         """
@@ -184,7 +178,7 @@ class Simulation:
         self,
         iterations: int,
         save_results: bool = True,
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Sequence[Num]:
         """
@@ -207,7 +201,7 @@ class Simulation:
     def run(
         self,
         save_results: bool = True,
-        bits_override: Optional[int] = None,
+        bits_override: int | None = None,
         quantize: bool = True,
     ) -> Sequence[Num]:
         """

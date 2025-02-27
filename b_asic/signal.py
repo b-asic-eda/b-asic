@@ -4,7 +4,8 @@ B-ASIC Signal Module.
 Contains the class for representing the connections between operations.
 """
 
-from typing import TYPE_CHECKING, Iterable, Optional, Union
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Optional, Union
 
 from b_asic.graph_component import AbstractGraphComponent, GraphComponent
 from b_asic.types import Name, TypeName
@@ -44,9 +45,9 @@ class Signal(AbstractGraphComponent):
 
     def __init__(
         self,
-        source: Optional[Union["OutputPort", "Signal", "Operation"]] = None,
-        destination: Optional[Union["InputPort", "Signal", "Operation"]] = None,
-        bits: Optional[int] = None,
+        source: Union["OutputPort", "Signal", "Operation"] | None = None,
+        destination: Union["InputPort", "Signal", "Operation"] | None = None,
+        bits: int | None = None,
         name: Name = Name(""),
     ):
         """Construct a Signal."""
@@ -186,7 +187,7 @@ class Signal(AbstractGraphComponent):
         return self._source is None or self._destination is None
 
     @property
-    def bits(self) -> Optional[int]:
+    def bits(self) -> int | None:
         """
         Get the number of bits that this operation using this signal as an
         input should quantize received values to.
@@ -195,7 +196,7 @@ class Signal(AbstractGraphComponent):
         return self.param("bits")
 
     @bits.setter
-    def bits(self, bits: Optional[int]) -> None:
+    def bits(self, bits: int | None) -> None:
         """
         Set the number of bits that operations using this signal as an input
         should quantize received values to.

@@ -5,7 +5,7 @@ B-ASIC Scheduler-GUI Timeline Item Module.
 Contains the scheduler_gui TimelineItem class for drawing and
 maintain the timeline in a schedule.
 """
-from typing import List, Optional, overload
+from typing import overload
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import QLineF, Qt
@@ -20,7 +20,7 @@ class TimelineItem(QGraphicsLineItem):
     _delta_time_label: QGraphicsTextItem
 
     @overload
-    def __init__(self, line: QLineF, parent: Optional[QGraphicsItem] = None) -> None:
+    def __init__(self, line: QLineF, parent: QGraphicsItem | None = None) -> None:
         """
         Constructs a TimelineItem out of *line*.
 
@@ -28,7 +28,7 @@ class TimelineItem(QGraphicsLineItem):
         """
 
     @overload
-    def __init__(self, parent: Optional[QGraphicsItem] = None) -> None:
+    def __init__(self, parent: QGraphicsItem | None = None) -> None:
         """Constructs a TimelineItem.
 
         *parent* is passed to QGraphicsLineItem's constructor."""
@@ -40,7 +40,7 @@ class TimelineItem(QGraphicsLineItem):
         y1: float,
         x2: float,
         y2: float,
-        parent: Optional[QGraphicsItem] = None,
+        parent: QGraphicsItem | None = None,
     ) -> None:
         """
         Constructs a TimelineItem from (x1, y1) to (x2, y2).
@@ -126,6 +126,6 @@ class TimelineItem(QGraphicsLineItem):
         self._delta_time_label.setScale(scale)
 
     @property
-    def event_items(self) -> List[QGraphicsItem]:
+    def event_items(self) -> list[QGraphicsItem]:
         """Return a list of objects that receives events."""
         return [self]

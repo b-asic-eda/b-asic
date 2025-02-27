@@ -8,7 +8,7 @@ maintaining a schedule.
 from collections import defaultdict
 from math import floor
 from pprint import pprint
-from typing import Dict, List, Optional, Set, cast
+from typing import cast
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import Signal
@@ -58,18 +58,18 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         The parent. Passed to the constructor of QGraphicsItemGroup.
     """
 
-    _axes: Optional[AxesItem]
-    _operation_items: Dict[str, OperationItem]
+    _axes: AxesItem | None
+    _operation_items: dict[str, OperationItem]
     _x_axis_indent: float
-    _event_items: List[QGraphicsItem]
-    _signal_dict: Dict[OperationItem, Set[SignalItem]]
+    _event_items: list[QGraphicsItem]
+    _signal_dict: dict[OperationItem, set[SignalItem]]
 
     def __init__(
         self,
         schedule: Schedule,
         warnings: bool = True,
         show_port_numbers: bool = False,
-        parent: Optional[QGraphicsItem] = None,
+        parent: QGraphicsItem | None = None,
     ):
         """
         Construct a SchedulerItem.
@@ -292,15 +292,15 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         return self._schedule
 
     @property
-    def axes(self) -> Optional[AxesItem]:
+    def axes(self) -> AxesItem | None:
         return self._axes
 
     @property
-    def components(self) -> List[OperationItem]:
+    def components(self) -> list[OperationItem]:
         return list(component for component in self._operation_items.values())
 
     @property
-    def event_items(self) -> List[QGraphicsItem]:
+    def event_items(self) -> list[QGraphicsItem]:
         """Return a list of objects that receives events."""
         return self._event_items
 
