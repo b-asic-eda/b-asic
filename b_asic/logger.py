@@ -54,38 +54,34 @@ from logging import Logger
 from types import TracebackType
 
 
-def getLogger(source: str, filename: str, loglevel: str = "INFO") -> Logger:
+def getLogger(
+    name: str, filename: str | None = "", console_log_level: str = "warning"
+) -> Logger:
     """
     This function creates console- and filehandler and from those, creates a logger
     object.
 
     Parameters
     ----------
-    source : str
-        Source filename.
-    filename : str
-        Output filename.
-    loglevel : str, optional
-        The minimum level that the logger will log. Defaults to 'INFO'.
+    name : str
+        Name of the logger, creates a new if needed.
+    filename : str, optional
+        Name of output logfile. Defaults to "".
+    console_log_level : str, optional
+        The minimum level that the logger will log. Defaults to 'info'.
 
     Returns
     -------
     Logger : 'logging.Logger' object.
     """
 
-    # logger = logging.getLogger(name)
-    # logger = logging.getLogger('root')
-    logger = logging.getLogger(source)
+    logger = logging.getLogger(name)
 
-    # if logger 'name' already exists, return it to avoid logging duplicate
-    # messages by attaching multiple handlers of the same type
     if logger.handlers:
         return logger
-    # if logger 'name' does not already exist, create it and attach handlers
     else:
-        # set logLevel to loglevel or to INFO if requested level is incorrect
-        loglevel = getattr(logging, loglevel.upper(), logging.INFO)
-        logger.setLevel(loglevel)
+        console_log_level = getattr(logging, console_log_level.upper())
+        logger.setLevel(console_log_level)
 
         # set up the console logger
         c_fmt_date = "%T"
@@ -96,7 +92,7 @@ def getLogger(source: str, filename: str, loglevel: str = "INFO") -> Logger:
         c_formatter = logging.Formatter(c_fmt, c_fmt_date)
         c_handler = logging.StreamHandler()
         c_handler.setFormatter(c_formatter)
-        c_handler.setLevel(logging.WARNING)
+        c_handler.setLevel(console_log_level)
         logger.addHandler(c_handler)
 
         # setup the file logger
@@ -105,11 +101,13 @@ def getLogger(source: str, filename: str, loglevel: str = "INFO") -> Logger:
             "%(asctime)s %(filename)18s:%(lineno)-4s %(funcName)20s()"
             " %(levelname)-8s: %(message)s"
         )
-        f_formatter = logging.Formatter(f_fmt, f_fmt_date)
-        f_handler = logging.FileHandler(filename, mode="w")
-        f_handler.setFormatter(f_formatter)
-        f_handler.setLevel(logging.DEBUG)
-        logger.addHandler(f_handler)
+
+        if filename:
+            f_formatter = logging.Formatter(f_fmt, f_fmt_date)
+            f_handler = logging.FileHandler(filename, mode="w")
+            f_handler.setFormatter(f_formatter)
+            f_handler.setLevel(logging.DEBUG)
+            logger.addHandler(f_handler)
 
     if logger.name == "scheduler-gui.log":
         logger.info(
@@ -121,13 +119,11 @@ def getLogger(source: str, filename: str, loglevel: str = "INFO") -> Logger:
     return logger
 
 
-# log uncaught exceptions
 def handle_exceptions(
     exc_type: type[BaseException],
     exc_value: BaseException,
     exc_traceback: TracebackType | None,
 ) -> None:
-    # def log_exceptions(type, value, tb):
     """This function is a helper function to log uncaught exceptions. Install with:
     `sys.excepthook = <module>.handle_exceptions`"""
     if issubclass(exc_type, KeyboardInterrupt):

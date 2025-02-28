@@ -621,14 +621,14 @@ class TestHybridScheduler:
             "in7": 7,
         }
         output_times = {
-            "out0": -2,
-            "out1": -1,
-            "out2": 0,
-            "out3": 1,
-            "out4": 2,
-            "out5": 3,
-            "out6": 4,
-            "out7": 5,
+            "out0": 0,
+            "out1": 1,
+            "out2": 2,
+            "out3": 3,
+            "out4": 4,
+            "out5": 5,
+            "out6": 6,
+            "out7": 7,
         }
         schedule = Schedule(
             sfg,
@@ -665,14 +665,14 @@ class TestHybridScheduler:
             "cmul1": 15,
             "bfly10": 16,
             "bfly4": 17,
-            "out0": 18,
-            "out1": 19,
-            "out2": 20,
-            "out3": 1,
-            "out4": 2,
-            "out5": 3,
-            "out6": 4,
-            "out7": 5,
+            "out0": 17,
+            "out1": 18,
+            "out2": 19,
+            "out3": 20,
+            "out4": 1,
+            "out5": 2,
+            "out6": 3,
+            "out7": 4,
         }
         assert schedule.schedule_time == 20
 
@@ -696,14 +696,14 @@ class TestHybridScheduler:
             "in7": 7,
         }
         output_times = {
-            "out0": -2,
-            "out1": -1,
-            "out2": 0,
-            "out3": 1,
-            "out4": 2,
-            "out5": 3,
-            "out6": 4,
-            "out7": 5,
+            "out0": 0,
+            "out1": 1,
+            "out2": 2,
+            "out3": 3,
+            "out4": 4,
+            "out5": 5,
+            "out6": 6,
+            "out7": 7,
         }
         schedule = Schedule(
             sfg,
@@ -739,16 +739,16 @@ class TestHybridScheduler:
             "cmul1": 15,
             "bfly10": 16,
             "bfly4": 17,
-            "out0": 18,
-            "out1": 19,
-            "out2": 20,
-            "out3": 21,
-            "out4": 22,
-            "out5": 23,
-            "out6": 24,
-            "out7": 25,
+            "out0": 17,
+            "out1": 18,
+            "out2": 19,
+            "out3": 20,
+            "out4": 21,
+            "out5": 22,
+            "out6": 23,
+            "out7": 24,
         }
-        assert schedule.schedule_time == 25
+        assert schedule.schedule_time == 24
 
     def test_ldlt_inverse_2x2(self):
         sfg = ldlt_matrix_inverse(N=2)
@@ -833,7 +833,7 @@ class TestHybridScheduler:
         }
         assert schedule.schedule_time == 16
 
-    def test_max_invalid_resources(self):
+    def test_invalid_max_resources(self):
         sfg = ldlt_matrix_inverse(N=2)
 
         sfg.set_latency_of_type(MADS.type_name(), 3)
@@ -842,26 +842,255 @@ class TestHybridScheduler:
         sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
 
         resources = 2
-        with pytest.raises(ValueError, match="max_resources must be a dictionary."):
+        with pytest.raises(
+            ValueError, match="Provided max_resources must be a dictionary."
+        ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
         resources = "test"
-        with pytest.raises(ValueError, match="max_resources must be a dictionary."):
+        with pytest.raises(
+            ValueError, match="Provided max_resources must be a dictionary."
+        ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
         resources = []
-        with pytest.raises(ValueError, match="max_resources must be a dictionary."):
+        with pytest.raises(
+            ValueError, match="Provided max_resources must be a dictionary."
+        ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
         resources = {1: 1}
         with pytest.raises(
-            ValueError, match="max_resources key must be a valid type_name."
+            ValueError, match="Provided max_resources keys must be strings."
         ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
         resources = {MADS.type_name(): "test"}
-        with pytest.raises(ValueError, match="max_resources value must be an integer."):
+        with pytest.raises(
+            ValueError, match="Provided max_resources values must be integers."
+        ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
+
+    def test_invalid_max_concurrent_writes(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        max_concurrent_writes = "5"
+        with pytest.raises(
+            ValueError, match="Provided max_concurrent_writes must be an integer."
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(max_concurrent_writes=max_concurrent_writes),
+            )
+
+        max_concurrent_writes = 0
+        with pytest.raises(
+            ValueError, match="Provided max_concurrent_writes must be larger than 0."
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(max_concurrent_writes=max_concurrent_writes),
+            )
+
+        max_concurrent_writes = -1
+        with pytest.raises(
+            ValueError, match="Provided max_concurrent_writes must be larger than 0."
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(max_concurrent_writes=max_concurrent_writes),
+            )
+
+    def test_invalid_max_concurrent_reads(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        max_concurrent_reads = "5"
+        with pytest.raises(
+            ValueError, match="Provided max_concurrent_reads must be an integer."
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(max_concurrent_reads=max_concurrent_reads),
+            )
+
+        max_concurrent_reads = 0
+        with pytest.raises(
+            ValueError, match="Provided max_concurrent_reads must be larger than 0."
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(max_concurrent_reads=max_concurrent_reads),
+            )
+
+        max_concurrent_reads = -1
+        with pytest.raises(
+            ValueError, match="Provided max_concurrent_reads must be larger than 0."
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(max_concurrent_reads=max_concurrent_reads),
+            )
+
+    def test_invalid_input_times(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        input_times = 5
+        with pytest.raises(
+            ValueError, match="Provided input_times must be a dictionary."
+        ):
+            Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
+
+        input_times = "test1"
+        with pytest.raises(
+            ValueError, match="Provided input_times must be a dictionary."
+        ):
+            Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
+
+        input_times = []
+        with pytest.raises(
+            ValueError, match="Provided input_times must be a dictionary."
+        ):
+            Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
+
+        input_times = {3: 3}
+        with pytest.raises(
+            ValueError, match="Provided input_times keys must be strings."
+        ):
+            Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
+
+        input_times = {"in0": "foo"}
+        with pytest.raises(
+            ValueError, match="Provided input_times values must be integers."
+        ):
+            Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
+
+        input_times = {"in0": -1}
+        with pytest.raises(
+            ValueError, match="Provided input_times values must be non-negative."
+        ):
+            Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
+
+    def test_invalid_output_delta_times(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        output_delta_times = 10
+        with pytest.raises(
+            ValueError, match="Provided output_delta_times must be a dictionary."
+        ):
+            Schedule(
+                sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
+            )
+
+        output_delta_times = "test2"
+        with pytest.raises(
+            ValueError, match="Provided output_delta_times must be a dictionary."
+        ):
+            Schedule(
+                sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
+            )
+
+        output_delta_times = []
+        with pytest.raises(
+            ValueError, match="Provided output_delta_times must be a dictionary."
+        ):
+            Schedule(
+                sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
+            )
+
+        output_delta_times = {4: 4}
+        with pytest.raises(
+            ValueError, match="Provided output_delta_times keys must be strings."
+        ):
+            Schedule(
+                sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
+            )
+
+        output_delta_times = {"out0": "foo"}
+        with pytest.raises(
+            ValueError, match="Provided output_delta_times values must be integers."
+        ):
+            Schedule(
+                sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
+            )
+
+        output_delta_times = {"out0": -1}
+        with pytest.raises(
+            ValueError, match="Provided output_delta_times values must be non-negative."
+        ):
+            Schedule(
+                sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
+            )
+
+    def test_resource_not_in_sfg(self):
+        sfg = ldlt_matrix_inverse(N=3)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        resources = {
+            MADS.type_name(): 1,
+            Reciprocal.type_name(): 1,
+            Addition.type_name(): 2,
+        }
+        with pytest.raises(
+            ValueError,
+            match="Provided max resource of type add cannot be found in the provided SFG.",
+        ):
+            Schedule(sfg, scheduler=HybridScheduler(resources))
+
+    def test_input_not_in_sfg(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        input_times = {"in100": 4}
+        with pytest.raises(
+            ValueError,
+            match="Provided input time with GraphID in100 cannot be found in the provided SFG.",
+        ):
+            Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
+
+    def test_output_not_in_sfg(self):
+        sfg = ldlt_matrix_inverse(N=2)
+
+        sfg.set_latency_of_type(MADS.type_name(), 3)
+        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+
+        output_delta_times = {"out90": 2}
+        with pytest.raises(
+            ValueError,
+            match="Provided output delta time with GraphID out90 cannot be found in the provided SFG.",
+        ):
+            Schedule(
+                sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
+            )
 
     def test_ldlt_inverse_3x3_read_and_write_constrained(self):
         sfg = ldlt_matrix_inverse(N=3)
@@ -886,27 +1115,6 @@ class TestHybridScheduler:
         assert mem_vars.read_ports_bound() == 3
         assert mem_vars.write_ports_bound() == 1
 
-    def test_read_constrained_too_tight(self):
-        sfg = ldlt_matrix_inverse(N=2)
-
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
-
-        resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
-        with pytest.raises(
-            TimeoutError,
-            match="Algorithm did not manage to schedule any operation for 10 time steps, try relaxing the constraints.",
-        ):
-            Schedule(
-                sfg,
-                scheduler=HybridScheduler(
-                    max_resources=resources,
-                    max_concurrent_reads=2,
-                ),
-            )
-
     def test_32_point_fft_custom_io_times(self):
         POINTS = 32
         sfg = radix_2_dif_fft(POINTS)
@@ -930,10 +1138,7 @@ class TestHybridScheduler:
 
         for i in range(POINTS):
             assert schedule.start_times[f"in{i}"] == i
-            assert (
-                schedule.start_times[f"out{i}"]
-                == schedule.get_max_non_io_end_time() + i
-            )
+            assert schedule.start_times[f"out{i}"] == 95 + i
 
     # Too slow for pipeline right now
     # def test_64_point_fft_custom_io_times(self):
@@ -989,7 +1194,13 @@ class TestHybridScheduler:
 
         for i in range(POINTS):
             assert schedule.start_times[f"in{i}"] == i
-            assert schedule.start_times[f"out{i}"] == 96 if i == 0 else i
+            if i == 0:
+                expected_value = 95
+            elif i == 1:
+                expected_value = 96
+            else:
+                expected_value = i - 1
+            assert schedule.start_times[f"out{i}"] == expected_value
 
     def test_cyclic_scheduling(self):
         sfg = radix_2_dif_fft(points=4)
@@ -1311,3 +1522,31 @@ class TestHybridScheduler:
             's3': 0,
         }
         assert schedule.schedule_time == 4
+
+    def test_invalid_output_delta_time(self):
+        sfg = radix_2_dif_fft(points=4)
+
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        resources = {
+            Butterfly.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): 2,
+            Output.type_name(): 2,
+        }
+        output_delta_times = {"out0": 0, "out1": 1, "out2": 2, "out3": 3}
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot place output out2 at time 6 for scheduling time 5. Try to relax the scheduling time, change the output delta times or enable cyclic.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(
+                    resources, output_delta_times=output_delta_times
+                ),
+                schedule_time=5,
+            )

@@ -160,8 +160,27 @@ class ALAPScheduler(Scheduler):
 
 
 class ListScheduler(Scheduler, ABC):
+    """
+    List-based scheduler that schedules the operations while complying to the given
+    constraints.
 
-    TIME_OUT_COUNTER_LIMIT = 100
+    Parameters
+    ----------
+    max_resources : dict[TypeName, int] | None, optional
+        Max resources available to realize the schedule, by default None
+    max_concurrent_reads : int | None, optional
+        Max number of conccurent reads, by default None
+    max_concurrent_writes : int | None, optional
+        Max number of conccurent writes, by default None
+    input_times : dict[GraphID, int] | None, optional
+        Specified input times, by default None
+    output_delta_times : dict[GraphID, int] | None, optional
+        Specified output delta times, by default None
+    cyclic : bool | None, optional
+        If the scheduler is allowed to schedule cyclically (modulo), by default False
+    sort_order : tuple[tuple[int, bool]]
+        Specifies which columns in the priority table to sort on and in which order, where True is ascending order.
+    """
 
     def __init__(
         self,
@@ -170,19 +189,19 @@ class ListScheduler(Scheduler, ABC):
         max_concurrent_writes: int | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
-        cyclic: bool | None = False,
+        sort_order=tuple[tuple[int, bool], ...],
     ) -> None:
         super()
-        self._logger = logger.getLogger(__name__, "list_scheduler.log", "DEBUG")
+        self._logger = logger.getLogger("list_scheduler")
 
         if max_resources is not None:
             if not isinstance(max_resources, dict):
-                raise ValueError("max_resources must be a dictionary.")
+                raise ValueError("Provided max_resources must be a dictionary.")
             for key, value in max_resources.items():
                 if not isinstance(key, str):
-                    raise ValueError("max_resources key must be a valid type_name.")
+                    raise ValueError("Provided max_resources keys must be strings.")
                 if not isinstance(value, int):
-                    raise ValueError("max_resources value must be an integer.")
+                    raise ValueError("Provided max_resources values must be integers.")
             self._max_resources = max_resources
         else:
             self._max_resources = {}
@@ -192,16 +211,57 @@ class ListScheduler(Scheduler, ABC):
         if Output.type_name() not in self._max_resources:
             self._max_resources[Output.type_name()] = 1
 
+        if max_concurrent_reads is not None:
+            if not isinstance(max_concurrent_reads, int):
+                raise ValueError("Provided max_concurrent_reads must be an integer.")
+            if max_concurrent_reads <= 0:
+                raise ValueError("Provided max_concurrent_reads must be larger than 0.")
         self._max_concurrent_reads = max_concurrent_reads or sys.maxsize
+
+        if max_concurrent_writes is not None:
+            if not isinstance(max_concurrent_writes, int):
+                raise ValueError("Provided max_concurrent_writes must be an integer.")
+            if max_concurrent_writes <= 0:
+                raise ValueError(
+                    "Provided max_concurrent_writes must be larger than 0."
+                )
         self._max_concurrent_writes = max_concurrent_writes or sys.maxsize
 
-        self._input_times = input_times or {}
-        self._output_delta_times = output_delta_times or {}
+        if input_times is not None:
+            if not isinstance(input_times, dict):
+                raise ValueError("Provided input_times must be a dictionary.")
+            for key, value in input_times.items():
+                if not isinstance(key, str):
+                    raise ValueError("Provided input_times keys must be strings.")
+                if not isinstance(value, int):
+                    raise ValueError("Provided input_times values must be integers.")
+            if any(time < 0 for time in input_times.values()):
+                raise ValueError("Provided input_times values must be non-negative.")
+            self._input_times = input_times
+        else:
+            self._input_times = {}
 
-    @property
-    @abstractmethod
-    def sort_indices(self) -> tuple[tuple[int, bool]]:
-        raise NotImplementedError
+        if output_delta_times is not None:
+            if not isinstance(output_delta_times, dict):
+                raise ValueError("Provided output_delta_times must be a dictionary.")
+            for key, value in output_delta_times.items():
+                if not isinstance(key, str):
+                    raise ValueError(
+                        "Provided output_delta_times keys must be strings."
+                    )
+                if not isinstance(value, int):
+                    raise ValueError(
+                        "Provided output_delta_times values must be integers."
+                    )
+            if any(time < 0 for time in output_delta_times.values()):
+                raise ValueError(
+                    "Provided output_delta_times values must be non-negative."
+                )
+            self._output_delta_times = output_delta_times
+        else:
+            self._output_delta_times = {}
+
+        self._sort_order = sort_order
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         """Applies the scheduling algorithm on the given Schedule.
@@ -216,7 +276,25 @@ class ListScheduler(Scheduler, ABC):
         self._schedule = schedule
         self._sfg = schedule.sfg
 
-        if self._schedule.cyclic and self._schedule.schedule_time is None:
+        for resource_type in self._max_resources.keys():
+            if not self._sfg.find_by_type_name(resource_type):
+                raise ValueError(
+                    f"Provided max resource of type {resource_type} cannot be found in the provided SFG."
+                )
+
+        for key in self._input_times.keys():
+            if self._sfg.find_by_id(key) is None:
+                raise ValueError(
+                    f"Provided input time with GraphID {key} cannot be found in the provided SFG."
+                )
+
+        for key in self._output_delta_times.keys():
+            if self._sfg.find_by_id(key) is None:
+                raise ValueError(
+                    f"Provided output delta time with GraphID {key} cannot be found in the provided SFG."
+                )
+
+        if self._schedule._cyclic and self._schedule.schedule_time is None:
             raise ValueError("Scheduling time must be provided when cyclic = True.")
 
         for resource_type, resource_amount in self._max_resources.items():
@@ -239,7 +317,7 @@ class ListScheduler(Scheduler, ABC):
         alap_start_times = alap_schedule.start_times
         self._schedule.start_times = {}
 
-        if not self._schedule.cyclic and self._schedule.schedule_time:
+        if not self._schedule._cyclic and self._schedule.schedule_time:
             if alap_schedule.schedule_time > self._schedule.schedule_time:
                 raise ValueError(
                     f"Provided scheduling time {schedule.schedule_time} cannot be reached, "
@@ -268,7 +346,6 @@ class ListScheduler(Scheduler, ABC):
         self.remaining_reads = self._max_concurrent_reads
 
         self._current_time = 0
-        self._time_out_counter = 0
         self._op_laps = {}
 
         self._remaining_ops = [
@@ -310,7 +387,6 @@ class ListScheduler(Scheduler, ABC):
                     op_id for op_id in self._remaining_ops if op_id != next_op.graph_id
                 ]
 
-                self._time_out_counter = 0
                 self._schedule.place_operation(next_op, self._current_time)
                 self._op_laps[next_op.graph_id] = (
                     (self._current_time) // self._schedule.schedule_time
@@ -329,7 +405,7 @@ class ListScheduler(Scheduler, ABC):
 
                 ready_ops_priority_table = self._get_ready_ops_priority_table()
 
-            self._go_to_next_time_step()
+            self._current_time += 1
             self.remaining_reads = self._max_concurrent_reads
 
         self._logger.debug("--- Operation scheduling completed ---")
@@ -353,22 +429,13 @@ class ListScheduler(Scheduler, ABC):
         self._schedule.sort_y_locations_on_start_times()
         self._logger.debug("--- Scheduling completed ---")
 
-    def _go_to_next_time_step(self):
-        self._time_out_counter += 1
-        if self._time_out_counter >= self.TIME_OUT_COUNTER_LIMIT:
-            raise TimeoutError(
-                "Algorithm did not manage to schedule any operation for 10 time steps, "
-                "try relaxing the constraints."
-            )
-        self._current_time += 1
-
     def _get_next_op_id(
         self, ready_ops_priority_table: list[tuple["GraphID", int, ...]]
     ) -> "GraphID":
         def sort_key(item):
             return tuple(
                 (item[index] * (-1 if not asc else 1),)
-                for index, asc in self.sort_indices
+                for index, asc in self._sort_order
             )
 
         sorted_table = sorted(ready_ops_priority_table, key=sort_key)
@@ -492,7 +559,7 @@ class ListScheduler(Scheduler, ABC):
 
     def _handle_outputs(self) -> None:
         self._logger.debug("--- Output placement starting ---")
-        if self._schedule.cyclic:
+        if self._schedule._cyclic:
             end = self._schedule.schedule_time
         else:
             end = self._schedule.get_max_end_time()
@@ -503,7 +570,7 @@ class ListScheduler(Scheduler, ABC):
 
                 new_time = end + delta_time
 
-                if self._schedule.cyclic and self._schedule.schedule_time is not None:
+                if self._schedule._cyclic and self._schedule.schedule_time is not None:
                     self._schedule.place_operation(output, new_time)
                 else:
                     self._schedule.start_times[output.graph_id] = new_time
@@ -531,5 +598,33 @@ class ListScheduler(Scheduler, ABC):
                     else new_time
                 )
                 self._logger.debug(f"   {output.graph_id} time: {modulo_time}")
-
         self._logger.debug("--- Output placement completed ---")
+
+        self._logger.debug("--- Output placement optimization starting ---")
+        min_slack = min(
+            self._schedule.backward_slack(op.graph_id)
+            for op in self._sfg.find_by_type_name(Output.type_name())
+        )
+        if min_slack > 0:
+            for output in self._sfg.find_by_type_name(Output.type_name()):
+                if self._schedule._cyclic and self._schedule.schedule_time is not None:
+                    self._schedule.move_operation(output.graph_id, -min_slack)
+                else:
+                    self._schedule.start_times[output.graph_id] = (
+                        self._schedule.start_times[output.graph_id] - min_slack
+                    )
+                new_time = self._schedule.start_times[output.graph_id]
+                if (
+                    not self._schedule._cyclic
+                    and self._schedule.schedule_time is not None
+                ):
+                    if new_time > self._schedule.schedule_time:
+                        raise ValueError(
+                            f"Cannot place output {output.graph_id} at time {new_time} "
+                            f"for scheduling time {self._schedule.schedule_time}. "
+                            "Try to relax the scheduling time, change the output delta times or enable cyclic."
+                        )
+                self._logger.debug(
+                    f"   {output.graph_id} moved {min_slack} time steps backwards to new time {new_time}"
+                )
+        self._logger.debug("--- Output placement optimization completed ---")

@@ -20,7 +20,7 @@ from setuptools_scm import get_version
 try:
     import b_asic.logger as logger
 
-    log = logger.getLogger(__name__, "scheduler-gui.log")
+    log = logger.getLogger(__name__)
     sys.excepthook = logger.handle_exceptions
 except ModuleNotFoundError:
     log = None

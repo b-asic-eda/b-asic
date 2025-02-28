@@ -352,13 +352,20 @@ class Schedule:
             if source.operation.graph_id.startswith("dontcare"):
                 available_time = 0
             else:
-                available_time = (
-                    cast(int, source.latency_offset)
-                    + self._start_times[source.operation.graph_id]
-                    - self._schedule_time * self._laps[signal.graph_id]
-                )
-                if available_time > self._schedule_time:
-                    available_time -= self._schedule_time
+                if self._schedule_time is not None:
+                    available_time = (
+                        cast(int, source.latency_offset)
+                        + self._start_times[source.operation.graph_id]
+                        - self._schedule_time * self._laps[signal.graph_id]
+                    )
+                    if available_time > self._schedule_time:
+                        available_time -= self._schedule_time
+                else:
+                    available_time = (
+                        cast(int, source.latency_offset)
+                        + self._start_times[source.operation.graph_id]
+                    )
+
             input_slacks[signal] = usage_time - available_time
         return input_slacks
 
