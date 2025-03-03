@@ -15,7 +15,7 @@ points = 8
 sfg = radix_2_dif_fft(points=points)
 
 # %%
-# The SFG is
+# The SFG is:
 sfg
 
 # %%
@@ -26,7 +26,7 @@ sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
 sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
 
 # %%
-# Generate an ASAP schedule for reference
+# Generate an ASAP schedule for reference.
 schedule = Schedule(sfg, scheduler=ASAPScheduler())
 schedule.show()
 
@@ -46,8 +46,7 @@ schedule = Schedule(
 schedule.show()
 
 # %%
-# Generate a new Schedule with cyclic scheduling enabled
-output_delta_times = {f"out{i}": i for i in range(points)}
+# Generate a new Schedule with cyclic scheduling enabled.
 schedule = Schedule(
     sfg,
     scheduler=HybridScheduler(
@@ -61,8 +60,7 @@ schedule = Schedule(
 schedule.show()
 
 # %%
-# Generate a new Schedule with even less scheduling time
-output_delta_times = {f"out{i}": i + 1 for i in range(points)}
+# Generate a new Schedule with even less scheduling time.
 schedule = Schedule(
     sfg,
     scheduler=HybridScheduler(
@@ -76,7 +74,21 @@ schedule = Schedule(
 schedule.show()
 
 # %%
-# Try scheduling for 12 cycles, which gives full butterfly usage
+# Try scheduling for 12 cycles, which gives full butterfly usage.
+schedule = Schedule(
+    sfg,
+    scheduler=HybridScheduler(
+        resources,
+        input_times=input_times,
+        output_delta_times=output_delta_times,
+    ),
+    schedule_time=12,
+    cyclic=True,
+)
+schedule.show()
+
+# %%
+# Push output times one step to prevent lap for out3.
 output_delta_times = {f"out{i}": i + 2 for i in range(points)}
 schedule = Schedule(
     sfg,

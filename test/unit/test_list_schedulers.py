@@ -1395,6 +1395,30 @@ class TestHybridScheduler:
                 schedule_time=5,
             )
 
+        sfg = radix_2_dif_fft(points=8)
+
+        sfg.set_latency_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        resources = {
+            Butterfly.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+        }
+        with pytest.raises(
+            ValueError,
+            match="Amount of resource: bfly is not enough to realize schedule for scheduling time: 6.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=HybridScheduler(
+                    resources, max_concurrent_reads=2, max_concurrent_writes=2
+                ),
+                schedule_time=6,
+                cyclic=True,
+            )
+
     def test_scheduling_time_not_enough(self):
         sfg = ldlt_matrix_inverse(N=3)
 
@@ -1549,4 +1573,28 @@ class TestHybridScheduler:
                     resources, output_delta_times=output_delta_times
                 ),
                 schedule_time=5,
+            )
+
+    def test_iteration_period_bound(self):
+        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="Provided scheduling time 5 must be larger or equal to the iteration period bound: 8.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=EarliestDeadlineScheduler(max_resources=resources),
+                schedule_time=5,
+                cyclic=True,
             )

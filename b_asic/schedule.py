@@ -29,6 +29,7 @@ from b_asic._preferences import (
     SIGNAL_LINEWIDTH,
     SPLINE_OFFSET,
 )
+from b_asic.core_operations import DontCare
 from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -349,7 +350,9 @@ class Schedule:
         usage_time = start_time + cast(int, input_port.latency_offset)
         for signal in input_port.signals:
             source = cast(OutputPort, signal.source)
-            if source.operation.graph_id.startswith("dontcare"):
+            if isinstance(source.operation, DontCare):
+                available_time = 0
+            elif isinstance(source.operation, Delay):
                 available_time = 0
             else:
                 if self._schedule_time is not None:

@@ -10,6 +10,7 @@ import warnings
 from collections import defaultdict, deque
 from collections.abc import Iterable, MutableSet, Sequence
 from io import StringIO
+from math import ceil
 from numbers import Number
 from queue import PriorityQueue
 from typing import (
@@ -1728,6 +1729,32 @@ class SFG(AbstractOperation):
                 if next_state in path:
                     continue
                 fringe.append((next_state, path + [next_state]))
+
+    def resource_lower_bound(self, type_name: str, schedule_time: int) -> int:
+        """Return the lowest amount of resources of the given type needed to reach the scheduling time.
+
+        Parameters
+        ----------
+        type_name : str
+            Type name of the given resource.
+        schedule_time : int
+            Scheduling time to evaluate for.
+        """
+        ops = self.find_by_type_name(type_name)
+        if not ops:
+            return 0
+        if schedule_time <= 0:
+            raise ValueError(
+                f"Schedule time must be positive, current schedule time is: {schedule_time}."
+            )
+        exec_times = [op.execution_time for op in ops]
+        if any(time is None for time in exec_times):
+            raise ValueError(
+                f"Execution times not set for all operations of type {type_name}."
+            )
+
+        total_exec_time = sum([op.execution_time for op in ops])
+        return ceil(total_exec_time / schedule_time)
 
     def iteration_period_bound(self) -> int:
         """

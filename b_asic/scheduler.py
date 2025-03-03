@@ -1,7 +1,6 @@
 import copy
 import sys
 from abc import ABC, abstractmethod
-from math import ceil
 from typing import TYPE_CHECKING, cast
 
 import b_asic.logger as logger
@@ -294,18 +293,21 @@ class ListScheduler(Scheduler, ABC):
                     f"Provided output delta time with GraphID {key} cannot be found in the provided SFG."
                 )
 
-        if self._schedule._cyclic and self._schedule.schedule_time is None:
-            raise ValueError("Scheduling time must be provided when cyclic = True.")
-
-        for resource_type, resource_amount in self._max_resources.items():
-            total_exec_time = sum(
-                [op.execution_time for op in self._sfg.find_by_type_name(resource_type)]
-            )
-            if self._schedule.schedule_time is not None:
-                resource_lower_bound = ceil(
-                    total_exec_time / self._schedule.schedule_time
+        if self._schedule._cyclic:
+            if self._schedule.schedule_time is None:
+                raise ValueError("Scheduling time must be provided when cyclic = True.")
+            iteration_period_bound = self._sfg.iteration_period_bound()
+            if self._schedule.schedule_time < iteration_period_bound:
+                raise ValueError(
+                    f"Provided scheduling time {self._schedule.schedule_time} must be larger or equal to the"
+                    f" iteration period bound: {iteration_period_bound}."
                 )
-                if resource_amount < resource_lower_bound:
+
+        if self._schedule.schedule_time is not None:
+            for resource_type, resource_amount in self._max_resources.items():
+                if resource_amount < self._sfg.resource_lower_bound(
+                    resource_type, self._schedule.schedule_time
+                ):
                     raise ValueError(
                         f"Amount of resource: {resource_type} is not enough to "
                         f"realize schedule for scheduling time: {self._schedule.schedule_time}."
@@ -447,6 +449,7 @@ class ListScheduler(Scheduler, ABC):
             for op_id in self._remaining_ops
             if self._op_is_schedulable(self._sfg.find_by_id(op_id))
         ]
+        memory_reads = self._calculate_memory_reads(ready_ops)
 
         return [
             (
@@ -454,6 +457,7 @@ class ListScheduler(Scheduler, ABC):
                 self._deadlines[op_id],
                 self._output_slacks[op_id],
                 self._fan_outs[op_id],
+                memory_reads[op_id],
             )
             for op_id in ready_ops
         ]
@@ -478,6 +482,27 @@ class ListScheduler(Scheduler, ABC):
             op_id: len(self._sfg.find_by_id(op_id).output_signals)
             for op_id, start_time in alap_start_times.items()
         }
+
+    def _calculate_memory_reads(
+        self, ready_ops: list["GraphID"]
+    ) -> dict["GraphID", int]:
+        op_reads = {}
+        for op_id in ready_ops:
+            reads = 0
+            for op_input in self._sfg.find_by_id(op_id).inputs:
+                source_op = op_input.signals[0].source.operation
+                if isinstance(source_op, DontCare):
+                    continue
+                if isinstance(source_op, Delay):
+                    reads += 1
+                    continue
+                if (
+                    self._schedule.start_times[source_op.graph_id]
+                    != self._current_time - 1
+                ):
+                    reads += 1
+            op_reads[op_id] = reads
+        return op_reads
 
     def _op_satisfies_resource_constraints(self, op: "Operation") -> bool:
         if self._schedule.schedule_time is not None:
@@ -579,18 +604,6 @@ class ListScheduler(Scheduler, ABC):
                 for op_id, time in self._schedule.start_times.items():
                     if time == new_time and op_id.startswith("out"):
                         count += 1
-
-                self._remaining_resources = self._max_resources
-                self._remaining_resources[Output.type_name()] -= count
-
-                self._current_time = new_time
-                if not self._op_is_schedulable(output):
-                    raise ValueError(
-                        "Cannot schedule outputs according to the provided output_delta_times. "
-                        f"Failed output: {output.graph_id}, "
-                        f"at time: { self._schedule.start_times[output.graph_id]}, "
-                        "try relaxing the constraints."
-                    )
 
                 modulo_time = (
                     new_time % self._schedule.schedule_time

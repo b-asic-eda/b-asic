@@ -1811,6 +1811,63 @@ class TestInsertDelays:
         assert source4.type_name() == bfly.type_name()
 
 
+class TestResourceLowerBound:
+    def test_empty_sfg(self):
+        sfg = SFG()
+        assert sfg.resource_lower_bound("add", 2) == 0
+        assert sfg.resource_lower_bound("cmul", 1000) == 0
+
+    def test_type_not_in_sfg(self, sfg_simple_accumulator):
+        sfg_simple_accumulator.resource_lower_bound("bfly", 2) == 0
+        sfg_simple_accumulator.resource_lower_bound("bfly", 1000) == 0
+
+    def test_negative_schedule_time(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type("add", 2)
+        precedence_sfg_delays.set_latency_of_type("cmul", 3)
+        precedence_sfg_delays.set_execution_time_of_type("add", 1)
+        precedence_sfg_delays.set_execution_time_of_type("cmul", 1)
+
+        with pytest.raises(
+            ValueError,
+            match="Schedule time must be positive, current schedule time is: 0.",
+        ):
+            precedence_sfg_delays.resource_lower_bound("add", 0)
+
+        with pytest.raises(
+            ValueError,
+            match="Schedule time must be positive, current schedule time is: -1.",
+        ):
+            precedence_sfg_delays.resource_lower_bound("cmul", -1)
+
+    def test_accumulator(self, sfg_simple_accumulator):
+        sfg_simple_accumulator.set_latency_of_type('add', 2)
+
+        with pytest.raises(
+            ValueError,
+            match="Execution times not set for all operations of type add.",
+        ):
+            sfg_simple_accumulator.resource_lower_bound("add", 2)
+
+        sfg_simple_accumulator.set_execution_time_of_type("add", 2)
+        assert sfg_simple_accumulator.resource_lower_bound("add", 2) == 1
+        assert sfg_simple_accumulator.resource_lower_bound("add", 1) == 2
+
+    def test_secondorder_iir(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type("add", 2)
+        precedence_sfg_delays.set_latency_of_type("cmul", 3)
+
+        precedence_sfg_delays.set_execution_time_of_type("add", 1)
+        assert precedence_sfg_delays.resource_lower_bound("add", 1) == 4
+        assert precedence_sfg_delays.resource_lower_bound("add", 2) == 2
+        assert precedence_sfg_delays.resource_lower_bound("add", 4) == 1
+
+        precedence_sfg_delays.set_execution_time_of_type("cmul", 1)
+        assert precedence_sfg_delays.resource_lower_bound("cmul", 1) == 7
+        assert precedence_sfg_delays.resource_lower_bound("cmul", 2) == 4
+        assert precedence_sfg_delays.resource_lower_bound("cmul", 4) == 2
+        assert precedence_sfg_delays.resource_lower_bound("cmul", 7) == 1
+
+
 class TestIterationPeriodBound:
     def test_accumulator(self, sfg_simple_accumulator):
         sfg_simple_accumulator.set_latency_of_type('add', 2)
