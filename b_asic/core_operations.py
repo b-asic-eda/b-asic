@@ -1131,7 +1131,6 @@ class MAD(AbstractOperation):
 class MADS(AbstractOperation):
     __slots__ = (
         "_is_add",
-        "_override_zero_on_src0",
         "_src0",
         "_src1",
         "_src2",
@@ -1139,9 +1138,9 @@ class MADS(AbstractOperation):
         "_latency",
         "_latency_offsets",
         "_execution_time",
+        "_do_addsub",
     )
     _is_add: bool | None
-    _override_zero_on_src0: bool | None
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
     _src2: SignalSourceProvider | None
@@ -1149,13 +1148,13 @@ class MADS(AbstractOperation):
     _latency: int | None
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
+    _do_addsub: bool
 
     is_swappable = True
 
     def __init__(
         self,
         is_add: bool | None = True,
-        override_zero_on_src0: bool | None = False,
         src0: SignalSourceProvider | None = None,
         src1: SignalSourceProvider | None = None,
         src2: SignalSourceProvider | None = None,
@@ -1163,6 +1162,7 @@ class MADS(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        do_addsub: bool = True,
     ):
         """Construct a MADS operation."""
         super().__init__(
@@ -1175,7 +1175,7 @@ class MADS(AbstractOperation):
             execution_time=execution_time,
         )
         self.set_param("is_add", is_add)
-        self.set_param("override_zero_on_src0", override_zero_on_src0)
+        self.set_param("do_addsub", do_addsub)
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -1183,35 +1183,35 @@ class MADS(AbstractOperation):
 
     def evaluate(self, a, b, c):
         if self.is_add:
-            if self.override_zero_on_src0:
-                return b * c
-            else:
+            if self.do_addsub:
                 return a + b * c
-        else:
-            if self.override_zero_on_src0:
-                return -b * c
             else:
+                return b * c
+        else:
+            if self.do_addsub:
                 return a - b * c
+            else:
+                return -b * c
 
     @property
     def is_add(self) -> bool:
-        """Get if operation is an addition."""
+        """Get whether to add or subtract with the product."""
         return self.param("is_add")
 
     @is_add.setter
     def is_add(self, is_add: bool) -> None:
-        """Set if operation is an addition."""
+        """Setwhether to add or subtract with the product."""
         self.set_param("is_add", is_add)
 
     @property
-    def override_zero_on_src0(self) -> bool:
-        """Get if operation is overriding a zero on port src0."""
-        return self.param("override_zero_on_src0")
+    def do_addsub(self) -> bool:
+        """Get whether the input to src0 is used when computing."""
+        return self.param("do_addsub")
 
-    @override_zero_on_src0.setter
-    def override_zero_on_src0(self, override_zero_on_src0: bool) -> None:
-        """Set if operation is overriding a zero on port src0."""
-        self.set_param("override_zero_on_src0", override_zero_on_src0)
+    @do_addsub.setter
+    def do_addsub(self, do_addsub: bool) -> None:
+        """Set whether the input to src0 is used when computing."""
+        self.set_param("do_addsub", do_addsub)
 
     @property
     def is_linear(self) -> bool:

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 import b_asic.logger as logger
 from b_asic.core_operations import DontCare
 from b_asic.port import OutputPort
-from b_asic.special_operations import Delay, Input, Output
+from b_asic.special_operations import Delay, Output
 from b_asic.types import TypeName
 
 if TYPE_CHECKING:
@@ -205,11 +205,6 @@ class ListScheduler(Scheduler, ABC):
         else:
             self._max_resources = {}
 
-        if Input.type_name() not in self._max_resources:
-            self._max_resources[Input.type_name()] = 1
-        if Output.type_name() not in self._max_resources:
-            self._max_resources[Output.type_name()] = 1
-
         if max_concurrent_reads is not None:
             if not isinstance(max_concurrent_reads, int):
                 raise ValueError("Provided max_concurrent_reads must be an integer.")
@@ -281,6 +276,14 @@ class ListScheduler(Scheduler, ABC):
                     f"Provided max resource of type {resource_type} cannot be found in the provided SFG."
                 )
 
+        differing_elems = [
+            resource
+            for resource in self._sfg.get_used_type_names()
+            if resource not in self._max_resources.keys()
+        ]
+        for type_name in differing_elems:
+            self._max_resources[type_name] = 1
+
         for key in self._input_times.keys():
             if self._sfg.find_by_id(key) is None:
                 raise ValueError(
@@ -332,8 +335,9 @@ class ListScheduler(Scheduler, ABC):
         self._remaining_ops = self._sfg.operations
         self._remaining_ops = [op.graph_id for op in self._remaining_ops]
 
-        self._cached_latencies = {
-            op_id: self._sfg.find_by_id(op_id).latency for op_id in self._remaining_ops
+        self._cached_latency_offsets = {
+            op_id: self._sfg.find_by_id(op_id).latency_offsets
+            for op_id in self._remaining_ops
         }
         self._cached_execution_times = {
             op_id: self._sfg.find_by_id(op_id).execution_time
@@ -345,7 +349,7 @@ class ListScheduler(Scheduler, ABC):
         self._fan_outs = self._calculate_fan_outs(alap_start_times)
 
         self._schedule.start_times = {}
-        self.remaining_reads = self._max_concurrent_reads
+        self._used_reads = {0: 0}
 
         self._current_time = 0
         self._op_laps = {}
@@ -383,7 +387,24 @@ class ListScheduler(Scheduler, ABC):
                     self._get_next_op_id(ready_ops_priority_table)
                 )
 
-                self.remaining_reads -= next_op.input_count
+                for i, input_port in enumerate(next_op.inputs):
+                    source_op = input_port.signals[0].source.operation
+                    if (
+                        not isinstance(source_op, DontCare)
+                        and not isinstance(source_op, Delay)
+                        and self._schedule.start_times[source_op.graph_id]
+                        != self._current_time - 1
+                    ):
+                        time = (
+                            self._current_time
+                            + self._cached_latency_offsets[next_op.graph_id][f"in{i}"]
+                        )
+                        if self._schedule.schedule_time:
+                            time %= self._schedule.schedule_time
+                        if self._used_reads.get(time):
+                            self._used_reads[time] += 1
+                        else:
+                            self._used_reads[time] = 1
 
                 self._remaining_ops = [
                     op_id for op_id in self._remaining_ops if op_id != next_op.graph_id
@@ -408,7 +429,6 @@ class ListScheduler(Scheduler, ABC):
                 ready_ops_priority_table = self._get_ready_ops_priority_table()
 
             self._current_time += 1
-            self.remaining_reads = self._max_concurrent_reads
 
         self._logger.debug("--- Operation scheduling completed ---")
 
@@ -424,9 +444,10 @@ class ListScheduler(Scheduler, ABC):
 
         # schedule all dont cares ALAP
         for dc_op in self._sfg.find_by_type_name(DontCare.type_name()):
-            dc_op = cast(DontCare, dc_op)
             self._schedule.start_times[dc_op.graph_id] = 0
-            self._schedule.move_operation_alap(dc_op.graph_id)
+            self._schedule.place_operation(
+                dc_op, schedule.forward_slack(dc_op.graph_id)
+            )
 
         self._schedule.sort_y_locations_on_start_times()
         self._logger.debug("--- Scheduling completed ---")
@@ -465,10 +486,17 @@ class ListScheduler(Scheduler, ABC):
     def _calculate_deadlines(
         self, alap_start_times: dict["GraphID", int]
     ) -> dict["GraphID", int]:
-        return {
-            op_id: start_time + self._cached_latencies[op_id]
-            for op_id, start_time in alap_start_times.items()
-        }
+        deadlines = {}
+        for op_id, start_time in alap_start_times.items():
+            output_offsets = [
+                pair[1]
+                for pair in self._cached_latency_offsets[op_id].items()
+                if pair[0].startswith("out")
+            ]
+            deadlines[op_id] = (
+                start_time + min(output_offsets) if output_offsets else start_time
+            )
+        return deadlines
 
     def _calculate_alap_output_slacks(
         self, alap_start_times: dict["GraphID", int]
@@ -523,29 +551,86 @@ class ListScheduler(Scheduler, ABC):
 
         return count < self._remaining_resources[op.type_name()]
 
-    def _op_is_schedulable(self, op: "Operation") -> bool:
-        if not self._op_satisfies_resource_constraints(op):
-            return False
+    def _op_satisfies_concurrent_writes(self, op: "Operation") -> bool:
+        tmp_used_writes = {}
+        if not op.graph_id.startswith("out"):
+            for i in range(len(op.outputs)):
+                output_ready_time = (
+                    self._current_time
+                    + self._cached_latency_offsets[op.graph_id][f"out{i}"]
+                )
+                if self._schedule.schedule_time:
+                    output_ready_time %= self._schedule.schedule_time
 
-        op_finish_time = self._current_time + self._cached_latencies[op.graph_id]
-        future_ops = [
-            self._sfg.find_by_id(item[0])
-            for item in self._schedule.start_times.items()
-            if item[1] + self._cached_latencies[item[0]] == op_finish_time
-        ]
+                writes_in_time = 0
+                for item in self._schedule.start_times.items():
+                    offsets = [
+                        offset
+                        for port_id, offset in self._cached_latency_offsets[
+                            item[0]
+                        ].items()
+                        if port_id.startswith("out")
+                    ]
+                    write_times = [item[1] + offset for offset in offsets]
+                    writes_in_time += write_times.count(output_ready_time)
 
-        future_ops_writes = sum([op.input_count for op in future_ops])
+                write_time = (
+                    self._current_time
+                    + self._cached_latency_offsets[op.graph_id][f"out{i}"]
+                )
+                if self._schedule.schedule_time:
+                    write_time %= self._schedule.schedule_time
 
-        if (
-            not op.graph_id.startswith("out")
-            and future_ops_writes >= self._max_concurrent_writes
-        ):
-            return False
+                if tmp_used_writes.get(write_time):
+                    tmp_used_writes[write_time] += 1
+                else:
+                    tmp_used_writes[write_time] = 1
 
-        read_counter = 0
-        earliest_start_time = 0
-        for op_input in op.inputs:
+                if (
+                    self._max_concurrent_writes
+                    - writes_in_time
+                    - tmp_used_writes[write_time]
+                    < 0
+                ):
+                    return False
+        return True
+
+    def _op_satisfies_concurrent_reads(self, op: "Operation") -> bool:
+        tmp_used_reads = {}
+        for i, op_input in enumerate(op.inputs):
             source_op = op_input.signals[0].source.operation
+            if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
+                continue
+            if self._schedule.start_times[source_op.graph_id] != self._current_time - 1:
+                input_read_time = (
+                    self._current_time
+                    + self._cached_latency_offsets[op.graph_id][f"in{i}"]
+                )
+                if self._schedule.schedule_time:
+                    input_read_time %= self._schedule.schedule_time
+
+                if tmp_used_reads.get(input_read_time):
+                    tmp_used_reads[input_read_time] += 1
+                else:
+                    tmp_used_reads[input_read_time] = 1
+
+                prev_used = self._used_reads.get(input_read_time) or 0
+                if (
+                    self._max_concurrent_reads
+                    < prev_used + tmp_used_reads[input_read_time]
+                ):
+                    return False
+        return True
+
+    def _op_satisfies_data_dependencies(self, op: "Operation") -> bool:
+        for input_port_index, op_input in enumerate(op.inputs):
+            source_port = source_op = op_input.signals[0].source
+            source_op = source_port.operation
+            for i, port in enumerate(source_op.outputs):
+                if port == source_port:
+                    source_port_index = i
+                    break
+
             if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
                 continue
 
@@ -554,33 +639,37 @@ class ListScheduler(Scheduler, ABC):
             if source_op_graph_id in self._remaining_ops:
                 return False
 
-            if self._schedule.start_times[source_op_graph_id] != self._current_time - 1:
-                # not a direct connection -> memory read required
-                read_counter += 1
-
-            if read_counter > self.remaining_reads:
-                return False
-
             if self._schedule.schedule_time is not None:
-                proceeding_op_start_time = (
+                available_time = (
                     self._schedule.start_times.get(source_op_graph_id)
                     + self._op_laps[source_op.graph_id] * self._schedule.schedule_time
-                )
-                proceeding_op_finish_time = (
-                    proceeding_op_start_time
-                    + self._cached_latencies[source_op.graph_id]
+                    + self._cached_latency_offsets[source_op.graph_id][
+                        f"out{source_port_index}"
+                    ]
                 )
             else:
-                proceeding_op_start_time = self._schedule.start_times.get(
-                    source_op_graph_id
+                available_time = (
+                    self._schedule.start_times.get(source_op_graph_id)
+                    + self._cached_latency_offsets[source_op.graph_id][
+                        f"out{source_port_index}"
+                    ]
                 )
-                proceeding_op_finish_time = (
-                    proceeding_op_start_time
-                    + self._cached_latencies[source_op.graph_id]
-                )
-            earliest_start_time = max(earliest_start_time, proceeding_op_finish_time)
 
-        return earliest_start_time <= self._current_time
+            required_time = (
+                self._current_time
+                + self._cached_latency_offsets[op.graph_id][f"in{input_port_index}"]
+            )
+            if available_time > required_time:
+                return False
+        return True
+
+    def _op_is_schedulable(self, op: "Operation") -> bool:
+        return (
+            self._op_satisfies_data_dependencies(op)
+            and self._op_satisfies_resource_constraints(op)
+            and self._op_satisfies_concurrent_writes(op)
+            and self._op_satisfies_concurrent_reads(op)
+        )
 
     def _handle_outputs(self) -> None:
         self._logger.debug("--- Output placement starting ---")

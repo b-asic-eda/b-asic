@@ -707,6 +707,27 @@ of :class:`~b_asic.architecture.ProcessingElement`
         # Make sure all inputs and outputs in the architecture are in use
         read_port_diff = memory_read_ports.symmetric_difference(pe_input_ports)
         write_port_diff = memory_write_ports.symmetric_difference(pe_output_ports)
+
+        if any(port.name.startswith("dontcare") for port in read_port_diff):
+            raise NotImplementedError(
+                "DontCare operations not supported in architecture yet."
+            )
+
+        if any(port.name.startswith("sink") for port in read_port_diff):
+            raise NotImplementedError(
+                "Sink operations not supported in architecture yet."
+            )
+
+        if any(port.name.startswith("dontcare") for port in write_port_diff):
+            raise NotImplementedError(
+                "DontCare operations not supported in architecture yet."
+            )
+
+        if any(port.name.startswith("sink") for port in write_port_diff):
+            raise NotImplementedError(
+                "Sink operations not supported in architecture yet."
+            )
+
         if read_port_diff:
             raise ValueError(
                 "Memory read port and PE output port difference:"

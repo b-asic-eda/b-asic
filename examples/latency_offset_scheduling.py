@@ -1,95 +1,77 @@
 """
-=========================================
-LDLT Matrix Inversion Algorithm
-=========================================
+================================
+Automatic Scheduling for different latency-offsets.
+================================
 
+This example showcases how one can synthesize an architecture where the
+operations have different latency offsets for the different inputs/outputs.
 """
 
 from b_asic.architecture import Memory, ProcessingElement
 from b_asic.core_operations import MADS, Reciprocal
-from b_asic.list_schedulers import (
-    EarliestDeadlineScheduler,
-    HybridScheduler,
-    LeastSlackTimeScheduler,
-    MaxFanOutScheduler,
-)
+from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg_generators import ldlt_matrix_inverse
 from b_asic.special_operations import Input, Output
 
-sfg = ldlt_matrix_inverse(N=3)
+sfg = ldlt_matrix_inverse(
+    N=3,
+    name="matrix-inv",
+    mads_properties={
+        "latency_offsets": {"in0": 3, "in1": 0, "in2": 0, "out0": 4},
+        "execution_time": 1,
+    },
+    reciprocal_properties={"latency": 10, "execution_time": 1},
+)
 
 # %%
 # The SFG is
 sfg
 
 # %%
-# Set latencies and execution times.
-sfg.set_latency_of_type(MADS.type_name(), 3)
-sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-sfg.set_execution_time_of_type(MADS.type_name(), 1)
-sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
-
-# %%
-# Create an ASAP schedule.
+# Create an ASAP schedule for reference.
 schedule = Schedule(sfg, scheduler=ASAPScheduler())
-print("Scheduling time:", schedule.schedule_time)
 schedule.show()
 
 # %%
-# Create an ALAP schedule.
+# Create an ALAP schedule for reference.
 schedule = Schedule(sfg, scheduler=ALAPScheduler())
-print("Scheduling time:", schedule.schedule_time)
 schedule.show()
 
 # %%
-# Create an EarliestDeadline schedule that satisfies the resource constraints.
-resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
-schedule = Schedule(sfg, scheduler=EarliestDeadlineScheduler(resources))
-print("Scheduling time:", schedule.schedule_time)
+# Create a resource restricted schedule.
+schedule = Schedule(sfg, scheduler=HybridScheduler())
 schedule.show()
 
 # %%
-# Create a LeastSlackTime schedule that satisfies the resource constraints.
-schedule = Schedule(sfg, scheduler=LeastSlackTimeScheduler(resources))
-print("Scheduling time:", schedule.schedule_time)
-schedule.show()
-
-# %%
-# Create a MaxFanOutScheduler schedule that satisfies the resource constraints.
-schedule = Schedule(sfg, scheduler=MaxFanOutScheduler(resources))
-print("Scheduling time:", schedule.schedule_time)
-schedule.show()
-
-# %%
-# Create a HybridScheduler schedule that satisfies the resource constraints with custom IO times.
-# This is the schedule we will synthesize an architecture for.
-input_times = {
-    "in0": 0,
-    "in1": 1,
-    "in2": 2,
-    "in3": 3,
-    "in4": 4,
-    "in5": 5,
-}
-output_delta_times = {
-    "out0": 0,
-    "out1": 1,
-    "out2": 2,
-    "out3": 3,
-    "out4": 4,
-    "out5": 5,
-}
+# Create another schedule with shorter scheduling time by enabling cyclic.
 schedule = Schedule(
     sfg,
-    scheduler=HybridScheduler(
-        resources, input_times=input_times, output_delta_times=output_delta_times
-    ),
-    schedule_time=32,
+    scheduler=HybridScheduler(),
+    schedule_time=49,
     cyclic=True,
 )
-print("Scheduling time:", schedule.schedule_time)
+schedule.show()
+
+# %%
+# Push the schedule time to the rate limit for one MADS operator.
+schedule = Schedule(
+    sfg,
+    scheduler=HybridScheduler(),
+    schedule_time=15,
+    cyclic=True,
+)
+schedule.show()
+
+# %%
+# Leverage the fact that the inputs arrive at different times to limit the amount of concurrent memory accesses to 2
+schedule = Schedule(
+    sfg,
+    scheduler=HybridScheduler(max_concurrent_writes=2, max_concurrent_reads=2),
+    schedule_time=30,
+    cyclic=True,
+)
 schedule.show()
 
 # %%

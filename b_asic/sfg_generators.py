@@ -436,19 +436,37 @@ def radix_2_dif_fft(points: int) -> SFG:
     return SFG(inputs=inputs, outputs=outputs)
 
 
-def ldlt_matrix_inverse(N: int) -> SFG:
+def ldlt_matrix_inverse(
+    N: int,
+    name: str | None = None,
+    mads_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    reciprocal_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+) -> SFG:
     """Generates an SFG for the LDLT matrix inverse algorithm.
 
     Parameters
     ----------
     N : int
         Dimension of the square input matrix.
+    name : Name, optional
+        The name of the SFG. If None, "Direct-form FIR filter".
+    mads_properties : dictionary, optional
+        Properties passed to :class:`~b_asic.core_operations.MADS`.
+    reciprocal_properties : dictionary, optional
+        Properties passed to :class:`~b_asic.core_operations.Reciprocal`.
 
     Returns
     -------
     SFG
         Signal Flow Graph
     """
+    if name is None:
+        name = "LDLT matrix-inversion"
+    if mads_properties is None:
+        mads_properties = {}
+    if reciprocal_properties is None:
+        reciprocal_properties = {}
+
     inputs = []
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
@@ -469,22 +487,43 @@ def ldlt_matrix_inverse(N: int) -> SFG:
     # R*di*R^T factorization
     for i in range(N):
         for k in range(i):
-            D[i] = MADS(False, False, D[i], M[k][i], R[k][i])
+            D[i] = MADS(
+                is_add=False,
+                src0=D[i],
+                src1=M[k][i],
+                src2=R[k][i],
+                do_addsub=True,
+                **mads_properties,
+            )
 
-        D_inv[i] = Reciprocal(D[i])
+        D_inv[i] = Reciprocal(D[i], **reciprocal_properties)
 
         for j in range(i + 1, N):
             R[i][j] = A[i][j]
 
             for k in range(i):
-                R[i][j] = MADS(False, False, R[i][j], M[k][i], R[k][j])
+                R[i][j] = MADS(
+                    is_add=False,
+                    src0=R[i][j],
+                    src1=M[k][i],
+                    src2=R[k][j],
+                    do_addsub=True,
+                    **mads_properties,
+                )
 
             # if is_complex:
             #     M[i][j] = ComplexConjugate(R[i][j])
             # else:
             M[i][j] = R[i][j]
 
-            R[i][j] = MADS(True, True, DontCare(), R[i][j], D_inv[i])
+            R[i][j] = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=R[i][j],
+                src2=D_inv[i],
+                do_addsub=False,
+                **mads_properties,
+            )
 
     # back substitution
     A_inv = [[None for _ in range(N)] for _ in range(N)]
@@ -493,15 +532,32 @@ def ldlt_matrix_inverse(N: int) -> SFG:
         for j in reversed(range(i + 1)):
             for k in reversed(range(j + 1, N)):
                 if k == N - 1 and i != j:
-                    A_inv[j][i] = MADS(False, True, DontCare(), R[j][k], A_inv[i][k])
+                    A_inv[j][i] = MADS(
+                        is_add=False,
+                        src0=DontCare(),
+                        src1=R[j][k],
+                        src2=A_inv[i][k],
+                        do_addsub=True,
+                        **mads_properties,
+                    )
                 else:
                     if A_inv[i][k]:
                         A_inv[j][i] = MADS(
-                            False, False, A_inv[j][i], R[j][k], A_inv[i][k]
+                            is_add=False,
+                            src0=A_inv[j][i],
+                            src1=R[j][k],
+                            src2=A_inv[i][k],
+                            do_addsub=True,
+                            **mads_properties,
                         )
                     else:
                         A_inv[j][i] = MADS(
-                            False, False, A_inv[j][i], R[j][k], A_inv[k][i]
+                            is_add=False,
+                            src0=A_inv[j][i],
+                            src1=R[j][k],
+                            src2=A_inv[k][i],
+                            do_addsub=True,
+                            **mads_properties,
                         )
 
     outputs = []

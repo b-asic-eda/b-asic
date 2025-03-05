@@ -181,7 +181,7 @@ class Schedule:
                 raise ValueError(
                     f"Negative slack detected in Schedule for operation: {graph_id}."
                 )
-            if time > self._schedule_time:
+            if time > self._schedule_time and not graph_id.startswith("dontcare"):
                 raise ValueError(
                     f"Start time larger than scheduling time detected in Schedule for operation {graph_id}"
                 )
@@ -749,6 +749,19 @@ class Schedule:
             start = self._schedule_time
             self._laps[op.input(0).signals[0].graph_id] -= 1
 
+        if (
+            start == 0
+            and isinstance(op, DontCare)
+            and self._laps[op.output(0).signals[0].graph_id] == 0
+        ):
+            start = self._schedule_time
+        if (
+            time > self._schedule_time
+            and isinstance(op, DontCare)
+            and self._laps[op.output(0).signals[0].graph_id] == 0
+        ):
+            start = time
+
         self._start_times[op.graph_id] = start
 
     def move_operation(self, graph_id: GraphID, time: int) -> "Schedule":
@@ -928,6 +941,8 @@ class Schedule:
         for graph_id, start_time in self._start_times.items():
             slacks = self._forward_slacks(graph_id)
             for outport, signals in slacks.items():
+                if outport.name.startswith("dontcare"):
+                    continue
                 reads = {
                     cast(InputPort, signal.destination): slack
                     for signal, slack in signals.items()
@@ -969,6 +984,8 @@ class Schedule:
                     start_time, cast(Operation, self._sfg.find_by_id(graph_id))
                 )
                 for graph_id, start_time in self._start_times.items()
+                if not graph_id.startswith("dontcare")
+                and not graph_id.startswith("sink")
             },
             self.schedule_time,
             self.cyclic,

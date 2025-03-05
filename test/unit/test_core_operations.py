@@ -346,12 +346,12 @@ class TestMADS:
         test_operation = MADS(is_add=True)
         assert test_operation.evaluate_output(0, [3 + 6j, 2 + 6j, 1 + 1j]) == -1 + 14j
 
-    def test_mads_zero_override(self):
-        test_operation = MADS(is_add=True, override_zero_on_src0=True)
+    def test_mads_skip_addsub(self):
+        test_operation = MADS(is_add=True, do_addsub=False)
         assert test_operation.evaluate_output(0, [1, 1, 1]) == 1
 
-    def test_mads_sub_zero_override(self):
-        test_operation = MADS(is_add=False, override_zero_on_src0=True)
+    def test_mads_sub_skip_addsub(self):
+        test_operation = MADS(is_add=False, do_addsub=False)
         assert test_operation.evaluate_output(0, [1, 1, 1]) == -1
 
     def test_mads_is_linear(self):
@@ -398,21 +398,21 @@ class TestMADS:
         test_operation.is_add = False
         assert not test_operation.is_add
 
-    def test_mads_override_zero_on_src0_getter(self):
-        test_operation = MADS(override_zero_on_src0=False)
-        assert not test_operation.override_zero_on_src0
+    def test_mads_do_addsub_getter(self):
+        test_operation = MADS(do_addsub=False)
+        assert not test_operation.do_addsub
 
-        test_operation = MADS(override_zero_on_src0=True)
-        assert test_operation.override_zero_on_src0
+        test_operation = MADS(do_addsub=True)
+        assert test_operation.do_addsub
 
-    def test_mads_override_zero_on_src0_setter(self):
-        test_operation = MADS(override_zero_on_src0=False)
-        test_operation.override_zero_on_src0 = True
-        assert test_operation.override_zero_on_src0
+    def test_mads_do_addsub_setter(self):
+        test_operation = MADS(do_addsub=False)
+        test_operation.do_addsub = True
+        assert test_operation.do_addsub
 
-        test_operation = MADS(override_zero_on_src0=True)
-        test_operation.override_zero_on_src0 = False
-        assert not test_operation.override_zero_on_src0
+        test_operation = MADS(do_addsub=True)
+        test_operation.do_addsub = False
+        assert not test_operation.do_addsub
 
 
 class TestRightShift:
