@@ -1885,6 +1885,30 @@ class TestIterationPeriodBound:
         precedence_sfg_delays.set_latency_of_type('cmul', 3)
         assert precedence_sfg_delays.iteration_period_bound() == 10
 
+    def test_fractional_value(self):
+        # Create the SFG for a digital filter (seen in an exam question from TSTE87).
+        x = Input()
+        t0 = Delay()
+        t1 = Delay(t0)
+        b = ConstantMultiplication(0.5, x)
+        d = ConstantMultiplication(0.5, t1)
+        a1 = Addition(x, d)
+        a = ConstantMultiplication(0.5, a1)
+        t2 = Delay(a1)
+        c = ConstantMultiplication(0.5, t2)
+        a2 = Addition(b, c)
+        a3 = Addition(a2, a)
+        t0.input(0).connect(a3)
+        y = Output(a2)
+
+        sfg = SFG([x], [y])
+        sfg.set_latency_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 1)
+        assert sfg.iteration_period_bound() == 4 / 2
+
+        sfg = sfg.insert_operation_before("t0", ConstantMultiplication(10))
+        assert sfg.iteration_period_bound() == 5 / 2
+
     def test_no_delays(self, sfg_two_inputs_two_outputs):
         assert sfg_two_inputs_two_outputs.iteration_period_bound() == -1
 

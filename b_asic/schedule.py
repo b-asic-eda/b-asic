@@ -177,9 +177,15 @@ class Schedule:
             raise ValueError(f"Extra operations detected in start_times: {extra_elems}")
 
         for graph_id, time in self._start_times.items():
-            if self.forward_slack(graph_id) < 0 or self.backward_slack(graph_id) < 0:
+            if self.forward_slack(graph_id) < 0:
                 raise ValueError(
-                    f"Negative slack detected in Schedule for operation: {graph_id}."
+                    f"Negative forward slack detected in Schedule for operation: {graph_id}, "
+                    f"slack: {self.forward_slack(graph_id)}."
+                )
+            if self.backward_slack(graph_id) < 0:
+                raise ValueError(
+                    f"Negative backward forward slack detected in Schedule for operation: {graph_id}, "
+                    f"slack: {self.backward_slack(graph_id)}"
                 )
             if time > self._schedule_time and not graph_id.startswith("dontcare"):
                 raise ValueError(

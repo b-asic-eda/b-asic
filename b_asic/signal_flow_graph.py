@@ -9,6 +9,7 @@ import re
 import warnings
 from collections import defaultdict, deque
 from collections.abc import Iterable, MutableSet, Sequence
+from fractions import Fraction
 from io import StringIO
 from math import ceil
 from numbers import Number
@@ -1756,7 +1757,7 @@ class SFG(AbstractOperation):
         total_exec_time = sum([op.execution_time for op in ops])
         return ceil(total_exec_time / schedule_time)
 
-    def iteration_period_bound(self) -> int:
+    def iteration_period_bound(self) -> Fraction:
         """
         Return the iteration period bound of the SFG.
 
@@ -1823,9 +1824,9 @@ class SFG(AbstractOperation):
                     if key in element:
                         time_of_loop += item
             if number_of_t_in_loop in (0, 1):
-                t_l_values.append(time_of_loop)
+                t_l_values.append(Fraction(time_of_loop, 1))
             else:
-                t_l_values.append(time_of_loop / number_of_t_in_loop)
+                t_l_values.append(Fraction(time_of_loop, number_of_t_in_loop))
         return max(t_l_values)
 
     def state_space_representation(self):

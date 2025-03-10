@@ -12,15 +12,14 @@ class EarliestDeadlineScheduler(ListScheduler):
         max_concurrent_writes: int | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
-        cyclic: bool | None = False,
     ) -> None:
         super().__init__(
+            sort_order=((1, True),),
             max_resources=max_resources,
             max_concurrent_reads=max_concurrent_reads,
             max_concurrent_writes=max_concurrent_writes,
             input_times=input_times,
             output_delta_times=output_delta_times,
-            sort_order=((1, True),),
         )
 
 
@@ -36,12 +35,12 @@ class LeastSlackTimeScheduler(ListScheduler):
         output_delta_times: dict["GraphID", int] = None,
     ) -> None:
         super().__init__(
+            sort_order=((2, True),),
             max_resources=max_resources,
             max_concurrent_reads=max_concurrent_reads,
             max_concurrent_writes=max_concurrent_writes,
             input_times=input_times,
             output_delta_times=output_delta_times,
-            sort_order=((2, True),),
         )
 
 
@@ -57,12 +56,12 @@ class MaxFanOutScheduler(ListScheduler):
         output_delta_times: dict["GraphID", int] = None,
     ) -> None:
         super().__init__(
+            sort_order=((3, False),),
             max_resources=max_resources,
             max_concurrent_reads=max_concurrent_reads,
             max_concurrent_writes=max_concurrent_writes,
             input_times=input_times,
             output_delta_times=output_delta_times,
-            sort_order=((3, False),),
         )
 
 
@@ -78,10 +77,10 @@ class HybridScheduler(ListScheduler):
         output_delta_times: dict["GraphID", int] = None,
     ) -> None:
         super().__init__(
+            sort_order=((2, True), (3, False)),
             max_resources=max_resources,
             max_concurrent_reads=max_concurrent_reads,
             max_concurrent_writes=max_concurrent_writes,
             input_times=input_times,
             output_delta_times=output_delta_times,
-            sort_order=((2, True), (3, False)),
         )
