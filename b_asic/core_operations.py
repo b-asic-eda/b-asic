@@ -523,6 +523,8 @@ class Division(AbstractOperation):
         return TypeName("div")
 
     def evaluate(self, a, b):
+        if b == 0:
+            return float("inf")
         return a / b
 
     @property
@@ -1372,6 +1374,8 @@ class Reciprocal(AbstractOperation):
         return TypeName("rec")
 
     def evaluate(self, a):
+        if a == 0:
+            return float("inf")
         return 1 / a
 
 

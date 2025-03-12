@@ -28,6 +28,7 @@ from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.scheduler_event import SchedulerEvent
 from b_asic.scheduler_gui.signal_item import SignalItem
+from b_asic.special_operations import Output
 from b_asic.types import GraphID
 
 
@@ -121,7 +122,10 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
             raise ValueError("No schedule installed.")
         new_start_time = floor(pos) - floor(self._x_axis_indent)
         slacks = self.schedule.slacks(item.graph_id)
-        op_start_time = self.schedule.start_time_of_operation(item.graph_id)
+        op_start_time = (
+            self.schedule.start_time_of_operation(item.graph_id)
+            % self.schedule.schedule_time
+        )
         if not -slacks[0] <= new_start_time - op_start_time <= slacks[1]:
             # Cannot move due to dependencies
             return False
@@ -245,6 +249,13 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         op_start_time = self.schedule.start_time_of_operation(item.graph_id)
         new_start_time = floor(pos) - floor(self._x_axis_indent)
         move_time = new_start_time - op_start_time
+        op = self._schedule.sfg.find_by_id(item.graph_id)
+        if (
+            isinstance(op, Output)
+            and op_start_time == self.schedule.schedule_time
+            and new_start_time < self.schedule.schedule_time
+        ):
+            move_time = new_start_time
         if move_time:
             self.schedule.move_operation(item.graph_id, move_time)
             print(f"schedule.move_operation({item.graph_id!r}, {move_time})")

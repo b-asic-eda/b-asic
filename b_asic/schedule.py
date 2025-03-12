@@ -365,10 +365,10 @@ class Schedule:
                     available_time = (
                         cast(int, source.latency_offset)
                         + self._start_times[source.operation.graph_id]
-                        - self._schedule_time * self._laps[signal.graph_id]
                     )
                     if available_time > self._schedule_time:
                         available_time -= self._schedule_time
+                    available_time -= self._schedule_time * self._laps[signal.graph_id]
                 else:
                     available_time = (
                         cast(int, source.latency_offset)
@@ -458,6 +458,26 @@ class Schedule:
             raise ValueError(
                 f"New schedule time ({time}) too short, minimum: {max_end_time}."
             )
+
+        # if updating the scheduling time -> update laps due to operations
+        # reading and writing in different iterations (across the edge)
+        if self._schedule_time is not None:
+            for signal_id in self._laps.keys():
+                port = self._sfg.find_by_id(signal_id).destination
+
+                source_port = port.signals[0].source
+                source_op = source_port.operation
+                source_port_start_time = self._start_times[source_op.graph_id]
+                source_port_latency_offset = source_op.latency_offsets[
+                    f"out{source_port.index}"
+                ]
+                if (
+                    source_port_start_time + source_port_latency_offset
+                    > self._schedule_time
+                    and source_port_start_time + source_port_latency_offset <= time
+                ):
+                    self._laps[signal_id] += 1
+
         self._schedule_time = time
         return self
 
@@ -855,6 +875,13 @@ class Schedule:
         ):
             new_start = self._schedule_time
             self._laps[op.input(0).signals[0].graph_id] -= 1
+        if (
+            new_start == 0
+            and isinstance(op, Input)
+            and self._laps[op.output(0).signals[0].graph_id] != 0
+        ):
+            new_start = 0
+            self._laps[op.output(0).signals[0].graph_id] -= 1
         # Set new start time
         self._start_times[graph_id] = new_start
         return self
@@ -936,7 +963,24 @@ class Schedule:
         destination_laps = []
         for signal_id, lap in self._laps.items():
             port = new_sfg.find_by_id(signal_id).destination
+
+            # if an operation lies across the scheduling time, place a delay after it
+            source_port = port.signals[0].source
+            source_op = source_port.operation
+            source_port_start_time = self._start_times[source_op.graph_id]
+            source_port_latency_offset = source_op.latency_offsets[
+                f"out{source_port.index}"
+            ]
+            if (
+                source_port_start_time + source_port_latency_offset
+                > self._schedule_time
+            ):
+                lap += (
+                    source_port_start_time + source_port_latency_offset
+                ) // self._schedule_time
+
             destination_laps.append((port.operation.graph_id, port.index, lap))
+
         for op, port, lap in destination_laps:
             for delays in range(lap):
                 new_sfg = new_sfg.insert_operation_before(op, Delay(), port)

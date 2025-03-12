@@ -1767,13 +1767,52 @@ class SFG(AbstractOperation):
         -------
         The iteration period bound.
         """
+        loops = self.loops
+        if not loops:
+            return -1
+
+        op_and_latency = {}
+        for op in self.operations:
+            for loop in loops:
+                for element in loop:
+                    if op.type_name() not in op_and_latency:
+                        op_and_latency[op.type_name()] = op.latency
+        t_l_values = []
+
+        for loop in loops:
+            loop.pop()
+            time_of_loop = 0
+            number_of_t_in_loop = 0
+            for element in loop:
+                if ''.join([i for i in element if not i.isdigit()]) == 't':
+                    number_of_t_in_loop += 1
+                for key, item in op_and_latency.items():
+                    if key in element:
+                        time_of_loop += item
+            if number_of_t_in_loop in (0, 1):
+                t_l_values.append(Fraction(time_of_loop, 1))
+            else:
+                t_l_values.append(Fraction(time_of_loop, number_of_t_in_loop))
+        return max(t_l_values)
+
+    @property
+    def loops(self) -> list[list[GraphID]]:
+        """
+        Return the recursive loops found in the SFG.
+
+        If -1, the SFG does not have any loops.
+
+        Returns
+        -------
+        A list of the recursive loops.
+        """
         inputs_used = []
         for used_input in self._used_ids:
             if 'in' in str(used_input):
                 used_input = used_input.replace("in", "")
                 inputs_used.append(int(used_input))
         if inputs_used == []:
-            raise ValueError("No inputs to sfg")
+            return []
         for input in inputs_used:
             input_op = self._input_operations[input]
         queue: Deque[Operation] = deque([input_op])
@@ -1795,39 +1834,24 @@ class SFG(AbstractOperation):
                             visited.add(new_op)
                     else:
                         raise ValueError("Destination does not exist")
-        if not dict_of_sfg:
-            raise ValueError(
-                "the SFG does not have any loops and therefore no iteration period bound."
-            )
         cycles = [
             [node] + path
             for node in dict_of_sfg
             for path in self._dfs(dict_of_sfg, node, node)
         ]
-        if not cycles:
-            return -1
-        op_and_latency = {}
-        for op in self.operations:
-            for lista in cycles:
-                for element in lista:
-                    if op.type_name() not in op_and_latency:
-                        op_and_latency[op.type_name()] = op.latency
-        t_l_values = []
-        for loop in cycles:
-            loop.pop()
-            time_of_loop = 0
-            number_of_t_in_loop = 0
-            for element in loop:
-                if ''.join([i for i in element if not i.isdigit()]) == 't':
-                    number_of_t_in_loop += 1
-                for key, item in op_and_latency.items():
-                    if key in element:
-                        time_of_loop += item
-            if number_of_t_in_loop in (0, 1):
-                t_l_values.append(Fraction(time_of_loop, 1))
-            else:
-                t_l_values.append(Fraction(time_of_loop, number_of_t_in_loop))
-        return max(t_l_values)
+
+        loops = self._get_non_redundant_cycles(cycles)
+        return loops
+
+    def _get_non_redundant_cycles(self, loops):
+        unique_lists = []
+        seen_cycles = set()
+        for loop in loops:
+            operation_set = frozenset(loop)
+            if operation_set not in seen_cycles:
+                unique_lists.append(loop)
+                seen_cycles.add(operation_set)
+        return unique_lists
 
     def state_space_representation(self):
         """

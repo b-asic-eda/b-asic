@@ -468,6 +468,7 @@ class TestMaxFanOutScheduler:
             "out0": 36,
         }
         assert schedule.schedule_time == 36
+        _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 3)
 
 
 class TestHybridScheduler:
@@ -829,6 +830,7 @@ class TestHybridScheduler:
             "out0": 16,
         }
         assert schedule.schedule_time == 16
+        _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 2)
 
     def test_ldlt_inverse_2x2_specified_IO_times_cyclic(self):
         sfg = ldlt_matrix_inverse(N=2)
@@ -875,6 +877,21 @@ class TestHybridScheduler:
             "out2": 2,
         }
         assert schedule.schedule_time == 16
+
+        # validate regenerated sfg with random 2x2 real s.p.d. matrix
+        A = np.random.rand(2, 2)
+        A = np.dot(A, A.T)
+        A_inv = np.linalg.inv(A)
+        input_signals = []
+        for i in range(2):
+            for j in range(i, 2):
+                input_signals.append(Constant(A[i, j]))
+
+        sim = Simulation(schedule.sfg, input_signals)
+        sim.run_for(2)
+        assert np.allclose(sim.results["0"], [A_inv[0, 0], A_inv[0, 0]])
+        assert np.allclose(sim.results["1"], [0, A_inv[0, 1]])
+        assert np.allclose(sim.results["2"], [0, A_inv[1, 1]])
 
     def test_invalid_max_resources(self):
         sfg = ldlt_matrix_inverse(N=2)
@@ -1157,6 +1174,7 @@ class TestHybridScheduler:
         direct, mem_vars = schedule.get_memory_variables().split_on_length()
         assert mem_vars.read_ports_bound() == 3
         assert mem_vars.write_ports_bound() == 1
+        _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 3)
 
     def test_32_point_fft_custom_io_times(self):
         POINTS = 32
@@ -1672,6 +1690,7 @@ class TestHybridScheduler:
         }
 
         assert all([val == 0 for val in schedule.laps.values()])
+        _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 3)
 
     def test_latency_offsets_cyclic(self):
         sfg = ldlt_matrix_inverse(
@@ -1953,3 +1972,26 @@ def _validate_recreated_sfg_fft(schedule: Schedule, points: int) -> None:
         a = res[str(i)]
         b = exp_res[i]
         assert np.isclose(a, b)
+
+
+def _validate_recreated_sfg_ldlt_matrix_inverse(schedule: Schedule, N: int) -> None:
+    # random real s.p.d matrix
+    A = np.random.rand(N, N)
+    A = np.dot(A, A.T)
+
+    # iterate through the upper diagonal and construct the input to the SFG
+    input_signals = []
+    for i in range(N):
+        for j in range(i, N):
+            input_signals.append(Constant(A[i, j]))
+
+    A_inv = np.linalg.inv(A)
+    sim = Simulation(schedule.sfg, input_signals)
+    sim.run_for(1)
+
+    # iterate through the upper diagonal and check
+    count = 0
+    for i in range(N):
+        for j in range(i, N):
+            assert np.isclose(sim.results[str(count)], A_inv[i, j])
+            count += 1

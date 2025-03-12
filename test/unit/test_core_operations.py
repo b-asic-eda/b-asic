@@ -185,6 +185,11 @@ class TestDivision:
         test_operation = Division(Addition(Input(), Constant(3)), Constant(3))
         assert test_operation.is_linear
 
+    def test_zero_input(self):
+        test_operation = Division()
+        assert test_operation.evaluate_output(0, [0, 1]) == 0
+        assert test_operation.evaluate_output(0, [1, 0]) == float("inf")
+
 
 class TestSquareRoot:
     """Tests for SquareRoot class."""
@@ -576,6 +581,10 @@ class TestReciprocal:
     def test_reciprocal_complex(self):
         test_operation = Reciprocal()
         assert test_operation.evaluate_output(0, [1 + 1j]) == 0.5 - 0.5j
+
+    def test_zero_input(self):
+        test_operation = Reciprocal()
+        assert test_operation.evaluate_output(0, [0]) == float("inf")
 
 
 class TestDepends:

@@ -1913,6 +1913,27 @@ class TestIterationPeriodBound:
         assert sfg_two_inputs_two_outputs.iteration_period_bound() == -1
 
 
+class TestLoops:
+    def test_accumulator(self, sfg_simple_accumulator):
+        loops = sfg_simple_accumulator.loops
+        assert loops == [["add0", "t0", "add0"]]
+
+    def test_simple_filter(self, sfg_simple_filter):
+        loops = sfg_simple_filter.loops
+        assert loops == [["add0", "t0", "cmul0", "add0"]]
+
+    def test_direct_form_iir_filter(self, sfg_direct_form_iir_lp_filter):
+        loops = sfg_direct_form_iir_lp_filter.loops
+        assert loops == [
+            ["add0", "t0", "cmul4", "add1", "add0"],
+            ["add0", "t0", "t1", "cmul3", "add1", "add0"],
+        ]
+
+    def test_empty_sfg(self):
+        loops = SFG([], []).loops
+        assert loops == []
+
+
 class TestStateSpace:
     def test_accumulator(self, sfg_simple_accumulator):
         ss = sfg_simple_accumulator.state_space_representation()
