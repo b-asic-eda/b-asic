@@ -249,7 +249,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         op_start_time = self.schedule.start_time_of_operation(item.graph_id)
         new_start_time = floor(pos) - floor(self._x_axis_indent)
         move_time = new_start_time - op_start_time
-        op = self._schedule.sfg.find_by_id(item.graph_id)
+        op = self._schedule._sfg.find_by_id(item.graph_id)
         if (
             isinstance(op, Output)
             and op_start_time == self.schedule.schedule_time

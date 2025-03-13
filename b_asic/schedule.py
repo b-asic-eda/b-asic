@@ -184,7 +184,7 @@ class Schedule:
                 )
             if self.backward_slack(graph_id) < 0:
                 raise ValueError(
-                    f"Negative backward forward slack detected in Schedule for operation: {graph_id}, "
+                    f"Negative backward slack detected in Schedule for operation: {graph_id}, "
                     f"slack: {self.backward_slack(graph_id)}"
                 )
             if time > self._schedule_time and not graph_id.startswith("dontcare"):
@@ -739,7 +739,9 @@ class Schedule:
         max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
         return self._get_y_position(max_pos_graph_id, operation_height, operation_gap)
 
-    def place_operation(self, op: Operation, time: int) -> None:
+    def place_operation(
+        self, op: Operation, time: int, op_laps: dict[GraphID, int]
+    ) -> None:
         """Schedule the given operation in given time.
 
         Parameters
@@ -749,6 +751,8 @@ class Schedule:
         time : int
             Time slot to schedule the operation in.
             If time > schedule_time -> schedule cyclically.
+        op_laps : dict[GraphID, int]
+            Laps of all scheduled operations.
         """
         start = time % self._schedule_time if self._schedule_time else time
         self._start_times[op.graph_id] = start
@@ -756,16 +760,26 @@ class Schedule:
         if not self.schedule_time:
             return
 
-        # Update input laps
-        input_slacks = self._backward_slacks(op.graph_id)
-        for in_port, signal_slacks in input_slacks.items():
-            for signal, signal_slack in signal_slacks.items():
-                new_slack = signal_slack
-                laps = 0
-                while new_slack < 0:
-                    laps += 1
-                    new_slack += self._schedule_time
-                self._laps[signal.graph_id] = laps
+        # update input laps
+        for input_port in op.inputs:
+            laps = 0
+            if self._schedule_time is not None:
+                current_lap = time // self._schedule_time
+                source_port = source_op = input_port.signals[0].source
+                source_op = source_port.operation
+
+                if not isinstance(source_op, Delay) and not isinstance(
+                    source_op, DontCare
+                ):
+                    if op_laps[source_op.graph_id] < current_lap:
+                        laps += current_lap - op_laps[source_op.graph_id]
+                    source_available_time = (
+                        self._start_times[source_op.graph_id]
+                        + source_op.latency_offsets[f"out{source_port.index}"]
+                    )
+                    if source_available_time > self.schedule_time:
+                        laps -= 1
+            self._laps[input_port.signals[0].graph_id] = laps
 
         if (
             start == 0
@@ -875,13 +889,11 @@ class Schedule:
         ):
             new_start = self._schedule_time
             self._laps[op.input(0).signals[0].graph_id] -= 1
-        if (
-            new_start == 0
-            and isinstance(op, Input)
-            and self._laps[op.output(0).signals[0].graph_id] != 0
-        ):
+        if new_start == 0 and isinstance(op, Input):
             new_start = 0
-            self._laps[op.output(0).signals[0].graph_id] -= 1
+            for signal in op.output(0).signals:
+                if self._laps[signal.graph_id] != 0:
+                    self._laps[signal.graph_id] -= 1
         # Set new start time
         self._start_times[graph_id] = new_start
         return self
@@ -975,9 +987,7 @@ class Schedule:
                 source_port_start_time + source_port_latency_offset
                 > self._schedule_time
             ):
-                lap += (
-                    source_port_start_time + source_port_latency_offset
-                ) // self._schedule_time
+                lap += 1
 
             destination_laps.append((port.operation.graph_id, port.index, lap))
 

@@ -86,18 +86,3 @@ schedule = Schedule(
     cyclic=True,
 )
 schedule.show()
-
-# %%
-# Push output times one step to prevent lap for out3.
-output_delta_times = {f"out{i}": i + 2 for i in range(points)}
-schedule = Schedule(
-    sfg,
-    scheduler=HybridScheduler(
-        resources,
-        input_times=input_times,
-        output_delta_times=output_delta_times,
-    ),
-    schedule_time=12,
-    cyclic=True,
-)
-schedule.show()

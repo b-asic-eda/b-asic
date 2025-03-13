@@ -2,6 +2,7 @@ import sys
 
 import numpy as np
 import pytest
+from scipy import signal
 
 from b_asic.core_operations import (
     MADS,
@@ -17,15 +18,17 @@ from b_asic.list_schedulers import (
     MaxFanOutScheduler,
 )
 from b_asic.schedule import Schedule
+from b_asic.scheduler import RecursiveListScheduler
 from b_asic.sfg_generators import (
     direct_form_1_iir,
+    direct_form_2_iir,
     ldlt_matrix_inverse,
     radix_2_dif_fft,
 )
 from b_asic.signal_flow_graph import SFG
 from b_asic.signal_generator import Constant, Impulse
 from b_asic.simulation import Simulation
-from b_asic.special_operations import Input, Output
+from b_asic.special_operations import Delay, Input, Output
 
 
 class TestEarliestDeadlineScheduler:
@@ -1533,7 +1536,7 @@ class TestHybridScheduler:
         }
         assert schedule.schedule_time == 6
 
-        direct, mem_vars = schedule.get_memory_variables().split_on_length()
+        _, mem_vars = schedule.get_memory_variables().split_on_length()
         assert mem_vars.read_ports_bound() <= 2
         assert mem_vars.write_ports_bound() <= 3
 
@@ -1555,37 +1558,8 @@ class TestHybridScheduler:
             sfg, scheduler=HybridScheduler(resources), schedule_time=4, cyclic=True
         )
 
-        assert schedule.start_times == {
-            "in1": 0,
-            "in3": 0,
-            "bfly3": 0,
-            "cmul0": 1,
-            "in0": 1,
-            "in2": 1,
-            "bfly0": 1,
-            "bfly1": 2,
-            "out0": 3,
-            "out2": 3,
-            "bfly2": 3,
-            "out1": 4,
-            "out3": 4,
-        }
-        assert schedule.laps == {
-            "s4": 0,
-            "s6": 0,
-            "s5": 0,
-            "s7": 0,
-            "s8": 0,
-            "s12": 0,
-            "s10": 1,
-            "s9": 0,
-            "s0": 0,
-            "s2": 0,
-            "s11": 0,
-            "s1": 0,
-            "s3": 0,
-        }
         assert schedule.schedule_time == 4
+        _validate_recreated_sfg_fft(schedule, points=4, delays=[0, 1, 0, 1])
 
     def test_invalid_output_delta_time(self):
         sfg = radix_2_dif_fft(points=4)
@@ -1708,100 +1682,10 @@ class TestHybridScheduler:
             cyclic=True,
         )
 
-        assert schedule.start_times == {
-            "dontcare0": 49,
-            "dontcare1": 50,
-            "dontcare2": 31,
-            "dontcare3": 6,
-            "dontcare4": 14,
-            "dontcare5": 13,
-            "in0": 0,
-            "in1": 1,
-            "in2": 3,
-            "in3": 2,
-            "in4": 4,
-            "in5": 5,
-            "mads0": 10,
-            "mads1": 11,
-            "mads10": 32,
-            "mads11": 47,
-            "mads12": 16,
-            "mads13": 15,
-            "mads14": 14,
-            "mads2": 6,
-            "mads3": 2,
-            "mads4": 9,
-            "mads5": 5,
-            "mads6": 3,
-            "mads7": 1,
-            "mads8": 28,
-            "mads9": 46,
-            "out0": 13,
-            "out1": 9,
-            "out2": 6,
-            "out3": 5,
-            "out4": 1,
-            "out5": 46,
-            "rec0": 0,
-            "rec1": 18,
-            "rec2": 36,
-        }
-        assert schedule.laps == {
-            "s10": 0,
-            "s11": 0,
-            "s12": 0,
-            "s13": 0,
-            "s14": 0,
-            "s9": 0,
-            "s22": 0,
-            "s20": 0,
-            "s17": 1,
-            "s18": 1,
-            "s19": 0,
-            "s25": 0,
-            "s23": 0,
-            "s50": 1,
-            "s33": 0,
-            "s49": 0,
-            "s38": 0,
-            "s51": 1,
-            "s32": 0,
-            "s28": 0,
-            "s37": 0,
-            "s35": 0,
-            "s36": 0,
-            "s31": 0,
-            "s34": 0,
-            "s27": 1,
-            "s30": 0,
-            "s41": 0,
-            "s26": 1,
-            "s46": 0,
-            "s47": 0,
-            "s40": 0,
-            "s43": 0,
-            "s7": 0,
-            "s3": 0,
-            "s42": 0,
-            "s39": 0,
-            "s8": 0,
-            "s5": 0,
-            "s44": 0,
-            "s21": 1,
-            "s24": 1,
-            "s48": 0,
-            "s4": 0,
-            "s16": 0,
-            "s52": 0,
-            "s15": 0,
-            "s0": 0,
-            "s29": 0,
-            "s1": 0,
-            "s2": 0,
-            "s45": 0,
-            "s6": 0,
-            "s53": 0,
-        }
+        assert schedule.schedule_time == 49
+        _validate_recreated_sfg_ldlt_matrix_inverse(
+            schedule, N=3, delays=[1, 1, 1, 1, 1, 0]
+        )
 
     def test_latency_offsets_cyclic_min_schedule_time(self):
         sfg = ldlt_matrix_inverse(
@@ -1819,140 +1703,178 @@ class TestHybridScheduler:
             cyclic=True,
         )
 
-        assert schedule.start_times == {
-            "dontcare0": 6,
-            "dontcare1": 7,
-            "dontcare2": 16,
-            "dontcare3": 12,
-            "dontcare4": 14,
-            "dontcare5": 13,
-            "in0": 0,
-            "in1": 1,
-            "in2": 3,
-            "in3": 2,
-            "in4": 4,
-            "in5": 5,
-            "mads0": 10,
-            "mads1": 11,
-            "mads10": 2,
-            "mads11": 4,
-            "mads12": 1,
-            "mads13": 0,
-            "mads14": 14,
-            "mads2": 5,
-            "mads3": 8,
-            "mads4": 6,
-            "mads5": 12,
-            "mads6": 9,
-            "mads7": 7,
-            "mads8": 13,
-            "mads9": 3,
-            "out0": 10,
-            "out1": 2,
-            "out2": 12,
-            "out3": 11,
-            "out4": 7,
-            "out5": 1,
-            "rec0": 0,
-            "rec1": 3,
-            "rec2": 6,
+        assert schedule.schedule_time == 15
+        _validate_recreated_sfg_ldlt_matrix_inverse(
+            schedule, N=3, delays=[4, 4, 3, 3, 3, 3]
+        )
+
+
+class TestRecursiveListScheduler:
+    def test_empty_sfg(self, sfg_empty):
+        with pytest.raises(
+            ValueError, match="Empty signal flow graph cannot be scheduled."
+        ):
+            Schedule(
+                sfg_empty,
+                scheduler=RecursiveListScheduler(
+                    sort_order=((1, True), (3, False), (4, False))
+                ),
+            )
+
+    def test_direct_form_1_iir(self):
+        N = 3
+        Wc = 0.2
+        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        sfg = direct_form_1_iir(b, a)
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): 1,
+            Output.type_name(): 1,
         }
-        assert schedule.laps == {
-            "s10": 0,
-            "s11": 0,
-            "s12": 0,
-            "s13": 0,
-            "s14": 0,
-            "s9": 0,
-            "s22": 0,
-            "s20": 0,
-            "s17": 1,
-            "s18": 1,
-            "s19": 1,
-            "s25": 0,
-            "s23": 0,
-            "s50": 1,
-            "s33": 0,
-            "s49": 0,
-            "s38": 0,
-            "s51": 1,
-            "s32": 0,
-            "s28": 0,
-            "s37": 1,
-            "s35": 0,
-            "s36": 0,
-            "s31": 0,
-            "s34": 0,
-            "s27": 0,
-            "s30": 0,
-            "s41": 0,
-            "s26": 1,
-            "s46": 0,
-            "s47": 0,
-            "s40": 1,
-            "s43": 0,
-            "s7": 1,
-            "s3": 1,
-            "s42": 1,
-            "s39": 0,
-            "s8": 1,
-            "s5": 1,
-            "s44": 1,
-            "s21": 1,
-            "s24": 1,
-            "s48": 0,
-            "s4": 0,
-            "s16": 0,
-            "s52": 0,
-            "s15": 0,
-            "s0": 0,
-            "s29": 0,
-            "s1": 0,
-            "s2": 0,
-            "s45": 0,
-            "s6": 0,
-            "s53": 0,
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True), (3, False), (4, False)), max_resources=resources
+            ),
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
+
+    def test_direct_form_2_iir(self):
+        N = 3
+        Wc = 0.2
+        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        sfg = direct_form_2_iir(b, a)
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): 1,
+            Output.type_name(): 1,
         }
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True), (3, False), (4, False)), max_resources=resources
+            ),
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
+
+    def test_large_direct_form_2_iir(self):
+        N = 10
+        Wc = 0.2
+        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        sfg = direct_form_2_iir(b, a)
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): 1,
+            Output.type_name(): 1,
+        }
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True), (3, False), (4, False)), max_resources=resources
+            ),
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
+
+    def test_custom_recursive_filter(self):
+        # Create the SFG for a digital filter (seen in an exam question from TSTE87).
+        x = Input()
+        t0 = Delay()
+        t1 = Delay(t0)
+        b = ConstantMultiplication(0.5, x)
+        d = ConstantMultiplication(0.5, t1)
+        a1 = Addition(x, d)
+        a = ConstantMultiplication(0.5, a1)
+        t2 = Delay(a1)
+        c = ConstantMultiplication(0.5, t2)
+        a2 = Addition(b, c)
+        a3 = Addition(a2, a)
+        t0.input(0).connect(a3)
+        y = Output(a2)
+        sfg = SFG([x], [y])
+
+        sfg.set_latency_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): 1,
+            Output.type_name(): 1,
+        }
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True), (3, False), (4, False)), max_resources=resources
+            ),
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
 
 
 def _validate_recreated_sfg_filter(sfg: SFG, schedule: Schedule) -> None:
     # compare the impulse response of the original sfg and recreated one
     sim1 = Simulation(sfg, [Impulse()])
-    sim1.run_for(1000)
+    sim1.run_for(1024)
     sim2 = Simulation(schedule.sfg, [Impulse()])
-    sim2.run_for(1000)
+    sim2.run_for(1024)
 
     spectrum_1 = abs(np.fft.fft(sim1.results['0']))
     spectrum_2 = abs(np.fft.fft(sim2.results['0']))
     assert np.allclose(spectrum_1, spectrum_2)
 
 
-def _validate_recreated_sfg_fft(schedule: Schedule, points: int) -> None:
+def _validate_recreated_sfg_fft(
+    schedule: Schedule, points: int, delays: list[int] | None = None
+) -> None:
+    if delays is None:
+        delays = [0 for i in range(points)]
     # impulse input -> constant output
-    sim = Simulation(schedule.sfg, [Impulse()] + [0 for i in range(points - 1)])
-    sim.run_for(1)
+    sim = Simulation(schedule.sfg, [Constant()] + [0 for i in range(points - 1)])
+    sim.run_for(128)
     for i in range(points):
-        assert np.allclose(sim.results[str(i)], 1)
+        assert np.all(np.isclose(sim.results[str(i)][delays[i] :], 1))
 
     # constant input -> impulse (with weight=points) output
-    sim = Simulation(schedule.sfg, [Impulse() for i in range(points)])
-    sim.run_for(1)
+    sim = Simulation(schedule.sfg, [Constant() for i in range(points)])
+    sim.run_for(128)
     assert np.allclose(sim.results["0"], points)
     for i in range(1, points):
-        assert np.allclose(sim.results[str(i)], 0)
+        assert np.all(np.isclose(sim.results[str(i)][delays[i] :], 0))
 
     # sine input -> compare with numpy fft
     n = np.linspace(0, 2 * np.pi, points)
     waveform = np.sin(n)
     input_samples = [Constant(waveform[i]) for i in range(points)]
     sim = Simulation(schedule.sfg, input_samples)
-    sim.run_for(1)
-    exp_res = abs(np.fft.fft(waveform))
+    sim.run_for(128)
+    exp_res = np.fft.fft(waveform)
     res = sim.results
     for i in range(points):
-        a = abs(res[str(i)])
+        a = res[str(i)][delays[i] :]
         b = exp_res[i]
-        assert np.isclose(a, b)
+        assert np.all(np.isclose(a, b))
 
     # multi-tone input -> compare with numpy fft
     n = np.linspace(0, 2 * np.pi, points)
@@ -1965,16 +1887,22 @@ def _validate_recreated_sfg_fft(schedule: Schedule, points: int) -> None:
     )
     input_samples = [Constant(waveform[i]) for i in range(points)]
     sim = Simulation(schedule.sfg, input_samples)
-    sim.run_for(1)
+    sim.run_for(128)
     exp_res = np.fft.fft(waveform)
     res = sim.results
     for i in range(points):
-        a = res[str(i)]
+        a = res[str(i)][delays[i] :]
         b = exp_res[i]
-        assert np.isclose(a, b)
+        assert np.all(np.isclose(a, b))
 
 
-def _validate_recreated_sfg_ldlt_matrix_inverse(schedule: Schedule, N: int) -> None:
+def _validate_recreated_sfg_ldlt_matrix_inverse(
+    schedule: Schedule, N: int, delays: list[int] | None = None
+) -> None:
+    if delays is None:
+        num_of_outputs = N * (N + 1) // 2
+        delays = [0 for i in range(num_of_outputs)]
+
     # random real s.p.d matrix
     A = np.random.rand(N, N)
     A = np.dot(A, A.T)
@@ -1987,11 +1915,13 @@ def _validate_recreated_sfg_ldlt_matrix_inverse(schedule: Schedule, N: int) -> N
 
     A_inv = np.linalg.inv(A)
     sim = Simulation(schedule.sfg, input_signals)
-    sim.run_for(1)
+    sim.run_for(128)
 
     # iterate through the upper diagonal and check
     count = 0
     for i in range(N):
         for j in range(i, N):
-            assert np.isclose(sim.results[str(count)], A_inv[i, j])
+            assert np.all(
+                np.isclose(sim.results[str(count)][delays[count] :], A_inv[i, j])
+            )
             count += 1

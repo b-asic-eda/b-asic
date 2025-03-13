@@ -893,7 +893,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if self.schedule is None:
             return
         op: GraphComponent = cast(
-            GraphComponent, self.schedule.sfg.find_by_id(graph_id)
+            GraphComponent, self.schedule._sfg.find_by_id(graph_id)
         )
         si = self.info_table.rowCount()  # si = start index
 
