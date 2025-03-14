@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 import b_asic.logger as logger
 from b_asic.core_operations import DontCare, Sink
 from b_asic.port import OutputPort
-from b_asic.special_operations import Delay, Output
+from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
 
 if TYPE_CHECKING:
@@ -143,17 +143,31 @@ class ALAPScheduler(Scheduler):
             Schedule to apply the scheduling algorithm on.
         """
         ASAPScheduler().apply_scheduling(schedule)
+        self.op_laps = {}
 
         # move all outputs ALAP before operations
         for output in schedule.sfg.find_by_type_name(Output.type_name()):
             output = cast(Output, output)
+            self.op_laps[output.graph_id] = 0
             schedule.move_operation_alap(output.graph_id)
 
         # move all operations ALAP
         for step in reversed(schedule.sfg.get_precedence_list()):
             for outport in step:
                 if not isinstance(outport.operation, Delay):
+                    new_unwrapped_start_time = schedule.start_times[
+                        outport.operation.graph_id
+                    ] + schedule.forward_slack(outport.operation.graph_id)
+                    self.op_laps[outport.operation.graph_id] = (
+                        new_unwrapped_start_time // schedule.schedule_time
+                    )
                     schedule.move_operation_alap(outport.operation.graph_id)
+
+        # adjust the scheduling time if empty time slots have appeared in the start
+        slack = min(schedule.start_times.values())
+        for op_id in schedule.start_times.keys():
+            schedule.move_operation(op_id, -slack)
+        schedule.set_schedule_time(schedule.schedule_time - slack)
 
         schedule.sort_y_locations_on_start_times()
 
@@ -319,8 +333,9 @@ class ListScheduler(Scheduler):
             output_offsets = [
                 pair[1]
                 for pair in self._cached_latency_offsets[op_id].items()
-                if pair[0].startswith("out")
+                if isinstance(self._sfg.find_by_id(pair[0]), Output)
             ]
+            start_time += self._alap_op_laps[op_id] * self._alap_schedule_time
             deadlines[op_id] = (
                 start_time + min(output_offsets) if output_offsets else start_time
             )
@@ -328,7 +343,8 @@ class ListScheduler(Scheduler):
 
     def _calculate_alap_output_slacks(self) -> dict["GraphID", int]:
         return {
-            op_id: start_time for op_id, start_time in self._alap_start_times.items()
+            op_id: start_time + self._alap_op_laps[op_id] * self._alap_schedule_time
+            for op_id, start_time in self._alap_start_times.items()
         }
 
     def _calculate_fan_outs(self) -> dict["GraphID", int]:
@@ -368,7 +384,7 @@ class ListScheduler(Scheduler):
                 if time < start_time + max(
                     self._cached_execution_times[other_op_id], 1
                 ):
-                    if other_op_id.startswith(op.type_name()):
+                    if isinstance(self._sfg.find_by_id(other_op_id), type(op)):
                         if other_op_id != op.graph_id:
                             count += 1
         return count
@@ -383,7 +399,7 @@ class ListScheduler(Scheduler):
 
     def _op_satisfies_concurrent_writes(self, op: "Operation") -> bool:
         tmp_used_writes = {}
-        if not op.graph_id.startswith("out"):
+        if not isinstance(op, Output):
             for i in range(len(op.outputs)):
                 output_ready_time = (
                     self._current_time
@@ -550,8 +566,11 @@ class ListScheduler(Scheduler):
 
         alap_schedule = copy.copy(self._schedule)
         alap_schedule._schedule_time = None
-        ALAPScheduler().apply_scheduling(alap_schedule)
+        alap_scheduler = ALAPScheduler()
+        alap_scheduler.apply_scheduling(alap_schedule)
         self._alap_start_times = alap_schedule.start_times
+        self._alap_op_laps = alap_scheduler.op_laps
+        self._alap_schedule_time = alap_schedule.schedule_time
         self._schedule.start_times = {}
         for key in self._schedule._laps.keys():
             self._schedule._laps[key] = 0
@@ -566,9 +585,7 @@ class ListScheduler(Scheduler):
 
         self._remaining_resources = self._max_resources.copy()
 
-        self._remaining_ops = self._sfg.operations
-        self._remaining_ops = [op.graph_id for op in self._remaining_ops]
-
+        self._remaining_ops = [op.graph_id for op in self._sfg.operations]
         self._cached_latency_offsets = {
             op_id: self._sfg.find_by_id(op_id).latency_offsets
             for op_id in self._remaining_ops
@@ -577,6 +594,31 @@ class ListScheduler(Scheduler):
             op_id: self._sfg.find_by_id(op_id).execution_time
             for op_id in self._remaining_ops
         }
+        self._remaining_ops = [
+            op_id
+            for op_id in self._remaining_ops
+            if not isinstance(self._sfg.find_by_id(op_id), DontCare)
+        ]
+        self._remaining_ops = [
+            op_id
+            for op_id in self._remaining_ops
+            if not isinstance(self._sfg.find_by_id(op_id), Delay)
+        ]
+        self._remaining_ops = [
+            op_id
+            for op_id in self._remaining_ops
+            if not (
+                isinstance(self._sfg.find_by_id(op_id), Output)
+                and op_id in self._output_delta_times
+            )
+        ]
+
+        for op_id in self._remaining_ops:
+            if self._sfg.find_by_id(op_id).execution_time is None:
+                raise ValueError(
+                    "All operations in the SFG must have a specified execution time. "
+                    f"Missing operation: {op_id}."
+                )
 
         self._deadlines = self._calculate_deadlines()
         self._output_slacks = self._calculate_alap_output_slacks()
@@ -587,18 +629,6 @@ class ListScheduler(Scheduler):
 
         self._current_time = 0
         self._op_laps = {}
-
-        self._remaining_ops = [
-            op for op in self._remaining_ops if not op.startswith("dontcare")
-        ]
-        self._remaining_ops = [
-            op for op in self._remaining_ops if not op.startswith("t")
-        ]
-        self._remaining_ops = [
-            op
-            for op in self._remaining_ops
-            if not (op.startswith("out") and op in self._output_delta_times)
-        ]
 
     def _schedule_nonrecursive_ops(self) -> None:
         self._logger.debug("--- Non-Recursive Operation scheduling starting ---")
@@ -665,7 +695,9 @@ class ListScheduler(Scheduler):
                 f"   {input_id} time: {self._schedule.start_times[input_id]}"
             )
         self._remaining_ops = [
-            elem for elem in self._remaining_ops if not elem.startswith("in")
+            op_id
+            for op_id in self._remaining_ops
+            if not isinstance(self._sfg.find_by_id(op_id), Input)
         ]
         self._logger.debug("--- Input placement completed ---")
 
@@ -689,7 +721,9 @@ class ListScheduler(Scheduler):
 
                 count = -1
                 for op_id, time in self._schedule.start_times.items():
-                    if time == new_time and op_id.startswith("out"):
+                    if time == new_time and isinstance(
+                        self._sfg.find_by_id(op_id), Output
+                    ):
                         count += 1
 
                 modulo_time = (

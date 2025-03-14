@@ -29,7 +29,7 @@ from b_asic._preferences import (
     SIGNAL_LINEWIDTH,
     SPLINE_OFFSET,
 )
-from b_asic.core_operations import DontCare
+from b_asic.core_operations import DontCare, Sink
 from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -187,7 +187,9 @@ class Schedule:
                     f"Negative backward slack detected in Schedule for operation: {graph_id}, "
                     f"slack: {self.backward_slack(graph_id)}"
                 )
-            if time > self._schedule_time and not graph_id.startswith("dontcare"):
+            if time > self._schedule_time and not isinstance(
+                self._sfg.find_by_id(graph_id), DontCare
+            ):
                 raise ValueError(
                     f"Start time larger than scheduling time detected in Schedule for operation {graph_id}"
                 )
@@ -210,7 +212,7 @@ class Schedule:
         max_end_time = 0
         for graph_id, op_start_time in self._start_times.items():
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
-            if graph_id.startswith("out"):
+            if isinstance(operation, Output):
                 max_end_time = max(max_end_time, op_start_time)
             else:
                 for outport in operation.outputs:
@@ -225,7 +227,7 @@ class Schedule:
         max_end_time = 0
         for graph_id, op_start_time in self._start_times.items():
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
-            if graph_id.startswith("out"):
+            if isinstance(operation, Output):
                 continue
             else:
                 for outport in operation.outputs:
@@ -1044,8 +1046,8 @@ class Schedule:
                     start_time, cast(Operation, self._sfg.find_by_id(graph_id))
                 )
                 for graph_id, start_time in self._start_times.items()
-                if not graph_id.startswith("dontcare")
-                and not graph_id.startswith("sink")
+                if not isinstance(self._sfg.find_by_id(graph_id), DontCare)
+                and not isinstance(self._sfg.find_by_id(graph_id), Sink)
             },
             self.schedule_time,
             self.cyclic,

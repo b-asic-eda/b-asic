@@ -916,18 +916,20 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         self.info_table.insertRow(si)
         self.info_table.setItem(si, 0, QTableWidgetItem("Forward slack"))
-        self.info_table.setItem(
-            si, 1, QTableWidgetItem(str(self.schedule.forward_slack(graph_id)))
-        )
+        forward_slack = self.schedule.forward_slack(graph_id)
+        if forward_slack < sys.maxsize:
+            self.info_table.setItem(si, 1, QTableWidgetItem(str(forward_slack)))
+        else:
+            self.info_table.setItem(si, 1, QTableWidgetItem("∞"))
         si += 1
 
         self.info_table.insertRow(si)
         self.info_table.setItem(si, 0, QTableWidgetItem("Backward slack"))
-        self.info_table.setItem(
-            si,
-            1,
-            QTableWidgetItem(str(self.schedule.backward_slack(graph_id))),
-        )
+        backward_slack = self.schedule.backward_slack(graph_id)
+        if backward_slack < sys.maxsize:
+            self.info_table.setItem(si, 1, QTableWidgetItem(str(backward_slack)))
+        else:
+            self.info_table.setItem(si, 1, QTableWidgetItem("∞"))
         si += 1
 
     def info_table_clear(self) -> None:

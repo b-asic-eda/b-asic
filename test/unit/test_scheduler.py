@@ -204,19 +204,19 @@ class TestALAPScheduler:
         )
 
         assert schedule.start_times == {
-            "cmul3": 7,
-            "cmul4": 7,
-            "add1": 11,
-            "in0": 16,
-            "cmul2": 16,
-            "cmul1": 16,
-            "add0": 16,
-            "add3": 20,
-            "cmul0": 21,
-            "add2": 25,
-            "out0": 30,
+            "cmul3": 7 - 7,
+            "cmul4": 7 - 7,
+            "add1": 11 - 7,
+            "in0": 16 - 7,
+            "cmul2": 16 - 7,
+            "cmul1": 16 - 7,
+            "add0": 16 - 7,
+            "add3": 20 - 7,
+            "cmul0": 21 - 7,
+            "add2": 25 - 7,
+            "out0": 30 - 7,
         }
-        assert schedule.schedule_time == 30
+        assert schedule.schedule_time == 30 - 7
 
     def test_radix_2_fft_8_points(self):
         sfg = radix_2_dif_fft(points=8)

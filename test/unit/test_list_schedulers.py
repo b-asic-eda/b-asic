@@ -18,7 +18,7 @@ from b_asic.list_schedulers import (
     MaxFanOutScheduler,
 )
 from b_asic.schedule import Schedule
-from b_asic.scheduler import RecursiveListScheduler
+from b_asic.scheduler import ListScheduler, RecursiveListScheduler
 from b_asic.sfg_generators import (
     direct_form_1_iir,
     direct_form_2_iir,
@@ -1706,6 +1706,87 @@ class TestHybridScheduler:
         assert schedule.schedule_time == 15
         _validate_recreated_sfg_ldlt_matrix_inverse(
             schedule, N=3, delays=[4, 4, 3, 3, 3, 3]
+        )
+
+
+class TestListScheduler:
+    def test_latencies_and_execution_times_not_set(self):
+        N = 3
+        Wc = 0.2
+        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        sfg = direct_form_1_iir(b, a)
+
+        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): 1,
+            Output.type_name(): 1,
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="Input port 0 of operation add4 has no latency-offset.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=ListScheduler(
+                    sort_order=((1, True), (3, False), (4, False)),
+                    max_resources=resources,
+                ),
+            )
+
+        sfg.set_latency_offsets_of_type(Addition.type_name(), {"in0": 0, "in1": 0})
+        with pytest.raises(
+            ValueError,
+            match="Output port 0 of operation add4 has no latency-offset.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=ListScheduler(
+                    sort_order=((1, True), (3, False), (4, False)),
+                    max_resources=resources,
+                ),
+            )
+
+        sfg.set_latency_of_type(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), None)
+        sfg.set_execution_time_of_type(Addition.type_name(), None)
+
+        with pytest.raises(
+            ValueError,
+            match="All operations in the SFG must have a specified execution time. Missing operation: cmul0.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=ListScheduler(
+                    sort_order=((1, True), (3, False), (4, False)),
+                    max_resources=resources,
+                ),
+            )
+
+        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+
+        with pytest.raises(
+            ValueError,
+            match="All operations in the SFG must have a specified execution time. Missing operation: add0.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=ListScheduler(
+                    sort_order=((1, True), (3, False), (4, False)),
+                    max_resources=resources,
+                ),
+            )
+
+        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+
+        Schedule(
+            sfg,
+            scheduler=ListScheduler(
+                sort_order=((1, True), (3, False), (4, False)), max_resources=resources
+            ),
         )
 
 
