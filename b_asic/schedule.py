@@ -18,6 +18,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
 from matplotlib.ticker import MaxNLocator
+from matplotlib.transforms import Bbox, TransformedBbox
 
 from b_asic import Signal
 from b_asic._preferences import (
@@ -358,9 +359,7 @@ class Schedule:
         usage_time = start_time + cast(int, input_port.latency_offset)
         for signal in input_port.signals:
             source = cast(OutputPort, signal.source)
-            if isinstance(source.operation, DontCare):
-                available_time = 0
-            elif isinstance(source.operation, Delay):
+            if isinstance(source.operation, (DontCare, Delay)):
                 available_time = 0
             else:
                 if self._schedule_time is not None:
@@ -770,9 +769,7 @@ class Schedule:
                 source_port = source_op = input_port.signals[0].source
                 source_op = source_port.operation
 
-                if not isinstance(source_op, Delay) and not isinstance(
-                    source_op, DontCare
-                ):
+                if not isinstance(source_op, (Delay, DontCare)):
                     if op_laps[source_op.graph_id] < current_lap:
                         laps += current_lap - op_laps[source_op.graph_id]
                     source_available_time = (
@@ -802,7 +799,7 @@ class Schedule:
             and isinstance(op, DontCare)
             and self._laps[op.output(0).signals[0].graph_id] == 0
         ):
-            start = time
+            start = time % self._schedule_time
 
         self._start_times[op.graph_id] = start
 
@@ -1074,6 +1071,20 @@ class Schedule:
             sorted(self._start_times, key=self._start_times.get)
         ):
             self.set_y_location(graph_id, i)
+        for graph_id in self._start_times:
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
+            if isinstance(op, Output):
+                self.move_y_location(
+                    graph_id,
+                    self.get_y_location(op.preceding_operations[0].graph_id) + 1,
+                    True,
+                )
+            if isinstance(op, DontCare):
+                self.move_y_location(
+                    graph_id,
+                    self.get_y_location(op.subsequent_operations[0].graph_id),
+                    True,
+                )
 
     def _plot_schedule(self, ax: Axes, operation_gap: float = OPERATION_GAP) -> None:
         """Draw the schedule."""
@@ -1083,6 +1094,10 @@ class Schedule:
             start: Sequence[float], end: Sequence[float], name: str = "", laps: int = 0
         ) -> None:
             """Draw an arrow from *start* to *end*."""
+            if end[0] > self.schedule_time:
+                end[0] %= self.schedule_time
+            if start[0] > self.schedule_time:
+                start[0] %= self.schedule_time
             if end[0] < start[0] or laps > 0:  # Wrap around
                 if start not in line_cache:
                     line = Line2D(
@@ -1175,10 +1190,15 @@ class Schedule:
             _x, _y = zip(*latency_coordinates)
             x = np.array(_x)
             y = np.array(_y)
-            xy = np.stack((x + op_start_time, y + y_pos))
-            ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
-
-            if 'in' in str(graph_id):
+            xvalues = x + op_start_time
+            xy = np.stack((xvalues, y + y_pos))
+            p = ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
+            p.set_clip_box(TransformedBbox(Bbox([[0, 0], [1, 1]]), ax.transAxes))
+            if any(xvalues > self.schedule_time) and not isinstance(operation, Output):
+                xy = np.stack((xvalues - self.schedule_time, y + y_pos))
+                p = ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
+                p.set_clip_box(TransformedBbox(Bbox([[0, 0], [1, 1]]), ax.transAxes))
+            if isinstance(operation, Input):
                 ax.annotate(
                     graph_id,
                     xy=(op_start_time - 0.48, y_pos + 0.7),
@@ -1196,12 +1216,23 @@ class Schedule:
                 _x, _y = zip(*execution_time_coordinates)
                 x = np.array(_x)
                 y = np.array(_y)
+                xvalues = x + op_start_time
                 ax.plot(
-                    x + op_start_time,
+                    xvalues,
                     y + y_pos,
                     color=_EXECUTION_TIME_COLOR,
                     linewidth=3,
                 )
+                if any(xvalues > self.schedule_time) and not isinstance(
+                    operation, Output
+                ):
+                    ax.plot(
+                        xvalues - self.schedule_time,
+                        y + y_pos,
+                        color=_EXECUTION_TIME_COLOR,
+                        linewidth=3,
+                    )
+
             ytickpositions.append(y_pos + 0.5)
             yticklabels.append(cast(Operation, self._sfg.find_by_id(graph_id)).name)
 

@@ -843,7 +843,7 @@ class TestYLocations:
         sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
         schedule = Schedule(sfg_simple_filter, ASAPScheduler())
 
-        assert schedule._y_locations == {"in0": 0, "cmul0": 1, "add0": 3, "out0": 2}
+        assert schedule._y_locations == {"in0": 0, "cmul0": 1, "add0": 2, "out0": 3}
         schedule.move_y_location("add0", 1, insert=True)
         assert schedule._y_locations == {"in0": 0, "cmul0": 2, "add0": 1, "out0": 3}
         schedule.move_y_location("out0", 1)
@@ -854,7 +854,7 @@ class TestYLocations:
         sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
         schedule = Schedule(sfg_simple_filter, ASAPScheduler())
 
-        assert schedule._y_locations == {"in0": 0, "cmul0": 1, "add0": 3, "out0": 2}
+        assert schedule._y_locations == {"in0": 0, "cmul0": 1, "add0": 2, "out0": 3}
         schedule.reset_y_locations()
         assert schedule._y_locations["in0"] is None
         assert schedule._y_locations["cmul0"] is None
