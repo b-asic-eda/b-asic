@@ -9,7 +9,7 @@ OPERATION_GAP: float = 0.5
 
 SCHEDULE_OFFSET: float = 0.2
 
-SPLINE_OFFSET: float = 0.2
+SPLINE_OFFSET: float = 0.5
 
 # Colors for architecture Digraph
 PE_COLOR = (0, 185, 231)  # LiuBlue

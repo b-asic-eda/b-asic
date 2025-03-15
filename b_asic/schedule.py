@@ -1120,13 +1120,10 @@ class Schedule:
                         [
                             start,
                             [start[0] + SPLINE_OFFSET, start[1]],
-                            [start[0] + SPLINE_OFFSET, (start[1] + end[1]) / 2],
-                            [start[0], (start[1] + end[1]) / 2],
-                            [start[0] - SPLINE_OFFSET, (start[1] + end[1]) / 2],
                             [start[0] - SPLINE_OFFSET, end[1]],
                             end,
                         ],
-                        [Path.MOVETO] + [Path.CURVE4] * 6,
+                        [Path.MOVETO] + [Path.CURVE4] * 3,
                     )
                 else:
                     path = Path(

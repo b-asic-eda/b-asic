@@ -29,6 +29,9 @@ before_script:
     # - lcov --list coverage.info
     # - find . -name '*.gc*' -delete
   artifacts:
+    paths:
+      - result_images/
+    when: always
     reports:
       coverage_report:
         coverage_format: cobertura
