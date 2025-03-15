@@ -2,6 +2,7 @@
 B-ASIC architecture classes.
 """
 
+import math
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from io import TextIOWrapper
@@ -262,8 +263,11 @@ class Resource(HardwareBlock):
         """
         fig, ax = plt.subplots(layout="constrained")
         self.plot_content(ax, **kwargs)
+        height = 0.4
         if title:
+            height += 0.4
             fig.suptitle(title)
+        fig.set_figheight(math.floor(max(ax.get_ylim())) * 0.3 + height)
         fig.show()  # type: ignore
 
     @property
@@ -296,6 +300,7 @@ class Resource(HardwareBlock):
         """
         fig, ax = plt.subplots(layout="constrained")
         self.plot_content(ax)
+        fig.set_figheight(math.floor(max(ax.get_ylim())) * 0.3 + 0.4)
         return fig
 
     @property

@@ -319,7 +319,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         op_item = self._operation_items[graph_id]
         op_item.setPos(
             self._x_axis_indent + self.schedule.start_times[graph_id],
-            self.schedule._get_y_position(graph_id, OPERATION_HEIGHT, OPERATION_GAP),
+            self.schedule._get_y_plot_location(
+                graph_id, OPERATION_HEIGHT, OPERATION_GAP
+            ),
         )
 
     def _redraw_from_start(self) -> None:

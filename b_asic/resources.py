@@ -3,7 +3,7 @@ import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from functools import reduce
-from math import log2
+from math import floor, log2
 from typing import Literal, TypeVar
 
 import matplotlib.pyplot as plt
@@ -111,7 +111,7 @@ def draw_exclusion_graph_coloring(
         import networkx as nx
         import matplotlib.pyplot as plt
 
-        _, ax = plt.subplots()
+        fig, ax = plt.subplots()
         collection = ProcessCollection(...)
         exclusion_graph = collection.create_exclusion_graph_from_ports(
             read_ports=1,
@@ -120,7 +120,7 @@ def draw_exclusion_graph_coloring(
         )
         coloring = nx.greedy_color(exclusion_graph)
         draw_exclusion_graph_coloring(exclusion_graph, coloring, ax=ax)
-        plt.show()
+        fig.show()
 
     Parameters
     ----------
@@ -735,8 +735,11 @@ class ProcessCollection:
             show_markers=show_markers,
             allow_excessive_lifetimes=allow_excessive_lifetimes,
         )
+        height = 0.4
         if title:
+            height = 0.8
             fig.suptitle(title)
+        fig.set_figheight(floor(max(ax.get_ylim())) * 0.3 + height)
         fig.show()  # type: ignore
 
     def create_exclusion_graph_from_ports(
