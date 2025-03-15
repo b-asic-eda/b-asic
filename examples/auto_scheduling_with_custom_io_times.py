@@ -27,15 +27,15 @@ sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
 
 # %%
 # Generate an ASAP schedule for reference.
-schedule = Schedule(sfg, scheduler=ASAPScheduler())
-schedule.show()
+schedule1 = Schedule(sfg, scheduler=ASAPScheduler())
+schedule1.show()
 
 # %%
 # Generate a non-cyclic Schedule from HybridScheduler with custom IO times.
 resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 input_times = {f"in{i}": i for i in range(points)}
 output_delta_times = {f"out{i}": i for i in range(points)}
-schedule = Schedule(
+schedule2 = Schedule(
     sfg,
     scheduler=HybridScheduler(
         resources,
@@ -43,11 +43,11 @@ schedule = Schedule(
         output_delta_times=output_delta_times,
     ),
 )
-schedule.show()
+schedule2.show()
 
 # %%
 # Generate a new Schedule with cyclic scheduling enabled.
-schedule = Schedule(
+schedule3 = Schedule(
     sfg,
     scheduler=HybridScheduler(
         resources,
@@ -57,11 +57,11 @@ schedule = Schedule(
     schedule_time=14,
     cyclic=True,
 )
-schedule.show()
+schedule3.show()
 
 # %%
 # Generate a new Schedule with even less scheduling time.
-schedule = Schedule(
+schedule4 = Schedule(
     sfg,
     scheduler=HybridScheduler(
         resources,
@@ -71,11 +71,11 @@ schedule = Schedule(
     schedule_time=13,
     cyclic=True,
 )
-schedule.show()
+schedule4.show()
 
 # %%
 # Try scheduling for 12 cycles, which gives full butterfly usage.
-schedule = Schedule(
+schedule5 = Schedule(
     sfg,
     scheduler=HybridScheduler(
         resources,
@@ -85,4 +85,4 @@ schedule = Schedule(
     schedule_time=12,
     cyclic=True,
 )
-schedule.show()
+schedule5.show()

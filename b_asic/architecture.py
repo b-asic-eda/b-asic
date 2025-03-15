@@ -260,7 +260,7 @@ class Resource(HardwareBlock):
         **kwargs
             Passed to :meth:`~b_asic.resources.ProcessCollection.plot`.
         """
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(layout="constrained")
         self.plot_content(ax, **kwargs)
         if title:
             fig.suptitle(title)
@@ -294,7 +294,7 @@ class Resource(HardwareBlock):
         This is visible in enriched shells, but the object itself has no further
         meaning (it is a Matplotlib Figure).
         """
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(layout="constrained")
         self.plot_content(ax)
         return fig
 

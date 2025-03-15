@@ -580,7 +580,7 @@ class ProcessCollection:
 
         # Set up the Axes object
         if ax is None:
-            _, _ax = plt.subplots()
+            _, _ax = plt.subplots(layout="constrained")
         else:
             _ax = ax
 
@@ -724,7 +724,7 @@ class ProcessCollection:
         title : str, optional
             Figure title.
         """
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(layout="constrained")
         self.plot(
             ax=ax,
             show_name=show_name,
@@ -1122,7 +1122,7 @@ class ProcessCollection:
 
         This is automatically displayed in e.g. Jupyter Qt console.
         """
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(layout="constrained")
         self.plot(ax=ax, show_markers=False)
         f = io.StringIO()
         fig.savefig(f, format="svg")  # type: ignore
@@ -1628,7 +1628,7 @@ class ProcessCollection:
         title : str
             Figure title.
         """
-        fig, axes = plt.subplots(3, 1)
+        fig, axes = plt.subplots(3, 1, layout="constrained")
         self.plot_port_accesses(axes)
         if title:
             fig.suptitle(title)

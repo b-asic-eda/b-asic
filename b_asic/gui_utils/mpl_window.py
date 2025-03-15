@@ -25,7 +25,7 @@ class MPLWindow(QDialog):
         self._dialog_layout = QVBoxLayout()
         self.setLayout(self._dialog_layout)
 
-        self._plot_fig = Figure(figsize=(5, 4), layout="compressed")
+        self._plot_fig = Figure(figsize=(5, 4), layout="constrained")
         self._plot_axes = self._plot_fig.subplots(*subplots)
 
         self._plot_canvas = FigureCanvas(self._plot_fig)

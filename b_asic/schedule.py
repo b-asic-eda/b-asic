@@ -18,7 +18,6 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
 from matplotlib.ticker import MaxNLocator
-from matplotlib.transforms import Bbox, TransformedBbox
 
 from b_asic import Signal
 from b_asic._preferences import (
@@ -1067,24 +1066,66 @@ class Schedule:
         return operation_gap + y_location * (operation_height + operation_gap)
 
     def sort_y_locations_on_start_times(self):
+        """
+        Sort the y-locations of the schedule based on start times of the operations.
+
+        Inputs, outputs, dontcares, and sinks are located adjacent to the operations that
+        they are connected to.
+        """
         for i, graph_id in enumerate(
             sorted(self._start_times, key=self._start_times.get)
         ):
             self.set_y_location(graph_id, i)
         for graph_id in self._start_times:
             op = cast(Operation, self._sfg.find_by_id(graph_id))
-            if isinstance(op, Output):
-                self.move_y_location(
-                    graph_id,
-                    self.get_y_location(op.preceding_operations[0].graph_id) + 1,
-                    True,
-                )
-            if isinstance(op, DontCare):
-                self.move_y_location(
-                    graph_id,
-                    self.get_y_location(op.subsequent_operations[0].graph_id),
-                    True,
-                )
+            # Position Outputs and Sinks adjacent to the operation generating them
+            if isinstance(op, (Output, Sink)):
+                gen_op: Operation = op.preceding_operations[0]
+                if (
+                    gen_op.output_count == 1
+                    or op.input(0).signals[0].source.index >= gen_op.output_count / 2
+                ):
+                    # Single output operation generating or lower half of outputs
+                    # Put below
+                    self.move_y_location(
+                        graph_id,
+                        self.get_y_location(gen_op.graph_id) + 1,
+                        True,
+                    )
+                else:
+                    # Put above
+                    self.move_y_location(
+                        graph_id,
+                        self.get_y_location(gen_op.graph_id),
+                        True,
+                    )
+            # Position DontCares and Inputs adjacent to the operation using them
+            if isinstance(op, (DontCare, Input)):
+                # Find the "top" connected operation (for DontCare there is always one, but use general case there as well)
+                # TODO: Only check conconnected operations that do not have a lap
+                dest_ops = {
+                    sub_op: self.get_y_location(sub_op.graph_id)
+                    for sub_op in op.subsequent_operations
+                }
+                dest_op = min(dest_ops, key=dest_ops.get)
+                if (
+                    dest_op.input_count == 1
+                    or op.output(0).signals[0].destination.index
+                    < dest_op.input_count / 2
+                ):
+                    # For single input operation consuming or upper half, position above
+                    self.move_y_location(
+                        graph_id,
+                        self.get_y_location(dest_op.graph_id),
+                        True,
+                    )
+                else:
+                    # Position below
+                    self.move_y_location(
+                        graph_id,
+                        self.get_y_location(dest_op.graph_id) + 1,
+                        True,
+                    )
 
     def _plot_schedule(self, ax: Axes, operation_gap: float = OPERATION_GAP) -> None:
         """Draw the schedule."""
@@ -1192,12 +1233,10 @@ class Schedule:
             y = np.array(_y)
             xvalues = x + op_start_time
             xy = np.stack((xvalues, y + y_pos))
-            p = ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
-            p.set_clip_box(TransformedBbox(Bbox([[0, 0], [1, 1]]), ax.transAxes))
+            ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
             if any(xvalues > self.schedule_time) and not isinstance(operation, Output):
                 xy = np.stack((xvalues - self.schedule_time, y + y_pos))
-                p = ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
-                p.set_clip_box(TransformedBbox(Bbox([[0, 0], [1, 1]]), ax.transAxes))
+                ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
             if isinstance(operation, Input):
                 ax.annotate(
                     graph_id,
@@ -1224,7 +1263,7 @@ class Schedule:
                     linewidth=3,
                 )
                 if any(xvalues > self.schedule_time) and not isinstance(
-                    operation, Output
+                    operation, (Output, Sink)
                 ):
                     ax.plot(
                         xvalues - self.schedule_time,
@@ -1271,7 +1310,7 @@ class Schedule:
             + 1
             + (OPERATION_GAP if operation_gap is None else operation_gap)
         )
-        ax.axis([-1, self._schedule_time + 1, y_position_max, 0])  # Inverted y-axis
+        ax.axis([-0.8, self._schedule_time + 0.8, y_position_max, 0])  # Inverted y-axis
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))
         ax.axvline(
             0,
@@ -1335,8 +1374,8 @@ class Schedule:
         -------
         The Matplotlib Figure.
         """
-        height = len(self._start_times) * 0.3 + 2
-        fig, ax = plt.subplots(figsize=(12, height))
+        height = len(self._start_times) * 0.3 + 0.7
+        fig, ax = plt.subplots(figsize=(12, height), layout="constrained")
         self._plot_schedule(ax, operation_gap=operation_gap)
         return fig
 
@@ -1345,8 +1384,8 @@ class Schedule:
         Generate an SVG of the schedule. This is automatically displayed in e.g.
         Jupyter Qt console.
         """
-        height = len(self._start_times) * 0.3 + 2
-        fig, ax = plt.subplots(figsize=(12, height))
+        height = len(self._start_times) * 0.3 + 0.7
+        fig, ax = plt.subplots(figsize=(12, height), layout="constrained")
         self._plot_schedule(ax)
         buffer = io.StringIO()
         fig.savefig(buffer, format="svg")

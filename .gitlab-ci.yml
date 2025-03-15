@@ -9,15 +9,11 @@ before_script:
   - apt-get install -y libxcb-cursor-dev
   - python -m pip install --upgrade pip
   - python --version
-  - pip install .[$QT_API]
   - git fetch --tags
+  - pip install -v .[$QT_API,test]
   # - export CXXFLAGS='--coverage'
-  # Install without dependencies to make sure that requirements.txt is up-to-date
-  - pip install --no-deps -ve .
   - pip show b_asic
   - export QT_API=$QT_API
-  # Install test dependencies
-  - pip install .[test]
   - export PYTEST_QT_API=$QT_API
 
 .run-test:
