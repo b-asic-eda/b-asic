@@ -5,6 +5,7 @@ B-ASIC Scheduler-GUI Operation Item Module.
 Contains the scheduler_gui OperationItem class for drawing and maintain an operation
 in the schedule.
 """
+
 from typing import TYPE_CHECKING, cast
 
 # QGraphics and QPainter imports
@@ -347,16 +348,16 @@ class OperationItem(QGraphicsItemGroup):
 
     def _open_context_menu(self):
         menu = QMenu()
-        swap = QAction(get_icon('swap'), "Swap")
+        swap = QAction(get_icon("swap"), "Swap")
         menu.addAction(swap)
         swap.setEnabled(self._operation.is_swappable)
         swap.triggered.connect(self._swap_io)
         slacks = self._parent.schedule.slacks(self._operation.graph_id)
-        asap = QAction(get_icon('asap'), "Move as soon as possible")
+        asap = QAction(get_icon("asap"), "Move as soon as possible")
         asap.triggered.connect(self._move_asap)
         asap.setEnabled(slacks[0] > 0)
         menu.addAction(asap)
-        alap = QAction(get_icon('alap'), "Move as late as possible")
+        alap = QAction(get_icon("alap"), "Move as late as possible")
         alap.triggered.connect(self._move_alap)
         alap.setEnabled(slacks[1] > 0)
         menu.addAction(alap)

@@ -1921,8 +1921,8 @@ def _validate_recreated_sfg_filter(sfg: SFG, schedule: Schedule) -> None:
     sim2 = Simulation(schedule.sfg, [Impulse()])
     sim2.run_for(1024)
 
-    spectrum_1 = abs(np.fft.fft(sim1.results['0']))
-    spectrum_2 = abs(np.fft.fft(sim2.results['0']))
+    spectrum_1 = abs(np.fft.fft(sim1.results["0"]))
+    spectrum_2 = abs(np.fft.fft(sim2.results["0"]))
     assert np.allclose(spectrum_1, spectrum_2)
 
 

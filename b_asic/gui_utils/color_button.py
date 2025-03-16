@@ -19,7 +19,7 @@ class ColorButton(QPushButton):
         Additional arguments are passed to QPushButton.
     """
 
-    __slots__ = ('_color', '_default')
+    __slots__ = ("_color", "_default")
     _color: None | QColor
     _color_changed = Signal(QColor)
 

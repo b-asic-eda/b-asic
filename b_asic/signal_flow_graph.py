@@ -671,12 +671,12 @@ class SFG(AbstractOperation):
                 signal.remove_source()
                 signal.set_source(component.output(index_out))
 
-        if component_copy.type_name() == 'out':
+        if component_copy.type_name() == "out":
             sfg_copy._output_operations.remove(component_copy)
             warnings.warn(
                 f"Output port {component_copy.graph_id} has been removed", stacklevel=2
             )
-        if component.type_name() == 'out':
+        if component.type_name() == "out":
             sfg_copy._output_operations.append(component)
 
         return sfg_copy()  # Copy again to update IDs.
@@ -1019,14 +1019,14 @@ class SFG(AbstractOperation):
                     if port.operation.output_count > 1:
                         sub.node(
                             port_string,
-                            shape='rectangle',
+                            shape="rectangle",
                             height="0.1",
                             width="0.1",
                         )
                     else:
                         sub.node(
                             port_string,
-                            shape='rectangle',
+                            shape="rectangle",
                             label=port.operation.graph_id,
                             height="0.1",
                             width="0.1",
@@ -1688,7 +1688,7 @@ class SFG(AbstractOperation):
                     and source_name not in branch_nodes
                 ):
                     branch_nodes.add(source_name)
-                    dg.node(source_name, shape='point')
+                    dg.node(source_name, shape="point")
                     taillabel = (
                         str(source.index)
                         if source.operation.output_count > 1 and port_numbering
@@ -1697,7 +1697,7 @@ class SFG(AbstractOperation):
                     dg.edge(
                         source.operation.graph_id,
                         source_name,
-                        arrowhead='none',
+                        arrowhead="none",
                         taillabel=taillabel,
                     )
             else:
@@ -1857,7 +1857,7 @@ class SFG(AbstractOperation):
             time_of_loop = 0
             number_of_t_in_loop = 0
             for element in loop:
-                if ''.join([i for i in element if not i.isdigit()]) == 't':
+                if "".join([i for i in element if not i.isdigit()]) == "t":
                     number_of_t_in_loop += 1
                 for key, item in op_and_latency.items():
                     if key in element:
@@ -1881,7 +1881,7 @@ class SFG(AbstractOperation):
         """
         inputs_used = []
         for used_input in self._used_ids:
-            if 'in' in str(used_input):
+            if "in" in str(used_input):
                 used_input = used_input.replace("in", "")
                 inputs_used.append(int(used_input))
         if inputs_used == []:
@@ -1937,7 +1937,7 @@ class SFG(AbstractOperation):
         """
         delay_element_used = []
         for delay_element in self._used_ids:
-            if ''.join([i for i in delay_element if not i.isdigit()]) == 't':
+            if "".join([i for i in delay_element if not i.isdigit()]) == "t":
                 delay_element_used.append(delay_element)
         delay_element_used.sort()
         input_index_used = []
@@ -1945,10 +1945,10 @@ class SFG(AbstractOperation):
         output_index_used = []
         outputs_used = []
         for used_inout in self._used_ids:
-            if 'in' in str(used_inout):
+            if "in" in str(used_inout):
                 inputs_used.append(used_inout)
                 input_index_used.append(int(used_inout.replace("in", "")))
-            elif 'out' in str(used_inout):
+            elif "out" in str(used_inout):
                 outputs_used.append(used_inout)
                 output_index_used.append(int(used_inout.replace("out", "")))
         if input_index_used == []:
@@ -1995,12 +1995,12 @@ class SFG(AbstractOperation):
             raise ValueError("Empty SFG")
         addition_with_constant = {}
         for key, item in dict_of_sfg.items():
-            if ''.join([i for i in key if not i.isdigit()]) == 'c':
+            if "".join([i for i in key if not i.isdigit()]) == "c":
                 addition_with_constant[item[0]] = self.find_by_id(key).value
         cycles = [
             [node] + path
             for node in dict_of_sfg
-            if node[0] == 't'
+            if node[0] == "t"
             for path in self._dfs(dict_of_sfg, node, node)
         ]
         delay_loop_list = []
@@ -2009,7 +2009,7 @@ class SFG(AbstractOperation):
                 temp_list = []
                 for element in lista:
                     temp_list.append(element)
-                    if element[0] == 't' and len(temp_list) >= 2:
+                    if element[0] == "t" and len(temp_list) >= 2:
                         delay_loop_list.append(temp_list)
                         temp_list = [element]
         state_space_lista = []
@@ -2024,34 +2024,34 @@ class SFG(AbstractOperation):
         matrix_in = [0] * mat_col
         matrix_answer = [0] * mat_row
         for in_signal in inputs_used:
-            matrix_in[len(delay_element_used) + int(in_signal.replace('in', ''))] = (
-                in_signal.replace('in', 'x')
+            matrix_in[len(delay_element_used) + int(in_signal.replace("in", ""))] = (
+                in_signal.replace("in", "x")
             )
             for delay_element in delay_element_used:
                 matrix_answer[delay_element_used.index(delay_element)] = (
-                    delay_element.replace('t', 'v')
+                    delay_element.replace("t", "v")
                 )
                 matrix_in[delay_element_used.index(delay_element)] = (
-                    delay_element.replace('t', 'v')
+                    delay_element.replace("t", "v")
                 )
                 paths = self.find_all_paths(dict_of_sfg, in_signal, delay_element)
                 for lista in paths:
                     temp_list = []
                     for element in lista:
                         temp_list.append(element)
-                        if element[0] == 't':
+                        if element[0] == "t":
                             state_space_lista.append(temp_list)
                             temp_list = [element]
             for out_signal in outputs_used:
                 paths = self.find_all_paths(dict_of_sfg, in_signal, out_signal)
                 matrix_answer[
-                    len(delay_element_used) + int(out_signal.replace('out', ''))
-                ] = out_signal.replace('out', 'y')
+                    len(delay_element_used) + int(out_signal.replace("out", ""))
+                ] = out_signal.replace("out", "y")
                 for lista in paths:
                     temp_list1 = []
                     for element in lista:
                         temp_list1.append(element)
-                        if element[0] == 't':
+                        if element[0] == "t":
                             state_space_lista.append(temp_list1)
                             temp_list1 = [element]
                         if "out" in element:
@@ -2064,7 +2064,7 @@ class SFG(AbstractOperation):
             if x not in state_space_list_no_dup
         ]
         for lista in state_space_list_no_dup:
-            if "in" in lista[0] and lista[-1][0] == 't':
+            if "in" in lista[0] and lista[-1][0] == "t":
                 row = int(lista[-1].replace("t", ""))
                 column = len(delay_element_used) + int(lista[0].replace("in", ""))
                 temp_value = 1
@@ -2086,7 +2086,7 @@ class SFG(AbstractOperation):
                         if key == element:
                             temp_value += int(value)
                 mat_content[row, column] += temp_value
-            elif lista[0][0] == 't' and lista[-1][0] == 't':
+            elif lista[0][0] == "t" and lista[-1][0] == "t":
                 row = int(lista[-1].replace("t", ""))
                 column = int(lista[0].replace("t", ""))
                 temp_value = 1
@@ -2097,7 +2097,7 @@ class SFG(AbstractOperation):
                         if key == element:
                             temp_value += int(value)
                 mat_content[row, column] += temp_value
-            elif lista[0][0] == 't' and "out" in lista[-1]:
+            elif lista[0][0] == "t" and "out" in lista[-1]:
                 row = len(delay_element_used) + int(lista[-1].replace("out", ""))
                 column = int(lista[0].replace("t", ""))
                 temp_value = 1
@@ -2206,9 +2206,9 @@ class SFG(AbstractOperation):
         # Add suffixes to all graphIDs and names in order to keep them separated
         for i in range(factor):
             for operation in sfgs[i].operations:
-                suffix = f'_{i}'
+                suffix = f"_{i}"
                 operation.graph_id = operation.graph_id + suffix
-                if operation.name[:7] not in ['', 'input_t', 'output_']:
+                if operation.name[:7] not in ["", "input_t", "output_"]:
                     operation.name = operation.name + suffix
 
         input_name_to_idx = {}  # save the input port indices for future reference
@@ -2248,7 +2248,7 @@ class SFG(AbstractOperation):
                     input_port.connect(port)
                     delay_placements[port] = [i, number_of_delays_between]
             sfgs[i].graph_id = (
-                f'sfg{i}'  # deterministically set the graphID of the sfgs
+                f"sfg{i}"  # deterministically set the graphID of the sfgs
             )
 
         sfg = SFG(new_inputs, new_outputs)  # create a new SFG to remove floating nodes
@@ -2257,11 +2257,11 @@ class SFG(AbstractOperation):
         for port, val in delay_placements.items():
             i, no_of_delays = val
             for _ in range(no_of_delays):
-                sfg = sfg.insert_operation_after(f'sfg{i}.{port.index}', Delay())
+                sfg = sfg.insert_operation_after(f"sfg{i}.{port.index}", Delay())
 
         # Flatten all the copies of the original SFG
         for i in range(factor):
-            sfg.find_by_id(f'sfg{i}').connect_external_signals_to_components()
+            sfg.find_by_id(f"sfg{i}").connect_external_signals_to_components()
             sfg = sfg()
 
         return sfg

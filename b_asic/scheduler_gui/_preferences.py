@@ -29,7 +29,7 @@ class ColorDataType:
         DEFAULT: QColor,
         current_color: QColor = SIGNAL_INACTIVE,
         changed: bool = False,
-        name: str = '',
+        name: str = "",
     ):
         self.current_color = current_color
         self.DEFAULT = DEFAULT
@@ -40,21 +40,21 @@ class ColorDataType:
 LATENCY_COLOR_TYPE = ColorDataType(
     current_color=OPERATION_LATENCY_INACTIVE,
     DEFAULT=OPERATION_LATENCY_INACTIVE,
-    name='Latency color',
+    name="Latency color",
 )
 EXECUTION_TIME_COLOR_TYPE = ColorDataType(
     current_color=OPERATION_EXECUTION_TIME_ACTIVE,
     DEFAULT=OPERATION_EXECUTION_TIME_ACTIVE,
-    name='Execution time color',
+    name="Execution time color",
 )
 SIGNAL_WARNING_COLOR_TYPE = ColorDataType(
-    current_color=SIGNAL_WARNING, DEFAULT=SIGNAL_WARNING, name='Warning color'
+    current_color=SIGNAL_WARNING, DEFAULT=SIGNAL_WARNING, name="Warning color"
 )
 SIGNAL_COLOR_TYPE = ColorDataType(
-    current_color=SIGNAL_INACTIVE, DEFAULT=SIGNAL_INACTIVE, name='Signal color'
+    current_color=SIGNAL_INACTIVE, DEFAULT=SIGNAL_INACTIVE, name="Signal color"
 )
 ACTIVE_COLOR_TYPE = ColorDataType(
-    current_color=SIGNAL_ACTIVE, DEFAULT=SIGNAL_ACTIVE, name='Active color'
+    current_color=SIGNAL_ACTIVE, DEFAULT=SIGNAL_ACTIVE, name="Active color"
 )
 
 

@@ -5,6 +5,7 @@ B-ASIC Scheduler-GUI Graphics Scheduler Event Module.
 Contains the scheduler_ui SchedulerEvent class containing event filters and
 handlers for SchedulerItem objects.
 """
+
 import math
 from typing import overload
 

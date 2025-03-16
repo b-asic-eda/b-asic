@@ -21,10 +21,10 @@ def test_start(qtbot):
 def test_load(qtbot, datadir):
     widget = SFGMainWindow()
     qtbot.addWidget(widget)
-    widget._load_from_file(datadir.join('twotapfir.py'))
-    assert 'twotapfir' in widget._sfg_dict
+    widget._load_from_file(datadir.join("twotapfir.py"))
+    assert "twotapfir" in widget._sfg_dict
     widget._clear_workspace()
-    assert 'twotapfir' not in widget._sfg_dict
+    assert "twotapfir" not in widget._sfg_dict
     assert not widget._sfg_dict
 
     widget.exit_app()
@@ -33,8 +33,8 @@ def test_load(qtbot, datadir):
 def test_flip(qtbot, datadir):
     widget = SFGMainWindow()
     qtbot.addWidget(widget)
-    widget._load_from_file(datadir.join('twotapfir.py'))
-    sfg = widget._sfg_dict['twotapfir']
+    widget._load_from_file(datadir.join("twotapfir.py"))
+    sfg = widget._sfg_dict["twotapfir"]
     op = sfg.find_by_name("cmul2")
     dragbutton = widget._drag_buttons[op[0]]
     assert not dragbutton.is_flipped()
@@ -46,8 +46,8 @@ def test_flip(qtbot, datadir):
 def test_sfg_invalidated_by_remove_of_operation(qtbot, datadir):
     widget = SFGMainWindow()
     qtbot.addWidget(widget)
-    widget._load_from_file(datadir.join('twotapfir.py'))
-    sfg = widget._sfg_dict['twotapfir']
+    widget._load_from_file(datadir.join("twotapfir.py"))
+    sfg = widget._sfg_dict["twotapfir"]
     ops_before_remove = len(widget._drag_buttons)
     op = sfg.find_by_name("cmul2")
     dragbutton = widget._drag_buttons[op[0]]
@@ -61,8 +61,8 @@ def test_sfg_invalidated_by_remove_of_operation(qtbot, datadir):
 def test_sfg_invalidated_by_deleting_of_operation(qtbot, datadir):
     widget = SFGMainWindow()
     qtbot.addWidget(widget)
-    widget._load_from_file(datadir.join('twotapfir.py'))
-    sfg = widget._sfg_dict['twotapfir']
+    widget._load_from_file(datadir.join("twotapfir.py"))
+    sfg = widget._sfg_dict["twotapfir"]
     ops_before_remove = len(widget._drag_buttons)
     op = sfg.find_by_name("cmul2")
     dragbutton = widget._drag_buttons[op[0]]
@@ -78,8 +78,8 @@ def test_sfg_invalidated_by_deleting_of_operation(qtbot, datadir):
 def test_select_operation(qtbot, datadir):
     widget = SFGMainWindow()
     qtbot.addWidget(widget)
-    widget._load_from_file(datadir.join('twotapfir.py'))
-    sfg = widget._sfg_dict['twotapfir']
+    widget._load_from_file(datadir.join("twotapfir.py"))
+    sfg = widget._sfg_dict["twotapfir"]
     op = sfg.find_by_name("cmul2")[0]
     dragbutton = widget._drag_buttons[op]
     assert not dragbutton.pressed
@@ -170,8 +170,8 @@ def test_properties_window_smoke_test(qtbot, datadir):
     # Should really check that the contents are correct and changes works etc
     widget = SFGMainWindow()
     qtbot.addWidget(widget)
-    widget._load_from_file(datadir.join('twotapfir.py'))
-    sfg = widget._sfg_dict['twotapfir']
+    widget._load_from_file(datadir.join("twotapfir.py"))
+    sfg = widget._sfg_dict["twotapfir"]
     op = sfg.find_by_name("cmul2")[0]
     dragbutton = widget._drag_buttons[op]
     dragbutton.show_properties_window()
@@ -187,8 +187,8 @@ def test_properties_window_change_name(qtbot, datadir):
     # Should really check that the contents are correct and changes works etc
     widget = SFGMainWindow()
     qtbot.addWidget(widget)
-    widget._load_from_file(datadir.join('twotapfir.py'))
-    sfg = widget._sfg_dict['twotapfir']
+    widget._load_from_file(datadir.join("twotapfir.py"))
+    sfg = widget._sfg_dict["twotapfir"]
     op = sfg.find_by_name("cmul2")[0]
     dragbutton = widget._drag_buttons[op]
     assert dragbutton.name == "cmul2"

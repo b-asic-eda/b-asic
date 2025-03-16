@@ -1302,7 +1302,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         if -1 <= value <= 1:
             self.set_param("value", value)
         else:
-            raise ValueError('value must be between -1 and 1 (inclusive)')
+            raise ValueError("value must be between -1 and 1 (inclusive)")
 
     def swap_io(self) -> None:
         # Swap inputs and outputs and change sign of coefficient

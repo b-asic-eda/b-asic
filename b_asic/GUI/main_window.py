@@ -104,14 +104,14 @@ class SFGMainWindow(QMainWindow):
 
         # Create toolbar
         self._toolbar = self.addToolBar("Toolbar")
-        self._toolbar.addAction(get_icon('open'), "Load SFG", self.load_work)
-        self._toolbar.addAction(get_icon('save'), "Save SFG", self.save_work)
+        self._toolbar.addAction(get_icon("open"), "Load SFG", self.load_work)
+        self._toolbar.addAction(get_icon("save"), "Save SFG", self.save_work)
         self._toolbar.addSeparator()
         self._toolbar.addAction(
-            get_icon('new-sfg'), "Create SFG", self.create_sfg_from_toolbar
+            get_icon("new-sfg"), "Create SFG", self.create_sfg_from_toolbar
         )
         self._toolbar.addAction(
-            get_icon('close'), "Clear workspace", self._clear_workspace
+            get_icon("close"), "Clear workspace", self._clear_workspace
         )
 
         # Create status bar
@@ -142,18 +142,18 @@ class SFGMainWindow(QMainWindow):
 
         self._ui.actionShowPC.triggered.connect(self._show_precedence_graph)
         self._ui.actionSimulateSFG.triggered.connect(self.simulate_sfg)
-        self._ui.actionSimulateSFG.setIcon(get_icon('sim'))
+        self._ui.actionSimulateSFG.setIcon(get_icon("sim"))
 
         # About menu
         self._ui.faqBASIC.triggered.connect(self.display_faq_page)
         self._ui.faqBASIC.setShortcut(QKeySequence("Ctrl+?"))
-        self._ui.faqBASIC.setIcon(get_icon('faq'))
+        self._ui.faqBASIC.setIcon(get_icon("faq"))
         self._ui.aboutBASIC.triggered.connect(self.display_about_page)
-        self._ui.aboutBASIC.setIcon(get_icon('about'))
+        self._ui.aboutBASIC.setIcon(get_icon("about"))
         self._ui.keybindsBASIC.triggered.connect(self.display_keybindings_page)
-        self._ui.keybindsBASIC.setIcon(get_icon('keys'))
+        self._ui.keybindsBASIC.setIcon(get_icon("keys"))
         self._ui.documentationBASIC.triggered.connect(self._open_documentation)
-        self._ui.documentationBASIC.setIcon(get_icon('docs'))
+        self._ui.documentationBASIC.setIcon(get_icon("docs"))
 
         # Operation lists
         self._ui.core_operations_list.itemClicked.connect(
@@ -166,20 +166,20 @@ class SFGMainWindow(QMainWindow):
             self._on_list_widget_item_clicked
         )
         self._ui.save_menu.triggered.connect(self.save_work)
-        self._ui.save_menu.setIcon(get_icon('save'))
+        self._ui.save_menu.setIcon(get_icon("save"))
         self._ui.save_menu.setShortcut(QKeySequence("Ctrl+S"))
         self._ui.load_menu.triggered.connect(self.load_work)
-        self._ui.load_menu.setIcon(get_icon('open'))
+        self._ui.load_menu.setIcon(get_icon("open"))
         self._ui.load_menu.setShortcut(QKeySequence("Ctrl+O"))
         self._ui.load_operations.triggered.connect(self.add_namespace)
-        self._ui.load_operations.setIcon(get_icon('add-operations'))
+        self._ui.load_operations.setIcon(get_icon("add-operations"))
         self._ui.exit_menu.triggered.connect(self.exit_app)
-        self._ui.exit_menu.setIcon(get_icon('quit'))
+        self._ui.exit_menu.setIcon(get_icon("quit"))
         self._ui.select_all.triggered.connect(self._select_all)
         self._ui.select_all.setShortcut(QKeySequence("Ctrl+A"))
-        self._ui.select_all.setIcon(get_icon('all'))
+        self._ui.select_all.setIcon(get_icon("all"))
         self._ui.unselect_all.triggered.connect(self._unselect_all)
-        self._ui.unselect_all.setIcon(get_icon('none'))
+        self._ui.unselect_all.setIcon(get_icon("none"))
         self._shortcut_signal = QShortcut(QKeySequence(Qt.Key_Space), self)
         self._shortcut_signal.activated.connect(self._connect_callback)
         self._create_recent_file_actions_and_menus()
@@ -208,13 +208,13 @@ class SFGMainWindow(QMainWindow):
 
         # Zoom to fit
         self._ui.view_menu.addSeparator()
-        self._zoom_to_fit_action = QAction(get_icon('zoom-to-fit'), "Zoom to &fit")
+        self._zoom_to_fit_action = QAction(get_icon("zoom-to-fit"), "Zoom to &fit")
         self._zoom_to_fit_action.triggered.connect(self._zoom_to_fit)
         self._ui.view_menu.addAction(self._zoom_to_fit_action)
 
         # Toggle full screen
         self._fullscreen_action = QAction(
-            get_icon('full-screen'), "Toggle f&ull screen"
+            get_icon("full-screen"), "Toggle f&ull screen"
         )
         self._fullscreen_action.setCheckable(True)
         self._fullscreen_action.triggered.connect(self._toggle_fullscreen)
@@ -397,10 +397,10 @@ class SFGMainWindow(QMainWindow):
         """Callback for toggling full screen mode."""
         if self.isFullScreen():
             self.showNormal()
-            self._fullscreen_action.setIcon(get_icon('full-screen'))
+            self._fullscreen_action.setIcon(get_icon("full-screen"))
         else:
             self.showFullScreen()
-            self._fullscreen_action.setIcon(get_icon('full-screen-exit'))
+            self._fullscreen_action.setIcon(get_icon("full-screen-exit"))
 
     def _update_recent_file_list(self):
         settings = QSettings()

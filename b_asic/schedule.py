@@ -1199,7 +1199,7 @@ class Schedule:
                 )
                 path_patch = PathPatch(
                     path,
-                    fc='none',
+                    fc="none",
                     ec=_SIGNAL_COLOR,
                     lw=SIGNAL_LINEWIDTH,
                     zorder=10,

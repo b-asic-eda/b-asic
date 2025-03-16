@@ -68,7 +68,7 @@ class HardwareBlock:
             The entity name.
         """
         if not is_valid_vhdl_identifier(entity_name):
-            raise ValueError(f'{entity_name} is not a valid VHDL identifier')
+            raise ValueError(f"{entity_name} is not a valid VHDL identifier")
         self._entity_name = entity_name
 
     def write_code(self, path: str) -> None:
@@ -171,13 +171,13 @@ class Resource(HardwareBlock):
         return iter(self._collection)
 
     def _digraph(self) -> Digraph:
-        dg = Digraph(node_attr={'shape': 'box'})
+        dg = Digraph(node_attr={"shape": "box"})
         dg.node(
             self.entity_name,
             self._struct_def(),
-            style='filled',
+            style="filled",
             fillcolor=self._color,
-            fontname='Times New Roman',
+            fontname="Times New Roman",
         )
         return dg
 
@@ -199,18 +199,18 @@ class Resource(HardwareBlock):
         table_width = max(len(inputs), len(outputs), 1)
         if inputs:
             in_strs = [
-                f'<TD COLSPAN="{int(table_width/len(inputs))}"'
+                f'<TD COLSPAN="{int(table_width / len(inputs))}"'
                 f' PORT="{in_str}">{in_str}</TD>'
                 for in_str in inputs
             ]
             ret += f"<TR>{''.join(in_strs)}</TR>"
         ret += (
             f'<TR><TD COLSPAN="{table_width}">'
-            f'<B>{self.entity_name}{self._info()}</B></TD></TR>'
+            f"<B>{self.entity_name}{self._info()}</B></TD></TR>"
         )
         if outputs:
             out_strs = [
-                f'<TD COLSPAN="{int(table_width/len(outputs))}"'
+                f'<TD COLSPAN="{int(table_width / len(outputs))}"'
                 f' PORT="{out_str}">{out_str}</TD>'
                 for out_str in outputs
             ]
@@ -274,7 +274,7 @@ class Resource(HardwareBlock):
     def is_assigned(self) -> bool:
         return self._assignment is not None
 
-    def assign(self, heuristic: str = 'left_edge'):
+    def assign(self, heuristic: str = "left_edge"):
         """
         Perform assignment of processes to resource.
 
@@ -556,7 +556,7 @@ class Memory(Resource):
     def _info(self) -> str:
         if self.is_assigned:
             if self._memory_type == "RAM":
-                plural_s = 's' if len(self._assignment) >= 2 else ''
+                plural_s = "s" if len(self._assignment) >= 2 else ""
                 return f": (RAM, {len(self._assignment)} cell{plural_s})"
             else:
                 pass
@@ -858,7 +858,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         elif resource in self.processing_elements:
             self.processing_elements.remove(cast(ProcessingElement, resource))
         else:
-            raise ValueError('Resource not in architecture')
+            raise ValueError("Resource not in architecture")
 
     def assign_resources(self, heuristic: str = "left_edge") -> None:
         """
@@ -951,7 +951,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         colored : bool, default: True
             Whether to color the nodes.
         """
-        dg = Digraph(node_attr={'shape': 'box'})
+        dg = Digraph(node_attr={"shape": "box"})
         dg.attr(splines=splines)
         # Setup colors
         pe_color = (
@@ -988,26 +988,26 @@ of :class:`~b_asic.architecture.ProcessingElement`
         if cluster:
             # Add subgraphs
             if len(self._memories):
-                with dg.subgraph(name='cluster_memories') as c:
+                with dg.subgraph(name="cluster_memories") as c:
                     for mem in self._memories:
                         c.node(
                             mem.entity_name,
                             mem._struct_def(),
-                            style='filled',
+                            style="filled",
                             fillcolor=memory_color,
-                            fontname='Times New Roman',
+                            fontname="Times New Roman",
                         )
                     label = "Memory" if len(self._memories) <= 1 else "Memories"
                     c.attr(label=label, bgcolor=memory_cluster_color)
-            with dg.subgraph(name='cluster_pes') as c:
+            with dg.subgraph(name="cluster_pes") as c:
                 for pe in self._processing_elements:
-                    if pe._type_name not in ('in', 'out'):
+                    if pe._type_name not in ("in", "out"):
                         c.node(
                             pe.entity_name,
                             pe._struct_def(),
-                            style='filled',
+                            style="filled",
                             fillcolor=pe_color,
-                            fontname='Times New Roman',
+                            fontname="Times New Roman",
                         )
                 label = (
                     "Processing element"
@@ -1016,39 +1016,39 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 )
                 c.attr(label=label, bgcolor=pe_cluster_color)
             if io_cluster:
-                with dg.subgraph(name='cluster_io') as c:
+                with dg.subgraph(name="cluster_io") as c:
                     for pe in self._processing_elements:
-                        if pe._type_name in ('in', 'out'):
+                        if pe._type_name in ("in", "out"):
                             c.node(
                                 pe.entity_name,
                                 pe._struct_def(),
-                                style='filled',
+                                style="filled",
                                 fillcolor=io_color,
-                                fontname='Times New Roman',
+                                fontname="Times New Roman",
                             )
                     c.attr(label="IO", bgcolor=io_cluster_color)
             else:
                 for pe in self._processing_elements:
-                    if pe._type_name in ('in', 'out'):
+                    if pe._type_name in ("in", "out"):
                         dg.node(
                             pe.entity_name,
                             pe._struct_def(),
-                            style='filled',
+                            style="filled",
                             fillcolor=io_color,
-                            fontname='Times New Roman',
+                            fontname="Times New Roman",
                         )
         else:
             for mem in self._memories:
                 dg.node(
                     mem.entity_name,
                     mem._struct_def(),
-                    style='filled',
+                    style="filled",
                     fillcolor=memory_color,
-                    fontname='Times New Roman',
+                    fontname="Times New Roman",
                 )
             for pe in self._processing_elements:
                 dg.node(
-                    pe.entity_name, pe._struct_def(), style='filled', fillcolor=pe_color
+                    pe.entity_name, pe._struct_def(), style="filled", fillcolor=pe_color
                 )
 
         # Create list of interconnects
@@ -1103,9 +1103,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     dg.node(
                         name,
                         ret + "</TABLE>>",
-                        style='filled',
+                        style="filled",
                         fillcolor=mux_color,
-                        fontname='Times New Roman',
+                        fontname="Times New Roman",
                     )
                     # Add edge from mux output to resource input
                     dg.edge(f"{name}:out0", destination_str)
@@ -1115,8 +1115,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             original_src_str = src_str
             if len(destination_counts) > 1 and branch_node:
                 branch = f"{src_str}_branch".replace(":", "")
-                dg.node(branch, shape='point')
-                dg.edge(src_str, branch, arrowhead='none')
+                dg.node(branch, shape="point")
+                dg.edge(src_str, branch, arrowhead="none")
                 src_str = branch
             for destination_str, cnt_str in destination_counts:
                 if multiplexers and len(destination_list[destination_str]) > 1:

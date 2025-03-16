@@ -279,20 +279,20 @@ class TestInit:
             "out0": 6,
         }
         laps = {
-            's8': 1,
-            's10': 2,
-            's15': 1,
-            's17': 2,
-            's0': 0,
-            's3': 0,
-            's12': 0,
-            's11': 0,
-            's14': 0,
-            's13': 0,
-            's6': 0,
-            's4': 0,
-            's5': 0,
-            's2': 0,
+            "s8": 1,
+            "s10": 2,
+            "s15": 1,
+            "s17": 2,
+            "s0": 0,
+            "s3": 0,
+            "s12": 0,
+            "s11": 0,
+            "s14": 0,
+            "s13": 0,
+            "s6": 0,
+            "s4": 0,
+            "s5": 0,
+            "s2": 0,
         }
 
         schedule = Schedule(sfg, start_times=start_times, laps=laps)
@@ -526,13 +526,13 @@ class TestRescheduling:
         )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
-        assert schedule.backward_slack('cmul5') == 16
-        assert schedule.forward_slack('cmul5') == 0
-        schedule.move_operation_asap('cmul5')
-        assert schedule.start_time_of_operation('in0') == 0
-        assert schedule.laps['cmul5'] == 0
-        assert schedule.backward_slack('cmul5') == 0
-        assert schedule.forward_slack('cmul5') == 16
+        assert schedule.backward_slack("cmul5") == 16
+        assert schedule.forward_slack("cmul5") == 0
+        schedule.move_operation_asap("cmul5")
+        assert schedule.start_time_of_operation("in0") == 0
+        assert schedule.laps["cmul5"] == 0
+        assert schedule.backward_slack("cmul5") == 0
+        assert schedule.forward_slack("cmul5") == 16
 
     def test_move_input_asap_does_not_mess_up_laps(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
@@ -541,10 +541,10 @@ class TestRescheduling:
         )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
-        old_laps = schedule.laps['in0']
-        schedule.move_operation_asap('in0')
-        assert schedule.start_time_of_operation('in0') == 0
-        assert schedule.laps['in0'] == old_laps
+        old_laps = schedule.laps["in0"]
+        schedule.move_operation_asap("in0")
+        assert schedule.start_time_of_operation("in0") == 0
+        assert schedule.laps["in0"] == old_laps
 
     def test_move_operation_acc(self):
         in0 = Input()
@@ -625,8 +625,8 @@ class TestRescheduling:
 
         fir_sfg = direct_form_fir(
             list(range(1, 10)),
-            mult_properties={'latency': 2, 'execution_time': 1},
-            add_properties={'latency': 2, 'execution_time': 1},
+            mult_properties={"latency": 2, "execution_time": 1},
+            add_properties={"latency": 2, "execution_time": 1},
         )
         schedule = Schedule(fir_sfg, scheduler=ASAPScheduler())
         sfg = schedule.sfg
@@ -778,7 +778,7 @@ class TestProcesses:
 
 class TestFigureGeneration:
     @matplotlib.testing.decorators.image_comparison(
-        ['test__get_figure_no_execution_times.png'], remove_text=True
+        ["test__get_figure_no_execution_times.png"], remove_text=True
     )
     def test__get_figure_no_execution_times(self, secondorder_iir_schedule):
         return secondorder_iir_schedule._get_figure()
@@ -864,16 +864,16 @@ class TestErrors:
             ConstantMultiplication.type_name(), 2
         )
         with pytest.raises(ValueError, match="Must provide laps when using 'provided'"):
-            Schedule(sfg_simple_filter, start_times={'in0': 0})
+            Schedule(sfg_simple_filter, start_times={"in0": 0})
 
 
 class TestGetUsedTypeNames:
     def test_secondorder_iir_schedule(self, secondorder_iir_schedule):
         assert secondorder_iir_schedule.get_used_type_names() == [
-            'add',
-            'cmul',
-            'in',
-            'out',
+            "add",
+            "cmul",
+            "in",
+            "out",
         ]
 
 

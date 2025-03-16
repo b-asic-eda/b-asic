@@ -77,7 +77,7 @@ class PlotWindow(QWidget):
                 m = 4
             elif re.fullmatch("[0-9]+", key):
                 m = 3
-                key2 = 'o' + key
+                key2 = "o" + key
             elif re.fullmatch("t[0-9]+", key):
                 m = 2
             else:
@@ -91,18 +91,18 @@ class PlotWindow(QWidget):
                     initially_checked.append(key2)
             else:
                 # The same again, but split into several lines
-                dict_to_sort[m + 1 / (n + 1)] = key2 + '_re'
-                dict_to_sort[m + 1 / (n + 2)] = key2 + '_im'
-                dict_to_sort[m + 1 / (n + 3)] = key2 + '_mag'
-                dict_to_sort[m + 1 / (n + 4)] = key2 + '_ang'
-                updated_result[key2 + '_re'] = np.real(result)
-                updated_result[key2 + '_im'] = np.imag(result)
-                updated_result[key2 + '_mag'] = np.absolute(result)
-                updated_result[key2 + '_ang'] = np.angle(result)
+                dict_to_sort[m + 1 / (n + 1)] = key2 + "_re"
+                dict_to_sort[m + 1 / (n + 2)] = key2 + "_im"
+                dict_to_sort[m + 1 / (n + 3)] = key2 + "_mag"
+                dict_to_sort[m + 1 / (n + 4)] = key2 + "_ang"
+                updated_result[key2 + "_re"] = np.real(result)
+                updated_result[key2 + "_im"] = np.imag(result)
+                updated_result[key2 + "_mag"] = np.absolute(result)
+                updated_result[key2 + "_ang"] = np.angle(result)
                 n = n + 4
                 if m == 3:  # output
-                    initially_checked.append(key2 + '_re')
-                    initially_checked.append(key2 + '_im')
+                    initially_checked.append(key2 + "_re")
+                    initially_checked.append(key2 + "_im")
 
         key_order = list(dict(sorted(dict_to_sort.items(), reverse=True)).values())
 
@@ -145,10 +145,10 @@ class PlotWindow(QWidget):
 
         # Add two buttons for selecting all/none:
         hlayout = QHBoxLayout()
-        self._button_all = QPushButton(get_icon('all'), "&All")
+        self._button_all = QPushButton(get_icon("all"), "&All")
         self._button_all.clicked.connect(self._button_all_click)
         hlayout.addWidget(self._button_all)
-        self._button_none = QPushButton(get_icon('none'), "&None")
+        self._button_none = QPushButton(get_icon("none"), "&None")
         self._button_none.clicked.connect(self._button_none_click)
         hlayout.addWidget(self._button_none)
         listlayout.addLayout(hlayout)
@@ -173,7 +173,7 @@ class PlotWindow(QWidget):
         self._legend_checkbox = QCheckBox("&Legend")
         self._legend_checkbox.stateChanged.connect(self._legend_checkbox_change)
         self._legend_checkbox.setCheckState(Qt.CheckState.Checked)
-        self._legend_checkbox.setIcon(get_icon('legend'))
+        self._legend_checkbox.setIcon(get_icon("legend"))
         listlayout.addWidget(self._legend_checkbox)
         # self.ontop_checkbox = QCheckBox("&On top")
         # self.ontop_checkbox.stateChanged.connect(self._ontop_checkbox_change)
@@ -185,7 +185,7 @@ class PlotWindow(QWidget):
         listlayout.addWidget(relim_button)
 
         # Add "Close" buttons
-        button_close = QPushButton(get_icon('close'), "&Close", self)
+        button_close = QPushButton(get_icon("close"), "&Close", self)
         button_close.clicked.connect(self.close)
         listlayout.addWidget(button_close)
         self._relim()
@@ -231,8 +231,8 @@ class PlotWindow(QWidget):
     def _relim(self, event=None):
         self._plot_axes.relim(True)
         self._plot_axes.autoscale(True)
-        self._plot_axes.autoscale(axis='x', tight=True)
-        self._plot_axes.autoscale(axis='y')
+        self._plot_axes.autoscale(axis="x", tight=True)
+        self._plot_axes.autoscale(axis="y")
         self._plot_canvas.draw()
 
 
@@ -263,15 +263,15 @@ def start_simulation_dialog(
 # Simple test of the dialog
 if __name__ == "__main__":
     sim_res = {
-        '0': [0.5, 0.6, 0.5, 0],
-        '1': [0.0, 1.0 + 0.3j, 0.5, 0.1j],
-        'add1': [0.5, 0.5, 0, 0],
-        'cmul1': [0, 0.5, 0, 0],
-        'cmul2': [0.5, 0, 0, 0],
-        'in1': [1, 0, 0, 0],
-        'in2': [0.1, 2, 0, 0],
-        't1': [0, 1, 0, 0],
-        't2': [0, 0, 1, 0],
-        't3': [0, 0, 0, 1],
+        "0": [0.5, 0.6, 0.5, 0],
+        "1": [0.0, 1.0 + 0.3j, 0.5, 0.1j],
+        "add1": [0.5, 0.5, 0, 0],
+        "cmul1": [0, 0.5, 0, 0],
+        "cmul2": [0.5, 0, 0, 0],
+        "in1": [1, 0, 0, 0],
+        "in2": [0.1, 2, 0, 0],
+        "t1": [0, 1, 0, 0],
+        "t2": [0, 0, 1, 0],
+        "t3": [0, 0, 0, 1],
     }
     start_simulation_dialog(sim_res, "Test data")

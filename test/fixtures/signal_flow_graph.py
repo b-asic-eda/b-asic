@@ -288,13 +288,13 @@ def sfg_two_tap_fir():
     # Operations:
     t1 = Delay(initial_value=0, name="t1")
     cmul1 = ConstantMultiplication(
-        value=0.5, name="cmul1", latency_offsets={'in0': None, 'out0': None}
+        value=0.5, name="cmul1", latency_offsets={"in0": None, "out0": None}
     )
     add1 = Addition(
-        name="add1", latency_offsets={'in0': None, 'in1': None, 'out0': None}
+        name="add1", latency_offsets={"in0": None, "in1": None, "out0": None}
     )
     cmul2 = ConstantMultiplication(
-        value=0.5, name="cmul2", latency_offsets={'in0': None, 'out0': None}
+        value=0.5, name="cmul2", latency_offsets={"in0": None, "out0": None}
     )
 
     # Signals:
@@ -305,7 +305,7 @@ def sfg_two_tap_fir():
     Signal(source=cmul1.output(0), destination=add1.input(0))
     Signal(source=add1.output(0), destination=out1.input(0))
     Signal(source=cmul2.output(0), destination=add1.input(1))
-    return SFG(inputs=[in1], outputs=[out1], name='twotapfir')
+    return SFG(inputs=[in1], outputs=[out1], name="twotapfir")
 
 
 @pytest.fixture
@@ -331,7 +331,7 @@ def sfg_direct_form_iir_lp_filter():
     d0.input(0).connect(top_node)
     d1.input(0).connect(d0)
     y <<= a1 * d0 + a2 * d1 + a0 * top_node
-    return SFG(inputs=[x], outputs=[y], name='Direct Form 2 IIR Lowpass filter')
+    return SFG(inputs=[x], outputs=[y], name="Direct Form 2 IIR Lowpass filter")
 
 
 @pytest.fixture

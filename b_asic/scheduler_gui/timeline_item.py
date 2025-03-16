@@ -5,6 +5,7 @@ B-ASIC Scheduler-GUI Timeline Item Module.
 Contains the scheduler_gui TimelineItem class for drawing and
 maintain the timeline in a schedule.
 """
+
 from typing import overload
 
 # QGraphics and QPainter imports

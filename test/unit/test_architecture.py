@@ -96,8 +96,8 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         output_pe,
     ]
     s = (
-        'digraph {\n\tnode [shape=box]\n\t'
-        + 'adder'
+        "digraph {\n\tnode [shape=box]\n\t"
+        + "adder"
         + ' [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
         + '<TR><TD COLSPAN="1" PORT="in0">in0</TD>'
         + '<TD COLSPAN="1" PORT="in1">in1</TD></TR>'
@@ -105,7 +105,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         + '<TR><TD COLSPAN="2" PORT="out0">out0</TD></TR>'
         + '</TABLE>> fillcolor="#00B9E7" fontname="Times New Roman" style=filled]\n}'
     )
-    assert adder._digraph().source in (s, s + '\n')
+    assert adder._digraph().source in (s, s + "\n")
 
     # Extract zero-length memory variables
     direct_conn, mvs = mvs.split_on_length()
@@ -119,16 +119,16 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     for i, memory in enumerate(memories):
         memory.set_entity_name(f"MEM{i}")
         s = (
-            'digraph {\n\tnode [shape=box]\n\tMEM0'
+            "digraph {\n\tnode [shape=box]\n\tMEM0"
             + ' [label=<<TABLE BORDER="0" CELLBORDER="1"'
             + ' CELLSPACING="0" CELLPADDING="4">'
             + '<TR><TD COLSPAN="1" PORT="in0">in0</TD></TR>'
             + '<TR><TD COLSPAN="1"><B>MEM0</B></TD></TR>'
             + '<TR><TD COLSPAN="1" PORT="out0">out0</TD></TR>'
             + '</TABLE>> fillcolor="#00CFB5" fontname="Times New Roman" '
-            + 'style=filled]\n}'
+            + "style=filled]\n}"
         )
-        assert memory._digraph().source in (s, s + '\n')
+        assert memory._digraph().source in (s, s + "\n")
         assert memory.schedule_time == 18
         # Smoke test
         memory.show_content()
@@ -141,7 +141,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         memory.show_content()
 
     # Set invalid name
-    with pytest.raises(ValueError, match='32 is not a valid VHDL identifier'):
+    with pytest.raises(ValueError, match="32 is not a valid VHDL identifier"):
         adder.set_entity_name("32")
     assert adder.entity_name == "adder"
     assert repr(adder) == "adder"
@@ -158,22 +158,22 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
 
     # Graph representation
     # Parts are non-deterministic, but this first part seems OK
-    s = 'digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tsubgraph cluster_memories'
+    s = "digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tsubgraph cluster_memories"
     assert architecture._digraph().source.startswith(s)
-    s = 'digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tMEM0'
+    s = "digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tMEM0"
     assert architecture._digraph(cluster=False).source.startswith(s)
     assert architecture.schedule_time == 18
 
     for pe in processing_elements:
         assert pe.schedule_time == 18
 
-    assert architecture.resource_from_name('adder') == adder
+    assert architecture.resource_from_name("adder") == adder
 
-    assert architecture.get_interconnects_for_memory('MEM0') == (
+    assert architecture.get_interconnects_for_memory("MEM0") == (
         {adder: 2, multiplier: 2, input_pe: 1},
         {adder: 4, multiplier: 4},
     )
-    assert architecture.get_interconnects_for_pe('adder') == (
+    assert architecture.get_interconnects_for_pe("adder") == (
         [
             {(multiplier, 0): 2, (memory, 0): 1, (adder, 0): 1},
             {(memory, 0): 3, (multiplier, 0): 1},
@@ -199,13 +199,13 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
 
     # Create necessary processing elements
     processing_elements: List[ProcessingElement] = [
-        ProcessingElement(operation, entity_name=f'pe{i}')
+        ProcessingElement(operation, entity_name=f"pe{i}")
         for i, operation in enumerate(chain(adders1, adders2, const_mults))
     ]
     for i, pc in enumerate(inputs):
-        processing_elements.append(ProcessingElement(pc, entity_name=f'input{i}'))
+        processing_elements.append(ProcessingElement(pc, entity_name=f"input{i}"))
     for i, pc in enumerate(outputs):
-        processing_elements.append(ProcessingElement(pc, entity_name=f'output{i}'))
+        processing_elements.append(ProcessingElement(pc, entity_name=f"output{i}"))
 
     # Extract zero-length memory variables
     direct_conn, mvs = mvs.split_on_length()
@@ -219,31 +219,31 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     )
 
     # Some movement that must work
-    assert memories[1].collection.from_name('cmul3.0')
-    architecture.move_process('cmul3.0', memories[1], memories[0])
-    assert memories[0].collection.from_name('cmul3.0')
+    assert memories[1].collection.from_name("cmul3.0")
+    architecture.move_process("cmul3.0", memories[1], memories[0])
+    assert memories[0].collection.from_name("cmul3.0")
 
-    assert memories[1].collection.from_name('in0.0')
-    architecture.move_process('in0.0', memories[1], memories[0])
-    assert memories[0].collection.from_name('in0.0')
+    assert memories[1].collection.from_name("in0.0")
+    architecture.move_process("in0.0", memories[1], memories[0])
+    assert memories[0].collection.from_name("in0.0")
 
-    assert processing_elements[0].collection.from_name('add0')
-    architecture.move_process('add0', processing_elements[0], processing_elements[1])
-    assert processing_elements[1].collection.from_name('add0')
+    assert processing_elements[0].collection.from_name("add0")
+    architecture.move_process("add0", processing_elements[0], processing_elements[1])
+    assert processing_elements[1].collection.from_name("add0")
 
     # Processes leave the resources they have moved from
     with pytest.raises(KeyError):
-        memories[1].collection.from_name('cmul3.0')
+        memories[1].collection.from_name("cmul3.0")
     with pytest.raises(KeyError):
-        memories[1].collection.from_name('in0.0')
+        memories[1].collection.from_name("in0.0")
     with pytest.raises(KeyError):
-        processing_elements[0].collection.from_name('add0')
+        processing_elements[0].collection.from_name("add0")
 
     # Processes can only be moved when the source and destination process-types match
     with pytest.raises(TypeError, match="cmul3.0 not of type"):
-        architecture.move_process('cmul3.0', memories[0], processing_elements[0])
+        architecture.move_process("cmul3.0", memories[0], processing_elements[0])
     with pytest.raises(KeyError, match="invalid_name not in"):
-        architecture.move_process('invalid_name', memories[0], processing_elements[1])
+        architecture.move_process("invalid_name", memories[0], processing_elements[1])
 
 
 def test_resource_errors(precedence_sfg_delays):
@@ -260,7 +260,7 @@ def test_resource_errors(precedence_sfg_delays):
     operations = schedule.get_operations()
     additions = operations.get_by_type_name(Addition.type_name())
     with pytest.raises(
-        ValueError, match='Cannot map ProcessCollection to single ProcessingElement'
+        ValueError, match="Cannot map ProcessCollection to single ProcessingElement"
     ):
         ProcessingElement(additions)
 

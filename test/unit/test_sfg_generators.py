@@ -124,20 +124,20 @@ def test_direct_form_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(4)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results['0'], impulse_response)
+    assert np.allclose(sim.results["0"], impulse_response)
 
     impulse_response = [0.3, 0.4, 0.5, 0.6, 0.3]
     sfg = direct_form_fir(
         (0.3, 0.4, 0.5, 0.6, 0.3),
-        mult_properties={'latency': 2, 'execution_time': 1},
-        add_properties={'latency': 1, 'execution_time': 1},
+        mult_properties={"latency": 2, "execution_time": 1},
+        add_properties={"latency": 1, "execution_time": 1},
     )
     assert sfg.critical_path_time() == 6
 
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(6)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results['0'], impulse_response)
+    assert np.allclose(sim.results["0"], impulse_response)
 
     impulse_response = [0.3]
     sfg = direct_form_fir(impulse_response)
@@ -189,20 +189,20 @@ def test_transposed_direct_form_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(4)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results['0'], impulse_response)
+    assert np.allclose(sim.results["0"], impulse_response)
 
     impulse_response = [0.3, 0.4, 0.5, 0.6, 0.3]
     sfg = transposed_direct_form_fir(
         (0.3, 0.4, 0.5, 0.6, 0.3),
-        mult_properties={'latency': 2, 'execution_time': 1},
-        add_properties={'latency': 1, 'execution_time': 1},
+        mult_properties={"latency": 2, "execution_time": 1},
+        add_properties={"latency": 1, "execution_time": 1},
     )
     assert sfg.critical_path_time() == 3
 
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(6)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results['0'], impulse_response)
+    assert np.allclose(sim.results["0"], impulse_response)
 
     impulse_response = [0.3]
     sfg = transposed_direct_form_fir(impulse_response)
@@ -318,7 +318,7 @@ class TestDirectFormIIRType1:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results['0'], reference_filter_output)
+        assert np.allclose(sim.results["0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_butterworth_filter(self):
         N = 10
@@ -334,13 +334,13 @@ class TestDirectFormIIRType1:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results['0'], reference_filter_output)
+        assert np.allclose(sim.results["0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_elliptic_filter(self):
         N = 2
         Wc = 0.3
 
-        b, a = signal.ellip(N, 0.1, 60, Wc, btype='low', analog=False)
+        b, a = signal.ellip(N, 0.1, 60, Wc, btype="low", analog=False)
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
 
         input_signal = np.random.randn(100)
@@ -351,7 +351,7 @@ class TestDirectFormIIRType1:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results['0'], reference_filter_output)
+        assert np.allclose(sim.results["0"], reference_filter_output)
 
     def test_add_and_mult_properties(self):
         N = 17
@@ -438,7 +438,7 @@ class TestDirectFormIIRType2:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results['0'], reference_filter_output)
+        assert np.allclose(sim.results["0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_butterworth_filter(self):
         N = 10
@@ -454,13 +454,13 @@ class TestDirectFormIIRType2:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results['0'], reference_filter_output)
+        assert np.allclose(sim.results["0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_elliptic_filter(self):
         N = 2
         Wc = 0.3
 
-        b, a = signal.ellip(N, 0.1, 60, Wc, btype='low', analog=False)
+        b, a = signal.ellip(N, 0.1, 60, Wc, btype="low", analog=False)
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
 
         input_signal = np.random.randn(100)
@@ -471,7 +471,7 @@ class TestDirectFormIIRType2:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results['0'], reference_filter_output)
+        assert np.allclose(sim.results["0"], reference_filter_output)
 
     def test_add_and_mult_properties(self):
         N = 17

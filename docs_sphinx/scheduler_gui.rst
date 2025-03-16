@@ -37,6 +37,14 @@ scheduler\_gui.operation\_item module
    :undoc-members:
    :show-inheritance:
 
+scheduler\_gui.preferences\_dialog module
+-------------------------------------
+
+.. automodule:: b_asic.scheduler_gui.preferences_dialog
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 scheduler\_gui.scheduler\_event module
 --------------------------------------
 

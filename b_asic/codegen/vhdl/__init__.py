@@ -13,7 +13,7 @@ def write(
     indent_level: int,
     text: str,
     *,
-    end: str = '\n',
+    end: str = "\n",
     start: Optional[str] = None,
 ):
     """
@@ -39,7 +39,7 @@ def write(
     """
     if start is not None:
         f.write(start)
-    f.write(f'{VHDL_TAB*indent_level}{text}{end}')
+    f.write(f"{VHDL_TAB * indent_level}{text}{end}")
 
 
 def write_lines(f: TextIO, lines: List[Union[Tuple[int, str], Tuple[int, str, str]]]):
@@ -65,4 +65,4 @@ def write_lines(f: TextIO, lines: List[Union[Tuple[int, str], Tuple[int, str, st
         elif len(tpl) == 3:
             write(f, indent_level=tpl[0], text=str(tpl[1]), end=str(tpl[2]))
         else:
-            raise ValueError('All tuples in list `lines` must have length 2 or 3')
+            raise ValueError("All tuples in list `lines` must have length 2 or 3")

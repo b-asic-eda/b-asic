@@ -5,6 +5,7 @@ B-ASIC Scheduler-gui Axes Item Module.
 Contains the scheduler-gui AxesItem class for drawing and maintaining the
 axes in a graph.
 """
+
 from math import pi, sin
 
 # QGraphics and QPainter imports

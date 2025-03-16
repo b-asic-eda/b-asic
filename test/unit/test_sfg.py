@@ -824,8 +824,8 @@ class TestConnectExternalSignalsToComponentsSoloComp:
         port goes to multiple operations
         """
         sfg1 = wdf_allpass(0.5)
-        sfg2 = sfg1.replace_operation(sfg1.find_by_id('sym2p0').to_sfg(), 'sym2p0')
-        sfg2.find_by_id('sfg0').connect_external_signals_to_components()
+        sfg2 = sfg1.replace_operation(sfg1.find_by_id("sym2p0").to_sfg(), "sym2p0")
+        sfg2.find_by_id("sfg0").connect_external_signals_to_components()
         test_sfg = SFG(sfg2.input_operations, sfg2.output_operations)
         assert sfg1.evaluate(1) == -0.5
         assert test_sfg.evaluate(1) == -0.5
@@ -1218,7 +1218,7 @@ class TestPrecedenceGraph:
         res = (
             'digraph {\n\trankdir=LR\n\tsubgraph cluster_0 {\n\t\tlabel=N0\n\t\t"in0.0"'
             ' [label=in0 height=0.1 shape=rectangle width=0.1]\n\t\t"t0.0" [label=t0'
-            ' height=0.1 shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_1'
+            " height=0.1 shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_1"
             ' {\n\t\tlabel=N1\n\t\t"cmul0.0" [label=cmul0 height=0.1 shape=rectangle'
             ' width=0.1]\n\t}\n\tsubgraph cluster_2 {\n\t\tlabel=N2\n\t\t"add0.0"'
             ' [label=add0 height=0.1 shape=rectangle width=0.1]\n\t}\n\t"in0.0" ->'
@@ -1471,7 +1471,7 @@ class TestSFGErrors:
             ValueError,
             match="Different number of input and output ports of operation with",
         ):
-            sfg.remove_operation('add0')
+            sfg.remove_operation("add0")
 
     def test_inputs_required_for_output(self):
         in1 = Input()
@@ -1499,7 +1499,7 @@ class TestInputDuplicationBug:
 
         out1.inputs[0].connect(add1)
 
-        twotapfir = SFG(inputs=[in1], outputs=[out1], name='twotapfir')
+        twotapfir = SFG(inputs=[in1], outputs=[out1], name="twotapfir")
 
         assert len([op for op in twotapfir.operations if isinstance(op, Input)]) == 1
 
@@ -1651,7 +1651,7 @@ class TestSwapIOOfOperation:
             assert ref_values == swap_values
 
     def test_single_accumulator(self, sfg_simple_accumulator: SFG):
-        self.do_test(sfg_simple_accumulator, 'add1')
+        self.do_test(sfg_simple_accumulator, "add1")
 
 
 class TestInsertComponentAfter:
@@ -1696,14 +1696,14 @@ class TestInsertComponentAfter:
         with pytest.raises(
             TypeError, match="Only operations with one input and one output"
         ):
-            sfg.insert_operation_after('constant4', SymmetricTwoportAdaptor(0.5))
+            sfg.insert_operation_after("constant4", SymmetricTwoportAdaptor(0.5))
 
     def test_insert_component_after_unknown_component_error(
         self, large_operation_tree_names
     ):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
         with pytest.raises(ValueError, match="Unknown component:"):
-            sfg.insert_operation_after('foo', SquareRoot())
+            sfg.insert_operation_after("foo", SquareRoot())
 
 
 class TestInsertComponentBefore:
@@ -1748,31 +1748,30 @@ class TestInsertComponentBefore:
         with pytest.raises(
             TypeError, match="Only operations with one input and one output"
         ):
-            sfg.insert_operation_before('add0', SymmetricTwoportAdaptor(0.5), port=0)
+            sfg.insert_operation_before("add0", SymmetricTwoportAdaptor(0.5), port=0)
 
     def test_insert_component_before_unknown_component_error(
         self, large_operation_tree_names
     ):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
         with pytest.raises(ValueError, match="Unknown component:"):
-            sfg.insert_operation_before('foo', SquareRoot())
+            sfg.insert_operation_before("foo", SquareRoot())
 
 
 class TestGetUsedTypeNames:
     def test_single_accumulator(self, sfg_simple_accumulator: SFG):
-        assert sfg_simple_accumulator.get_used_type_names() == ['add', 'in', 'out', 't']
+        assert sfg_simple_accumulator.get_used_type_names() == ["add", "in", "out", "t"]
 
     def test_sfg_nested(self, sfg_nested: SFG):
-        assert sfg_nested.get_used_type_names() == ['in', 'out', 'sfg']
+        assert sfg_nested.get_used_type_names() == ["in", "out", "sfg"]
 
     def test_large_operation_tree(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
-        assert sfg.get_used_type_names() == ['add', 'c', 'out']
+        assert sfg.get_used_type_names() == ["add", "c", "out"]
 
 
 class Test_Keep_GraphIDs:
     def test_single_accumulator(self):
-
         i = Input()
         d = Delay()
         o = Output(d)
@@ -1781,23 +1780,23 @@ class Test_Keep_GraphIDs:
         d.input(0).connect(a)
 
         sfg = SFG([i], [o])
-        sfg = sfg.insert_operation_before('t0', ConstantMultiplication(8))
-        sfg = sfg.insert_operation_after('t0', ConstantMultiplication(8))
-        sfg = sfg.insert_operation(ConstantMultiplication(8), 't0')
+        sfg = sfg.insert_operation_before("t0", ConstantMultiplication(8))
+        sfg = sfg.insert_operation_after("t0", ConstantMultiplication(8))
+        sfg = sfg.insert_operation(ConstantMultiplication(8), "t0")
         assert sfg.get_used_graph_ids() == {
-            'add0',
-            'cmul0',
-            'cmul1',
-            'cmul2',
-            'cmul3',
-            'in0',
-            'out0',
-            't0',
+            "add0",
+            "cmul0",
+            "cmul1",
+            "cmul2",
+            "cmul3",
+            "in0",
+            "out0",
+            "t0",
         }
 
     def test_large_operation_tree(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
-        assert sfg.get_used_type_names() == ['add', 'c', 'out']
+        assert sfg.get_used_type_names() == ["add", "c", "out"]
 
 
 class TestInsertDelays:
@@ -1816,11 +1815,11 @@ class TestInsertDelays:
 
         assert len(sfg.find_by_type_name(d_type_name)) == 3
 
-        sfg.find_by_id('out1').input(0).delay(3)
+        sfg.find_by_id("out1").input(0).delay(3)
         sfg = sfg()
 
         assert len(sfg.find_by_type_name(d_type_name)) == 6
-        source1 = sfg.find_by_id('out1').input(0).signals[0].source.operation
+        source1 = sfg.find_by_id("out1").input(0).signals[0].source.operation
         source2 = source1.input(0).signals[0].source.operation
         source3 = source2.input(0).signals[0].source.operation
         source4 = source3.input(0).signals[0].source.operation
@@ -1859,7 +1858,7 @@ class TestResourceLowerBound:
             precedence_sfg_delays.resource_lower_bound("cmul", -1)
 
     def test_accumulator(self, sfg_simple_accumulator):
-        sfg_simple_accumulator.set_latency_of_type_name('add', 2)
+        sfg_simple_accumulator.set_latency_of_type_name("add", 2)
 
         with pytest.raises(
             ValueError,
@@ -1889,7 +1888,7 @@ class TestResourceLowerBound:
 
 class TestIterationPeriodBound:
     def test_accumulator(self, sfg_simple_accumulator):
-        sfg_simple_accumulator.set_latency_of_type_name('add', 2)
+        sfg_simple_accumulator.set_latency_of_type_name("add", 2)
         assert sfg_simple_accumulator.iteration_period_bound() == 2
 
     def test_no_latency(self, sfg_simple_accumulator):
@@ -1900,8 +1899,8 @@ class TestIterationPeriodBound:
             sfg_simple_accumulator.iteration_period_bound()
 
     def test_secondorder_iir(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type_name('add', 2)
-        precedence_sfg_delays.set_latency_of_type_name('cmul', 3)
+        precedence_sfg_delays.set_latency_of_type_name("add", 2)
+        precedence_sfg_delays.set_latency_of_type_name("cmul", 3)
         assert precedence_sfg_delays.iteration_period_bound() == 10
 
     def test_fractional_value(self):
@@ -1956,25 +1955,25 @@ class TestLoops:
 class TestStateSpace:
     def test_accumulator(self, sfg_simple_accumulator):
         ss = sfg_simple_accumulator.state_space_representation()
-        assert ss[0] == ['v0', 'y0']
+        assert ss[0] == ["v0", "y0"]
         assert (ss[1] == np.array([[1.0, 1.0], [0.0, 1.0]])).all()
-        assert ss[2] == ['v0', 'x0']
+        assert ss[2] == ["v0", "x0"]
 
     def test_secondorder_iir(self, precedence_sfg_delays):
         ss = precedence_sfg_delays.state_space_representation()
-        assert ss[0] == ['v0', 'v1', 'y0']
+        assert ss[0] == ["v0", "v1", "y0"]
 
         mat = np.array([[3.0, 2.0, 5.0], [1.0, 0.0, 0.0], [4.0, 6.0, 35.0]])
         assert (ss[1] == mat).all()
-        assert ss[2] == ['v0', 'v1', 'x0']
+        assert ss[2] == ["v0", "v1", "x0"]
 
     # @pytest.mark.xfail()
     def test_sfg_two_inputs_two_outputs(self, sfg_two_inputs_two_outputs):
         ss = sfg_two_inputs_two_outputs.state_space_representation()
 
-        assert ss[0] == ['y0', 'y1']
+        assert ss[0] == ["y0", "y1"]
         assert (ss[1] == np.array([[1.0, 1.0], [1.0, 2.0]])).all()
-        assert ss[2] == ['x0', 'x1']
+        assert ss[2] == ["x0", "x1"]
 
     def test_sfg_two_inputs_two_outputs_independent(
         self, sfg_two_inputs_two_outputs_independent
@@ -1982,9 +1981,9 @@ class TestStateSpace:
         # assert sfg_two_inputs_two_outputs_independent.state_space_representation() == 1
         ss = sfg_two_inputs_two_outputs_independent.state_space_representation()
 
-        assert ss[0] == ['y0', 'y1']
+        assert ss[0] == ["y0", "y1"]
         assert (ss[1] == np.array([[1.0, 0.0], [0.0, 4.0]])).all()
-        assert ss[2] == ['x0', 'x1']
+        assert ss[2] == ["x0", "x1"]
 
     def test_sfg_two_inputs_two_outputs_independent_with_cmul(
         self, sfg_two_inputs_two_outputs_independent_with_cmul
@@ -1993,6 +1992,6 @@ class TestStateSpace:
             sfg_two_inputs_two_outputs_independent_with_cmul.state_space_representation()
         )
 
-        assert ss[0] == ['y0', 'y1']
+        assert ss[0] == ["y0", "y1"]
         assert (ss[1] == np.array([[20.0, 0.0], [0.0, 8.0]])).all()
-        assert ss[2] == ['x0', 'x1']
+        assert ss[2] == ["x0", "x1"]

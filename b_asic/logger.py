@@ -46,6 +46,7 @@ Log Uncaught Exceptions:
 ------------------------
 To log uncaught exceptions, implement the following in your program.
   `sys.excepthook = logger.log_exceptions`"""
+
 import logging
 import logging.handlers
 import os

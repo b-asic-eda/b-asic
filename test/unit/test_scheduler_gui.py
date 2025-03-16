@@ -26,3 +26,11 @@ def test_load_schedule(qtbot, sfg_simple_filter):
     schedule = Schedule(sfg_simple_filter, ASAPScheduler())
     widget.open(schedule)
     assert widget.statusbar.currentMessage() == "Schedule loaded successfully"
+
+
+def test_open_preferences_dialog(qtbot):
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open_preferences_dialog()
+    widget._preferences_dialog.close()
+    widget.exit_app()

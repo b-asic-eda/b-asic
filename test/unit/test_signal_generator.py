@@ -275,17 +275,17 @@ def test_division():
 
 
 def test_fromfile(datadir):
-    g = FromFile(datadir.join('input.csv'))
+    g = FromFile(datadir.join("input.csv"))
     assert g(-1) == 0.0
     assert g(0) == 0
     assert g(1) == 1
     assert g(2) == 0
 
     with pytest.raises(FileNotFoundError, match="tset.py not found"):
-        g = FromFile(datadir.join('tset.py'))
+        g = FromFile(datadir.join("tset.py"))
 
     with pytest.raises(ValueError, match="could not convert string"):
-        g = FromFile(datadir.join('bad.csv'))
+        g = FromFile(datadir.join("bad.csv"))
 
 
 def test_upsample():

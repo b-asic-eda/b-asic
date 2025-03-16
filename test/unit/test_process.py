@@ -14,7 +14,7 @@ def test_PlainMemoryVariable():
     assert mem.read_ports == [4, 5]
     assert repr(mem) == "PlainMemoryVariable(3, 0, {4: 1, 5: 2}, 'Var. 0')"
 
-    mem2 = PlainMemoryVariable(2, 0, {4: 2, 5: 3}, 'foo')
+    mem2 = PlainMemoryVariable(2, 0, {4: 2, 5: 3}, "foo")
     assert repr(mem2) == "PlainMemoryVariable(2, 0, {4: 2, 5: 3}, 'foo')"
 
     assert mem2 < mem
@@ -30,7 +30,7 @@ def test_MemoryVariables(secondorder_iir_schedule):
         "MemoryVariable\\(3, <b_asic.port.OutputPort object at 0x[a-fA-F0-9]+>,"
         " {<b_asic.port.InputPort object at 0x[a-fA-F0-9]+>: 4}, 'cmul0.0'\\)"
     )
-    mem_var = [m for m in mem_vars if m.name == 'cmul0.0'][0]
+    mem_var = [m for m in mem_vars if m.name == "cmul0.0"][0]
     assert pattern.match(repr(mem_var))
     assert mem_var.execution_time == 4
     assert mem_var.start_time == 3
@@ -44,7 +44,7 @@ def test_OperatorProcess_error(secondorder_iir_schedule):
 def test_MultiReadProcess():
     mv = PlainMemoryVariable(3, 0, {0: 1, 1: 2, 2: 5}, name="MV")
 
-    with pytest.raises(KeyError, match=r'Process MV: 3 not in life_times: \[1, 2, 5\]'):
+    with pytest.raises(KeyError, match=r"Process MV: 3 not in life_times: \[1, 2, 5\]"):
         mv._remove_life_time(3)
 
     assert mv.life_times == [1, 2, 5]

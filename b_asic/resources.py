@@ -32,7 +32,7 @@ _WARNING_COLOR = tuple(c / 255 for c in WARNING_COLOR)
 #
 # Typing '_T' to help Pyright propagate type-information
 #
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 
 def _sorted_nicely(to_be_sorted: Iterable[_T]) -> list[_T]:
@@ -42,7 +42,7 @@ def _sorted_nicely(to_be_sorted: Iterable[_T]) -> list[_T]:
         return int(text) if text.isdigit() else text
 
     def alphanum_key(key):
-        return [convert(c) for c in re.split('([0-9]+)', str(key))]
+        return [convert(c) for c in re.split("([0-9]+)", str(key))]
 
     return sorted(to_be_sorted, key=alphanum_key)
 
@@ -85,11 +85,11 @@ def _sanitize_port_option(
         write_ports = total_ports if write_ports is None else write_ports
     if total_ports < read_ports:
         raise ValueError(
-            f'Total ports ({total_ports}) less then read ports ({read_ports})'
+            f"Total ports ({total_ports}) less then read ports ({read_ports})"
         )
     if total_ports < write_ports:
         raise ValueError(
-            f'Total ports ({total_ports}) less then write ports ({write_ports})'
+            f"Total ports ({total_ports}) less then write ports ({write_ports})"
         )
     return read_ports, write_ports, total_ports
 
@@ -142,23 +142,23 @@ def draw_exclusion_graph_coloring(
     None
     """
     COLOR_LIST = [
-        '#aa0000',
-        '#00aa00',
-        '#0000ff',
-        '#ff00aa',
-        '#ffaa00',
-        '#ffffff',
-        '#00ffaa',
-        '#aaff00',
-        '#aa00ff',
-        '#00aaff',
-        '#ff0000',
-        '#00ff00',
-        '#0000aa',
-        '#aaaa00',
-        '#aa00aa',
-        '#00aaaa',
-        '#666666',
+        "#aa0000",
+        "#00aa00",
+        "#0000ff",
+        "#ff00aa",
+        "#ffaa00",
+        "#ffffff",
+        "#00ffaa",
+        "#aaff00",
+        "#aa00ff",
+        "#00aaff",
+        "#ff0000",
+        "#00ff00",
+        "#0000aa",
+        "#aaaa00",
+        "#aa00aa",
+        "#00aaaa",
+        "#666666",
     ]
     if color_list is None:
         node_color_dict = {k: COLOR_LIST[v] for k, v in color_dict.items()}
@@ -216,7 +216,7 @@ class _ForwardBackwardEntry:
 
 
 class _ForwardBackwardTable:
-    def __init__(self, collection: 'ProcessCollection'):
+    def __init__(self, collection: "ProcessCollection"):
         """
         Forward-Backward allocation table for ProcessCollections.
 
@@ -299,9 +299,9 @@ class _ForwardBackwardTable:
                             if self.table[next_row].regs[next_col] not in (None, reg):
                                 cell = self.table[next_row].regs[next_col]
                                 raise ValueError(
-                                    f'Can\'t forward allocate {reg} in row={time},'
-                                    f' col={reg_idx} to next_row={next_row},'
-                                    f' next_col={next_col} (cell contains: {cell})'
+                                    f"Can't forward allocate {reg} in row={time},"
+                                    f" col={reg_idx} to next_row={next_row},"
+                                    f" next_col={next_col} (cell contains: {cell})"
                                 )
                             else:
                                 self.table[(time + 1) % rows].regs[reg_idx + 1] = reg
@@ -380,27 +380,27 @@ class _ForwardBackwardTable:
         reg_col_w = max(4, reg_col_w + 2)
 
         # Header row of the string
-        res = f' T |{"In":^{input_col_w}}|'
+        res = f" T |{'In':^{input_col_w}}|"
         for i in range(max(self._live_variables)):
-            reg = f'R{i}'
-            res += f'{reg:^{reg_col_w}}|'
-        res += f'{"Out":^{output_col_w}}|'
-        res += '\n'
+            reg = f"R{i}"
+            res += f"{reg:^{reg_col_w}}|"
+        res += f"{'Out':^{output_col_w}}|"
+        res += "\n"
         res += (
             6 + input_col_w + (reg_col_w + 1) * max(self._live_variables) + output_col_w
-        ) * '-' + '\n'
+        ) * "-" + "\n"
 
         for time, entry in enumerate(self.table):
             # Time
-            res += f'{time:^3}| '
+            res += f"{time:^3}| "
 
             # Input column
-            inputs_str = ''
+            inputs_str = ""
             for input_ in entry.inputs:
-                inputs_str += input_.name + ','
+                inputs_str += input_.name + ","
             if inputs_str:
                 inputs_str = inputs_str[:-1]
-            res += f'{inputs_str:^{input_col_w-1}}|'
+            res += f"{inputs_str:^{input_col_w - 1}}|"
 
             # Register columns
             for reg_idx, reg in enumerate(entry.regs):
@@ -408,27 +408,27 @@ class _ForwardBackwardTable:
                     res += " " * reg_col_w + "|"
                 else:
                     if reg_idx in entry.back_edge_to:
-                        res += f'{GREEN_BACKGROUND_ANSI}'
-                        res += f'{reg.name:^{reg_col_w}}'
-                        res += f'{RESET_BACKGROUND_ANSI}|'
+                        res += f"{GREEN_BACKGROUND_ANSI}"
+                        res += f"{reg.name:^{reg_col_w}}"
+                        res += f"{RESET_BACKGROUND_ANSI}|"
                     elif reg_idx in entry.back_edge_from:
-                        res += f'{BROWN_BACKGROUND_ANSI}'
-                        res += f'{reg.name:^{reg_col_w}}'
-                        res += f'{RESET_BACKGROUND_ANSI}|'
+                        res += f"{BROWN_BACKGROUND_ANSI}"
+                        res += f"{reg.name:^{reg_col_w}}"
+                        res += f"{RESET_BACKGROUND_ANSI}|"
                     else:
-                        res += f'{reg.name:^{reg_col_w}}' + "|"
+                        res += f"{reg.name:^{reg_col_w}}" + "|"
 
             # Output column
-            outputs_str = ''
+            outputs_str = ""
             for output in entry.outputs:
-                outputs_str += output.name + ','
+                outputs_str += output.name + ","
             if outputs_str:
                 outputs_str = outputs_str[:-1]
             if entry.outputs_from is not None:
                 outputs_str += f"({entry.outputs_from})"
-            res += f'{outputs_str:^{output_col_w}}|'
+            res += f"{outputs_str:^{output_col_w}}|"
 
-            res += '\n'
+            res += "\n"
         return res
 
 
@@ -591,8 +591,8 @@ class ProcessCollection:
             # Schedule time needs to be greater than or equal to the maximum process
             # lifetime
             raise ValueError(
-                f'Schedule time: {self._schedule_time} < Max execution'
-                f' time: {max_execution_time}'
+                f"Schedule time: {self._schedule_time} < Max execution"
+                f" time: {max_execution_time}"
             )
 
         # Generate the life-time chart
@@ -673,12 +673,8 @@ class ProcessCollection:
                 )
         _ax.grid(True)  # type: ignore
 
-        _ax.xaxis.set_major_locator(
-            MaxNLocator(integer=True, min_n_ticks=1)
-        )  # type: ignore
-        _ax.yaxis.set_major_locator(
-            MaxNLocator(integer=True, min_n_ticks=1)
-        )  # type: ignore
+        _ax.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))  # type: ignore
+        _ax.yaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))  # type: ignore
         _ax.set_xlim(0, self._schedule_time)  # type: ignore
         if row is None:
             _ax.set_ylim(0.25, len(self._collection) + 0.75)  # type: ignore
@@ -1260,7 +1256,7 @@ class ProcessCollection:
         filename: str,
         entity_name: str,
         word_length: int,
-        assignment: list['ProcessCollection'],
+        assignment: list["ProcessCollection"],
         read_ports: int = 1,
         write_ports: int = 1,
         total_ports: int = 2,
@@ -1312,7 +1308,7 @@ class ProcessCollection:
         """
         # Check that entity name is a valid VHDL identifier
         if not is_valid_vhdl_identifier(entity_name):
-            raise KeyError(f'{entity_name} is not a valid identifier')
+            raise KeyError(f"{entity_name} is not a valid identifier")
 
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
         is_memory_variable = all(
@@ -1337,51 +1333,51 @@ class ProcessCollection:
         for collection in assignment:
             for mv in collection:
                 if mv not in self:
-                    raise ValueError(f'{mv!r} is not part of {self!r}.')
+                    raise ValueError(f"{mv!r} is not part of {self!r}.")
 
         # Make sure that concurrent reads/writes do not surpass the port setting
         needed_write_ports = self.read_ports_bound()
         needed_read_ports = self.write_ports_bound()
         if needed_write_ports > write_ports + 1:
             raise ValueError(
-                f'More than {write_ports} write ports needed ({needed_write_ports})'
-                ' to generate HDL for this ProcessCollection'
+                f"More than {write_ports} write ports needed ({needed_write_ports})"
+                " to generate HDL for this ProcessCollection"
             )
         if needed_read_ports > read_ports + 1:
             raise ValueError(
-                f'More than {read_ports} read ports needed ({needed_read_ports}) to'
-                ' generate HDL for this ProcessCollection'
+                f"More than {read_ports} read ports needed ({needed_read_ports}) to"
+                " generate HDL for this ProcessCollection"
             )
 
         # Sanitize the address logic pipeline settings
         if adr_mux_size is not None and adr_pipe_depth is not None:
             if adr_mux_size < 1:
                 raise ValueError(
-                    f'adr_mux_size={adr_mux_size} need to be greater than zero'
+                    f"adr_mux_size={adr_mux_size} need to be greater than zero"
                 )
             if adr_pipe_depth < 0:
                 raise ValueError(
-                    f'adr_pipe_depth={adr_pipe_depth} needs to be non-negative'
+                    f"adr_pipe_depth={adr_pipe_depth} needs to be non-negative"
                 )
             if not input_sync:
-                raise ValueError('input_sync needs to be set to use address pipelining')
+                raise ValueError("input_sync needs to be set to use address pipelining")
             if not log2(adr_mux_size).is_integer():
                 raise ValueError(
-                    f'adr_mux_size={adr_mux_size} needs to be integer power of two'
+                    f"adr_mux_size={adr_mux_size} needs to be integer power of two"
                 )
             if adr_mux_size**adr_pipe_depth > assignment[0].schedule_time:
                 raise ValueError(
-                    f'adr_mux_size={adr_mux_size}, adr_pipe_depth={adr_pipe_depth} => '
-                    'more multiplexer inputs than schedule_time='
-                    f'{assignment[0].schedule_time}'
+                    f"adr_mux_size={adr_mux_size}, adr_pipe_depth={adr_pipe_depth} => "
+                    "more multiplexer inputs than schedule_time="
+                    f"{assignment[0].schedule_time}"
                 )
         else:
             if adr_mux_size is not None or adr_pipe_depth is not None:
                 raise ValueError(
-                    'both or none of adr_mux_size and adr_pipe_depth needs to be set'
+                    "both or none of adr_mux_size and adr_pipe_depth needs to be set"
                 )
 
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             from b_asic.codegen.vhdl import architecture, common, entity
 
             common.b_asic_preamble(f)
@@ -1483,7 +1479,7 @@ class ProcessCollection:
         """
         # Check that entity name is a valid VHDL identifier
         if not is_valid_vhdl_identifier(entity_name):
-            raise KeyError(f'{entity_name} is not a valid identifier')
+            raise KeyError(f"{entity_name} is not a valid identifier")
 
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
         is_memory_variable = all(
@@ -1506,7 +1502,7 @@ class ProcessCollection:
         # Create the forward-backward table
         forward_backward_table = _ForwardBackwardTable(self)
 
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             from b_asic.codegen.vhdl import architecture, common, entity
 
             common.b_asic_preamble(f)
@@ -1666,4 +1662,4 @@ class ProcessCollection:
         if name in name_to_proc:
             return name_to_proc[name]
         else:
-            raise KeyError(f'{name} not in {self}')
+            raise KeyError(f"{name} not in {self}")

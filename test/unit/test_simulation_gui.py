@@ -15,12 +15,12 @@ def test_start(qtbot):
 
 def test_start_with_data(qtbot):
     sim_res = {
-        '0': [0.5, 0.5, 0, 0],
-        'add1': [0.5, 0.5, 0, 0],
-        'cmul1': [0, 0.5, 0, 0],
-        'cmul2': [0.5, 0, 0, 0],
-        'in1': [1, 0, 0, 0],
-        't1': [0, 1, 0, 0],
+        "0": [0.5, 0.5, 0, 0],
+        "add1": [0.5, 0.5, 0, 0],
+        "cmul1": [0, 0.5, 0, 0],
+        "cmul2": [0.5, 0, 0, 0],
+        "in1": [1, 0, 0, 0],
+        "t1": [0, 1, 0, 0],
     }
     widget = PlotWindow(sim_res)
     qtbot.addWidget(widget)
@@ -32,12 +32,12 @@ def test_start_with_data(qtbot):
 @pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend")
 def test_click_buttons(qtbot):
     sim_res = {
-        '0': [0.5, 0.5, 0, 0],
-        'add1': [0.5, 0.5, 0, 0],
-        'cmul1': [0, 0.5, 0, 0],
-        'cmul2': [0.5, 0, 0, 0],
-        'in1': [1, 0, 0, 0],
-        't1': [0, 1, 0, 0],
+        "0": [0.5, 0.5, 0, 0],
+        "add1": [0.5, 0.5, 0, 0],
+        "cmul1": [0, 0.5, 0, 0],
+        "cmul2": [0.5, 0, 0, 0],
+        "in1": [1, 0, 0, 0],
+        "t1": [0, 1, 0, 0],
     }
     widget = PlotWindow(sim_res)
     qtbot.addWidget(widget)

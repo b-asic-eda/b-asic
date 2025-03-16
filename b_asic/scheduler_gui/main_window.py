@@ -6,6 +6,7 @@ Contains the scheduler_gui MainWindow class for scheduling operations in an SFG.
 
 Start main-window with ``start_gui()``.
 """
+
 import inspect
 import os
 import pickle
@@ -31,28 +32,19 @@ from qtpy.QtCore import (
     Qt,
     Slot,
 )
-from qtpy.QtGui import QCloseEvent, QColor, QFont, QIcon, QIntValidator, QPalette
+from qtpy.QtGui import QCloseEvent, QColor, QPalette
 from qtpy.QtWidgets import (
     QAbstractButton,
     QAction,
     QApplication,
     QCheckBox,
-    QColorDialog,
-    QDialog,
-    QDialogButtonBox,
     QFileDialog,
-    QFontDialog,
     QGraphicsItemGroup,
     QGraphicsScene,
-    QGroupBox,
-    QHBoxLayout,
     QInputDialog,
-    QLabel,
-    QLineEdit,
     QMainWindow,
     QMessageBox,
     QTableWidgetItem,
-    QVBoxLayout,
 )
 
 # B-ASIC
@@ -60,24 +52,18 @@ import b_asic.logger as logger
 from b_asic._version import __version__
 from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow
-from b_asic.gui_utils.color_button import ColorButton
 from b_asic.gui_utils.icons import get_icon
 from b_asic.gui_utils.mpl_window import MPLWindow
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui._preferences import (
-    ACTIVE_COLOR_TYPE,
-    EXECUTION_TIME_COLOR_TYPE,
     FONT,
     LATENCY_COLOR_TYPE,
-    SIGNAL_COLOR_TYPE,
-    SIGNAL_WARNING_COLOR_TYPE,
-    ColorDataType,
     read_from_settings,
-    reset_color_settings,
     write_to_settings,
 )
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
+from b_asic.scheduler_gui.preferences_dialog import PreferencesDialog
 from b_asic.scheduler_gui.scheduler_item import SchedulerItem
 from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
 
@@ -166,31 +152,31 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         # Connect signals to slots
         self.menu_load_from_file.triggered.connect(self._load_schedule_from_pyfile)
-        self.menu_load_from_file.setIcon(get_icon('import'))
-        self.menu_open.setIcon(get_icon('open'))
+        self.menu_load_from_file.setIcon(get_icon("import"))
+        self.menu_open.setIcon(get_icon("open"))
         self.menu_open.triggered.connect(self.open_schedule)
         self.menu_close_schedule.triggered.connect(self.close_schedule)
-        self.menu_close_schedule.setIcon(get_icon('close'))
+        self.menu_close_schedule.setIcon(get_icon("close"))
         self.menu_save.triggered.connect(self.save)
-        self.menu_save.setIcon(get_icon('save'))
+        self.menu_save.setIcon(get_icon("save"))
         self.menu_save_as.triggered.connect(self.save_as)
-        self.menu_save_as.setIcon(get_icon('save-as'))
+        self.menu_save_as.setIcon(get_icon("save-as"))
         self.actionPreferences.triggered.connect(self.open_preferences_dialog)
         self.menu_quit.triggered.connect(self.close)
-        self.menu_quit.setIcon(get_icon('quit'))
+        self.menu_quit.setIcon(get_icon("quit"))
         self.menu_node_info.triggered.connect(self.show_info_table)
-        self.menu_node_info.setIcon(get_icon('info'))
+        self.menu_node_info.setIcon(get_icon("info"))
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
         self.actionReorder.triggered.connect(self._action_reorder)
-        self.actionReorder.setIcon(get_icon('reorder'))
+        self.actionReorder.setIcon(get_icon("reorder"))
         self.actionStatus_bar.triggered.connect(self._toggle_statusbar)
-        self.action_incorrect_execution_time.setIcon(get_icon('warning'))
+        self.action_incorrect_execution_time.setIcon(get_icon("warning"))
         self.action_incorrect_execution_time.triggered.connect(
             self._toggle_execution_time_warning
         )
-        self.action_show_port_numbers.setIcon(get_icon('port-numbers'))
+        self.action_show_port_numbers.setIcon(get_icon("port-numbers"))
         self.action_show_port_numbers.triggered.connect(self._toggle_port_number)
-        self.actionPlot_schedule.setIcon(get_icon('plot-schedule'))
+        self.actionPlot_schedule.setIcon(get_icon("plot-schedule"))
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
         self.action_view_variables.triggered.connect(
             self._show_execution_times_for_variables
@@ -198,25 +184,25 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_view_port_accesses.triggered.connect(
             self._show_ports_accesses_for_storage
         )
-        self.actionZoom_to_fit.setIcon(get_icon('zoom-to-fit'))
+        self.actionZoom_to_fit.setIcon(get_icon("zoom-to-fit"))
         self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
-        self.actionToggle_full_screen.setIcon(get_icon('full-screen'))
+        self.actionToggle_full_screen.setIcon(get_icon("full-screen"))
         self.actionToggle_full_screen.triggered.connect(self._toggle_fullscreen)
-        self.actionUndo.setIcon(get_icon('undo'))
-        self.actionRedo.setIcon(get_icon('redo'))
+        self.actionUndo.setIcon(get_icon("undo"))
+        self.actionRedo.setIcon(get_icon("redo"))
         self.splitter.splitterMoved.connect(self._splitter_moved)
         self.actionDocumentation.triggered.connect(self._open_documentation)
-        self.actionDocumentation.setIcon(get_icon('docs'))
+        self.actionDocumentation.setIcon(get_icon("docs"))
         self.actionAbout.triggered.connect(self._open_about_window)
-        self.actionAbout.setIcon(get_icon('about'))
+        self.actionAbout.setIcon(get_icon("about"))
         self.actionDecrease_time_resolution.triggered.connect(
             self._decrease_time_resolution
         )
-        self.actionDecrease_time_resolution.setIcon(get_icon('decrease-timeresolution'))
+        self.actionDecrease_time_resolution.setIcon(get_icon("decrease-timeresolution"))
         self.actionIncrease_time_resolution.triggered.connect(
             self._increase_time_resolution
         )
-        self.actionIncrease_time_resolution.setIcon(get_icon('increase-timeresolution'))
+        self.actionIncrease_time_resolution.setIcon(get_icon("increase-timeresolution"))
         # Setup event member functions
         self.closeEvent = self._close_event
 
@@ -468,7 +454,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.save_as()
             return
         self._schedule._sfg._graph_id_generator = None
-        with open(self._file_name, 'wb') as f:
+        with open(self._file_name, "wb") as f:
             pickle.dump(self._schedule, f)
         self._add_recent_file(self._file_name)
         self.update_statusbar(self.tr("Schedule saved successfully"))
@@ -482,15 +468,15 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         """
         # TODO: Implement
         filename, extension = QFileDialog.getSaveFileName(
-            self, 'Save File', '.', filter=self.tr("B-ASIC schedule (*.bsc)")
+            self, "Save File", ".", filter=self.tr("B-ASIC schedule (*.bsc)")
         )
         if not filename:
             return
-        if not filename.endswith('.bsc'):
-            filename += '.bsc'
+        if not filename.endswith(".bsc"):
+            filename += ".bsc"
         self._file_name = filename
         self._schedule._sfg._graph_id_generator = None
-        with open(self._file_name, 'wb') as f:
+        with open(self._file_name, "wb") as f:
             pickle.dump(self._schedule, f)
         self._add_recent_file(self._file_name)
         self.update_statusbar(self.tr("Schedule saved successfully"))
@@ -521,7 +507,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._file_name = abs_path_filename
         self._add_recent_file(abs_path_filename)
 
-        with open(self._file_name, 'rb') as f:
+        with open(self._file_name, "rb") as f:
             schedule = pickle.load(f)
         self.open(schedule)
         settings = QSettings()
@@ -908,359 +894,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def open_preferences_dialog(self):
         """Open the preferences dialog to customize fonts, colors, and settings"""
-        dialog = QDialog()
-        dialog.setWindowTitle("Preferences")
-        layout = QVBoxLayout()
-        layout.setSpacing(15)
-
-        # Add label for the dialog
-        label = QLabel("Customize fonts and colors")
-        layout.addWidget(label)
-
-        groupbox = QGroupBox()
-        hlayout = QHBoxLayout()
-        label = QLabel("Color settings:")
-        layout.addWidget(label)
-        hlayout.setSpacing(20)
-
-        hlayout.addWidget(self.create_color_button(EXECUTION_TIME_COLOR_TYPE))
-        hlayout.addWidget(self.create_color_button(LATENCY_COLOR_TYPE))
-        hlayout.addWidget(
-            self.create_color_button(
-                ColorDataType(
-                    current_color=LATENCY_COLOR_TYPE.DEFAULT,
-                    DEFAULT=QColor('skyblue'),
-                    name="Latency color per type",
-                )
-            )
-        )
-
-        groupbox.setLayout(hlayout)
-        layout.addWidget(groupbox)
-
-        label = QLabel("Signal colors:")
-        layout.addWidget(label)
-        groupbox = QGroupBox()
-        hlayout = QHBoxLayout()
-        hlayout.setSpacing(20)
-
-        signal_color_button = self.create_color_button(SIGNAL_COLOR_TYPE)
-        signal_color_button.setStyleSheet(
-            f"color: {QColor(255,255,255,0).name()}; background-color: {SIGNAL_COLOR_TYPE.DEFAULT.name()}"
-        )
-
-        hlayout.addWidget(signal_color_button)
-        hlayout.addWidget(self.create_color_button(SIGNAL_WARNING_COLOR_TYPE))
-        hlayout.addWidget(self.create_color_button(ACTIVE_COLOR_TYPE))
-
-        groupbox.setLayout(hlayout)
-        layout.addWidget(groupbox)
-
-        reset_color_button = ColorButton(QColor('silver'))
-        reset_color_button.setText('Reset All Color settings')
-        reset_color_button.pressed.connect(self.reset_color_clicked)
-        layout.addWidget(reset_color_button)
-
-        label = QLabel("Font Settings:")
-        layout.addWidget(label)
-
-        groupbox = QGroupBox()
-        hlayout = QHBoxLayout()
-        hlayout.setSpacing(10)
-
-        font_button = ColorButton(QColor('moccasin'))
-        font_button.setText('Font Settings')
-        hlayout.addWidget(font_button)
-
-        font_color_button = ColorButton(QColor('moccasin'))
-        font_color_button.setText('Font Color')
-        font_color_button.pressed.connect(self.font_color_clicked)
-        hlayout.addWidget(font_color_button)
-
-        groupbox2 = QGroupBox()
-        hlayout2 = QHBoxLayout()
-
-        icon = QIcon.fromTheme("format-text-italic")
-        italic_button = (
-            ColorButton(QColor('silver'))
-            if FONT.italic
-            else ColorButton(QColor('snow'))
-        )
-        italic_button.setIcon(icon)
-        italic_button.pressed.connect(lambda: self.italic_font_clicked(italic_button))
-        hlayout2.addWidget(italic_button)
-
-        icon = QIcon.fromTheme("format-text-bold")
-        bold_button = (
-            ColorButton(QColor('silver')) if FONT.bold else ColorButton(QColor('snow'))
-        )
-        bold_button.setIcon(icon)
-        bold_button.pressed.connect(lambda: self.bold_font_clicked(bold_button))
-        hlayout2.addWidget(bold_button)
-
-        groupbox2.setLayout(hlayout2)
-        hlayout.addWidget(groupbox2)
-
-        groupbox2 = QGroupBox()
-        hlayout2 = QHBoxLayout()
-        font_size_input = QLineEdit()
-        font_button.pressed.connect(
-            lambda: self.font_clicked(font_size_input, italic_button, bold_button)
-        )
-
-        icon = QIcon.fromTheme("list-add")
-        increase_font_size_button = ColorButton(QColor('smoke'))
-        increase_font_size_button.setIcon(icon)
-        increase_font_size_button.pressed.connect(
-            lambda: self.increase_font_size_clicked(font_size_input)
-        )
-        increase_font_size_button.setShortcut(
-            QCoreApplication.translate("MainWindow", "Ctrl++")
-        )
-        hlayout2.addWidget(increase_font_size_button)
-
-        font_size_input.setPlaceholderText('Font Size')
-        font_size_input.setText(f'Font Size: {FONT.size}')
-        font_size_input.setValidator(QIntValidator(0, 99))
-        font_size_input.setAlignment(Qt.AlignCenter)
-        font_size_input.textChanged.connect(
-            lambda: self.set_font_size_clicked(font_size_input.text())
-        )
-        font_size_input.textChanged.connect(
-            lambda: self.set_font_size_clicked(font_size_input.text())
-        )
-        hlayout2.addWidget(font_size_input)
-
-        icon = QIcon.fromTheme("list-remove")
-        decrease_font_size_button = ColorButton(QColor('smoke'))
-        decrease_font_size_button.setIcon(icon)
-        decrease_font_size_button.pressed.connect(
-            lambda: self.decrease_font_size_clicked(font_size_input)
-        )
-        decrease_font_size_button.setShortcut(
-            QCoreApplication.translate("MainWindow", "Ctrl+-")
-        )
-
-        hlayout2.addWidget(decrease_font_size_button)
-
-        groupbox2.setLayout(hlayout2)
-        hlayout.addWidget(groupbox2)
-
-        groupbox.setLayout(hlayout)
-        layout.addWidget(groupbox)
-
-        reset_font_button = ColorButton(QColor('silver'))
-        reset_font_button.setText('Reset All Font Settings')
-        reset_font_button.pressed.connect(
-            lambda: self.reset_font_clicked(font_size_input, italic_button, bold_button)
-        )
-        layout.addWidget(reset_font_button)
-
-        label = QLabel("")
-        layout.addWidget(label)
-
-        reset_all_button = ColorButton(QColor('salmon'))
-        reset_all_button.setText('Reset all settings')
-        reset_all_button.pressed.connect(
-            lambda: self.reset_all_clicked(font_size_input, italic_button, bold_button)
-        )
-        layout.addWidget(reset_all_button)
-
-        dialog.setLayout(layout)
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Close)
-        button_box.ButtonLayout(QDialogButtonBox.MacLayout)
-        button_box.accepted.connect(dialog.accept)
-        button_box.rejected.connect(dialog.close)
-        layout.addWidget(button_box)
-
-        dialog.exec_()
-
-    def create_color_button(self, color: ColorDataType) -> ColorButton:
-        """Create a colored button to be used to modify a certain color
-
-        Parameters
-        ----------
-        color : ColorDataType
-            The ColorDataType assigned to the butten to be created.
-        """
-        button = ColorButton(color.DEFAULT)
-        button.setText(color.name)
-        if color.name == "Latency color":
-            button.pressed.connect(
-                lambda: self.set_latency_color_by_type_name(all=True)
-            )
-        elif color.name == "Latency color per type":
-            button.pressed.connect(
-                lambda: self.set_latency_color_by_type_name(all=False)
-            )
-        else:
-            button.pressed.connect(lambda: self.color_button_clicked(color))
-        return button
-
-    def set_latency_color_by_type_name(self, all: bool) -> None:
-        """
-        Set latency color based on operation type names.
-
-        Parameters
-        ----------
-        all : bool
-            Indicates if the color of all type names to be modified.
-        """
-        if LATENCY_COLOR_TYPE.changed:
-            current_color = LATENCY_COLOR_TYPE.current_color
-        else:
-            current_color = LATENCY_COLOR_TYPE.DEFAULT
-
-        # Prompt user to select operation type if not setting color for all types
-        if not all:
-            used_types = self._schedule.get_used_type_names()
-            operation_type, ok = QInputDialog.getItem(
-                self, "Select operation type", "Type", used_types, editable=False
-            )
-        else:
-            operation_type = "all operations"
-            ok = False
-
-        # Open a color dialog to get the selected color
-        if all or ok:
-            color = QColorDialog.getColor(
-                current_color, self, f"Select the color of {operation_type}"
-            )
-
-            # If a valid color is selected, update color settings and graph
-            if color.isValid():
-                if all:
-                    LATENCY_COLOR_TYPE.changed = True
-                    self._color_changed_per_type = False
-                    self._changed_operation_colors.clear()
-                    LATENCY_COLOR_TYPE.current_color = color
-                # Save color settings for each operation type
-                else:
-                    self._color_changed_per_type = True
-                    self._changed_operation_colors[operation_type] = color
-                self.update_color_preferences()
-                self.update_statusbar("Preferences updated")
-
-    def update_color_preferences(self) -> None:
-        """Update preferences of Latency color per type"""
-        match (LATENCY_COLOR_TYPE.changed, self._color_changed_per_type):
-            case (True, False):
-                for type_name in self._schedule.get_used_type_names():
-                    self._color_per_type[type_name] = LATENCY_COLOR_TYPE.current_color
-            case (False, False):
-                for type_name in self._schedule.get_used_type_names():
-                    self._color_per_type[type_name] = LATENCY_COLOR_TYPE.DEFAULT
-            case (False, True):
-                for type_name in self._schedule.get_used_type_names():
-                    if type_name in self._changed_operation_colors:
-                        self._color_per_type[type_name] = (
-                            self._changed_operation_colors[type_name]
-                        )
-                    else:
-                        self._color_per_type[type_name] = LATENCY_COLOR_TYPE.DEFAULT
-            case (True, True):
-                for type_name in self._schedule.get_used_type_names():
-                    if type_name in self._changed_operation_colors:
-                        self._color_per_type[type_name] = (
-                            self._changed_operation_colors[type_name]
-                        )
-                    else:
-                        self._color_per_type[type_name] = (
-                            LATENCY_COLOR_TYPE.current_color
-                        )
-        self.save_colortype()
-
-    def save_colortype(self) -> None:
-        """Save preferences of Latency color per type in settings"""
-        settings = QSettings()
-        for key, color in self._color_per_type.items():
-            self._graph._color_change(color, key)
-            self._converted_color_per_type[key] = color.name()
-        settings.setValue(
-            f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}",
-            LATENCY_COLOR_TYPE.current_color,
-        )
-        settings.setValue(
-            f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}_changed",
-            LATENCY_COLOR_TYPE.changed,
-        )
-        settings.setValue(
-            f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}/per_type",
-            self._converted_color_per_type,
-        )
-        settings.setValue(
-            f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}/per_type_changed",
-            self._color_changed_per_type,
-        )
-
-    def color_button_clicked(self, color_type: ColorDataType) -> None:
-        """
-        Open a color dialog to select a color based on the specified color type
-
-        Parameters
-        ----------
-        color_type : ColorDataType
-            The ColorDataType to be changed.
-        """
-        settings = QSettings()
-        if color_type.changed:
-            current_color = color_type.current_color
-        else:
-            current_color = color_type.DEFAULT
-
-        color = QColorDialog.getColor(current_color, self, f"Select {color_type.name}")
-        # If a valid color is selected, update the current color and settings
-        if color.isValid():
-            color_type.current_color = color
-            color_type.changed = color_type.current_color != color_type.DEFAULT
-            settings.setValue(f"scheduler/preferences/{color_type.name}", color.name())
-            settings.sync()
-
-        self._graph._signals.reopen.emit()
-        self.update_statusbar("Preferences Updated")
-
-    def font_clicked(
-        self, line: QLineEdit, italicbutton: ColorButton, boldbutton: ColorButton
-    ) -> None:
-        """
-        Open a font dialog to select a font and update the current font.
-
-        Parameters
-        ----------
-        line : QLineEdit
-            The line displaying the text size to be matched with the chosen font.
-        italicbutton : ColorButton
-            The button displaying the italic state to be matched with the chosen font.
-        boldbutton : ColorButton
-            The button displaying the bold state to be matched with the chosen font.
-        """
-        current_font = FONT.current_font if FONT.changed else FONT.DEFAULT
-
-        (font, ok) = QFontDialog.getFont(current_font, self)
-        if ok:
-            FONT.current_font = font
-            FONT.size = int(font.pointSizeF())
-            FONT.bold = font.bold()
-            FONT.italic = font.italic()
-            self.update_font()
-            self.match_dialog_font(line, italicbutton, boldbutton)
-            self.update_statusbar("Preferences Updated")
-
-    def update_font(self):
-        """Update font preferences based on current Font settings"""
-        settings = QSettings()
-        FONT.changed = not (
-            FONT.current_font == FONT.DEFAULT
-            and FONT.size == int(FONT.DEFAULT.pointSizeF())
-            and FONT.italic == FONT.DEFAULT.italic()
-            and FONT.bold == FONT.DEFAULT.bold()
-        )
-        settings.setValue("scheduler/preferences/font", FONT.current_font.toString())
-        settings.setValue("scheduler/preferences/font_size", FONT.size)
-        settings.setValue("scheduler/preferences/font_bold", FONT.bold)
-        settings.setValue("scheduler/preferences/font_italic", FONT.italic)
-        settings.sync()
-        self.load_preferences()
+        self._preferences_dialog = PreferencesDialog(self)
+        self._preferences_dialog.show()
 
     def load_preferences(self):
         "Load the last saved preferences from settings"
@@ -1310,156 +945,59 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         self.update_statusbar("Saved Preferences Loaded")
 
-    def font_color_clicked(self):
-        """Select a font color and update preferences"""
+    def update_color_preferences(self) -> None:
+        """Update preferences of Latency color per type"""
+        used_type_names = self._schedule.get_used_type_names()
+        match (LATENCY_COLOR_TYPE.changed, self._color_changed_per_type):
+            case (True, False):
+                for type_name in used_type_names:
+                    self._color_per_type[type_name] = LATENCY_COLOR_TYPE.current_color
+            case (False, False):
+                for type_name in used_type_names:
+                    self._color_per_type[type_name] = LATENCY_COLOR_TYPE.DEFAULT
+            case (False, True):
+                for type_name in used_type_names:
+                    if type_name in self._changed_operation_colors:
+                        self._color_per_type[type_name] = (
+                            self._changed_operation_colors[type_name]
+                        )
+                    else:
+                        self._color_per_type[type_name] = LATENCY_COLOR_TYPE.DEFAULT
+            case (True, True):
+                for type_name in used_type_names:
+                    if type_name in self._changed_operation_colors:
+                        self._color_per_type[type_name] = (
+                            self._changed_operation_colors[type_name]
+                        )
+                    else:
+                        self._color_per_type[type_name] = (
+                            LATENCY_COLOR_TYPE.current_color
+                        )
+        self.save_colortype()
+
+    def save_colortype(self) -> None:
+        """Save preferences of Latency color per type in settings"""
         settings = QSettings()
-        color = QColorDialog.getColor(FONT.color, self, "Select font color")
-        if color.isValid():
-            FONT.color = color
-            FONT.changed = True
-        settings.setValue("scheduler/preferences/font_color", FONT.color.name())
-        settings.sync()
-        self._graph._font_color_change(FONT.color)
-
-    def set_font_size_clicked(self, size):
-        """Set the font size to the specified size and update the font
-        size
-            The font size to be set.
-        """
-        FONT.size = int(size) if size != "" else 6
-        FONT.current_font.setPointSizeF(FONT.size)
-        self.update_font()
-
-    def italic_font_clicked(self, button: ColorButton):
-        """Toggle the font style to italic if not already italic, otherwise remove italic
-        button: ColorButton
-            The clicked button. Used to indicate state on/off.
-        """
-        FONT.italic = not FONT.italic
-        FONT.current_font.setItalic(FONT.italic)
-        (
-            button.set_color(QColor('silver'))
-            if FONT.italic
-            else button.set_color(QColor('snow'))
+        for key, color in self._color_per_type.items():
+            if self._graph:
+                self._graph._color_change(color, key)
+            self._converted_color_per_type[key] = color.name()
+        settings.setValue(
+            f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}",
+            LATENCY_COLOR_TYPE.current_color,
         )
-        self.update_font()
-
-    def bold_font_clicked(self, button: ColorButton):
-        """
-        Toggle the font style to bold if not already bold, otherwise unbold.
-
-        Parameters
-        ----------
-        button : ColorButton
-            The clicked button. Used to indicate state on/off.
-        """
-        FONT.bold = not FONT.bold
-        FONT.current_font.setBold(FONT.bold)
-        FONT.current_font.setWeight(50)
-        (
-            button.set_color(QColor('silver'))
-            if FONT.bold
-            else button.set_color(QColor('snow'))
+        settings.setValue(
+            f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}_changed",
+            LATENCY_COLOR_TYPE.changed,
         )
-        self.update_font()
-
-    def increase_font_size_clicked(self, line: QLineEdit) -> None:
-        """
-        Increase the font size by 1.
-
-        Parameters
-        ----------
-        line : QLineEdit
-            The line displaying the text size to be matched.
-        """
-        if FONT.size <= 71:
-            line.setText(str(FONT.size + 1))
-        else:
-            line.setText(str(FONT.size))
-
-    def decrease_font_size_clicked(self, line: QLineEdit) -> None:
-        """
-        Decrease the font size by 1.
-
-        Parameters
-        ----------
-        line : QLineEdit
-            The line displaying the text size to be matched.
-        """
-        if FONT.size >= 7:
-            line.setText(str(FONT.size - 1))
-        else:
-            line.setText(str(FONT.size))
-
-    def reset_color_clicked(self):
-        """Reset the color settings"""
-        settings = QSettings()
-        reset_color_settings(settings)
-        self._color_changed_per_type = False
-        self.update_color_preferences()
-
-        self._graph._color_change(LATENCY_COLOR_TYPE.DEFAULT, "all operations")
-        self._graph._signals.reopen.emit()
-        self.load_preferences()
-
-    def reset_font_clicked(
-        self, line: QLineEdit, italicbutton: ColorButton, boldbutton: ColorButton
-    ):
-        """
-        Reset the font settings.
-
-        Parameters
-        ----------
-        line : QLineEdit
-            The line displaying the text size to be matched with the chosen font.
-        italicbutton : ColorButton
-            The button displaying the italic state to be matched with the chosen font.
-        boldbutton : ColorButton
-            The button displaying the bold state to be matched with the chosen font.
-        """
-        FONT.current_font = QFont("Times", 12)
-        FONT.changed = False
-        FONT.color = FONT.DEFAULT_COLOR
-        FONT.size = int(FONT.DEFAULT.pointSizeF())
-        FONT.bold = FONT.DEFAULT.bold()
-        FONT.italic = FONT.DEFAULT.italic()
-        self.update_font()
-        self.load_preferences()
-        self.match_dialog_font(line, italicbutton, boldbutton)
-
-    def reset_all_clicked(
-        self, line: QLineEdit, italicbutton: ColorButton, boldbutton: ColorButton
-    ):
-        """Reset both the color and the font settings."""
-        self.reset_color_clicked()
-        self.reset_font_clicked(line, italicbutton, boldbutton)
-
-    def match_dialog_font(
-        self, line: QLineEdit, italicbutton: ColorButton, boldbutton: ColorButton
-    ) -> None:
-        """
-        Update the widgets on the preference dialog to match the current font.
-
-        Parameters
-        ----------
-        line : QLineEdit
-            The line displaying the text size to be matched with the current font.
-        italicbutton : ColorButton
-            The button displaying the italic state to be matched with the current font.
-        boldbutton : ColorButton
-            The button displaying the bold state to be matched with the current font.
-        """
-        line.setText(str(FONT.size))
-
-        if FONT.italic:
-            italicbutton.set_color(QColor('silver'))
-        else:
-            italicbutton.set_color(QColor('snow'))
-
-        if FONT.bold:
-            boldbutton.set_color(QColor('silver'))
-        else:
-            boldbutton.set_color(QColor('snow'))
+        settings.setValue(
+            f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}/per_type",
+            self._converted_color_per_type,
+        )
+        settings.setValue(
+            f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}/per_type_changed",
+            self._color_changed_per_type,
+        )
 
     @Slot(str)
     def _show_execution_times_for_type(self, type_name):
@@ -1557,7 +1095,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                     self._recent_files_actions[i].setVisible(False)
 
     def _open_recent_file(self, action):
-        if action.data().filePath().endswith('.bsc'):
+        if action.data().filePath().endswith(".bsc"):
             self._open_schedule_file(action.data().filePath())
         else:
             self._load_from_file(action.data().filePath())
@@ -1602,10 +1140,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         """Callback for toggling full screen mode."""
         if self.isFullScreen():
             self.showNormal()
-            self.actionToggle_full_screen.setIcon(get_icon('full-screen'))
+            self.actionToggle_full_screen.setIcon(get_icon("full-screen"))
         else:
             self.showFullScreen()
-            self.actionToggle_full_screen.setIcon(get_icon('full-screen-exit'))
+            self.actionToggle_full_screen.setIcon(get_icon("full-screen-exit"))
 
 
 @overload

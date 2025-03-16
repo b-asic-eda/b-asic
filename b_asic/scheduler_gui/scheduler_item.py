@@ -5,6 +5,7 @@ B-ASIC Scheduler-GUI Scheduler Item Module.
 Contains the scheduler_gui SchedulerItem class for drawing and
 maintaining a schedule.
 """
+
 from collections import defaultdict
 from math import floor
 from pprint import pprint

@@ -15,7 +15,7 @@ from b_asic.resources import ProcessCollection, _ForwardBackwardTable
 
 class TestProcessCollectionPlainMemoryVariable:
     @matplotlib.testing.decorators.image_comparison(
-        ['test_draw_process_collection.png']
+        ["test_draw_process_collection.png"]
     )
     def test_draw_process_collection(self, simple_collection):
         fig, ax = plt.subplots()
@@ -23,7 +23,7 @@ class TestProcessCollectionPlainMemoryVariable:
         return fig
 
     @matplotlib.testing.decorators.image_comparison(
-        ['test_draw_matrix_transposer_4.png']
+        ["test_draw_matrix_transposer_4.png"]
     )
     def test_draw_matrix_transposer_4(self):
         fig, ax = plt.subplots()
@@ -72,7 +72,7 @@ class TestProcessCollectionPlainMemoryVariable:
         assert len(split) == 2
 
     @matplotlib.testing.decorators.image_comparison(
-        ['test_left_edge_cell_assignment.png']
+        ["test_left_edge_cell_assignment.png"]
     )
     def test_left_edge_cell_assignment(self, simple_collection: ProcessCollection):
         fig, ax = plt.subplots(1, 2)
@@ -86,7 +86,7 @@ class TestProcessCollectionPlainMemoryVariable:
         collection = generate_matrix_transposer(4, min_lifetime=5)
         assignment_left_edge = collection._left_edge_assignment()
         assignment_graph_color = collection.split_on_execution_time(
-            heuristic="graph_color", coloring_strategy='saturation_largest_first'
+            heuristic="graph_color", coloring_strategy="saturation_largest_first"
         )
         assert len(assignment_left_edge) == 18
         assert len(assignment_graph_color) == 16
@@ -111,10 +111,10 @@ class TestProcessCollectionPlainMemoryVariable:
             assignment = collection.split_on_execution_time(heuristic="graph_color")
             collection.generate_memory_based_storage_vhdl(
                 filename=(
-                    'b_asic/codegen/testbench/'
-                    f'streaming_matrix_transposition_memory_{rows}x{cols}.vhdl'
+                    "b_asic/codegen/testbench/"
+                    f"streaming_matrix_transposition_memory_{rows}x{cols}.vhdl"
                 ),
-                entity_name=f'streaming_matrix_transposition_memory_{rows}x{cols}',
+                entity_name=f"streaming_matrix_transposition_memory_{rows}x{cols}",
                 assignment=assignment,
                 word_length=16,
                 adr_mux_size=mux_size,
@@ -127,10 +127,10 @@ class TestProcessCollectionPlainMemoryVariable:
                 rows, min_lifetime=0
             ).generate_register_based_storage_vhdl(
                 filename=(
-                    'b_asic/codegen/testbench/streaming_matrix_transposition_'
-                    f'register_{rows}x{rows}.vhdl'
+                    "b_asic/codegen/testbench/streaming_matrix_transposition_"
+                    f"register_{rows}x{rows}.vhdl"
                 ),
-                entity_name=f'streaming_matrix_transposition_register_{rows}x{rows}',
+                entity_name=f"streaming_matrix_transposition_register_{rows}x{rows}",
                 word_length=16,
             )
 
@@ -138,10 +138,10 @@ class TestProcessCollectionPlainMemoryVariable:
         collection = generate_matrix_transposer(rows=4, cols=8, min_lifetime=2)
         collection.generate_register_based_storage_vhdl(
             filename=(
-                'b_asic/codegen/testbench/streaming_matrix_transposition_register_'
-                '4x8.vhdl'
+                "b_asic/codegen/testbench/streaming_matrix_transposition_register_"
+                "4x8.vhdl"
             ),
-            entity_name='streaming_matrix_transposition_register_4x8',
+            entity_name="streaming_matrix_transposition_register_4x8",
             word_length=16,
         )
 
@@ -159,14 +159,14 @@ class TestProcessCollectionPlainMemoryVariable:
             cyclic=True,
         )
         t = _ForwardBackwardTable(collection)
-        process_names = {match.group(0) for match in re.finditer(r'PC[0-9]+', str(t))}
-        register_names = {match.group(0) for match in re.finditer(r'R[0-9]+', str(t))}
+        process_names = {match.group(0) for match in re.finditer(r"PC[0-9]+", str(t))}
+        register_names = {match.group(0) for match in re.finditer(r"R[0-9]+", str(t))}
         assert len(process_names) == 6  # 6 process in the collection
         assert len(register_names) == 5  # 5 register required
         for i, process in enumerate(sorted(process_names)):
-            assert process == f'PC{i}'
+            assert process == f"PC{i}"
         for i, register in enumerate(sorted(register_names)):
-            assert register == f'R{i}'
+            assert register == f"R{i}"
 
     def test_generate_random_interleaver(self):
         return
@@ -206,7 +206,7 @@ class TestProcessCollectionPlainMemoryVariable:
         assert new_proc not in simple_collection
 
     @matplotlib.testing.decorators.image_comparison(
-        ['test_max_min_lifetime_bar_plot.png']
+        ["test_max_min_lifetime_bar_plot.png"]
     )
     def test_max_min_lifetime_bar_plot(self):
         fig, ax = plt.subplots()
@@ -229,10 +229,10 @@ class TestProcessCollectionPlainMemoryVariable:
 
     def test_multiple_reads_exclusion_greaph(self):
         # Initial collection
-        p0 = PlainMemoryVariable(0, 0, {0: 3}, 'P0')
-        p1 = PlainMemoryVariable(1, 0, {0: 2}, 'P1')
-        p2 = PlainMemoryVariable(2, 0, {0: 2}, 'P2')
-        p3 = PlainMemoryVariable(3, 0, {0: 3}, 'P3')
+        p0 = PlainMemoryVariable(0, 0, {0: 3}, "P0")
+        p1 = PlainMemoryVariable(1, 0, {0: 2}, "P1")
+        p2 = PlainMemoryVariable(2, 0, {0: 2}, "P2")
+        p3 = PlainMemoryVariable(3, 0, {0: 3}, "P3")
         collection = ProcessCollection({p0, p1, p2, p3}, 5, cyclic=True)
         exclusion_graph = collection.create_exclusion_graph_from_ports(
             read_ports=1,
@@ -247,7 +247,7 @@ class TestProcessCollectionPlainMemoryVariable:
         assert exclusion_graph.degree(p3) == 2
 
         # Add multi-read process
-        p4 = PlainMemoryVariable(0, 0, {0: 1, 1: 2, 2: 3, 3: 4}, 'P4')
+        p4 = PlainMemoryVariable(0, 0, {0: 1, 1: 2, 2: 3, 3: 4}, "P4")
         collection.add_process(p4)
         exclusion_graph = collection.create_exclusion_graph_from_ports(
             read_ports=1,

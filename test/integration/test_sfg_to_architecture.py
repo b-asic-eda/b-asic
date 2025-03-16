@@ -120,8 +120,8 @@ def test_pe_and_memory_constrained_chedule():
     bf_pe = ProcessingElement(bfs, entity_name="bf")
     mul_pe = ProcessingElement(const_muls, entity_name="mul")
 
-    pe_in = ProcessingElement(inputs, entity_name='input')
-    pe_out = ProcessingElement(outputs, entity_name='output')
+    pe_in = ProcessingElement(inputs, entity_name="input")
+    pe_out = ProcessingElement(outputs, entity_name="output")
 
     mem_vars = schedule.get_memory_variables()
     direct, mem_vars = mem_vars.split_on_length()

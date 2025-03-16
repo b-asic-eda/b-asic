@@ -108,7 +108,7 @@ def generate_matrix_transposer(
     if (rows * cols // parallelism) * parallelism != rows * cols:
         raise ValueError(
             f"parallelism ({parallelism}) must be an integer multiple of rows*cols"
-            f" ({rows}*{cols} = {rows*cols})"
+            f" ({rows}*{cols} = {rows * cols})"
         )
 
     inputorders = []
@@ -129,7 +129,7 @@ def generate_matrix_transposer(
             PlainMemoryVariable(
                 *inputorder,
                 {outputorders[i][1]: outputorders[i][0] - inputorder[0]},
-                name=f"{inputorders[i][0]*parallelism + inputorders[i][1]}",
+                name=f"{inputorders[i][0] * parallelism + inputorders[i][1]}",
             )
             for i, inputorder in enumerate(inputorders)
         },
