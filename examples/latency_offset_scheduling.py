@@ -1,7 +1,7 @@
 """
-================================
-Automatic Scheduling for different latency-offsets.
-================================
+==================================================
+Automatic scheduling for different latency-offsets
+==================================================
 
 This example showcases how one can generate a schedule where the
 operations have different latency offsets for the different inputs/outputs.

@@ -265,7 +265,7 @@ class Resource(HardwareBlock):
         self.plot_content(ax, **kwargs)
         height = 0.4
         if title:
-            height += 0.4
+            height = 0.8
             fig.suptitle(title)
         fig.set_figheight(math.floor(max(ax.get_ylim())) * 0.3 + height)
         fig.show()  # type: ignore

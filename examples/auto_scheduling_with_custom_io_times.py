@@ -1,8 +1,9 @@
 """
 =========================================
-Auto Scheduling With Custom IO times
+Automatic scheduling with custom IO times
 =========================================
 
+It is possible to specify the IO times and provide those to the scheduling.
 """
 
 from b_asic.core_operations import Butterfly, ConstantMultiplication
@@ -31,7 +32,8 @@ schedule1 = Schedule(sfg, scheduler=ASAPScheduler())
 schedule1.show()
 
 # %%
-# Generate a non-cyclic Schedule from HybridScheduler with custom IO times.
+# Generate a non-cyclic Schedule from HybridScheduler with custom IO times,
+# one input and output per time unit
 resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 input_times = {f"in{i}": i for i in range(points)}
 output_delta_times = {f"out{i}": i for i in range(points)}

@@ -1,5 +1,4 @@
 import copy
-import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, cast
 
@@ -123,9 +122,9 @@ class ASAPScheduler(Scheduler):
 
         max_end_time = schedule.get_max_end_time()
 
-        if schedule.schedule_time is None:
+        if schedule._schedule_time is None:
             schedule.set_schedule_time(max_end_time)
-        elif schedule.schedule_time < max_end_time:
+        elif schedule._schedule_time < max_end_time:
             raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
 
         schedule.sort_y_locations_on_start_times()
@@ -159,7 +158,7 @@ class ALAPScheduler(Scheduler):
                         outport.operation.graph_id
                     ] + schedule.forward_slack(outport.operation.graph_id)
                     self.op_laps[outport.operation.graph_id] = (
-                        new_unwrapped_start_time // schedule.schedule_time
+                        new_unwrapped_start_time // schedule._schedule_time
                     )
                     schedule.move_operation_alap(outport.operation.graph_id)
 
@@ -167,7 +166,7 @@ class ALAPScheduler(Scheduler):
         slack = min(schedule.start_times.values())
         for op_id in schedule.start_times.keys():
             schedule.move_operation(op_id, -slack)
-        schedule.set_schedule_time(schedule.schedule_time - slack)
+        schedule.set_schedule_time(schedule._schedule_time - slack)
 
         schedule.sort_y_locations_on_start_times()
 
@@ -223,7 +222,7 @@ class ListScheduler(Scheduler):
                 raise ValueError("Provided max_concurrent_reads must be an integer.")
             if max_concurrent_reads <= 0:
                 raise ValueError("Provided max_concurrent_reads must be larger than 0.")
-        self._max_concurrent_reads = max_concurrent_reads or sys.maxsize
+        self._max_concurrent_reads = max_concurrent_reads or 0
 
         if max_concurrent_writes is not None:
             if not isinstance(max_concurrent_writes, int):
@@ -232,7 +231,7 @@ class ListScheduler(Scheduler):
                 raise ValueError(
                     "Provided max_concurrent_writes must be larger than 0."
                 )
-        self._max_concurrent_writes = max_concurrent_writes or sys.maxsize
+        self._max_concurrent_writes = max_concurrent_writes or 0
 
         if input_times is not None:
             if not isinstance(input_times, dict):
@@ -289,7 +288,7 @@ class ListScheduler(Scheduler):
         if self._output_delta_times:
             self._handle_outputs()
 
-        if self._schedule.schedule_time is None:
+        if self._schedule._schedule_time is None:
             self._schedule.set_schedule_time(self._schedule.get_max_end_time())
         self._schedule.remove_delays()
         self._handle_dont_cares()
@@ -377,95 +376,100 @@ class ListScheduler(Scheduler):
     def _execution_times_in_time(self, op: "Operation", time: int) -> int:
         count = 0
         for other_op_id, start_time in self._schedule.start_times.items():
-            if self._schedule.schedule_time is not None:
-                start_time = start_time % self._schedule.schedule_time
+            if other_op_id != op._graph_id:
+                if self._schedule._schedule_time is not None:
+                    start_time = start_time % self._schedule._schedule_time
 
-            if time >= start_time:
-                if time < start_time + max(
-                    self._cached_execution_times[other_op_id], 1
-                ):
-                    if isinstance(self._sfg.find_by_id(other_op_id), type(op)):
-                        if other_op_id != op.graph_id:
+                if time >= start_time:
+                    if time < start_time + max(
+                        self._cached_execution_times[other_op_id], 1
+                    ):
+                        if isinstance(self._sfg.find_by_id(other_op_id), type(op)):
                             count += 1
         return count
 
     def _op_satisfies_resource_constraints(self, op: "Operation") -> bool:
-        if self._schedule.schedule_time is not None:
-            time_slot = self._current_time % self._schedule.schedule_time
+        if self._schedule._schedule_time is not None:
+            time_slot = self._current_time % self._schedule._schedule_time
         else:
             time_slot = self._current_time
         count = self._execution_times_in_time(op, time_slot)
         return count < self._remaining_resources[op.type_name()]
 
     def _op_satisfies_concurrent_writes(self, op: "Operation") -> bool:
-        tmp_used_writes = {}
-        if not isinstance(op, Output):
-            for i in range(len(op.outputs)):
-                output_ready_time = (
-                    self._current_time
-                    + self._cached_latency_offsets[op.graph_id][f"out{i}"]
-                )
-                if self._schedule.schedule_time:
-                    output_ready_time %= self._schedule.schedule_time
+        if self._max_concurrent_writes:
+            tmp_used_writes = {}
+            if not isinstance(op, Output):
+                for i in range(len(op.outputs)):
+                    output_ready_time = (
+                        self._current_time
+                        + self._cached_latency_offsets[op.graph_id][f"out{i}"]
+                    )
+                    if self._schedule._schedule_time:
+                        output_ready_time %= self._schedule._schedule_time
 
-                writes_in_time = 0
-                for item in self._schedule.start_times.items():
-                    offsets = [
-                        offset
-                        for port_id, offset in self._cached_latency_offsets[
-                            item[0]
-                        ].items()
-                        if port_id.startswith("out")
-                    ]
-                    write_times = [item[1] + offset for offset in offsets]
-                    writes_in_time += write_times.count(output_ready_time)
+                    writes_in_time = 0
+                    for item in self._schedule.start_times.items():
+                        offsets = [
+                            offset
+                            for port_id, offset in self._cached_latency_offsets[
+                                item[0]
+                            ].items()
+                            if port_id.startswith("out")
+                        ]
+                        write_times = [item[1] + offset for offset in offsets]
+                        writes_in_time += write_times.count(output_ready_time)
 
-                write_time = (
-                    self._current_time
-                    + self._cached_latency_offsets[op.graph_id][f"out{i}"]
-                )
-                if self._schedule.schedule_time:
-                    write_time %= self._schedule.schedule_time
+                    write_time = (
+                        self._current_time
+                        + self._cached_latency_offsets[op.graph_id][f"out{i}"]
+                    )
+                    if self._schedule._schedule_time:
+                        write_time %= self._schedule._schedule_time
 
-                if tmp_used_writes.get(write_time):
-                    tmp_used_writes[write_time] += 1
-                else:
-                    tmp_used_writes[write_time] = 1
+                    if tmp_used_writes.get(write_time):
+                        tmp_used_writes[write_time] += 1
+                    else:
+                        tmp_used_writes[write_time] = 1
 
-                if (
-                    self._max_concurrent_writes
-                    - writes_in_time
-                    - tmp_used_writes[write_time]
-                    < 0
-                ):
-                    return False
+                    if (
+                        self._max_concurrent_writes
+                        - writes_in_time
+                        - tmp_used_writes[write_time]
+                        < 0
+                    ):
+                        return False
         return True
 
     def _op_satisfies_concurrent_reads(self, op: "Operation") -> bool:
-        tmp_used_reads = {}
-        for i, op_input in enumerate(op.inputs):
-            source_op = op_input.signals[0].source.operation
-            if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
-                continue
-            if self._schedule.start_times[source_op.graph_id] != self._current_time - 1:
-                input_read_time = (
-                    self._current_time
-                    + self._cached_latency_offsets[op.graph_id][f"in{i}"]
-                )
-                if self._schedule.schedule_time:
-                    input_read_time %= self._schedule.schedule_time
-
-                if tmp_used_reads.get(input_read_time):
-                    tmp_used_reads[input_read_time] += 1
-                else:
-                    tmp_used_reads[input_read_time] = 1
-
-                prev_used = self._used_reads.get(input_read_time) or 0
+        if self._max_concurrent_reads:
+            tmp_used_reads = {}
+            for i, op_input in enumerate(op.inputs):
+                source_op = op_input.signals[0].source.operation
+                if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
+                    continue
                 if (
-                    self._max_concurrent_reads
-                    < prev_used + tmp_used_reads[input_read_time]
+                    self._schedule.start_times[source_op.graph_id]
+                    != self._current_time - 1
                 ):
-                    return False
+                    input_read_time = (
+                        self._current_time
+                        + self._cached_latency_offsets[op.graph_id][f"in{i}"]
+                    )
+                    if self._schedule._schedule_time:
+                        input_read_time %= self._schedule._schedule_time
+
+                    if tmp_used_reads.get(input_read_time):
+                        tmp_used_reads[input_read_time] += 1
+                    else:
+                        tmp_used_reads[input_read_time] = 1
+
+                    prev_used = self._used_reads.get(input_read_time) or 0
+                    if (
+                        self._max_concurrent_reads
+                        < prev_used + tmp_used_reads[input_read_time]
+                    ):
+                        return False
         return True
 
     def _op_satisfies_data_dependencies(self, op: "Operation") -> bool:
@@ -476,22 +480,20 @@ class ListScheduler(Scheduler):
             if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
                 continue
 
-            source_op_graph_id = source_op.graph_id
-
-            if source_op_graph_id in self._remaining_ops:
+            if source_op.graph_id in self._remaining_ops:
                 return False
 
-            if self._schedule.schedule_time is not None:
+            if self._schedule._schedule_time is not None:
                 available_time = (
-                    self._schedule.start_times.get(source_op_graph_id)
-                    + self._op_laps[source_op.graph_id] * self._schedule.schedule_time
+                    self._schedule.start_times[source_op.graph_id]
+                    + self._op_laps[source_op.graph_id] * self._schedule._schedule_time
                     + self._cached_latency_offsets[source_op.graph_id][
                         f"out{source_port.index}"
                     ]
                 )
             else:
                 available_time = (
-                    self._schedule.start_times.get(source_op_graph_id)
+                    self._schedule.start_times[source_op.graph_id]
                     + self._cached_latency_offsets[source_op.graph_id][
                         f"out{source_port.index}"
                     ]
@@ -546,22 +548,22 @@ class ListScheduler(Scheduler):
                     f"Provided output delta time with GraphID {key} cannot be found in the provided SFG."
                 )
 
-        if self._schedule._cyclic and self._schedule.schedule_time is not None:
+        if self._schedule._cyclic and self._schedule._schedule_time is not None:
             iteration_period_bound = self._sfg.iteration_period_bound()
-            if self._schedule.schedule_time < iteration_period_bound:
+            if self._schedule._schedule_time < iteration_period_bound:
                 raise ValueError(
-                    f"Provided scheduling time {self._schedule.schedule_time} must be larger or equal to the"
+                    f"Provided scheduling time {self._schedule._schedule_time} must be larger or equal to the"
                     f" iteration period bound: {iteration_period_bound}."
                 )
 
-        if self._schedule.schedule_time is not None:
+        if self._schedule._schedule_time is not None:
             for resource_type, resource_amount in self._max_resources.items():
                 if resource_amount < self._sfg.resource_lower_bound(
-                    resource_type, self._schedule.schedule_time
+                    resource_type, self._schedule._schedule_time
                 ):
                     raise ValueError(
                         f"Amount of resource: {resource_type} is not enough to "
-                        f"realize schedule for scheduling time: {self._schedule.schedule_time}."
+                        f"realize schedule for scheduling time: {self._schedule._schedule_time}."
                     )
 
         alap_schedule = copy.copy(self._schedule)
@@ -570,17 +572,17 @@ class ListScheduler(Scheduler):
         alap_scheduler.apply_scheduling(alap_schedule)
         self._alap_start_times = alap_schedule.start_times
         self._alap_op_laps = alap_scheduler.op_laps
-        self._alap_schedule_time = alap_schedule.schedule_time
+        self._alap_schedule_time = alap_schedule._schedule_time
         self._schedule.start_times = {}
         for key in self._schedule._laps.keys():
             self._schedule._laps[key] = 0
 
-        if not self._schedule._cyclic and self._schedule.schedule_time:
-            if alap_schedule.schedule_time > self._schedule.schedule_time:
+        if not self._schedule._cyclic and self._schedule._schedule_time:
+            if alap_schedule._schedule_time > self._schedule._schedule_time:
                 raise ValueError(
-                    f"Provided scheduling time {schedule.schedule_time} cannot be reached, "
+                    f"Provided scheduling time {schedule._schedule_time} cannot be reached, "
                     "try to enable the cyclic property or increase the time to at least "
-                    f"{alap_schedule.schedule_time}."
+                    f"{alap_schedule._schedule_time}."
                 )
 
         self._remaining_resources = self._max_resources.copy()
@@ -647,8 +649,8 @@ class ListScheduler(Scheduler):
                     next_op, self._current_time, self._op_laps
                 )
                 self._op_laps[next_op.graph_id] = (
-                    (self._current_time) // self._schedule.schedule_time
-                    if self._schedule.schedule_time
+                    (self._current_time) // self._schedule._schedule_time
+                    if self._schedule._schedule_time
                     else 0
                 )
 
@@ -661,7 +663,7 @@ class ListScheduler(Scheduler):
         self._logger.debug("--- Non-Recursive Operation scheduling completed ---")
 
     def _log_scheduled_op(self, next_op: "Operation") -> None:
-        if self._schedule.schedule_time is not None:
+        if self._schedule._schedule_time is not None:
             self._logger.debug(f"  Op: {next_op.graph_id}, time: {self._current_time}")
         else:
             self._logger.debug(f"  Op: {next_op.graph_id}, time: {self._current_time}")
@@ -679,8 +681,8 @@ class ListScheduler(Scheduler):
                     self._current_time
                     + self._cached_latency_offsets[next_op.graph_id][f"in{i}"]
                 )
-                if self._schedule.schedule_time:
-                    time %= self._schedule.schedule_time
+                if self._schedule._schedule_time:
+                    time %= self._schedule._schedule_time
                 if self._used_reads.get(time):
                     self._used_reads[time] += 1
                 else:
@@ -704,7 +706,7 @@ class ListScheduler(Scheduler):
     def _handle_outputs(self) -> None:
         self._logger.debug("--- Output placement starting ---")
         if self._schedule._cyclic:
-            end = self._schedule.schedule_time
+            end = self._schedule._schedule_time
         else:
             end = self._schedule.get_max_end_time()
         for output in self._sfg.find_by_type_name(Output.type_name()):
@@ -714,7 +716,7 @@ class ListScheduler(Scheduler):
 
                 new_time = end + delta_time
 
-                if self._schedule._cyclic and self._schedule.schedule_time is not None:
+                if self._schedule._cyclic and self._schedule._schedule_time is not None:
                     self._schedule.place_operation(output, new_time, self._op_laps)
                 else:
                     self._schedule.start_times[output.graph_id] = new_time
@@ -727,8 +729,8 @@ class ListScheduler(Scheduler):
                         count += 1
 
                 modulo_time = (
-                    new_time % self._schedule.schedule_time
-                    if self._schedule.schedule_time
+                    new_time % self._schedule._schedule_time
+                    if self._schedule._schedule_time
                     else new_time
                 )
                 self._logger.debug(f"   {output.graph_id} time: {modulo_time}")
@@ -741,7 +743,7 @@ class ListScheduler(Scheduler):
         )
         if min_slack != 0:
             for output in self._sfg.find_by_type_name(Output.type_name()):
-                if self._schedule._cyclic and self._schedule.schedule_time is not None:
+                if self._schedule._cyclic and self._schedule._schedule_time is not None:
                     self._schedule.move_operation(output.graph_id, -min_slack)
                 else:
                     self._schedule.start_times[output.graph_id] = (
@@ -750,12 +752,12 @@ class ListScheduler(Scheduler):
                 new_time = self._schedule.start_times[output.graph_id]
                 if (
                     not self._schedule._cyclic
-                    and self._schedule.schedule_time is not None
+                    and self._schedule._schedule_time is not None
                 ):
-                    if new_time > self._schedule.schedule_time:
+                    if new_time > self._schedule._schedule_time:
                         raise ValueError(
                             f"Cannot place output {output.graph_id} at time {new_time} "
-                            f"for scheduling time {self._schedule.schedule_time}. "
+                            f"for scheduling time {self._schedule._schedule_time}. "
                             "Try to relax the scheduling time, change the output delta times or enable cyclic."
                         )
                 self._logger.debug(
@@ -807,7 +809,7 @@ class RecursiveListScheduler(ListScheduler):
         if self._output_delta_times:
             self._handle_outputs()
 
-        if self._schedule.schedule_time is None:
+        if self._schedule._schedule_time is None:
             self._schedule.set_schedule_time(self._schedule.get_max_end_time())
         self._schedule.remove_delays()
         self._handle_dont_cares()
@@ -849,7 +851,7 @@ class RecursiveListScheduler(ListScheduler):
         return [(op_id, self._deadlines[op_id]) for op_id in ready_ops]
 
     def _schedule_recursive_ops(self, loops: list[list["GraphID"]]) -> None:
-        saved_sched_time = self._schedule.schedule_time
+        saved_sched_time = self._schedule._schedule_time
         self._schedule._schedule_time = None
 
         self._logger.debug("--- Scheduling of recursive loops starting ---")
@@ -887,10 +889,10 @@ class RecursiveListScheduler(ListScheduler):
         self._schedule._schedule_time = self._schedule.get_max_end_time()
         if (
             saved_sched_time is not None
-            and saved_sched_time < self._schedule.schedule_time
+            and saved_sched_time < self._schedule._schedule_time
         ):
             raise ValueError(
-                f"Requested schedule time {saved_sched_time} cannot be reached, increase to {self._schedule.schedule_time} or assign more resources."
+                f"Requested schedule time {saved_sched_time} cannot be reached, increase to {self._schedule._schedule_time} or assign more resources."
             )
         self._logger.debug("--- Scheduling of recursive loops completed ---")
 
@@ -924,7 +926,7 @@ class RecursiveListScheduler(ListScheduler):
                 )
                 usage_time = (
                     self._schedule.start_times[destination_op.graph_id]
-                    + self._schedule.schedule_time
+                    + self._schedule._schedule_time
                     * self._schedule.laps[output_port.signals[0].graph_id]
                 )
                 if op_available_time > usage_time:
@@ -939,10 +941,10 @@ class RecursiveListScheduler(ListScheduler):
                 continue
             if source_op.graph_id in self._remaining_ops:
                 return False
-            if self._schedule.schedule_time is not None:
+            if self._schedule._schedule_time is not None:
                 available_time = (
                     self._schedule.start_times.get(source_op.graph_id)
-                    + self._op_laps[source_op.graph_id] * self._schedule.schedule_time
+                    + self._op_laps[source_op.graph_id] * self._schedule._schedule_time
                     + self._cached_latency_offsets[source_op.graph_id][
                         f"out{source_port.index}"
                     ]

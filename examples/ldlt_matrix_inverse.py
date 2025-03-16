@@ -1,8 +1,10 @@
 """
-=========================================
-LDLT Matrix Inversion Algorithm
-=========================================
+===============================
+LDLT matrix inversion algorithm
+===============================
 
+This provides some examples of the different list-based schedulers that are
+available in B-ASIC.
 """
 
 from b_asic.architecture import Memory, ProcessingElement
@@ -44,26 +46,27 @@ print("Scheduling time:", schedule.schedule_time)
 schedule.show()
 
 # %%
-# Create an EarliestDeadline schedule that satisfies the resource constraints.
+# Create an earliest deadline schedule that uses one MADS and one Reciprocal PE.
 resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
 schedule = Schedule(sfg, scheduler=EarliestDeadlineScheduler(resources))
 print("Scheduling time:", schedule.schedule_time)
 schedule.show()
 
 # %%
-# Create a LeastSlackTime schedule that satisfies the resource constraints.
+# Create a least slack-time schedule that uses one MADS and one Reciprocal PE.
 schedule = Schedule(sfg, scheduler=LeastSlackTimeScheduler(resources))
 print("Scheduling time:", schedule.schedule_time)
 schedule.show()
 
 # %%
-# Create a MaxFanOutScheduler schedule that satisfies the resource constraints.
+# Create a max fan-out schedule that uses one MADS and one Reciprocal PE.
 schedule = Schedule(sfg, scheduler=MaxFanOutScheduler(resources))
 print("Scheduling time:", schedule.schedule_time)
 schedule.show()
 
 # %%
-# Create a HybridScheduler schedule that satisfies the resource constraints with custom IO times.
+# Create a HybridScheduler schedule that one MADS and one Reciprocal PE with
+# custom IO times.
 # This is the schedule we will synthesize an architecture for.
 input_times = {
     "in0": 0,

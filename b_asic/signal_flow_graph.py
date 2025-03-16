@@ -7,7 +7,7 @@ Contains the signal flow graph operation.
 import itertools
 import re
 import warnings
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from collections.abc import Iterable, MutableSet, Sequence
 from fractions import Fraction
 from io import StringIO
@@ -2065,6 +2065,10 @@ class SFG(AbstractOperation):
                 for newpath in newpaths:
                     paths.append(newpath)
         return paths
+
+    def operation_counter(self) -> Counter:
+        """Return a Counter with the number of instances for each type."""
+        return Counter(op.type_name() for op in self.operations)
 
     def edit(self) -> dict[str, "SFG"]:
         """Edit SFG in GUI."""
