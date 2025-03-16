@@ -1,3 +1,4 @@
+from qtpy.QtCore import QSettings
 from qtpy.QtGui import QColor, QFont
 
 from b_asic._preferences import EXECUTION_TIME_COLOR, LATENCY_COLOR, SIGNAL_COLOR
@@ -82,3 +83,121 @@ class FontDataType:
 FONT = FontDataType(
     current_font=DEFAULT_FONT, DEFAULT=DEFAULT_FONT, DEFAULT_COLOR=DEFAULT_FONT_COLOR
 )
+
+
+def read_from_settings(settings: QSettings):
+    FONT.current_font = QFont(
+        settings.value("font", defaultValue=FONT.DEFAULT.toString(), type=str)
+    )
+    FONT.size = settings.value(
+        "font_size", defaultValue=FONT.DEFAULT.pointSizeF(), type=int
+    )
+    FONT.color = QColor(
+        settings.value("font_color", defaultValue=FONT.DEFAULT_COLOR, type=str)
+    )
+    FONT.bold = settings.value("font_bold", defaultValue=FONT.DEFAULT.bold(), type=bool)
+    FONT.italic = settings.value(
+        "font_italic", defaultValue=FONT.DEFAULT.italic(), type=bool
+    )
+    FONT.changed = settings.value("font_changed", FONT.changed, bool)
+
+    SIGNAL_COLOR_TYPE.current_color = QColor(
+        settings.value(
+            SIGNAL_COLOR_TYPE.name,
+            defaultValue=SIGNAL_COLOR_TYPE.DEFAULT.name(),
+            type=str,
+        )
+    )
+    ACTIVE_COLOR_TYPE.current_color = QColor(
+        settings.value(
+            ACTIVE_COLOR_TYPE.name,
+            defaultValue=ACTIVE_COLOR_TYPE.DEFAULT.name(),
+            type=str,
+        )
+    )
+    SIGNAL_WARNING_COLOR_TYPE.current_color = QColor(
+        settings.value(
+            SIGNAL_WARNING_COLOR_TYPE.name,
+            defaultValue=SIGNAL_WARNING_COLOR_TYPE.DEFAULT.name(),
+            type=str,
+        )
+    )
+    LATENCY_COLOR_TYPE.current_color = QColor(
+        settings.value(
+            LATENCY_COLOR_TYPE.name,
+            defaultValue=LATENCY_COLOR_TYPE.DEFAULT.name(),
+            type=str,
+        )
+    )
+    EXECUTION_TIME_COLOR_TYPE.current_color = QColor(
+        settings.value(
+            EXECUTION_TIME_COLOR_TYPE.name,
+            defaultValue=EXECUTION_TIME_COLOR_TYPE.DEFAULT.name(),
+            type=str,
+        )
+    )
+    SIGNAL_COLOR_TYPE.changed = settings.value(
+        f"{SIGNAL_COLOR_TYPE.name}_changed", False, bool
+    )
+    ACTIVE_COLOR_TYPE.changed = settings.value(
+        f"{ACTIVE_COLOR_TYPE.name}_changed", False, bool
+    )
+    SIGNAL_WARNING_COLOR_TYPE.changed = settings.value(
+        f"{SIGNAL_WARNING_COLOR_TYPE.name}_changed",
+        False,
+        bool,
+    )
+    LATENCY_COLOR_TYPE.changed = settings.value(
+        f"{LATENCY_COLOR_TYPE.name}_changed", False, bool
+    )
+    EXECUTION_TIME_COLOR_TYPE.changed = settings.value(
+        f"{EXECUTION_TIME_COLOR_TYPE.name}_changed",
+        False,
+        bool,
+    )
+
+
+def write_to_settings(settings: QSettings):
+    settings.setValue("font", FONT.current_font.toString())
+    settings.setValue("font_size", FONT.size)
+    settings.setValue("font_color", FONT.color)
+    settings.setValue("font_bold", FONT.current_font.bold())
+    settings.setValue("font_italic", FONT.current_font.italic())
+    settings.setValue("font_changed", FONT.changed)
+
+    settings.setValue(SIGNAL_COLOR_TYPE.name, SIGNAL_COLOR_TYPE.current_color.name())
+    settings.setValue(ACTIVE_COLOR_TYPE.name, ACTIVE_COLOR_TYPE.current_color.name())
+    settings.setValue(
+        SIGNAL_WARNING_COLOR_TYPE.name,
+        SIGNAL_WARNING_COLOR_TYPE.current_color.name(),
+    )
+    settings.setValue(
+        EXECUTION_TIME_COLOR_TYPE.name,
+        EXECUTION_TIME_COLOR_TYPE.current_color.name(),
+    )
+
+    settings.setValue(f"{SIGNAL_COLOR_TYPE.name}_changed", SIGNAL_COLOR_TYPE.changed)
+    settings.setValue(f"{ACTIVE_COLOR_TYPE.name}_changed", ACTIVE_COLOR_TYPE.changed)
+    settings.setValue(
+        f"{SIGNAL_WARNING_COLOR_TYPE.name}_changed",
+        SIGNAL_WARNING_COLOR_TYPE.changed,
+    )
+
+
+def reset_color_settings(settings: QSettings):
+    LATENCY_COLOR_TYPE.changed = False
+    ACTIVE_COLOR_TYPE.changed = False
+    SIGNAL_WARNING_COLOR_TYPE.changed = False
+    SIGNAL_COLOR_TYPE.changed = False
+    EXECUTION_TIME_COLOR_TYPE.changed = False
+    settings.beginGroup("scheduler/preferences")
+    settings.setValue(LATENCY_COLOR_TYPE.name, LATENCY_COLOR_TYPE.DEFAULT.name())
+    settings.setValue(SIGNAL_COLOR_TYPE.name, SIGNAL_COLOR_TYPE.DEFAULT.name())
+    settings.setValue(ACTIVE_COLOR_TYPE.name, ACTIVE_COLOR_TYPE.DEFAULT.name())
+    settings.setValue(
+        SIGNAL_WARNING_COLOR_TYPE.name, SIGNAL_WARNING_COLOR_TYPE.DEFAULT.name()
+    )
+    settings.setValue(
+        EXECUTION_TIME_COLOR_TYPE.name, EXECUTION_TIME_COLOR_TYPE.DEFAULT.name()
+    )
+    settings.endGroup()
