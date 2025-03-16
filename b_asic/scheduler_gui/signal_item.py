@@ -13,13 +13,13 @@ from qtpy.QtWidgets import QGraphicsPathItem
 
 # B-ASIC
 from b_asic.scheduler_gui._preferences import (
+    ACTIVE_COLOR_TYPE,
     SCHEDULE_INDENT,
+    SIGNAL_COLOR_TYPE,
+    SIGNAL_WARNING_COLOR_TYPE,
     SIGNAL_WIDTH,
     SIGNAL_WIDTH_ACTIVE,
     SIGNAL_WIDTH_WARNING,
-    Active_Color,
-    Signal_Color,
-    Signal_Warning_Color,
 )
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.signal import Signal
@@ -100,24 +100,24 @@ class SignalItem(QGraphicsPathItem):
 
     def _refresh_pens(self) -> None:
         """Create pens."""
-        if Active_Color.changed:
-            pen = QPen(Active_Color.current_color)
+        if ACTIVE_COLOR_TYPE.changed:
+            pen = QPen(ACTIVE_COLOR_TYPE.current_color)
         else:
-            pen = QPen(Active_Color.DEFAULT)
+            pen = QPen(ACTIVE_COLOR_TYPE.DEFAULT)
         pen.setWidthF(SIGNAL_WIDTH_ACTIVE)
         self._active_pen = pen
 
-        if Signal_Color.changed:
-            pen = QPen(Signal_Color.current_color)
+        if SIGNAL_COLOR_TYPE.changed:
+            pen = QPen(SIGNAL_COLOR_TYPE.current_color)
         else:
-            pen = QPen(Signal_Color.DEFAULT)
+            pen = QPen(SIGNAL_COLOR_TYPE.DEFAULT)
         pen.setWidthF(SIGNAL_WIDTH)
         self._inactive_pen = pen
 
-        if Signal_Warning_Color.changed:
-            pen = QPen(Signal_Warning_Color.current_color)
+        if SIGNAL_WARNING_COLOR_TYPE.changed:
+            pen = QPen(SIGNAL_WARNING_COLOR_TYPE.current_color)
         else:
-            pen = QPen(Signal_Warning_Color.DEFAULT)
+            pen = QPen(SIGNAL_WARNING_COLOR_TYPE.DEFAULT)
         pen.setWidthF(SIGNAL_WIDTH_WARNING)
         self._warning_pen = pen
 

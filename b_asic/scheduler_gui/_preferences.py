@@ -36,23 +36,23 @@ class ColorDataType:
         self.name = name
 
 
-Latency_Color = ColorDataType(
+LATENCY_COLOR_TYPE = ColorDataType(
     current_color=OPERATION_LATENCY_INACTIVE,
     DEFAULT=OPERATION_LATENCY_INACTIVE,
     name='Latency Color',
 )
-Execution_Time_Color = ColorDataType(
+EXECUTION_TIME_COLOR_TYPE = ColorDataType(
     current_color=OPERATION_EXECUTION_TIME_ACTIVE,
     DEFAULT=OPERATION_EXECUTION_TIME_ACTIVE,
     name='Execution Time Color',
 )
-Signal_Warning_Color = ColorDataType(
+SIGNAL_WARNING_COLOR_TYPE = ColorDataType(
     current_color=SIGNAL_WARNING, DEFAULT=SIGNAL_WARNING, name='Warning Color'
 )
-Signal_Color = ColorDataType(
+SIGNAL_COLOR_TYPE = ColorDataType(
     current_color=SIGNAL_INACTIVE, DEFAULT=SIGNAL_INACTIVE, name='Signal Color'
 )
-Active_Color = ColorDataType(
+ACTIVE_COLOR_TYPE = ColorDataType(
     current_color=SIGNAL_ACTIVE, DEFAULT=SIGNAL_ACTIVE, name='Active Color'
 )
 
@@ -79,6 +79,6 @@ class FontDataType:
         self.changed = changed
 
 
-Font = FontDataType(
+FONT = FontDataType(
     current_font=DEFAULT_FONT, DEFAULT=DEFAULT_FONT, DEFAULT_COLOR=DEFAULT_FONT_COLOR
 )

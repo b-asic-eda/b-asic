@@ -26,12 +26,12 @@ from b_asic.graph_component import GraphID
 from b_asic.gui_utils.icons import get_icon
 from b_asic.operation import Operation
 from b_asic.scheduler_gui._preferences import (
+    ACTIVE_COLOR_TYPE,
+    EXECUTION_TIME_COLOR_TYPE,
+    LATENCY_COLOR_TYPE,
     OPERATION_HEIGHT,
-    Active_Color,
-    Execution_Time_Color,
-    Latency_Color,
-    Signal_Color,
-    Signal_Warning_Color,
+    SIGNAL_COLOR_TYPE,
+    SIGNAL_WARNING_COLOR_TYPE,
 )
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ class OperationItem(QGraphicsItemGroup):
     _label_item: QGraphicsSimpleTextItem
     _port_items: list[QGraphicsEllipseItem]
     _port_number_items: list[QGraphicsSimpleTextItem]
-    _inactive_color: QColor = Latency_Color.DEFAULT
+    _inactive_color: QColor = LATENCY_COLOR_TYPE.DEFAULT
 
     def __init__(
         self,
@@ -97,30 +97,32 @@ class OperationItem(QGraphicsItemGroup):
             QCursor(Qt.CursorShape.OpenHandCursor)
         )  # default cursor when hovering over object
 
-        if Signal_Color.changed:
-            self._port_filling_brush = QBrush(Signal_Color.current_color)
-            self._port_outline_pen = QPen(Signal_Color.current_color)
+        if SIGNAL_COLOR_TYPE.changed:
+            self._port_filling_brush = QBrush(SIGNAL_COLOR_TYPE.current_color)
+            self._port_outline_pen = QPen(SIGNAL_COLOR_TYPE.current_color)
         else:
-            self._port_filling_brush = QBrush(Signal_Color.DEFAULT)
-            self._port_outline_pen = QPen(Signal_Color.DEFAULT)
+            self._port_filling_brush = QBrush(SIGNAL_COLOR_TYPE.DEFAULT)
+            self._port_outline_pen = QPen(SIGNAL_COLOR_TYPE.DEFAULT)
         self._port_outline_pen.setWidthF(0)
 
-        if Active_Color.changed:
-            self._port_filling_brush_active = QBrush(Active_Color.current_color)
-            self._port_outline_pen_active = QPen(Active_Color.current_color)
+        if ACTIVE_COLOR_TYPE.changed:
+            self._port_filling_brush_active = QBrush(ACTIVE_COLOR_TYPE.current_color)
+            self._port_outline_pen_active = QPen(ACTIVE_COLOR_TYPE.current_color)
         else:
-            self._port_filling_brush_active = QBrush(Active_Color.DEFAULT)
-            self._port_outline_pen_active = QPen(Active_Color.DEFAULT)
+            self._port_filling_brush_active = QBrush(ACTIVE_COLOR_TYPE.DEFAULT)
+            self._port_outline_pen_active = QPen(ACTIVE_COLOR_TYPE.DEFAULT)
         self._port_outline_pen_active.setWidthF(0)
 
-        if Signal_Warning_Color.changed:
+        if SIGNAL_WARNING_COLOR_TYPE.changed:
             self._port_filling_brush_warning = QBrush(
-                Signal_Warning_Color.current_color
+                SIGNAL_WARNING_COLOR_TYPE.current_color
             )
-            self._port_outline_pen_warning = QPen(Signal_Warning_Color.current_color)
+            self._port_outline_pen_warning = QPen(
+                SIGNAL_WARNING_COLOR_TYPE.current_color
+            )
         else:
-            self._port_filling_brush_warning = QBrush(Signal_Warning_Color.DEFAULT)
-            self._port_outline_pen_warning = QPen(Signal_Warning_Color.DEFAULT)
+            self._port_filling_brush_warning = QBrush(SIGNAL_WARNING_COLOR_TYPE.DEFAULT)
+            self._port_outline_pen_warning = QPen(SIGNAL_WARNING_COLOR_TYPE.DEFAULT)
         self._port_outline_pen_warning.setWidthF(0)
 
         self._make_component()
@@ -198,18 +200,18 @@ class OperationItem(QGraphicsItemGroup):
 
     def set_active(self) -> None:
         """Set the item as active, i.e., draw it in special colors."""
-        if Active_Color.changed:
-            self._set_background(Active_Color.current_color)
+        if ACTIVE_COLOR_TYPE.changed:
+            self._set_background(ACTIVE_COLOR_TYPE.current_color)
         else:
-            self._set_background(Active_Color.DEFAULT)
+            self._set_background(ACTIVE_COLOR_TYPE.DEFAULT)
         self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
     def set_inactive(self) -> None:
         """Set the item as inactive, i.e., draw it in standard colors."""
-        if Latency_Color.changed:
+        if LATENCY_COLOR_TYPE.changed:
             self._set_background(self._inactive_color)
         else:
-            self._set_background(Latency_Color.DEFAULT)
+            self._set_background(LATENCY_COLOR_TYPE.DEFAULT)
         self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
     def Set_font(self, font: QFont) -> None:
@@ -231,12 +233,12 @@ class OperationItem(QGraphicsItemGroup):
 
     def set_port_active(self, key: str):
         item = self._ports[key]["item"]
-        if Active_Color.changed:
-            self._port_filling_brush_active = QBrush(Active_Color.current_color)
-            self._port_outline_pen_active = QPen(Active_Color.current_color)
+        if ACTIVE_COLOR_TYPE.changed:
+            self._port_filling_brush_active = QBrush(ACTIVE_COLOR_TYPE.current_color)
+            self._port_outline_pen_active = QPen(ACTIVE_COLOR_TYPE.current_color)
         else:
-            self._port_filling_brush_active = QBrush(Active_Color.DEFAULT)
-            self._port_outline_pen_active = QPen(Active_Color.DEFAULT)
+            self._port_filling_brush_active = QBrush(ACTIVE_COLOR_TYPE.DEFAULT)
+            self._port_outline_pen_active = QPen(ACTIVE_COLOR_TYPE.DEFAULT)
 
         self._port_outline_pen_active.setWidthF(0)
         item.setBrush(self._port_filling_brush_active)
@@ -267,10 +269,10 @@ class OperationItem(QGraphicsItemGroup):
 
         port_size = 7 / self._scale  # the diameter of a port
 
-        if Execution_Time_Color.changed:
-            execution_time_color = QColor(Execution_Time_Color.current_color)
+        if EXECUTION_TIME_COLOR_TYPE.changed:
+            execution_time_color = QColor(EXECUTION_TIME_COLOR_TYPE.current_color)
         else:
-            execution_time_color = QColor(Execution_Time_Color.DEFAULT)
+            execution_time_color = QColor(EXECUTION_TIME_COLOR_TYPE.DEFAULT)
         execution_time_color.setAlpha(200)  # 0-255
         execution_time_pen = QPen()  # used by execution time outline
         execution_time_pen.setColor(execution_time_color)
@@ -298,7 +300,7 @@ class OperationItem(QGraphicsItemGroup):
             self._execution_time_item.setPen(execution_time_pen)
 
         # component item
-        self._set_background(Latency_Color.DEFAULT)  # used by component filling
+        self._set_background(LATENCY_COLOR_TYPE.DEFAULT)  # used by component filling
 
         def create_ports(io_coordinates, prefix):
             for i, (x, y) in enumerate(io_coordinates):
