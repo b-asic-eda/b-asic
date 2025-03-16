@@ -1340,29 +1340,18 @@ class ProcessCollection:
                     raise ValueError(f'{mv!r} is not part of {self!r}.')
 
         # Make sure that concurrent reads/writes do not surpass the port setting
-        for mv in self:
-
-            def filter_write(p):
-                return p.start_time == mv.start_time
-
-            def filter_read(p):
-                return (
-                    (p.start_time + p.execution_time) % self._schedule_time
-                    == mv.start_time + mv.execution_time % self._schedule_time
-                )
-
-            needed_write_ports = len(list(filter(filter_write, self)))
-            needed_read_ports = len(list(filter(filter_read, self)))
-            if needed_write_ports > write_ports + 1:
-                raise ValueError(
-                    f'More than {write_ports} write ports needed ({needed_write_ports})'
-                    ' to generate HDL for this ProcessCollection'
-                )
-            if needed_read_ports > read_ports + 1:
-                raise ValueError(
-                    f'More than {read_ports} read ports needed ({needed_read_ports}) to'
-                    ' generate HDL for this ProcessCollection'
-                )
+        needed_write_ports = self.read_ports_bound()
+        needed_read_ports = self.write_ports_bound()
+        if needed_write_ports > write_ports + 1:
+            raise ValueError(
+                f'More than {write_ports} write ports needed ({needed_write_ports})'
+                ' to generate HDL for this ProcessCollection'
+            )
+        if needed_read_ports > read_ports + 1:
+            raise ValueError(
+                f'More than {read_ports} read ports needed ({needed_read_ports}) to'
+                ' generate HDL for this ProcessCollection'
+            )
 
         # Sanitize the address logic pipeline settings
         if adr_mux_size is not None and adr_pipe_depth is not None:
@@ -1648,11 +1637,11 @@ class ProcessCollection:
         axes : list of three :class:`matplotlib.axes.Axes`
             Three Axes to plot in.
         """
-        axes[0].bar(*zip(*self.read_port_accesses().items()))
+        axes[0].bar(*zip(*self.read_port_accesses().items(), strict=True))
         axes[0].set_title("Read port accesses")
-        axes[1].bar(*zip(*self.write_port_accesses().items()))
+        axes[1].bar(*zip(*self.write_port_accesses().items(), strict=True))
         axes[1].set_title("Write port accesses")
-        axes[2].bar(*zip(*self.total_port_accesses().items()))
+        axes[2].bar(*zip(*self.total_port_accesses().items(), strict=True))
         axes[2].set_title("Total port accesses")
         for ax in axes:
             ax.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))

@@ -287,7 +287,9 @@ class SFG(AbstractOperation):
             new_signal = cast(Signal, self._original_components_to_new[signal])
 
             if new_signal.source in output_sources:
-                warnings.warn("Two signals connected to the same output port")
+                warnings.warn(
+                    "Two signals connected to the same output port", stacklevel=2
+                )
             output_sources.append(new_signal.source)
 
             if new_signal.source is None:
@@ -377,6 +379,7 @@ class SFG(AbstractOperation):
                 if quantize
                 else input_values
             ),
+            strict=True,
         ):
             op.value = arg
 
@@ -434,7 +437,9 @@ class SFG(AbstractOperation):
             return False
 
         # For each input_signal, connect it to the corresponding operation
-        for input_port, input_operation in zip(self.inputs, self.input_operations):
+        for input_port, input_operation in zip(
+            self.inputs, self.input_operations, strict=True
+        ):
             destination = input_operation.output(0).signals[0].destination
             if destination is None:
                 raise ValueError("Missing destination in signal.")
@@ -448,7 +453,9 @@ class SFG(AbstractOperation):
                 other_destination.add_signal(Signal(destination.signals[0].source))
             input_operation.output(0).clear()
         # For each output_signal, connect it to the corresponding operation
-        for output_port, output_operation in zip(self.outputs, self.output_operations):
+        for output_port, output_operation in zip(
+            self.outputs, self.output_operations, strict=True
+        ):
             src = output_operation.input(0).signals[0].source
             if src is None:
                 raise ValueError("Missing source in signal.")
@@ -505,10 +512,9 @@ class SFG(AbstractOperation):
         visited: set[Operation] = {output_op}
         while queue:
             op = queue.popleft()
-            if isinstance(op, Input):
-                if op in sfg_input_operations_to_indexes:
-                    input_indexes_required.append(sfg_input_operations_to_indexes[op])
-                    del sfg_input_operations_to_indexes[op]
+            if isinstance(op, Input) and op in sfg_input_operations_to_indexes:
+                input_indexes_required.append(sfg_input_operations_to_indexes[op])
+                del sfg_input_operations_to_indexes[op]
 
             for input_port in op.inputs:
                 for signal in input_port.signals:
@@ -649,7 +655,9 @@ class SFG(AbstractOperation):
 
         if component_copy.type_name() == 'out':
             sfg_copy._output_operations.remove(component_copy)
-            warnings.warn(f"Output port {component_copy.graph_id} has been removed")
+            warnings.warn(
+                f"Output port {component_copy.graph_id} has been removed", stacklevel=2
+            )
         if component.type_name() == 'out':
             sfg_copy._output_operations.append(component)
 
@@ -1007,7 +1015,7 @@ class SFG(AbstractOperation):
                         )
         # Creates edges for each output port and creates nodes for each operation
         # and edges for them as well
-        for i, ports in enumerate(p_list):
+        for ports in p_list:
             for port in ports:
                 source_label = port.operation.graph_id
                 node_node = port.name
@@ -1774,7 +1782,7 @@ class SFG(AbstractOperation):
         op_and_latency = {}
         for op in self.operations:
             for loop in loops:
-                for element in loop:
+                for _ in loop:
                     if op.type_name() not in op_and_latency:
                         op_and_latency[op.type_name()] = op.latency
         t_l_values = []
@@ -1821,14 +1829,15 @@ class SFG(AbstractOperation):
         while queue:
             op = queue.popleft()
             for output_port in op.outputs:
-                if not (isinstance(op, Input) or isinstance(op, Output)):
+                if not isinstance(op, (Input, Output)):
                     dict_of_sfg[op.graph_id] = []
                 for signal in output_port.signals:
                     if signal.destination is not None:
                         new_op = signal.destination.operation
-                        if not (isinstance(op, Input) or isinstance(op, Output)):
-                            if not isinstance(new_op, Output):
-                                dict_of_sfg[op.graph_id] += [new_op.graph_id]
+                        if not isinstance(op, (Input, Output)) and not isinstance(
+                            new_op, Output
+                        ):
+                            dict_of_sfg[op.graph_id] += [new_op.graph_id]
                         if new_op not in visited:
                             queue.append(new_op)
                             visited.add(new_op)
@@ -2036,7 +2045,9 @@ class SFG(AbstractOperation):
                 mat_content[row, column] += temp_value
         return matrix_answer, mat_content, matrix_in
 
-    def find_all_paths(self, graph: dict, start: str, end: str, path=[]) -> list:
+    def find_all_paths(
+        self, graph: dict, start: str, end: str, path: list | None = None
+    ) -> list:
         """
         Returns all paths in graph from node start to node end
 
@@ -2053,6 +2064,9 @@ class SFG(AbstractOperation):
         -------
         The state-space representation of the SFG.
         """
+        if path is None:
+            path = []
+
         path = path + [start]
         if start == end:
             return [path]
@@ -2137,7 +2151,9 @@ class SFG(AbstractOperation):
         # For each copy of the SFG, create new input operations for every "original"
         # input operation and connect them to begin creating the unfolded SFG
         for i in range(factor):
-            for port, operation in zip(sfgs[i].inputs, sfgs[i].input_operations):
+            for port, operation in zip(
+                sfgs[i].inputs, sfgs[i].input_operations, strict=True
+            ):
                 if not operation.name.startswith("input_t"):
                     i = Input()
                     new_inputs.append(i)
@@ -2154,7 +2170,9 @@ class SFG(AbstractOperation):
         new_outputs = []
         delay_placements = {}
         for i in range(factor):
-            for port, operation in zip(sfgs[i].outputs, sfgs[i].output_operations):
+            for port, operation in zip(
+                sfgs[i].outputs, sfgs[i].output_operations, strict=True
+            ):
                 if not operation.name.startswith("output_t"):
                     new_outputs.append(Output(port))
                 else:

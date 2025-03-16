@@ -462,7 +462,7 @@ class Schedule:
         # if updating the scheduling time -> update laps due to operations
         # reading and writing in different iterations (across the edge)
         if self._schedule_time is not None:
-            for signal_id in self._laps.keys():
+            for signal_id in self._laps:
                 port = self._sfg.find_by_id(signal_id).destination
 
                 source_port = port.signals[0].source
@@ -701,7 +701,7 @@ class Schedule:
             else:
                 offset += 1
 
-        for gid, y_location in self._y_locations.items():
+        for gid in self._y_locations:
             self._y_locations[gid] = remapping[self._y_locations[gid]]
 
     def get_y_location(self, graph_id: GraphID) -> int:
@@ -992,7 +992,7 @@ class Schedule:
             destination_laps.append((port.operation.graph_id, port.index, lap))
 
         for op, port, lap in destination_laps:
-            for delays in range(lap):
+            for _ in range(lap):
                 new_sfg = new_sfg.insert_operation_before(op, Delay(), port)
         return new_sfg()
 
@@ -1234,7 +1234,7 @@ class Schedule:
                 latency_coordinates,
                 execution_time_coordinates,
             ) = operation.get_plot_coordinates()
-            _x, _y = zip(*latency_coordinates)
+            _x, _y = zip(*latency_coordinates, strict=True)
             x = np.array(_x)
             y = np.array(_y)
             xvalues = x + op_start_time
@@ -1258,7 +1258,7 @@ class Schedule:
                     size=10 - (0.05 * len(self._start_times)),
                 )
             if execution_time_coordinates:
-                _x, _y = zip(*execution_time_coordinates)
+                _x, _y = zip(*execution_time_coordinates, strict=True)
                 x = np.array(_x)
                 y = np.array(_y)
                 xvalues = x + op_start_time

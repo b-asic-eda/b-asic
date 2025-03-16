@@ -1046,9 +1046,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @property
     def is_linear(self) -> bool:
         # doc-string inherited
-        if self.is_constant:
-            return True
-        return False
+        return self.is_constant
 
     @property
     def is_constant(self) -> bool:

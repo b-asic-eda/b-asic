@@ -57,7 +57,7 @@ def memory_based_storage(
     read_ports: set[Port] = {
         read_port for mv in collection for read_port in mv.read_ports
     }  # type: ignore
-    for idx, read_port in enumerate(read_ports):
+    for read_port in read_ports:
         port_name = read_port if isinstance(read_port, int) else read_port.name
         port_name = 'p_' + str(port_name) + '_in'
         f.write(f'{2*VHDL_TAB}{port_name} : in std_logic_vector(WL-1 downto 0);\n')

@@ -415,7 +415,7 @@ def radix_2_dif_fft(points: int) -> SFG:
         raise ValueError("Points must be a power of two.")
 
     inputs = []
-    for i in range(points):
+    for _ in range(points):
         inputs.append(Input())
 
     ports = inputs
@@ -430,7 +430,7 @@ def radix_2_dif_fft(points: int) -> SFG:
 
     ports = _get_bit_reversed_ports(ports)
     outputs = []
-    for i, port in enumerate(ports):
+    for port in ports:
         outputs.append(Output(port))
 
     return SFG(inputs=inputs, outputs=outputs)

@@ -976,7 +976,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             log.error("'Operator' not found in info table. It may have been renamed.")
 
     def _create_recent_file_actions_and_menus(self):
-        for i in range(self._max_recent_files):
+        for _ in range(self._max_recent_files):
             recent_file_action = QAction(self.menu_Recent_Schedule)
             recent_file_action.setVisible(False)
             recent_file_action.triggered.connect(
@@ -1234,12 +1234,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             elif not LATENCY_COLOR_TYPE.changed and not self._color_changed_perType:
                 self._color_per_type[type] = LATENCY_COLOR_TYPE.DEFAULT
             elif not LATENCY_COLOR_TYPE.changed and self._color_changed_perType:
-                if type in self.changed_operation_colors.keys():
+                if type in self.changed_operation_colors:
                     self._color_per_type[type] = self.changed_operation_colors[type]
                 else:
                     self._color_per_type[type] = LATENCY_COLOR_TYPE.DEFAULT
             else:
-                if type in self.changed_operation_colors.keys():
+                if type in self.changed_operation_colors:
                     self._color_per_type[type] = self.changed_operation_colors[type]
                 else:
                     self._color_per_type[type] = LATENCY_COLOR_TYPE.current_color
@@ -1287,10 +1287,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # If a valid color is selected, update the current color and settings
         if color.isValid():
             color_type.current_color = color
-            # colorbutton.set_color(color)
-            color_type.changed = (
-                False if color_type.current_color == color_type.DEFAULT else True
-            )
+            color_type.changed = color_type.current_color != color_type.DEFAULT
             settings.setValue(f"scheduler/preferences/{color_type.name}", color.name())
             settings.sync()
 
@@ -1312,10 +1309,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         boldbutton : ColorButton
             The button displaying the bold state to be matched with the chosen font.
         """
-        if FONT.changed:
-            current_font = FONT.current_font
-        else:
-            current_font = FONT.DEFAULT
+        current_font = FONT.current_font if FONT.changed else FONT.DEFAULT
 
         (ok, font) = QFontDialog.getFont(current_font, self)
         if ok:
@@ -1330,15 +1324,11 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def update_font(self):
         """Update font preferences based on current Font settings"""
         settings = QSettings()
-        FONT.changed = (
-            False
-            if (
-                FONT.current_font == FONT.DEFAULT
-                and FONT.size == int(FONT.DEFAULT.pointSizeF())
-                and FONT.italic == FONT.DEFAULT.italic()
-                and FONT.bold == FONT.DEFAULT.bold()
-            )
-            else True
+        FONT.changed = not (
+            FONT.current_font == FONT.DEFAULT
+            and FONT.size == int(FONT.DEFAULT.pointSizeF())
+            and FONT.italic == FONT.DEFAULT.italic()
+            and FONT.bold == FONT.DEFAULT.bold()
         )
         settings.setValue("scheduler/preferences/font", FONT.current_font.toString())
         settings.setValue("scheduler/preferences/fontSize", FONT.size)
@@ -1411,7 +1401,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         size
             The font size to be set.
         """
-        FONT.size = int(size) if (not size == "") else 6
+        FONT.size = int(size) if size != "" else 6
         FONT.current_font.setPointSizeF(FONT.size)
         self.update_font()
 

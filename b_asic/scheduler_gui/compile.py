@@ -177,11 +177,7 @@ def compile_ui(*filenames: str) -> None:
             )
 
             os_ = sys.platform
-            if os_.startswith("linux"):  # Linux
-                cmd = f"{uic_} {arguments}"
-                subprocess.call(cmd.split())
-
-            elif os_.startswith("win32"):  # Windows
+            if os_.startswith("linux") or os_.startswith("win32"):
                 cmd = f"{uic_} {arguments}"
                 subprocess.call(cmd.split())
 
@@ -190,7 +186,7 @@ def compile_ui(*filenames: str) -> None:
                 log.error("macOS UI compiler not implemented")
                 raise NotImplementedError
 
-            else:  # other OS
+            else:
                 log.error(f"{os_} UI compiler not supported")
                 raise NotImplementedError
 

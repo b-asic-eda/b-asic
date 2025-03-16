@@ -308,16 +308,16 @@ class TestReplaceOperation:
         component_id = "add0"
 
         sfg = sfg.replace_operation(Multiplication(name="Multi"), graph_id=component_id)
-        assert component_id not in sfg._components_by_id.keys()
-        assert "Multi" in sfg._components_by_name.keys()
+        assert component_id not in sfg._components_by_id
+        assert "Multi" in sfg._components_by_name
 
     def test_replace_addition_large_tree(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
         component_id = "add2"
 
         sfg = sfg.replace_operation(Multiplication(name="Multi"), graph_id=component_id)
-        assert "Multi" in sfg._components_by_name.keys()
-        assert component_id not in sfg._components_by_id.keys()
+        assert "Multi" in sfg._components_by_name
+        assert component_id not in sfg._components_by_id
 
     def test_replace_no_input_component(self, operation_tree):
         sfg = SFG(outputs=[Output(operation_tree)])
@@ -1514,7 +1514,7 @@ class TestUnfold:
         # Ensure that we aren't missing any keys, or have any extras
         assert count1.keys() == count2.keys()
 
-        for k in count1.keys():
+        for k in count1:
             assert count1[k] * multiple == count2[k]
 
     # This is horrifying, but I can't figure out a way to run the test on multiple
@@ -1818,8 +1818,8 @@ class TestResourceLowerBound:
         assert sfg.resource_lower_bound("cmul", 1000) == 0
 
     def test_type_not_in_sfg(self, sfg_simple_accumulator):
-        sfg_simple_accumulator.resource_lower_bound("bfly", 2) == 0
-        sfg_simple_accumulator.resource_lower_bound("bfly", 1000) == 0
+        assert sfg_simple_accumulator.resource_lower_bound("bfly", 2) == 0
+        assert sfg_simple_accumulator.resource_lower_bound("bfly", 1000) == 0
 
     def test_negative_schedule_time(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type("add", 2)

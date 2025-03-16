@@ -210,14 +210,16 @@ class SchedulerEvent:
         if pos_x < 0:
             pos_x += self._schedule.schedule_time
             redraw = True
-        if pos_x > self._schedule.schedule_time:
+        if (
+            pos_x > self._schedule.schedule_time
             # If zero execution time, keep operation at the edge
-            if (
+            and (
                 pos_x > self._schedule.schedule_time + 1
                 or item.operation.execution_time
-            ):
-                pos_x = pos_x % self._schedule.schedule_time
-                redraw = True
+            )
+        ):
+            pos_x = pos_x % self._schedule.schedule_time
+            redraw = True
         pos_y = self._schedule.get_y_location(item.operation.graph_id)
         # Check move in y-direction
         if pos_y != self._old_op_position:

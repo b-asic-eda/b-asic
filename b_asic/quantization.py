@@ -124,10 +124,7 @@ def quantize(
     elif quantization is Quantization.ROUNDING:
         v = math.floor(v + 0.5)
     elif quantization is Quantization.MAGNITUDE_TRUNCATION:
-        if v >= 0:
-            v = math.floor(v)
-        else:
-            v = math.ceil(v)
+        v = math.floor(v) if v >= 0 else math.ceil(v)
     elif quantization is Quantization.JAMMING:
         v = math.floor(v) | 1
     elif quantization is Quantization.UNBIASED_ROUNDING:

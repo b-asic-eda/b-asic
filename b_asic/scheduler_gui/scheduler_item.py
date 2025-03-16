@@ -149,10 +149,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     def _color_change(self, color: QColor, name: str) -> None:
         """Change inactive color of operation item *."""
         for op in self.components:
-            if name == "all operations":
-                op._set_background(color)
-                op._inactive_color = color
-            elif name == op.operation.type_name():
+            if name in ("all operations", op.operation.type_name()):
                 op._set_background(color)
                 op._inactive_color = color
 
@@ -327,7 +324,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     def _redraw_from_start(self) -> None:
         self.schedule.reset_y_locations()
         self.schedule.sort_y_locations_on_start_times()
-        for graph_id in self.schedule.start_times.keys():
+        for graph_id in self.schedule.start_times:
             self._set_position(graph_id)
         self._redraw_all_lines()
         self._update_axes()
@@ -355,7 +352,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     def _make_graph(self) -> None:
         """Make a new graph out of the stored attributes."""
         # build components
-        for graph_id in self.schedule.start_times.keys():
+        for graph_id in self.schedule.start_times:
             operation = cast(Operation, self.schedule._sfg.find_by_id(graph_id))
             component = OperationItem(operation, height=OPERATION_HEIGHT, parent=self)
             self._operation_items[graph_id] = component

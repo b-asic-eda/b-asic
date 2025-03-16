@@ -160,4 +160,4 @@ def test_signal_errors():
 
     signal = Signal()
     with pytest.raises(ValueError, match="Signal source not set"):
-        signal.is_constant
+        _ = signal.is_constant

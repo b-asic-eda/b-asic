@@ -359,7 +359,7 @@ class InputPort(AbstractPort):
             tmp_signal = self.signals[0]
             tmp_signal.remove_destination()
         current = self
-        for i in range(number):
+        for _ in range(number):
             d = Delay()
             current.connect(d)
             current = d.input(0)

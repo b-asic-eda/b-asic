@@ -164,7 +164,7 @@ class ALAPScheduler(Scheduler):
 
         # adjust the scheduling time if empty time slots have appeared in the start
         slack = min(schedule.start_times.values())
-        for op_id in schedule.start_times.keys():
+        for op_id in schedule.start_times:
             schedule.move_operation(op_id, -slack)
         schedule.set_schedule_time(schedule._schedule_time - slack)
 
@@ -349,7 +349,7 @@ class ListScheduler(Scheduler):
     def _calculate_fan_outs(self) -> dict["GraphID", int]:
         return {
             op_id: len(self._sfg.find_by_id(op_id).output_signals)
-            for op_id in self._alap_start_times.keys()
+            for op_id in self._alap_start_times
         }
 
     def _calculate_memory_reads(
@@ -379,13 +379,13 @@ class ListScheduler(Scheduler):
             if other_op_id != op._graph_id:
                 if self._schedule._schedule_time is not None:
                     start_time = start_time % self._schedule._schedule_time
-
-                if time >= start_time:
-                    if time < start_time + max(
-                        self._cached_execution_times[other_op_id], 1
-                    ):
-                        if isinstance(self._sfg.find_by_id(other_op_id), type(op)):
-                            count += 1
+                if (
+                    time >= start_time
+                    and time
+                    < start_time + max(self._cached_execution_times[other_op_id], 1)
+                    and isinstance(self._sfg.find_by_id(other_op_id), type(op))
+                ):
+                    count += 1
         return count
 
     def _op_satisfies_resource_constraints(self, op: "Operation") -> bool:
@@ -446,7 +446,7 @@ class ListScheduler(Scheduler):
             tmp_used_reads = {}
             for i, op_input in enumerate(op.inputs):
                 source_op = op_input.signals[0].source.operation
-                if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
+                if isinstance(source_op, (Delay, DontCare)):
                     continue
                 if (
                     self._schedule.start_times[source_op.graph_id]
@@ -477,7 +477,7 @@ class ListScheduler(Scheduler):
             source_port = op_input.signals[0].source
             source_op = source_port.operation
 
-            if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
+            if isinstance(source_op, (Delay, DontCare)):
                 continue
 
             if source_op.graph_id in self._remaining_ops:
@@ -519,7 +519,7 @@ class ListScheduler(Scheduler):
         self._schedule = schedule
         self._sfg = schedule._sfg
 
-        for resource_type in self._max_resources.keys():
+        for resource_type in self._max_resources:
             if not self._sfg.find_by_type_name(resource_type):
                 raise ValueError(
                     f"Provided max resource of type {resource_type} cannot be found in the provided SFG."
@@ -528,7 +528,7 @@ class ListScheduler(Scheduler):
         differing_elems = [
             resource
             for resource in self._sfg.get_used_type_names()
-            if resource not in self._max_resources.keys()
+            if resource not in self._max_resources
             and resource != Delay.type_name()
             and resource != DontCare.type_name()
             and resource != Sink.type_name()
@@ -536,13 +536,13 @@ class ListScheduler(Scheduler):
         for type_name in differing_elems:
             self._max_resources[type_name] = 1
 
-        for key in self._input_times.keys():
+        for key in self._input_times:
             if self._sfg.find_by_id(key) is None:
                 raise ValueError(
                     f"Provided input time with GraphID {key} cannot be found in the provided SFG."
                 )
 
-        for key in self._output_delta_times.keys():
+        for key in self._output_delta_times:
             if self._sfg.find_by_id(key) is None:
                 raise ValueError(
                     f"Provided output delta time with GraphID {key} cannot be found in the provided SFG."
@@ -574,16 +574,19 @@ class ListScheduler(Scheduler):
         self._alap_op_laps = alap_scheduler.op_laps
         self._alap_schedule_time = alap_schedule._schedule_time
         self._schedule.start_times = {}
-        for key in self._schedule._laps.keys():
+        for key in self._schedule._laps:
             self._schedule._laps[key] = 0
 
-        if not self._schedule._cyclic and self._schedule._schedule_time:
-            if alap_schedule._schedule_time > self._schedule._schedule_time:
-                raise ValueError(
-                    f"Provided scheduling time {schedule._schedule_time} cannot be reached, "
-                    "try to enable the cyclic property or increase the time to at least "
-                    f"{alap_schedule._schedule_time}."
-                )
+        if (
+            not self._schedule._cyclic
+            and self._schedule.schedule_time
+            and alap_schedule.schedule_time > self._schedule.schedule_time
+        ):
+            raise ValueError(
+                f"Provided scheduling time {schedule.schedule_time} cannot be reached, "
+                "try to enable the cyclic property or increase the time to at least "
+                f"{alap_schedule.schedule_time}."
+            )
 
         self._remaining_resources = self._max_resources.copy()
 
@@ -753,13 +756,13 @@ class ListScheduler(Scheduler):
                 if (
                     not self._schedule._cyclic
                     and self._schedule._schedule_time is not None
+                    and new_time > self._schedule._schedule_time
                 ):
-                    if new_time > self._schedule._schedule_time:
-                        raise ValueError(
-                            f"Cannot place output {output.graph_id} at time {new_time} "
-                            f"for scheduling time {self._schedule._schedule_time}. "
-                            "Try to relax the scheduling time, change the output delta times or enable cyclic."
-                        )
+                    raise ValueError(
+                        f"Cannot place output {output.graph_id} at time {new_time} "
+                        f"for scheduling time {self._schedule._schedule_time}. "
+                        "Try to relax the scheduling time, change the output delta times or enable cyclic."
+                    )
                 self._logger.debug(
                     f"   {output.graph_id} moved {min_slack} time steps backwards to new time {new_time}"
                 )
@@ -818,20 +821,19 @@ class RecursiveListScheduler(ListScheduler):
 
     def _get_recursive_ops(self, loops: list[list["GraphID"]]) -> list["GraphID"]:
         recursive_ops = []
-        seen = []
         for loop in loops:
             for op_id in loop:
-                if op_id not in seen:
-                    if not isinstance(self._sfg.find_by_id(op_id), Delay):
-                        recursive_ops.append(op_id)
-                        seen.append(op_id)
+                if op_id not in recursive_ops and not isinstance(
+                    self._sfg.find_by_id(op_id), Delay
+                ):
+                    recursive_ops.append(op_id)
         return recursive_ops
 
     def _recursive_op_satisfies_data_dependencies(self, op: "Operation") -> bool:
-        for input_port_index, op_input in enumerate(op.inputs):
+        for op_input in op.inputs:
             source_port = source_op = op_input.signals[0].source
             source_op = source_port.operation
-            if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
+            if isinstance(source_op, (Delay, DontCare)):
                 continue
             if (
                 source_op.graph_id in self._recursive_ops
@@ -937,7 +939,7 @@ class RecursiveListScheduler(ListScheduler):
         for op_input in op.inputs:
             source_port = op_input.signals[0].source
             source_op = source_port.operation
-            if isinstance(source_op, Delay) or isinstance(source_op, DontCare):
+            if isinstance(source_op, (Delay, DontCare)):
                 continue
             if source_op.graph_id in self._remaining_ops:
                 return False

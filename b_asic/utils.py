@@ -26,7 +26,7 @@ def interleave(*args) -> list[Num]:
     ... interleave(a, b, c)
     [1, 3, -1, 2, 4, 0]
     """
-    return [val for tup in zip(*args) for val in tup]
+    return [val for tup in zip(*args, strict=True) for val in tup]
 
 
 def downsample(a: Sequence[Num], factor: int, phase: int = 0) -> list[Num]:

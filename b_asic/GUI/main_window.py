@@ -382,7 +382,7 @@ class SFGMainWindow(QMainWindow):
         self.update()
 
     def _create_recent_file_actions_and_menus(self):
-        for i in range(self._max_recent_files):
+        for _ in range(self._max_recent_files):
             recent_file_action = QAction(self._ui.recent_sfg)
             recent_file_action.setVisible(False)
             recent_file_action.triggered.connect(
@@ -510,24 +510,24 @@ class SFGMainWindow(QMainWindow):
                 and hasattr(source_operation2, "value")
                 and hasattr(dest_operation, "value")
                 and hasattr(dest_operation2, "value")
-            ):
-                if not (
+                and not (
                     source_operation.value == source_operation2.value
                     and dest_operation.value == dest_operation2.value
-                ):
-                    return False
+                )
+            ):
+                return False
 
             if (
                 hasattr(source_operation, "name")
                 and hasattr(source_operation2, "name")
                 and hasattr(dest_operation, "name")
                 and hasattr(dest_operation2, "name")
-            ):
-                if not (
+                and not (
                     source_operation.name == source_operation2.name
                     and dest_operation.name == dest_operation2.name
-                ):
-                    return False
+                )
+            ):
+                return False
 
             try:
                 signal_source_index = [
@@ -744,9 +744,8 @@ class SFGMainWindow(QMainWindow):
             operation_label.moveBy(10, -20)
             attr_button.add_label(operation_label)
 
-            if isinstance(is_flipped, bool):
-                if is_flipped:
-                    attr_button._flip()
+            if isinstance(is_flipped, bool) and is_flipped:
+                attr_button._flip()
 
             self._drag_buttons[op] = attr_button
             self._drag_operation_scenes[attr_button] = attr_button_scene

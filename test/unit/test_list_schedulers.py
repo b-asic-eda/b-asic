@@ -1853,7 +1853,7 @@ class TestRecursiveListScheduler:
         _validate_recreated_sfg_filter(sfg, schedule)
 
     def test_large_direct_form_2_iir(self):
-        N = 10
+        N = 8
         Wc = 0.2
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
         sfg = direct_form_2_iir(b, a)

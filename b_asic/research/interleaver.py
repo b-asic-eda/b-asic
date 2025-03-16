@@ -20,10 +20,10 @@ def _insert_delays(
     maxdiff = min(outputorder[i][0] - inputorder[i][0] for i in range(size))
     outputorder = [(o[0] - maxdiff + min_lifetime, o[1]) for o in outputorder]
     maxdelay = max(outputorder[i][0] - inputorder[i][0] for i in range(size))
-    if cyclic:
-        if maxdelay >= time:
-            inputorder = inputorder + [(i[0] + time, i[1]) for i in inputorder]
-            outputorder = outputorder + [(o[0] + time, o[1]) for o in outputorder]
+
+    if cyclic and maxdelay >= time:
+        inputorder = inputorder + [(i[0] + time, i[1]) for i in inputorder]
+        outputorder = outputorder + [(o[0] + time, o[1]) for o in outputorder]
     return inputorder, outputorder
 
 

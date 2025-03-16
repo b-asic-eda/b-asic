@@ -558,6 +558,8 @@ class Memory(Resource):
             if self._memory_type == "RAM":
                 plural_s = 's' if len(self._assignment) >= 2 else ''
                 return f": (RAM, {len(self._assignment)} cell{plural_s})"
+            else:
+                pass
         return ""
 
     def assign(self, heuristic: str = "left_edge") -> None:
@@ -1036,7 +1038,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                             fontname='Times New Roman',
                         )
         else:
-            for i, mem in enumerate(self._memories):
+            for mem in self._memories:
                 dg.node(
                     mem.entity_name,
                     mem._struct_def(),
@@ -1044,7 +1046,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     fillcolor=memory_color,
                     fontname='Times New Roman',
                 )
-            for i, pe in enumerate(self._processing_elements):
+            for pe in self._processing_elements:
                 dg.node(
                     pe.entity_name, pe._struct_def(), style='filled', fillcolor=pe_color
                 )

@@ -319,7 +319,7 @@ class MemoryVariable(MemoryProcess):
         return self._write_port
 
     def __repr__(self) -> str:
-        reads = {k: v for k, v in zip(self._read_ports, self._life_times)}
+        reads = {k: v for k, v in zip(self._read_ports, self._life_times, strict=True)}
         return (
             f"MemoryVariable({self.start_time}, {self.write_port},"
             f" {reads!r}, {self.name!r})"
@@ -413,7 +413,7 @@ class PlainMemoryVariable(MemoryProcess):
         return self._write_port
 
     def __repr__(self) -> str:
-        reads = {k: v for k, v in zip(self._read_ports, self._life_times)}
+        reads = {k: v for k, v in zip(self._read_ports, self._life_times, strict=True)}
         return (
             f"PlainMemoryVariable({self.start_time}, {self.write_port},"
             f" {reads!r}, {self.name!r})"
