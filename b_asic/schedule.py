@@ -624,7 +624,7 @@ class Schedule:
         self._schedule_time = self._schedule_time // factor
         return self
 
-    def set_execution_time_of_type(
+    def set_execution_time_of_type_name(
         self, type_name: TypeName, execution_time: int
     ) -> None:
         """
@@ -638,9 +638,9 @@ class Schedule:
         execution_time : int
             The execution time of the operation.
         """
-        self._sfg.set_execution_time_of_type(type_name, execution_time)
+        self._sfg.set_execution_time_of_type_name(type_name, execution_time)
 
-    def set_latency_of_type(self, type_name: TypeName, latency: int) -> None:
+    def set_latency_of_type_name(self, type_name: TypeName, latency: int) -> None:
         """
         Set the latency of all operations with the given type name.
 
@@ -948,15 +948,15 @@ class Schedule:
 
     def _remove_delays_no_laps(self) -> None:
         """Remove delay elements without updating laps. Used when loading schedule."""
-        delay_list = self._sfg.find_by_type_name(Delay.type_name())
+        delay_list = self._sfg.find_by_type(Delay)
         while delay_list:
             delay_op = cast(Delay, delay_list[0])
             self._sfg = cast(SFG, self._sfg.remove_operation(delay_op.graph_id))
-            delay_list = self._sfg.find_by_type_name(Delay.type_name())
+            delay_list = self._sfg.find_by_type(Delay)
 
     def remove_delays(self) -> None:
         """Remove delay elements and update laps. Used after scheduling algorithm."""
-        delay_list = self._sfg.find_by_type_name(Delay.type_name())
+        delay_list = self._sfg.find_by_type(Delay)
         while delay_list:
             delay_op = cast(Delay, delay_list[0])
             delay_input_id = delay_op.input(0).signals[0].graph_id
@@ -965,7 +965,7 @@ class Schedule:
             for output_id in delay_output_ids:
                 self._laps[output_id] += 1 + self._laps[delay_input_id]
             del self._laps[delay_input_id]
-            delay_list = self._sfg.find_by_type_name(Delay.type_name())
+            delay_list = self._sfg.find_by_type(Delay)
 
     def _reintroduce_delays(self) -> SFG:
         """

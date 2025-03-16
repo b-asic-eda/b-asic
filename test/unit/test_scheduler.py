@@ -16,10 +16,10 @@ class TestASAPScheduler:
     def test_direct_form_1_iir(self):
         sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         schedule = Schedule(sfg, scheduler=ASAPScheduler())
 
@@ -39,8 +39,8 @@ class TestASAPScheduler:
         assert schedule.schedule_time == 11
 
     def test_direct_form_2_iir(self, sfg_direct_form_iir_lp_filter):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 4
         )
 
@@ -64,8 +64,8 @@ class TestASAPScheduler:
     def test_direct_form_2_iir_with_scheduling_time(
         self, sfg_direct_form_iir_lp_filter
     ):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 4
         )
 
@@ -91,10 +91,10 @@ class TestASAPScheduler:
     def test_radix_2_fft_8_points(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
 
         schedule = Schedule(sfg, scheduler=ASAPScheduler())
 
@@ -146,10 +146,10 @@ class TestALAPScheduler:
     def test_direct_form_1_iir(self):
         sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         schedule = Schedule(sfg, scheduler=ALAPScheduler())
 
@@ -169,8 +169,8 @@ class TestALAPScheduler:
         assert schedule.schedule_time == 11
 
     def test_direct_form_2_iir(self, sfg_direct_form_iir_lp_filter):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 4
         )
 
@@ -194,8 +194,8 @@ class TestALAPScheduler:
     def test_direct_form_2_iir_with_scheduling_time(
         self, sfg_direct_form_iir_lp_filter
     ):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 4
         )
 
@@ -221,10 +221,10 @@ class TestALAPScheduler:
     def test_radix_2_fft_8_points(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
 
         schedule = Schedule(sfg, scheduler=ALAPScheduler())
 

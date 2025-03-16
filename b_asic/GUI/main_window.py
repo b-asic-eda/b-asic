@@ -413,8 +413,8 @@ class SFGMainWindow(QMainWindow):
             if dequelen > 0:
                 for i in range(dequelen):
                     action = self._recent_files_actions[i]
-                    action.setText(rfp[i])
-                    action.setData(QFileInfo(rfp[i]))
+                    action.setText(str(rfp[i]))
+                    action.setData(QFileInfo(str(rfp[i])))
                     action.setVisible(True)
 
                 for i in range(dequelen, self._max_recent_files):

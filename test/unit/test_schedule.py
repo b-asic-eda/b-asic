@@ -18,8 +18,10 @@ from b_asic.special_operations import Delay, Input, Output
 
 class TestInit:
     def test_simple_filter_normal_latency(self, sfg_simple_filter):
-        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 4)
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 4
+        )
 
         schedule = Schedule(sfg_simple_filter, scheduler=ASAPScheduler())
 
@@ -37,8 +39,10 @@ class TestInit:
             schedule.start_time_of_operation("foo")
 
     def test_complicated_single_outputs_normal_latency(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
 
@@ -67,8 +71,10 @@ class TestInit:
     def test_complicated_single_outputs_normal_latency_alap(
         self, precedence_sfg_delays
     ):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ALAPScheduler())
 
@@ -97,8 +103,10 @@ class TestInit:
     def test_complicated_single_outputs_normal_latency_alap_with_schedule_time(
         self, precedence_sfg_delays
     ):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(
             precedence_sfg_delays, schedule_time=25, scheduler=ALAPScheduler()
@@ -129,8 +137,10 @@ class TestInit:
     def test_complicated_single_outputs_normal_latency_alap_too_short_schedule_time(
         self, precedence_sfg_delays
     ):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
         with pytest.raises(ValueError, match="Too short schedule time. Minimum is 21."):
             Schedule(precedence_sfg_delays, schedule_time=19, scheduler=ALAPScheduler())
 
@@ -160,7 +170,7 @@ class TestInit:
         assert secondorder_iir_schedule.schedule_time == 21
 
     def test_complicated_single_outputs_complex_latencies(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_offsets_of_type(
+        precedence_sfg_delays.set_latency_offsets_of_type_name(
             ConstantMultiplication.type_name(), {"in0": 3, "out0": 5}
         )
 
@@ -250,10 +260,10 @@ class TestInit:
     def test_provided_schedule(self):
         sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
-        sfg.set_latency_of_type(Addition.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         start_times = {
             "in0": 1,
@@ -294,8 +304,10 @@ class TestInit:
 
 class TestSlacks:
     def test_forward_backward_slack_normal_latency(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         assert (
@@ -323,8 +335,10 @@ class TestSlacks:
         )
 
     def test_slacks_normal_latency(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         assert schedule.slacks(
@@ -335,8 +349,10 @@ class TestSlacks:
         ) == (16, 0)
 
     def test_print_slacks(self, capsys, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         schedule.print_slacks()
@@ -361,8 +377,10 @@ class TestSlacks:
         assert captured.err == ""
 
     def test_print_slacks_sorting(self, capsys, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         schedule.print_slacks(1)
@@ -387,8 +405,10 @@ class TestSlacks:
         assert captured.err == ""
 
     def test_slacks_errors(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         with pytest.raises(
@@ -407,8 +427,10 @@ class TestSlacks:
 
 class TestRescheduling:
     def test_move_operation(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 4)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
 
@@ -444,8 +466,10 @@ class TestRescheduling:
             schedule.move_operation("foo", 0)
 
     def test_move_operation_slack_after_rescheduling(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         add3_id = precedence_sfg_delays.find_by_name("ADD3")[0].graph_id
@@ -466,8 +490,10 @@ class TestRescheduling:
         assert schedule.backward_slack(a2_id) == 18
 
     def test_move_operation_incorrect_move_backward(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         with pytest.raises(
@@ -479,8 +505,10 @@ class TestRescheduling:
             )
 
     def test_move_operation_incorrect_move_forward(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         with pytest.raises(
@@ -492,8 +520,10 @@ class TestRescheduling:
             )
 
     def test_move_operation_asap(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         assert schedule.backward_slack('cmul5') == 16
@@ -505,8 +535,10 @@ class TestRescheduling:
         assert schedule.forward_slack('cmul5') == 16
 
     def test_move_input_asap_does_not_mess_up_laps(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         old_laps = schedule.laps['in0']
@@ -521,7 +553,7 @@ class TestRescheduling:
         out0 = Output(a)
         d <<= a
         sfg = SFG([in0], [out0])
-        sfg.set_latency_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 1)
         schedule = Schedule(sfg, scheduler=ASAPScheduler(), cyclic=True)
 
         # Check initial conditions
@@ -574,10 +606,12 @@ class TestRescheduling:
     def test_reintroduce_delays(
         self, precedence_sfg_delays, sfg_direct_form_iir_lp_filter
     ):
-        precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 1)
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 3
         )
 
@@ -788,8 +822,10 @@ class TestErrors:
             Schedule(sfg, scheduler=ASAPScheduler())
 
     def test_too_short_schedule_time(self, sfg_simple_filter):
-        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 5)
-        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 4)
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 4
+        )
         with pytest.raises(ValueError, match="Too short schedule time. Minimum is 9."):
             Schedule(sfg_simple_filter, scheduler=ASAPScheduler(), schedule_time=3)
 
@@ -801,8 +837,8 @@ class TestErrors:
             schedule.set_schedule_time(3)
 
     # def test_incorrect_scheduling_algorithm(self, sfg_simple_filter):
-    #     sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
-    #     sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+    #     sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)
+    #     sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
     #     with pytest.raises(
     #         NotImplementedError, match="No algorithm with name: foo defined."
     #     ):
@@ -813,16 +849,20 @@ class TestErrors:
             Schedule(1)
 
     def test_provided_no_start_times(self, sfg_simple_filter):
-        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
-        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 2
+        )
         with pytest.raises(
             ValueError, match="Must provide start_times when using 'provided'"
         ):
             Schedule(sfg_simple_filter)
 
     def test_provided_no_laps(self, sfg_simple_filter):
-        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
-        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 2
+        )
         with pytest.raises(ValueError, match="Must provide laps when using 'provided'"):
             Schedule(sfg_simple_filter, start_times={'in0': 0})
 
@@ -839,8 +879,10 @@ class TestGetUsedTypeNames:
 
 class TestYLocations:
     def test_provided_no_laps(self, sfg_simple_filter):
-        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
-        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 2
+        )
         schedule = Schedule(sfg_simple_filter, ASAPScheduler())
 
         assert schedule._y_locations == {"in0": 1, "cmul0": 0, "add0": 2, "out0": 3}
@@ -850,8 +892,10 @@ class TestYLocations:
         assert schedule._y_locations == {"in0": 2, "cmul0": 0, "add0": 1, "out0": 1}
 
     def test_reset(self, sfg_simple_filter):
-        sfg_simple_filter.set_latency_of_type(Addition.type_name(), 1)
-        sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 2
+        )
         schedule = Schedule(sfg_simple_filter, ASAPScheduler())
 
         assert schedule._y_locations == {"in0": 1, "cmul0": 0, "add0": 2, "out0": 3}

@@ -28,10 +28,10 @@ sfg
 
 # %%
 # Set latencies and execution times.
-sfg.set_latency_of_type(MADS.type_name(), 3)
-sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-sfg.set_execution_time_of_type(MADS.type_name(), 1)
-sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+sfg.set_latency_of_type_name(MADS.type_name(), 3)
+sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
 # %%
 # Create an ASAP schedule.

@@ -17,10 +17,10 @@ from b_asic.special_operations import Input, Output
 def test_pe_constrained_schedule():
     sfg = ldlt_matrix_inverse(N=5)
 
-    sfg.set_latency_of_type(MADS.type_name(), 3)
-    sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-    sfg.set_execution_time_of_type(MADS.type_name(), 1)
-    sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+    sfg.set_latency_of_type_name(MADS.type_name(), 3)
+    sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+    sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+    sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
     resources = {MADS.type_name(): 2, Reciprocal.type_name(): 1}
 
@@ -94,10 +94,10 @@ def test_pe_constrained_schedule():
 def test_pe_and_memory_constrained_chedule():
     sfg = radix_2_dif_fft(points=16)
 
-    sfg.set_latency_of_type(Butterfly.type_name(), 3)
-    sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-    sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-    sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+    sfg.set_latency_of_type_name(Butterfly.type_name(), 3)
+    sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+    sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+    sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
     # generate a schedule to ensure that schedule can be overwritten without bugs
     schedule = Schedule(sfg, scheduler=ASAPScheduler())

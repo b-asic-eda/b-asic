@@ -48,10 +48,10 @@ sfg
 
 # %%
 # Set latencies and execution times
-sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-sfg.set_latency_of_type(AddSub.type_name(), 1)
-sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-sfg.set_execution_time_of_type(AddSub.type_name(), 1)
+sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+sfg.set_latency_of_type_name(AddSub.type_name(), 1)
+sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+sfg.set_execution_time_of_type_name(AddSub.type_name(), 1)
 
 # %%
 # Generate schedule

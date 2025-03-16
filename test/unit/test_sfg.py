@@ -1169,7 +1169,7 @@ class TestSaveLoadSFG:
 
 
 class TestGetComponentsOfType:
-    def test_get_no_operations_of_type(self, sfg_two_inputs_two_outputs):
+    def test_get_no_operations_of_type_name(self, sfg_two_inputs_two_outputs):
         assert [
             op.name
             for op in sfg_two_inputs_two_outputs.find_by_type_name(
@@ -1177,7 +1177,7 @@ class TestGetComponentsOfType:
             )
         ] == []
 
-    def test_get_multiple_operations_of_type(self, sfg_two_inputs_two_outputs):
+    def test_get_multiple_operations_of_type_name(self, sfg_two_inputs_two_outputs):
         assert [
             op.name
             for op in sfg_two_inputs_two_outputs.find_by_type_name(Addition.type_name())
@@ -1192,6 +1192,25 @@ class TestGetComponentsOfType:
             op.name
             for op in sfg_two_inputs_two_outputs.find_by_type_name(Output.type_name())
         ] == ["OUT1", "OUT2"]
+
+    def test_get_no_operations_of_type(self, sfg_two_inputs_two_outputs):
+        assert [
+            op.name for op in sfg_two_inputs_two_outputs.find_by_type(Multiplication)
+        ] == []
+
+    def test_get_multiple_operations_of_type(self, sfg_two_inputs_two_outputs):
+        assert (
+            [op.name for op in sfg_two_inputs_two_outputs.find_by_type(Addition)]
+        ) == ["ADD1", "ADD2"]
+
+        assert ([op.name for op in sfg_two_inputs_two_outputs.find_by_type(Input)]) == [
+            "IN1",
+            "IN2",
+        ]
+
+        assert (
+            [op.name for op in sfg_two_inputs_two_outputs.find_by_type(Output)]
+        ) == ["OUT1", "OUT2"]
 
 
 class TestPrecedenceGraph:
@@ -1487,10 +1506,10 @@ class TestInputDuplicationBug:
 
 class TestCriticalPath:
     def test_single_accumulator(self, sfg_simple_accumulator: SFG):
-        sfg_simple_accumulator.set_latency_of_type(Addition.type_name(), 5)
+        sfg_simple_accumulator.set_latency_of_type_name(Addition.type_name(), 5)
         assert sfg_simple_accumulator.critical_path_time() == 5
 
-        sfg_simple_accumulator.set_latency_of_type(Addition.type_name(), 6)
+        sfg_simple_accumulator.set_latency_of_type_name(Addition.type_name(), 6)
         assert sfg_simple_accumulator.critical_path_time() == 6
 
 
@@ -1822,10 +1841,10 @@ class TestResourceLowerBound:
         assert sfg_simple_accumulator.resource_lower_bound("bfly", 1000) == 0
 
     def test_negative_schedule_time(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type("add", 2)
-        precedence_sfg_delays.set_latency_of_type("cmul", 3)
-        precedence_sfg_delays.set_execution_time_of_type("add", 1)
-        precedence_sfg_delays.set_execution_time_of_type("cmul", 1)
+        precedence_sfg_delays.set_latency_of_type_name("add", 2)
+        precedence_sfg_delays.set_latency_of_type_name("cmul", 3)
+        precedence_sfg_delays.set_execution_time_of_type_name("add", 1)
+        precedence_sfg_delays.set_execution_time_of_type_name("cmul", 1)
 
         with pytest.raises(
             ValueError,
@@ -1840,7 +1859,7 @@ class TestResourceLowerBound:
             precedence_sfg_delays.resource_lower_bound("cmul", -1)
 
     def test_accumulator(self, sfg_simple_accumulator):
-        sfg_simple_accumulator.set_latency_of_type('add', 2)
+        sfg_simple_accumulator.set_latency_of_type_name('add', 2)
 
         with pytest.raises(
             ValueError,
@@ -1848,20 +1867,20 @@ class TestResourceLowerBound:
         ):
             sfg_simple_accumulator.resource_lower_bound("add", 2)
 
-        sfg_simple_accumulator.set_execution_time_of_type("add", 2)
+        sfg_simple_accumulator.set_execution_time_of_type_name("add", 2)
         assert sfg_simple_accumulator.resource_lower_bound("add", 2) == 1
         assert sfg_simple_accumulator.resource_lower_bound("add", 1) == 2
 
     def test_secondorder_iir(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type("add", 2)
-        precedence_sfg_delays.set_latency_of_type("cmul", 3)
+        precedence_sfg_delays.set_latency_of_type_name("add", 2)
+        precedence_sfg_delays.set_latency_of_type_name("cmul", 3)
 
-        precedence_sfg_delays.set_execution_time_of_type("add", 1)
+        precedence_sfg_delays.set_execution_time_of_type_name("add", 1)
         assert precedence_sfg_delays.resource_lower_bound("add", 1) == 4
         assert precedence_sfg_delays.resource_lower_bound("add", 2) == 2
         assert precedence_sfg_delays.resource_lower_bound("add", 4) == 1
 
-        precedence_sfg_delays.set_execution_time_of_type("cmul", 1)
+        precedence_sfg_delays.set_execution_time_of_type_name("cmul", 1)
         assert precedence_sfg_delays.resource_lower_bound("cmul", 1) == 7
         assert precedence_sfg_delays.resource_lower_bound("cmul", 2) == 4
         assert precedence_sfg_delays.resource_lower_bound("cmul", 4) == 2
@@ -1870,7 +1889,7 @@ class TestResourceLowerBound:
 
 class TestIterationPeriodBound:
     def test_accumulator(self, sfg_simple_accumulator):
-        sfg_simple_accumulator.set_latency_of_type('add', 2)
+        sfg_simple_accumulator.set_latency_of_type_name('add', 2)
         assert sfg_simple_accumulator.iteration_period_bound() == 2
 
     def test_no_latency(self, sfg_simple_accumulator):
@@ -1881,8 +1900,8 @@ class TestIterationPeriodBound:
             sfg_simple_accumulator.iteration_period_bound()
 
     def test_secondorder_iir(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type('add', 2)
-        precedence_sfg_delays.set_latency_of_type('cmul', 3)
+        precedence_sfg_delays.set_latency_of_type_name('add', 2)
+        precedence_sfg_delays.set_latency_of_type_name('cmul', 3)
         assert precedence_sfg_delays.iteration_period_bound() == 10
 
     def test_fractional_value(self):
@@ -1902,8 +1921,8 @@ class TestIterationPeriodBound:
         y = Output(a2)
 
         sfg = SFG([x], [y])
-        sfg.set_latency_of_type(Addition.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 1)
         assert sfg.iteration_period_bound() == 4 / 2
 
         sfg = sfg.insert_operation_before("t0", ConstantMultiplication(10))

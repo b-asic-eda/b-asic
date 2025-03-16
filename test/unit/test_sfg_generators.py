@@ -256,6 +256,9 @@ class TestDirectFormIIRType1:
         amount_of_muls = len(sfg.find_by_type_name(ConstantMultiplication.type_name()))
         assert amount_of_muls == 2 * N + 1
 
+        amount_of_muls = len(sfg.find_by_type(ConstantMultiplication))
+        assert amount_of_muls == 2 * N + 1
+
         amount_of_adds = len(sfg.find_by_type_name(Addition.type_name()))
         assert amount_of_adds == 2 * N
 

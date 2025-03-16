@@ -29,7 +29,7 @@ class Scheduler(ABC):
     def _handle_outputs(
         self, schedule: "Schedule", non_schedulable_ops: list["GraphID"] | None = []
     ) -> None:
-        for output in schedule.sfg.find_by_type_name(Output.type_name()):
+        for output in schedule.sfg.find_by_type(Output):
             output = cast(Output, output)
             source_port = cast(OutputPort, output.inputs[0].signals[0].source)
             if source_port.operation.graph_id in non_schedulable_ops:
@@ -145,7 +145,7 @@ class ALAPScheduler(Scheduler):
         self.op_laps = {}
 
         # move all outputs ALAP before operations
-        for output in schedule.sfg.find_by_type_name(Output.type_name()):
+        for output in schedule.sfg.find_by_type(Output):
             output = cast(Output, output)
             self.op_laps[output.graph_id] = 0
             schedule.move_operation_alap(output.graph_id)
@@ -712,7 +712,7 @@ class ListScheduler(Scheduler):
             end = self._schedule._schedule_time
         else:
             end = self._schedule.get_max_end_time()
-        for output in self._sfg.find_by_type_name(Output.type_name()):
+        for output in self._sfg.find_by_type(Output):
             output = cast(Output, output)
             if output.graph_id in self._output_delta_times:
                 delta_time = self._output_delta_times[output.graph_id]
@@ -742,10 +742,10 @@ class ListScheduler(Scheduler):
         self._logger.debug("--- Output placement optimization starting ---")
         min_slack = min(
             self._schedule.backward_slack(op.graph_id)
-            for op in self._sfg.find_by_type_name(Output.type_name())
+            for op in self._sfg.find_by_type(Output)
         )
         if min_slack != 0:
-            for output in self._sfg.find_by_type_name(Output.type_name()):
+            for output in self._sfg.find_by_type(Output):
                 if self._schedule._cyclic and self._schedule._schedule_time is not None:
                     self._schedule.move_operation(output.graph_id, -min_slack)
                 else:
@@ -770,7 +770,7 @@ class ListScheduler(Scheduler):
 
     def _handle_dont_cares(self) -> None:
         # schedule all dont cares ALAP
-        for dc_op in self._sfg.find_by_type_name(DontCare.type_name()):
+        for dc_op in self._sfg.find_by_type(DontCare):
             self._schedule.start_times[dc_op.graph_id] = 0
             self._schedule.place_operation(
                 dc_op, self._schedule.forward_slack(dc_op.graph_id), self._op_laps

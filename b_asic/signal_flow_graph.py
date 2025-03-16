@@ -571,6 +571,24 @@ class SFG(AbstractOperation):
         ]
         return components
 
+    def find_by_type(self, component_type: GraphComponent) -> Sequence[GraphComponent]:
+        """
+        Find all components in this graph with the specified type.
+
+        Returns an empty sequence if no components were found.
+
+        Parameters
+        ----------
+        component_type : GraphComponent
+            The TypeName of the desired components.
+        """
+        components = [
+            comp
+            for comp in self._components_dfs_order
+            if isinstance(comp, component_type)
+        ]
+        return sorted(list(set(components)), key=lambda c: c.name or c.graph_id)
+
     def find_by_id(self, graph_id: GraphID) -> GraphComponent | None:
         """
         Find the graph component with the specified ID.
@@ -824,9 +842,9 @@ class SFG(AbstractOperation):
         """
 
         sfg_copy = self()
-        no_of_delays = len(sfg_copy.find_by_type_name(Delay.type_name()))
+        no_of_delays = len(sfg_copy.find_by_type(Delay))
         while True:
-            for delay_element in sfg_copy.find_by_type_name(Delay.type_name()):
+            for delay_element in sfg_copy.find_by_type(Delay):
                 neighboring_delays = []
                 if len(delay_element.inputs[0].signals) > 0:
                     for signal in delay_element.inputs[0].signals[0].source.signals:
@@ -843,9 +861,9 @@ class SFG(AbstractOperation):
                     delay.input(0).remove_signal(in_sig)
                     in_sig.source.remove_signal(in_sig)
             sfg_copy = sfg_copy()
-            if no_of_delays <= len(sfg_copy.find_by_type_name(Delay.type_name())):
+            if no_of_delays <= len(sfg_copy.find_by_type(Delay)):
                 break
-            no_of_delays = len(sfg_copy.find_by_type_name(Delay.type_name()))
+            no_of_delays = len(sfg_copy.find_by_type(Delay))
 
         return sfg_copy
 
@@ -964,7 +982,7 @@ class SFG(AbstractOperation):
 
         # Find all operations with only outputs and no inputs.
         no_input_ops = list(filter(lambda op: op.input_count == 0, self.operations))
-        delay_ops = self.find_by_type_name(Delay.type_name())
+        delay_ops = self.find_by_type(Delay)
 
         # Find all first iter output ports for precedence
         first_iter_ports = [
@@ -1183,7 +1201,7 @@ class SFG(AbstractOperation):
         self._operations_topological_order = top_order
         return self._operations_topological_order
 
-    def set_latency_of_type(self, type_name: TypeName, latency: int) -> None:
+    def set_latency_of_type_name(self, type_name: TypeName, latency: int) -> None:
         """
         Set the latency of all components with the given type name.
 
@@ -1198,7 +1216,21 @@ class SFG(AbstractOperation):
         for op in self.find_by_type_name(type_name):
             cast(Operation, op).set_latency(latency)
 
-    def set_execution_time_of_type(
+    def set_latency_of_type(self, operation_type: Operation, latency: int) -> None:
+        """
+        Set the latency of all operations with the given type.
+
+        Parameters
+        ----------
+        operation_type : Operation
+            The operation type. For example, ``Addition``.
+        latency : int
+            The latency of the operation.
+        """
+        for op in self.find_by_type(operation_type):
+            cast(Operation, op).set_latency(latency)
+
+    def set_execution_time_of_type_name(
         self, type_name: TypeName, execution_time: int
     ) -> None:
         """
@@ -1215,7 +1247,23 @@ class SFG(AbstractOperation):
         for op in self.find_by_type_name(type_name):
             cast(Operation, op).execution_time = execution_time
 
-    def set_latency_offsets_of_type(
+    def set_execution_time_of_type(
+        self, operation_type: Operation, execution_time: int
+    ) -> None:
+        """
+        Set the latency of all operations with the given type.
+
+        Parameters
+        ----------
+        operation_type : Operation
+            The operation type. For example, ``Addition``.
+        execution_time : int
+            The execution time of the operation.
+        """
+        for op in self.find_by_type(operation_type):
+            cast(Operation, op).execution_time = execution_time
+
+    def set_latency_offsets_of_type_name(
         self, type_name: TypeName, latency_offsets: dict[str, int]
     ) -> None:
         """
@@ -1230,6 +1278,22 @@ class SFG(AbstractOperation):
             The latency offsets of the inputs and outputs.
         """
         for op in self.find_by_type_name(type_name):
+            cast(Operation, op).set_latency_offsets(latency_offsets)
+
+    def set_latency_offsets_of_type(
+        self, operation_type: Operation, latency_offsets: dict[str, int]
+    ) -> None:
+        """
+        Set the latency offsets of all operations with the given type.
+
+        Parameters
+        ----------
+        operation_type : Operation
+            The operation type. For example, ``Addition``.
+        latency_offsets : {"in1": int, ...}
+            The latency offsets of the inputs and outputs.
+        """
+        for op in self.find_by_type(operation_type):
             cast(Operation, op).set_latency_offsets(latency_offsets)
 
     def _traverse_for_precedence_list(
@@ -1739,12 +1803,13 @@ class SFG(AbstractOperation):
                     continue
                 fringe.append((next_state, path + [next_state]))
 
-    def resource_lower_bound(self, type_name: str, schedule_time: int) -> int:
-        """Return the lowest amount of resources of the given type needed to reach the scheduling time.
+    def resource_lower_bound(self, type_name: TypeName, schedule_time: int) -> int:
+        """
+        Return the lowest amount of resources of the given type needed to reach the scheduling time.
 
         Parameters
         ----------
-        type_name : str
+        type_name : TypeName
             Type name of the given resource.
         schedule_time : int
             Scheduling time to evaluate for.
@@ -2114,7 +2179,7 @@ class SFG(AbstractOperation):
 
         # Remove all delay elements in the SFG and replace each one
         # with one input operation and one output operation
-        for delay in sfg.find_by_type_name(Delay.type_name()):
+        for delay in sfg.find_by_type(Delay):
             i = Input(name="input_" + delay.graph_id)
             o = Output(
                 src0=delay.input(0).signals[0].source, name="output_" + delay.graph_id

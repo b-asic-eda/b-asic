@@ -18,8 +18,8 @@ def test_start(qtbot):
 
 
 def test_load_schedule(qtbot, sfg_simple_filter):
-    sfg_simple_filter.set_latency_of_type(Addition.type_name(), 5)
-    sfg_simple_filter.set_latency_of_type(ConstantMultiplication.type_name(), 4)
+    sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
+    sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 4)
 
     widget = ScheduleMainWindow()
     qtbot.addWidget(widget)

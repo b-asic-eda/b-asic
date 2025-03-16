@@ -247,10 +247,12 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
 
 
 def test_resource_errors(precedence_sfg_delays):
-    precedence_sfg_delays.set_latency_of_type(Addition.type_name(), 1)
-    precedence_sfg_delays.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-    precedence_sfg_delays.set_execution_time_of_type(Addition.type_name(), 1)
-    precedence_sfg_delays.set_execution_time_of_type(
+    precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type_name(
+        ConstantMultiplication.type_name(), 3
+    )
+    precedence_sfg_delays.set_execution_time_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_execution_time_of_type_name(
         ConstantMultiplication.type_name(), 1
     )
 

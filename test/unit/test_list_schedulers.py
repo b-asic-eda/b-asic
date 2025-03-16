@@ -41,10 +41,10 @@ class TestEarliestDeadlineScheduler:
     def test_direct_form_1_iir(self):
         sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         resources = {
             Addition.type_name(): 1,
@@ -73,14 +73,14 @@ class TestEarliestDeadlineScheduler:
         _validate_recreated_sfg_filter(sfg, schedule)
 
     def test_direct_form_2_iir_1_add_1_mul(self, sfg_direct_form_iir_lp_filter):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 3
         )
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 2)
-        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 2)
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type_name(
             ConstantMultiplication.type_name(), 1
         )
-        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type_name(
             Addition.type_name(), 1
         )
 
@@ -113,14 +113,14 @@ class TestEarliestDeadlineScheduler:
         _validate_recreated_sfg_filter(sfg_direct_form_iir_lp_filter, schedule)
 
     def test_direct_form_2_iir_2_add_3_mul(self, sfg_direct_form_iir_lp_filter):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 3
         )
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 2)
-        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 2)
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type_name(
             ConstantMultiplication.type_name(), 1
         )
-        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type_name(
             Addition.type_name(), 1
         )
 
@@ -155,10 +155,10 @@ class TestEarliestDeadlineScheduler:
     def test_radix_2_fft_8_points(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 2,
@@ -219,10 +219,10 @@ class TestLeastSlackTimeScheduler:
     def test_direct_form_1_iir(self):
         sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         resources = {
             Addition.type_name(): 1,
@@ -251,14 +251,14 @@ class TestLeastSlackTimeScheduler:
         _validate_recreated_sfg_filter(sfg, schedule)
 
     def test_direct_form_2_iir_1_add_1_mul(self, sfg_direct_form_iir_lp_filter):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 3
         )
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 2)
-        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 2)
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type_name(
             ConstantMultiplication.type_name(), 1
         )
-        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type_name(
             Addition.type_name(), 1
         )
 
@@ -291,14 +291,14 @@ class TestLeastSlackTimeScheduler:
         _validate_recreated_sfg_filter(sfg_direct_form_iir_lp_filter, schedule)
 
     def test_direct_form_2_iir_2_add_3_mul(self, sfg_direct_form_iir_lp_filter):
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 3
         )
-        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition.type_name(), 2)
-        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 2)
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type_name(
             ConstantMultiplication.type_name(), 1
         )
-        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type_name(
             Addition.type_name(), 1
         )
 
@@ -333,10 +333,10 @@ class TestLeastSlackTimeScheduler:
     def test_radix_2_fft_8_points(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 2,
@@ -397,10 +397,10 @@ class TestMaxFanOutScheduler:
     def test_direct_form_1_iir(self):
         sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         resources = {Addition.type_name(): 1, ConstantMultiplication.type_name(): 1}
         schedule = Schedule(sfg, scheduler=MaxFanOutScheduler(max_resources=resources))
@@ -424,10 +424,10 @@ class TestMaxFanOutScheduler:
     def test_ldlt_inverse_3x3(self):
         sfg = ldlt_matrix_inverse(N=3)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
         schedule = Schedule(sfg, scheduler=MaxFanOutScheduler(resources))
@@ -484,10 +484,10 @@ class TestHybridScheduler:
     def test_direct_form_1_iir(self):
         sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         resources = {Addition.type_name(): 1, ConstantMultiplication.type_name(): 1}
         schedule = Schedule(sfg, scheduler=HybridScheduler(max_resources=resources))
@@ -511,10 +511,10 @@ class TestHybridScheduler:
     def test_radix_2_fft_8_points(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 2,
@@ -565,10 +565,10 @@ class TestHybridScheduler:
     def test_radix_2_fft_8_points_one_output(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 2,
@@ -621,10 +621,10 @@ class TestHybridScheduler:
     def test_radix_2_fft_8_points_specified_IO_times_cyclic(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 3)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 3)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 1,
@@ -725,10 +725,10 @@ class TestHybridScheduler:
     def test_radix_2_fft_8_points_specified_IO_times_non_cyclic(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 3)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 3)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
         input_times = {
@@ -800,10 +800,10 @@ class TestHybridScheduler:
     def test_ldlt_inverse_2x2(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         resources = {
             MADS.type_name(): 1,
@@ -838,10 +838,10 @@ class TestHybridScheduler:
     def test_ldlt_inverse_2x2_specified_IO_times_cyclic(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
         input_times = {
@@ -899,10 +899,10 @@ class TestHybridScheduler:
     def test_invalid_max_resources(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         resources = 2
         with pytest.raises(
@@ -937,10 +937,10 @@ class TestHybridScheduler:
     def test_invalid_max_concurrent_writes(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         max_concurrent_writes = "5"
         with pytest.raises(
@@ -972,10 +972,10 @@ class TestHybridScheduler:
     def test_invalid_max_concurrent_reads(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         max_concurrent_reads = "5"
         with pytest.raises(
@@ -1007,10 +1007,10 @@ class TestHybridScheduler:
     def test_invalid_input_times(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         input_times = 5
         with pytest.raises(
@@ -1051,10 +1051,10 @@ class TestHybridScheduler:
     def test_invalid_output_delta_times(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         output_delta_times = 10
         with pytest.raises(
@@ -1107,10 +1107,10 @@ class TestHybridScheduler:
     def test_resource_not_in_sfg(self):
         sfg = ldlt_matrix_inverse(N=3)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         resources = {
             MADS.type_name(): 1,
@@ -1126,10 +1126,10 @@ class TestHybridScheduler:
     def test_input_not_in_sfg(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         input_times = {"in100": 4}
         with pytest.raises(
@@ -1141,10 +1141,10 @@ class TestHybridScheduler:
     def test_output_not_in_sfg(self):
         sfg = ldlt_matrix_inverse(N=2)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         output_delta_times = {"out90": 2}
         with pytest.raises(
@@ -1158,10 +1158,10 @@ class TestHybridScheduler:
     def test_ldlt_inverse_3x3_read_and_write_constrained(self):
         sfg = ldlt_matrix_inverse(N=3)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
 
@@ -1183,10 +1183,10 @@ class TestHybridScheduler:
         POINTS = 32
         sfg = radix_2_dif_fft(POINTS)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
         input_times = {f"in{i}": i for i in range(POINTS)}
@@ -1209,10 +1209,10 @@ class TestHybridScheduler:
     #     POINTS = 64
     #     sfg = radix_2_dif_fft(POINTS)
 
-    #     sfg.set_latency_of_type(Butterfly.type_name(), 1)
-    #     sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-    #     sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-    #     sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+    #     sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+    #     sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+    #     sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+    #     sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
     #     resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
     #     input_times = {f"in{i}": i for i in range(POINTS)}
@@ -1237,10 +1237,10 @@ class TestHybridScheduler:
         POINTS = 32
         sfg = radix_2_dif_fft(POINTS)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
         input_times = {f"in{i}": i for i in range(POINTS)}
@@ -1269,10 +1269,10 @@ class TestHybridScheduler:
     def test_cyclic_scheduling(self):
         sfg = radix_2_dif_fft(points=4)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 1,
@@ -1420,10 +1420,10 @@ class TestHybridScheduler:
     def test_resources_not_enough(self):
         sfg = ldlt_matrix_inverse(N=3)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
         with pytest.raises(
@@ -1440,10 +1440,10 @@ class TestHybridScheduler:
 
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 1,
@@ -1465,10 +1465,10 @@ class TestHybridScheduler:
     def test_scheduling_time_not_enough(self):
         sfg = ldlt_matrix_inverse(N=3)
 
-        sfg.set_latency_of_type(MADS.type_name(), 3)
-        sfg.set_latency_of_type(Reciprocal.type_name(), 2)
-        sfg.set_execution_time_of_type(MADS.type_name(), 1)
-        sfg.set_execution_time_of_type(Reciprocal.type_name(), 1)
+        sfg.set_latency_of_type_name(MADS.type_name(), 3)
+        sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
+        sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
         resources = {MADS.type_name(): 10, Reciprocal.type_name(): 10}
         with pytest.raises(
@@ -1486,10 +1486,10 @@ class TestHybridScheduler:
     def test_cyclic_scheduling_write_and_read_constrained(self):
         sfg = radix_2_dif_fft(points=4)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 1,
@@ -1543,10 +1543,10 @@ class TestHybridScheduler:
     def test_cyclic_scheduling_several_inputs_and_outputs(self):
         sfg = radix_2_dif_fft(points=4)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 1,
@@ -1564,10 +1564,10 @@ class TestHybridScheduler:
     def test_invalid_output_delta_time(self):
         sfg = radix_2_dif_fft(points=4)
 
-        sfg.set_latency_of_type(Butterfly.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
             Butterfly.type_name(): 1,
@@ -1592,10 +1592,10 @@ class TestHybridScheduler:
     def test_iteration_period_bound(self):
         sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         resources = {
             Addition.type_name(): 1,
@@ -1716,7 +1716,7 @@ class TestListScheduler:
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
         sfg = direct_form_1_iir(b, a)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
 
         resources = {
             Addition.type_name(): 1,
@@ -1737,7 +1737,7 @@ class TestListScheduler:
                 ),
             )
 
-        sfg.set_latency_offsets_of_type(Addition.type_name(), {"in0": 0, "in1": 0})
+        sfg.set_latency_offsets_of_type_name(Addition.type_name(), {"in0": 0, "in1": 0})
         with pytest.raises(
             ValueError,
             match="Output port 0 of operation add4 has no latency-offset.",
@@ -1750,9 +1750,9 @@ class TestListScheduler:
                 ),
             )
 
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), None)
-        sfg.set_execution_time_of_type(Addition.type_name(), None)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), None)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), None)
 
         with pytest.raises(
             ValueError,
@@ -1766,7 +1766,7 @@ class TestListScheduler:
                 ),
             )
 
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         with pytest.raises(
             ValueError,
@@ -1780,7 +1780,7 @@ class TestListScheduler:
                 ),
             )
 
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         Schedule(
             sfg,
@@ -1808,10 +1808,10 @@ class TestRecursiveListScheduler:
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
         sfg = direct_form_1_iir(b, a)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         resources = {
             Addition.type_name(): 1,
@@ -1833,10 +1833,10 @@ class TestRecursiveListScheduler:
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
         sfg = direct_form_2_iir(b, a)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         resources = {
             Addition.type_name(): 1,
@@ -1858,10 +1858,10 @@ class TestRecursiveListScheduler:
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
         sfg = direct_form_2_iir(b, a)
 
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type(Addition.type_name(), 3)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
 
         resources = {
             Addition.type_name(): 1,
@@ -1894,10 +1894,10 @@ class TestRecursiveListScheduler:
         y = Output(a2)
         sfg = SFG([x], [y])
 
-        sfg.set_latency_of_type(Addition.type_name(), 1)
-        sfg.set_latency_of_type(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type(Addition.type_name(), 1)
-        sfg.set_execution_time_of_type(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
             Addition.type_name(): 1,
