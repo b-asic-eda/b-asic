@@ -156,12 +156,12 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     def _font_change(self, font: QFont) -> None:
         """Update font in the schedule."""
         for op in self.components:
-            op.Set_font(font)
+            op.set_font(font)
 
     def _font_color_change(self, color: QColor) -> None:
         """Update font color in the schedule."""
         for op in self.components:
-            op.Set_fontColor(color)
+            op.set_font_color(color)
 
     def _redraw_lines(self, item: OperationItem) -> None:
         """Update lines connected to *item*."""

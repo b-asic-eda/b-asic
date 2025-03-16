@@ -217,11 +217,11 @@ class Resource(HardwareBlock):
             ret += f"<TR>{''.join(out_strs)}</TR>"
         return ret + "</TABLE>>"
 
-    def _info(self):
+    def _info(self) -> str:
         return ""
 
     @property
-    def _color(self):
+    def _color(self) -> str:
         raise NotImplementedError
 
     @property
@@ -553,7 +553,7 @@ class Memory(Resource):
         # Add information about the iterator type
         return cast(Iterator[MemoryVariable], iter(self._collection))
 
-    def _info(self):
+    def _info(self) -> str:
         if self.is_assigned:
             if self._memory_type == "RAM":
                 plural_s = 's' if len(self._assignment) >= 2 else ''

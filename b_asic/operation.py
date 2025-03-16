@@ -155,10 +155,10 @@ class Operation(GraphComponent, SignalSourceProvider):
             Which output to return the value for.
         input_values : array of float or complex
             The input values.
-        results : MutableResultMap. optional
+        results : MutableResultMap, optional
             Used to store any results (including intermediate results)
             for caching.
-        delays : MutableDelayMap. optional
+        delays : MutableDelayMap, optional
             Used to get the current value of any intermediate delay elements
             that are encountered, and be updated with their new values.
         prefix : str, optional

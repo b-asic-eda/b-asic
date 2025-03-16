@@ -214,7 +214,7 @@ class OperationItem(QGraphicsItemGroup):
             self._set_background(LATENCY_COLOR_TYPE.DEFAULT)
         self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
-    def Set_font(self, font: QFont) -> None:
+    def set_font(self, font: QFont) -> None:
         """Set the items font settings according to a give QFont."""
         self._label_item.prepareGeometryChange()
         self._label_item.setFont(font)
@@ -222,7 +222,7 @@ class OperationItem(QGraphicsItemGroup):
         center -= self._label_item.boundingRect().center() / self._scale
         self._label_item.setPos(self._latency_item.pos() + center)
 
-    def Set_fontColor(self, color: QColor) -> None:
+    def set_font_color(self, color: QColor) -> None:
         """Set the items font color settings according to a give QColor"""
         self._label_item.prepareGeometryChange()
         self._label_item.setBrush(color)

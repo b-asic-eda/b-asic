@@ -39,21 +39,21 @@ class ColorDataType:
 LATENCY_COLOR_TYPE = ColorDataType(
     current_color=OPERATION_LATENCY_INACTIVE,
     DEFAULT=OPERATION_LATENCY_INACTIVE,
-    name='Latency Color',
+    name='Latency color',
 )
 EXECUTION_TIME_COLOR_TYPE = ColorDataType(
     current_color=OPERATION_EXECUTION_TIME_ACTIVE,
     DEFAULT=OPERATION_EXECUTION_TIME_ACTIVE,
-    name='Execution Time Color',
+    name='Execution time color',
 )
 SIGNAL_WARNING_COLOR_TYPE = ColorDataType(
-    current_color=SIGNAL_WARNING, DEFAULT=SIGNAL_WARNING, name='Warning Color'
+    current_color=SIGNAL_WARNING, DEFAULT=SIGNAL_WARNING, name='Warning color'
 )
 SIGNAL_COLOR_TYPE = ColorDataType(
-    current_color=SIGNAL_INACTIVE, DEFAULT=SIGNAL_INACTIVE, name='Signal Color'
+    current_color=SIGNAL_INACTIVE, DEFAULT=SIGNAL_INACTIVE, name='Signal color'
 )
 ACTIVE_COLOR_TYPE = ColorDataType(
-    current_color=SIGNAL_ACTIVE, DEFAULT=SIGNAL_ACTIVE, name='Active Color'
+    current_color=SIGNAL_ACTIVE, DEFAULT=SIGNAL_ACTIVE, name='Active color'
 )
 
 

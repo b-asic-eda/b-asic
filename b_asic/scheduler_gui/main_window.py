@@ -147,7 +147,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._execution_time_for_variables = None
         self._execution_time_plot_dialogs = defaultdict(lambda: None)
         self._ports_accesses_for_storage = None
-        self._color_changed_perType = False
+        self._color_changed_per_type = False
         self.changed_operation_colors: dict[str, QColor] = dict()
 
         # Recent files
@@ -743,11 +743,11 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         settings.beginGroup("scheduler/preferences")
         settings.setValue("font", FONT.current_font.toString())
-        settings.setValue("fontSize", FONT.size)
-        settings.setValue("fontColor", FONT.color)
-        settings.setValue("fontBold", FONT.current_font.bold())
-        settings.setValue("fontItalic", FONT.current_font.italic())
-        settings.setValue("fontChanged", FONT.changed)
+        settings.setValue("font_size", FONT.size)
+        settings.setValue("font_color", FONT.color)
+        settings.setValue("font_bold", FONT.current_font.bold())
+        settings.setValue("font_italic", FONT.current_font.italic())
+        settings.setValue("font_changed", FONT.changed)
 
         settings.setValue(
             SIGNAL_COLOR_TYPE.name, SIGNAL_COLOR_TYPE.current_color.name()
@@ -807,46 +807,46 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             settings.value("font", defaultValue=FONT.DEFAULT.toString(), type=str)
         )
         FONT.size = settings.value(
-            "fontSize", defaultValue=FONT.DEFAULT.pointSizeF(), type=int
+            "font_size", defaultValue=FONT.DEFAULT.pointSizeF(), type=int
         )
         FONT.color = QColor(
-            settings.value("fontColor", defaultValue=FONT.DEFAULT_COLOR, type=str)
+            settings.value("font_color", defaultValue=FONT.DEFAULT_COLOR, type=str)
         )
         FONT.bold = settings.value(
-            "fontBold", defaultValue=FONT.DEFAULT.bold(), type=bool
+            "font_bold", defaultValue=FONT.DEFAULT.bold(), type=bool
         )
         FONT.italic = settings.value(
-            "fontItalic", defaultValue=FONT.DEFAULT.italic(), type=bool
+            "font_italic", defaultValue=FONT.DEFAULT.italic(), type=bool
         )
-        FONT.changed = settings.value("fontChanged", FONT.changed, bool)
+        FONT.changed = settings.value("font_changed", FONT.changed, bool)
 
         SIGNAL_COLOR_TYPE.current_color = QColor(
             settings.value(
-                "Signal Color", defaultValue=SIGNAL_COLOR_TYPE.DEFAULT.name(), type=str
+                "Signal color", defaultValue=SIGNAL_COLOR_TYPE.DEFAULT.name(), type=str
             )
         )
         ACTIVE_COLOR_TYPE.current_color = QColor(
             settings.value(
-                "Active Color", defaultValue=ACTIVE_COLOR_TYPE.DEFAULT.name(), type=str
+                "Active color", defaultValue=ACTIVE_COLOR_TYPE.DEFAULT.name(), type=str
             )
         )
         SIGNAL_WARNING_COLOR_TYPE.current_color = QColor(
             settings.value(
-                "Warning Color",
+                "Warning color",
                 defaultValue=SIGNAL_WARNING_COLOR_TYPE.DEFAULT.name(),
                 type=str,
             )
         )
         LATENCY_COLOR_TYPE.current_color = QColor(
             settings.value(
-                "Latency Color",
+                "Latency color",
                 defaultValue=LATENCY_COLOR_TYPE.DEFAULT.name(),
                 type=str,
             )
         )
         EXECUTION_TIME_COLOR_TYPE.current_color = QColor(
             settings.value(
-                "Execution Time Color",
+                "Execution time color",
                 defaultValue=EXECUTION_TIME_COLOR_TYPE.DEFAULT.name(),
                 type=str,
             )
@@ -870,8 +870,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             False,
             bool,
         )
-        self._color_changed_perType = settings.value(
-            "_color_changed_perType", False, bool
+        self._color_changed_per_type = settings.value(
+            "_color_changed_per_type", False, bool
         )
 
         settings.endGroup()
@@ -1011,156 +1011,160 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         layout.addWidget(label)
 
         groupbox = QGroupBox()
-        Hlayout = QHBoxLayout()
+        hlayout = QHBoxLayout()
         label = QLabel("Color Settings:")
         layout.addWidget(label)
-        Hlayout.setSpacing(20)
+        hlayout.setSpacing(20)
 
-        Hlayout.addWidget(self.create_color_button(EXECUTION_TIME_COLOR_TYPE))
-        Hlayout.addWidget(self.create_color_button(LATENCY_COLOR_TYPE))
-        Hlayout.addWidget(
+        hlayout.addWidget(self.create_color_button(EXECUTION_TIME_COLOR_TYPE))
+        hlayout.addWidget(self.create_color_button(LATENCY_COLOR_TYPE))
+        hlayout.addWidget(
             self.create_color_button(
                 ColorDataType(
                     current_color=LATENCY_COLOR_TYPE.DEFAULT,
                     DEFAULT=QColor('skyblue'),
-                    name="Latency Color per Type",
+                    name="Latency color per type",
                 )
             )
         )
 
-        groupbox.setLayout(Hlayout)
+        groupbox.setLayout(hlayout)
         layout.addWidget(groupbox)
 
-        label = QLabel("Signal Colors:")
+        label = QLabel("Signal colors:")
         layout.addWidget(label)
         groupbox = QGroupBox()
-        Hlayout = QHBoxLayout()
-        Hlayout.setSpacing(20)
+        hlayout = QHBoxLayout()
+        hlayout.setSpacing(20)
 
         Signal_button = self.create_color_button(SIGNAL_COLOR_TYPE)
         Signal_button.setStyleSheet(
             f"color: {QColor(255,255,255,0).name()}; background-color: {SIGNAL_COLOR_TYPE.DEFAULT.name()}"
         )
 
-        Hlayout.addWidget(Signal_button)
-        Hlayout.addWidget(self.create_color_button(SIGNAL_WARNING_COLOR_TYPE))
-        Hlayout.addWidget(self.create_color_button(ACTIVE_COLOR_TYPE))
+        hlayout.addWidget(Signal_button)
+        hlayout.addWidget(self.create_color_button(SIGNAL_WARNING_COLOR_TYPE))
+        hlayout.addWidget(self.create_color_button(ACTIVE_COLOR_TYPE))
 
-        groupbox.setLayout(Hlayout)
+        groupbox.setLayout(hlayout)
         layout.addWidget(groupbox)
 
-        Reset_Color_button = ColorButton(QColor('silver'))
-        Reset_Color_button.setText('Reset All Color settings')
-        Reset_Color_button.pressed.connect(self.reset_color_clicked)
-        layout.addWidget(Reset_Color_button)
+        reset_color_button = ColorButton(QColor('silver'))
+        reset_color_button.setText('Reset All Color settings')
+        reset_color_button.pressed.connect(self.reset_color_clicked)
+        layout.addWidget(reset_color_button)
 
         label = QLabel("Font Settings:")
         layout.addWidget(label)
 
         groupbox = QGroupBox()
-        Hlayout = QHBoxLayout()
-        Hlayout.setSpacing(10)
+        hlayout = QHBoxLayout()
+        hlayout.setSpacing(10)
 
-        Font_button = ColorButton(QColor('moccasin'))
-        Font_button.setText('Font Settings')
-        Hlayout.addWidget(Font_button)
+        font_button = ColorButton(QColor('moccasin'))
+        font_button.setText('Font Settings')
+        hlayout.addWidget(font_button)
 
-        Font_color_button = ColorButton(QColor('moccasin'))
-        Font_color_button.setText('Font Color')
-        Font_color_button.pressed.connect(self.font_color_clicked)
-        Hlayout.addWidget(Font_color_button)
+        font_color_button = ColorButton(QColor('moccasin'))
+        font_color_button.setText('Font Color')
+        font_color_button.pressed.connect(self.font_color_clicked)
+        hlayout.addWidget(font_color_button)
 
         groupbox2 = QGroupBox()
-        Hlayout2 = QHBoxLayout()
+        hlayout2 = QHBoxLayout()
 
         icon = QIcon.fromTheme("format-text-italic")
-        Italicbutton = (
+        italic_button = (
             ColorButton(QColor('silver'))
             if FONT.italic
             else ColorButton(QColor('snow'))
         )
-        Italicbutton.setIcon(icon)
-        Italicbutton.pressed.connect(lambda: self.italic_font_clicked(Italicbutton))
-        Hlayout2.addWidget(Italicbutton)
+        italic_button.setIcon(icon)
+        italic_button.pressed.connect(lambda: self.italic_font_clicked(italic_button))
+        hlayout2.addWidget(italic_button)
 
         icon = QIcon.fromTheme("format-text-bold")
-        Boldbutton = (
+        bold_button = (
             ColorButton(QColor('silver')) if FONT.bold else ColorButton(QColor('snow'))
         )
-        Boldbutton.setIcon(icon)
-        Boldbutton.pressed.connect(lambda: self.bold_font_clicked(Boldbutton))
-        Hlayout2.addWidget(Boldbutton)
+        bold_button.setIcon(icon)
+        bold_button.pressed.connect(lambda: self.bold_font_clicked(bold_button))
+        hlayout2.addWidget(bold_button)
 
-        groupbox2.setLayout(Hlayout2)
-        Hlayout.addWidget(groupbox2)
+        groupbox2.setLayout(hlayout2)
+        hlayout.addWidget(groupbox2)
 
         groupbox2 = QGroupBox()
-        Hlayout2 = QHBoxLayout()
-        Font_Size_input = QLineEdit()
-        Font_button.pressed.connect(
-            lambda: self.font_clicked(Font_Size_input, Italicbutton, Boldbutton)
+        hlayout2 = QHBoxLayout()
+        font_size_input = QLineEdit()
+        font_button.pressed.connect(
+            lambda: self.font_clicked(font_size_input, italic_button, bold_button)
         )
 
         icon = QIcon.fromTheme("list-add")
-        Incr_button = ColorButton(QColor('smoke'))
-        Incr_button.setIcon(icon)
-        Incr_button.pressed.connect(
-            lambda: self.increase_font_size_clicked(Font_Size_input)
+        increase_font_size_button = ColorButton(QColor('smoke'))
+        increase_font_size_button.setIcon(icon)
+        increase_font_size_button.pressed.connect(
+            lambda: self.increase_font_size_clicked(font_size_input)
         )
-        Incr_button.setShortcut(QCoreApplication.translate("MainWindow", "Ctrl++"))
-        Hlayout2.addWidget(Incr_button)
+        increase_font_size_button.setShortcut(
+            QCoreApplication.translate("MainWindow", "Ctrl++")
+        )
+        hlayout2.addWidget(increase_font_size_button)
 
-        Font_Size_input.setPlaceholderText('Font Size')
-        Font_Size_input.setText(f'Font Size: {FONT.size}')
-        Font_Size_input.setValidator(QIntValidator(0, 99))
-        Font_Size_input.setAlignment(Qt.AlignCenter)
-        Font_Size_input.textChanged.connect(
-            lambda: self.set_font_size_clicked(Font_Size_input.text())
+        font_size_input.setPlaceholderText('Font Size')
+        font_size_input.setText(f'Font Size: {FONT.size}')
+        font_size_input.setValidator(QIntValidator(0, 99))
+        font_size_input.setAlignment(Qt.AlignCenter)
+        font_size_input.textChanged.connect(
+            lambda: self.set_font_size_clicked(font_size_input.text())
         )
-        Font_Size_input.textChanged.connect(
-            lambda: self.set_font_size_clicked(Font_Size_input.text())
+        font_size_input.textChanged.connect(
+            lambda: self.set_font_size_clicked(font_size_input.text())
         )
-        Hlayout2.addWidget(Font_Size_input)
+        hlayout2.addWidget(font_size_input)
 
         icon = QIcon.fromTheme("list-remove")
-        Decr_button = ColorButton(QColor('smoke'))
-        Decr_button.setIcon(icon)
-        Decr_button.pressed.connect(
-            lambda: self.decrease_font_size_clicked(Font_Size_input)
+        decrease_font_size_button = ColorButton(QColor('smoke'))
+        decrease_font_size_button.setIcon(icon)
+        decrease_font_size_button.pressed.connect(
+            lambda: self.decrease_font_size_clicked(font_size_input)
         )
-        Decr_button.setShortcut(QCoreApplication.translate("MainWindow", "Ctrl+-"))
+        decrease_font_size_button.setShortcut(
+            QCoreApplication.translate("MainWindow", "Ctrl+-")
+        )
 
-        Hlayout2.addWidget(Decr_button)
+        hlayout2.addWidget(decrease_font_size_button)
 
-        groupbox2.setLayout(Hlayout2)
-        Hlayout.addWidget(groupbox2)
+        groupbox2.setLayout(hlayout2)
+        hlayout.addWidget(groupbox2)
 
-        groupbox.setLayout(Hlayout)
+        groupbox.setLayout(hlayout)
         layout.addWidget(groupbox)
 
-        Reset_Font_button = ColorButton(QColor('silver'))
-        Reset_Font_button.setText('Reset All Font Settings')
-        Reset_Font_button.pressed.connect(
-            lambda: self.reset_font_clicked(Font_Size_input, Italicbutton, Boldbutton)
+        reset_font_button = ColorButton(QColor('silver'))
+        reset_font_button.setText('Reset All Font Settings')
+        reset_font_button.pressed.connect(
+            lambda: self.reset_font_clicked(font_size_input, italic_button, bold_button)
         )
-        layout.addWidget(Reset_Font_button)
+        layout.addWidget(reset_font_button)
 
         label = QLabel("")
         layout.addWidget(label)
 
-        Reset_button = ColorButton(QColor('salmon'))
-        Reset_button.setText('Reset All Settings')
-        Reset_button.pressed.connect(
-            lambda: self.reset_all_clicked(Font_Size_input, Italicbutton, Boldbutton)
+        reset_all_button = ColorButton(QColor('salmon'))
+        reset_all_button.setText('Reset all settings')
+        reset_all_button.pressed.connect(
+            lambda: self.reset_all_clicked(font_size_input, italic_button, bold_button)
         )
-        layout.addWidget(Reset_button)
+        layout.addWidget(reset_all_button)
 
         dialog.setLayout(layout)
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Close)
-        buttonBox.ButtonLayout(QDialogButtonBox.MacLayout)
-        buttonBox.accepted.connect(dialog.accept)
-        buttonBox.rejected.connect(dialog.close)
-        layout.addWidget(buttonBox)
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Close)
+        button_box.ButtonLayout(QDialogButtonBox.MacLayout)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.close)
+        layout.addWidget(button_box)
 
         dialog.exec_()
 
@@ -1174,11 +1178,11 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         """
         button = ColorButton(color.DEFAULT)
         button.setText(color.name)
-        if color.name == "Latency Color":
+        if color.name == "Latency color":
             button.pressed.connect(
                 lambda: self.set_latency_color_by_type_name(all=True)
             )
-        elif color.name == "Latency Color per Type":
+        elif color.name == "Latency color per type":
             button.pressed.connect(
                 lambda: self.set_latency_color_by_type_name(all=False)
             )
@@ -1216,12 +1220,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if color.isValid():
                 if all:
                     LATENCY_COLOR_TYPE.changed = True
-                    self._color_changed_perType = False
+                    self._color_changed_per_type = False
                     self.changed_operation_colors.clear()
                     LATENCY_COLOR_TYPE.current_color = color
                 # Save color settings for each operation type
                 else:
-                    self._color_changed_perType = True
+                    self._color_changed_per_type = True
                     self.changed_operation_colors[type] = color
                 self.color_pref_update()
                 self.update_statusbar("Preferences updated")
@@ -1229,11 +1233,11 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def color_pref_update(self):
         """Update preferences of Latency color per type"""
         for type in self._schedule.get_used_type_names():
-            if LATENCY_COLOR_TYPE.changed and not self._color_changed_perType:
+            if LATENCY_COLOR_TYPE.changed and not self._color_changed_per_type:
                 self._color_per_type[type] = LATENCY_COLOR_TYPE.current_color
-            elif not LATENCY_COLOR_TYPE.changed and not self._color_changed_perType:
+            elif not LATENCY_COLOR_TYPE.changed and not self._color_changed_per_type:
                 self._color_per_type[type] = LATENCY_COLOR_TYPE.DEFAULT
-            elif not LATENCY_COLOR_TYPE.changed and self._color_changed_perType:
+            elif not LATENCY_COLOR_TYPE.changed and self._color_changed_per_type:
                 if type in self.changed_operation_colors:
                     self._color_per_type[type] = self.changed_operation_colors[type]
                 else:
@@ -1265,7 +1269,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         )
         settings.setValue(
             f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}/perType_changed",
-            self._color_changed_perType,
+            self._color_changed_per_type,
         )
 
     def color_button_clicked(self, color_type: ColorDataType) -> None:
@@ -1311,7 +1315,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         """
         current_font = FONT.current_font if FONT.changed else FONT.DEFAULT
 
-        (ok, font) = QFontDialog.getFont(current_font, self)
+        (font, ok) = QFontDialog.getFont(current_font, self)
         if ok:
             FONT.current_font = font
             FONT.size = int(font.pointSizeF())
@@ -1331,9 +1335,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             and FONT.bold == FONT.DEFAULT.bold()
         )
         settings.setValue("scheduler/preferences/font", FONT.current_font.toString())
-        settings.setValue("scheduler/preferences/fontSize", FONT.size)
-        settings.setValue("scheduler/preferences/fontBold", FONT.bold)
-        settings.setValue("scheduler/preferences/fontItalic", FONT.italic)
+        settings.setValue("scheduler/preferences/font_size", FONT.size)
+        settings.setValue("scheduler/preferences/font_bold", FONT.bold)
+        settings.setValue("scheduler/preferences/font_italic", FONT.italic)
         settings.sync()
         self.load_preferences()
 
@@ -1354,7 +1358,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}/perType",
             self.converted_colorPerType,
         )
-        self._color_changed_perType = settings.value(
+        self._color_changed_per_type = settings.value(
             f"scheduler/preferences/{LATENCY_COLOR_TYPE.name}/perType_changed",
             False,
             bool,
@@ -1369,7 +1373,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                 if LATENCY_COLOR_TYPE.changed
                 else (color == LATENCY_COLOR_TYPE.DEFAULT)
             )
-            if self._color_changed_perType and not Match:
+            if self._color_changed_per_type and not Match:
                 self.changed_operation_colors[key] = color
         self.color_pref_update()
 
@@ -1392,7 +1396,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if color.isValid():
             FONT.color = color
             FONT.changed = True
-        settings.setValue("scheduler/preferences/fontColor", FONT.color.name())
+        settings.setValue("scheduler/preferences/font_color", FONT.color.name())
         settings.sync()
         self._graph._font_color_change(FONT.color)
 
@@ -1474,7 +1478,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         SIGNAL_WARNING_COLOR_TYPE.changed = False
         SIGNAL_COLOR_TYPE.changed = False
         EXECUTION_TIME_COLOR_TYPE.changed = False
-        self._color_changed_perType = False
+        self._color_changed_per_type = False
         self.color_pref_update()
 
         settings.beginGroup("scheduler/preferences")
