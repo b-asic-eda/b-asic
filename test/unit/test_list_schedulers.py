@@ -1202,7 +1202,7 @@ class TestHybridScheduler:
 
         for i in range(POINTS):
             assert schedule.start_times[f"in{i}"] == i
-            assert schedule.start_times[f"out{i}"] == 95 + i
+            assert schedule.start_times[f"out{i}"] == 81 + i
 
     # too slow for pipeline timeout
     # def test_64_point_fft_custom_io_times(self):
@@ -1258,12 +1258,7 @@ class TestHybridScheduler:
 
         for i in range(POINTS):
             assert schedule.start_times[f"in{i}"] == i
-            if i == 0:
-                expected_value = 95
-            elif i == 1:
-                expected_value = 96
-            else:
-                expected_value = i - 1
+            expected_value = ((81 + i - 1) % 96) + 1
             assert schedule.start_times[f"out{i}"] == expected_value
 
     def test_cyclic_scheduling(self):

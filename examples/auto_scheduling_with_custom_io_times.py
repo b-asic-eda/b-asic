@@ -8,9 +8,12 @@ It is possible to specify the IO times and provide those to the scheduling.
 
 from b_asic.core_operations import Butterfly, ConstantMultiplication
 from b_asic.list_schedulers import HybridScheduler
+from b_asic.logger import getLogger
 from b_asic.schedule import Schedule
-from b_asic.scheduler import ASAPScheduler
+from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg_generators import radix_2_dif_fft
+
+getLogger("list_scheduler", console_log_level="debug")
 
 points = 8
 sfg = radix_2_dif_fft(points=points)
@@ -27,16 +30,21 @@ sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
 sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
 # %%
-# Generate an ASAP schedule for reference.
-schedule1 = Schedule(sfg, scheduler=ASAPScheduler())
+# Generate an ASAP schedule for reference with custom IO times.
+input_times = {f"in{i}": i for i in range(points)}
+output_delta_times = {f"out{i}": i for i in range(points)}
+schedule1 = Schedule(sfg, scheduler=ASAPScheduler(input_times, output_delta_times))
 schedule1.show()
 
 # %%
+# Generate an ALAP schedule for reference with custom IO times..
+schedule_t = Schedule(sfg, scheduler=ALAPScheduler(input_times, output_delta_times))
+schedule_t.show()
+
+# %%
 # Generate a non-cyclic Schedule from HybridScheduler with custom IO times,
-# one input and output per time unit
+# one input and output per time unit and one butterfly/multiplication per time unit.
 resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
-input_times = {f"in{i}": i for i in range(points)}
-output_delta_times = {f"out{i}": i for i in range(points)}
 schedule2 = Schedule(
     sfg,
     scheduler=HybridScheduler(

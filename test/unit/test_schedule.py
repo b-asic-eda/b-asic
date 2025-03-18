@@ -788,7 +788,7 @@ class TestErrors:
     def test_no_latency(self, sfg_simple_filter):
         with pytest.raises(
             ValueError,
-            match="Input port 0 of operation add0 has no latency-offset.",
+            match="Input port 0 of operation cmul0 has no latency-offset.",
         ):
             Schedule(sfg_simple_filter, scheduler=ASAPScheduler())
 
