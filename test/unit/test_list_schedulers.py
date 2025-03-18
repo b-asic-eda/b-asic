@@ -1663,7 +1663,7 @@ class TestHybridScheduler:
             "rec2": 36,
         }
 
-        assert all([val == 0 for val in schedule.laps.values()])
+        assert all(val == 0 for val in schedule.laps.values())
         _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 3)
 
     def test_latency_offsets_cyclic(self):

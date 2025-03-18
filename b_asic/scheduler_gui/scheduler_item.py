@@ -306,7 +306,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
 
     @property
     def components(self) -> list[OperationItem]:
-        return list(component for component in self._operation_items.values())
+        return list(self._operation_items.values())
 
     @property
     def event_items(self) -> list[QGraphicsItem]:

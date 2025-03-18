@@ -198,8 +198,8 @@ class MemoryProcess(Process):
         reads exists), and vice-versa for the other tuple element.
         """
         reads = self.reads
-        short_reads = {k: v for k, v in filter(lambda t: t[1] <= length, reads.items())}
-        long_reads = {k: v for k, v in filter(lambda t: t[1] > length, reads.items())}
+        short_reads = dict(filter(lambda t: t[1] <= length, reads.items()))
+        long_reads = dict(filter(lambda t: t[1] > length, reads.items()))
         short_process = None
         long_process = None
         if short_reads:
@@ -319,7 +319,7 @@ class MemoryVariable(MemoryProcess):
         return self._write_port
 
     def __repr__(self) -> str:
-        reads = {k: v for k, v in zip(self._read_ports, self._life_times, strict=True)}
+        reads = dict(zip(self._read_ports, self._life_times, strict=True))
         return (
             f"MemoryVariable({self.start_time}, {self.write_port},"
             f" {reads!r}, {self.name!r})"
@@ -413,7 +413,7 @@ class PlainMemoryVariable(MemoryProcess):
         return self._write_port
 
     def __repr__(self) -> str:
-        reads = {k: v for k, v in zip(self._read_ports, self._life_times, strict=True)}
+        reads = dict(zip(self._read_ports, self._life_times, strict=True))
         return (
             f"PlainMemoryVariable({self.start_time}, {self.write_port},"
             f" {reads!r}, {self.name!r})"

@@ -587,7 +587,8 @@ class SFG(AbstractOperation):
             for comp in self._components_dfs_order
             if isinstance(comp, component_type)
         ]
-        return sorted(list(set(components)), key=lambda c: c.name or c.graph_id)
+        components = list(set(components))  # ensure no redundant elements
+        return sorted(components, key=lambda c: c.name or c.graph_id)
 
     def find_by_id(self, graph_id: GraphID) -> GraphComponent | None:
         """

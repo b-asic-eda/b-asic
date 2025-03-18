@@ -115,8 +115,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     _splitter_pos: int
     _splitter_min: int
     _zoom: float
-    _color_per_type: dict[str, QColor] = dict()
-    _converted_color_per_type: dict[str, str] = dict()
+    _color_per_type: dict[str, QColor] = {}
+    _converted_color_per_type: dict[str, str] = {}
 
     def __init__(self):
         """Initialize Scheduler-GUI."""
@@ -137,7 +137,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._execution_time_plot_dialogs = defaultdict(lambda: None)
         self._ports_accesses_for_storage = None
         self._color_changed_per_type = False
-        self._changed_operation_colors: dict[str, QColor] = dict()
+        self._changed_operation_colors: dict[str, QColor] = {}
 
         # Recent files
         self._max_recent_files = 4
@@ -376,7 +376,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
 
         if len(schedule_obj_list) == 1:
-            schedule = [val for val in schedule_obj_list.values()][0]
+            schedule = list(schedule_obj_list.values())[0]
         else:
             ret_tuple = QInputDialog.getItem(
                 self,

@@ -359,8 +359,8 @@ class TestInsertComponent:
         _sfg = sfg.insert_operation(sqrt, sfg.find_by_name("constant4")[0].graph_id)
         assert _sfg.evaluate() != sfg.evaluate()
 
-        assert any([isinstance(comp, SquareRoot) for comp in _sfg.operations])
-        assert not any([isinstance(comp, SquareRoot) for comp in sfg.operations])
+        assert any(isinstance(comp, SquareRoot) for comp in _sfg.operations)
+        assert not any(isinstance(comp, SquareRoot) for comp in sfg.operations)
 
         assert not isinstance(
             sfg.find_by_name("constant4")[0].output(0).signals[0].destination.operation,
@@ -1664,8 +1664,8 @@ class TestInsertComponentAfter:
         )
         assert _sfg.evaluate() != sfg.evaluate()
 
-        assert any([isinstance(comp, SquareRoot) for comp in _sfg.operations])
-        assert not any([isinstance(comp, SquareRoot) for comp in sfg.operations])
+        assert any(isinstance(comp, SquareRoot) for comp in _sfg.operations)
+        assert not any(isinstance(comp, SquareRoot) for comp in sfg.operations)
 
         assert not isinstance(
             sfg.find_by_name("constant4")[0].output(0).signals[0].destination.operation,
@@ -1716,8 +1716,8 @@ class TestInsertComponentBefore:
         )
         assert _sfg.evaluate() != sfg.evaluate()
 
-        assert any([isinstance(comp, SquareRoot) for comp in _sfg.operations])
-        assert not any([isinstance(comp, SquareRoot) for comp in sfg.operations])
+        assert any(isinstance(comp, SquareRoot) for comp in _sfg.operations)
+        assert not any(isinstance(comp, SquareRoot) for comp in sfg.operations)
 
         assert not isinstance(
             sfg.find_by_name("bfly1")[0].input(0).signals[0].source.operation,

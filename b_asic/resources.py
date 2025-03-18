@@ -1172,7 +1172,7 @@ class ProcessCollection:
                     f"{process} has execution time greater than the schedule time"
                 )
 
-        cell_assignment: dict[int, ProcessCollection] = dict()
+        cell_assignment: dict[int, ProcessCollection] = {}
         exclusion_graph = self.create_exclusion_graph_from_execution_time()
         if coloring is None:
             coloring = nx.coloring.greedy_color(
@@ -1599,7 +1599,7 @@ class ProcessCollection:
     def total_port_accesses(self) -> dict[int, int]:
         accesses = sum(
             (
-                list(read_time % self.schedule_time for read_time in process.read_times)
+                [read_time % self.schedule_time for read_time in process.read_times]
                 for process in self._collection
             ),
             [process.start_time % self.schedule_time for process in self._collection],

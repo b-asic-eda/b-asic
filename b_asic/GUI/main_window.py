@@ -903,8 +903,8 @@ class SFGMainWindow(QMainWindow):
 
     def _simulate_sfg(self) -> None:
         """Callback for simulating SFGs in separate threads."""
-        self._thread = dict()
-        self._sim_worker = dict()
+        self._thread = {}
+        self._sim_worker = {}
         for sfg, properties in self._simulation_dialog._properties.items():
             self._logger.info("Simulating SFG with name: %s" % str(sfg.name))
             self._sim_worker[sfg] = SimulationWorker(sfg, properties)

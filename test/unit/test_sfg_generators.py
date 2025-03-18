@@ -293,12 +293,12 @@ class TestDirectFormIIRType1:
         with pytest.raises(
             ValueError, match="Size of coefficient lists a and b are not the same."
         ):
-            direct_form_1_iir([i for i in range(10)], [i for i in range(11)])
+            direct_form_1_iir(list(range(10)), list(range(11)))
 
         with pytest.raises(
             ValueError, match="Size of coefficient lists a and b are not the same."
         ):
-            direct_form_1_iir([i for i in range(10)], [i for i in range(11)])
+            direct_form_1_iir(list(range(10)), list(range(11)))
 
     def test_a0_not_1(self):
         with pytest.raises(ValueError, match=r"The value of a\[0] must be 1\."):

@@ -985,7 +985,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         # Always a rectangle, but easier if coordinates are returned
         execution_time = self._execution_time  # Copy for type checking
         if execution_time is None:
-            return tuple()
+            return ()
         return (
             (0, 0),
             (0, 1),

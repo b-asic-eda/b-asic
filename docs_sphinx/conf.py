@@ -56,7 +56,7 @@ numpydoc_validation_checks = {
     "RT03",
 }
 
-inheritance_node_attrs = dict(fontsize=16)
+inheritance_node_attrs = {"fontsize": 16}
 
 graphviz_dot = shutil.which("dot")
 

@@ -100,7 +100,7 @@ class Constant(AbstractOperation):
 
     def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
-        return tuple()
+        return ()
 
     def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
@@ -1724,7 +1724,7 @@ class DontCare(AbstractOperation):
 
     def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
-        return tuple()
+        return ()
 
     def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
@@ -1791,4 +1791,4 @@ class Sink(AbstractOperation):
 
     def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
-        return tuple()
+        return ()

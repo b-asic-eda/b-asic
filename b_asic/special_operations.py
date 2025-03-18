@@ -90,7 +90,7 @@ class Input(AbstractOperation):
 
     def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
-        return tuple()
+        return ()
 
     def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
@@ -153,7 +153,7 @@ class Output(AbstractOperation):
 
     def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
         # doc-string inherited
-        return tuple()
+        return ()
 
     @property
     def latency(self) -> int:
