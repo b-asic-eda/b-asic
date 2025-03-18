@@ -882,7 +882,7 @@ class TestHybridScheduler:
         assert schedule.schedule_time == 16
 
         # validate regenerated sfg with random 2x2 real s.p.d. matrix
-        A = np.random.rand(2, 2)
+        A = np.random.default_rng().random((2, 2))
         A = np.dot(A, A.T)
         A_inv = np.linalg.inv(A)
         input_signals = []
@@ -1985,7 +1985,7 @@ def _validate_recreated_sfg_ldlt_matrix_inverse(
         delays = [0 for i in range(num_of_outputs)]
 
     # random real s.p.d matrix
-    A = np.random.rand(N, N)
+    A = np.random.default_rng().random((N, N))
     A = np.dot(A, A.T)
 
     # iterate through the upper diagonal and construct the input to the SFG

@@ -310,7 +310,7 @@ class TestDirectFormIIRType1:
 
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
 
-        input_signal = np.random.randn(100)
+        input_signal = np.random.default_rng().standard_normal(100)
         reference_filter_output = signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
@@ -326,7 +326,7 @@ class TestDirectFormIIRType1:
 
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
 
-        input_signal = np.random.randn(100)
+        input_signal = np.random.default_rng().standard_normal(100)
         reference_filter_output = signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
@@ -343,7 +343,7 @@ class TestDirectFormIIRType1:
         b, a = signal.ellip(N, 0.1, 60, Wc, btype="low", analog=False)
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
 
-        input_signal = np.random.randn(100)
+        input_signal = np.random.default_rng().standard_normal(100)
         reference_filter_output = signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
@@ -430,7 +430,7 @@ class TestDirectFormIIRType2:
 
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
 
-        input_signal = np.random.randn(100)
+        input_signal = np.random.default_rng().standard_normal(100)
         reference_filter_output = signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_2_iir(b, a, name="test iir direct form 1")
@@ -446,7 +446,7 @@ class TestDirectFormIIRType2:
 
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
 
-        input_signal = np.random.randn(100)
+        input_signal = np.random.default_rng().standard_normal(100)
         reference_filter_output = signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_2_iir(b, a, name="test iir direct form 1")
@@ -463,7 +463,7 @@ class TestDirectFormIIRType2:
         b, a = signal.ellip(N, 0.1, 60, Wc, btype="low", analog=False)
         b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
 
-        input_signal = np.random.randn(100)
+        input_signal = np.random.default_rng().standard_normal(100)
         reference_filter_output = signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_2_iir(b, a, name="test iir direct form 1")
@@ -804,7 +804,7 @@ class TestLdltMatrixInverse:
     #         assert np.isclose(actual_values[i], expected_values[i])
 
     def _generate_random_spd_matrix(self, N: int) -> np.ndarray:
-        A = np.random.rand(N, N)
+        A = np.random.default_rng().random((N, N))
         A = (A + A.T) / 2  # ensure symmetric
         min_eig = np.min(np.linalg.eigvals(A))
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
