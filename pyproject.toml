@@ -100,8 +100,8 @@ precision = 2
 exclude = ["examples"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "SIM", "B", "NPY", "C4"]
-ignore = ["F403", "B008", "B021", "B006"]
+select = ["E4", "E7", "E9", "F", "SIM", "B", "NPY", "C4", "UP"]
+ignore = ["F403", "B008", "B021", "B006", "UP038"]
 
 [tool.typos]
 default.extend-identifiers = { ba = "ba", addd0 = "addd0", inout = "inout", ArChItEctUrE = "ArChItEctUrE" }

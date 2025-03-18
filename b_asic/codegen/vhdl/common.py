@@ -5,7 +5,7 @@ Generation of common VHDL constructs
 import re
 from datetime import datetime
 from subprocess import PIPE, Popen
-from typing import Any, Optional, Set, TextIO, Tuple
+from typing import Any, TextIO
 
 from b_asic.codegen.vhdl import write, write_lines
 
@@ -76,10 +76,10 @@ def signal_declaration(
     f: TextIO,
     name: str,
     signal_type: str,
-    default_value: Optional[str] = None,
-    name_pad: Optional[int] = None,
-    vivado_ram_style: Optional[str] = None,
-    quartus_ram_style: Optional[str] = None,
+    default_value: str | None = None,
+    name_pad: int | None = None,
+    vivado_ram_style: str | None = None,
+    quartus_ram_style: str | None = None,
 ):
     """
     Create a VHDL signal declaration.
@@ -137,8 +137,8 @@ def alias_declaration(
     f: TextIO,
     name: str,
     signal_type: str,
-    value: Optional[str] = None,
-    name_pad: Optional[int] = None,
+    value: str | None = None,
+    name_pad: int | None = None,
 ):
     name_pad = name_pad or 0
     write(f, 1, f"alias {name:<{name_pad}} : {signal_type} is {value};")
@@ -149,7 +149,7 @@ def constant_declaration(
     name: str,
     signal_type: str,
     value: Any,
-    name_pad: Optional[int] = None,
+    name_pad: int | None = None,
 ):
     """
     Write a VHDL constant declaration with a name, a type and a value.
@@ -195,7 +195,7 @@ def process_prologue(
     f: TextIO,
     sensitivity_list: str,
     indent: int = 1,
-    name: Optional[str] = None,
+    name: str | None = None,
 ):
     """
     Write the prologue of a regular VHDL process with a user provided sensitivity list.
@@ -222,9 +222,9 @@ def process_prologue(
 
 def process_epilogue(
     f: TextIO,
-    sensitivity_list: Optional[str] = None,
+    sensitivity_list: str | None = None,
     indent: int = 1,
-    name: Optional[str] = None,
+    name: str | None = None,
 ):
     """
     Write the epilogue of a regular VHDL process.
@@ -253,7 +253,7 @@ def synchronous_process_prologue(
     f: TextIO,
     clk: str,
     indent: int = 1,
-    name: Optional[str] = None,
+    name: str | None = None,
 ):
     """
     Write the prologue of a regular VHDL synchronous process with a single clock object.
@@ -280,9 +280,9 @@ def synchronous_process_prologue(
 
 def synchronous_process_epilogue(
     f: TextIO,
-    clk: Optional[str] = None,
+    clk: str | None = None,
     indent: int = 1,
-    name: Optional[str] = None,
+    name: str | None = None,
 ):
     """
     Write the epilogue of a regular VHDL synchronous process with a single clock.
@@ -311,7 +311,7 @@ def synchronous_process(
     clk: str,
     body: str,
     indent: int = 1,
-    name: Optional[str] = None,
+    name: str | None = None,
 ):
     """
     Write a regular VHDL synchronous process with a single clock.
@@ -342,9 +342,9 @@ def synchronous_process(
 def synchronous_memory(
     f: TextIO,
     clk: str,
-    read_ports: Set[Tuple[str, str, str]],
-    write_ports: Set[Tuple[str, str, str]],
-    name: Optional[str] = None,
+    read_ports: set[tuple[str, str, str]],
+    write_ports: set[tuple[str, str, str]],
+    name: str | None = None,
 ):
     """
     Infer a VHDL synchronous reads and writes.
@@ -389,9 +389,9 @@ def synchronous_memory(
 def asynchronous_read_memory(
     f: TextIO,
     clk: str,
-    read_ports: Set[Tuple[str, str, str]],
-    write_ports: Set[Tuple[str, str, str]],
-    name: Optional[str] = None,
+    read_ports: set[tuple[str, str, str]],
+    write_ports: set[tuple[str, str, str]],
+    name: str | None = None,
 ):
     """
     Infer a VHDL memory with synchronous writes and asynchronous reads.

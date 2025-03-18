@@ -4,8 +4,8 @@ import random
 import re
 import string
 import sys
+from collections import Counter
 from os import path, remove
-from typing import Counter, Dict, Type
 
 import numpy as np
 import pytest
@@ -1514,7 +1514,7 @@ class TestCriticalPath:
 
 
 class TestUnfold:
-    def count_kinds(self, sfg: SFG) -> Dict[Type, int]:
+    def count_kinds(self, sfg: SFG) -> dict[type, int]:
         return Counter([type(op) for op in sfg.operations])
 
     # Checks that the number of each kind of operation in sfg2 is multiple*count

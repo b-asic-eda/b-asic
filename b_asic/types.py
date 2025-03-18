@@ -1,7 +1,7 @@
-from typing import NewType, Union
+from typing import NewType
 
 # https://stackoverflow.com/questions/69334475/how-to-hint-at-number-types-i-e-subclasses-of-number-not-numbers-themselv
-Num = Union[int, float, complex]
+Num = int | float | complex
 
 NumRuntime = (complex, float, int)
 

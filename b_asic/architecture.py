@@ -8,7 +8,6 @@ from collections.abc import Iterable, Iterator
 from io import TextIOWrapper
 from itertools import chain
 from typing import (
-    DefaultDict,
     Literal,
     cast,
 )
@@ -623,10 +622,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         )
         self._memories = [memories] if isinstance(memories, Memory) else list(memories)
         self._direct_interconnects = direct_interconnects
-        self._variable_input_port_to_resource: DefaultDict[
+        self._variable_input_port_to_resource: defaultdict[
             InputPort, set[tuple[Resource, int]]
         ] = defaultdict(set)
-        self._variable_outport_to_resource: DefaultDict[
+        self._variable_outport_to_resource: defaultdict[
             OutputPort, set[tuple[Resource, int]]
         ] = defaultdict(set)
         self._operation_input_port_to_resource: dict[InputPort, Resource] = {}
@@ -766,8 +765,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
         if isinstance(mem, str):
             mem = cast(Memory, self.resource_from_name(mem))
 
-        d_in: DefaultDict[Resource, int] = defaultdict(_interconnect_dict)
-        d_out: DefaultDict[Resource, int] = defaultdict(_interconnect_dict)
+        d_in: defaultdict[Resource, int] = defaultdict(_interconnect_dict)
+        d_out: defaultdict[Resource, int] = defaultdict(_interconnect_dict)
         for var in mem.collection:
             var = cast(MemoryVariable, var)
             d_in[self._operation_outport_to_resource[var.write_port]] += 1
@@ -802,10 +801,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         if isinstance(pe, str):
             pe = cast(ProcessingElement, self.resource_from_name(pe))
 
-        d_in: list[DefaultDict[tuple[Resource, int], int]] = [
+        d_in: list[defaultdict[tuple[Resource, int], int]] = [
             defaultdict(_interconnect_dict) for _ in range(pe.input_count)
         ]
-        d_out: list[DefaultDict[tuple[Resource, int], int]] = [
+        d_out: list[defaultdict[tuple[Resource, int], int]] = [
             defaultdict(_interconnect_dict) for _ in range(pe.output_count)
         ]
         for var in pe.collection:
@@ -1052,8 +1051,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 )
 
         # Create list of interconnects
-        edges: DefaultDict[str, set[tuple[str, str]]] = defaultdict(set)
-        destination_edges: DefaultDict[str, set[str]] = defaultdict(set)
+        edges: defaultdict[str, set[tuple[str, str]]] = defaultdict(set)
+        destination_edges: defaultdict[str, set[str]] = defaultdict(set)
         for pe in self._processing_elements:
             inputs, outputs = self.get_interconnects_for_pe(pe)
             for i, inp in enumerate(inputs):

@@ -224,8 +224,8 @@ class DragButton(QPushButton):
         for signal, ports in self._window._arrow_ports.items():
             if any(set(port).intersection(set(self._ports)) for port in ports):
                 self._window._logger.info(
-                    "Removed signal with name: %s to/from operation: %s."
-                    % (signal.signal.name, self.operation.name)
+                    f"Removed signal with name: {signal.signal.name}"
+                    f" to/from operation: {self.operation.name}."
                 )
                 _signals.append(signal)
 

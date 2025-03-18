@@ -13,7 +13,6 @@ from numbers import Number
 from typing import (
     TYPE_CHECKING,
     NewType,
-    Optional,
     cast,
     overload,
 )
@@ -28,8 +27,8 @@ if TYPE_CHECKING:
 
 
 ResultKey = NewType("ResultKey", str)
-ResultMap = Mapping[ResultKey, Optional[Num]]
-MutableResultMap = MutableMapping[ResultKey, Optional[Num]]
+ResultMap = Mapping[ResultKey, Num | None]
+MutableResultMap = MutableMapping[ResultKey, Num | None]
 DelayMap = Mapping[ResultKey, Num]
 MutableDelayMap = MutableMapping[ResultKey, Num]
 

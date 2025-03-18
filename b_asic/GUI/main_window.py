@@ -12,7 +12,7 @@ import webbrowser
 from collections import deque
 from collections.abc import Sequence
 from types import ModuleType
-from typing import TYPE_CHECKING, Deque, cast
+from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread, Slot
 from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
@@ -81,7 +81,7 @@ class SFGMainWindow(QMainWindow):
         self._scene = QGraphicsScene(self._ui.splitter)
         self._operations_from_name: dict[str, Operation] = {}
         self._zoom = 1
-        self._drag_operation_scenes: dict[DragButton, "QGraphicsProxyWidget"] = {}
+        self._drag_operation_scenes: dict[DragButton, QGraphicsProxyWidget] = {}
         self._drag_buttons: dict[Operation, DragButton] = {}
         self._mouse_pressed = False
         self._mouse_dragging = False
@@ -121,7 +121,7 @@ class SFGMainWindow(QMainWindow):
         # Add operations
         self._max_recent_files = 4
         self._recent_files_actions: list[QAction] = []
-        self._recent_files_paths: Deque[str] = deque(maxlen=self._max_recent_files)
+        self._recent_files_paths: deque[str] = deque(maxlen=self._max_recent_files)
 
         self.add_operations_from_namespace(
             b_asic.core_operations, self._ui.core_operations_list
@@ -488,10 +488,10 @@ class SFGMainWindow(QMainWindow):
             self._logger.warning("Failed to initialize SFG with empty name.")
             return
 
-        self._logger.info("Creating SFG with name: %s from selected operations." % name)
+        self._logger.info(f"Creating SFG with name: {name} from selected operations.")
 
         sfg = SFG(inputs=inputs, outputs=outputs, name=name)
-        self._logger.info("Created SFG with name: %s from selected operations." % name)
+        self._logger.info(f"Created SFG with name: {name} from selected operations.")
         self.update_statusbar(f"Created SFG: {name}")
 
         def check_equality(signal: Signal, signal_2: Signal) -> bool:
@@ -756,7 +756,7 @@ class SFGMainWindow(QMainWindow):
             )
 
     def _create_operation_item(self, item) -> None:
-        self._logger.info("Creating operation of type: %s" % str(item.text()))
+        self._logger.info(f"Creating operation of type: {str(item.text())}")
         try:
             attr_operation = self._operations_from_name[item.text()]()
             self.add_operation(attr_operation)
@@ -840,11 +840,8 @@ class SFGMainWindow(QMainWindow):
             if signal.destination is destination.port
         )
         self._logger.info(
-            "Connecting: %s -> %s."
-            % (
-                source.operation.type_name(),
-                destination.operation.type_name(),
-            )
+            f"Connecting: {source.operation.type_name()}"
+            f" -> {destination.operation.type_name()}."
         )
         try:
             arrow = Arrow(source, destination, self, signal=next(signal_exists))
@@ -906,7 +903,7 @@ class SFGMainWindow(QMainWindow):
         self._thread = {}
         self._sim_worker = {}
         for sfg, properties in self._simulation_dialog._properties.items():
-            self._logger.info("Simulating SFG with name: %s" % str(sfg.name))
+            self._logger.info(f"Simulating SFG with name: {str(sfg.name)}")
             self._sim_worker[sfg] = SimulationWorker(sfg, properties)
             self._thread[sfg] = QThread()
             self._sim_worker[sfg].moveToThread(self._thread[sfg])

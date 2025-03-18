@@ -7,9 +7,6 @@ Contains a class for simulating the result of an SFG given a set of input values
 from collections import defaultdict
 from collections.abc import Callable, Mapping, MutableMapping, MutableSequence, Sequence
 from numbers import Number
-from typing import (
-    Union,
-)
 
 import numpy as np
 
@@ -20,7 +17,7 @@ from b_asic.types import Num
 ResultArrayMap = Mapping[ResultKey, Sequence[Num]]
 MutableResultArrayMap = MutableMapping[ResultKey, MutableSequence[Num]]
 InputFunction = Callable[[int], Num]
-InputProvider = Union[Num, Sequence[Num], InputFunction]
+InputProvider = Num | Sequence[Num] | InputFunction
 
 
 class Simulation:

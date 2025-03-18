@@ -2,7 +2,7 @@
 Module for basic VHDL code generation.
 """
 
-from typing import List, Optional, TextIO, Tuple, Union
+from typing import TextIO
 
 # VHDL code generation tab length
 VHDL_TAB = r"    "
@@ -14,7 +14,7 @@ def write(
     text: str,
     *,
     end: str = "\n",
-    start: Optional[str] = None,
+    start: str | None = None,
 ):
     """
     Base VHDL code generation utility.
@@ -42,7 +42,7 @@ def write(
     f.write(f"{VHDL_TAB * indent_level}{text}{end}")
 
 
-def write_lines(f: TextIO, lines: List[Union[Tuple[int, str], Tuple[int, str, str]]]):
+def write_lines(f: TextIO, lines: list[tuple[int, str] | tuple[int, str, str]]):
     """
     Multiline VHDL code generation utility.
 

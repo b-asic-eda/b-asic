@@ -15,7 +15,7 @@ import webbrowser
 from collections import defaultdict, deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
-from typing import TYPE_CHECKING, Deque, cast, overload
+from typing import TYPE_CHECKING, cast, overload
 
 # Qt/qtpy
 import qtpy
@@ -142,7 +142,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # Recent files
         self._max_recent_files = 4
         self._recent_files_actions: list[QAction] = []
-        self._recent_file_paths: Deque[str] = deque(maxlen=self._max_recent_files)
+        self._recent_file_paths: deque[str] = deque(maxlen=self._max_recent_files)
         self._create_recent_file_actions_and_menus()
 
         self._init_graphics()
@@ -349,7 +349,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         except Exception as e:
             log.exception(
                 "Exception occurred. Could not load module from file"
-                " '{}'.\n\n{}".format(abs_path_filename, e)
+                f" '{abs_path_filename}'.\n\n{e}"
             )
             return
 
@@ -368,9 +368,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                 ),
             )
             log.info(
-                "Cannot find any Schedule object in file '{}'.".format(
-                    os.path.basename(abs_path_filename)
-                )
+                f"Cannot find any Schedule object in file '{os.path.basename(abs_path_filename)}'."
             )
             del module
             return

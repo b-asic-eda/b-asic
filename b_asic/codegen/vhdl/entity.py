@@ -2,7 +2,7 @@
 Module for code generation of VHDL entity declarations
 """
 
-from typing import Set, TextIO
+from typing import TextIO
 
 from b_asic.codegen.vhdl import VHDL_TAB, write_lines
 from b_asic.port import Port
@@ -63,7 +63,7 @@ def memory_based_storage(
         f.write(f"{2 * VHDL_TAB}{port_name} : in std_logic_vector(WL-1 downto 0);\n")
 
     # Write the output port specification
-    write_ports: Set[Port] = {mv.write_port for mv in collection}  # type: ignore
+    write_ports: set[Port] = {mv.write_port for mv in collection}  # type: ignore
     for idx, write_port in enumerate(write_ports):
         port_name = write_port if isinstance(write_port, int) else write_port.name
         port_name = "p_" + str(port_name) + "_out"

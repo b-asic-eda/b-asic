@@ -3,7 +3,7 @@ Module for code generation of VHDL architectures.
 """
 
 from math import ceil, log2
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, TextIO, Tuple, cast
+from typing import TYPE_CHECKING, TextIO, cast
 
 from b_asic.codegen.vhdl import common, write, write_lines
 from b_asic.process import MemoryVariable
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 def memory_based_storage(
     f: TextIO,
-    assignment: List["ProcessCollection"],
+    assignment: list["ProcessCollection"],
     entity_name: str,
     word_length: int,
     read_ports: int,
@@ -314,7 +314,7 @@ def memory_based_storage(
     write(f, 1, "--", end="\n")
 
     # Extract all the write addresses
-    write_list: List[Optional[Tuple[int, MemoryVariable]]] = [
+    write_list: list[tuple[int, MemoryVariable] | None] = [
         None for _ in range(schedule_time)
     ]
     for i, collection in enumerate(assignment):
@@ -441,7 +441,7 @@ def memory_based_storage(
     write(f, 1, "--", end="\n")
 
     # Extract all the read addresses
-    read_list: List[Optional[Tuple[int, MemoryVariable]]] = [
+    read_list: list[tuple[int, MemoryVariable] | None] = [
         None for _ in range(schedule_time)
     ]
     for i, collection in enumerate(assignment):
@@ -578,15 +578,15 @@ def register_based_storage(
     }
 
     # Table with mapping: register to output multiplexer index
-    output_mux_table: Dict[int, int] = {reg: i for i, reg in enumerate(output_regs)}
+    output_mux_table: dict[int, int] = {reg: i for i, reg in enumerate(output_regs)}
 
     # Back-edge register indices
-    back_edges: Set[Tuple[int, int]] = {
+    back_edges: set[tuple[int, int]] = {
         (frm, to)
         for entry in forward_backward_table
         for frm, to in entry.back_edge_to.items()
     }
-    back_edge_table: Dict[Tuple[int, int], int] = {
+    back_edge_table: dict[tuple[int, int], int] = {
         edge: i + 1 for i, edge in enumerate(back_edges)
     }
 

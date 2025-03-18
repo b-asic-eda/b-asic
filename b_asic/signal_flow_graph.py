@@ -15,8 +15,6 @@ from math import ceil
 from numbers import Number
 from queue import PriorityQueue
 from typing import (
-    DefaultDict,
-    Deque,
     Optional,
     Union,
     cast,
@@ -41,7 +39,7 @@ from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
 DelayQueue = list[tuple[str, ResultKey, OutputPort]]
 
 
-_OPERATION_SHAPE: DefaultDict[TypeName, str] = defaultdict(lambda: "ellipse")
+_OPERATION_SHAPE: defaultdict[TypeName, str] = defaultdict(lambda: "ellipse")
 _OPERATION_SHAPE.update(
     {
         Input.type_name(): "cds",
@@ -54,7 +52,7 @@ _OPERATION_SHAPE.update(
 class GraphIDGenerator:
     """Generates Graph IDs for objects."""
 
-    _next_id_number: DefaultDict[TypeName, GraphIDNumber]
+    _next_id_number: defaultdict[TypeName, GraphIDNumber]
 
     def __init__(self, id_number_offset: GraphIDNumber = GraphIDNumber(0)):
         """Construct a GraphIDGenerator."""
@@ -112,7 +110,7 @@ class SFG(AbstractOperation):
     """
 
     _components_by_id: dict[GraphID, GraphComponent]
-    _components_by_name: DefaultDict[Name, list[GraphComponent]]
+    _components_by_name: defaultdict[Name, list[GraphComponent]]
     _components_dfs_order: list[GraphComponent]
     _operations_dfs_order: list[Operation]
     _operations_topological_order: list[Operation]
@@ -508,7 +506,7 @@ class SFG(AbstractOperation):
             input_op: index for index, input_op in enumerate(self._input_operations)
         }
         output_op = self._output_operations[output_index]
-        queue: Deque[Operation] = deque([output_op])
+        queue: deque[Operation] = deque([output_op])
         visited: set[Operation] = {output_op}
         while queue:
             op = queue.popleft()
@@ -1116,7 +1114,7 @@ class SFG(AbstractOperation):
         remaining_inports_per_operation = {op: op.input_count for op in self.operations}
 
         # Maps number of input counts to a queue of seen objects with such a size.
-        seen_with_inputs_dict: dict[int, Deque] = defaultdict(deque)
+        seen_with_inputs_dict: dict[int, deque] = defaultdict(deque)
         seen = set()
         top_order = []
 
@@ -1889,7 +1887,7 @@ class SFG(AbstractOperation):
             return []
         for input in inputs_used:
             input_op = self._input_operations[input]
-        queue: Deque[Operation] = deque([input_op])
+        queue: deque[Operation] = deque([input_op])
         visited: set[Operation] = {input_op}
         dict_of_sfg = {}
         while queue:
@@ -1959,7 +1957,7 @@ class SFG(AbstractOperation):
         dict_of_sfg = {}
         for output in output_index_used:
             output_op = self._output_operations[output]
-            queue: Deque[Operation] = deque([output_op])
+            queue: deque[Operation] = deque([output_op])
             visited: set[Operation] = {output_op}
             while queue:
                 op = queue.popleft()
@@ -1975,7 +1973,7 @@ class SFG(AbstractOperation):
                             raise ValueError("Source does not exist")
         for input in input_index_used:
             input_op = self._input_operations[input]
-            queue: Deque[Operation] = deque([input_op])
+            queue: deque[Operation] = deque([input_op])
             visited: set[Operation] = {input_op}
             while queue:
                 op = queue.popleft()

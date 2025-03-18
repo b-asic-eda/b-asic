@@ -1,6 +1,5 @@
 import re
 from itertools import chain
-from typing import List
 
 import pytest
 
@@ -89,7 +88,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     assert multiplier.entity_name == "multiplier"
     input_pe = ProcessingElement(inputs[0], entity_name="input")
     output_pe = ProcessingElement(outputs[0], entity_name="output")
-    processing_elements: List[ProcessingElement] = [
+    processing_elements: list[ProcessingElement] = [
         adder,
         multiplier,
         input_pe,
@@ -111,7 +110,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     direct_conn, mvs = mvs.split_on_length()
 
     # Create Memories from the memory variables
-    memories: List[Memory] = [
+    memories: list[Memory] = [
         Memory(pc) for pc in mvs.split_on_ports(read_ports=1, write_ports=1)
     ]
     assert len(memories) == 1
@@ -198,7 +197,7 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     outputs = operations.get_by_type_name(Output.type_name()).split_on_execution_time()
 
     # Create necessary processing elements
-    processing_elements: List[ProcessingElement] = [
+    processing_elements: list[ProcessingElement] = [
         ProcessingElement(operation, entity_name=f"pe{i}")
         for i, operation in enumerate(chain(adders1, adders2, const_mults))
     ]
@@ -211,7 +210,7 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     direct_conn, mvs = mvs.split_on_length()
 
     # Create Memories from the memory variables (split on length to get two memories)
-    memories: List[Memory] = [Memory(pc) for pc in mvs.split_on_length(6)]
+    memories: list[Memory] = [Memory(pc) for pc in mvs.split_on_length(6)]
 
     # Create architecture
     architecture = Architecture(
