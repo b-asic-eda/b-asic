@@ -1789,6 +1789,38 @@ class TestListScheduler:
             ),
         )
 
+    def test_cyclic_and_recursive_loops(self):
+        N = 3
+        Wc = 0.2
+        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        sfg = direct_form_1_iir(b, a)
+
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
+
+        resources = {
+            Addition.type_name(): 1,
+            ConstantMultiplication.type_name(): 1,
+            Input.type_name(): 1,
+            Output.type_name(): 1,
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="ListScheduler does not support cyclic scheduling of recursive algorithms. Use RecursiveListScheduler instead.",
+        ):
+            Schedule(
+                sfg,
+                scheduler=ListScheduler(
+                    sort_order=((1, True), (3, False), (4, False)),
+                    max_resources=resources,
+                ),
+                cyclic=True,
+                schedule_time=sfg.iteration_period_bound(),
+            )
+
 
 class TestRecursiveListScheduler:
     def test_empty_sfg(self, sfg_empty):

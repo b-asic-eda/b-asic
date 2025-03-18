@@ -280,6 +280,12 @@ class ListScheduler(Scheduler):
         self._logger.debug("--- Scheduler initializing ---")
         self._initialize_scheduler(schedule)
 
+        if self._sfg.loops and self._schedule.cyclic:
+            raise ValueError(
+                "ListScheduler does not support cyclic scheduling of "
+                "recursive algorithms. Use RecursiveListScheduler instead."
+            )
+
         if self._input_times:
             self._place_inputs_on_given_times()
 

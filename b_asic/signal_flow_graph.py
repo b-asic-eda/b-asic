@@ -1872,8 +1872,6 @@ class SFG(AbstractOperation):
         """
         Return the recursive loops found in the SFG.
 
-        If -1, the SFG does not have any loops.
-
         Returns
         -------
         A list of the recursive loops.
