@@ -111,6 +111,11 @@ class Schedule:
         if scheduler:
             self._scheduler = scheduler
             self._scheduler.apply_scheduling(self)
+        elif start_times is None and laps is None:
+            from b_asic.scheduler import ASAPScheduler
+
+            self._scheduler = ASAPScheduler()
+            self._scheduler.apply_scheduling(self)
         else:
             if start_times is None:
                 raise ValueError("Must provide start_times when using 'provided'")

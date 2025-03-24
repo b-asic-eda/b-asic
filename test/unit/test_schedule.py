@@ -856,7 +856,7 @@ class TestErrors:
         with pytest.raises(
             ValueError, match="Must provide start_times when using 'provided'"
         ):
-            Schedule(sfg_simple_filter)
+            Schedule(sfg_simple_filter, laps={"test": 0})
 
     def test_provided_no_laps(self, sfg_simple_filter):
         sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)
@@ -865,6 +865,29 @@ class TestErrors:
         )
         with pytest.raises(ValueError, match="Must provide laps when using 'provided'"):
             Schedule(sfg_simple_filter, start_times={"in0": 0})
+
+    def test_alap_default(self, sfg_direct_form_iir_lp_filter):
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 4
+        )
+
+        schedule = Schedule(sfg_direct_form_iir_lp_filter)
+
+        assert schedule.start_times == {
+            "in0": 0,
+            "cmul1": 0,
+            "cmul4": 0,
+            "cmul2": 0,
+            "cmul3": 0,
+            "add3": 4,
+            "add1": 4,
+            "add0": 9,
+            "cmul0": 14,
+            "add2": 18,
+            "out0": 23,
+        }
+        assert schedule.schedule_time == 23
 
 
 class TestGetUsedTypeNames:
