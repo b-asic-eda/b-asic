@@ -404,6 +404,28 @@ class TestSlacks:
         )
         assert captured.err == ""
 
+    def test_print_slacks_type_name_given(self, capsys, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
+
+        schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
+        schedule.print_slacks(1, type_name=ConstantMultiplication)
+        captured = capsys.readouterr()
+        assert captured.out == (
+            "Graph ID | Backward |  Forward\n"
+            "---------|----------|---------\n"
+            "cmul0    |        0 |        1\n"
+            "cmul1    |        0 |        0\n"
+            "cmul2    |        0 |        0\n"
+            "cmul3    |        4 |        0\n"
+            "cmul6    |        4 |        0\n"
+            "cmul4    |       16 |        0\n"
+            "cmul5    |       16 |        0\n"
+        )
+        assert captured.err == ""
+
     def test_slacks_errors(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type_name(
