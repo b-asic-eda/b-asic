@@ -1853,6 +1853,10 @@ class TestRecursiveListScheduler:
             ),
         )
         _validate_recreated_sfg_filter(sfg, schedule)
+        assert schedule.schedule_time == sfg.iteration_period_bound()
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
 
     def test_direct_form_2_iir(self):
         N = 3
@@ -1878,6 +1882,10 @@ class TestRecursiveListScheduler:
             ),
         )
         _validate_recreated_sfg_filter(sfg, schedule)
+        assert schedule.schedule_time == sfg.iteration_period_bound()
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
 
     def test_large_direct_form_2_iir(self):
         N = 8
@@ -1903,6 +1911,9 @@ class TestRecursiveListScheduler:
             ),
         )
         _validate_recreated_sfg_filter(sfg, schedule)
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
 
     def test_custom_recursive_filter(self):
         # Create the SFG for a digital filter (seen in an exam question from TSTE87).
@@ -1939,6 +1950,10 @@ class TestRecursiveListScheduler:
             ),
         )
         _validate_recreated_sfg_filter(sfg, schedule)
+        assert schedule.schedule_time == 4  # all slots filled with cmul executions
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
 
 
 def _validate_recreated_sfg_filter(sfg: SFG, schedule: Schedule) -> None:
