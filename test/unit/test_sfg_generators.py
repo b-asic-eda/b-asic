@@ -16,6 +16,7 @@ from b_asic.sfg_generators import (
     direct_form_fir,
     ldlt_matrix_inverse,
     radix_2_dif_fft,
+    symmetric_fir,
     transposed_direct_form_fir,
     wdf_allpass,
 )
@@ -235,8 +236,103 @@ def test_transposed_direct_form_fir():
     assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
 
 
+def test_symmetric_fir():
+    impulse_response = [0.3, 0.5, 0.5, 0.3]
+    sfg = symmetric_fir(impulse_response)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, ConstantMultiplication)
+            ]
+        )
+        == 2
+    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 3
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 3
+
+    sim = Simulation(sfg, [Impulse()])
+    sim.run_for(5)
+    impulse_response.append(0.0)
+    assert np.allclose(sim.results["0"], impulse_response)
+
+    impulse_response = [0.1, 0.2, 0.3, 0.4, 0.4, 0.3, 0.2, 0.1]
+    sfg = symmetric_fir(
+        impulse_response,
+        mult_properties={"latency": 2, "execution_time": 1},
+        add_properties={"latency": 1, "execution_time": 1},
+    )
+    assert sfg.critical_path_time() == 6
+
+    sim = Simulation(sfg, [Impulse()])
+    sim.run_for(9)
+    impulse_response.append(0.0)
+    assert np.allclose(sim.results["0"], impulse_response)
+
+    impulse_response = [0.3]
+    sfg = symmetric_fir(impulse_response)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, ConstantMultiplication)
+            ]
+        )
+        == 1
+    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+
+    impulse_response = [0.1 + i for i in range(8)]
+    impulse_response += reversed(impulse_response)
+    sfg = symmetric_fir(impulse_response)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, ConstantMultiplication)
+            ]
+        )
+        == 8
+    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 15
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 15
+
+    sim = Simulation(sfg, [Impulse()])
+    sim.run_for(17)
+    impulse_response.append(0.0)
+    assert np.allclose(sim.results["0"], impulse_response)
+
+    impulse_response = [0.1 + i for i in range(50)]
+    impulse_response += reversed(impulse_response)
+    sfg = symmetric_fir(impulse_response)
+    assert (
+        len(
+            [
+                comp
+                for comp in sfg.components
+                if isinstance(comp, ConstantMultiplication)
+            ]
+        )
+        == 50
+    )
+    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 99
+    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 99
+
+    sim = Simulation(sfg, [Impulse()])
+    sim.run_for(101)
+    impulse_response.append(0.0)
+    assert np.allclose(sim.results["0"], impulse_response)
+
+    with pytest.raises(ValueError, match="Coefficients must be of even length"):
+        symmetric_fir([0.1, 0.2, 0.1])
+
+
 def test_sfg_generator_errors():
-    sfg_gens = [wdf_allpass, transposed_direct_form_fir, direct_form_fir]
+    sfg_gens = [wdf_allpass, transposed_direct_form_fir, direct_form_fir, symmetric_fir]
     for gen in sfg_gens:
         with pytest.raises(ValueError, match="Coefficients cannot be empty"):
             gen([])

@@ -164,7 +164,7 @@ def direct_form_fir(
 
     See Also
     --------
-    transposed_direct_form_fir
+    transposed_direct_form_fir, symmetric_fir
     """
     np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
     taps = len(np_coefficients)
@@ -232,7 +232,7 @@ def transposed_direct_form_fir(
 
     See Also
     --------
-    direct_form_fir
+    direct_form_fir, symmetric_fir
     """
     np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
     taps = len(np_coefficients)
@@ -261,6 +261,85 @@ def transposed_direct_form_fir(
             prev_delay = Delay(tmp_add)
 
     output <<= tmp_add
+
+    return SFG([input_op], [output], name=Name(name))
+
+
+def symmetric_fir(
+    coefficients: Sequence[complex],
+    name: str | None = None,
+    mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+) -> SFG:
+    r"""Generate a signal flow graph of a symmetric FIR filter.
+
+    The *coefficients* parameter is a sequence of impulse response values of even length::
+
+        coefficients = [h0, h1, h2, ..., hN]
+
+    Leading to the transfer function:
+
+    .. math:: \sum_{i=0}^N h_iz^{-i}
+
+    Parameters
+    ----------
+    coefficients : 1D-array
+        Coefficients to use for the FIR filter section.
+    name : Name, optional
+        The name of the SFG. If None, "Transposed direct-form FIR filter".
+    mult_properties : dictionary, optional
+        Properties passed to :class:`~b_asic.core_operations.ConstantMultiplication`.
+    add_properties : dictionary, optional
+        Properties passed to :class:`~b_asic.core_operations.Addition`.
+
+    Returns
+    -------
+    Signal flow graph
+
+    See Also
+    --------
+    direct_form_fir, transposed_direct_form_fir
+    """
+    np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
+    taps = len(np_coefficients)
+    if not taps:
+        raise ValueError("Coefficients cannot be empty")
+    if taps > 1 and taps % 2 != 0:
+        raise ValueError("Coefficients must be of even length")
+    if np_coefficients.ndim != 1:
+        raise TypeError("coefficients must be a 1D-array")
+    if name is None:
+        name = "Symmetric FIR filter"
+    if mult_properties is None:
+        mult_properties = {}
+    if add_properties is None:
+        add_properties = {}
+    input_op = Input()
+    output = Output()
+
+    delays = [input_op]
+    for _ in range(taps - 1):
+        delays.append(Delay(delays[-1]))
+
+    add_layer_1 = [
+        Addition(delays[i], delays[-i - 1], **add_properties) for i in range(taps // 2)
+    ]
+
+    if taps == 1:
+        muls = [ConstantMultiplication(coefficients[0], input_op, **mult_properties)]
+    else:
+        muls = [
+            ConstantMultiplication(coefficients[i], add_layer_1[i], **mult_properties)
+            for i in range(taps // 2)
+        ]
+
+    previous_op = muls[0]
+    add_layer_2 = []
+    for i in range(taps // 2 - 1):
+        add_layer_2.append(Addition(previous_op, muls[i + 1], **add_properties))
+        previous_op = add_layer_2[-1]
+
+    output <<= add_layer_2[-1] if add_layer_2 else muls[0]
 
     return SFG([input_op], [output], name=Name(name))
 

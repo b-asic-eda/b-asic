@@ -1020,6 +1020,8 @@ class RecursiveListScheduler(ListScheduler):
             destination_port = output_port.signals[0].destination
             destination_op = destination_port.operation
             if destination_op.graph_id not in self._remaining_ops:
+                if isinstance(destination_op, Delay):
+                    continue
                 # spotted a recursive operation -> check if ok
                 op_available_time = (
                     self._current_time + op.latency_offsets[f"out{output_port.index}"]
