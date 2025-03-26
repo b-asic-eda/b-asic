@@ -30,7 +30,7 @@ def test_MemoryVariables(secondorder_iir_schedule):
         "MemoryVariable\\(3, <b_asic.port.OutputPort object at 0x[a-fA-F0-9]+>,"
         " {<b_asic.port.InputPort object at 0x[a-fA-F0-9]+>: 4}, 'cmul0.0'\\)"
     )
-    mem_var = [m for m in mem_vars if m.name == "cmul0.0"][0]
+    mem_var = next(m for m in mem_vars if m.name == "cmul0.0")
     assert pattern.match(repr(mem_var))
     assert mem_var.execution_time == 4
     assert mem_var.start_time == 3

@@ -1,4 +1,5 @@
 import io
+import itertools
 import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable
@@ -1557,12 +1558,11 @@ class ProcessCollection:
         return max(self.read_port_accesses().values())
 
     def read_port_accesses(self) -> dict[int, int]:
-        reads = sum(
-            (
+        reads = list(
+            itertools.chain.from_iterable(
                 [read_time % self.schedule_time for read_time in process.read_times]
                 for process in self._collection
-            ),
-            [],
+            )
         )
         return dict(sorted(Counter(reads).items()))
 

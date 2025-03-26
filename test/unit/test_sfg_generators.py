@@ -350,10 +350,7 @@ class TestDirectFormIIRType1:
         sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
 
         amount_of_muls = len(sfg.find_by_type_name(ConstantMultiplication.type_name()))
-        assert amount_of_muls == 2 * N + 1
-
-        amount_of_muls = len(sfg.find_by_type(ConstantMultiplication))
-        assert amount_of_muls == 2 * N + 1
+        assert amount_of_muls == 2 * N
 
         amount_of_adds = len(sfg.find_by_type_name(Addition.type_name()))
         assert amount_of_adds == 2 * N
@@ -362,9 +359,43 @@ class TestDirectFormIIRType1:
         assert amount_of_delays == 2 * N
 
         amount_of_ops = len(sfg.operations)
-        assert amount_of_ops == 6 * N + 3
+        assert amount_of_ops == 6 * N + 2
 
         assert sfg.name == "test iir direct form 1"
+
+        b = [1, 0.1, 0.1, 1, 1]
+        a = [1, 0.1, 0.1, -1, -1]
+
+        sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
+
+        amount_of_muls = len(sfg.find_by_type_name(ConstantMultiplication.type_name()))
+        assert amount_of_muls == 4
+
+        amount_of_adds = len(sfg.find_by_type_name(Addition.type_name()))
+        assert amount_of_adds == 8
+
+        amount_of_delays = len(sfg.find_by_type_name(Delay.type_name()))
+        assert amount_of_delays == 8
+
+        amount_of_ops = len(sfg.operations)
+        assert amount_of_ops == 22
+
+        b = [1, 1, 1, 1, 1]
+        a = [1, -1, -1, -1, -1]
+
+        sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
+
+        amount_of_muls = len(sfg.find_by_type_name(ConstantMultiplication.type_name()))
+        assert amount_of_muls == 0
+
+        amount_of_adds = len(sfg.find_by_type_name(Addition.type_name()))
+        assert amount_of_adds == 8
+
+        amount_of_delays = len(sfg.find_by_type_name(Delay.type_name()))
+        assert amount_of_delays == 8
+
+        amount_of_ops = len(sfg.operations)
+        assert amount_of_ops == 18
 
     def test_b_single_coeff(self):
         with pytest.raises(
@@ -476,14 +507,12 @@ class TestDirectFormIIRType1:
 class TestDirectFormIIRType2:
     def test_correct_number_of_operations_and_name(self):
         N = 17
-
-        b = [i + 1 for i in range(N + 1)]
+        b = list(range(N + 1))
         a = [i + 1 for i in range(N + 1)]
-
         sfg = direct_form_2_iir(b, a, name="test iir direct form 2")
 
         amount_of_muls = len(sfg.find_by_type_name(ConstantMultiplication.type_name()))
-        assert amount_of_muls == 2 * N + 1
+        assert amount_of_muls == 2 * N
 
         amount_of_adds = len(sfg.find_by_type_name(Addition.type_name()))
         assert amount_of_adds == 2 * N
@@ -492,9 +521,57 @@ class TestDirectFormIIRType2:
         assert amount_of_delays == N
 
         amount_of_ops = len(sfg.operations)
-        assert amount_of_ops == 5 * N + 3
+        assert amount_of_ops == 5 * N + 2
+
+        b = [i + 1 for i in range(N + 1)]
+        sfg = direct_form_2_iir(b, a, name="test iir direct form 2")
+
+        amount_of_muls = len(sfg.find_by_type_name(ConstantMultiplication.type_name()))
+        assert amount_of_muls == 2 * N
+
+        amount_of_adds = len(sfg.find_by_type_name(Addition.type_name()))
+        assert amount_of_adds == 2 * N
+
+        amount_of_delays = len(sfg.find_by_type_name(Delay.type_name()))
+        assert amount_of_delays == N
+
+        amount_of_ops = len(sfg.operations)
+        assert amount_of_ops == 5 * N + 2
 
         assert sfg.name == "test iir direct form 2"
+
+        b = [1, 0.1, 1, 0.1]
+        a = [1, -1, -1, 0.1]
+        sfg = direct_form_2_iir(b, a)
+
+        amount_of_muls = len(sfg.find_by_type_name(ConstantMultiplication.type_name()))
+        assert amount_of_muls == 3
+
+        amount_of_adds = len(sfg.find_by_type_name(Addition.type_name()))
+        assert amount_of_adds == 6
+
+        amount_of_delays = len(sfg.find_by_type_name(Delay.type_name()))
+        assert amount_of_delays == 3
+
+        amount_of_ops = len(sfg.operations)
+        assert amount_of_ops == 14
+
+        b = [1, 1, 1, 1, 1]
+        a = [1, -1, -1, -1, -1]
+
+        sfg = direct_form_2_iir(b, a, name="test iir direct form 1")
+
+        amount_of_muls = len(sfg.find_by_type_name(ConstantMultiplication.type_name()))
+        assert amount_of_muls == 0
+
+        amount_of_adds = len(sfg.find_by_type_name(Addition.type_name()))
+        assert amount_of_adds == 8
+
+        amount_of_delays = len(sfg.find_by_type_name(Delay.type_name()))
+        assert amount_of_delays == 4
+
+        amount_of_ops = len(sfg.operations)
+        assert amount_of_ops == 14
 
     def test_b_single_coeff(self):
         with pytest.raises(

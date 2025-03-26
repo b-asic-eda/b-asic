@@ -136,7 +136,7 @@ class AbstractGraphComponent(GraphComponent):
             f"id: {self.graph_id if self.graph_id else 'no_id'}, \tname:"
             f" {self.name if self.name else 'no_name'}"
             + "".join(
-                (f", \t{key}: {str(param)}" for key, param in self._parameters.items())
+                (f", \t{key}: {param!s}" for key, param in self._parameters.items())
             )
         )
 

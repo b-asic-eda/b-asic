@@ -14,11 +14,7 @@ from io import StringIO
 from math import ceil
 from numbers import Number
 from queue import PriorityQueue
-from typing import (
-    Optional,
-    Union,
-    cast,
-)
+from typing import ClassVar, Optional, Union, cast
 
 import numpy as np
 from graphviz import Digraph
@@ -121,7 +117,7 @@ class SFG(AbstractOperation):
     _original_input_signals_to_indices: dict[Signal, int]
     _original_output_signals_to_indices: dict[Signal, int]
     _precedence_list: list[list[OutputPort]] | None
-    _used_ids: set[GraphID] = set()
+    _used_ids: ClassVar[set[GraphID]] = set()
 
     def __init__(
         self,
@@ -1800,7 +1796,7 @@ class SFG(AbstractOperation):
             for next_state in graph[state]:
                 if next_state in path:
                     continue
-                fringe.append((next_state, path + [next_state]))
+                fringe.append((next_state, [*path, next_state]))
 
     def resource_lower_bound(self, type_name: TypeName, schedule_time: int) -> int:
         """
@@ -1906,7 +1902,7 @@ class SFG(AbstractOperation):
                     else:
                         raise ValueError("Destination does not exist")
         cycles = [
-            [node] + path
+            [node, *path]
             for node in dict_of_sfg
             for path in self._dfs(dict_of_sfg, node, node)
         ]
@@ -1995,7 +1991,7 @@ class SFG(AbstractOperation):
             if "".join([i for i in key if not i.isdigit()]) == "c":
                 addition_with_constant[item[0]] = self.find_by_id(key).value
         cycles = [
-            [node] + path
+            [node, *path]
             for node in dict_of_sfg
             if node[0] == "t"
             for path in self._dfs(dict_of_sfg, node, node)
@@ -2129,7 +2125,7 @@ class SFG(AbstractOperation):
         if path is None:
             path = []
 
-        path = path + [start]
+        path = [*path, start]
         if start == end:
             return [path]
         if start not in graph:

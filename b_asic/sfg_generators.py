@@ -369,14 +369,22 @@ def direct_form_1_iir(
 
     # construct the feed-forward part
     input_op = Input()
-    muls = [ConstantMultiplication(b[0], input_op, **mult_properties)]
+    if b[0] != 1:
+        muls = [ConstantMultiplication(b[0], input_op, **mult_properties)]
+    else:
+        muls = [input_op]
     delays = []
     prev_delay = input_op
     for i, coeff in enumerate(b[1:]):
         prev_delay = Delay(prev_delay)
         delays.append(prev_delay)
         if i < len(b) - 1:
-            muls.append(ConstantMultiplication(coeff, prev_delay, **mult_properties))
+            if coeff != 1:
+                muls.append(
+                    ConstantMultiplication(coeff, prev_delay, **mult_properties)
+                )
+            else:
+                muls.append(prev_delay)
 
     op_a = muls[-1]
     for i in range(len(muls) - 1):
@@ -394,7 +402,12 @@ def direct_form_1_iir(
         prev_delay = Delay(prev_delay)
         delays.append(prev_delay)
         if i < len(a) - 1:
-            muls.append(ConstantMultiplication(-coeff, prev_delay, **mult_properties))
+            if -coeff != 1:
+                muls.append(
+                    ConstantMultiplication(-coeff, prev_delay, **mult_properties)
+                )
+            else:
+                muls.append(prev_delay)
 
     op_a = muls[-1]
     for i in range(len(muls) - 1):
@@ -443,12 +456,21 @@ def direct_form_2_iir(
             new_delay = Delay()
             delays[-1] <<= new_delay
             delays.append(new_delay)
-        left_muls.append(
-            ConstantMultiplication(-a_coeff, delays[-1], **mult_properties)
-        )
-        right_muls.append(
-            ConstantMultiplication(b_coeff, delays[-1], **mult_properties)
-        )
+
+        if -a_coeff != 1:
+            left_muls.append(
+                ConstantMultiplication(-a_coeff, delays[-1], **mult_properties)
+            )
+        else:
+            left_muls.append(delays[-1])
+
+        if b_coeff != 1:
+            right_muls.append(
+                ConstantMultiplication(b_coeff, delays[-1], **mult_properties)
+            )
+        else:
+            right_muls.append(delays[-1])
+
         if len(left_muls) > 1:  # not first iteration
             left_adds.append(Addition(op_a_left, left_muls[-1], **add_properties))
             right_adds.append(Addition(op_a_right, right_muls[-1], **add_properties))
@@ -465,7 +487,12 @@ def direct_form_2_iir(
     else:
         left_adds.append(Addition(input_op, left_muls[-1], **add_properties))
     delays[-1] <<= left_adds[-1]
-    mul = ConstantMultiplication(b[0], left_adds[-1], **mult_properties)
+
+    if b[0] == 1:
+        mul = left_adds[-1]
+    else:
+        mul = ConstantMultiplication(b[0], left_adds[-1], **mult_properties)
+
     if right_adds:
         add = Addition(mul, right_adds[-1], **add_properties)
     else:

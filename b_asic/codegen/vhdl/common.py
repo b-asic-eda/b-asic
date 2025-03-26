@@ -168,7 +168,7 @@ def constant_declaration(
         An optional left padding value applied to the name.
     """
     name_pad = 0 if name_pad is None else name_pad
-    write(f, 1, f"constant {name:<{name_pad}} : {signal_type} := {str(value)};")
+    write(f, 1, f"constant {name:<{name_pad}} : {signal_type} := {value!s};")
 
 
 def type_declaration(

@@ -934,7 +934,7 @@ class RecursiveListScheduler(ListScheduler):
                 # adjust time if a gap exists on the left side of the schedule
                 slack = min(self._schedule._start_times.values())
                 for other_op_id in sorted_op_ids:
-                    op = self._schedule._sfg.find_by_id(op_id)
+                    op = self._schedule._sfg.find_by_id(other_op_id)
                     max_end_time = 0
                     op_start_time = self._schedule._start_times[other_op_id]
                     for outport in op.outputs:
@@ -987,13 +987,9 @@ class RecursiveListScheduler(ListScheduler):
             prio_table = self._get_recursive_priority_table()
 
         self._schedule._schedule_time = self._schedule.get_max_end_time()
-        if (
-            saved_sched_time is not None
-            and saved_sched_time < self._schedule._schedule_time
-        ):
-            raise ValueError(
-                f"Requested schedule time {saved_sched_time} cannot be reached, increase to {self._schedule._schedule_time} or assign more resources."
-            )
+
+        if saved_sched_time:
+            self._schedule._schedule_time = saved_sched_time
         self._logger.debug("--- Scheduling of recursive loops completed ---")
 
     def _get_next_recursive_op(

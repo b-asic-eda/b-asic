@@ -39,7 +39,7 @@ class TestEarliestDeadlineScheduler:
             Schedule(sfg_empty, scheduler=EarliestDeadlineScheduler())
 
     def test_direct_form_1_iir(self):
-        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
+        sfg = direct_form_1_iir([0.1, 0.2, 0.3], [1, 2, 3])
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
@@ -217,7 +217,7 @@ class TestLeastSlackTimeScheduler:
             Schedule(sfg_empty, scheduler=LeastSlackTimeScheduler())
 
     def test_direct_form_1_iir(self):
-        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
+        sfg = direct_form_1_iir([0.1, 0.2, 0.3], [1, 2, 3])
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
@@ -395,7 +395,7 @@ class TestMaxFanOutScheduler:
             Schedule(sfg_empty, scheduler=MaxFanOutScheduler())
 
     def test_direct_form_1_iir(self):
-        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
+        sfg = direct_form_1_iir([0.1, 0.2, 0.3], [1, 2, 3])
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
@@ -482,7 +482,7 @@ class TestHybridScheduler:
             Schedule(sfg_empty, scheduler=HybridScheduler())
 
     def test_direct_form_1_iir(self):
-        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
+        sfg = direct_form_1_iir([0.1, 0.2, 0.3], [1, 2, 3])
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
@@ -1585,7 +1585,7 @@ class TestHybridScheduler:
             )
 
     def test_iteration_period_bound(self):
-        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
+        sfg = direct_form_1_iir([0.1, 0.2, 0.3], [1, 2, 3])
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)

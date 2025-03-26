@@ -15,7 +15,7 @@ import webbrowser
 from collections import defaultdict, deque
 from copy import deepcopy
 from importlib.machinery import SourceFileLoader
-from typing import TYPE_CHECKING, cast, overload
+from typing import TYPE_CHECKING, ClassVar, cast, overload
 
 # Qt/qtpy
 import qtpy
@@ -115,8 +115,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     _splitter_pos: int
     _splitter_min: int
     _zoom: float
-    _color_per_type: dict[str, QColor] = {}
-    _converted_color_per_type: dict[str, str] = {}
+    _color_per_type: ClassVar[dict[str, QColor]] = {}
+    _converted_color_per_type: ClassVar[dict[str, str]] = {}
 
     def __init__(self):
         """Initialize Scheduler-GUI."""
@@ -374,7 +374,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
 
         if len(schedule_obj_list) == 1:
-            schedule = list(schedule_obj_list.values())[0]
+            schedule = next(iter(schedule_obj_list.values()))
         else:
             ret_tuple = QInputDialog.getItem(
                 self,

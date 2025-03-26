@@ -584,7 +584,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return (
             super().__str__()
-            + f", \tinputs: {str(inputs_dict)}, \toutputs: {str(outputs_dict)}"
+            + f", \tinputs: {inputs_dict!s}, \toutputs: {outputs_dict!s}"
         )
 
     @property

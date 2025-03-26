@@ -53,7 +53,7 @@ class PrecedenceGraphWindow(QDialog):
 
         self._dialog_layout.addLayout(self._sfg_layout)
         if len(self._check_box_dict) == 1:
-            check_box = list(self._check_box_dict.keys())[0]
+            check_box = next(iter(self._check_box_dict.keys()))
             check_box.setChecked(True)
 
     def show_precedence_graph(self):

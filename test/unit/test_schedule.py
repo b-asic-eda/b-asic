@@ -258,7 +258,7 @@ class TestInit:
         assert schedule.schedule_time == 10
 
     def test_provided_schedule(self):
-        sfg = direct_form_1_iir([1, 2, 3], [1, 2, 3])
+        sfg = direct_form_1_iir([2, 2, 3], [1, 2, 3])
 
         sfg.set_latency_of_type_name(Addition.type_name(), 1)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)

@@ -246,7 +246,7 @@ class Arrow(QGraphicsPathItem):
                 p.lineTo(QPointF(x0 - offset, ymid))
                 p.lineTo(QPointF(x0 - offset, y1))
             else:
-                offset = -OFFSET if source_flipped else -OFFSET
+                offset = -OFFSET
                 p.lineTo(QPointF(x0 + offset, y0))
                 p.lineTo(QPointF(x0 + offset, y1))
         else:

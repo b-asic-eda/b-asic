@@ -756,7 +756,7 @@ class SFGMainWindow(QMainWindow):
             )
 
     def _create_operation_item(self, item) -> None:
-        self._logger.info(f"Creating operation of type: {str(item.text())}")
+        self._logger.info(f"Creating operation of type: {item.text()!s}")
         try:
             attr_operation = self._operations_from_name[item.text()]()
             self.add_operation(attr_operation)
@@ -903,7 +903,7 @@ class SFGMainWindow(QMainWindow):
         self._thread = {}
         self._sim_worker = {}
         for sfg, properties in self._simulation_dialog._properties.items():
-            self._logger.info(f"Simulating SFG with name: {str(sfg.name)}")
+            self._logger.info(f"Simulating SFG with name: {sfg.name!s}")
             self._sim_worker[sfg] = SimulationWorker(sfg, properties)
             self._thread[sfg] = QThread()
             self._sim_worker[sfg].moveToThread(self._thread[sfg])

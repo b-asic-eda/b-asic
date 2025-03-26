@@ -610,7 +610,7 @@ class Min(AbstractOperation):
     def evaluate(self, a, b):
         if isinstance(a, complex) or isinstance(b, complex):
             raise ValueError("core_operations.Min does not support complex numbers.")
-        return a if a < b else b
+        return min(a, b)
 
 
 class Max(AbstractOperation):
@@ -691,7 +691,7 @@ class Max(AbstractOperation):
     def evaluate(self, a, b):
         if isinstance(a, complex) or isinstance(b, complex):
             raise ValueError("core_operations.Max does not support complex numbers.")
-        return a if a > b else b
+        return max(a, b)
 
 
 class SquareRoot(AbstractOperation):

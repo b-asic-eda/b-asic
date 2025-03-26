@@ -160,7 +160,7 @@ class Schedule:
         string_io.write("-" * (15 * len(header) + len(header) - 1) + "\n")
 
         for r in res_str:
-            row_str = "|".join(f"{str(item):^15}" for i, item in enumerate(r))
+            row_str = "|".join(f"{item!s:^15}" for i, item in enumerate(r))
             string_io.write(row_str + "\n")
 
         return string_io.getvalue()
