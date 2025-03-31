@@ -616,8 +616,8 @@ class ListScheduler(Scheduler):
 
     def _op_is_schedulable(self, op: "Operation") -> bool:
         return (
-            self._op_satisfies_resource_constraints(op)
-            and self._op_satisfies_data_dependencies(op)
+            self._op_satisfies_data_dependencies(op)
+            and self._op_satisfies_resource_constraints(op)
             and self._op_satisfies_concurrent_writes(op)
             and self._op_satisfies_concurrent_reads(op)
         )
@@ -988,13 +988,13 @@ class RecursiveListScheduler(ListScheduler):
 
         self._schedule._schedule_time = self._schedule.get_max_end_time()
 
-        if saved_sched_time:
+        if saved_sched_time and saved_sched_time > self._schedule._schedule_time:
             self._schedule._schedule_time = saved_sched_time
         self._logger.debug("--- Scheduling of recursive loops completed ---")
 
     def _get_next_recursive_op(
         self, priority_table: list[tuple["GraphID", int, ...]]
-    ) -> "GraphID":
+    ) -> "Operation":
         sorted_table = sorted(priority_table, key=lambda row: row[1])
         return self._sfg.find_by_id(sorted_table[0][0])
 

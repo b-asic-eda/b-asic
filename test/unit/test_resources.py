@@ -49,7 +49,7 @@ class TestProcessCollectionPlainMemoryVariable:
 
     def test_split_sequence_raises(self, simple_collection: ProcessCollection):
         with pytest.raises(KeyError, match="processes in `sequence` must be"):
-            simple_collection.split_ports_sequentially(
+            simple_collection._split_ports_sequentially(
                 read_ports=1, write_ports=1, total_ports=2, sequence=[]
             )
 
@@ -70,6 +70,22 @@ class TestProcessCollectionPlainMemoryVariable:
             heuristic="left_edge", read_ports=2, write_ports=2, total_ports=2
         )
         assert len(split) == 2
+
+    def test_split_memory_variable_raises(self, simple_collection: ProcessCollection):
+        with pytest.raises(
+            ValueError,
+            match="processing_elements must be provided if heuristic = 'min_pe_to_mem'",
+        ):
+            simple_collection.split_on_ports(heuristic="min_pe_to_mem", total_ports=1)
+
+        with pytest.raises(
+            ValueError,
+            match="processing_elements must be provided if heuristic = 'min_mem_to_pe'",
+        ):
+            simple_collection.split_on_ports(heuristic="min_mem_to_pe", total_ports=1)
+
+        with pytest.raises(ValueError, match="Invalid heuristic provided."):
+            simple_collection.split_on_ports(heuristic="foo", total_ports=1)
 
     @matplotlib.testing.decorators.image_comparison(
         ["test_left_edge_cell_assignment.png"]

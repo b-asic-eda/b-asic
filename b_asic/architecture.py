@@ -924,6 +924,53 @@ of :class:`~b_asic.architecture.ProcessingElement`
             raise KeyError(f"{proc} not in {source.entity_name}")
         self._build_dicts()
 
+    def show(
+        self,
+        fmt: str | None = None,
+        branch_node: bool = True,
+        cluster: bool = True,
+        splines: str = "spline",
+        io_cluster: bool = True,
+        multiplexers: bool = True,
+        colored: bool = True,
+    ) -> None:
+        """
+        Display a visual representation of the Architecture using the default system viewer.
+
+        Parameters
+        ----------
+        fmt : str, optional
+            File format of the generated graph. Output formats can be found at
+            https://www.graphviz.org/doc/info/output.html
+            Most common are "pdf", "eps", "png", and "svg". Default is None which
+            leads to PDF.
+        branch_node : bool, default: True
+            Whether to create a branch node for outputs with fan-out of two or higher.
+        cluster : bool, default: True
+            Whether to draw memories and PEs in separate clusters.
+        splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
+            Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
+        io_cluster : bool, default: True
+            Whether Inputs and Outputs are drawn inside an IO cluster. Only relevant
+            if *cluster* is True.
+        multiplexers : bool, default: True
+            Whether input multiplexers are included.
+        colored : bool, default: True
+            Whether to color the nodes.
+        """
+
+        dg = self._digraph(
+            branch_node=branch_node,
+            cluster=cluster,
+            splines=splines,
+            io_cluster=io_cluster,
+            multiplexers=multiplexers,
+            colored=colored,
+        )
+        if fmt is not None:
+            dg.format = fmt
+        dg.view()
+
     def _digraph(
         self,
         branch_node: bool = True,
@@ -940,8 +987,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether to create a branch node for outputs with fan-out of two or higher.
         cluster : bool, default: True
             Whether to draw memories and PEs in separate clusters.
-        splines : str, default: "spline"
-            The type of interconnect to use for graph drawing.
+        splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
+            Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
         io_cluster : bool, default: True
             Whether Inputs and Outputs are drawn inside an IO cluster. Only relevant
             if *cluster* is True.
