@@ -14,7 +14,7 @@ from io import StringIO
 from math import ceil
 from numbers import Number
 from queue import PriorityQueue
-from typing import ClassVar, Optional, Union, cast
+from typing import ClassVar, Literal, Optional, Union, cast
 
 import numpy as np
 from graphviz import Digraph
@@ -1616,7 +1616,7 @@ class SFG(AbstractOperation):
         engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
-        splines: str = "spline",
+        splines: Literal["spline", "line", "ortho", "polyline", "curved"] = "spline",
     ) -> Digraph:
         """
         Return a Digraph of the SFG.
@@ -1729,7 +1729,7 @@ class SFG(AbstractOperation):
         engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
-        splines: str = "spline",
+        splines: Literal["spline", "line", "ortho", "polyline", "curved"] = "spline",
     ) -> None:
         """
         Display a visual representation of the SFG using the default system viewer.

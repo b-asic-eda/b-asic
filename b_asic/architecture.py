@@ -615,13 +615,23 @@ of :class:`~b_asic.architecture.ProcessingElement`
         direct_interconnects: ProcessCollection | None = None,
     ):
         super().__init__(entity_name)
+
+        pe_names = [pe._entity_name for pe in processing_elements]
+        if len(pe_names) != len(set(pe_names)):
+            raise ValueError("Entity names of processing elements needs to be unique.")
         self._processing_elements = (
             [processing_elements]
             if isinstance(processing_elements, ProcessingElement)
             else list(processing_elements)
         )
+
+        mem_names = [mem._entity_name for mem in memories]
+        if len(mem_names) != len(set(mem_names)):
+            raise ValueError("Entity names of memories needs to be unique.")
         self._memories = [memories] if isinstance(memories, Memory) else list(memories)
+
         self._direct_interconnects = direct_interconnects
+
         self._variable_input_port_to_resource: defaultdict[
             InputPort, set[tuple[Resource, int]]
         ] = defaultdict(set)
@@ -975,7 +985,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         self,
         branch_node: bool = True,
         cluster: bool = True,
-        splines: str = "spline",
+        splines: Literal["spline", "line", "ortho", "polyline", "curved"] = "spline",
         io_cluster: bool = True,
         multiplexers: bool = True,
         colored: bool = True,

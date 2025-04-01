@@ -5,7 +5,7 @@ import pytest
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import Addition, ConstantMultiplication
-from b_asic.process import PlainMemoryVariable
+from b_asic.process import MemoryProcess, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
@@ -181,6 +181,36 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     )
 
 
+def test_architecture_not_unique_entity_names():
+    pe_1 = ProcessingElement(
+        ProcessCollection([OperatorProcess(0, Addition(execution_time=1))], 1),
+        entity_name="foo",
+    )
+    pe_2 = ProcessingElement(
+        ProcessCollection([OperatorProcess(0, Addition(execution_time=1))], 1),
+        entity_name="foo",
+    )
+    with pytest.raises(
+        ValueError, match="Entity names of processing elements needs to be unique."
+    ):
+        Architecture([pe_1, pe_2], [])
+
+    mem_1 = Memory(
+        ProcessCollection([MemoryProcess(0, [1])], 1),
+        memory_type="RAM",
+        entity_name="bar",
+    )
+    mem_2 = Memory(
+        ProcessCollection([MemoryProcess(0, [1])], 1),
+        memory_type="RAM",
+        entity_name="bar",
+    )
+    with pytest.raises(
+        ValueError, match="Entity names of memories needs to be unique."
+    ):
+        Architecture([], [mem_1, mem_2])
+
+
 def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     # Resources
     mvs = schedule_direct_form_iir_lp_filter.get_memory_variables()
@@ -210,7 +240,9 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     direct_conn, mvs = mvs.split_on_length()
 
     # Create Memories from the memory variables (split on length to get two memories)
-    memories: list[Memory] = [Memory(pc) for pc in mvs.split_on_length(6)]
+    memories: list[Memory] = [
+        Memory(pc, entity_name=f"mem{i}") for i, pc in enumerate(mvs.split_on_length(6))
+    ]
 
     # Create architecture
     architecture = Architecture(
