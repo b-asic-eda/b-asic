@@ -929,7 +929,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         fmt: str | None = None,
         branch_node: bool = True,
         cluster: bool = True,
-        splines: str = "spline",
+        splines: Literal["spline", "line", "ortho", "polyline", "curved"] = "spline",
         io_cluster: bool = True,
         multiplexers: bool = True,
         colored: bool = True,

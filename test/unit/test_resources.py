@@ -49,7 +49,7 @@ class TestProcessCollectionPlainMemoryVariable:
 
     def test_split_sequence_raises(self, simple_collection: ProcessCollection):
         with pytest.raises(KeyError, match="processes in `sequence` must be"):
-            simple_collection._split_ports_sequentially(
+            simple_collection.split_ports_sequentially(
                 read_ports=1, write_ports=1, total_ports=2, sequence=[]
             )
 

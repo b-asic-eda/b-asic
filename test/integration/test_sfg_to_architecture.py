@@ -245,6 +245,29 @@ def test_different_resource_algorithms():
     assert len(arch.processing_elements) == 6
     assert len(arch.memories) == 6
 
+    # MIN-MEM-TO-PE
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=2,
+        heuristic="min_mem_to_pe",
+        processing_elements=processing_elements,
+    )
+
+    memories = []
+    for i, mem in enumerate(mem_vars_set):
+        memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
+        memories.append(memory)
+        memory.assign("graph_color")
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 6
+    assert len(arch.memories) == 6
+
     # GRAPH COLORING
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,

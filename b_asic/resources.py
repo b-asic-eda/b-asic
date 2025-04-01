@@ -946,7 +946,7 @@ class ProcessCollection:
             The total number of ports used when splitting process collection based on
             memory variable access.
 
-        processing_elements : list[ProcessingElements], optional
+        processing_elements : list of ProcessingElement, optional
             The currently used PEs, only required if heuristic = "min_mem_to_pe".
 
         Returns
@@ -959,7 +959,7 @@ class ProcessCollection:
         if heuristic == "graph_color":
             return self._split_ports_graph_color(read_ports, write_ports, total_ports)
         elif heuristic == "left_edge":
-            return self._split_ports_sequentially(
+            return self.split_ports_sequentially(
                 read_ports,
                 write_ports,
                 total_ports,
@@ -992,7 +992,7 @@ class ProcessCollection:
         else:
             raise ValueError("Invalid heuristic provided.")
 
-    def _split_ports_sequentially(
+    def split_ports_sequentially(
         self,
         read_ports: int,
         write_ports: int,
@@ -1065,7 +1065,7 @@ class ProcessCollection:
             raise KeyError("processes in `sequence` must be equal to processes in self")
 
         num_of_memories = len(
-            self._split_ports_sequentially(
+            self.split_ports_sequentially(
                 read_ports, write_ports, total_ports, sequence
             )
         )
@@ -1087,11 +1087,11 @@ class ProcessCollection:
 
             for i, collection in enumerate(collections):
                 if process_fits_in_collection[i]:
-                    count_1 = ProcessCollection._count_number_of_pes_connected(
+                    count_1 = ProcessCollection._count_number_of_pes_read_from(
                         processing_elements, collection
                     )
                     tmp_collection = [*collection.collection, process]
-                    count_2 = ProcessCollection._count_number_of_pes_connected(
+                    count_2 = ProcessCollection._count_number_of_pes_read_from(
                         processing_elements, tmp_collection
                     )
                     delta = count_2 - count_1
@@ -1113,9 +1113,9 @@ class ProcessCollection:
 
             best_collection.add_process(process)
 
-        for i in range(len(collections)):
-            if not collections[i].collection:
-                collections.pop(i)
+        collections = [
+            collection for collection in collections if collection.collection
+        ]
         return collections
 
     def _split_ports_minimize_memory_to_pe_connections(
@@ -1126,7 +1126,63 @@ class ProcessCollection:
         sequence: list[Process],
         processing_elements: list["ProcessingElement"],
     ) -> list["ProcessCollection"]:
-        raise NotImplementedError()
+
+        if set(self.collection) != set(sequence):
+            raise KeyError("processes in `sequence` must be equal to processes in self")
+
+        num_of_memories = len(
+            self.split_ports_sequentially(
+                read_ports, write_ports, total_ports, sequence
+            )
+        )
+        collections: list[ProcessCollection] = [
+            ProcessCollection(
+                [],
+                schedule_time=self.schedule_time,
+                cyclic=self._cyclic,
+            )
+            for _ in range(num_of_memories)
+        ]
+
+        for process in sequence:
+            process_fits_in_collection = self._get_process_fits_in_collection(
+                process, collections, read_ports, write_ports, total_ports
+            )
+            best_collection = None
+            best_delta = sys.maxsize
+
+            for i, collection in enumerate(collections):
+                if process_fits_in_collection[i]:
+
+                    count_1 = ProcessCollection._count_number_of_pes_written_to(
+                        processing_elements, collection
+                    )
+                    tmp_collection = [*collection.collection, process]
+                    count_2 = ProcessCollection._count_number_of_pes_written_to(
+                        processing_elements, tmp_collection
+                    )
+                    delta = count_2 - count_1
+                    if delta < best_delta:
+                        best_collection = collection
+                        best_delta = delta
+
+                elif not any(process_fits_in_collection):
+                    collections.append(
+                        ProcessCollection(
+                            [],
+                            schedule_time=self.schedule_time,
+                            cyclic=self._cyclic,
+                        )
+                    )
+                    process_fits_in_collection = self._get_process_fits_in_collection(
+                        process, collections, read_ports, write_ports, total_ports
+                    )
+            best_collection.add_process(process)
+
+        collections = [
+            collection for collection in collections if collection.collection
+        ]
+        return collections
 
     def _get_process_fits_in_collection(
         self, process, collections, write_ports, read_ports, total_ports
@@ -1167,7 +1223,7 @@ class ProcessCollection:
         return False
 
     @staticmethod
-    def _count_number_of_pes_connected(
+    def _count_number_of_pes_read_from(
         processing_elements: list["ProcessingElement"],
         collection: "ProcessCollection",
     ) -> int:
@@ -1179,6 +1235,24 @@ class ProcessCollection:
                 for proc in pe.collection
             ):
                 count += 1
+        return count
+
+    @staticmethod
+    def _count_number_of_pes_written_to(
+        processing_elements: list["ProcessingElement"],
+        collection: "ProcessCollection",
+    ) -> int:
+        collection_process_names = {proc.name.split(".")[0] for proc in collection}
+        count = 0
+        for pe in processing_elements:
+            for process in pe.processes:
+                for input in process.operation.inputs:
+                    input_op = input.connected_source.operation
+                    if input_op.graph_id in collection_process_names:
+                        count += 1
+                        break
+                if count != 0:
+                    break
         return count
 
     def _split_ports_graph_color(
