@@ -126,11 +126,11 @@ def test_pe_and_memory_constrained_schedule():
     mem_vars = schedule.get_memory_variables()
     direct, mem_vars = mem_vars.split_on_length()
     mem_vars_set = mem_vars.split_on_ports(
-        read_ports=1, write_ports=1, total_ports=2, heuristic="graph_color"
+        read_ports=1, write_ports=1, total_ports=2, heuristic="greedy_graph_color"
     )
 
     mem_vars_set = mem_vars.split_on_ports(
-        read_ports=1, write_ports=1, total_ports=2, heuristic="graph_color"
+        read_ports=1, write_ports=1, total_ports=2, heuristic="greedy_graph_color"
     )
 
     memories = []
@@ -268,12 +268,12 @@ def test_different_resource_algorithms():
     assert len(arch.processing_elements) == 6
     assert len(arch.memories) == 6
 
-    # GRAPH COLORING
+    # GREEDY GRAPH COLORING
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="graph_color",
+        heuristic="greedy_graph_color",
         processing_elements=processing_elements,
     )
 
@@ -289,4 +289,85 @@ def test_different_resource_algorithms():
         direct_interconnects=direct,
     )
     assert len(arch.processing_elements) == 6
+    assert len(arch.memories) == 4
+
+    # EQUITABLE COLOR
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=2,
+        heuristic="equitable_graph_color",
+        processing_elements=processing_elements,
+    )
+
+    memories = []
+    for i, mem in enumerate(mem_vars_set):
+        memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
+        memories.append(memory)
+        memory.assign("graph_color")
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 6
+    assert len(arch.memories) == 7
+
+    # FOR ILP points is reduced due to time complexity
+    POINTS = 16
+    sfg = radix_2_dif_fft(POINTS)
+    sfg.set_latency_of_type(Butterfly, 1)
+    sfg.set_latency_of_type(ConstantMultiplication, 3)
+    sfg.set_execution_time_of_type(Butterfly, 1)
+    sfg.set_execution_time_of_type(ConstantMultiplication, 1)
+
+    schedule_2 = Schedule(
+        sfg,
+        scheduler=HybridScheduler(
+            resources, max_concurrent_reads=4, max_concurrent_writes=4
+        ),
+    )
+
+    operations = schedule_2.get_operations()
+    bfs = operations.get_by_type_name(Butterfly.type_name())
+    bfs = bfs.split_on_execution_time()
+    const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
+    inputs = operations.get_by_type_name(Input.type_name())
+    outputs = operations.get_by_type_name(Output.type_name())
+
+    bf_pe_1 = ProcessingElement(bfs[0], entity_name="bf1")
+    bf_pe_2 = ProcessingElement(bfs[1], entity_name="bf2")
+
+    mul_pe_1 = ProcessingElement(const_muls, entity_name="mul1")
+
+    pe_in = ProcessingElement(inputs, entity_name="input")
+    pe_out = ProcessingElement(outputs, entity_name="output")
+
+    processing_elements = [bf_pe_1, bf_pe_2, mul_pe_1, pe_in, pe_out]
+
+    mem_vars = schedule_2.get_memory_variables()
+    direct, mem_vars = mem_vars.split_on_length()
+
+    # ILP COLOR
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=2,
+        heuristic="ilp_graph_color",
+        processing_elements=processing_elements,
+    )
+
+    memories = []
+    for i, mem in enumerate(mem_vars_set):
+        memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
+        memories.append(memory)
+        memory.assign("graph_color")
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 5
     assert len(arch.memories) == 4

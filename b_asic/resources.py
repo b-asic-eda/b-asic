@@ -929,7 +929,9 @@ class ProcessCollection:
             The heuristic used when splitting this :class:`ProcessCollection`.
             Valid options are:
 
-            * "graph_color"
+            * "ilp_graph_color"
+            * "greedy_graph_color"
+            * "equitable_graph_color"
             * "left_edge"
             * "min_pe_to_mem"
             * "min_mem_to_pe"
@@ -956,8 +958,18 @@ class ProcessCollection:
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
         )
-        if heuristic == "graph_color":
-            return self._split_ports_graph_color(read_ports, write_ports, total_ports)
+        if heuristic == "ilp_graph_color":
+            return self._split_ports_ilp_graph_color(
+                read_ports, write_ports, total_ports
+            )
+        elif heuristic == "greedy_graph_color":
+            return self._split_ports_greedy_graph_color(
+                read_ports, write_ports, total_ports
+            )
+        elif heuristic == "equitable_graph_color":
+            return self._split_ports_equitable_graph_color(
+                read_ports, write_ports, total_ports
+            )
         elif heuristic == "left_edge":
             return self.split_ports_sequentially(
                 read_ports,
@@ -1255,7 +1267,7 @@ class ProcessCollection:
                     break
         return count
 
-    def _split_ports_graph_color(
+    def _split_ports_greedy_graph_color(
         self,
         read_ports: int,
         write_ports: int,
@@ -1286,14 +1298,102 @@ class ProcessCollection:
             * 'connected_sequential_dfs' or 'connected_sequential'
             * 'saturation_largest_first' or 'DSATUR'
         """
-        # Create new exclusion graph. Nodes are Processes
+        # create new exclusion graph. Nodes are Processes
         exclusion_graph = self.create_exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
         )
 
-        # Perform assignment from coloring and return result
+        # perform assignment from coloring and return result
         coloring = nx.coloring.greedy_color(exclusion_graph, strategy=coloring_strategy)
         return self._split_from_graph_coloring(coloring)
+
+    def _split_ports_equitable_graph_color(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+    ) -> list["ProcessCollection"]:
+        # create new exclusion graph. Nodes are Processes
+        exclusion_graph = self.create_exclusion_graph_from_ports(
+            read_ports, write_ports, total_ports
+        )
+
+        # perform assignment from coloring and return result
+        max_degree = max(dict(exclusion_graph.degree()).values())
+        coloring = nx.coloring.equitable_color(
+            exclusion_graph, num_colors=max_degree + 1
+        )
+        return self._split_from_graph_coloring(coloring)
+
+    def _split_ports_ilp_graph_color(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+    ) -> list["ProcessCollection"]:
+        from pulp import (
+            LpBinary,
+            LpProblem,
+            LpStatusOptimal,
+            LpVariable,
+            lpSum,
+            value,
+        )
+
+        # create new exclusion graph. Nodes are Processes
+        exclusion_graph = self.create_exclusion_graph_from_ports(
+            read_ports, write_ports, total_ports
+        )
+        nodes = list(exclusion_graph.nodes())
+        edges = list(exclusion_graph.edges())
+
+        # determine an upper bound on the number of colors
+        max_colors = len(nodes)
+
+        # binary variables:
+        #   x[node, color] - whether node is colored in a certain color
+        #   c[color] - whether color is used
+        x = LpVariable.dicts("x", (nodes, range(max_colors)), cat=LpBinary)
+        c = LpVariable.dicts("c", range(max_colors), cat=LpBinary)
+
+        # create the problem, objective function - minimize the number of colors used
+        problem = LpProblem()
+        problem += lpSum(c[i] for i in range(max_colors))
+
+        # constraints:
+        #   1 - nodes have exactly one color
+        #   2 - adjacent nodes cannot have the same color
+        #   3 - only permit assignments if color is used
+        for node in nodes:
+            problem += lpSum(x[node][i] for i in range(max_colors)) == 1
+        for u, v in edges:
+            for color in range(max_colors):
+                problem += x[u][color] + x[v][color] <= c[color]
+        for node in nodes:
+            for color in range(max_colors):
+                problem += x[node][color] <= c[color]
+
+        status = problem.solve()
+
+        if status != LpStatusOptimal:
+            raise ValueError(
+                "Optimal solution could not be found via ILP, use another method."
+            )
+
+        node_colors = {}
+        for node in nodes:
+            for i in range(max_colors):
+                if value(x[node][i]) == 1:
+                    node_colors[node] = i
+
+        # reduce the solution by removing unused colors
+        sorted_unique_values = sorted(set(node_colors.values()))
+        coloring_mapping = {val: i for i, val in enumerate(sorted_unique_values)}
+        minimal_coloring = {
+            key: coloring_mapping[node_colors[key]] for key in node_colors
+        }
+
+        return self._split_from_graph_coloring(minimal_coloring)
 
     def _split_from_graph_coloring(
         self,

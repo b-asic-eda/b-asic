@@ -30,11 +30,11 @@ class TestProcessCollectionPlainMemoryVariable:
         generate_matrix_transposer(4).plot(ax=ax)  # type: ignore
         return fig
 
-    def test_split_memory_variable_graph_color(
+    def test_split_memory_variable_greedy_graph_color(
         self, simple_collection: ProcessCollection
     ):
         collection_split = simple_collection.split_on_ports(
-            heuristic="graph_color", read_ports=1, write_ports=1, total_ports=2
+            heuristic="greedy_graph_color", read_ports=1, write_ports=1, total_ports=2
         )
         assert len(collection_split) == 3
 
