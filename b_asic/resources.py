@@ -1347,8 +1347,11 @@ class ProcessCollection:
         nodes = list(exclusion_graph.nodes())
         edges = list(exclusion_graph.edges())
 
-        # determine an upper bound on the number of colors
-        max_colors = len(nodes)
+        # run a good heuristic to get an upper bound on the amount of colors
+        coloring = nx.coloring.greedy_color(
+            exclusion_graph, strategy="saturation_largest_first"
+        )
+        max_colors = len(set(coloring.values()))
 
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
@@ -1364,6 +1367,7 @@ class ProcessCollection:
         #   1 - nodes have exactly one color
         #   2 - adjacent nodes cannot have the same color
         #   3 - only permit assignments if color is used
+        #   4 - reduce solution space by setting the color of one node
         for node in nodes:
             problem += lpSum(x[node][i] for i in range(max_colors)) == 1
         for u, v in edges:
@@ -1372,6 +1376,7 @@ class ProcessCollection:
         for node in nodes:
             for color in range(max_colors):
                 problem += x[node][color] <= c[color]
+        problem += x[nodes[0]][0] == c[0] == 1
 
         status = problem.solve()
 
