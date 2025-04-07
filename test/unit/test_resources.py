@@ -74,15 +74,37 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_split_memory_variable_raises(self, simple_collection: ProcessCollection):
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if heuristic = 'min_pe_to_mem'",
+            match="processing_elements must be provided if heuristic = 'ilp_min_input_mux'",
         ):
-            simple_collection.split_on_ports(heuristic="min_pe_to_mem", total_ports=1)
+            simple_collection.split_on_ports(
+                heuristic="ilp_min_input_mux", total_ports=1
+            )
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if heuristic = 'min_mem_to_pe'",
+            match="amount_of_sets must be provided if heuristic = 'ilp_min_input_mux'",
         ):
-            simple_collection.split_on_ports(heuristic="min_mem_to_pe", total_ports=1)
+            simple_collection.split_on_ports(
+                heuristic="ilp_min_input_mux",
+                total_ports=1,
+                processing_elements=[],
+            )
+
+        with pytest.raises(
+            ValueError,
+            match="processing_elements must be provided if heuristic = 'left_edge_min_pe_to_mem'",
+        ):
+            simple_collection.split_on_ports(
+                heuristic="left_edge_min_pe_to_mem", total_ports=1
+            )
+
+        with pytest.raises(
+            ValueError,
+            match="processing_elements must be provided if heuristic = 'left_edge_min_mem_to_pe'",
+        ):
+            simple_collection.split_on_ports(
+                heuristic="left_edge_min_mem_to_pe", total_ports=1
+            )
 
         with pytest.raises(ValueError, match="Invalid heuristic provided."):
             simple_collection.split_on_ports(heuristic="foo", total_ports=1)
