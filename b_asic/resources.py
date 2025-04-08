@@ -1445,7 +1445,7 @@ class ProcessCollection:
         #   1 - nodes have exactly one color
         #   2 - adjacent nodes cannot have the same color
         #   3 - only permit assignments if color is used
-        #   4 - reduce solution space by setting the color of one node
+        #   4 - reduce solution space by assigning colors to the largest clique
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
         for u, v in edges:
@@ -1454,7 +1454,9 @@ class ProcessCollection:
         for node in nodes:
             for color in colors:
                 problem += x[node][color] <= c[color]
-        problem += x[nodes[0]][0] == c[0] == 1
+        max_clique = next(nx.find_cliques(exclusion_graph))
+        for color, node in enumerate(max_clique):
+            problem += x[node][color] == c[color] == 1
 
         status = problem.solve()
 
@@ -1521,7 +1523,8 @@ class ProcessCollection:
         #   1 - nodes have exactly one color
         #   2 - adjacent nodes cannot have the same color
         #   3 - only permit assignments if color is used
-        #   4 - if node is colored then enable the PE which generates that node (variable)
+        #   4 - if node is colored then enable the PE which generates that node
+        #   5 - reduce solution space by assigning colors to the largest clique
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
         for u, v in edges:
@@ -1534,6 +1537,9 @@ class ProcessCollection:
             pe = _get_source(node, processing_elements)
             for color in colors:
                 problem += x[node][color] <= y[pe][color]
+        max_clique = next(nx.find_cliques(exclusion_graph))
+        for color, node in enumerate(max_clique):
+            problem += x[node][color] == c[color] == 1
 
         status = problem.solve()
 
@@ -1601,6 +1607,7 @@ class ProcessCollection:
         #   2 - adjacent nodes cannot have the same color
         #   3 - only permit assignments if color is used
         #   4 - if node is colored then enable the PE reads from that node (variable)
+        #   5 - reduce solution space by assigning colors to the largest clique
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
         for u, v in edges:
@@ -1613,6 +1620,9 @@ class ProcessCollection:
             pe = _get_destination(node, processing_elements)
             for color in colors:
                 problem += x[node][color] <= y[pe][color]
+        max_clique = next(nx.find_cliques(exclusion_graph))
+        for color, node in enumerate(max_clique):
+            problem += x[node][color] == c[color] == 1
 
         status = problem.solve()
 
