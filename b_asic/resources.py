@@ -1442,10 +1442,12 @@ class ProcessCollection:
         problem += lpSum(c[i] for i in colors)
 
         # constraints:
-        #   1 - nodes have exactly one color
-        #   2 - adjacent nodes cannot have the same color
-        #   3 - only permit assignments if color is used
-        #   4 - reduce solution space by assigning colors to the largest clique
+        #   (1) - nodes have exactly one color
+        #   (2) - adjacent nodes cannot have the same color
+        #   (3) - only permit assignments if color is used
+        #   (4) - reduce solution space by assigning colors to the largest clique
+        #   (5 & 6) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
         for u, v in edges:
@@ -1457,6 +1459,10 @@ class ProcessCollection:
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += x[node][color] == c[color] == 1
+        for color in colors:
+            problem += c[color] <= lpSum(x[node][color] for node in nodes)
+        for color in colors[:-1]:
+            problem += c[color + 1] <= c[color]
 
         status = problem.solve()
 
@@ -1520,11 +1526,13 @@ class ProcessCollection:
         problem += lpSum(y[pe][i] for pe in processing_elements for i in colors)
 
         # constraints:
-        #   1 - nodes have exactly one color
-        #   2 - adjacent nodes cannot have the same color
-        #   3 - only permit assignments if color is used
-        #   4 - if node is colored then enable the PE which generates that node
-        #   5 - reduce solution space by assigning colors to the largest clique
+        #   (1) - nodes have exactly one color
+        #   (2) - adjacent nodes cannot have the same color
+        #   (3) - only permit assignments if color is used
+        #   (4) - if node is colored then enable the PE which generates that node
+        #   (5) - reduce solution space by assigning colors to the largest clique
+        #   (6 & 7) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
         for u, v in edges:
@@ -1540,6 +1548,10 @@ class ProcessCollection:
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += x[node][color] == c[color] == 1
+        for color in colors:
+            problem += c[color] <= lpSum(x[node][color] for node in nodes)
+        for color in colors[:-1]:
+            problem += c[color + 1] <= c[color]
 
         status = problem.solve()
 
@@ -1603,11 +1615,13 @@ class ProcessCollection:
         problem += lpSum(y[pe][i] for pe in processing_elements for i in colors)
 
         # constraints:
-        #   1 - nodes have exactly one color
-        #   2 - adjacent nodes cannot have the same color
-        #   3 - only permit assignments if color is used
-        #   4 - if node is colored then enable the PE reads from that node (variable)
-        #   5 - reduce solution space by assigning colors to the largest clique
+        #   (1) - nodes have exactly one color
+        #   (2) - adjacent nodes cannot have the same color
+        #   (3) - only permit assignments if color is used
+        #   (4) - if node is colored then enable the PE reads from that node (variable)
+        #   (5) - reduce solution space by assigning colors to the largest clique
+        #   (6 & 7) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
         for u, v in edges:
@@ -1623,6 +1637,10 @@ class ProcessCollection:
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += x[node][color] == c[color] == 1
+        for color in colors:
+            problem += c[color] <= lpSum(x[node][color] for node in nodes)
+        for color in colors[:-1]:
+            problem += c[color + 1] <= c[color]
 
         status = problem.solve()
 
