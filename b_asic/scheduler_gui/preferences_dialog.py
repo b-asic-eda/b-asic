@@ -227,11 +227,11 @@ class PreferencesDialog(QWidget):
         button.setText(color.name)
         if color.name == "Latency color":
             button.pressed.connect(
-                lambda: self.set_latency_color_by_type_name(all=True)
+                lambda: self.set_latency_color_by_type_name(modify_all=True)
             )
         elif color.name == "Latency color per type":
             button.pressed.connect(
-                lambda: self.set_latency_color_by_type_name(all=False)
+                lambda: self.set_latency_color_by_type_name(modify_all=False)
             )
         else:
             button.pressed.connect(lambda: self.color_button_clicked(color))
@@ -262,13 +262,13 @@ class PreferencesDialog(QWidget):
             self._bold_button.set_color(QColor("snow"))
         self.update_font()
 
-    def set_latency_color_by_type_name(self, all: bool) -> None:
+    def set_latency_color_by_type_name(self, modify_all: bool) -> None:
         """
         Set latency color based on operation type names.
 
         Parameters
         ----------
-        all : bool
+        modify_all : bool
             Indicates if the color of all type names to be modified.
         """
         if LATENCY_COLOR_TYPE.changed:
@@ -277,7 +277,7 @@ class PreferencesDialog(QWidget):
             current_color = LATENCY_COLOR_TYPE.DEFAULT
 
         # Prompt user to select operation type if not setting color for all types
-        if not all:
+        if not modify_all:
             used_types = self._parent._schedule.get_used_type_names()
             operation_type, ok = QInputDialog.getItem(
                 self, "Select operation type", "Type", used_types, editable=False
@@ -287,14 +287,14 @@ class PreferencesDialog(QWidget):
             ok = False
 
         # Open a color dialog to get the selected color
-        if all or ok:
+        if modify_all or ok:
             color = QColorDialog.getColor(
                 current_color, self, f"Select the color of {operation_type}"
             )
 
             # If a valid color is selected, update color settings and graph
             if color.isValid():
-                if all:
+                if modify_all:
                     LATENCY_COLOR_TYPE.changed = True
                     self._parent._color_changed_per_type = False
                     self._parent._changed_operation_colors.clear()

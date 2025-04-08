@@ -1327,7 +1327,7 @@ class SFG(AbstractOperation):
         self, original_component: GraphComponent
     ) -> GraphComponent:
         if original_component in self._original_components_to_new:
-            id = (
+            graph_id = (
                 original_component.name
                 if original_component.name
                 else (
@@ -1336,7 +1336,7 @@ class SFG(AbstractOperation):
                     else original_component.type_name()
                 )
             )
-            raise ValueError(f"Tried to add duplicate SFG component: {id}")
+            raise ValueError(f"Tried to add duplicate SFG component: {graph_id}")
         new_component = original_component.copy()
         self._original_components_to_new[original_component] = new_component
         if not new_component.graph_id or new_component.graph_id in self._used_ids:
@@ -1367,7 +1367,7 @@ class SFG(AbstractOperation):
             # Connect input ports to new signals.
             for original_input_port in original_op.inputs:
                 if original_input_port.signal_count < 1:
-                    id = (
+                    graph_id = (
                         original_op.name
                         if original_op.name
                         else (
@@ -1376,7 +1376,9 @@ class SFG(AbstractOperation):
                             else original_op.type_name()
                         )
                     )
-                    raise ValueError(f"Unconnected input port in SFG. Operation: {id}")
+                    raise ValueError(
+                        f"Unconnected input port in SFG. Operation: {graph_id}"
+                    )
 
                 for original_signal in original_input_port.signals:
                     # Check if the signal is one of the SFG's input signals.
@@ -1879,8 +1881,8 @@ class SFG(AbstractOperation):
                 inputs_used.append(int(used_input))
         if inputs_used == []:
             return []
-        for input in inputs_used:
-            input_op = self._input_operations[input]
+        for input_index in inputs_used:
+            input_op = self._input_operations[input_index]
         queue: deque[Operation] = deque([input_op])
         visited: set[Operation] = {input_op}
         dict_of_sfg = {}
@@ -1965,8 +1967,8 @@ class SFG(AbstractOperation):
                                 visited.add(new_op)
                         else:
                             raise ValueError("Source does not exist")
-        for input in input_index_used:
-            input_op = self._input_operations[input]
+        for input_index in input_index_used:
+            input_op = self._input_operations[input_index]
             queue: deque[Operation] = deque([input_op])
             visited: set[Operation] = {input_op}
             while queue:

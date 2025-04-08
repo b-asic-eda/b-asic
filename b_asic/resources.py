@@ -116,8 +116,8 @@ def _get_destination(
     name = var.name.split(".")[0]
     for pe in pes:
         for process in pe.processes:
-            for input in process.operation.inputs:
-                input_op = input.connected_source.operation
+            for input_port in process.operation.inputs:
+                input_op = input_port.connected_source.operation
                 if input_op.graph_id == name:
                     return pe
     raise ValueError("Destination could not be found for the given variable.")
@@ -1336,8 +1336,8 @@ class ProcessCollection:
         count = 0
         for pe in processing_elements:
             for process in pe.processes:
-                for input in process.operation.inputs:
-                    input_op = input.connected_source.operation
+                for input_port in process.operation.inputs:
+                    input_op = input_port.connected_source.operation
                     if input_op.graph_id in collection_process_names:
                         count += 1
                         break
