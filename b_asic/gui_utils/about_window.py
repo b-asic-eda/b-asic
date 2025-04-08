@@ -3,8 +3,8 @@ import sys  # ONLY FOR DEBUG
 
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QCursor, QPixmap
-from qtpy.QtWidgets import QApplication  # ONLY FOR DEBUG
 from qtpy.QtWidgets import (
+    QApplication,  # ONLY FOR DEBUG
     QDialog,
     QFrame,
     QHBoxLayout,
