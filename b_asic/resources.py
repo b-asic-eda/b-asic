@@ -99,6 +99,30 @@ def _sanitize_port_option(
     return read_ports, write_ports, total_ports
 
 
+def _get_source(
+    var: MemoryVariable, pes: list["ProcessingElement"]
+) -> "ProcessingElement":
+    name = var.name.split(".")[0]
+    for pe in pes:
+        pe_names = [proc.name for proc in pe.collection]
+        if name in pe_names:
+            return pe
+    raise ValueError("Source could not be found for the given variable.")
+
+
+def _get_destination(
+    var: MemoryVariable, pes: list["ProcessingElement"]
+) -> "ProcessingElement":
+    name = var.name.split(".")[0]
+    for pe in pes:
+        for process in pe.processes:
+            for input in process.operation.inputs:
+                input_op = input.connected_source.operation
+                if input_op.graph_id == name:
+                    return pe
+    raise ValueError("Destination could not be found for the given variable.")
+
+
 def draw_exclusion_graph_coloring(
     exclusion_graph: nx.Graph,
     color_dict: dict[Process, int],
@@ -984,6 +1008,38 @@ class ProcessCollection:
                 processing_elements,
                 amount_of_sets,
             )
+        elif heuristic == "ilp_min_output_mux":
+            if processing_elements is None:
+                raise ValueError(
+                    "processing_elements must be provided if heuristic = 'ilp_min_output_mux'"
+                )
+            if amount_of_sets is None:
+                raise ValueError(
+                    "amount_of_sets must be provided if heuristic = 'ilp_min_output_mux'"
+                )
+            return self._split_ports_ilp_min_output_mux_graph_color(
+                read_ports,
+                write_ports,
+                total_ports,
+                processing_elements,
+                amount_of_sets,
+            )
+        elif heuristic == "ilp_min_total_mux":
+            if processing_elements is None:
+                raise ValueError(
+                    "processing_elements must be provided if heuristic = 'ilp_min_total_mux'"
+                )
+            if amount_of_sets is None:
+                raise ValueError(
+                    "amount_of_sets must be provided if heuristic = 'ilp_min_total_mux'"
+                )
+            return self._split_ports_ilp_min_total_mux_graph_color(
+                read_ports,
+                write_ports,
+                total_ports,
+                processing_elements,
+                amount_of_sets,
+            )
         elif heuristic == "greedy_graph_color":
             return self._split_ports_greedy_graph_color(
                 read_ports, write_ports, total_ports
@@ -1455,22 +1511,11 @@ class ProcessCollection:
         #   x[node, color] - whether node is colored in a certain color
         #   c[color] - whether color is used
         #   y[pe, color] - whether a color has nodes generated from a certain pe
-
         x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
         c = LpVariable.dicts("c", colors, cat=LpBinary)
         y = LpVariable.dicts("y", (processing_elements, colors), cat=LpBinary)
         problem = LpProblem()
         problem += lpSum(y[pe][i] for pe in processing_elements for i in colors)
-
-        def _get_source(
-            var: MemoryVariable, pes: list["ProcessingElement"]
-        ) -> "ProcessingElement":
-            name = var.name.split(".")[0]
-            for pe in pes:
-                pe_names = [proc.name for proc in pe.collection]
-                if name in pe_names:
-                    return pe
-            raise ValueError("Source could not be found for the given variable.")
 
         # constraints:
         #   1 - nodes have exactly one color
@@ -1489,6 +1534,173 @@ class ProcessCollection:
             pe = _get_source(node, processing_elements)
             for color in colors:
                 problem += x[node][color] <= y[pe][color]
+
+        status = problem.solve()
+
+        if status != LpStatusOptimal:
+            raise ValueError(
+                "Optimal solution could not be found via ILP, use another method."
+            )
+
+        node_colors = {}
+        for node in nodes:
+            for i in colors:
+                if value(x[node][i]) == 1:
+                    node_colors[node] = i
+
+        # reduce the solution by removing unused colors
+        sorted_unique_values = sorted(set(node_colors.values()))
+        coloring_mapping = {val: i for i, val in enumerate(sorted_unique_values)}
+        minimal_coloring = {
+            key: coloring_mapping[node_colors[key]] for key in node_colors
+        }
+
+        return self._split_from_graph_coloring(minimal_coloring)
+
+    def _split_ports_ilp_min_output_mux_graph_color(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        processing_elements: list["ProcessingElement"],
+        amount_of_colors: int,
+    ) -> list["ProcessCollection"]:
+        from pulp import (
+            LpBinary,
+            LpProblem,
+            LpStatusOptimal,
+            LpVariable,
+            lpSum,
+            value,
+        )
+
+        # create new exclusion graph. Nodes are Processes
+        exclusion_graph = self.create_exclusion_graph_from_ports(
+            read_ports, write_ports, total_ports
+        )
+        nodes = list(exclusion_graph.nodes())
+        edges = list(exclusion_graph.edges())
+
+        colors = range(amount_of_colors)
+
+        # minimize the amount of output muxes connecting PEs to memories
+        # by minimizing the amount of PEs connected to each memory
+
+        # binary variables:
+        #   x[node, color] - whether node is colored in a certain color
+        #   c[color] - whether color is used
+        #   y[pe, color] - whether a color has nodes writing to a certain PE
+        x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        c = LpVariable.dicts("c", colors, cat=LpBinary)
+        y = LpVariable.dicts("y", (processing_elements, colors), cat=LpBinary)
+        problem = LpProblem()
+        problem += lpSum(y[pe][i] for pe in processing_elements for i in colors)
+
+        # constraints:
+        #   1 - nodes have exactly one color
+        #   2 - adjacent nodes cannot have the same color
+        #   3 - only permit assignments if color is used
+        #   4 - if node is colored then enable the PE reads from that node (variable)
+        for node in nodes:
+            problem += lpSum(x[node][i] for i in colors) == 1
+        for u, v in edges:
+            for color in colors:
+                problem += x[u][color] + x[v][color] <= 1
+        for node in nodes:
+            for color in colors:
+                problem += x[node][color] <= c[color]
+        for node in nodes:
+            pe = _get_destination(node, processing_elements)
+            for color in colors:
+                problem += x[node][color] <= y[pe][color]
+
+        status = problem.solve()
+
+        if status != LpStatusOptimal:
+            raise ValueError(
+                "Optimal solution could not be found via ILP, use another method."
+            )
+
+        node_colors = {}
+        for node in nodes:
+            for i in colors:
+                if value(x[node][i]) == 1:
+                    node_colors[node] = i
+
+        # reduce the solution by removing unused colors
+        sorted_unique_values = sorted(set(node_colors.values()))
+        coloring_mapping = {val: i for i, val in enumerate(sorted_unique_values)}
+        minimal_coloring = {
+            key: coloring_mapping[node_colors[key]] for key in node_colors
+        }
+
+        return self._split_from_graph_coloring(minimal_coloring)
+
+    def _split_ports_ilp_min_total_mux_graph_color(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        processing_elements: list["ProcessingElement"],
+        amount_of_colors: int,
+    ) -> list["ProcessCollection"]:
+        from pulp import (
+            LpBinary,
+            LpProblem,
+            LpStatusOptimal,
+            LpVariable,
+            lpSum,
+            value,
+        )
+
+        # create new exclusion graph. Nodes are Processes
+        exclusion_graph = self.create_exclusion_graph_from_ports(
+            read_ports, write_ports, total_ports
+        )
+        nodes = list(exclusion_graph.nodes())
+        edges = list(exclusion_graph.edges())
+
+        colors = range(amount_of_colors)
+
+        # minimize the amount of total muxes connecting PEs to memories
+        # by minimizing the amount of PEs connected to each memory (input & output)
+
+        # binary variables:
+        #   x[node, color] - whether node is colored in a certain color
+        #   c[color] - whether color is used
+        #   y[pe, color] - whether a color has nodes generated from a certain pe
+        #   z[pe, color] - whether a color has nodes writing to a certain PE
+        x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        c = LpVariable.dicts("c", colors, cat=LpBinary)
+        y = LpVariable.dicts("y", (processing_elements, colors), cat=LpBinary)
+        z = LpVariable.dicts("z", (processing_elements, colors), cat=LpBinary)
+        problem = LpProblem()
+        problem += lpSum(
+            y[pe][i] + z[pe][i] for pe in processing_elements for i in colors
+        )
+
+        # constraints:
+        #   1 - nodes have exactly one color
+        #   2 - adjacent nodes cannot have the same color
+        #   3 - only permit assignments if color is used
+        #   4 - if node is colored then enable the PE which generates that node (variable)
+        #   5 - if node is colored then enable the PE reads from that node (variable)
+        for node in nodes:
+            problem += lpSum(x[node][i] for i in colors) == 1
+        for u, v in edges:
+            for color in colors:
+                problem += x[u][color] + x[v][color] <= 1
+        for node in nodes:
+            for color in colors:
+                problem += x[node][color] <= c[color]
+        for node in nodes:
+            pe = _get_source(node, processing_elements)
+            for color in colors:
+                problem += x[node][color] <= y[pe][color]
+        for node in nodes:
+            pe = _get_destination(node, processing_elements)
+            for color in colors:
+                problem += x[node][color] <= z[pe][color]
 
         status = problem.solve()
 
@@ -1571,7 +1783,7 @@ class ProcessCollection:
         coloring: dict[Process, int] | None = None,
     ) -> list["ProcessCollection"]:
         """
-        Perform assignment of the processes in this collection using graph coloring.
+        Perform assignment of the processes in this collection using greedy graph coloring.
 
         Two or more processes can share a single resource if, and only if, they have no
         overlapping execution time.

@@ -92,6 +92,42 @@ class TestProcessCollectionPlainMemoryVariable:
 
         with pytest.raises(
             ValueError,
+            match="processing_elements must be provided if heuristic = 'ilp_min_output_mux'",
+        ):
+            simple_collection.split_on_ports(
+                heuristic="ilp_min_output_mux", total_ports=1
+            )
+
+        with pytest.raises(
+            ValueError,
+            match="amount_of_sets must be provided if heuristic = 'ilp_min_output_mux'",
+        ):
+            simple_collection.split_on_ports(
+                heuristic="ilp_min_output_mux",
+                total_ports=1,
+                processing_elements=[],
+            )
+
+        with pytest.raises(
+            ValueError,
+            match="processing_elements must be provided if heuristic = 'ilp_min_total_mux'",
+        ):
+            simple_collection.split_on_ports(
+                heuristic="ilp_min_total_mux", total_ports=1
+            )
+
+        with pytest.raises(
+            ValueError,
+            match="amount_of_sets must be provided if heuristic = 'ilp_min_total_mux'",
+        ):
+            simple_collection.split_on_ports(
+                heuristic="ilp_min_total_mux",
+                total_ports=1,
+                processing_elements=[],
+            )
+
+        with pytest.raises(
+            ValueError,
             match="processing_elements must be provided if heuristic = 'left_edge_min_pe_to_mem'",
         ):
             simple_collection.split_on_ports(
