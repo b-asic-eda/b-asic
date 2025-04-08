@@ -273,13 +273,13 @@ class Resource(HardwareBlock):
     def is_assigned(self) -> bool:
         return self._assignment is not None
 
-    def assign(self, heuristic: str = "left_edge"):
+    def assign(self, strategy: str = "left_edge"):
         """
         Perform assignment of processes to resource.
 
         Parameters
         ----------
-        heuristic : str
+        strategy : str
             See the specific resource types for more information.
 
         See Also
@@ -426,21 +426,21 @@ class ProcessingElement(Resource):
         return [cast(OperatorProcess, p) for p in self._collection]
 
     def assign(
-        self, heuristic: Literal["left_edge", "graph_color"] = "left_edge"
+        self, strategy: Literal["left_edge", "graph_color"] = "left_edge"
     ) -> None:
         """
         Perform assignment of the processes.
 
         Parameters
         ----------
-        heuristic : {'left_edge', 'graph_color'}, default: 'left_edge'
+        strategy : {'left_edge', 'graph_color'}, default: 'left_edge'
             The assignment algorithm.
 
             * 'left_edge': Left-edge algorithm.
             * 'graph_color': Graph-coloring based on exclusion graph.
         """
         self._assignment = list(
-            self._collection.split_on_execution_time(heuristic=heuristic)
+            self._collection.split_on_execution_time(strategy=strategy)
         )
         if len(self._assignment) > 1:
             self._assignment = None
@@ -561,13 +561,13 @@ class Memory(Resource):
                 pass
         return ""
 
-    def assign(self, heuristic: str = "left_edge") -> None:
+    def assign(self, strategy: str = "left_edge") -> None:
         """
         Perform assignment of the memory variables.
 
         Parameters
         ----------
-        heuristic : str, default: 'left_edge'
+        strategy : str, default: 'left_edge'
             The assignment algorithm. Depending on memory type the following are
             available:
 
@@ -579,7 +579,7 @@ class Memory(Resource):
         """
         if self._memory_type == "RAM":
             self._assignment = self._collection.split_on_execution_time(
-                heuristic=heuristic
+                strategy=strategy
             )
         else:  # "register"
             raise NotImplementedError()
@@ -869,13 +869,13 @@ of :class:`~b_asic.architecture.ProcessingElement`
         else:
             raise ValueError("Resource not in architecture")
 
-    def assign_resources(self, heuristic: str = "left_edge") -> None:
+    def assign_resources(self, strategy: str = "left_edge") -> None:
         """
         Convenience method to assign all resources in the architecture.
 
         Parameters
         ----------
-        heuristic : str, default: "left_edge"
+        strategy : str, default: "left_edge"
             The heurstic to use.
 
         See Also
@@ -885,7 +885,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         """
         for resource in chain(self.memories, self.processing_elements):
-            resource.assign(heuristic=heuristic)
+            resource.assign(strategy=strategy)
 
     def move_process(
         self,

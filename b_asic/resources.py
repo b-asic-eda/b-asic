@@ -12,6 +12,16 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
+from pulp import (
+    GUROBI,
+    PULP_CBC_CMD,
+    LpBinary,
+    LpProblem,
+    LpStatusOptimal,
+    LpVariable,
+    lpSum,
+    value,
+)
 
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
 from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
@@ -898,7 +908,7 @@ class ProcessCollection:
 
     def split_on_execution_time(
         self,
-        heuristic: Literal["graph_color", "left_edge"] = "left_edge",
+        strategy: Literal["graph_color", "left_edge"] = "left_edge",
         coloring_strategy: str = "saturation_largest_first",
     ) -> list["ProcessCollection"]:
         """
@@ -906,13 +916,13 @@ class ProcessCollection:
 
         Parameters
         ----------
-        heuristic : {'graph_color', 'left_edge'}, default: 'left_edge'
-            The heuristic used when splitting based on execution times.
+        strategy : {'graph_color', 'left_edge'}, default: 'left_edge'
+            The strategy used when splitting based on execution times.
 
         coloring_strategy : str, default: 'saturation_largest_first'
             Node ordering strategy passed to
             :func:`networkx.algorithms.coloring.greedy_color`.
-            This parameter is only considered if *heuristic* is set to 'graph_color'.
+            This parameter is only considered if *strategy* is set to 'graph_color'.
             One of
 
             * 'largest_first'
@@ -927,59 +937,61 @@ class ProcessCollection:
         -------
         A list of new ProcessCollection objects with the process splitting.
         """
-        if heuristic == "graph_color":
+        if strategy == "graph_color":
             return self._graph_color_assignment(coloring_strategy)
-        elif heuristic == "left_edge":
+        elif strategy == "left_edge":
             return self._left_edge_assignment()
         else:
-            raise ValueError(f"Invalid heuristic '{heuristic}'")
+            raise ValueError(f"Invalid strategy '{strategy}'")
 
     def split_on_ports(
         self,
-        heuristic: str = "left_edge",
+        strategy: str = "left_edge",
         read_ports: int | None = None,
         write_ports: int | None = None,
         total_ports: int | None = None,
         processing_elements: list["ProcessingElement"] | None = None,
-        amount_of_sets: int | None = None,
+        max_colors: int | None = None,
+        solver: PULP_CBC_CMD | GUROBI | None = None,
     ) -> list["ProcessCollection"]:
         """
         Split based on concurrent read and write accesses.
 
-        Different heuristic methods can be used.
+        Different strategy methods can be used.
 
         Parameters
         ----------
-        heuristic : str, default: "left_edge"
-            The heuristic used when splitting this :class:`ProcessCollection`.
+        strategy : str, default: "left_edge"
+            The strategy used when splitting this :class:`ProcessCollection`.
             Valid options are:
-
-            * "ilp_graph_color"
-            * "ilp_min_input_mux"
-            * "greedy_graph_color"
-            * "equitable_graph_color"
-            * "left_edge"
-            * "left_edge_min_pe_to_mem"
-            * "left_edge_min_mem_to_pe"
-
+                * "ilp_graph_color"
+                * "ilp_min_input_mux"
+                * "greedy_graph_color"
+                * "equitable_graph_color"
+                * "left_edge"
+                * "left_edge_min_pe_to_mem"
+                * "left_edge_min_mem_to_pe"
         read_ports : int, optional
             The number of read ports used when splitting process collection based on
             memory variable access.
-
         write_ports : int, optional
             The number of write ports used when splitting process collection based on
             memory variable access.
-
         total_ports : int, optional
             The total number of ports used when splitting process collection based on
             memory variable access.
-
         processing_elements : list of ProcessingElement, optional
-            The currently used PEs, only required if heuristic = "min_mem_to_pe",
+            The currently used PEs,
+            only required if strategy = "left_edge_min_mem_to_pe",
             "ilp_graph_color" or "ilp_min_input_mux".
-
-        amount_of_sets : int, optional
-            amount of sets to split to, only required if heuristics = "ilp_min_input_mux".
+        max_colors : int, optional
+            The maximum amount of colors to split based on,
+            only required if strategy is an ILP method.
+        solver : PuLP MIP solver object, optional
+            Only used if strategy is an ILP method.
+            Valid options are:
+                * PULP_CBC_CMD() - preinstalled with the package
+                * GUROBI() - required licence but likely faster
 
         Returns
         -------
@@ -988,77 +1000,80 @@ class ProcessCollection:
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
         )
-        if heuristic == "ilp_graph_color":
+        if strategy == "ilp_graph_color":
             return self._split_ports_ilp_graph_color(
-                read_ports, write_ports, total_ports
+                read_ports, write_ports, total_ports, max_colors, solver
             )
-        elif heuristic == "ilp_min_input_mux":
+        elif strategy == "ilp_min_input_mux":
             if processing_elements is None:
                 raise ValueError(
-                    "processing_elements must be provided if heuristic = 'ilp_min_input_mux'"
+                    "processing_elements must be provided if strategy = 'ilp_min_input_mux'"
                 )
-            if amount_of_sets is None:
+            if max_colors is None:
                 raise ValueError(
-                    "amount_of_sets must be provided if heuristic = 'ilp_min_input_mux'"
+                    "max_colors must be provided if strategy = 'ilp_min_input_mux'"
                 )
             return self._split_ports_ilp_min_input_mux_graph_color(
                 read_ports,
                 write_ports,
                 total_ports,
                 processing_elements,
-                amount_of_sets,
+                max_colors,
+                solver,
             )
-        elif heuristic == "ilp_min_output_mux":
+        elif strategy == "ilp_min_output_mux":
             if processing_elements is None:
                 raise ValueError(
-                    "processing_elements must be provided if heuristic = 'ilp_min_output_mux'"
+                    "processing_elements must be provided if strategy = 'ilp_min_output_mux'"
                 )
-            if amount_of_sets is None:
+            if max_colors is None:
                 raise ValueError(
-                    "amount_of_sets must be provided if heuristic = 'ilp_min_output_mux'"
+                    "max_colors must be provided if strategy = 'ilp_min_output_mux'"
                 )
             return self._split_ports_ilp_min_output_mux_graph_color(
                 read_ports,
                 write_ports,
                 total_ports,
                 processing_elements,
-                amount_of_sets,
+                max_colors,
+                solver,
             )
-        elif heuristic == "ilp_min_total_mux":
+        elif strategy == "ilp_min_total_mux":
             if processing_elements is None:
                 raise ValueError(
-                    "processing_elements must be provided if heuristic = 'ilp_min_total_mux'"
+                    "processing_elements must be provided if strategy = 'ilp_min_total_mux'"
                 )
-            if amount_of_sets is None:
+            if max_colors is None:
                 raise ValueError(
-                    "amount_of_sets must be provided if heuristic = 'ilp_min_total_mux'"
+                    "max_colors must be provided if strategy = 'ilp_min_total_mux'"
                 )
             return self._split_ports_ilp_min_total_mux_graph_color(
                 read_ports,
                 write_ports,
                 total_ports,
                 processing_elements,
-                amount_of_sets,
+                max_colors,
+                solver,
             )
-        elif heuristic == "greedy_graph_color":
+        elif strategy == "greedy_graph_color":
             return self._split_ports_greedy_graph_color(
                 read_ports, write_ports, total_ports
             )
-        elif heuristic == "equitable_graph_color":
+        elif strategy == "equitable_graph_color":
             return self._split_ports_equitable_graph_color(
                 read_ports, write_ports, total_ports
             )
-        elif heuristic == "left_edge":
+        elif strategy == "left_edge":
             return self.split_ports_sequentially(
                 read_ports,
                 write_ports,
                 total_ports,
                 sequence=sorted(self),
             )
-        elif heuristic == "left_edge_min_pe_to_mem":
+        elif strategy == "left_edge_min_pe_to_mem":
             if processing_elements is None:
                 raise ValueError(
-                    "processing_elements must be provided if heuristic = 'left_edge_min_pe_to_mem'"
+                    "processing_elements must be provided if strategy = 'left_edge_min_pe_to_mem'"
                 )
             return self._split_ports_sequentially_minimize_pe_to_memory_connections(
                 read_ports,
@@ -1067,10 +1082,10 @@ class ProcessCollection:
                 sequence=sorted(self),
                 processing_elements=processing_elements,
             )
-        elif heuristic == "left_edge_min_mem_to_pe":
+        elif strategy == "left_edge_min_mem_to_pe":
             if processing_elements is None:
                 raise ValueError(
-                    "processing_elements must be provided if heuristic = 'left_edge_min_mem_to_pe'"
+                    "processing_elements must be provided if strategy = 'left_edge_min_mem_to_pe'"
                 )
             return self._split_ports_sequentially_minimize_memory_to_pe_connections(
                 read_ports,
@@ -1080,7 +1095,7 @@ class ProcessCollection:
                 processing_elements=processing_elements,
             )
         else:
-            raise ValueError("Invalid heuristic provided.")
+            raise ValueError("Invalid strategy provided.")
 
     def split_ports_sequentially(
         self,
@@ -1408,16 +1423,9 @@ class ProcessCollection:
         read_ports: int,
         write_ports: int,
         total_ports: int,
+        max_colors: int | None = None,
+        solver: PULP_CBC_CMD | GUROBI | None = None,
     ) -> list["ProcessCollection"]:
-        from pulp import (
-            LpBinary,
-            LpProblem,
-            LpStatusOptimal,
-            LpVariable,
-            lpSum,
-            value,
-        )
-
         # create new exclusion graph. Nodes are Processes
         exclusion_graph = self.create_exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
@@ -1425,11 +1433,13 @@ class ProcessCollection:
         nodes = list(exclusion_graph.nodes())
         edges = list(exclusion_graph.edges())
 
-        # run a good heuristic to get an upper bound on the amount of colors
-        coloring = nx.coloring.greedy_color(
-            exclusion_graph, strategy="saturation_largest_first"
-        )
-        colors = range(len(set(coloring.values())))
+        if max_colors is None:
+            # get an initial estimate using NetworkX greedy graph coloring
+            coloring = nx.coloring.greedy_color(
+                exclusion_graph, strategy="saturation_largest_first"
+            )
+            max_colors = len(set(coloring.values()))
+        colors = range(max_colors)
 
         # find the minimal amount of colors (memories)
 
@@ -1464,7 +1474,10 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        status = problem.solve()
+        if solver is None:
+            solver = PULP_CBC_CMD()
+
+        status = problem.solve(solver)
 
         if status != LpStatusOptimal:
             raise ValueError(
@@ -1493,16 +1506,8 @@ class ProcessCollection:
         total_ports: int,
         processing_elements: list["ProcessingElement"],
         amount_of_colors: int,
+        solver: PULP_CBC_CMD | GUROBI | None = None,
     ) -> list["ProcessCollection"]:
-        from pulp import (
-            LpBinary,
-            LpProblem,
-            LpStatusOptimal,
-            LpVariable,
-            lpSum,
-            value,
-        )
-
         # create new exclusion graph. Nodes are Processes
         exclusion_graph = self.create_exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
@@ -1553,7 +1558,10 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        status = problem.solve()
+        if solver is None:
+            solver = PULP_CBC_CMD()
+
+        status = problem.solve(solver)
 
         if status != LpStatusOptimal:
             raise ValueError(
@@ -1582,16 +1590,8 @@ class ProcessCollection:
         total_ports: int,
         processing_elements: list["ProcessingElement"],
         amount_of_colors: int,
+        solver: PULP_CBC_CMD | GUROBI | None = None,
     ) -> list["ProcessCollection"]:
-        from pulp import (
-            LpBinary,
-            LpProblem,
-            LpStatusOptimal,
-            LpVariable,
-            lpSum,
-            value,
-        )
-
         # create new exclusion graph. Nodes are Processes
         exclusion_graph = self.create_exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
@@ -1642,7 +1642,10 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        status = problem.solve()
+        if solver is None:
+            solver = PULP_CBC_CMD()
+
+        status = problem.solve(solver)
 
         if status != LpStatusOptimal:
             raise ValueError(
@@ -1671,16 +1674,8 @@ class ProcessCollection:
         total_ports: int,
         processing_elements: list["ProcessingElement"],
         amount_of_colors: int,
+        solver: PULP_CBC_CMD | GUROBI | None = None,
     ) -> list["ProcessCollection"]:
-        from pulp import (
-            LpBinary,
-            LpProblem,
-            LpStatusOptimal,
-            LpVariable,
-            lpSum,
-            value,
-        )
-
         # create new exclusion graph. Nodes are Processes
         exclusion_graph = self.create_exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
@@ -1708,11 +1703,14 @@ class ProcessCollection:
         )
 
         # constraints:
-        #   1 - nodes have exactly one color
-        #   2 - adjacent nodes cannot have the same color
-        #   3 - only permit assignments if color is used
-        #   4 - if node is colored then enable the PE which generates that node (variable)
-        #   5 - if node is colored then enable the PE reads from that node (variable)
+        #   (1) - nodes have exactly one color
+        #   (2) - adjacent nodes cannot have the same color
+        #   (3) - only permit assignments if color is used
+        #   (4) - if node is colored then enable the PE which generates that node
+        #   (5) - if node is colored then enable the PE reads from that node
+        #   (6) - reduce solution space by assigning colors to the largest clique
+        #   (7 & 8) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
         for u, v in edges:
@@ -1729,8 +1727,18 @@ class ProcessCollection:
             pe = _get_destination(node, processing_elements)
             for color in colors:
                 problem += x[node][color] <= z[pe][color]
+        max_clique = next(nx.find_cliques(exclusion_graph))
+        for color, node in enumerate(max_clique):
+            problem += x[node][color] == c[color] == 1
+        for color in colors:
+            problem += c[color] <= lpSum(x[node][color] for node in nodes)
+        for color in colors[:-1]:
+            problem += c[color + 1] <= c[color]
 
-        status = problem.solve()
+        if solver is None:
+            solver = PULP_CBC_CMD()
+
+        status = problem.solve(solver)
 
         if status != LpStatusOptimal:
             raise ValueError(

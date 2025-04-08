@@ -34,7 +34,7 @@ class TestProcessCollectionPlainMemoryVariable:
         self, simple_collection: ProcessCollection
     ):
         collection_split = simple_collection.split_on_ports(
-            heuristic="greedy_graph_color", read_ports=1, write_ports=1, total_ports=2
+            strategy="greedy_graph_color", read_ports=1, write_ports=1, total_ports=2
         )
         assert len(collection_split) == 3
 
@@ -57,93 +57,93 @@ class TestProcessCollectionPlainMemoryVariable:
         self, simple_collection: ProcessCollection
     ):
         split = simple_collection.split_on_ports(
-            heuristic="left_edge", read_ports=1, write_ports=1, total_ports=2
+            strategy="left_edge", read_ports=1, write_ports=1, total_ports=2
         )
         assert len(split) == 3
 
         split = simple_collection.split_on_ports(
-            heuristic="left_edge", read_ports=1, write_ports=2, total_ports=2
+            strategy="left_edge", read_ports=1, write_ports=2, total_ports=2
         )
         assert len(split) == 3
 
         split = simple_collection.split_on_ports(
-            heuristic="left_edge", read_ports=2, write_ports=2, total_ports=2
+            strategy="left_edge", read_ports=2, write_ports=2, total_ports=2
         )
         assert len(split) == 2
 
     def test_split_memory_variable_raises(self, simple_collection: ProcessCollection):
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if heuristic = 'ilp_min_input_mux'",
+            match="processing_elements must be provided if strategy = 'ilp_min_input_mux'",
         ):
             simple_collection.split_on_ports(
-                heuristic="ilp_min_input_mux", total_ports=1
+                strategy="ilp_min_input_mux", total_ports=1
             )
 
         with pytest.raises(
             ValueError,
-            match="amount_of_sets must be provided if heuristic = 'ilp_min_input_mux'",
+            match="max_colors must be provided if strategy = 'ilp_min_input_mux'",
         ):
             simple_collection.split_on_ports(
-                heuristic="ilp_min_input_mux",
+                strategy="ilp_min_input_mux",
                 total_ports=1,
                 processing_elements=[],
             )
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if heuristic = 'ilp_min_output_mux'",
+            match="processing_elements must be provided if strategy = 'ilp_min_output_mux'",
         ):
             simple_collection.split_on_ports(
-                heuristic="ilp_min_output_mux", total_ports=1
+                strategy="ilp_min_output_mux", total_ports=1
             )
 
         with pytest.raises(
             ValueError,
-            match="amount_of_sets must be provided if heuristic = 'ilp_min_output_mux'",
+            match="max_colors must be provided if strategy = 'ilp_min_output_mux'",
         ):
             simple_collection.split_on_ports(
-                heuristic="ilp_min_output_mux",
+                strategy="ilp_min_output_mux",
                 total_ports=1,
                 processing_elements=[],
             )
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if heuristic = 'ilp_min_total_mux'",
+            match="processing_elements must be provided if strategy = 'ilp_min_total_mux'",
         ):
             simple_collection.split_on_ports(
-                heuristic="ilp_min_total_mux", total_ports=1
+                strategy="ilp_min_total_mux", total_ports=1
             )
 
         with pytest.raises(
             ValueError,
-            match="amount_of_sets must be provided if heuristic = 'ilp_min_total_mux'",
+            match="max_colors must be provided if strategy = 'ilp_min_total_mux'",
         ):
             simple_collection.split_on_ports(
-                heuristic="ilp_min_total_mux",
+                strategy="ilp_min_total_mux",
                 total_ports=1,
                 processing_elements=[],
             )
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if heuristic = 'left_edge_min_pe_to_mem'",
+            match="processing_elements must be provided if strategy = 'left_edge_min_pe_to_mem'",
         ):
             simple_collection.split_on_ports(
-                heuristic="left_edge_min_pe_to_mem", total_ports=1
+                strategy="left_edge_min_pe_to_mem", total_ports=1
             )
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if heuristic = 'left_edge_min_mem_to_pe'",
+            match="processing_elements must be provided if strategy = 'left_edge_min_mem_to_pe'",
         ):
             simple_collection.split_on_ports(
-                heuristic="left_edge_min_mem_to_pe", total_ports=1
+                strategy="left_edge_min_mem_to_pe", total_ports=1
             )
 
-        with pytest.raises(ValueError, match="Invalid heuristic provided."):
-            simple_collection.split_on_ports(heuristic="foo", total_ports=1)
+        with pytest.raises(ValueError, match="Invalid strategy provided."):
+            simple_collection.split_on_ports(strategy="foo", total_ports=1)
 
     @matplotlib.testing.decorators.image_comparison(
         ["test_left_edge_cell_assignment.png"]
@@ -160,7 +160,7 @@ class TestProcessCollectionPlainMemoryVariable:
         collection = generate_matrix_transposer(4, min_lifetime=5)
         assignment_left_edge = collection._left_edge_assignment()
         assignment_graph_color = collection.split_on_execution_time(
-            heuristic="graph_color", coloring_strategy="saturation_largest_first"
+            strategy="graph_color", coloring_strategy="saturation_largest_first"
         )
         assert len(assignment_left_edge) == 18
         assert len(assignment_graph_color) == 16
@@ -182,7 +182,7 @@ class TestProcessCollectionPlainMemoryVariable:
             collection = generate_matrix_transposer(
                 rows=rows, cols=cols, min_lifetime=0
             )
-            assignment = collection.split_on_execution_time(heuristic="graph_color")
+            assignment = collection.split_on_execution_time(strategy="graph_color")
             collection.generate_memory_based_storage_vhdl(
                 filename=(
                     "b_asic/codegen/testbench/"
@@ -243,7 +243,6 @@ class TestProcessCollectionPlainMemoryVariable:
             assert register == f"R{i}"
 
     def test_generate_random_interleaver(self):
-        return
         for _ in range(10):
             for size in range(5, 20, 5):
                 collection = generate_random_interleaver(size)
@@ -340,8 +339,8 @@ class TestProcessCollectionPlainMemoryVariable:
         b = PlainMemoryVariable(4, 0, {0: 7}, "cmul4.0")
         c = PlainMemoryVariable(5, 0, {0: 4}, "cmul5.0")
         collection = ProcessCollection([a, b, c], schedule_time=7, cyclic=True)
-        for heuristic in ("graph_color", "left_edge"):
-            assignment = collection.split_on_execution_time(heuristic)
+        for strategy in ("graph_color", "left_edge"):
+            assignment = collection.split_on_execution_time(strategy)
             assert len(assignment) == 2
             a_idx = 0 if a in assignment[0] else 1
             assert b not in assignment[a_idx]
@@ -350,12 +349,12 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_split_on_execution_lifetime_assert(self):
         a = PlainMemoryVariable(3, 0, {0: 10}, "MV0")
         collection = ProcessCollection([a], schedule_time=9, cyclic=True)
-        for heuristic in ("graph_color", "left_edge"):
+        for strategy in ("graph_color", "left_edge"):
             with pytest.raises(
                 ValueError,
                 match="MV0 has execution time greater than the schedule time",
             ):
-                collection.split_on_execution_time(heuristic)
+                collection.split_on_execution_time(strategy)
 
     def test_split_on_length(self):
         # Test 1: Exclude a zero-time access time

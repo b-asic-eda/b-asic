@@ -126,11 +126,11 @@ def test_pe_and_memory_constrained_schedule():
     mem_vars = schedule.get_memory_variables()
     direct, mem_vars = mem_vars.split_on_length()
     mem_vars_set = mem_vars.split_on_ports(
-        read_ports=1, write_ports=1, total_ports=2, heuristic="greedy_graph_color"
+        read_ports=1, write_ports=1, total_ports=2, strategy="greedy_graph_color"
     )
 
     mem_vars_set = mem_vars.split_on_ports(
-        read_ports=1, write_ports=1, total_ports=2, heuristic="greedy_graph_color"
+        read_ports=1, write_ports=1, total_ports=2, strategy="greedy_graph_color"
     )
 
     memories = []
@@ -204,7 +204,7 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="left_edge",
+        strategy="left_edge",
         processing_elements=processing_elements,
     )
 
@@ -227,7 +227,7 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="left_edge_min_pe_to_mem",
+        strategy="left_edge_min_pe_to_mem",
         processing_elements=processing_elements,
     )
 
@@ -250,7 +250,7 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="left_edge_min_mem_to_pe",
+        strategy="left_edge_min_mem_to_pe",
         processing_elements=processing_elements,
     )
 
@@ -273,7 +273,7 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="greedy_graph_color",
+        strategy="greedy_graph_color",
         processing_elements=processing_elements,
     )
 
@@ -296,7 +296,7 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="equitable_graph_color",
+        strategy="equitable_graph_color",
         processing_elements=processing_elements,
     )
 
@@ -354,8 +354,32 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="ilp_graph_color",
+        strategy="ilp_graph_color",
         processing_elements=processing_elements,
+    )
+
+    memories = []
+    for i, mem in enumerate(mem_vars_set):
+        memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
+        memories.append(memory)
+        memory.assign("graph_color")
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 5
+    assert len(arch.memories) == 4
+
+    # ILP COLOR (amount of colors given)
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=2,
+        strategy="ilp_graph_color",
+        processing_elements=processing_elements,
+        max_colors=4,
     )
 
     memories = []
@@ -377,9 +401,9 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="ilp_min_input_mux",
+        strategy="ilp_min_input_mux",
         processing_elements=processing_elements,
-        amount_of_sets=4,
+        max_colors=4,
     )
 
     memories = []
@@ -401,9 +425,9 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="ilp_min_output_mux",
+        strategy="ilp_min_output_mux",
         processing_elements=processing_elements,
-        amount_of_sets=4,
+        max_colors=4,
     )
 
     memories = []
@@ -425,9 +449,36 @@ def test_different_resource_algorithms():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        heuristic="ilp_min_total_mux",
+        strategy="ilp_min_total_mux",
         processing_elements=processing_elements,
-        amount_of_sets=4,
+        max_colors=4,
+    )
+
+    memories = []
+    for i, mem in enumerate(mem_vars_set):
+        memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
+        memories.append(memory)
+        memory.assign("graph_color")
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 5
+    assert len(arch.memories) == 4
+
+    # ILP COLOR MIN TOTAL MUX (custom solver)
+    from pulp import PULP_CBC_CMD
+
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=2,
+        strategy="ilp_min_total_mux",
+        processing_elements=processing_elements,
+        max_colors=4,
+        solver=PULP_CBC_CMD(),
     )
 
     memories = []

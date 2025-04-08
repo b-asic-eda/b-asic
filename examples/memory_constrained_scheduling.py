@@ -64,7 +64,7 @@ mem_vars.show(title="All memory variables")
 direct, mem_vars = mem_vars.split_on_length()
 mem_vars.show(title="Non-zero time memory variables")
 mem_vars_set = mem_vars.split_on_ports(
-    read_ports=1, write_ports=1, total_ports=2, heuristic="greedy_graph_color"
+    read_ports=1, write_ports=1, total_ports=2, strategy="greedy_graph_color"
 )
 
 # %%
@@ -121,7 +121,7 @@ pe_out = ProcessingElement(outputs, entity_name='output')
 
 mem_vars.show(title="Non-zero time memory variables")
 mem_vars_set = mem_vars.split_on_ports(
-    heuristic="greedy_graph_color", read_ports=1, write_ports=1, total_ports=2
+    strategy="greedy_graph_color", read_ports=1, write_ports=1, total_ports=2
 )
 
 # %% Allocate memories by graph coloring
