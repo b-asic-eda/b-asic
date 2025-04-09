@@ -1,13 +1,14 @@
 import os
 from distutils import dir_util
+
+import pytest
+
 from test.fixtures.operation_tree import *
 from test.fixtures.port import *
 from test.fixtures.resources import *
 from test.fixtures.schedule import *
 from test.fixtures.signal import signal, signals  # noqa: F401
 from test.fixtures.signal_flow_graph import *
-
-import pytest
 
 
 @pytest.fixture
