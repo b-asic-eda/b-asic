@@ -122,3 +122,4 @@ result_images/
 Digraph.gv
 Digraph.gv.pdf
 *.pstat
+*.prof
