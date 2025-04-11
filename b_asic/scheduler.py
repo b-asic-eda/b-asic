@@ -445,14 +445,10 @@ class ListScheduler(Scheduler):
         deadlines = {}
         for op_id, start_time in self._alap_start_times.items():
             output_offsets = [
-                pair[1]
-                for pair in self._cached_latency_offsets[op_id].items()
-                if isinstance(self._sfg.find_by_id(pair[0]), Output)
+                output.latency_offset for output in self._sfg.find_by_id(op_id).outputs
             ]
             start_time += self._alap_op_laps[op_id] * self._alap_schedule_time
-            deadlines[op_id] = (
-                start_time + min(output_offsets) if output_offsets else start_time
-            )
+            deadlines[op_id] = start_time + min(output_offsets, default=0)
         return deadlines
 
     def _calculate_alap_output_slacks(self) -> dict["GraphID", int]:
@@ -515,42 +511,30 @@ class ListScheduler(Scheduler):
         if self._max_concurrent_writes:
             tmp_used_writes = {}
             if not isinstance(op, Output):
-                for i in range(len(op.outputs)):
-                    output_ready_time = (
-                        self._current_time
-                        + self._cached_latency_offsets[op.graph_id][f"out{i}"]
-                    )
+                for output_port in op.outputs:
+
+                    output_ready_time = self._current_time + output_port.latency_offset
                     if self._schedule._schedule_time:
                         output_ready_time %= self._schedule._schedule_time
 
                     writes_in_time = 0
                     for item in self._schedule.start_times.items():
                         offsets = [
-                            offset
-                            for port_id, offset in self._cached_latency_offsets[
-                                item[0]
-                            ].items()
-                            if port_id.startswith("out")
+                            output.latency_offset
+                            for output in self._sfg.find_by_id(item[0]).outputs
                         ]
                         write_times = [item[1] + offset for offset in offsets]
                         writes_in_time += write_times.count(output_ready_time)
 
-                    write_time = (
-                        self._current_time
-                        + self._cached_latency_offsets[op.graph_id][f"out{i}"]
-                    )
-                    if self._schedule._schedule_time:
-                        write_time %= self._schedule._schedule_time
-
-                    if tmp_used_writes.get(write_time):
-                        tmp_used_writes[write_time] += 1
+                    if tmp_used_writes.get(output_ready_time):
+                        tmp_used_writes[output_ready_time] += 1
                     else:
-                        tmp_used_writes[write_time] = 1
+                        tmp_used_writes[output_ready_time] = 1
 
                     if (
                         self._max_concurrent_writes
                         - writes_in_time
-                        - tmp_used_writes[write_time]
+                        - tmp_used_writes[output_ready_time]
                         < 0
                     ):
                         return False
@@ -567,10 +551,7 @@ class ListScheduler(Scheduler):
                     self._schedule.start_times[source_op.graph_id]
                     != self._current_time - 1
                 ):
-                    input_read_time = (
-                        self._current_time
-                        + self._cached_latency_offsets[op.graph_id][f"in{i}"]
-                    )
+                    input_read_time = self._current_time + op_input.latency_offset
                     if self._schedule._schedule_time:
                         input_read_time %= self._schedule._schedule_time
 
@@ -602,22 +583,15 @@ class ListScheduler(Scheduler):
                 available_time = (
                     self._schedule.start_times[source_op.graph_id]
                     + self._op_laps[source_op.graph_id] * self._schedule._schedule_time
-                    + self._cached_latency_offsets[source_op.graph_id][
-                        f"out{source_port.index}"
-                    ]
+                    + source_port.latency_offset
                 )
             else:
                 available_time = (
                     self._schedule.start_times[source_op.graph_id]
-                    + self._cached_latency_offsets[source_op.graph_id][
-                        f"out{source_port.index}"
-                    ]
+                    + source_port.latency_offset
                 )
 
-            required_time = (
-                self._current_time
-                + self._cached_latency_offsets[op.graph_id][f"in{op_input.index}"]
-            )
+            required_time = self._current_time + op_input.latency_offset
             if available_time > required_time:
                 return False
         return True
@@ -708,10 +682,6 @@ class ListScheduler(Scheduler):
         self._remaining_resources = self._max_resources.copy()
 
         self._remaining_ops = [op.graph_id for op in self._sfg.operations]
-        self._cached_latency_offsets = {
-            op_id: self._sfg.find_by_id(op_id).latency_offsets
-            for op_id in self._remaining_ops
-        }
         self._cached_execution_times = {
             op_id: self._sfg.find_by_id(op_id).execution_time
             for op_id in self._remaining_ops
@@ -788,7 +758,7 @@ class ListScheduler(Scheduler):
             self._logger.debug(f"  Op: {next_op.graph_id}, time: {self._current_time}")
 
     def _update_port_reads(self, next_op: "Operation") -> None:
-        for i, input_port in enumerate(next_op.inputs):
+        for input_port in next_op.inputs:
             source_op = input_port.signals[0].source.operation
             if (
                 not isinstance(source_op, DontCare)
@@ -796,12 +766,10 @@ class ListScheduler(Scheduler):
                 and self._schedule.start_times[source_op.graph_id]
                 != self._current_time - 1
             ):
-                time = (
-                    self._current_time
-                    + self._cached_latency_offsets[next_op.graph_id][f"in{i}"]
-                )
+                time = self._current_time + input_port.latency_offset
                 if self._schedule._schedule_time:
                     time %= self._schedule._schedule_time
+
                 if self._used_reads.get(time):
                     self._used_reads[time] += 1
                 else:
@@ -980,10 +948,9 @@ class RecursiveListScheduler(ListScheduler):
                 source_start_time = self._schedule.start_times.get(source_op.graph_id)
                 if source_start_time is None:
                     continue
-                source_latency = self._cached_latency_offsets[source_op.graph_id][
-                    f"out{source_port.index}"
-                ]
-                op_sched_time = max(op_sched_time, source_start_time + source_latency)
+                op_sched_time = max(
+                    op_sched_time, source_start_time + source_port.latency_offset
+                )
 
             exec_count = self._execution_times_in_time(op, op_sched_time)
             while exec_count >= self._remaining_resources[op.type_name()]:
@@ -1054,21 +1021,14 @@ class RecursiveListScheduler(ListScheduler):
                 available_time = (
                     self._schedule.start_times.get(source_op.graph_id)
                     + self._op_laps[source_op.graph_id] * self._schedule._schedule_time
-                    + self._cached_latency_offsets[source_op.graph_id][
-                        f"out{source_port.index}"
-                    ]
+                    + source_port.latency_offset
                 )
             else:
                 available_time = (
                     self._schedule.start_times.get(source_op.graph_id)
-                    + self._cached_latency_offsets[source_op.graph_id][
-                        f"out{source_port.index}"
-                    ]
+                    + source_port.latency_offset
                 )
-            required_time = (
-                self._current_time
-                + self._cached_latency_offsets[op.graph_id][f"in{op_input.index}"]
-            )
+            required_time = self._current_time + op_input.latency_offset
             if available_time > required_time:
                 return False
         return True
