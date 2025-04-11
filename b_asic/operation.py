@@ -886,9 +886,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         """
         Raises an exception if an input or output does not have a latency offset.
         """
-        self.input_latency_offsets()
-        self.output_latency_offsets()
+        self.input_latency_offsets
+        self.output_latency_offsets
 
+    @property
     def input_latency_offsets(self) -> list[int]:
         latency_offsets = [i.latency_offset for i in self.inputs]
 
@@ -900,6 +901,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return cast(list[int], latency_offsets)
 
+    @property
     def output_latency_offsets(self) -> list[int]:
         latency_offsets = [i.latency_offset for i in self.outputs]
 
@@ -998,8 +1000,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     ) -> tuple[tuple[float, float], ...]:
         # Points for latency polygon
         latency = []
-        input_latencies = self.input_latency_offsets()
-        output_latencies = self.output_latency_offsets()
+        input_latencies = self.input_latency_offsets
+        output_latencies = self.output_latency_offsets
         # Remember starting point
         start_point = (input_latencies[0], 0.0)
         num_in = self.input_count
@@ -1025,7 +1027,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         num_in = self.input_count
         return tuple(
             (
-                self.input_latency_offsets()[k],
+                self.input_latency_offsets[k],
                 (1 + 2 * k) / (2 * num_in),
             )
             for k in range(num_in)
@@ -1036,7 +1038,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         num_out = self.output_count
         return tuple(
             (
-                self.output_latency_offsets()[k],
+                self.output_latency_offsets[k],
                 (1 + 2 * k) / (2 * num_out),
             )
             for k in range(num_out)
