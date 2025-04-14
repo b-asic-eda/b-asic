@@ -24,10 +24,10 @@ sfg
 
 # %%
 # Set latencies and execution times.
-sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
-sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
-sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+sfg.set_latency_of_type(Butterfly, 1)
+sfg.set_latency_of_type(ConstantMultiplication, 3)
+sfg.set_execution_time_of_type(Butterfly, 1)
+sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
 # %%
 # Generate an ASAP schedule for reference with custom IO times.

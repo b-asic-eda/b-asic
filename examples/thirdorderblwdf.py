@@ -33,10 +33,10 @@ sfg
 
 # %%
 # Set latencies and execution times
-sfg.set_latency_of_type_name(SymmetricTwoportAdaptor.type_name(), 4)
-sfg.set_latency_of_type_name(Addition.type_name(), 1)
-sfg.set_execution_time_of_type_name(SymmetricTwoportAdaptor.type_name(), 1)
-sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
+sfg.set_latency_of_type(SymmetricTwoportAdaptor, 4)
+sfg.set_latency_of_type(Addition, 1)
+sfg.set_execution_time_of_type(SymmetricTwoportAdaptor, 1)
+sfg.set_execution_time_of_type(Addition, 1)
 
 # %%
 # Simulate

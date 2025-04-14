@@ -31,10 +31,10 @@ sfg
 
 # %%
 # Set latencies and execution times of the operations.
-sfg.set_latency_of_type_name(Addition.type_name(), 1)
-sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
-sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+sfg.set_latency_of_type(Addition, 1)
+sfg.set_latency_of_type(ConstantMultiplication, 3)
+sfg.set_execution_time_of_type(Addition, 1)
+sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
 # %%
 # Print the critical path Tcp and the iteration period bound Tmin.
