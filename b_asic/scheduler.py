@@ -432,17 +432,10 @@ class ListScheduler(Scheduler):
             if self._schedule._schedule_time is not None
             else 0
         )
-        time_slot = (
-            self._current_time
-            if self._schedule._schedule_time is None
-            else self._current_time % self._schedule._schedule_time
-        )
         ready_ops = [
             op_id
             for op_id in candidate_ids
-            if self._op_is_schedulable(
-                self._sfg.find_by_id(op_id), schedule_time, time_slot
-            )
+            if self._op_is_schedulable(self._sfg.find_by_id(op_id), schedule_time)
         ]
         memory_reads = self._calculate_memory_reads(ready_ops)
 
@@ -514,14 +507,18 @@ class ListScheduler(Scheduler):
                 count += 1
         return count
 
-    def _op_satisfies_resource_constraints(
-        self, op: "Operation", time_slot: int
-    ) -> bool:
+    def _op_satisfies_resource_constraints(self, op: "Operation") -> bool:
         op_type = type(op)
-        return (
-            self._cached_execution_times_in_time[op_type][time_slot]
-            < self._remaining_resources[op_type]
-        )
+        for i in range(max(1, op.execution_time)):
+            time_slot = (
+                self._current_time + i
+                if self._schedule._schedule_time is None
+                else (self._current_time + i) % self._schedule._schedule_time
+            )
+            count = self._cached_execution_times_in_time[op_type][time_slot]
+            if count >= self._remaining_resources[op_type]:
+                return False
+        return True
 
     def _op_satisfies_concurrent_writes(self, op: "Operation") -> bool:
         if self._max_concurrent_writes:
@@ -607,11 +604,9 @@ class ListScheduler(Scheduler):
                 return False
         return True
 
-    def _op_is_schedulable(
-        self, op: "Operation", schedule_time: int, time_slot: int
-    ) -> bool:
+    def _op_is_schedulable(self, op: "Operation", schedule_time: int) -> bool:
         return (
-            self._op_satisfies_resource_constraints(op, time_slot)
+            self._op_satisfies_resource_constraints(op)
             and self._op_satisfies_data_dependencies(op, schedule_time)
             and self._op_satisfies_concurrent_writes(op)
             and self._op_satisfies_concurrent_reads(op)
@@ -771,7 +766,7 @@ class ListScheduler(Scheduler):
                     time_slot = (
                         (self._current_time + i) % self._schedule._schedule_time
                         if self._schedule._schedule_time
-                        else self._current_time
+                        else self._current_time + i
                     )
                     self._cached_execution_times_in_time[type(next_op)][time_slot] += 1
 
@@ -1008,7 +1003,7 @@ class RecursiveListScheduler(ListScheduler):
                 time_slot = (
                     (self._current_time + i) % self._schedule._schedule_time
                     if self._schedule._schedule_time
-                    else self._current_time
+                    else self._current_time + i
                 )
                 self._cached_execution_times_in_time[op_type][time_slot] += 1
 

@@ -24,6 +24,7 @@ The following packages are required in order to build the library:
   - [setuptools_scm](https://github.com/pypa/setuptools_scm/)
   - [NetworkX](https://networkx.org/)
   - [QtAwesome](https://github.com/spyder-ide/qtawesome/)
+  - [PuLP](https://github.com/coin-or/pulp)
 - Qt 6, with Python bindings, one of: (install with `pip install .[$BINDING_NAME]`)
   - pyqt6
   - pyside6
@@ -42,6 +43,7 @@ To run the test suite, the following additional packages are required:
   - [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/) (for testing with coverage)
   - [pytest-xvfb](https://github.com/The-Compiler/pytest-xvfb) (for testing without showing windows on Linux, you will also need to install [xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml))
   - [pytest-xdist](https://pytest-xdist.readthedocs.io/) (for parallel testing)
+  - [SciPy](https://scipy.org/)
 
 To generate the documentation, the following additional packages are required:
 

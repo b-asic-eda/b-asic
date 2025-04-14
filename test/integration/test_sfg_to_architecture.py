@@ -156,7 +156,7 @@ def test_pe_and_memory_constrained_schedule():
     assert arch.schedule_time == schedule.schedule_time
 
 
-def test_different_resource_algorithms():
+def test_heuristic_resource_algorithms():
     POINTS = 32
     sfg = radix_2_dif_fft(POINTS)
     sfg.set_latency_of_type(Butterfly, 1)
@@ -170,14 +170,14 @@ def test_different_resource_algorithms():
         Input.type_name(): 1,
         Output.type_name(): 1,
     }
-    schedule_1 = Schedule(
+    schedule = Schedule(
         sfg,
         scheduler=HybridScheduler(
             resources, max_concurrent_reads=4, max_concurrent_writes=4
         ),
     )
 
-    operations = schedule_1.get_operations()
+    operations = schedule.get_operations()
     bfs = operations.get_by_type_name(Butterfly.type_name())
     bfs = bfs.split_on_execution_time()
     const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
@@ -196,7 +196,7 @@ def test_different_resource_algorithms():
 
     processing_elements = [bf_pe_1, bf_pe_2, mul_pe_1, mul_pe_2, pe_in, pe_out]
 
-    mem_vars = schedule_1.get_memory_variables()
+    mem_vars = schedule.get_memory_variables()
     direct, mem_vars = mem_vars.split_on_length()
 
     # LEFT-EDGE
@@ -314,7 +314,8 @@ def test_different_resource_algorithms():
     assert len(arch.processing_elements) == 6
     assert len(arch.memories) == 7
 
-    # FOR ILP points is reduced due to time complexity
+
+def test_ilp_resource_algorithms():
     POINTS = 16
     sfg = radix_2_dif_fft(POINTS)
     sfg.set_latency_of_type(Butterfly, 1)
@@ -322,14 +323,20 @@ def test_different_resource_algorithms():
     sfg.set_execution_time_of_type(Butterfly, 1)
     sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
-    schedule_2 = Schedule(
+    resources = {
+        Butterfly.type_name(): 2,
+        ConstantMultiplication.type_name(): 2,
+        Input.type_name(): 1,
+        Output.type_name(): 1,
+    }
+    schedule = Schedule(
         sfg,
         scheduler=HybridScheduler(
             resources, max_concurrent_reads=4, max_concurrent_writes=4
         ),
     )
 
-    operations = schedule_2.get_operations()
+    operations = schedule.get_operations()
     bfs = operations.get_by_type_name(Butterfly.type_name())
     bfs = bfs.split_on_execution_time()
     const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
@@ -346,7 +353,7 @@ def test_different_resource_algorithms():
 
     processing_elements = [bf_pe_1, bf_pe_2, mul_pe_1, pe_in, pe_out]
 
-    mem_vars = schedule_2.get_memory_variables()
+    mem_vars = schedule.get_memory_variables()
     direct, mem_vars = mem_vars.split_on_length()
 
     # ILP COLOR
@@ -468,7 +475,45 @@ def test_different_resource_algorithms():
     assert len(arch.processing_elements) == 5
     assert len(arch.memories) == 4
 
-    # ILP COLOR MIN TOTAL MUX (custom solver)
+
+def test_ilp_resource_algorithm_custom_solver():
+    POINTS = 16
+    sfg = radix_2_dif_fft(POINTS)
+    sfg.set_latency_of_type(Butterfly, 3)
+    sfg.set_latency_of_type(ConstantMultiplication, 8)
+    sfg.set_execution_time_of_type(Butterfly, 2)
+    sfg.set_execution_time_of_type(ConstantMultiplication, 8)
+
+    resources = {
+        Butterfly.type_name(): 1,
+        ConstantMultiplication.type_name(): 1,
+        Input.type_name(): 1,
+        Output.type_name(): 1,
+    }
+    schedule = Schedule(
+        sfg,
+        scheduler=HybridScheduler(
+            resources, max_concurrent_reads=3, max_concurrent_writes=3
+        ),
+    )
+
+    operations = schedule.get_operations()
+    bfs = operations.get_by_type_name(Butterfly.type_name())
+    const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
+    inputs = operations.get_by_type_name(Input.type_name())
+    outputs = operations.get_by_type_name(Output.type_name())
+
+    bf_pe = ProcessingElement(bfs, entity_name="bf1")
+    mul_pe = ProcessingElement(const_muls, entity_name="mul1")
+
+    pe_in = ProcessingElement(inputs, entity_name="input")
+    pe_out = ProcessingElement(outputs, entity_name="output")
+
+    processing_elements = [bf_pe, mul_pe, pe_in, pe_out]
+
+    mem_vars = schedule.get_memory_variables()
+    direct, mem_vars = mem_vars.split_on_length()
+
     from pulp import PULP_CBC_CMD
 
     mem_vars_set = mem_vars.split_on_ports(
@@ -477,7 +522,7 @@ def test_different_resource_algorithms():
         total_ports=2,
         strategy="ilp_min_total_mux",
         processing_elements=processing_elements,
-        max_colors=4,
+        max_colors=3,
         solver=PULP_CBC_CMD(),
     )
 
@@ -492,5 +537,5 @@ def test_different_resource_algorithms():
         memories,
         direct_interconnects=direct,
     )
-    assert len(arch.processing_elements) == 5
-    assert len(arch.memories) == 4
+    assert len(arch.processing_elements) == 4
+    assert len(arch.memories) == 3
