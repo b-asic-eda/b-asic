@@ -543,7 +543,7 @@ class ListScheduler(Scheduler):
     def _op_satisfies_concurrent_reads(self, op: "Operation") -> bool:
         if self._max_concurrent_reads:
             tmp_used_reads = {}
-            for i, op_input in enumerate(op.inputs):
+            for op_input in op.inputs:
                 source_op = op_input.signals[0].source.operation
                 if isinstance(source_op, (Delay, DontCare)):
                     continue

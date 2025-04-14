@@ -2119,6 +2119,8 @@ class SFG(AbstractOperation):
             The "node" in the dictionary that are set as the start point.
         end : key in dictionary graph
             The "node" in the dictionary that are set as the end point.
+        path : list
+            This parameter should not be provided directly and is only used internally.
 
         Returns
         -------

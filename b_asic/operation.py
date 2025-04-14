@@ -886,8 +886,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         """
         Raises an exception if an input or output does not have a latency offset.
         """
-        self.input_latency_offsets
-        self.output_latency_offsets
+        self.input_latency_offsets  # noqa: B018
+        self.output_latency_offsets  # noqa: B018
 
     @property
     def input_latency_offsets(self) -> list[int]:
