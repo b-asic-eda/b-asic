@@ -2277,6 +2277,12 @@ class SFG(AbstractOperation):
         ret.sort()
         return ret
 
+    def get_used_operation_types(self) -> list[Operation]:
+        """Get a list of all Operations used in the SFG."""
+        ret = list({type(op) for op in self.operations})
+        ret.sort(key=lambda op: op.type_name())
+        return ret
+
     def get_used_graph_ids(self) -> set[GraphID]:
         """Get a list of all GraphID:s used in the SFG."""
         ret = set({op.graph_id for op in self.operations})
