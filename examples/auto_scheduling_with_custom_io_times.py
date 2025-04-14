@@ -13,7 +13,8 @@ from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg_generators import radix_2_dif_fft
 
-getLogger("list_scheduler", console_log_level="debug")
+# Activate the scheduler logger
+getLogger("scheduler", console_log_level="debug")
 
 points = 8
 sfg = radix_2_dif_fft(points=points)
