@@ -39,8 +39,8 @@ class SignalGeneratorInput(QGridLayout):
             return _type(string)
         except ValueError:
             self._logger.warning(
-                f"Cannot parse {name}: {string} not a {_type.__name__}, setting to"
-                f" {default}"
+                "Cannot parse %s: %s not a %s, setting to %s",
+                (name, string, _type.__name__, default),
             )
             return default
 
@@ -106,7 +106,7 @@ class ZeroPadInput(SignalGeneratorInput):
                     val = 0
                 val = complex(val)
             except ValueError:
-                self._logger.warning(f"Skipping value: {val}, not a digit.")
+                self._logger.warning("Skipping value: %s, not a digit.", val)
                 continue
             input_values.append(val)
         return ZeroPad(input_values)

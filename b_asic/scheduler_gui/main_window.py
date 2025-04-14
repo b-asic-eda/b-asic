@@ -48,7 +48,7 @@ from qtpy.QtWidgets import (
 )
 
 # B-ASIC
-import b_asic.logger as logger
+import b_asic.logger
 from b_asic._version import __version__
 from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow
@@ -70,8 +70,8 @@ from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
 if TYPE_CHECKING:
     from logging import Logger
 
-log: "Logger" = logger.getLogger(__name__)
-sys.excepthook = logger.handle_exceptions
+log: "Logger" = b_asic.logger.getLogger(__name__)
+sys.excepthook = b_asic.logger.handle_exceptions
 
 
 # Debug stuff
@@ -83,18 +83,18 @@ if __debug__:
     from qtpy import QtCore
 
     QT_API = os.environ.get("QT_API", "")
-    log.debug(f"Qt version (runtime):      {QtCore.qVersion()}")
-    log.debug(f"Qt version (compile time): {QtCore.__version__}")
-    log.debug(f"QT_API:                    {QT_API}")
+    log.debug("Qt version (runtime):      %s", QtCore.qVersion())
+    log.debug("Qt version (compile time): %s", QtCore.__version__)
+    log.debug("QT_API:                    %s", QT_API)
     if QT_API.lower().startswith("pyside"):
         import PySide6
 
-        log.debug(f"PySide version:           {PySide6.__version__}")
+        log.debug("PySide version:           %s", PySide6.__version__)
     if QT_API.lower().startswith("pyqt"):
         from qtpy.QtCore import PYQT_VERSION_STR
 
-        log.debug(f"PyQt version:             {PYQT_VERSION_STR}")
-    log.debug(f"QtPy version:             {qtpy.__version__}")
+        log.debug("PyQt version:             %s", PYQT_VERSION_STR)
+    log.debug("QtPy version:             %s", qtpy.__version__)
 
 
 # The following QCoreApplication values is used for QSettings among others
@@ -337,19 +337,19 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         Load a python script as a module and search for a Schedule object. If
         found, opens it.
         """
-        log.debug(f"abs_path_filename = {abs_path_filename}.")
+        log.debug("abs_path_filename = %s", abs_path_filename)
 
         module_name = inspect.getmodulename(abs_path_filename)
         if not module_name:  # return if empty module name
-            log.error(f"Could not load module from file '{abs_path_filename}'.")
+            log.error("Could not load module from file '%s'", abs_path_filename)
             return
 
         try:
             module = SourceFileLoader(module_name, abs_path_filename).load_module()
         except Exception as e:
             log.exception(
-                "Exception occurred. Could not load module from file"
-                f" '{abs_path_filename}'.\n\n{e}"
+                "Exception occurred. Could not load module from file '%s'.\n\n%s",
+                (abs_path_filename, e),
             )
             return
 
@@ -363,12 +363,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.warning(
                 self,
                 self.tr("File not found"),
-                self.tr("Cannot find any Schedule object in file '{}'.").format(
+                self.tr("Cannot find any Schedule object in file {}").format(
                     os.path.basename(abs_path_filename)
                 ),
             )
             log.info(
-                f"Cannot find any Schedule object in file '{os.path.basename(abs_path_filename)}'."
+                "Cannot find any Schedule object in file %s",
+                os.path.basename(abs_path_filename),
             )
             del module
             return
@@ -640,7 +641,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if not hide_dialog:
                 settings.setValue("scheduler/hide_exit_dialog", checkbox.isChecked())
             self._write_settings()
-            log.info(f"Exit: {os.path.basename(__file__)}")
+            log.info("Exit: %s", os.path.basename(__file__))
             if self._ports_accesses_for_storage:
                 self._ports_accesses_for_storage.close()
             if self._execution_time_for_variables:
@@ -734,7 +735,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         settings.sync()
 
         if settings.isWritable():
-            log.debug(f"Settings written to '{settings.fileName()}'.")
+            log.debug("Settings written to '%s'", settings.fileName())
         else:
             log.warning("Settings cant be saved to file, read-only.")
 
@@ -766,7 +767,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         settings.endGroup()
         settings.sync()
-        log.debug(f"Settings read from '{settings.fileName()}'.")
+        log.debug("Settings read from '%s'", settings.fileName())
 
     def info_table_fill_schedule(self, schedule: Schedule) -> None:
         """

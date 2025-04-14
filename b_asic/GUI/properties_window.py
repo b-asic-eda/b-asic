@@ -139,7 +139,7 @@ class PropertiesWindow(QDialog):
 
     def save_properties(self):
         self._window._logger.info(
-            f"Saving _properties of operation: {self.operation.name}."
+            "Saving properties of operation: %s", self.operation.name
         )
         self.operation.name = self._edit_name.text()
         self.operation.operation.name = self._edit_name.text()

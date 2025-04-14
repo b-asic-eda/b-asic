@@ -60,7 +60,7 @@ class PrecedenceGraphWindow(QDialog):
         for check_box, sfg in self._check_box_dict.items():
             if check_box.isChecked():
                 self._window._logger.info(
-                    f"Creating a precedence graph from SFG with name: {sfg}."
+                    "Creating a precedence graph from SFG with name: %s", sfg
                 )
                 self._window._sfg_dict[sfg].show_precedence_graph()
 

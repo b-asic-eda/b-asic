@@ -144,8 +144,8 @@ class Arrow(QGraphicsPathItem):
                     ) and operation in self._window._operation_to_sfg:
                         self._window._logger.info(
                             "Operation detected in existing SFG, removing SFG"
-                            " with name:"
-                            f" {self._window._operation_to_sfg[operation].name}."
+                            " with name: %s",
+                            self._window._operation_to_sfg[operation].name,
                         )
                         del self._window._sfg_dict[
                             self._window._operation_to_sfg[operation].name

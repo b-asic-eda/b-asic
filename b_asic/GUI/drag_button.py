@@ -217,15 +217,17 @@ class DragButton(QPushButton):
 
     def remove(self, event=None):
         """Remove button/operation from signal flow graph."""
-        self._window._logger.info("Removing operation with name " + self.operation.name)
+        self._window._logger.info(
+            "Removing operation with name %s", self.operation.name
+        )
         self._window._scene.removeItem(self._window._drag_operation_scenes[self])
 
         _signals = []
         for signal, ports in self._window._arrow_ports.items():
             if any(set(port).intersection(set(self._ports)) for port in ports):
                 self._window._logger.info(
-                    f"Removed signal with name: {signal.signal.name}"
-                    f" to/from operation: {self.operation.name}."
+                    "Removed signal with name: %s to/from operation: %s",
+                    (signal.signal.name, self.operation.name),
                 )
                 _signals.append(signal)
 
@@ -234,8 +236,8 @@ class DragButton(QPushButton):
 
         if self in self._window._operation_to_sfg:
             self._window._logger.info(
-                "Operation detected in existing SFG, removing SFG with name: "
-                + self._window._operation_to_sfg[self].name
+                "Operation detected in existing SFG, removing SFG with name: %s",
+                self._window._operation_to_sfg[self].name,
             )
             del self._window._sfg_dict[self._window._operation_to_sfg[self].name]
             self._window._operation_to_sfg = {

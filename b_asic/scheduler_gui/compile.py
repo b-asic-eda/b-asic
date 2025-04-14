@@ -112,7 +112,7 @@ def compile_rc(*filenames: str) -> None:
 
         else:  # other OS
             if log is not None:
-                log.error(f"{os_} RC compiler not supported")
+                log.error("%s RC compiler not supported", os_)
             else:
                 print(f"{os_} RC compiler not supported")
             raise NotImplementedError
@@ -187,7 +187,7 @@ def compile_ui(*filenames: str) -> None:
                 raise NotImplementedError
 
             else:
-                log.error(f"{os_} UI compiler not supported")
+                log.error("%s UI compiler not supported", os_)
                 raise NotImplementedError
 
         replace_qt_bindings(outfile)  # replace qt-bindings with qtpy

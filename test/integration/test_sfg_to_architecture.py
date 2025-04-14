@@ -156,48 +156,8 @@ def test_pe_and_memory_constrained_schedule():
     assert arch.schedule_time == schedule.schedule_time
 
 
-def test_heuristic_resource_algorithms():
-    POINTS = 32
-    sfg = radix_2_dif_fft(POINTS)
-    sfg.set_latency_of_type(Butterfly, 1)
-    sfg.set_latency_of_type(ConstantMultiplication, 3)
-    sfg.set_execution_time_of_type(Butterfly, 1)
-    sfg.set_execution_time_of_type(ConstantMultiplication, 1)
-
-    resources = {
-        Butterfly.type_name(): 2,
-        ConstantMultiplication.type_name(): 2,
-        Input.type_name(): 1,
-        Output.type_name(): 1,
-    }
-    schedule = Schedule(
-        sfg,
-        scheduler=HybridScheduler(
-            resources, max_concurrent_reads=4, max_concurrent_writes=4
-        ),
-    )
-
-    operations = schedule.get_operations()
-    bfs = operations.get_by_type_name(Butterfly.type_name())
-    bfs = bfs.split_on_execution_time()
-    const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
-    const_muls = const_muls.split_on_execution_time()
-    inputs = operations.get_by_type_name(Input.type_name())
-    outputs = operations.get_by_type_name(Output.type_name())
-
-    bf_pe_1 = ProcessingElement(bfs[0], entity_name="bf1")
-    bf_pe_2 = ProcessingElement(bfs[1], entity_name="bf2")
-
-    mul_pe_1 = ProcessingElement(const_muls[0], entity_name="mul1")
-    mul_pe_2 = ProcessingElement(const_muls[1], entity_name="mul2")
-
-    pe_in = ProcessingElement(inputs, entity_name="input")
-    pe_out = ProcessingElement(outputs, entity_name="output")
-
-    processing_elements = [bf_pe_1, bf_pe_2, mul_pe_1, mul_pe_2, pe_in, pe_out]
-
-    mem_vars = schedule.get_memory_variables()
-    direct, mem_vars = mem_vars.split_on_length()
+def test_left_edge(mem_variables_fft32):
+    direct, mem_vars, processing_elements = mem_variables_fft32
 
     # LEFT-EDGE
     mem_vars_set = mem_vars.split_on_ports(
@@ -222,6 +182,10 @@ def test_heuristic_resource_algorithms():
     assert len(arch.processing_elements) == 6
     assert len(arch.memories) == 6
 
+
+def test_min_pe_to_mem(mem_variables_fft32):
+    direct, mem_vars, processing_elements = mem_variables_fft32
+
     # MIN-PE-TO-MEM
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,
@@ -244,6 +208,10 @@ def test_heuristic_resource_algorithms():
     )
     assert len(arch.processing_elements) == 6
     assert len(arch.memories) == 6
+
+
+def test_min_mem_to_pe(mem_variables_fft32):
+    direct, mem_vars, processing_elements = mem_variables_fft32
 
     # MIN-MEM-TO-PE
     mem_vars_set = mem_vars.split_on_ports(
@@ -268,6 +236,10 @@ def test_heuristic_resource_algorithms():
     assert len(arch.processing_elements) == 6
     assert len(arch.memories) == 6
 
+
+def test_greedy_graph_coloring(mem_variables_fft32):
+    direct, mem_vars, processing_elements = mem_variables_fft32
+
     # GREEDY GRAPH COLORING
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,
@@ -290,6 +262,10 @@ def test_heuristic_resource_algorithms():
     )
     assert len(arch.processing_elements) == 6
     assert len(arch.memories) == 4
+
+
+def test_equitable_color(mem_variables_fft32):
+    direct, mem_vars, processing_elements = mem_variables_fft32
 
     # EQUITABLE COLOR
     mem_vars_set = mem_vars.split_on_ports(
@@ -315,47 +291,8 @@ def test_heuristic_resource_algorithms():
     assert len(arch.memories) == 7
 
 
-def test_ilp_resource_algorithms():
-    POINTS = 16
-    sfg = radix_2_dif_fft(POINTS)
-    sfg.set_latency_of_type(Butterfly, 1)
-    sfg.set_latency_of_type(ConstantMultiplication, 3)
-    sfg.set_execution_time_of_type(Butterfly, 1)
-    sfg.set_execution_time_of_type(ConstantMultiplication, 1)
-
-    resources = {
-        Butterfly.type_name(): 2,
-        ConstantMultiplication.type_name(): 2,
-        Input.type_name(): 1,
-        Output.type_name(): 1,
-    }
-    schedule = Schedule(
-        sfg,
-        scheduler=HybridScheduler(
-            resources, max_concurrent_reads=4, max_concurrent_writes=4
-        ),
-    )
-
-    operations = schedule.get_operations()
-    bfs = operations.get_by_type_name(Butterfly.type_name())
-    bfs = bfs.split_on_execution_time()
-    const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
-    inputs = operations.get_by_type_name(Input.type_name())
-    outputs = operations.get_by_type_name(Output.type_name())
-
-    bf_pe_1 = ProcessingElement(bfs[0], entity_name="bf1")
-    bf_pe_2 = ProcessingElement(bfs[1], entity_name="bf2")
-
-    mul_pe_1 = ProcessingElement(const_muls, entity_name="mul1")
-
-    pe_in = ProcessingElement(inputs, entity_name="input")
-    pe_out = ProcessingElement(outputs, entity_name="output")
-
-    processing_elements = [bf_pe_1, bf_pe_2, mul_pe_1, pe_in, pe_out]
-
-    mem_vars = schedule.get_memory_variables()
-    direct, mem_vars = mem_vars.split_on_length()
-
+def test_ilp_color(mem_variables_fft16):
+    direct, mem_vars, processing_elements = mem_variables_fft16
     # ILP COLOR
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,
@@ -379,6 +316,9 @@ def test_ilp_resource_algorithms():
     assert len(arch.processing_elements) == 5
     assert len(arch.memories) == 4
 
+
+def test_ilp_color_with_colors_given(mem_variables_fft16):
+    direct, mem_vars, processing_elements = mem_variables_fft16
     # ILP COLOR (amount of colors given)
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,
@@ -403,6 +343,9 @@ def test_ilp_resource_algorithms():
     assert len(arch.processing_elements) == 5
     assert len(arch.memories) == 4
 
+
+def test_ilp_color_input_mux(mem_variables_fft16):
+    direct, mem_vars, processing_elements = mem_variables_fft16
     # ILP COLOR MIN INPUT MUX
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,
@@ -427,6 +370,9 @@ def test_ilp_resource_algorithms():
     assert len(arch.processing_elements) == 5
     assert len(arch.memories) == 4
 
+
+def test_ilp_color_output_mux(mem_variables_fft16):
+    direct, mem_vars, processing_elements = mem_variables_fft16
     # ILP COLOR MIN OUTPUT MUX
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,
@@ -450,6 +396,10 @@ def test_ilp_resource_algorithms():
     )
     assert len(arch.processing_elements) == 5
     assert len(arch.memories) == 4
+
+
+def test_ilp_color_total_mux(mem_variables_fft16):
+    direct, mem_vars, processing_elements = mem_variables_fft16
 
     # ILP COLOR MIN TOTAL MUX
     mem_vars_set = mem_vars.split_on_ports(

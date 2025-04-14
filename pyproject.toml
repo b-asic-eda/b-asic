@@ -101,7 +101,21 @@ precision = 2
 exclude = ["examples", "docs_sphinx"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "SIM", "B", "NPY", "C4", "UP", "RUF", "A", "I"]
+select = [
+  "E4",
+  "E7",
+  "E9",
+  "F",
+  "SIM",
+  "B",
+  "NPY",
+  "C4",
+  "UP",
+  "RUF",
+  "A",
+  "I",
+  "G004"
+]
 ignore = ["F403", "B008", "B021", "B006", "UP038", "RUF023", "A005"]
 
 [tool.typos]

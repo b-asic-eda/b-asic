@@ -19,7 +19,7 @@ class TestGetNextId:
         assert graph_id_generator.next_id("") == "1"
 
     def test_normal_string_generator(self, graph_id_generator):
-        """ "Test the graph id generator for a normal string type."""
+        """Test the graph id generator for a normal string type."""
         assert graph_id_generator.next_id("add") == "add0"
         assert graph_id_generator.next_id("add") == "add1"
 

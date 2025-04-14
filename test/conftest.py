@@ -3,6 +3,7 @@ from distutils import dir_util
 
 import pytest
 
+from test.fixtures.integration import *
 from test.fixtures.operation_tree import *
 from test.fixtures.port import *
 from test.fixtures.resources import *

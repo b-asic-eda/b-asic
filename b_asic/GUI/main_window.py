@@ -269,7 +269,7 @@ class SFGMainWindow(QMainWindow):
         if not accepted:
             return
 
-        self._logger.info("Saving SFG to path: " + str(module))
+        self._logger.info("Saving SFG to path: %s", module)
         operation_positions = {}
         for op_drag, op_scene in self._drag_operation_scenes.items():
             operation_positions[op_drag.operation.graph_id] = (
@@ -285,12 +285,12 @@ class SFGMainWindow(QMainWindow):
                 )
         except Exception as e:
             self._logger.error(
-                f"Failed to save SFG to path: {module}, with error: {e}."
+                "Failed to save SFG to path: %s, with error: %s.", (module, e)
             )
             return
 
-        self._logger.info("Saved SFG to path: " + str(module))
-        self.update_statusbar("Saved SFG to path: " + str(module))
+        self._logger.info("Saved SFG to path: %s", module)
+        self.update_statusbar(f"Saved SFG to path: {module}")
 
     def save_work(self, event=None) -> None:
         if not self._sfg_dict:
@@ -309,12 +309,12 @@ class SFGMainWindow(QMainWindow):
         self._load_from_file(module)
 
     def _load_from_file(self, module) -> None:
-        self._logger.info("Loading SFG from path: " + str(module))
+        self._logger.info("Loading SFG from path: %s", module)
         try:
             sfg, positions = python_to_sfg(module)
         except ImportError as e:
             self._logger.error(
-                f"Failed to load module: {module} with the following error: {e}."
+                "Failed to load module: %s with the following error: %s.", (module, e)
             )
             return
 
@@ -322,8 +322,8 @@ class SFGMainWindow(QMainWindow):
 
         while sfg.name in self._sfg_dict:
             self._logger.warning(
-                f"Duplicate SFG with name: {sfg.name} detected. "
-                "Please choose a new name."
+                "Duplicate SFG with name: %s detected, please choose a new name",
+                sfg.name,
             )
             name, accepted = QInputDialog.getText(
                 self, "Change SFG Name", "Name: ", QLineEdit.Normal
@@ -333,7 +333,7 @@ class SFGMainWindow(QMainWindow):
 
             sfg.name = name
         self._load_sfg(sfg, positions)
-        self._logger.info("Loaded SFG from path: " + str(module))
+        self._logger.info("Loaded SFG from path: %s ", module)
         self.update_statusbar(f"Loaded SFG from {module}")
 
     def _load_sfg(self, sfg: SFG, positions=None) -> None:
@@ -488,10 +488,10 @@ class SFGMainWindow(QMainWindow):
             self._logger.warning("Failed to initialize SFG with empty name.")
             return
 
-        self._logger.info(f"Creating SFG with name: {name} from selected operations.")
+        self._logger.info("Creating SFG with name: %s from selected operations.", name)
 
         sfg = SFG(inputs=inputs, outputs=outputs, name=name)
-        self._logger.info(f"Created SFG with name: {name} from selected operations.")
+        self._logger.info("Created SFG with name: %s from selected operations.", name)
         self.update_statusbar(f"Created SFG: {name}")
 
         def check_equality(signal: Signal, signal_2: Signal) -> bool:
@@ -615,9 +615,7 @@ class SFGMainWindow(QMainWindow):
         list
             A list of names of all the operations in the module.
         """
-        self._logger.info(
-            "Fetching operations from namespace: " + str(namespace.__name__)
-        )
+        self._logger.info("Fetching operations from namespace: %s", namespace.__name__)
         return [
             comp
             for comp in dir(namespace)
@@ -647,7 +645,7 @@ class SFGMainWindow(QMainWindow):
             except NotImplementedError:
                 pass
 
-        self._logger.info("Added operations from namespace: " + str(namespace.__name__))
+        self._logger.info("Added operations from namespace: %s", namespace.__name__)
 
     def add_namespace(self, event=None) -> None:
         """Callback for adding namespace."""
@@ -752,18 +750,18 @@ class SFGMainWindow(QMainWindow):
 
         except Exception as e:
             self._logger.error(
-                "Unexpected error occurred while creating operation: " + str(e)
+                "Unexpected error occurred while creating operation: %s", e
             )
 
     def _create_operation_item(self, item) -> None:
-        self._logger.info(f"Creating operation of type: {item.text()!s}")
+        self._logger.info("Creating operation of type: %s", item.text())
         try:
             attr_operation = self._operations_from_name[item.text()]()
             self.add_operation(attr_operation)
             self.update_statusbar(f"{item.text()} added.")
         except Exception as e:
             self._logger.error(
-                "Unexpected error occurred while creating operation: " + str(e)
+                "Unexpected error occurred while creating operation: %d", e
             )
 
     def _refresh_operations_list_from_namespace(self) -> None:
@@ -840,8 +838,8 @@ class SFGMainWindow(QMainWindow):
             if signal.destination is destination.port
         )
         self._logger.info(
-            f"Connecting: {source.operation.type_name()}"
-            f" -> {destination.operation.type_name()}."
+            "Connecting: %s -> %s",
+            (source.operation.type_name(), destination.operation.type_name()),
         )
         try:
             arrow = Arrow(source, destination, self, signal=next(signal_exists))
@@ -903,7 +901,7 @@ class SFGMainWindow(QMainWindow):
         self._thread = {}
         self._sim_worker = {}
         for sfg, properties in self._simulation_dialog._properties.items():
-            self._logger.info(f"Simulating SFG with name: {sfg.name!s}")
+            self._logger.info("Simulating SFG with name: %s", sfg.name)
             self._sim_worker[sfg] = SimulationWorker(sfg, properties)
             self._thread[sfg] = QThread()
             self._sim_worker[sfg].moveToThread(self._thread[sfg])

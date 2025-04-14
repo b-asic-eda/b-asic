@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import TYPE_CHECKING, cast
 
-import b_asic.logger as logger
+import b_asic.logger
 from b_asic.core_operations import DontCare, Sink
 from b_asic.port import OutputPort
 from b_asic.special_operations import Delay, Input, Output
@@ -14,15 +14,29 @@ if TYPE_CHECKING:
     from b_asic.schedule import Schedule
     from b_asic.types import GraphID
 
+log = b_asic.logger.getLogger(__name__)
+
 
 class Scheduler(ABC):
+    """
+    Scheduler base class
+
+    Parameters
+    ----------
+    input_times : dict(GraphID, int), optional
+        The times when inputs arrive.
+    output_delta_times : dict(GraphID, int), optional
+        The relative time when outputs should be produced
+    sort_y_location : bool, default: True
+        If the y-position should be sorted based on start time of operations.
+    """
+
     def __init__(
         self,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
-        sort_y_direction: bool = True,
+        sort_y_location: bool = True,
     ):
-        self._logger = logger.getLogger("scheduler")
         self._op_laps = {}
 
         if input_times is not None:
@@ -59,11 +73,12 @@ class Scheduler(ABC):
         else:
             self._output_delta_times = {}
 
-        self._sort_y_direction = sort_y_direction
+        self._sort_y_location = sort_y_location
 
     @abstractmethod
     def apply_scheduling(self, schedule: "Schedule") -> None:
-        """Applies the scheduling algorithm on the given Schedule.
+        """
+        Apply the scheduling algorithm on the given Schedule.
 
         Parameters
         ----------
@@ -73,14 +88,14 @@ class Scheduler(ABC):
         raise NotImplementedError
 
     def _place_inputs_on_given_times(self) -> None:
-        self._logger.debug("--- Input placement starting ---")
+        log.debug("Input placement starting")
         for input_id in self._input_times:
             self._schedule.start_times[input_id] = self._input_times[input_id]
             self._op_laps[input_id] = 0
-            self._logger.debug(
-                f"   {input_id} time: {self._schedule.start_times[input_id]}"
+            log.debug(
+                "Input %s at time: %d", input_id, self._schedule.start_times[input_id]
             )
-        self._logger.debug("--- Input placement completed ---")
+        log.debug("Input placement completed")
 
     def _place_outputs_asap(
         self, schedule: "Schedule", non_schedulable_ops: list["GraphID"] | None = []
@@ -102,7 +117,7 @@ class Scheduler(ABC):
                 ] + cast(int, source_port.latency_offset)
 
     def _place_outputs_on_given_times(self) -> None:
-        self._logger.debug("--- Output placement starting ---")
+        log.debug("Output placement starting")
         if self._schedule._cyclic and isinstance(self, ListScheduler):
             end = self._schedule._schedule_time
         else:
@@ -135,10 +150,10 @@ class Scheduler(ABC):
                     if self._schedule._schedule_time
                     else new_time
                 )
-                self._logger.debug(f"   {output.graph_id} time: {modulo_time}")
-        self._logger.debug("--- Output placement completed ---")
+                log.debug("Output %s at time: %d", (output.graph_id, modulo_time))
+        log.debug("Output placement completed")
 
-        self._logger.debug("--- Output placement optimization starting ---")
+        log.debug("Output placement optimization starting")
         min_slack = min(
             self._schedule.backward_slack(op.graph_id)
             for op in self._sfg.find_by_type(Output)
@@ -162,23 +177,36 @@ class Scheduler(ABC):
                         f"for scheduling time {self._schedule._schedule_time}. "
                         "Try to relax the scheduling time, change the output delta times or enable cyclic."
                     )
-                self._logger.debug(
-                    f"   {output.graph_id} moved {min_slack} time steps backwards to new time {new_time}"
+                log.debug(
+                    "Output %s moved %d time steps backwards to new time %d",
+                    (output.graph_id, min_slack, new_time),
                 )
-        self._logger.debug("--- Output placement optimization completed ---")
+        log.debug("Output placement optimization completed")
+
+    def _handle_dont_cares(self) -> None:
+        # schedule all dont cares ALAP
+        for dc_op in self._sfg.find_by_type(DontCare):
+            self._schedule.start_times[dc_op.graph_id] = 0
+            self._schedule.place_operation(
+                dc_op, self._schedule.forward_slack(dc_op.graph_id), self._op_laps
+            )
+            self._op_laps[dc_op.graph_id] = 0
+
+    def _handle_sinks(self) -> None:
+        # schedule all sinks ASAP
+        for sink_op in self._sfg.find_by_type(Sink):
+            self._schedule.start_times[sink_op.graph_id] = self._schedule._schedule_time
+            self._schedule.place_operation(
+                sink_op, self._schedule.backward_slack(sink_op.graph_id), self._op_laps
+            )
+            self._op_laps[sink_op.graph_id] = 0
 
 
 class ASAPScheduler(Scheduler):
     """Scheduler that implements the as-soon-as-possible (ASAP) algorithm."""
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
-        """Applies the scheduling algorithm on the given Schedule.
-
-        Parameters
-        ----------
-        schedule : Schedule
-            Schedule to apply the scheduling algorithm on.
-        """
+        # Doc-string inherited
         self._schedule = schedule
         self._sfg = schedule._sfg
         prec_list = schedule.sfg.get_precedence_list()
@@ -187,6 +215,8 @@ class ASAPScheduler(Scheduler):
 
         if self._input_times:
             self._place_inputs_on_given_times()
+
+        log.debug("ASAP scheduling starting")
 
         # handle the first set in precedence graph (input and delays)
         non_schedulable_ops = []
@@ -238,6 +268,7 @@ class ASAPScheduler(Scheduler):
 
                     schedule.start_times[operation.graph_id] = op_start_time
 
+        log.debug("ASAP scheduling completed")
         self._place_outputs_asap(schedule, non_schedulable_ops)
         if self._input_times:
             self._place_outputs_on_given_times()
@@ -250,7 +281,9 @@ class ASAPScheduler(Scheduler):
         elif schedule._schedule_time < max_end_time:
             raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
 
-        if self._sort_y_direction:
+        self._handle_dont_cares()
+
+        if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
 
 
@@ -258,13 +291,7 @@ class ALAPScheduler(Scheduler):
     """Scheduler that implements the as-late-as-possible (ALAP) algorithm."""
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
-        """Applies the scheduling algorithm on the given Schedule.
-
-        Parameters
-        ----------
-        schedule : Schedule
-            Schedule to apply the scheduling algorithm on.
-        """
+        # Doc-string inherited
         self._schedule = schedule
         self._sfg = schedule._sfg
         ASAPScheduler(
@@ -281,6 +308,7 @@ class ALAPScheduler(Scheduler):
             output = cast(Output, output)
             self._op_laps[output.graph_id] = 0
 
+        log.debug("ALAP scheduling starting")
         # move all outputs ALAP before operations
         for output in schedule.sfg.find_by_type(Output):
             output = cast(Output, output)
@@ -302,13 +330,16 @@ class ALAPScheduler(Scheduler):
                     )
                     schedule.move_operation_alap(op.graph_id)
 
+        log.debug("ALAP scheduling completed")
         # adjust the scheduling time if empty time slots have appeared in the start
         slack = min(schedule.start_times.values())
         for op_id in schedule.start_times:
             schedule.move_operation(op_id, -slack)
         schedule.set_schedule_time(schedule._schedule_time - slack)
 
-        if self._sort_y_direction:
+        self._handle_dont_cares()
+
+        if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
 
 
@@ -376,14 +407,8 @@ class ListScheduler(Scheduler):
         self._max_concurrent_writes = max_concurrent_writes or 0
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
-        """Applies the scheduling algorithm on the given Schedule.
-
-        Parameters
-        ----------
-        schedule : Schedule
-            Schedule to apply the scheduling algorithm on.
-        """
-        self._logger.debug("--- Scheduler initializing ---")
+        # Doc-string inherited
+        log.debug("Scheduler initializing")
         self._initialize_scheduler(schedule)
 
         if self._sfg.loops and self._schedule.cyclic:
@@ -408,9 +433,9 @@ class ListScheduler(Scheduler):
             self._schedule.set_schedule_time(self._schedule.get_max_end_time())
         self._schedule.remove_delays()
         self._handle_dont_cares()
-        if self._sort_y_direction:
+        if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
-        self._logger.debug("--- Scheduling completed ---")
+        log.debug("Scheduling completed")
 
     def _get_next_op_id(
         self, priority_table: list[tuple["GraphID", int, ...]]
@@ -509,15 +534,18 @@ class ListScheduler(Scheduler):
 
     def _op_satisfies_resource_constraints(self, op: "Operation") -> bool:
         op_type = type(op)
-        for i in range(max(1, op.execution_time)):
-            time_slot = (
-                self._current_time + i
-                if self._schedule._schedule_time is None
-                else (self._current_time + i) % self._schedule._schedule_time
-            )
-            count = self._cached_execution_times_in_time[op_type][time_slot]
-            if count >= self._remaining_resources[op_type]:
-                return False
+        if self._schedule._schedule_time is None:
+            for i in range(max(1, op.execution_time)):
+                time_slot = self._current_time + i
+                count = self._cached_execution_times_in_time[op_type][time_slot]
+                if count >= self._remaining_resources[op_type]:
+                    return False
+        else:
+            for i in range(max(1, op.execution_time)):
+                time_slot = (self._current_time + i) % self._schedule._schedule_time
+                count = self._cached_execution_times_in_time[op_type][time_slot]
+                if count >= self._remaining_resources[op_type]:
+                    return False
         return True
 
     def _op_satisfies_concurrent_writes(self, op: "Operation") -> bool:
@@ -739,7 +767,7 @@ class ListScheduler(Scheduler):
         self._current_time = 0
 
     def _schedule_nonrecursive_ops(self) -> None:
-        self._logger.debug("--- Non-Recursive Operation scheduling starting ---")
+        log.debug("Non-Recursive Operation scheduling starting")
         while self._remaining_ops:
             prio_table = self._get_priority_table(self._remaining_ops)
             while prio_table:
@@ -762,15 +790,25 @@ class ListScheduler(Scheduler):
                     else 0
                 )
 
-                for i in range(max(1, next_op.execution_time)):
-                    time_slot = (
-                        (self._current_time + i) % self._schedule._schedule_time
-                        if self._schedule._schedule_time
-                        else self._current_time + i
-                    )
-                    self._cached_execution_times_in_time[type(next_op)][time_slot] += 1
+                if self._schedule._schedule_time is None:
+                    for i in range(max(1, next_op.execution_time)):
+                        time_slot = self._current_time + i
+                        self._cached_execution_times_in_time[type(next_op)][
+                            time_slot
+                        ] += 1
+                else:
+                    for i in range(max(1, next_op.execution_time)):
+                        time_slot = (
+                            self._current_time + i
+                        ) % self._schedule._schedule_time
+                        self._cached_execution_times_in_time[type(next_op)][
+                            time_slot
+                        ] += 1
 
-                self._log_scheduled_op(next_op)
+                log.debug(
+                    "Schedule operation: %s at time: %d",
+                    (self._current_time, next_op.graph_id),
+                )
 
                 prio_table = self._get_priority_table(
                     self._remaining_ops
@@ -779,13 +817,7 @@ class ListScheduler(Scheduler):
 
             self._current_time += 1
         self._current_time -= 1
-        self._logger.debug("--- Non-Recursive Operation scheduling completed ---")
-
-    def _log_scheduled_op(self, next_op: "Operation") -> None:
-        if self._schedule._schedule_time is not None:
-            self._logger.debug(f"  Op: {next_op.graph_id}, time: {self._current_time}")
-        else:
-            self._logger.debug(f"  Op: {next_op.graph_id}, time: {self._current_time}")
+        log.debug("Non-recursive operation scheduling completed")
 
     def _update_port_reads(self, next_op: "Operation") -> None:
         for input_port in next_op.inputs:
@@ -805,14 +837,6 @@ class ListScheduler(Scheduler):
                 else:
                     self._used_reads[time] = 1
 
-    def _handle_dont_cares(self) -> None:
-        # schedule all dont cares ALAP
-        for dc_op in self._sfg.find_by_type(DontCare):
-            self._schedule.start_times[dc_op.graph_id] = 0
-            self._schedule.place_operation(
-                dc_op, self._schedule.forward_slack(dc_op.graph_id), self._op_laps
-            )
-
 
 class RecursiveListScheduler(ListScheduler):
     def __init__(
@@ -830,7 +854,7 @@ class RecursiveListScheduler(ListScheduler):
         )
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
-        self._logger.debug("--- Scheduler initializing ---")
+        log.debug("Scheduler initializing")
         self._initialize_scheduler(schedule)
 
         if self._input_times:
@@ -856,9 +880,9 @@ class RecursiveListScheduler(ListScheduler):
         if loops:
             self._retime_ops(period_bound)
         self._handle_dont_cares()
-        if self._sort_y_direction:
+        if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
-        self._logger.debug("--- Scheduling completed ---")
+        log.debug("Scheduling completed")
 
     def _get_recursive_ops(self, loops: list[list["GraphID"]]) -> list["GraphID"]:
         recursive_ops = []
@@ -965,11 +989,11 @@ class RecursiveListScheduler(ListScheduler):
         saved_sched_time = self._schedule._schedule_time
         self._schedule._schedule_time = None
 
-        self._logger.debug("--- Scheduling of recursive loops starting ---")
+        log.debug("Scheduling of recursive loops starting")
         self._recursive_ops = self._get_recursive_ops(loops)
         self._recursive_ops_set = set(self._recursive_ops)
         self._remaining_recursive_ops = self._recursive_ops.copy()
-        self._logger.debug("--- Generating initial recursive priority table ---")
+        log.debug("Generating initial recursive priority table")
         prio_table = self._get_recursive_priority_table()
         while prio_table:
             op = self._get_next_recursive_op(prio_table)
@@ -994,17 +1018,15 @@ class RecursiveListScheduler(ListScheduler):
 
             self._schedule.place_operation(op, op_sched_time, self._op_laps)
             self._op_laps[op.graph_id] = 0
-            self._logger.debug(f"   Op: {op.graph_id} time: {op_sched_time}")
+            log.debug(
+                "Schedule operation: %s at time: %d", (op.graph_id, op_sched_time)
+            )
             self._remaining_recursive_ops.remove(op.graph_id)
             self._remaining_ops.remove(op.graph_id)
             self._remaining_ops_set.remove(op.graph_id)
 
             for i in range(max(1, op.execution_time)):
-                time_slot = (
-                    (self._current_time + i) % self._schedule._schedule_time
-                    if self._schedule._schedule_time
-                    else self._current_time + i
-                )
+                time_slot = self._current_time + i
                 self._cached_execution_times_in_time[op_type][time_slot] += 1
 
             prio_table = self._get_recursive_priority_table()
@@ -1013,7 +1035,7 @@ class RecursiveListScheduler(ListScheduler):
 
         if saved_sched_time and saved_sched_time > self._schedule._schedule_time:
             self._schedule._schedule_time = saved_sched_time
-        self._logger.debug("--- Scheduling of recursive loops completed ---")
+        log.debug("Scheduling of recursive loops completed")
 
     def _get_next_recursive_op(
         self, priority_table: list[tuple["GraphID", int, ...]]
