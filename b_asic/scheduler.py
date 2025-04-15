@@ -348,6 +348,11 @@ class ListScheduler(Scheduler):
     List-based scheduler that schedules the operations while complying to the given
     constraints.
 
+    .. admonition:: Important
+
+       Will only work on non-recursive SFGs.
+       For recursive SFGs use RecursiveListScheduler instead.
+
     Parameters
     ----------
     sort_order : tuple[tuple[int, bool]]
@@ -410,12 +415,6 @@ class ListScheduler(Scheduler):
         # Doc-string inherited
         log.debug("Scheduler initializing")
         self._initialize_scheduler(schedule)
-
-        if self._sfg.loops and self._schedule.cyclic:
-            raise ValueError(
-                "ListScheduler does not support cyclic scheduling of "
-                "recursive algorithms. Use RecursiveListScheduler instead."
-            )
 
         if self._input_times:
             self._place_inputs_on_given_times()
@@ -504,7 +503,8 @@ class ListScheduler(Scheduler):
         for op_id in ready_ops:
             reads = 0
             for op_input in self._sfg.find_by_id(op_id).inputs:
-                source_op = op_input.signals[0].source.operation
+                source_port = op_input.signals[0].source
+                source_op = source_port.operation
                 if isinstance(source_op, DontCare):
                     continue
                 if isinstance(source_op, Delay):
@@ -512,7 +512,8 @@ class ListScheduler(Scheduler):
                     continue
                 if (
                     self._schedule.start_times[source_op.graph_id]
-                    != self._current_time - 1
+                    + source_port.latency_offset
+                    != self._current_time + op_input.latency_offset
                 ):
                     reads += 1
             op_reads[op_id] = reads
@@ -584,14 +585,16 @@ class ListScheduler(Scheduler):
         if self._max_concurrent_reads:
             tmp_used_reads = {}
             for op_input in op.inputs:
-                source_op = op_input.signals[0].source.operation
+                source_port = op_input.signals[0].source
+                source_op = source_port.operation
                 if isinstance(source_op, (Delay, DontCare)):
                     continue
+                input_read_time = self._current_time + op_input.latency_offset
                 if (
                     self._schedule.start_times[source_op.graph_id]
-                    != self._current_time - 1
+                    + source_port.latency_offset
+                    != input_read_time
                 ):
-                    input_read_time = self._current_time + op_input.latency_offset
                     if self._schedule._schedule_time:
                         input_read_time %= self._schedule._schedule_time
 
@@ -821,14 +824,15 @@ class ListScheduler(Scheduler):
 
     def _update_port_reads(self, next_op: "Operation") -> None:
         for input_port in next_op.inputs:
-            source_op = input_port.signals[0].source.operation
+            source_port = input_port.signals[0].source
+            source_op = source_port.operation
+            time = self._current_time + input_port.latency_offset
             if (
-                not isinstance(source_op, DontCare)
-                and not isinstance(source_op, Delay)
+                not isinstance(source_op, (DontCare, Delay))
                 and self._schedule.start_times[source_op.graph_id]
-                != self._current_time - 1
+                + source_port.latency_offset
+                != time
             ):
-                time = self._current_time + input_port.latency_offset
                 if self._schedule._schedule_time:
                     time %= self._schedule._schedule_time
 
