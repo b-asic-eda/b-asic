@@ -913,21 +913,27 @@ class ProcessCollection:
 
     def split_on_execution_time(
         self,
-        strategy: Literal["graph_color", "left_edge"] = "left_edge",
+        strategy: Literal[
+            "left_edge",
+            "greedy_graph_color",
+            "ilp_graph_color",
+        ] = "left_edge",
         coloring_strategy: str = "saturation_largest_first",
+        max_colors: int | None = None,
+        solver: PULP_CBC_CMD | GUROBI | None = None,
     ) -> list["ProcessCollection"]:
         """
         Split based on overlapping execution time.
 
         Parameters
         ----------
-        strategy : {'graph_color', 'left_edge'}, default: 'left_edge'
+        strategy : {'ilp_graph_color', 'greedy_graph_color', 'left_edge'}, default: 'left_edge'
             The strategy used when splitting based on execution times.
 
         coloring_strategy : str, default: 'saturation_largest_first'
             Node ordering strategy passed to
             :func:`networkx.algorithms.coloring.greedy_color`.
-            This parameter is only considered if *strategy* is set to 'graph_color'.
+            This parameter is only considered if *strategy* is set to 'greedy_graph_color'.
             One of
 
             * 'largest_first'
@@ -938,12 +944,24 @@ class ProcessCollection:
             * 'connected_sequential_dfs' or 'connected_sequential'
             * 'saturation_largest_first' or 'DSATUR'
 
+        max_colors : int, optional
+            The maximum amount of colors to split based on,
+            only required if strategy is an ILP method.
+
+        solver : PuLP MIP solver object, optional
+            Only used if strategy is an ILP method.
+            Valid options are:
+                * PULP_CBC_CMD() - preinstalled with the package
+                * GUROBI() - required licence but likely faster
+
         Returns
         -------
         A list of new ProcessCollection objects with the process splitting.
         """
-        if strategy == "graph_color":
-            return self._graph_color_assignment(coloring_strategy)
+        if strategy == "ilp_graph_color":
+            return self._ilp_graph_color_assignment(max_colors, solver)
+        elif strategy == "greedy_graph_color":
+            return self._greedy_graph_color_assignment(coloring_strategy)
         elif strategy == "left_edge":
             return self._left_edge_assignment()
         else:
@@ -1841,7 +1859,92 @@ class ProcessCollection:
     def __iter__(self):
         return iter(self._collection)
 
-    def _graph_color_assignment(
+    def _ilp_graph_color_assignment(
+        self,
+        max_colors: int | None = None,
+        solver: PULP_CBC_CMD | GUROBI | None = None,
+    ) -> list["ProcessCollection"]:
+        for process in self:
+            if process.execution_time > self.schedule_time:
+                raise ValueError(
+                    f"{process} has execution time greater than the schedule time"
+                )
+
+        cell_assignment: dict[int, ProcessCollection] = {}
+        exclusion_graph = self.create_exclusion_graph_from_execution_time()
+
+        nodes = list(exclusion_graph.nodes())
+        edges = list(exclusion_graph.edges())
+
+        if max_colors is None:
+            # get an initial estimate using NetworkX greedy graph coloring
+            coloring = nx.coloring.greedy_color(
+                exclusion_graph, strategy="saturation_largest_first"
+            )
+            max_colors = len(set(coloring.values()))
+        colors = range(max_colors)
+
+        # find the minimal amount of colors (memories)
+
+        # binary variables:
+        #   x[node, color] - whether node is colored in a certain color
+        #   c[color] - whether color is used
+        x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        c = LpVariable.dicts("c", colors, cat=LpBinary)
+        problem = LpProblem()
+        problem += lpSum(c[i] for i in colors)
+
+        # constraints:
+        #   (1) - nodes have exactly one color
+        #   (2) - adjacent nodes cannot have the same color
+        #   (3) - only permit assignments if color is used
+        #   (4) - reduce solution space by assigning colors to the largest clique
+        #   (5 & 6) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
+        for node in nodes:
+            problem += lpSum(x[node][i] for i in colors) == 1
+        for u, v in edges:
+            for color in colors:
+                problem += x[u][color] + x[v][color] <= 1
+        for node in nodes:
+            for color in colors:
+                problem += x[node][color] <= c[color]
+        max_clique = next(nx.find_cliques(exclusion_graph))
+        for color, node in enumerate(max_clique):
+            problem += x[node][color] == c[color] == 1
+        for color in colors:
+            problem += c[color] <= lpSum(x[node][color] for node in nodes)
+        for color in colors[:-1]:
+            problem += c[color + 1] <= c[color]
+
+        if solver is None:
+            solver = PULP_CBC_CMD()
+
+        status = problem.solve(solver)
+
+        if status != LpStatusOptimal:
+            raise ValueError(
+                "Optimal solution could not be found via ILP, use another method."
+            )
+
+        node_colors = {}
+        for node in nodes:
+            for i in colors:
+                if value(x[node][i]) == 1:
+                    node_colors[node] = i
+
+        # reduce the solution by removing unused colors
+        sorted_unique_values = sorted(set(node_colors.values()))
+        coloring_mapping = {val: i for i, val in enumerate(sorted_unique_values)}
+        coloring = {key: coloring_mapping[node_colors[key]] for key in node_colors}
+
+        for process, cell in coloring.items():
+            if cell not in cell_assignment:
+                cell_assignment[cell] = ProcessCollection([], self._schedule_time)
+            cell_assignment[cell].add_process(process)
+        return list(cell_assignment.values())
+
+    def _greedy_graph_color_assignment(
         self,
         coloring_strategy: str = "saturation_largest_first",
         *,
@@ -1869,7 +1972,6 @@ class ProcessCollection:
         """
         for process in self:
             if process.execution_time > self.schedule_time:
-                # Can not assign process to any cell
                 raise ValueError(
                     f"{process} has execution time greater than the schedule time"
                 )

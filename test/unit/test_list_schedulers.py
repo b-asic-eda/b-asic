@@ -1857,7 +1857,7 @@ class TestListScheduler:
         for i, mem in enumerate(mem_vars_set):
             memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
             memories.append(memory)
-            memory.assign("graph_color")
+            memory.assign("greedy_graph_color")
 
         arch = Architecture(
             processing_elements,
@@ -1939,7 +1939,7 @@ class TestListScheduler:
         for i, mem in enumerate(mem_vars_set):
             memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
             memories.append(memory)
-            memory.assign("graph_color")
+            memory.assign("greedy_graph_color")
 
         arch = Architecture(
             processing_elements,

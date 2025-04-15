@@ -73,7 +73,7 @@ for i, mem in enumerate(mem_vars_set):
     memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
     memories.append(memory)
     mem.show(title=f"{memory.entity_name}")
-    memory.assign("graph_color")
+    memory.assign("greedy_graph_color")
     memory.show_content(title=f"Assigned {memory.entity_name}")
 
 direct.show(title="Direct interconnects")
@@ -130,7 +130,7 @@ for i, mem in enumerate(mem_vars_set):
     memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
     memories.append(memory)
     mem.show(title=f"{memory.entity_name}")
-    memory.assign("graph_color")
+    memory.assign("greedy_graph_color")
     memory.show_content(title=f"Assigned {memory.entity_name}")
 
 direct.show(title="Direct interconnects")

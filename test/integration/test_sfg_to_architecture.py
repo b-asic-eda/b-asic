@@ -72,7 +72,7 @@ def test_pe_constrained_schedule():
     # for i, mem in enumerate(mem_vars_set):
     #     memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
     #     memories.append(memory)
-    #     memory.assign("graph_color")
+    #     memory.assign("greedy_graph_color")
 
     # arch = Architecture(
     #     {mads0, mads1, reciprocal_pe, pe_in, pe_out},
@@ -137,7 +137,7 @@ def test_pe_and_memory_constrained_schedule():
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("greedy_graph_color")
 
     arch = Architecture(
         {bf_pe, mul_pe, pe_in, pe_out},
@@ -172,7 +172,7 @@ def test_left_edge(mem_variables_fft32):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("greedy_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -199,7 +199,7 @@ def test_min_pe_to_mem(mem_variables_fft32):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("greedy_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -226,7 +226,7 @@ def test_min_mem_to_pe(mem_variables_fft32):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("greedy_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -253,7 +253,7 @@ def test_greedy_graph_coloring(mem_variables_fft32):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("greedy_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -280,7 +280,7 @@ def test_equitable_color(mem_variables_fft32):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("greedy_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -306,7 +306,7 @@ def test_ilp_color(mem_variables_fft16):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("ilp_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -333,7 +333,7 @@ def test_ilp_color_with_colors_given(mem_variables_fft16):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("ilp_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -360,7 +360,7 @@ def test_ilp_color_input_mux(mem_variables_fft16):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("ilp_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -387,7 +387,7 @@ def test_ilp_color_output_mux(mem_variables_fft16):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("ilp_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -415,7 +415,7 @@ def test_ilp_color_total_mux(mem_variables_fft16):
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("ilp_graph_color")
 
     arch = Architecture(
         processing_elements,
@@ -480,7 +480,7 @@ def test_ilp_resource_algorithm_custom_solver():
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("graph_color")
+        memory.assign("ilp_graph_color")
 
     arch = Architecture(
         processing_elements,

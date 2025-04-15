@@ -160,7 +160,7 @@ class TestProcessCollectionPlainMemoryVariable:
         collection = generate_matrix_transposer(4, min_lifetime=5)
         assignment_left_edge = collection._left_edge_assignment()
         assignment_graph_color = collection.split_on_execution_time(
-            strategy="graph_color", coloring_strategy="saturation_largest_first"
+            strategy="greedy_graph_color", coloring_strategy="saturation_largest_first"
         )
         assert len(assignment_left_edge) == 18
         assert len(assignment_graph_color) == 16
@@ -182,7 +182,9 @@ class TestProcessCollectionPlainMemoryVariable:
             collection = generate_matrix_transposer(
                 rows=rows, cols=cols, min_lifetime=0
             )
-            assignment = collection.split_on_execution_time(strategy="graph_color")
+            assignment = collection.split_on_execution_time(
+                strategy="greedy_graph_color"
+            )
             collection.generate_memory_based_storage_vhdl(
                 filename=(
                     "b_asic/codegen/testbench/"
@@ -334,12 +336,12 @@ class TestProcessCollectionPlainMemoryVariable:
         assert exclusion_graph.degree(p2) == 1
         assert exclusion_graph.degree(p3) == 3
 
-    def test_left_edge_maximum_lifetime(self):
+    def test_split_on_execution_time_maximum_lifetime(self):
         a = PlainMemoryVariable(2, 0, {0: 1}, "cmul1.0")
         b = PlainMemoryVariable(4, 0, {0: 7}, "cmul4.0")
         c = PlainMemoryVariable(5, 0, {0: 4}, "cmul5.0")
         collection = ProcessCollection([a, b, c], schedule_time=7, cyclic=True)
-        for strategy in ("graph_color", "left_edge"):
+        for strategy in ("greedy_graph_color", "left_edge", "ilp_graph_color"):
             assignment = collection.split_on_execution_time(strategy)
             assert len(assignment) == 2
             a_idx = 0 if a in assignment[0] else 1
@@ -349,7 +351,7 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_split_on_execution_lifetime_assert(self):
         a = PlainMemoryVariable(3, 0, {0: 10}, "MV0")
         collection = ProcessCollection([a], schedule_time=9, cyclic=True)
-        for strategy in ("graph_color", "left_edge"):
+        for strategy in ("greedy_graph_color", "left_edge", "ilp_graph_color"):
             with pytest.raises(
                 ValueError,
                 match="MV0 has execution time greater than the schedule time",

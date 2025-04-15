@@ -561,7 +561,12 @@ class Memory(Resource):
                 pass
         return ""
 
-    def assign(self, strategy: str = "left_edge") -> None:
+    def assign(
+        self,
+        strategy: Literal[
+            "left_edge", "greedy_graph_color", "ilp_graph_color"
+        ] = "left_edge",
+    ) -> None:
         """
         Perform assignment of the memory variables.
 
@@ -573,7 +578,8 @@ class Memory(Resource):
 
             * 'RAM'
                 * 'left_edge': Left-edge algorithm.
-                * 'graph_color': Graph-coloring based on exclusion graph.
+                * 'greedy_graph_color': Greedy graph-coloring based on exclusion graph.
+                * 'ilp_graph_color': Optimal graph-coloring based on exclusion graph.
             * 'register'
                 * ...
         """
