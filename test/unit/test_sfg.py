@@ -497,7 +497,7 @@ class TestFindComponentsWithTypeName:
 class TestGetPrecedenceList:
     def test_inputs_delays(self, precedence_sfg_delays):
         # No cached precedence list
-        assert precedence_sfg_delays._precedence_list is None
+        assert not precedence_sfg_delays._precedence_list
 
         precedence_list = precedence_sfg_delays.get_precedence_list()
 

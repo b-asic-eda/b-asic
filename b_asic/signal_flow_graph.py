@@ -12,9 +12,8 @@ from collections.abc import Iterable, MutableSet, Sequence
 from fractions import Fraction
 from io import StringIO
 from math import ceil
-from numbers import Number
 from queue import PriorityQueue
-from typing import ClassVar, Literal, Optional, Union, cast
+from typing import ClassVar, Literal, Union, cast
 
 import numpy as np
 from graphviz import Digraph
@@ -116,8 +115,8 @@ class SFG(AbstractOperation):
     _original_components_to_new: dict[GraphComponent, GraphComponent]
     _original_input_signals_to_indices: dict[Signal, int]
     _original_output_signals_to_indices: dict[Signal, int]
-    _precedence_list: list[list[OutputPort]] | None
-    _used_ids: ClassVar[set[GraphID]] = set()
+    _precedence_list: list[list[OutputPort]]
+    _used_ids: set[GraphID]
 
     def __init__(
         self,
@@ -152,7 +151,7 @@ class SFG(AbstractOperation):
         self._original_components_to_new = {}
         self._original_input_signals_to_indices = {}
         self._original_output_signals_to_indices = {}
-        self._precedence_list = None
+        self._precedence_list = []
 
         # Setup input signals.
         if input_signals is not None:
@@ -348,7 +347,7 @@ class SFG(AbstractOperation):
         prefix: str = "",
         bits_override: int | None = None,
         quantize: bool = True,
-    ) -> Number:
+    ) -> Num:
         # doc-string inherited
         if index < 0 or index >= self.output_count:
             raise IndexError(
@@ -547,11 +546,11 @@ class SFG(AbstractOperation):
         """Get all operations of this graph in depth-first order."""
         return list(self._operations_dfs_order)
 
-    def find_by_type_name(self, type_name: TypeName) -> Sequence[GraphComponent]:
+    def find_by_type_name(self, type_name: TypeName) -> list[GraphComponent]:
         """
         Find all components in this graph with the specified type name.
 
-        Returns an empty sequence if no components were found.
+        Returns an empty list if no components were found.
 
         Parameters
         ----------
@@ -565,15 +564,17 @@ class SFG(AbstractOperation):
         ]
         return components
 
-    def find_by_type(self, component_type: GraphComponent) -> Sequence[GraphComponent]:
+    def find_by_type(
+        self, component_type: type[GraphComponent]
+    ) -> list[GraphComponent]:
         """
         Find all components in this graph with the specified type.
 
-        Returns an empty sequence if no components were found.
+        Returns an empty list if no components were found.
 
         Parameters
         ----------
-        component_type : GraphComponent
+        component_type : type of GraphComponent
             The TypeName of the desired components.
         """
         components = [
@@ -666,19 +667,17 @@ class SFG(AbstractOperation):
                 signal.remove_source()
                 signal.set_source(component.output(index_out))
 
-        if component_copy.type_name() == "out":
+        if isinstance(component_copy, Output):
             sfg_copy._output_operations.remove(component_copy)
             warnings.warn(
                 f"Output port {component_copy.graph_id} has been removed", stacklevel=2
             )
-        if component.type_name() == "out":
+        if isinstance(component, Output):
             sfg_copy._output_operations.append(component)
 
         return sfg_copy()  # Copy again to update IDs.
 
-    def insert_operation(
-        self, component: Operation, output_comp_id: GraphID
-    ) -> Optional["SFG"]:
+    def insert_operation(self, component: Operation, output_comp_id: GraphID) -> "SFG":
         """
         Insert an operation in the SFG after a given source operation.
 
@@ -726,7 +725,7 @@ class SFG(AbstractOperation):
         self,
         output_comp_id: GraphID,
         new_operation: Operation,
-    ) -> Optional["SFG"]:
+    ) -> "SFG":
         """
         Insert an operation in the SFG after a given source operation.
 
@@ -753,8 +752,8 @@ class SFG(AbstractOperation):
                 "Only operations with one input and one output can be inserted."
             )
         if "." in output_comp_id:
-            output_comp_id, port_id = output_comp_id.split(".")
-            port_id = int(port_id)
+            output_comp_id, port_id_str = output_comp_id.split(".")
+            port_id = int(port_id_str)
         else:
             port_id = None
 
@@ -780,7 +779,7 @@ class SFG(AbstractOperation):
         input_comp_id: GraphID,
         new_operation: Operation,
         port: int | None = None,
-    ) -> Optional["SFG"]:
+    ) -> "SFG":
         """
         Insert an operation in the SFG before a given source operation.
 
@@ -1211,13 +1210,15 @@ class SFG(AbstractOperation):
         for op in self.find_by_type_name(type_name):
             cast(Operation, op).set_latency(latency)
 
-    def set_latency_of_type(self, operation_type: Operation, latency: int) -> None:
+    def set_latency_of_type(
+        self, operation_type: type[Operation], latency: int
+    ) -> None:
         """
         Set the latency of all operations with the given type.
 
         Parameters
         ----------
-        operation_type : Operation
+        operation_type : type of Operation
             The operation type. For example, ``Addition``.
         latency : int
             The latency of the operation.
@@ -1243,14 +1244,14 @@ class SFG(AbstractOperation):
             cast(Operation, op).execution_time = execution_time
 
     def set_execution_time_of_type(
-        self, operation_type: Operation, execution_time: int
+        self, operation_type: type[Operation], execution_time: int
     ) -> None:
         """
         Set the latency of all operations with the given type.
 
         Parameters
         ----------
-        operation_type : Operation
+        operation_type : type of Operation
             The operation type. For example, ``Addition``.
         execution_time : int
             The execution time of the operation.
@@ -1276,14 +1277,14 @@ class SFG(AbstractOperation):
             cast(Operation, op).set_latency_offsets(latency_offsets)
 
     def set_latency_offsets_of_type(
-        self, operation_type: Operation, latency_offsets: dict[str, int]
+        self, operation_type: type[Operation], latency_offsets: dict[str, int]
     ) -> None:
         """
         Set the latency offsets of all operations with the given type.
 
         Parameters
         ----------
-        operation_type : Operation
+        operation_type : type of Operation
             The operation type. For example, ``Addition``.
         latency_offsets : {"in1": int, ...}
             The latency offsets of the inputs and outputs.
@@ -1818,13 +1819,13 @@ class SFG(AbstractOperation):
             raise ValueError(
                 f"Schedule time must be positive, current schedule time is: {schedule_time}."
             )
-        exec_times = [op.execution_time for op in ops]
+        exec_times = [cast(Operation, op).execution_time for op in ops]
         if any(time is None for time in exec_times):
             raise ValueError(
                 f"Execution times not set for all operations of type {type_name}."
             )
 
-        total_exec_time = sum([op.execution_time for op in ops])
+        total_exec_time = sum(exec_times)
         return ceil(total_exec_time / schedule_time)
 
     def iteration_period_bound(self) -> Fraction:
@@ -1839,7 +1840,7 @@ class SFG(AbstractOperation):
         """
         loops = self.loops
         if not loops:
-            return -1
+            return Fraction(-1)
 
         op_and_latency = {}
         for op in self.operations:
@@ -2277,7 +2278,7 @@ class SFG(AbstractOperation):
         ret.sort()
         return ret
 
-    def get_used_operation_types(self) -> list[Operation]:
+    def get_used_operation_types(self) -> list[type[Operation]]:
         """Get a list of all Operations used in the SFG."""
         ret = list({type(op) for op in self.operations})
         ret.sort(key=lambda op: op.type_name())
