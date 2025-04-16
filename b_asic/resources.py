@@ -912,6 +912,17 @@ class ProcessCollection:
                         exclusion_graph.add_edge(process1, process2)
         return exclusion_graph
 
+    def split_on_type_name(self) -> dict[TypeName, "ProcessCollection"]:
+        groups = {}
+        for process in self:
+            if not isinstance(process, OperatorProcess):
+                raise ValueError("ProcessCollection must only contain OperatorProcess.")
+            type_name = process.operation.type_name()
+            if type_name not in groups:
+                groups[type_name] = ProcessCollection([], self.schedule_time)
+            groups[type_name].add_process(process)
+        return groups
+
     def split_on_execution_time(
         self,
         strategy: Literal[

@@ -13,6 +13,7 @@ API
     port.rst
     process.rst
     quantization.rst
+    resource_assigner.rst
     resources.rst
     save_load_structure.rst
     schedule.rst

@@ -8,6 +8,7 @@ from b_asic.core_operations import (
     Reciprocal,
 )
 from b_asic.list_schedulers import HybridScheduler
+from b_asic.resource_assigner import assign_processing_elements_and_memories
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
 from b_asic.sfg_generators import ldlt_matrix_inverse, radix_2_dif_fft
@@ -489,3 +490,58 @@ def test_ilp_resource_algorithm_custom_solver():
     )
     assert len(arch.processing_elements) == 4
     assert len(arch.memories) == 3
+
+
+def test_joint_resource_assignment():
+    POINTS = 32
+    sfg = radix_2_dif_fft(POINTS)
+    sfg.set_latency_of_type_name("bfly", 1)
+    sfg.set_latency_of_type_name("cmul", 3)
+    sfg.set_execution_time_of_type_name("bfly", 1)
+    sfg.set_execution_time_of_type_name("cmul", 1)
+
+    resources = {"bfly": 1, "cmul": 1, "in": 1, "out": 1}
+    schedule = Schedule(
+        sfg,
+        scheduler=HybridScheduler(
+            resources, max_concurrent_reads=3, max_concurrent_writes=3
+        ),
+    )
+
+    direct, mem_vars = schedule.get_memory_variables().split_on_length()
+    pes, mems = assign_processing_elements_and_memories(
+        schedule.get_operations(),
+        mem_vars,
+        resources,
+        max_memories=3,
+        memory_read_ports=1,
+        memory_write_ports=1,
+        memory_total_ports=2,
+    )
+
+    arch = Architecture(pes, mems, direct_interconnects=direct)
+    assert len(arch.processing_elements) == 4
+    assert len(arch.memories) == 3
+
+    resources = {"bfly": 2, "cmul": 1, "in": 1, "out": 1}
+    schedule = Schedule(
+        sfg,
+        scheduler=HybridScheduler(
+            resources, max_concurrent_reads=4, max_concurrent_writes=4
+        ),
+    )
+
+    direct, mem_vars = schedule.get_memory_variables().split_on_length()
+    pes, mems = assign_processing_elements_and_memories(
+        schedule.get_operations(),
+        mem_vars,
+        resources,
+        max_memories=4,
+        memory_read_ports=1,
+        memory_write_ports=1,
+        memory_total_ports=2,
+    )
+
+    arch = Architecture(pes, mems, direct_interconnects=direct)
+    assert len(arch.processing_elements) == 5
+    assert len(arch.memories) == 4
