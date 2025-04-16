@@ -117,6 +117,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     _zoom: float
     _color_per_type: ClassVar[dict[str, QColor]] = {}
     _converted_color_per_type: ClassVar[dict[str, str]] = {}
+    _changed_operation_colors: dict[str, QColor]
+    _recent_files_actions: list[QAction]
+    _recent_file_paths: deque[str]
 
     def __init__(self):
         """Initialize Scheduler-GUI."""
@@ -137,12 +140,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._execution_time_plot_dialogs = defaultdict(lambda: None)
         self._ports_accesses_for_storage = None
         self._color_changed_per_type = False
-        self._changed_operation_colors: dict[str, QColor] = {}
+        self._changed_operation_colors = {}
 
         # Recent files
         self._max_recent_files = 4
-        self._recent_files_actions: list[QAction] = []
-        self._recent_file_paths: deque[str] = deque(maxlen=self._max_recent_files)
+        self._recent_files_actions = []
+        self._recent_file_paths = deque(maxlen=self._max_recent_files)
         self._create_recent_file_actions_and_menus()
 
         self._init_graphics()
@@ -266,8 +269,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # Check return value
         if ok:
             if factor > 1:
-                self.schedule.increase_time_resolution(factor)
-                self.open(self.schedule)
+                schedule = cast(Schedule, self._schedule)
+                schedule.increase_time_resolution(factor)
+                self._schedule = schedule
+                self.open(self._schedule)
                 print(f"schedule.increase_time_resolution({factor})")
                 self.update_statusbar(f"Time resolution increased by a factor {factor}")
         else:  # Cancelled
@@ -276,10 +281,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def _decrease_time_resolution(self) -> None:
         """Callback for decreasing time resolution."""
+        schedule = cast(Schedule, self._schedule)
         # Get possible factors
-        vals = [
-            str(v) for v in self._schedule.get_possible_time_resolution_decrements()
-        ]
+        vals = [str(v) for v in schedule.get_possible_time_resolution_decrements()]
         # Create dialog
         factor, ok = QInputDialog.getItem(
             self, "Decrease time resolution", "Factor", vals, editable=False
@@ -287,7 +291,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # Check return value
         if ok:
             if int(factor) > 1:
-                self._schedule.decrease_time_resolution(int(factor))
+                schedule.decrease_time_resolution(int(factor))
+                self._schedule = schedule
                 self.open(self._schedule)
                 print(f"schedule.decrease_time_resolution({factor})")
                 self.update_statusbar(f"Time resolution decreased by a factor {factor}")
@@ -451,6 +456,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         SLOT() for SIGNAL(menu_save.triggered)
         """
         # TODO: all
+        if self._schedule is None:
+            return
         if self._file_name is None:
             self.save_as()
             return
@@ -468,6 +475,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         SLOT() for SIGNAL(menu_save_as.triggered)
         """
         # TODO: Implement
+        if self._schedule is None:
+            return
         filename, extension = QFileDialog.getSaveFileName(
             self, "Save File", ".", filter=self.tr("B-ASIC schedule (*.bsc)")
         )
@@ -580,6 +589,11 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         Takes in an operator-id, first clears the 'Operator' part of the info
         table and then fill in the table with new values from the operator
         associated with *graph_id*.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            GraphID of operation to fill information table with.
         """
         self.info_table_clear_component()
         self._info_table_fill_component(graph_id)
@@ -701,7 +715,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def _redraw_all(self) -> None:
-        self._graph._redraw_all()
+        cast(SchedulerItem, self._graph)._redraw_all()
 
     @Slot()
     def _reopen_schedule(self) -> None:
@@ -894,12 +908,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def open_preferences_dialog(self):
-        """Open the preferences dialog to customize fonts, colors, and settings"""
+        """Open the preferences dialog to customize fonts, colors, and settings."""
         self._preferences_dialog = PreferencesDialog(self)
         self._preferences_dialog.show()
 
     def load_preferences(self):
-        "Load the last saved preferences from settings"
+        "Load the last saved preferences from settings."
         settings = QSettings()
         LATENCY_COLOR_TYPE.current_color = QColor(
             settings.value(
@@ -948,6 +962,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def update_color_preferences(self) -> None:
         """Update preferences of Latency color per type."""
+        if self._schedule is None:
+            return
         used_type_names = self._schedule.get_used_type_names()
         match (LATENCY_COLOR_TYPE.changed, self._color_changed_per_type):
             case (True, False):
