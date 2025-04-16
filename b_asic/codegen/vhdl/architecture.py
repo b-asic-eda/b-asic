@@ -3,7 +3,7 @@ Module for code generation of VHDL architectures.
 """
 
 from math import ceil, log2
-from typing import TYPE_CHECKING, TextIO, cast
+from typing import TYPE_CHECKING, Literal, TextIO, cast
 
 from b_asic.codegen.vhdl import common, write, write_lines
 from b_asic.process import MemoryVariable
@@ -24,6 +24,12 @@ def memory_based_storage(
     input_sync: bool = True,
     adr_mux_size: int = 1,
     adr_pipe_depth: int = 0,
+    vivado_ram_style: (
+        Literal["block", "distributed", "registers", "ultra", "mixed", "auto"] | None
+    ) = None,
+    quartus_ram_style: (
+        Literal["M4K", "M9K", "M10K", "M20K", "M144K", "MLAB", "logic"] | None
+    ) = None,
 ):
     """
     Generate the VHDL architecture for a memory-based storage architecture.
@@ -62,6 +68,12 @@ def memory_based_storage(
     adr_pipe_depth : int, default: 0
         Depth of address generation pipelining. Set to 0 for no multiplexer pipelining.
         If any other value than 0, `input_sync` must be set.
+    vivado_ram_style : str, optional
+        An optional Xilinx Vivado RAM style attribute to apply to this memory.
+        If set, exactly one of: "block", "distributed", "registers", "ultra", "mixed" or "auto".
+    quartus_ram_style : str, optional
+        An optional Quartus Prime RAM style attribute to apply to this memory.
+        If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K", "MLAB" or "logic".
     """
 
     # Code settings
@@ -92,13 +104,24 @@ def memory_based_storage(
     common.type_declaration(
         f, "mem_type", "array(0 to MEM_DEPTH-1) of std_logic_vector(MEM_WL-1 downto 0)"
     )
-    common.signal_declaration(
-        f,
-        name="memory",
-        signal_type="mem_type",
-        name_pad=18,
-        vivado_ram_style="distributed",  # Xilinx Vivado distributed RAM
-    )
+    if vivado_ram_style is not None:
+        common.signal_declaration(
+            f,
+            name="memory",
+            signal_type="mem_type",
+            name_pad=18,
+            vivado_ram_style=vivado_ram_style,
+        )
+    elif quartus_ram_style is not None:
+        common.signal_declaration(
+            f,
+            name="memory",
+            signal_type="mem_type",
+            name_pad=18,
+            quartus_ram_style=quartus_ram_style,
+        )
+    else:
+        common.signal_declaration(f, name="memory", signal_type="mem_type", name_pad=18)
 
     # Schedule time counter
     write(f, 1, "-- Schedule counter", start="\n")

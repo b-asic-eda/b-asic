@@ -9,7 +9,7 @@ VHDL_TAB = r"    "
 
 
 def write(
-    f: TextIO,
+    file: TextIO,
     indent_level: int,
     text: str,
     *,
@@ -20,12 +20,12 @@ def write(
     Base VHDL code generation utility.
 
     ``f'{VHDL_TAB*indent_level}'`` is first written to the TextIO
-    object *f*. Immediately after the indentation, *text* is written to *f*. Finally,
-    *text* is also written to *f*.
+    object *file*. Immediately after the indentation, *text* is written to *file*. Finally,
+    *text* is also written to *file*.
 
     Parameters
     ----------
-    f : TextIO
+    file : TextIO
         The file object to emit VHDL code to.
     indent_level : int
         Indentation level to use. Exactly ``f'{VHDL_TAB*indent_level}'`` is written
@@ -33,36 +33,36 @@ def write(
     text : str
         The text to write to.
     end : str, default: '\n'
-        Text to write exactly after *text* is written to *f*.
+        Text to write exactly after *text* is written to *file*.
     start : str, optional
         Text to write before both indentation and *text*.
     """
     if start is not None:
-        f.write(start)
-    f.write(f"{VHDL_TAB * indent_level}{text}{end}")
+        file.write(start)
+    file.write(f"{VHDL_TAB * indent_level}{text}{end}")
 
 
-def write_lines(f: TextIO, lines: list[tuple[int, str] | tuple[int, str, str]]):
+def write_lines(file: TextIO, lines: list[tuple[int, str] | tuple[int, str, str]]):
     """
     Multiline VHDL code generation utility.
 
     Each tuple ``(int, str, [int])`` in the list *lines* is written to the
-    TextIO object *f* using the :function:`vhdl.write` function.
+    TextIO object *file* using the :func:`vhdl.write` function.
 
     Parameters
     ----------
-    f : TextIO
+    file : TextIO
         The file object to emit VHDL code to.
     lines : list of tuple (int,str) [1], or list of tuple (int,str,str) [2]
         [1]: The first ``int`` of the tuple is used as indentation level for the line
              and the second ``str`` of the tuple is the content of the line.
         [2]: Same as [1], but the third ``str`` of the tuple is passed to parameter
-             *end* when calling :function:`vhdl.write`.
+             *end* when calling :func:`vhdl.write`.
     """
     for tpl in lines:
         if len(tpl) == 2:
-            write(f, indent_level=tpl[0], text=str(tpl[1]))
+            write(file, indent_level=tpl[0], text=str(tpl[1]))
         elif len(tpl) == 3:
-            write(f, indent_level=tpl[0], text=str(tpl[1]), end=str(tpl[2]))
+            write(file, indent_level=tpl[0], text=str(tpl[1]), end=str(tpl[2]))
         else:
             raise ValueError("All tuples in list `lines` must have length 2 or 3")

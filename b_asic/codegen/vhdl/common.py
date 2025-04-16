@@ -5,7 +5,7 @@ Generation of common VHDL constructs
 import re
 from datetime import datetime
 from subprocess import PIPE, Popen
-from typing import Any, TextIO
+from typing import Any, Literal, TextIO
 
 from b_asic.codegen.vhdl import write, write_lines
 
@@ -78,8 +78,12 @@ def signal_declaration(
     signal_type: str,
     default_value: str | None = None,
     name_pad: int | None = None,
-    vivado_ram_style: str | None = None,
-    quartus_ram_style: str | None = None,
+    vivado_ram_style: (
+        Literal["block", "distributed", "registers", "ultra", "mixed", "auto"] | None
+    ) = None,
+    quartus_ram_style: (
+        Literal["M4K", "M9K", "M10K", "M20K", "M144K", "MLAB", "logic"] | None
+    ) = None,
 ):
     """
     Create a VHDL signal declaration.
