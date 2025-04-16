@@ -271,7 +271,8 @@ def symmetric_fir(
     mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
     add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
-    r"""Generate a signal flow graph of a symmetric FIR filter.
+    r"""
+    Generate a signal flow graph of a symmetric FIR filter.
 
     The *coefficients* parameter is a sequence of impulse response values of even length::
 
@@ -351,7 +352,7 @@ def direct_form_1_iir(
     mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
     add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
-    """Generates a direct-form IIR filter of type I with coefficients a and b."""
+    """Generate a direct-form IIR filter of type I with coefficients a and b."""
     if len(a) < 2 or len(b) < 2:
         raise ValueError(
             "Size of coefficient lists a and b needs to contain at least 2 element."
@@ -425,7 +426,7 @@ def direct_form_2_iir(
     mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
     add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
-    """Generates a direct-form IIR filter of type II with coefficients a and b."""
+    """Generate a direct-form IIR filter of type II with coefficients a and b."""
     if len(a) < 2 or len(b) < 2:
         raise ValueError(
             "Size of coefficient lists a and b needs to contain at least 2 element."
@@ -503,7 +504,8 @@ def direct_form_2_iir(
 
 
 def radix_2_dif_fft(points: int) -> SFG:
-    """Generates a radix-2 decimation-in-frequency FFT structure.
+    """
+    Generate a radix-2 decimation-in-frequency FFT structure.
 
     Parameters
     ----------
@@ -548,7 +550,8 @@ def ldlt_matrix_inverse(
     mads_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
     reciprocal_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
-    """Generates an SFG for the LDLT matrix inverse algorithm.
+    """
+    Generate an SFG for the LDLT matrix inverse algorithm.
 
     Parameters
     ----------

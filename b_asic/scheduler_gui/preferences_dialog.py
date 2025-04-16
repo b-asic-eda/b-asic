@@ -169,7 +169,7 @@ class PreferencesDialog(QWidget):
         layout.addWidget(groupbox)
 
         reset_font_button = ColorButton(QColor("silver"))
-        reset_font_button.setText("Reset All Font Settings")
+        reset_font_button.setText("Reset all font Settings")
         reset_font_button.pressed.connect(lambda: self.reset_font_clicked())
         layout.addWidget(reset_font_button)
 
@@ -216,7 +216,8 @@ class PreferencesDialog(QWidget):
         self.update_font()
 
     def create_color_button(self, color: ColorDataType) -> ColorButton:
-        """Create a colored button to be used to modify a certain color
+        """
+        Create a colored button to be used to modify a certain color.
 
         Parameters
         ----------
@@ -308,7 +309,7 @@ class PreferencesDialog(QWidget):
 
     def color_button_clicked(self, color_type: ColorDataType) -> None:
         """
-        Open a color dialog to select a color based on the specified color type
+        Open a color dialog to select a color based on the specified color type.
 
         Parameters
         ----------
@@ -379,7 +380,7 @@ class PreferencesDialog(QWidget):
             self._boldbutton.set_color(QColor("snow"))
 
     def update_font(self):
-        """Update font preferences based on current Font settings"""
+        """Update font preferences based on current Font settings."""
         settings = QSettings()
         FONT.changed = not (
             FONT.current_font == FONT.DEFAULT
@@ -395,7 +396,7 @@ class PreferencesDialog(QWidget):
         self._parent.load_preferences()
 
     def font_color_clicked(self):
-        """Select a font color and update preferences"""
+        """Select a font color and update preferences."""
         settings = QSettings()
         color = QColorDialog.getColor(FONT.color, self, "Select font color")
         if color.isValid():
@@ -406,7 +407,7 @@ class PreferencesDialog(QWidget):
         self._parent._graph._font_color_change(FONT.color)
 
     def reset_color_clicked(self):
-        """Reset the color settings"""
+        """Reset the color settings."""
         settings = QSettings()
         reset_color_settings(settings)
         self._parent._color_changed_per_type = False

@@ -918,7 +918,17 @@ class ProcessCollection:
             "greedy_graph_color",
             "ilp_graph_color",
         ] = "left_edge",
-        coloring_strategy: str = "saturation_largest_first",
+        coloring_strategy: Literal[
+            'largest_first',
+            'random_sequential',
+            'smallest_last',
+            'independent_set',
+            'connected_sequential_bfs',
+            'connected_sequential_dfs',
+            'connected_sequential',
+            'saturation_largest_first',
+            'DSATUR',
+        ] = "saturation_largest_first",
         max_colors: int | None = None,
         solver: PULP_CBC_CMD | GUROBI | None = None,
     ) -> list["ProcessCollection"]:
@@ -950,9 +960,10 @@ class ProcessCollection:
 
         solver : PuLP MIP solver object, optional
             Only used if strategy is an ILP method.
-            Valid options are:
-                * PULP_CBC_CMD() - preinstalled with the package
-                * GUROBI() - required licence but likely faster
+            Valid options are
+
+            * PULP_CBC_CMD() - preinstalled
+            * GUROBI() - license required, but likely faster
 
         Returns
         -------
@@ -969,7 +980,15 @@ class ProcessCollection:
 
     def split_on_ports(
         self,
-        strategy: str = "left_edge",
+        strategy: Literal[
+            "ilp_graph_color",
+            "ilp_min_input_mux",
+            "greedy_graph_color",
+            "equitable_graph_color",
+            "left_edge",
+            "left_edge_min_pe_to_mem",
+            "left_edge_min_mem_to_pe",
+        ] = "left_edge",
         read_ports: int | None = None,
         write_ports: int | None = None,
         total_ports: int | None = None,
@@ -986,35 +1005,43 @@ class ProcessCollection:
         ----------
         strategy : str, default: "left_edge"
             The strategy used when splitting this :class:`ProcessCollection`.
-            Valid options are:
-                * "ilp_graph_color"
-                * "ilp_min_input_mux"
-                * "greedy_graph_color"
-                * "equitable_graph_color"
-                * "left_edge"
-                * "left_edge_min_pe_to_mem"
-                * "left_edge_min_mem_to_pe"
+            Valid options are
+
+            * "ilp_graph_color" - ILP-based optimal graph coloring
+            * "ilp_min_input_mux" - ILP-based optimal graph coloring minimizing the number of input multiplexers
+            * "greedy_graph_color"
+            * "equitable_graph_color"
+            * "left_edge"
+            * "left_edge_min_pe_to_mem"
+            * "left_edge_min_mem_to_pe"
+
         read_ports : int, optional
             The number of read ports used when splitting process collection based on
             memory variable access.
+
         write_ports : int, optional
             The number of write ports used when splitting process collection based on
             memory variable access.
+
         total_ports : int, optional
             The total number of ports used when splitting process collection based on
             memory variable access.
-        processing_elements : list of ProcessingElement, optional
+
+        processing_elements : list of :class:`ProcessingElement`, optional
             The currently used PEs,
-            only required if strategy = "left_edge_min_mem_to_pe",
+            only required if *strategy* is "left_edge_min_mem_to_pe",
             "ilp_graph_color" or "ilp_min_input_mux".
+
         max_colors : int, optional
             The maximum amount of colors to split based on,
             only required if strategy is an ILP method.
+
         solver : PuLP MIP solver object, optional
             Only used if strategy is an ILP method.
-            Valid options are:
-                * PULP_CBC_CMD() - preinstalled with the package
-                * GUROBI() - required licence but likely faster
+            Valid options are
+
+            * PULP_CBC_CMD() - preinstalled with the package
+            * GUROBI() - required licence but likely faster
 
         Returns
         -------
@@ -1128,13 +1155,12 @@ class ProcessCollection:
         sequence: list[Process],
     ) -> list["ProcessCollection"]:
         """
-        Split this collection into multiple new collections by sequentially assigning
-        processes in the order of `sequence`.
+        Split this collection by sequentially assigning processes in the order of `sequence`.
 
         This method takes the processes from `sequence`, in order, and assigns them to
         to multiple new `ProcessCollection` based on port collisions in a first-come
-        first-served manner. The first `Process` in `sequence` is assigned first, and
-        the last `Process` in `sequence is assigned last.
+        first-served manner. The first :class:`Process` in `sequence` is assigned first, and
+        the last :class:`Process` in `sequence is assigned last.
 
         Parameters
         ----------
@@ -1147,14 +1173,14 @@ class ProcessCollection:
         total_ports : int
             The total number of ports used when splitting process collection based on
             memory variable access.
-        sequence : list of `Process`
+        sequence : list of :class:`Process`
             A list of the processes used to determine the order in which processes are
             assigned.
 
         Returns
         -------
-        list of `ProcessCollection`
-            A set of new ProcessCollection objects with the process splitting.
+        list of :class:`ProcessCollection`
+            A list of new :class:`ProcessCollection` objects with the process splitting.
         """
 
         if set(self.collection) != set(sequence):

@@ -39,7 +39,9 @@ class Constant(AbstractOperation):
     is_constant = True
 
     def __init__(self, value: Num = 0, name: Name = ""):
-        """Construct a Constant operation with the given value."""
+        """
+        Construct a Constant operation with the given value.
+        """
         super().__init__(
             input_count=0,
             output_count=1,
@@ -57,12 +59,16 @@ class Constant(AbstractOperation):
 
     @property
     def value(self) -> Num:
-        """Get the constant value of this operation."""
+        """
+        Get the constant value of this operation.
+        """
         return self.param("value")
 
     @value.setter
     def value(self, value: Num) -> None:
-        """Set the constant value of this operation."""
+        """
+        Set the constant value of this operation.
+        """
         self.set_param("value", value)
 
     @property
@@ -245,7 +251,9 @@ class Subtraction(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
     ):
-        """Construct a Subtraction operation."""
+        """
+        Construct a Subtraction operation.
+        """
         super().__init__(
             input_count=2,
             output_count=1,
@@ -334,7 +342,9 @@ class AddSub(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
     ):
-        """Construct an Addition/Subtraction operation."""
+        """
+        Construct an Addition/Subtraction operation.
+        """
         super().__init__(
             input_count=2,
             output_count=1,
@@ -355,12 +365,21 @@ class AddSub(AbstractOperation):
 
     @property
     def is_add(self) -> bool:
-        """Get if operation is an addition."""
+        """
+        Get if operation is an addition.
+        """
         return self.param("is_add")
 
     @is_add.setter
     def is_add(self, is_add: bool) -> None:
-        """Set if operation is an addition."""
+        """
+        Set if operation is an addition.
+
+        Parameters
+        ----------
+        is_add : bool
+            If True, operation is an addition. If False, operation is a subtraction.
+        """
         self.set_param("is_add", is_add)
 
     @property

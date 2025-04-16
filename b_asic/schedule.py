@@ -655,21 +655,23 @@ class Schedule:
         """
         self._sfg.set_execution_time_of_type_name(type_name, execution_time)
 
-    def set_latency_of_type_name(self, type_name: TypeName, latency: int) -> None:
+    def set_latency_of_type_name(
+        self, type_name: TypeName | GraphID, latency: int
+    ) -> None:
         """
         Set the latency of all operations with the given type name.
 
         Parameters
         ----------
-        type_name : TypeName
-            The type name of the operation. For example, obtained as
-            ``Addition.type_name()``.
+        type_name : TypeName or GraphID
+            The type name of the operation, e.g., obtained as
+            ``Addition.type_name()`` or a specific GraphID of an operation.
         latency : int
             The latency of the operation.
         """
         passed = True
         for op in self._sfg.operations:
-            if type_name == op.type_name() or type_name == op.graph_id:
+            if type_name in (op.type_name(), op.graph_id):
                 change_in_latency = latency - op.latency
                 if change_in_latency > (self.forward_slack(op.graph_id)):
                     passed = False
@@ -680,7 +682,7 @@ class Schedule:
                     break
         if change_in_latency < 0 or passed:
             for op in self._sfg.operations:
-                if type_name == op.type_name() or type_name == op.graph_id:
+                if type_name in (op.type_name(), op.graph_id):
                     cast(Operation, op).set_latency(latency)
 
     def move_y_location(

@@ -29,7 +29,7 @@ class Scheduler(ABC):
     input_times : dict(GraphID, int), optional
         The times when inputs arrive.
     output_delta_times : dict(GraphID, int), optional
-        The relative time when outputs should be produced
+        The relative times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-position should be sorted based on start time of operations.
     """
@@ -223,7 +223,18 @@ class Scheduler(ABC):
 
 
 class ASAPScheduler(Scheduler):
-    """Scheduler that implements the as-soon-as-possible (ASAP) algorithm."""
+    """
+    Scheduler that implements the as-soon-as-possible (ASAP) algorithm.
+
+    Parameters
+    ----------
+    input_times : dict(GraphID, int), optional
+        The times when inputs arrive.
+    output_delta_times : dict(GraphID, int), optional
+        The relative times when outputs should be produced.
+    sort_y_location : bool, default: True
+        If the y-position should be sorted based on start time of operations.
+    """
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Doc-string inherited
@@ -307,7 +318,18 @@ class ASAPScheduler(Scheduler):
 
 
 class ALAPScheduler(Scheduler):
-    """Scheduler that implements the as-late-as-possible (ALAP) algorithm."""
+    """
+    Scheduler that implements the as-late-as-possible (ALAP) algorithm.
+
+    Parameters
+    ----------
+    input_times : dict(GraphID, int), optional
+        The times when inputs arrive.
+    output_delta_times : dict(GraphID, int), optional
+        The relative times when outputs should be produced.
+    sort_y_location : bool, default: True
+        If the y-position should be sorted based on start time of operations.
+    """
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Doc-string inherited
@@ -363,7 +385,7 @@ class ALAPScheduler(Scheduler):
 
 class ListScheduler(Scheduler):
     """
-    List-based scheduler that schedules the operations with constraints.
+    List-based scheduler with optional constraints.
 
     .. admonition:: Important
 
@@ -372,19 +394,21 @@ class ListScheduler(Scheduler):
 
     Parameters
     ----------
-    sort_order : tuple[tuple[int, bool]]
+    sort_order : tuple(tuple(int, bool))
         Specifies which columns in the priority table to sort on and in
         which order, where True is ascending order.
     max_resources : dict[TypeName, int] | None, optional
-        Max resources available to realize the schedule, by default None
+        Max resources available to realize the schedule.
     max_concurrent_reads : int | None, optional
-        Max number of conccurent reads, by default None
+        Max number of conccurent reads.
     max_concurrent_writes : int | None, optional
-        Max number of conccurent writes, by default None
-    input_times : dict["GraphID", int] | None, optional
-        Specified input times, by default None
-    output_delta_times : dict["GraphID", int] | None, optional
-        Specified output delta times, by default None
+        Max number of conccurent writes.
+    input_times : dict(GraphID, int) | None, optional
+        The times when inputs arrive.
+    output_delta_times : dict(GraphID, int) | None, optional
+        The relative times when outputs should be produced.
+    sort_y_location : bool, default: True
+        If the y-position should be sorted based on start time of operations.
     """
 
     __slots__ = (
@@ -426,9 +450,9 @@ class ListScheduler(Scheduler):
         max_concurrent_writes: int | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
-        sort_y_locations: bool = True,
+        sort_y_location: bool = True,
     ) -> None:
-        super().__init__(input_times, output_delta_times, sort_y_locations)
+        super().__init__(input_times, output_delta_times, sort_y_location)
         self._sort_order = sort_order
 
         if max_resources is not None:
@@ -886,6 +910,28 @@ class ListScheduler(Scheduler):
 
 
 class RecursiveListScheduler(ListScheduler):
+    """
+    List-based scheduler for recursive algorithms with optional constraints.
+
+    .. admonition:: Info
+
+       If the SFG does not have any recursive parts, use :class:`ListScheduler` instead.
+
+    Parameters
+    ----------
+    sort_order : tuple(tuple(int, bool))
+        Specifies which columns in the priority table to sort on and in
+        which order, where True is ascending order.
+    max_resources : dict[TypeName, int] | None, optional
+        Max resources available to realize the schedule.
+    input_times : dict(GraphID, int) | None, optional
+        The times when inputs arrive.
+    output_delta_times : dict(GraphID, int) | None, optional
+        The relative times when outputs should be produced.
+    sort_y_location : bool, default: True
+        If the y-position should be sorted based on start time of operations.
+    """
+
     __slots__ = ('_recursive_ops', '_recursive_ops_set', '_remaining_recursive_ops')
 
     def __init__(
@@ -894,12 +940,14 @@ class RecursiveListScheduler(ListScheduler):
         max_resources: dict[TypeName, int] | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
+        sort_y_location: bool = True,
     ) -> None:
         super().__init__(
             sort_order=sort_order,
             max_resources=max_resources,
             input_times=input_times,
             output_delta_times=output_delta_times,
+            sort_y_location=sort_y_location,
         )
 
     def apply_scheduling(self, schedule: "Schedule") -> None:

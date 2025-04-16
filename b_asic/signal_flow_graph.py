@@ -13,7 +13,7 @@ from fractions import Fraction
 from io import StringIO
 from math import ceil
 from queue import PriorityQueue
-from typing import ClassVar, Literal, Union, cast
+from typing import Literal, Union, cast
 
 import numpy as np
 from graphviz import Digraph
@@ -797,7 +797,7 @@ class SFG(AbstractOperation):
             The source operation GraphID to connect to.
         new_operation : Operation
             The new operation, e.g. Multiplication.
-        port : Optional[int]
+        port : int, optional
             The number of the InputPort before which the new operation shall be
             inserted.
         """

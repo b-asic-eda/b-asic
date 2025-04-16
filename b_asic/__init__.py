@@ -1,5 +1,7 @@
-"""B-ASIC - Better ASIC Toolbox.
-ASIC toolbox that simplifies circuit design and optimization.
+"""
+B-ASIC - Better ASIC Toolbox.
+
+A Python toolbox that simplifies implementation and optimization of static algorithms.
 """
 
 # Python modules.

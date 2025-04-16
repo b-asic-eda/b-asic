@@ -59,8 +59,7 @@ def getLogger(
     name: str, filename: str | None = "", console_log_level: str = "warning"
 ) -> Logger:
     """
-    This function creates console- and filehandler and from those, creates a logger
-    object.
+    Create console- and filehandler and from those, create a logger object.
 
     Parameters
     ----------
@@ -125,8 +124,11 @@ def handle_exceptions(
     exc_value: BaseException,
     exc_traceback: TracebackType | None,
 ) -> None:
-    """This function is a helper function to log uncaught exceptions. Install with:
-    `sys.excepthook = <module>.handle_exceptions`"""
+    """
+    Helper function to log uncaught exceptions.
+
+    Install with: `sys.excepthook = <module>.handle_exceptions`
+    """
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return

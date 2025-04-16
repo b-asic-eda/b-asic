@@ -38,7 +38,7 @@ scheduler\_gui.operation\_item module
    :show-inheritance:
 
 scheduler\_gui.preferences\_dialog module
--------------------------------------
+-----------------------------------------
 
 .. automodule:: b_asic.scheduler_gui.preferences_dialog
    :members:

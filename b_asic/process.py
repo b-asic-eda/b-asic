@@ -303,7 +303,7 @@ class MemoryVariable(MemoryProcess):
         super().__init__(
             write_time=write_time,
             life_times=list(reads.values()),
-            name=name,
+            name=name or write_port.name,
         )
 
     @property
@@ -378,7 +378,7 @@ class PlainMemoryVariable(MemoryProcess):
     __slots__ = ("_reads", "_read_ports", "_write_port")
     _reads: dict[int, int]
     _read_ports: list[int]
-    _write_port: OutputPort
+    _write_port: int
 
     def __init__(
         self,

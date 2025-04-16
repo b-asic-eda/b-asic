@@ -110,7 +110,9 @@ class HardwareBlock:
 
     @property
     def schedule_time(self) -> int:
-        """The schedule time for hardware block."""
+        """
+        The schedule time for hardware block.
+        """
         raise NotImplementedError()
 
     def write_component_declaration(self, f: TextIOWrapper, indent: int = 1) -> None:
@@ -182,12 +184,16 @@ class Resource(HardwareBlock):
 
     @property
     def input_count(self) -> int:
-        """Number of input ports."""
+        """
+        Number of input ports.
+        """
         return self._input_count
 
     @property
     def output_count(self) -> int:
-        """Number of output ports."""
+        """
+        Number of output ports.
+        """
         return self._output_count
 
     def _struct_def(self) -> str:

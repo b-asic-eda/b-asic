@@ -56,18 +56,24 @@ class Operation(GraphComponent, SignalSourceProvider):
     @property
     @abstractmethod
     def input_count(self) -> int:
-        """Get the number of input ports."""
+        """
+        Get the number of input ports.
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def output_count(self) -> int:
-        """Get the number of output ports."""
+        """
+        Get the number of output ports.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def input(self, index: int) -> InputPort:
-        """Get the input port at the given index."""
+        """
+        Get the input port at the given index.
+        """
         raise NotImplementedError
 
     @abstractmethod
