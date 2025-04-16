@@ -920,15 +920,15 @@ class ProcessCollection:
             "ilp_graph_color",
         ] = "left_edge",
         coloring_strategy: Literal[
-            'largest_first',
-            'random_sequential',
-            'smallest_last',
-            'independent_set',
-            'connected_sequential_bfs',
-            'connected_sequential_dfs',
-            'connected_sequential',
-            'saturation_largest_first',
-            'DSATUR',
+            "largest_first",
+            "random_sequential",
+            "smallest_last",
+            "independent_set",
+            "connected_sequential_bfs",
+            "connected_sequential_dfs",
+            "connected_sequential",
+            "saturation_largest_first",
+            "DSATUR",
         ] = "saturation_largest_first",
         max_colors: int | None = None,
         solver: PULP_CBC_CMD | GUROBI | None = None,
@@ -1215,7 +1215,6 @@ class ProcessCollection:
         sequence: list[Process],
         processing_elements: list["ProcessingElement"],
     ) -> list["ProcessCollection"]:
-
         if set(self.collection) != set(sequence):
             raise KeyError("processes in `sequence` must be equal to processes in self")
 
@@ -1281,7 +1280,6 @@ class ProcessCollection:
         sequence: list[Process],
         processing_elements: list["ProcessingElement"],
     ) -> list["ProcessCollection"]:
-
         if set(self.collection) != set(sequence):
             raise KeyError("processes in `sequence` must be equal to processes in self")
 
@@ -1308,7 +1306,6 @@ class ProcessCollection:
 
             for i, collection in enumerate(collections):
                 if process_fits_in_collection[i]:
-
                     count_1 = ProcessCollection._count_number_of_pes_written_to(
                         processing_elements, collection
                     )

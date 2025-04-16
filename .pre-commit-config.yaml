@@ -18,22 +18,20 @@ repos:
     hooks:
       - id: typos
 
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
-    hooks:
-      - id: black
-
   - repo: https://github.com/Carreau/velin
     rev: 0.0.11
     hooks:
       - id: velin
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.11.4"
+    rev: "v0.11.5"
     hooks:
+      # Run the linter.
       - id: ruff
-        args: ["--fix", "--select", "I"]
+        args: [--fix]
+      # Run the formatter.
+      - id: ruff-format
 
   - repo: https://github.com/adamchainz/blacken-docs
     rev: 1.19.1

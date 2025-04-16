@@ -85,9 +85,9 @@ def compile_rc(*filenames: str) -> None:
         if rcc is None:
             rcc = shutil.which("pyrcc5")
             arguments = f"-o {outfile} {filename}"
-        assert (
-            rcc
-        ), "Qt Resource compiler failed, cannot find pyside2-rcc, rcc, or pyrcc5"
+        assert rcc, (
+            "Qt Resource compiler failed, cannot find pyside2-rcc, rcc, or pyrcc5"
+        )
 
         os_ = sys.platform
         if os_.startswith("linux"):  # Linux

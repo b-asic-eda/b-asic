@@ -171,9 +171,7 @@ class AbstractGraphComponent(GraphComponent):
         new_component.name = copy(self.name)
         new_component.graph_id = copy(self.graph_id)
         for name, value in self.params.items():
-            new_component.set_param(
-                copy(name), deepcopy(value)
-            )  # pylint: disable=no-member
+            new_component.set_param(copy(name), deepcopy(value))  # pylint: disable=no-member
         return new_component
 
     def traverse(self) -> Generator[GraphComponent, None, None]:

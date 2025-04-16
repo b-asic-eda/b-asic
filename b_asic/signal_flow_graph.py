@@ -65,9 +65,7 @@ class GraphIDGenerator:
     @property
     def id_number_offset(self) -> GraphIDNumber:
         """Get the graph id number offset of this generator."""
-        return GraphIDNumber(
-            self._next_id_number.default_factory()
-        )  # pylint: disable=not-callable
+        return GraphIDNumber(self._next_id_number.default_factory())  # pylint: disable=not-callable
 
 
 class SFG(AbstractOperation):
@@ -2245,9 +2243,8 @@ class SFG(AbstractOperation):
                     input_port = sfgs[j].input(input_name_to_idx["input_t" + index])
                     input_port.connect(port)
                     delay_placements[port] = [i, number_of_delays_between]
-            sfgs[i].graph_id = (
-                f"sfg{i}"  # deterministically set the graphID of the sfgs
-            )
+            # deterministically set the graphID of the SFGs
+            sfgs[i].graph_id = f"sfg{i}"
 
         sfg = SFG(new_inputs, new_outputs)  # create a new SFG to remove floating nodes
 

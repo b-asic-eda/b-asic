@@ -35,11 +35,11 @@ class Scheduler(ABC):
     """
 
     __slots__ = (
-        '_schedule',
-        '_op_laps',
-        '_input_times',
-        '_output_delta_times',
-        '_sort_y_location',
+        "_schedule",
+        "_op_laps",
+        "_input_times",
+        "_output_delta_times",
+        "_sort_y_location",
     )
 
     _schedule: "Schedule"
@@ -412,23 +412,23 @@ class ListScheduler(Scheduler):
     """
 
     __slots__ = (
-        '_remaining_ops',
-        '_deadlines',
-        '_output_slacks',
-        '_fan_outs',
-        '_current_time',
-        '_cached_execution_times_in_time',
-        '_alap_start_times',
-        '_sort_order',
-        '_max_resources',
-        '_max_concurrent_reads',
-        '_max_concurrent_writes',
-        '_remaining_ops_set',
-        '_alap_op_laps',
-        '_alap_schedule_time',
-        '_used_reads',
-        '_remaining_resources',
-        '_cached_execution_times',
+        "_remaining_ops",
+        "_deadlines",
+        "_output_slacks",
+        "_fan_outs",
+        "_current_time",
+        "_cached_execution_times_in_time",
+        "_alap_start_times",
+        "_sort_order",
+        "_max_resources",
+        "_max_concurrent_reads",
+        "_max_concurrent_writes",
+        "_remaining_ops_set",
+        "_alap_op_laps",
+        "_alap_schedule_time",
+        "_used_reads",
+        "_remaining_resources",
+        "_cached_execution_times",
     )
     _remaining_ops: list["GraphID"]
     _deadlines: dict["GraphID", int]
@@ -932,7 +932,7 @@ class RecursiveListScheduler(ListScheduler):
         If the y-location should be sorted based on start time of operations.
     """
 
-    __slots__ = ('_recursive_ops', '_recursive_ops_set', '_remaining_recursive_ops')
+    __slots__ = ("_recursive_ops", "_recursive_ops_set", "_remaining_recursive_ops")
 
     def __init__(
         self,

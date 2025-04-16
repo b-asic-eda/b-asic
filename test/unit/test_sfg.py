@@ -1988,9 +1988,7 @@ class TestStateSpace:
     def test_sfg_two_inputs_two_outputs_independent_with_cmul(
         self, sfg_two_inputs_two_outputs_independent_with_cmul
     ):
-        ss = (
-            sfg_two_inputs_two_outputs_independent_with_cmul.state_space_representation()
-        )
+        ss = sfg_two_inputs_two_outputs_independent_with_cmul.state_space_representation()
 
         assert ss[0] == ["y0", "y1"]
         assert (ss[1] == np.array([[20.0, 0.0], [0.0, 8.0]])).all()
