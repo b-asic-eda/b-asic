@@ -3,7 +3,7 @@
 ********************
 
 
-.. inheritance-diagram:: b_asic.operation
+.. inheritance-diagram:: b_asic.scheduler
    :parts: 1
    :top-classes: b_asic.scheduler.Scheduler
 

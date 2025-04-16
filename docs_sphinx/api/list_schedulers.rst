@@ -1,7 +1,7 @@
 **************************
 ``b_asic.list_schedulers``
 **************************
-.. inheritance-diagram:: b_asic.operation
+.. inheritance-diagram:: b_asic.list_schedulers
    :parts: 1
    :top-classes: b_asic.scheduler.ListScheduler
 
