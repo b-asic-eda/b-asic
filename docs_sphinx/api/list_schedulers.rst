@@ -1,7 +1,9 @@
 **************************
 ``b_asic.list_schedulers``
 **************************
-:mod:`.list_schedulers`
+.. inheritance-diagram:: b_asic.operation
+   :parts: 1
+   :top-classes: b_asic.scheduler.ListScheduler
 
 .. automodule:: b_asic.list_schedulers
    :members:
