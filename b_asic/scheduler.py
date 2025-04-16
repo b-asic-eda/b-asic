@@ -22,7 +22,7 @@ PriorityTableType = list[tuple["GraphID", int, int, int, int]]
 
 class Scheduler(ABC):
     """
-    Scheduler base class
+    Scheduler base class.
 
     Parameters
     ----------
@@ -31,7 +31,7 @@ class Scheduler(ABC):
     output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
     sort_y_location : bool, default: True
-        If the y-position should be sorted based on start time of operations.
+        If the y-location should be sorted based on start time of operations.
     """
 
     __slots__ = (
@@ -233,7 +233,7 @@ class ASAPScheduler(Scheduler):
     output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
     sort_y_location : bool, default: True
-        If the y-position should be sorted based on start time of operations.
+        If the y-location should be sorted based on start time of operations.
     """
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
@@ -328,7 +328,7 @@ class ALAPScheduler(Scheduler):
     output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
     sort_y_location : bool, default: True
-        If the y-position should be sorted based on start time of operations.
+        If the y-location should be sorted based on start time of operations.
     """
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
@@ -408,7 +408,7 @@ class ListScheduler(Scheduler):
     output_delta_times : dict(GraphID, int) | None, optional
         The relative times when outputs should be produced.
     sort_y_location : bool, default: True
-        If the y-position should be sorted based on start time of operations.
+        If the y-location should be sorted based on start time of operations.
     """
 
     __slots__ = (
@@ -929,7 +929,7 @@ class RecursiveListScheduler(ListScheduler):
     output_delta_times : dict(GraphID, int) | None, optional
         The relative times when outputs should be produced.
     sort_y_location : bool, default: True
-        If the y-position should be sorted based on start time of operations.
+        If the y-location should be sorted based on start time of operations.
     """
 
     __slots__ = ('_recursive_ops', '_recursive_ops_set', '_remaining_recursive_ops')

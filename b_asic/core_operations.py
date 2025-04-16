@@ -1683,7 +1683,6 @@ class DontCare(AbstractOperation):
     ----------
     name : Name, optional
         Operation name.
-
     """
 
     __slots__ = "_name"

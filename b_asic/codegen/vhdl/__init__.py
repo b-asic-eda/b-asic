@@ -28,7 +28,7 @@ def write(
     f : TextIO
         The file object to emit VHDL code to.
     indent_level : int
-        Indentation level to use. Exactly ``f'{VHDL_TAB*indent_level}`` is written
+        Indentation level to use. Exactly ``f'{VHDL_TAB*indent_level}'`` is written
         before the text is written.
     text : str
         The text to write to.

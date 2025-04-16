@@ -279,7 +279,7 @@ class Resource(HardwareBlock):
     def is_assigned(self) -> bool:
         return self._assignment is not None
 
-    def assign(self, strategy: str = "left_edge"):
+    def assign(self, strategy: Literal["left_edge"] = "left_edge"):
         """
         Perform assignment of processes to resource.
 
@@ -851,7 +851,6 @@ of :class:`~b_asic.architecture.ProcessingElement`
         Returns
         -------
         :class:`Resource`
-
         """
         re = {p.entity_name: p for p in chain(self.memories, self.processing_elements)}
         return re[name]
@@ -881,7 +880,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         else:
             raise ValueError("Resource not in architecture")
 
-    def assign_resources(self, strategy: str = "left_edge") -> None:
+    def assign_resources(self, strategy: Literal["left_edge"] = "left_edge") -> None:
         """
         Convenience method to assign all resources in the architecture.
 
@@ -894,7 +893,6 @@ of :class:`~b_asic.architecture.ProcessingElement`
         --------
         Memory.assign
         ProcessingElement.assign
-
         """
         for resource in chain(self.memories, self.processing_elements):
             resource.assign(strategy=strategy)
@@ -938,6 +936,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         if isinstance(proc, str):
             proc = source.collection.from_name(proc)
 
+        proc = cast(Process, proc)
         # Move the process
         if proc in source:
             destination.add_process(proc, assign=assign)

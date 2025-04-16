@@ -558,15 +558,12 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             dict_ele = []
             for signal in current_input.signals:
                 if signal.source:
-                    if signal.source_operation.graph_id:
-                        dict_ele.append(signal.source_operation.graph_id)
-                    else:
-                        dict_ele.append(GraphID("no_id"))
+                    dict_ele.append(
+                        cast(Operation, signal.source_operation).graph_id
+                        or GraphID("no_id")
+                    )
                 else:
-                    if signal.graph_id:
-                        dict_ele.append(signal.graph_id)
-                    else:
-                        dict_ele.append(GraphID("no_id"))
+                    dict_ele.append(signal.graph_id or GraphID("no_id"))
             inputs_dict[i] = dict_ele
 
         outputs_dict: dict[int, list[GraphID] | str] = {}
@@ -577,15 +574,12 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             dict_ele = []
             for signal in outport.signals:
                 if signal.destination:
-                    if signal.destination_operation.graph_id:
-                        dict_ele.append(signal.destination_operation.graph_id)
-                    else:
-                        dict_ele.append(GraphID("no_id"))
+                    dict_ele.append(
+                        cast(Operation, signal.destination_operation).graph_id
+                        or GraphID("no_id")
+                    )
                 else:
-                    if signal.graph_id:
-                        dict_ele.append(signal.graph_id)
-                    else:
-                        dict_ele.append(GraphID("no_id"))
+                    dict_ele.append(signal.graph_id or GraphID("no_id"))
             outputs_dict[i] = dict_ele
 
         return (
@@ -781,11 +775,11 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return list(range(self.input_count))
 
     @property
-    def neighbors(self) -> Iterable[GraphComponent]:
+    def neighbors(self) -> Sequence[GraphComponent]:
         return list(self.input_signals) + list(self.output_signals)
 
     @property
-    def preceding_operations(self) -> Iterable[Operation]:
+    def preceding_operations(self) -> list[Operation]:
         """
         Return an Iterable of all Operations that are connected to this
         Operations input ports.
@@ -795,7 +789,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         ]
 
     @property
-    def subsequent_operations(self) -> Iterable[Operation]:
+    def subsequent_operations(self) -> list[Operation]:
         """
         Return an Iterable of all Operations that are connected to this
         Operations output ports.

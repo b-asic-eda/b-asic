@@ -2,6 +2,10 @@
 ``b_asic.codegen.vhdl``
 ***********************
 
+.. automodule:: b_asic.codegen.vhdl
+   :members:
+   :undoc-members:
+
 ``common`` module
 -----------------
 

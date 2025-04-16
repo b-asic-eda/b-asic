@@ -218,7 +218,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.splitter.setCollapsible(1, True)
 
     def _init_graphics(self) -> None:
-        """Initialize the QGraphics framework"""
+        """Initialize the QGraphics framework."""
         self._scene = QGraphicsScene()
         self._scene.addRect(0, 0, 0, 0)  # dummy rect to be able to setPos() graph
         self.view.setScene(self._scene)
@@ -277,7 +277,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def _decrease_time_resolution(self) -> None:
         """Callback for decreasing time resolution."""
         # Get possible factors
-        vals = [str(v) for v in self.schedule.get_possible_time_resolution_decrements()]
+        vals = [
+            str(v) for v in self._schedule.get_possible_time_resolution_decrements()
+        ]
         # Create dialog
         factor, ok = QInputDialog.getItem(
             self, "Decrease time resolution", "Factor", vals, editable=False
@@ -285,8 +287,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # Check return value
         if ok:
             if int(factor) > 1:
-                self.schedule.decrease_time_resolution(int(factor))
-                self.open(self.schedule)
+                self._schedule.decrease_time_resolution(int(factor))
+                self.open(self._schedule)
                 print(f"schedule.decrease_time_resolution({factor})")
                 self.update_statusbar(f"Time resolution decreased by a factor {factor}")
         else:  # Cancelled
@@ -703,7 +705,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _reopen_schedule(self) -> None:
-        self.open(self._schedule)
+        self.open(cast(Schedule, self._schedule))
 
     def update_statusbar(self, msg: str) -> None:
         """
@@ -945,7 +947,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.update_statusbar("Saved Preferences Loaded")
 
     def update_color_preferences(self) -> None:
-        """Update preferences of Latency color per type"""
+        """Update preferences of Latency color per type."""
         used_type_names = self._schedule.get_used_type_names()
         match (LATENCY_COLOR_TYPE.changed, self._color_changed_per_type):
             case (True, False):
@@ -975,7 +977,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.save_colortype()
 
     def save_colortype(self) -> None:
-        """Save preferences of Latency color per type in settings"""
+        """Save preferences of Latency color per type in settings."""
         settings = QSettings()
         for key, color in self._color_per_type.items():
             if self._graph:

@@ -216,7 +216,7 @@ class OperationItem(QGraphicsItemGroup):
         self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
     def set_font(self, font: QFont) -> None:
-        """Set the items font settings according to a give QFont."""
+        """Set the items font settings to *font*."""
         self._label_item.prepareGeometryChange()
         self._label_item.setFont(font)
         center = self._latency_item.boundingRect().center()
@@ -224,16 +224,18 @@ class OperationItem(QGraphicsItemGroup):
         self._label_item.setPos(self._latency_item.pos() + center)
 
     def set_font_color(self, color: QColor) -> None:
-        """Set the items font color settings according to a give QColor"""
+        """Set the items font color settings to *color*."""
         self._label_item.prepareGeometryChange()
         self._label_item.setBrush(color)
 
     def set_show_port_numbers(self, port_number: bool = True):
+        """Set if port numbers are shown."""
         for item in self._port_number_items:
             item.setVisible(port_number)
 
     def set_port_active(self, key: str):
-        item = self._ports[key]["item"]
+        """Set the port as active, i.e., draw it in special colors."""
+        item = cast(QPointF, self._ports[key]["item"])
         if ACTIVE_COLOR_TYPE.changed:
             self._port_filling_brush_active = QBrush(ACTIVE_COLOR_TYPE.current_color)
             self._port_outline_pen_active = QPen(ACTIVE_COLOR_TYPE.current_color)
@@ -246,7 +248,8 @@ class OperationItem(QGraphicsItemGroup):
         item.setPen(self._port_outline_pen_active)
 
     def set_port_inactive(self, key: str, warning: bool = False):
-        item = self._ports[key]["item"]
+        """Set the port as inactive, i.e., draw it in standard colors."""
+        item = cast(QPointF, self._ports[key]["item"])
         item.setBrush(
             self._port_filling_brush_warning if warning else self._port_filling_brush
         )
@@ -347,6 +350,7 @@ class OperationItem(QGraphicsItemGroup):
         self.set_inactive()
 
     def _open_context_menu(self):
+        """Create and open context menu."""
         menu = QMenu()
         swap = QAction(get_icon("swap"), "Swap")
         menu.addAction(swap)

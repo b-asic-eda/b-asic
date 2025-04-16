@@ -696,9 +696,9 @@ class Schedule:
         graph_id : GraphID
             The GraphID of the operation to move.
         new_y : int
-            The new y-position of the operation.
+            The new y-location of the operation.
         insert : bool, optional
-            If True, all operations on that y-position will be moved one position.
+            If True, all operations on that y-location will be moved one position.
             The default is False.
         """
         if insert:
@@ -723,7 +723,7 @@ class Schedule:
 
     def get_y_location(self, graph_id: GraphID) -> int:
         """
-        Get the y-position of the Operation with GraphID *graph_id*.
+        Get the y-location of the Operation with GraphID *graph_id*.
 
         Parameters
         ----------
@@ -733,20 +733,20 @@ class Schedule:
         Returns
         -------
         int
-            The y-position of the operation.
+            The y-location of the operation.
         """
         return self._y_locations[graph_id]
 
     def set_y_location(self, graph_id: GraphID, y_location: int) -> None:
         """
-        Set the y-position of the Operation with GraphID *graph_id* to *y_location*.
+        Set the y-location of the Operation with GraphID *graph_id* to *y_location*.
 
         Parameters
         ----------
         graph_id : GraphID
             The GraphID of the operation to move.
         y_location : int
-            The new y-position of the operation.
+            The new y-location of the operation.
         """
         self._y_locations[graph_id] = y_location
 
@@ -761,7 +761,8 @@ class Schedule:
     def place_operation(
         self, op: Operation, time: int, op_laps: dict[GraphID, int]
     ) -> None:
-        """Schedule the given operation in given time.
+        """
+        Schedule *op* at *time*.
 
         Parameters
         ----------
@@ -784,7 +785,7 @@ class Schedule:
             laps = 0
             if self._schedule_time is not None:
                 current_lap = time // self._schedule_time
-                source_port = source_op = input_port.signals[0].source
+                source_port = cast(OutputPort, input_port.signals[0].source)
                 source_op = source_port.operation
 
                 if not isinstance(source_op, (Delay, DontCare)):
@@ -1356,7 +1357,7 @@ class Schedule:
         )
 
     def reset_y_locations(self) -> None:
-        """Reset all the y-locations in the schedule to None"""
+        """Reset all the y-locations in the schedule to None."""
         self._y_locations = defaultdict(_y_locations_default)
 
     def plot(self, ax: Axes, operation_gap: float = OPERATION_GAP) -> None:

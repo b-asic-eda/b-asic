@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable
 from functools import reduce
 from math import floor, log2
-from typing import TYPE_CHECKING, Literal, TypeVar
+from typing import TYPE_CHECKING, Literal, TypeVar, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -204,6 +204,7 @@ def draw_exclusion_graph_coloring(
         "#00aaaa",
         "#666666",
     ]
+    node_color_dict: dict[Process, str | tuple[float, float, float]]
     if color_list is None:
         node_color_dict = {k: COLOR_LIST[v] for k, v in color_dict.items()}
     else:
@@ -1160,7 +1161,7 @@ class ProcessCollection:
         This method takes the processes from `sequence`, in order, and assigns them to
         to multiple new `ProcessCollection` based on port collisions in a first-come
         first-served manner. The first :class:`Process` in `sequence` is assigned first, and
-        the last :class:`Process` in `sequence is assigned last.
+        the last :class:`Process` in `sequence` is assigned last.
 
         Parameters
         ----------
@@ -1264,8 +1265,8 @@ class ProcessCollection:
                     process_fits_in_collection = self._get_process_fits_in_collection(
                         process, collections, read_ports, write_ports, total_ports
                     )
-
-            best_collection.add_process(process)
+            if best_collection is not None:
+                best_collection.add_process(process)
 
         collections = [
             collection for collection in collections if collection.collection
@@ -1331,7 +1332,8 @@ class ProcessCollection:
                     process_fits_in_collection = self._get_process_fits_in_collection(
                         process, collections, read_ports, write_ports, total_ports
                     )
-            best_collection.add_process(process)
+            if best_collection is not None:
+                best_collection.add_process(process)
 
         collections = [
             collection for collection in collections if collection.collection
@@ -1379,7 +1381,7 @@ class ProcessCollection:
     @staticmethod
     def _count_number_of_pes_read_from(
         processing_elements: list["ProcessingElement"],
-        collection: "ProcessCollection",
+        collection: Union["ProcessCollection", list["Process"]],
     ) -> int:
         collection_process_names = {proc.name.split(".")[0] for proc in collection}
         count = 0
@@ -1394,7 +1396,7 @@ class ProcessCollection:
     @staticmethod
     def _count_number_of_pes_written_to(
         processing_elements: list["ProcessingElement"],
-        collection: "ProcessCollection",
+        collection: Union["ProcessCollection", list["Process"]],
     ) -> int:
         collection_process_names = {proc.name.split(".")[0] for proc in collection}
         count = 0
@@ -1853,7 +1855,9 @@ class ProcessCollection:
         -------
         A set of new ProcessCollections.
         """
-        process_collection_set_list = [[] for _ in range(max(coloring.values()) + 1)]
+        process_collection_set_list: list[list[Process]] = [
+            [] for _ in range(max(coloring.values()) + 1)
+        ]
         for process, color in coloring.items():
             process_collection_set_list[color].append(process)
         return [
@@ -2093,7 +2097,7 @@ class ProcessCollection:
         adr_pipe_depth: int | None = None,
     ):
         """
-        Generate VHDL code for memory based storage of processes (MemoryVariables).
+        Generate VHDL code for memory-based storage of processes (MemoryVariables).
 
         Parameters
         ----------
@@ -2243,8 +2247,8 @@ class ProcessCollection:
             A tuple of two ProcessCollections, one with shorter than or equal execution
             times and one with longer execution times.
         """
-        short = []
-        long = []
+        short: list[Process] = []
+        long: list[Process] = []
         for process in self.collection:
             if process.execution_time <= length:
                 short.append(process)
@@ -2274,7 +2278,7 @@ class ProcessCollection:
         total_ports: int = 2,
     ):
         """
-        Generate VHDL code for register based storage.
+        Generate VHDL code for register-based storage of processes (MemoryVariables).
 
         This is based on Forward-Backward Register Allocation.
 
@@ -2302,7 +2306,6 @@ class ProcessCollection:
         ----------
         - K. Parhi: VLSI Digital Signal Processing Systems: Design and
           Implementation, Ch. 6.3.2
-
         """
         # Check that entity name is a valid VHDL identifier
         if not is_valid_vhdl_identifier(entity_name):
