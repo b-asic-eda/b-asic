@@ -834,7 +834,6 @@ class ProcessCollection:
             }
             node1_start_time = node1.start_time % self.schedule_time
             if total_ports == 1 and node1.start_time in node1_stop_times:
-                print(node1.start_time, node1_stop_times)
                 raise ValueError("Cannot read and write in same cycle.")
             for node2 in exclusion_graph:
                 if node1 == node2:
@@ -956,7 +955,7 @@ class ProcessCollection:
             Node ordering strategy passed to
             :func:`networkx.algorithms.coloring.greedy_color`.
             This parameter is only considered if *strategy* is set to 'greedy_graph_color'.
-            One of
+            Valid options are:
 
             * 'largest_first'
             * 'random_sequential'
@@ -1017,7 +1016,7 @@ class ProcessCollection:
         ----------
         strategy : str, default: "left_edge"
             The strategy used when splitting this :class:`ProcessCollection`.
-            Valid options are
+            Valid options are:
 
             * "ilp_graph_color" - ILP-based optimal graph coloring
             * "ilp_min_input_mux" - ILP-based optimal graph coloring minimizing the number of input multiplexers
@@ -1050,7 +1049,7 @@ class ProcessCollection:
 
         solver : PuLP MIP solver object, optional
             Only used if strategy is an ILP method.
-            Valid options are
+            Valid options are:
 
             * PULP_CBC_CMD() - preinstalled with the package
             * GUROBI() - required licence but likely faster
@@ -1789,8 +1788,8 @@ class ProcessCollection:
         #   (1) - nodes have exactly one color
         #   (2) - adjacent nodes cannot have the same color
         #   (3) - only permit assignments if color is used
-        #   (4) - if node is colored then enable the PE which generates that node
-        #   (5) - if node is colored then enable the PE reads from that node
+        #   (4) - if node is colored then enable the PE port which writes to that node
+        #   (5) - if node is colored then enable the PE port which reads from that node
         #   (6) - reduce solution space by assigning colors to the largest clique
         #   (7 & 8) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors

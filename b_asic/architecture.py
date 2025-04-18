@@ -788,8 +788,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
         Returns
         -------
         (dict, dict)
-            A dictionary with the ProcessingElements that are connected to the write and
-            read ports, respectively, with counts of the number of accesses.
+            A dictionary with the ProcessingElements that are connected to the read and
+            write ports, respectively, with counts of the number of accesses.
         """
         if isinstance(mem, str):
             mem = cast(Memory, self.resource_from_name(mem))
@@ -821,10 +821,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         Returns
         -------
         list
-            List of dictionaries indicating the sources for each import and the
+            List of dictionaries indicating the sources for each input port and the
             frequency of accesses.
         list
-            List of dictionaries indicating the sources for each outport and the
+            List of dictionaries indicating the destinations for each output port and the
             frequency of accesses.
         """
         if isinstance(pe, str):
