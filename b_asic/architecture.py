@@ -171,14 +171,21 @@ class Resource(HardwareBlock):
     def __iter__(self):
         return iter(self._collection)
 
-    def _digraph(self) -> Digraph:
+    def _digraph(self, fontname: str = "Times New Roman") -> Digraph:
+        """
+        Parameters
+        ----------
+        fontname : str, default: "Times New Roman"
+            Font to use.
+        """
+
         dg = Digraph(node_attr={"shape": "box"})
         dg.node(
             self.entity_name,
             self._struct_def(),
             style="filled",
             fillcolor=self._color,
-            fontname="Times New Roman",
+            fontname=fontname,
         )
         return dg
 
@@ -1000,6 +1007,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         io_cluster: bool = True,
         multiplexers: bool = True,
         colored: bool = True,
+        fontname: str = "Times New Roman",
     ) -> Digraph:
         """
         Parameters
@@ -1017,6 +1025,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether input multiplexers are included.
         colored : bool, default: True
             Whether to color the nodes.
+        fontname : str, default: "Times New Roman"
+            Font to use.
         """
         dg = Digraph(node_attr={"shape": "box"})
         dg.attr(splines=splines)
@@ -1062,10 +1072,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
                             mem._struct_def(),
                             style="filled",
                             fillcolor=memory_color,
-                            fontname="Times New Roman",
+                            fontname=fontname,
                         )
                     label = "Memory" if len(self._memories) <= 1 else "Memories"
-                    c.attr(label=label, bgcolor=memory_cluster_color)
+                    c.attr(label=label, bgcolor=memory_cluster_color, fontname=fontname)
             with dg.subgraph(name="cluster_pes") as c:
                 for pe in self._processing_elements:
                     if pe._type_name not in ("in", "out"):
@@ -1074,14 +1084,14 @@ of :class:`~b_asic.architecture.ProcessingElement`
                             pe._struct_def(),
                             style="filled",
                             fillcolor=pe_color,
-                            fontname="Times New Roman",
+                            fontname=fontname,
                         )
                 label = (
                     "Processing element"
                     if len(self._processing_elements) <= 1
                     else "Processing elements"
                 )
-                c.attr(label=label, bgcolor=pe_cluster_color)
+                c.attr(label=label, bgcolor=pe_cluster_color, fontname=fontname)
             if io_cluster:
                 with dg.subgraph(name="cluster_io") as c:
                     for pe in self._processing_elements:
@@ -1091,9 +1101,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
                                 pe._struct_def(),
                                 style="filled",
                                 fillcolor=io_color,
-                                fontname="Times New Roman",
+                                fontname=fontname,
                             )
-                    c.attr(label="IO", bgcolor=io_cluster_color)
+                    c.attr(label="IO", bgcolor=io_cluster_color, fontname=fontname)
             else:
                 for pe in self._processing_elements:
                     if pe._type_name in ("in", "out"):
@@ -1102,7 +1112,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                             pe._struct_def(),
                             style="filled",
                             fillcolor=io_color,
-                            fontname="Times New Roman",
+                            fontname=fontname,
                         )
         else:
             for mem in self._memories:
@@ -1111,11 +1121,15 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     mem._struct_def(),
                     style="filled",
                     fillcolor=memory_color,
-                    fontname="Times New Roman",
+                    fontname=fontname,
                 )
             for pe in self._processing_elements:
                 dg.node(
-                    pe.entity_name, pe._struct_def(), style="filled", fillcolor=pe_color
+                    pe.entity_name,
+                    pe._struct_def(),
+                    style="filled",
+                    fillcolor=pe_color,
+                    fontname=fontname,
                 )
 
         # Create list of interconnects
@@ -1172,7 +1186,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                         ret + "</TABLE>>",
                         style="filled",
                         fillcolor=mux_color,
-                        fontname="Times New Roman",
+                        fontname=fontname,
                     )
                     # Add edge from mux output to resource input
                     dg.edge(f"{name}:out0", destination_str)
@@ -1183,13 +1197,13 @@ of :class:`~b_asic.architecture.ProcessingElement`
             if len(destination_counts) > 1 and branch_node:
                 branch = f"{src_str}_branch".replace(":", "")
                 dg.node(branch, shape="point")
-                dg.edge(src_str, branch, arrowhead="none")
+                dg.edge(src_str, branch, arrowhead="none", fontname=fontname)
                 src_str = branch
             for destination_str, cnt_str in destination_counts:
                 if multiplexers and len(destination_list[destination_str]) > 1:
                     idx = destination_list[destination_str].index(original_src_str)
                     destination_str = f"{destination_str.replace(':', '_')}_mux:in{idx}"
-                dg.edge(src_str, destination_str, label=cnt_str)
+                dg.edge(src_str, destination_str, label=cnt_str, fontname=fontname)
         return dg
 
     @property
