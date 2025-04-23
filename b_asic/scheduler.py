@@ -1082,6 +1082,9 @@ class RecursiveListScheduler(ListScheduler):
                     self._schedule._start_times[op_id] -= slack
                 self._schedule._schedule_time = self._schedule._schedule_time - slack
 
+                if self._schedule._schedule_time <= time_goal:
+                    break
+
             time_out_counter -= 1
 
     def _schedule_recursive_ops(self, loops: list[list["GraphID"]]) -> None:
@@ -1125,7 +1128,7 @@ class RecursiveListScheduler(ListScheduler):
             self._remaining_ops_set.remove(op.graph_id)
 
             for i in range(max(1, cast(int, op.execution_time))):
-                time_slot = self._current_time + i
+                time_slot = op_sched_time + i
                 self._cached_execution_times_in_time[op_type][time_slot] += 1
 
             prio_table = self._get_recursive_priority_table()
