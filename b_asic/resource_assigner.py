@@ -152,7 +152,6 @@ def _split_operations_and_variables(
                 pe_colors.append(range(resources[operation.type_name()]))
         else:
             pe_colors.append(list(range(resources[operation.type_name()])))
-        print(operation.type_name())
 
     # generate the exclusion graphs along with a color upper bound for memories
     mem_exclusion_graph = memory_variables.create_exclusion_graph_from_ports(

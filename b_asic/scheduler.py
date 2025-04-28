@@ -593,7 +593,7 @@ class ListScheduler(Scheduler):
         count = 0
         for other_op_id, start_time in self._schedule.start_times.items():
             if self._schedule._schedule_time is not None:
-                start_time = start_time % self._schedule._schedule_time
+                start_time %= self._schedule._schedule_time
             if (
                 time >= start_time
                 and time
@@ -883,10 +883,7 @@ class ListScheduler(Scheduler):
                     (self._current_time, next_op.graph_id),
                 )
 
-                prio_table = self._get_priority_table(
-                    self._remaining_ops
-                    # [r[0] for r in prio_table if r[0] != next_op_id]
-                )
+                prio_table = self._get_priority_table(self._remaining_ops)
 
             self._current_time += 1
         self._current_time -= 1
@@ -1045,17 +1042,44 @@ class RecursiveListScheduler(ListScheduler):
                 op = self._schedule._sfg.find_by_id(op_id)
                 if self._schedule.forward_slack(op_id):
                     delta = 1
-                    new_time = (
-                        self._schedule._start_times[op_id] + delta
-                    ) % self._schedule.schedule_time
+                    new_times = list(
+                        range(
+                            self._schedule._start_times[op_id] + delta,
+                            self._schedule._start_times[op_id]
+                            + delta
+                            + self._cached_execution_times[op_id],
+                        )
+                    )
+                    new_times = [
+                        time % self._schedule.schedule_time for time in new_times
+                    ]
                     op_type = type(op)
-                    exec_count = self._execution_times_in_time(op_type, new_time)
-                    while exec_count >= self._remaining_resources[op_type]:
+                    exec_counts = [
+                        self._execution_times_in_time(op_type, new_time)
+                        for new_time in new_times
+                    ]
+                    while any(
+                        count >= self._remaining_resources[op_type]
+                        for count in exec_counts
+                    ):
                         delta += 1
-                        new_time = (
-                            self._schedule._start_times[op_id] + delta
-                        ) % self._schedule.schedule_time
-                        exec_count = self._execution_times_in_time(type(op), new_time)
+                        new_times = list(
+                            range(
+                                self._schedule._start_times[op_id] + delta,
+                                self._schedule._start_times[op_id]
+                                + delta
+                                + self._cached_execution_times[op_id],
+                            )
+                        )
+                        new_times = [
+                            time % self._schedule.schedule_time for time in new_times
+                        ]
+                        exec_counts = [
+                            self._execution_times_in_time(op_type, new_time)
+                            for new_time in new_times
+                        ]
+                        if delta >= self._schedule._schedule_time:
+                            break
                     if delta > self._schedule.forward_slack(op_id):
                         continue
                     self._schedule.move_operation(op_id, delta)

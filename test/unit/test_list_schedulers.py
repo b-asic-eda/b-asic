@@ -2088,6 +2088,157 @@ class TestRecursiveListScheduler:
             assert schedule.backward_slack(op_id) >= 0
             assert schedule.forward_slack(op_id) >= 0
 
+    def test_benchmarking_biquad_cases(self):
+        b = [1, 0.4, 0.4]
+        a = [1, 0.2, 0.2]
+        sfg = direct_form_2_iir(b, a)
+
+        sfg.set_latency_of_type(Addition, 1)
+        sfg.set_latency_of_type(ConstantMultiplication, 2)
+        sfg.set_execution_time_of_type(Addition, 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication, 1)
+
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True),),
+                max_resources={"cmul": 2, "add": 1},
+            ),
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
+        assert schedule.schedule_time == 4
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True),),
+                max_resources={"cmul": 1, "add": 1},
+            ),
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
+        assert schedule.schedule_time == 5
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
+    def test_benchmarking_cascaded_biquad_cases(self):
+        b = [1, 0.4, 0.4]
+        a = [1, 0.2, 0.2]
+        in_a = Input()
+        sfg1 = direct_form_2_iir(b, a)
+        sfg1 <<= in_a
+        sfg2 = direct_form_2_iir(b, a)
+        sfg2 <<= sfg1
+        out_a = Output(sfg2)
+        sfg1.connect_external_signals_to_components()
+        sfg2.connect_external_signals_to_components()
+        sfg = SFG([in_a], [out_a])
+
+        sfg.set_latency_of_type(Addition, 1)
+        sfg.set_latency_of_type(ConstantMultiplication, 2)
+        sfg.set_execution_time_of_type(Addition, 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication, 1)
+
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True),),
+                max_resources={"cmul": 4, "add": 2},
+            ),
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
+        assert schedule.schedule_time == 4
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True),),
+                max_resources={"cmul": 2, "add": 2},
+            ),
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
+        assert schedule.schedule_time == 4
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
+        schedule = Schedule(
+            sfg,
+            scheduler=RecursiveListScheduler(
+                sort_order=((1, True),),
+                max_resources={"cmul": 1, "add": 1},
+            ),
+            cyclic=True,
+            schedule_time=8,
+        )
+        _validate_recreated_sfg_filter(sfg, schedule)
+        assert schedule.schedule_time == 8
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
+    def test_execution_times(self):
+        in1 = Input("IN1")
+        add1 = Addition(in1, None, "ADD1")
+        T1 = Delay(add1, 0, "T1")
+        T2 = Delay(T1, 0, "T2")
+        b2 = ConstantMultiplication(0.2, T2, "B2")
+        b1 = ConstantMultiplication(0.3, T1, "B1")
+        add2 = Addition(b1, b2, "ADD2")
+        add1.input(1).connect(add2)
+        a1 = ConstantMultiplication(0.4, T1, "A1")
+        a2 = ConstantMultiplication(0.6, T2, "A2")
+        add3 = Addition(a1, a2, "ADD3")
+        a0 = ConstantMultiplication(0.7, add1, "A0")
+        add4 = Addition(a0, add3, "ADD4")
+        out1 = Output(add4, "OUT1")
+
+        sfg = SFG(
+            inputs=[in1], outputs=[out1], name="Second-order direct form IIR filter"
+        )
+        sfg = sfg.unfold(2)
+
+        sfg.set_latency_of_type(ConstantMultiplication, 4)
+        sfg.set_latency_of_type(Addition, 1)
+        sfg.set_execution_time_of_type(ConstantMultiplication, 1)
+        sfg.set_execution_time_of_type(Addition, 1)
+
+        resources = {"cmul": 2, "add": 1}
+        scheduler = RecursiveListScheduler(((2, True),), max_resources=resources)
+        schedule = Schedule(sfg, scheduler=scheduler)
+        assert schedule.schedule_time == sfg.iteration_period_bound()
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
+        # run again with execution time = 2 for cmul
+        sfg.set_execution_time_of_type(ConstantMultiplication, 2)
+        schedule = Schedule(sfg, scheduler=scheduler)
+        assert schedule.schedule_time == sfg.iteration_period_bound()
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
+        # run again with execution time = 4 for cmul
+        sfg.set_execution_time_of_type(ConstantMultiplication, 3)
+        schedule = Schedule(sfg, scheduler=scheduler, cyclic=True, schedule_time=30)
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
+        # run again with execution time = 4 for cmul
+        sfg.set_execution_time_of_type(ConstantMultiplication, 4)
+        schedule = Schedule(sfg, scheduler=scheduler, cyclic=True, schedule_time=30)
+        for op_id in schedule.start_times:
+            assert schedule.backward_slack(op_id) >= 0
+            assert schedule.forward_slack(op_id) >= 0
+
 
 def _validate_recreated_sfg_filter(sfg: SFG, schedule: Schedule) -> None:
     # compare the impulse response of the original sfg and recreated one
