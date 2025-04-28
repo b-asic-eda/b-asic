@@ -575,9 +575,9 @@ class Schedule:
         """
         self._start_times = {k: factor * v for k, v in self._start_times.items()}
         for graph_id in self._start_times:
-            cast(Operation, self._sfg.find_by_id(graph_id))._increase_time_resolution(
-                factor
-            )
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
+            if not isinstance(op, (Input, Output)):
+                op._increase_time_resolution(factor)
         self._schedule_time *= factor
         return self
 
@@ -592,10 +592,11 @@ class Schedule:
         # Loop over operations
         for graph_id in self._start_times:
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
-            ret += [
-                cast(int, operation.execution_time),
-                *operation.latency_offsets.values(),
-            ]
+            if not isinstance(operation, (Input, Output)):
+                ret += [
+                    cast(int, operation.execution_time),
+                    *operation.latency_offsets.values(),
+                ]
         # Remove not set values (None)
         ret = [v for v in ret if v is not None]
         return ret
@@ -603,6 +604,7 @@ class Schedule:
     def get_possible_time_resolution_decrements(self) -> list[int]:
         """Return a list with possible factors to reduce time resolution."""
         vals = self._get_all_times()
+        print("VALS:", vals)
         max_loop = min(val for val in vals if val)
         if max_loop <= 1:
             return [1]
@@ -633,9 +635,9 @@ class Schedule:
             )
         self._start_times = {k: v // factor for k, v in self._start_times.items()}
         for graph_id in self._start_times:
-            cast(Operation, self._sfg.find_by_id(graph_id))._decrease_time_resolution(
-                factor
-            )
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
+            if not isinstance(op, (Input, Output)):
+                op._decrease_time_resolution(factor)
         self._schedule_time = self._schedule_time // factor
         return self
 

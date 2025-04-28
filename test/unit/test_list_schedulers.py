@@ -1466,7 +1466,12 @@ class TestHybridScheduler:
         sfg.set_execution_time_of_type_name(MADS.type_name(), 1)
         sfg.set_execution_time_of_type_name(Reciprocal.type_name(), 1)
 
-        resources = {MADS.type_name(): 10, Reciprocal.type_name(): 10}
+        resources = {
+            MADS.type_name(): 10,
+            Reciprocal.type_name(): 10,
+            Input.type_name(): 10,
+            Output.type_name(): 10,
+        }
         with pytest.raises(
             ValueError,
             match="Provided scheduling time 5 cannot be reached, try to enable the cyclic property or increase the time to at least 30.",

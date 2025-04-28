@@ -40,7 +40,7 @@ class Input(AbstractOperation):
             output_count=1,
             name=name,
             latency_offsets={"out0": 0},
-            execution_time=0,
+            execution_time=1,
         )
         self.set_param("value", 0)
 
@@ -128,7 +128,7 @@ class Output(AbstractOperation):
             name=Name(name),
             input_sources=[src0],
             latency_offsets={"in0": 0},
-            execution_time=0,
+            execution_time=1,
         )
 
     @classmethod
