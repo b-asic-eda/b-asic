@@ -32,7 +32,7 @@ from qtpy.QtCore import (
     Qt,
     Slot,
 )
-from qtpy.QtGui import QCloseEvent, QColor, QPalette
+from qtpy.QtGui import QCloseEvent, QColor, QPalette, QTransform
 from qtpy.QtWidgets import (
     QAbstractButton,
     QAction,
@@ -114,7 +114,6 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     _debug_rectangles: QGraphicsItemGroup
     _splitter_pos: int
     _splitter_min: int
-    _zoom: float
     _color_per_type: ClassVar[dict[str, QColor]] = {}
     _converted_color_per_type: ClassVar[dict[str, str]] = {}
     _changed_operation_colors: dict[str, QColor]
@@ -128,7 +127,6 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._graph = None
         self._scale = 75.0
         self._debug_rectangles = None
-        self._zoom = 1.0
 
         self.setupUi(self)
         self._read_settings()
@@ -301,11 +299,18 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def wheelEvent(self, event) -> None:
         """Zoom in or out using mouse wheel if control is pressed."""
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            old_zoom = self._zoom
-            self._zoom += event.angleDelta().y() / 2500
-            self.view.scale(self._zoom, self._zoom)
-            self._zoom = old_zoom
+        delta = event.angleDelta().y() / 2500
+        new_zoom = 1.0 + delta
+        modifiers = event.modifiers()
+        # Only y-direction
+        if (
+            modifiers
+            == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
+        ):
+            self.view.scale(1.0, new_zoom)
+        # Both directions
+        elif modifiers == Qt.KeyboardModifier.ControlModifier:
+            self.view.scale(new_zoom, new_zoom)
 
     @Slot()
     def _load_schedule_from_pyfile(self) -> None:
@@ -1134,8 +1139,19 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_recent_file_list()
 
     def _zoom_to_fit(self, event=None):
-        """Callback for zoom to fit schedule in window."""
+        """Callback for zoom to fit schedule in window keeping aspect ratio."""
         self.view.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def _zoom_to_fit_no_aspect(self, event=None):
+        """Callback for zoom to fit schedule in window ignoring aspect ratio."""
+        self.view.fitInView(
+            self._scene.sceneRect(), Qt.AspectRatioMode.IgnoreAspectRatio
+        )
+
+    def _reset_aspect_ratio(self, event=None):
+        """Callback for zoom to fit schedule in window ignoring aspect ratio."""
+        self.view.setTransform(QTransform())
+        self.view.scale(self._scale, self._scale)
 
     def _toggle_statusbar(self, event=None) -> None:
         """Callback for toggling the status bar."""
