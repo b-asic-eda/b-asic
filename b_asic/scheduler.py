@@ -506,7 +506,33 @@ class ListScheduler(Scheduler):
         self._handle_dont_cares()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
+        self._validate_constraints()
         log.debug("Scheduling completed")
+
+    def _validate_constraints(self) -> None:
+        for time_slot in range(self._schedule._schedule_time):
+            for op_type, constraint in self._remaining_resources.items():
+                if self._execution_times_in_time(op_type, time_slot) > constraint:
+                    raise ValueError(
+                        "Derived schedule breaches resource constraints for:",
+                        op_type,
+                        " at time slot",
+                        time_slot,
+                    )
+            if self._max_concurrent_reads:
+                _, mem_vars = self._schedule.get_memory_variables().split_on_length()
+                if mem_vars.read_ports_bound() > self._max_concurrent_reads:
+                    raise ValueError(
+                        "Derived schedule breaches concurrent read constraints for time slot:",
+                        time_slot,
+                    )
+            if self._max_concurrent_writes:
+                _, mem_vars = self._schedule.get_memory_variables().split_on_length()
+                if mem_vars.write_ports_bound() > self._max_concurrent_writes:
+                    raise ValueError(
+                        "Derived schedule breaches concurrent write constraints for time slot:",
+                        time_slot,
+                    )
 
     def _get_next_op_id(self, priority_table: PriorityTableType) -> "GraphID":
         def sort_key(item):
@@ -978,6 +1004,7 @@ class RecursiveListScheduler(ListScheduler):
         self._handle_dont_cares()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
+        self._validate_constraints()
         log.debug("Scheduling completed")
 
     def _get_recursive_ops(self, loops: list[list["GraphID"]]) -> list["GraphID"]:

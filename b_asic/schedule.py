@@ -604,7 +604,6 @@ class Schedule:
     def get_possible_time_resolution_decrements(self) -> list[int]:
         """Return a list with possible factors to reduce time resolution."""
         vals = self._get_all_times()
-        print("VALS:", vals)
         max_loop = min(val for val in vals if val)
         if max_loop <= 1:
             return [1]
