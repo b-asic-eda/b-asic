@@ -1069,44 +1069,33 @@ class RecursiveListScheduler(ListScheduler):
                 op = self._schedule._sfg.find_by_id(op_id)
                 if self._schedule.forward_slack(op_id):
                     delta = 1
-                    new_times = list(
-                        range(
-                            self._schedule._start_times[op_id] + delta,
-                            self._schedule._start_times[op_id]
-                            + delta
-                            + self._cached_execution_times[op_id],
-                        )
+                    delta_start_time = self._schedule._start_times[op_id] + delta
+                    new_times = (
+                        (delta_start_time + time) % self._schedule.schedule_time
+                        for time in range(self._cached_execution_times[op_id])
                     )
-                    new_times = [
-                        time % self._schedule.schedule_time for time in new_times
-                    ]
+
                     op_type = type(op)
-                    exec_counts = [
+                    exec_counts = (
                         self._execution_times_in_time(op_type, new_time)
                         for new_time in new_times
-                    ]
+                    )
                     while any(
                         count >= self._remaining_resources[op_type]
                         for count in exec_counts
                     ):
                         delta += 1
-                        new_times = list(
-                            range(
-                                self._schedule._start_times[op_id] + delta,
-                                self._schedule._start_times[op_id]
-                                + delta
-                                + self._cached_execution_times[op_id],
-                            )
-                        )
-                        new_times = [
-                            time % self._schedule.schedule_time for time in new_times
-                        ]
-                        exec_counts = [
-                            self._execution_times_in_time(op_type, new_time)
-                            for new_time in new_times
-                        ]
                         if delta >= self._schedule._schedule_time:
                             break
+                        delta_start_time = self._schedule._start_times[op_id] + delta
+                        new_times = (
+                            (delta_start_time + time) % self._schedule.schedule_time
+                            for time in range(self._cached_execution_times[op_id])
+                        )
+                        exec_counts = (
+                            self._execution_times_in_time(op_type, new_time)
+                            for new_time in new_times
+                        )
                     if delta > self._schedule.forward_slack(op_id):
                         continue
                     self._schedule.move_operation(op_id, delta)
@@ -1214,7 +1203,7 @@ class RecursiveListScheduler(ListScheduler):
             destination_port = cast(InputPort, output_port.signals[0].destination)
             destination_op = destination_port.operation
             if destination_op.graph_id not in self._remaining_ops_set:
-                if isinstance(destination_op, Delay):
+                if isinstance(destination_op, (Delay, Output, Sink)):
                     continue
                 # spotted a recursive operation -> check if ok
                 op_available_time = self._current_time + cast(

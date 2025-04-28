@@ -76,7 +76,7 @@ sfg.set_execution_time_of_type(Butterfly, 1)
 
 # %%
 # Generate schedule
-schedule = Schedule(sfg, scheduler=ASAPScheduler(), cyclic=True)
+schedule = Schedule(sfg, cyclic=True)
 schedule.show()
 
 # %%
