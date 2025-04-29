@@ -1062,10 +1062,6 @@ class ProcessCollection:
                 raise ValueError(
                     "processing_elements must be provided if strategy = 'ilp_min_input_mux'"
                 )
-            if max_colors is None:
-                raise ValueError(
-                    "max_colors must be provided if strategy = 'ilp_min_input_mux'"
-                )
             return self._split_ports_ilp_min_input_mux_graph_color(
                 read_ports,
                 write_ports,
@@ -1079,10 +1075,6 @@ class ProcessCollection:
                 raise ValueError(
                     "processing_elements must be provided if strategy = 'ilp_min_output_mux'"
                 )
-            if max_colors is None:
-                raise ValueError(
-                    "max_colors must be provided if strategy = 'ilp_min_output_mux'"
-                )
             return self._split_ports_ilp_min_output_mux_graph_color(
                 read_ports,
                 write_ports,
@@ -1095,10 +1087,6 @@ class ProcessCollection:
             if processing_elements is None:
                 raise ValueError(
                     "processing_elements must be provided if strategy = 'ilp_min_total_mux'"
-                )
-            if max_colors is None:
-                raise ValueError(
-                    "max_colors must be provided if strategy = 'ilp_min_total_mux'"
                 )
             return self._split_ports_ilp_min_total_mux_graph_color(
                 read_ports,
@@ -1555,7 +1543,7 @@ class ProcessCollection:
         write_ports: int,
         total_ports: int,
         processing_elements: list["ProcessingElement"],
-        amount_of_colors: int,
+        max_colors: int | None = None,
         solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         # create new exclusion graph. Nodes are Processes
@@ -1565,7 +1553,14 @@ class ProcessCollection:
         nodes = list(exclusion_graph.nodes())
         edges = list(exclusion_graph.edges())
 
-        colors = range(amount_of_colors)
+        if max_colors is None:
+            # get an initial estimate using NetworkX greedy graph coloring
+            coloring = nx.coloring.greedy_color(
+                exclusion_graph, strategy="saturation_largest_first"
+            )
+            max_colors = len(set(coloring.values()))
+
+        colors = range(max_colors)
 
         pe_out_ports = [
             f"{pe.entity_name}.out.{port_index}"
@@ -1646,7 +1641,7 @@ class ProcessCollection:
         write_ports: int,
         total_ports: int,
         processing_elements: list["ProcessingElement"],
-        amount_of_colors: int,
+        max_colors: int | None = None,
         solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         # create new exclusion graph. Nodes are Processes
@@ -1656,7 +1651,14 @@ class ProcessCollection:
         nodes = list(exclusion_graph.nodes())
         edges = list(exclusion_graph.edges())
 
-        colors = range(amount_of_colors)
+        if max_colors is None:
+            # get an initial estimate using NetworkX greedy graph coloring
+            coloring = nx.coloring.greedy_color(
+                exclusion_graph, strategy="saturation_largest_first"
+            )
+            max_colors = len(set(coloring.values()))
+
+        colors = range(max_colors)
 
         pe_in_ports = [
             f"{pe.entity_name}.in.{port_index}"
@@ -1736,7 +1738,7 @@ class ProcessCollection:
         write_ports: int,
         total_ports: int,
         processing_elements: list["ProcessingElement"],
-        amount_of_colors: int,
+        max_colors: int | None = None,
         solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         # create new exclusion graph. Nodes are Processes
@@ -1746,7 +1748,14 @@ class ProcessCollection:
         nodes = list(exclusion_graph.nodes())
         edges = list(exclusion_graph.edges())
 
-        colors = range(amount_of_colors)
+        if max_colors is None:
+            # get an initial estimate using NetworkX greedy graph coloring
+            coloring = nx.coloring.greedy_color(
+                exclusion_graph, strategy="saturation_largest_first"
+            )
+            max_colors = len(set(coloring.values()))
+
+        colors = range(max_colors)
 
         pe_in_ports = [
             f"{pe.entity_name}.in.{port_index}"

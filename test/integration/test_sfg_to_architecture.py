@@ -46,7 +46,7 @@ def test_pe_constrained_schedule():
         ValueError, match="Cannot map ProcessCollection to single ProcessingElement"
     ):
         ProcessingElement(mads, entity_name="mad")
-    mads = mads.split_on_execution_time()
+    mads = mads.split_on_execution_time("ilp_graph_color")
     with pytest.raises(
         TypeError,
         match="Argument process_collection must be ProcessCollection, not <class 'list'>",
@@ -574,4 +574,102 @@ def test_joint_resource_assignment_mux_reduction():
 
     arch = Architecture(pes, mems, direct_interconnects=direct)
     assert len(arch.processing_elements) == 4
+    assert len(arch.memories) == 3
+
+
+def test_separate_ilp_color_no_max_colors_provided(mem_variables_fft16):
+    direct, mem_vars, processing_elements = mem_variables_fft16
+
+    # test that the separate memory assignment with mux reduction can handle no colors provided
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=2,
+        strategy="ilp_min_input_mux",
+        processing_elements=processing_elements,
+    )
+
+    memories = [
+        Memory(mem, memory_type="RAM", entity_name=f"memory{i}", assign=True)
+        for i, mem in enumerate(mem_vars_set)
+    ]
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 5
+    assert len(arch.memories) == 4
+
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=2,
+        strategy="ilp_min_output_mux",
+        processing_elements=processing_elements,
+    )
+
+    memories = [
+        Memory(mem, memory_type="RAM", entity_name=f"memory{i}", assign=True)
+        for i, mem in enumerate(mem_vars_set)
+    ]
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 5
+    assert len(arch.memories) == 4
+
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=2,
+        strategy="ilp_min_total_mux",
+        processing_elements=processing_elements,
+    )
+
+    memories = [
+        Memory(mem, memory_type="RAM", entity_name=f"memory{i}", assign=True)
+        for i, mem in enumerate(mem_vars_set)
+    ]
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 5
+    assert len(arch.memories) == 4
+
+
+def test_joint_ilp_color_no_max_colors_or_resources_provided(mem_variables_fft16):
+    # test the joint resource assigner with mux reduction can handle no colors provided
+    sfg = radix_2_dif_fft(8)
+    sfg.set_latency_of_type_name("bfly", 1)
+    sfg.set_latency_of_type_name("cmul", 3)
+    sfg.set_execution_time_of_type_name("bfly", 1)
+    sfg.set_execution_time_of_type_name("cmul", 1)
+
+    resources = {"bfly": 1, "cmul": 1, "in": 2, "out": 1}
+    schedule = Schedule(
+        sfg,
+        scheduler=HybridScheduler(
+            resources, max_concurrent_reads=3, max_concurrent_writes=3
+        ),
+    )
+
+    pes, mems, direct = assign_processing_elements_and_memories(
+        schedule.get_operations(),
+        schedule.get_memory_variables(),
+        strategy="ilp_min_total_mux",
+        memory_read_ports=1,
+        memory_write_ports=1,
+        memory_total_ports=2,
+    )
+
+    arch = Architecture(pes, mems, direct_interconnects=direct)
+    assert len(arch.processing_elements) == 5
     assert len(arch.memories) == 3

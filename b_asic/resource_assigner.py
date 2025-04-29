@@ -142,16 +142,13 @@ def _split_operations_and_variables(
         pe_exclusion_graphs.append(pe_ex_graph)
         operation = next(iter(group)).operation
         pe_operations.append(operation)
-        if strategy == "ilp_graph_color":
-            if not resources or operation.type_name() not in resources:
-                coloring = nx.coloring.greedy_color(
-                    pe_ex_graph, strategy="saturation_largest_first"
-                )
-                pe_colors.append(range(len(set(coloring.values()))))
-            else:
-                pe_colors.append(range(resources[operation.type_name()]))
+        if not resources or operation.type_name() not in resources:
+            coloring = nx.coloring.greedy_color(
+                pe_ex_graph, strategy="saturation_largest_first"
+            )
+            pe_colors.append(range(len(set(coloring.values()))))
         else:
-            pe_colors.append(list(range(resources[operation.type_name()])))
+            pe_colors.append(range(resources[operation.type_name()]))
 
     # generate the exclusion graphs along with a color upper bound for memories
     mem_exclusion_graph = memory_variables.exclusion_graph_from_ports(

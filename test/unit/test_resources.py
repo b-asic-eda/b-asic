@@ -82,16 +82,6 @@ class TestProcessCollectionPlainMemoryVariable:
 
         with pytest.raises(
             ValueError,
-            match="max_colors must be provided if strategy = 'ilp_min_input_mux'",
-        ):
-            simple_collection.split_on_ports(
-                strategy="ilp_min_input_mux",
-                total_ports=1,
-                processing_elements=[],
-            )
-
-        with pytest.raises(
-            ValueError,
             match="processing_elements must be provided if strategy = 'ilp_min_output_mux'",
         ):
             simple_collection.split_on_ports(
@@ -100,30 +90,10 @@ class TestProcessCollectionPlainMemoryVariable:
 
         with pytest.raises(
             ValueError,
-            match="max_colors must be provided if strategy = 'ilp_min_output_mux'",
-        ):
-            simple_collection.split_on_ports(
-                strategy="ilp_min_output_mux",
-                total_ports=1,
-                processing_elements=[],
-            )
-
-        with pytest.raises(
-            ValueError,
             match="processing_elements must be provided if strategy = 'ilp_min_total_mux'",
         ):
             simple_collection.split_on_ports(
                 strategy="ilp_min_total_mux", total_ports=1
-            )
-
-        with pytest.raises(
-            ValueError,
-            match="max_colors must be provided if strategy = 'ilp_min_total_mux'",
-        ):
-            simple_collection.split_on_ports(
-                strategy="ilp_min_total_mux",
-                total_ports=1,
-                processing_elements=[],
             )
 
         with pytest.raises(
