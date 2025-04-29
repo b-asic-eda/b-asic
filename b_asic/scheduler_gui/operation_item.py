@@ -374,6 +374,11 @@ class OperationItem(QGraphicsItemGroup):
         )
         menu.addAction(execution_time_plot)
         execution_time_plot.triggered.connect(self._execution_time_plot)
+        total_execution_time_plot = QAction(
+            f"Show total execution times for {self._operation.type_name()}"
+        )
+        menu.addAction(total_execution_time_plot)
+        total_execution_time_plot.triggered.connect(self._total_execution_time_plot)
         menu.exec_(self.cursor().pos())
 
     def _swap_io(self, event=None) -> None:
@@ -381,6 +386,9 @@ class OperationItem(QGraphicsItemGroup):
 
     def _execution_time_plot(self, event=None) -> None:
         self._parent._execution_time_plot(self._operation.type_name())
+
+    def _total_execution_time_plot(self, event=None) -> None:
+        self._parent._total_execution_time_plot(self._operation.type_name())
 
     def _move_asap(self, event=None):
         self._parent.schedule.move_operation_asap(self._operation.graph_id)

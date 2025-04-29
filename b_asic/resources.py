@@ -2450,7 +2450,7 @@ class ProcessCollection:
 
         Parameters
         ----------
-        title : str
+        title : str, optional
             Figure title.
         """
         fig, axes = plt.subplots(3, 1, layout="constrained")
@@ -2463,7 +2463,7 @@ class ProcessCollection:
         """
         Plot read, write, and total accesses.
 
-        This is plot as bar graphs.
+        These are plotted as bar graphs.
 
         Parameters
         ----------
@@ -2500,3 +2500,45 @@ class ProcessCollection:
             return name_to_proc[name]
         else:
             raise KeyError(f"{name} not in {self}")
+
+    def total_execution_times(self) -> dict[int, int]:
+        c: Counter[int] = Counter()
+        for process in self._collection:
+            times = (
+                ((process.start_time + time) % self._schedule_time)
+                for time in range(process.execution_time)
+            )
+            c.update(times)
+
+        return dict(sorted(c.items()))
+
+    def show_total_execution_times(self, title: str = ""):
+        """
+        Show total execution time for each time slot.
+
+        Parameters
+        ----------
+        title : str, optional
+            Figure title.
+        """
+        fig, ax = plt.subplots(1, 1, layout="constrained")
+        self.plot_total_execution_times(ax)
+        if title:
+            fig.suptitle(title)
+        fig.show()  # type: ignore
+
+    def plot_total_execution_times(self, ax):
+        """
+        Plot total execution times for each time slot.
+
+        This is plotted as a bar graph.
+
+        Parameters
+        ----------
+        ax : :class:`matplotlib.axes.Axes`
+            The Axes to plot in.
+        """
+        ax.bar(*zip(*self.total_execution_times().items(), strict=True))
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))
+        ax.set_xlim(-0.5, self.schedule_time - 0.5)

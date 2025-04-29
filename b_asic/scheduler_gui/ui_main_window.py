@@ -1,26 +1,13 @@
 ################################################################################
 ## Form generated from reading UI file 'main_window.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.2
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from qtpy.QtCore import (
-    QCoreApplication,
-    QMetaObject,
-    QRect,
-    QSize,
-    Qt,
-)
-from qtpy.QtGui import (
-    QAction,
-    QBrush,
-    QColor,
-    QFont,
-    QIcon,
-    QPainter,
-)
+from qtpy.QtCore import QCoreApplication, QMetaObject, QRect, QSize, Qt
+from qtpy.QtGui import QAction, QBrush, QColor, QFont, QIcon, QPainter
 from qtpy.QtWidgets import (
     QAbstractItemView,
     QGraphicsView,
@@ -62,10 +49,7 @@ class Ui_MainWindow:
             icon1 = QIcon.fromTheme(iconThemeName)
         else:
             icon1.addFile(
-                "../../../.designer/backup",
-                QSize(),
-                QIcon.Mode.Normal,
-                QIcon.State.Off,
+                "../../../.designer/backup", QSize(), QIcon.Mode.Normal, QIcon.State.Off
             )
 
         self.menu_load_from_file.setIcon(icon1)
@@ -78,10 +62,7 @@ class Ui_MainWindow:
             icon2 = QIcon.fromTheme(iconThemeName)
         else:
             icon2.addFile(
-                "../../../.designer/backup",
-                QSize(),
-                QIcon.Mode.Normal,
-                QIcon.State.Off,
+                "../../../.designer/backup", QSize(), QIcon.Mode.Normal, QIcon.State.Off
             )
 
         self.menu_save.setIcon(icon2)
@@ -109,10 +90,7 @@ class Ui_MainWindow:
             icon4 = QIcon.fromTheme(iconThemeName)
         else:
             icon4.addFile(
-                "../../../.designer/backup",
-                QSize(),
-                QIcon.Mode.Normal,
-                QIcon.State.Off,
+                "../../../.designer/backup", QSize(), QIcon.Mode.Normal, QIcon.State.Off
             )
 
         self.menu_quit.setIcon(icon4)
@@ -125,10 +103,7 @@ class Ui_MainWindow:
             icon5 = QIcon.fromTheme(iconThemeName)
         else:
             icon5.addFile(
-                "../../../.designer/backup",
-                QSize(),
-                QIcon.Mode.Normal,
-                QIcon.State.Off,
+                "../../../.designer/backup", QSize(), QIcon.Mode.Normal, QIcon.State.Off
             )
 
         self.menu_save_as.setIcon(icon5)
@@ -142,10 +117,7 @@ class Ui_MainWindow:
             icon6 = QIcon.fromTheme(iconThemeName)
         else:
             icon6.addFile(
-                "../../../.designer/backup",
-                QSize(),
-                QIcon.Mode.Normal,
-                QIcon.State.Off,
+                "../../../.designer/backup", QSize(), QIcon.Mode.Normal, QIcon.State.Off
             )
 
         self.menu_exit_dialog.setIcon(icon6)
@@ -205,15 +177,38 @@ class Ui_MainWindow:
         self.action_incorrect_execution_time.setIconVisibleInMenu(False)
         self.menu_open = QAction(MainWindow)
         self.menu_open.setObjectName("menu_open")
-        icon7 = QIcon(QIcon.fromTheme("personal"))
+        icon7 = QIcon()
+        iconThemeName = "personal"
+        if QIcon.hasThemeIcon(iconThemeName):
+            icon7 = QIcon.fromTheme(iconThemeName)
+        else:
+            icon7.addFile(".", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+
         self.menu_open.setIcon(icon7)
         self.actionToggle_full_screen = QAction(MainWindow)
         self.actionToggle_full_screen.setObjectName("actionToggle_full_screen")
         self.actionToggle_full_screen.setCheckable(True)
         self.actionPreferences = QAction(MainWindow)
         self.actionPreferences.setObjectName("actionPreferences")
-        icon8 = QIcon(QIcon.fromTheme("preferences-desktop-personal"))
+        icon8 = QIcon()
+        iconThemeName = "preferences-desktop-personal"
+        if QIcon.hasThemeIcon(iconThemeName):
+            icon8 = QIcon.fromTheme(iconThemeName)
+        else:
+            icon8.addFile(".", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+
         self.actionPreferences.setIcon(icon8)
+        self.actionZoom_to_fit_ignore_aspect_ratio = QAction(MainWindow)
+        self.actionZoom_to_fit_ignore_aspect_ratio.setObjectName(
+            "actionZoom_to_fit_ignore_aspect_ratio"
+        )
+        self.actionRestore_aspect_ratio = QAction(MainWindow)
+        self.actionRestore_aspect_ratio.setObjectName("actionRestore_aspect_ratio")
+        self.action_total_execution_times_of_variables = QAction(MainWindow)
+        self.action_total_execution_times_of_variables.setObjectName(
+            "action_total_execution_times_of_variables"
+        )
+        self.action_total_execution_times_of_variables.setEnabled(False)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         sizePolicy.setHeightForWidth(
@@ -253,9 +248,9 @@ class Ui_MainWindow:
         __qtablewidgetitem3 = QTableWidgetItem()
         self.info_table.setVerticalHeaderItem(1, __qtablewidgetitem3)
         brush = QBrush(QColor(255, 255, 255, 255))
-        brush.setStyle(Qt.SolidPattern)
+        brush.setStyle(Qt.BrushStyle.SolidPattern)
         brush1 = QBrush(QColor(160, 160, 164, 255))
-        brush1.setStyle(Qt.SolidPattern)
+        brush1.setStyle(Qt.BrushStyle.SolidPattern)
         font1 = QFont()
         font1.setBold(False)
         font1.setKerning(True)
@@ -303,7 +298,7 @@ class Ui_MainWindow:
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName("menubar")
-        self.menubar.setGeometry(QRect(0, 0, 800, 20))
+        self.menubar.setGeometry(QRect(0, 0, 800, 22))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName("menuFile")
         self.menu_Recent_Schedule = QMenu(self.menuFile)
@@ -313,6 +308,10 @@ class Ui_MainWindow:
         self.menu_view_execution_times = QMenu(self.menuView)
         self.menu_view_execution_times.setObjectName("menu_view_execution_times")
         self.menu_view_execution_times.setEnabled(False)
+        self.menu_view_total_execution_times_of_type = QMenu(self.menuView)
+        self.menu_view_total_execution_times_of_type.setObjectName(
+            "menu_view_total_execution_times_of_type"
+        )
         self.menu_Edit = QMenu(self.menubar)
         self.menu_Edit.setObjectName("menu_Edit")
         self.menuWindow = QMenu(self.menubar)
@@ -351,10 +350,16 @@ class Ui_MainWindow:
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionPlot_schedule)
         self.menuView.addAction(self.action_view_variables)
+        self.menuView.addAction(self.action_total_execution_times_of_variables)
         self.menuView.addAction(self.action_view_port_accesses)
         self.menuView.addAction(self.menu_view_execution_times.menuAction())
+        self.menuView.addAction(
+            self.menu_view_total_execution_times_of_type.menuAction()
+        )
         self.menuView.addSeparator()
         self.menuView.addAction(self.actionZoom_to_fit)
+        self.menuView.addAction(self.actionZoom_to_fit_ignore_aspect_ratio)
+        self.menuView.addAction(self.actionRestore_aspect_ratio)
         self.menuView.addAction(self.actionToggle_full_screen)
         self.menu_Edit.addAction(self.actionUndo)
         self.menu_Edit.addAction(self.actionRedo)
@@ -550,7 +555,9 @@ class Ui_MainWindow:
             )
         )
         self.actionZoom_to_fit.setText(
-            QCoreApplication.translate("MainWindow", "Zoom to &fit", None)
+            QCoreApplication.translate(
+                "MainWindow", "Zoom to &fit, keep aspect ratio", None
+            )
         )
         self.actionStatus_bar.setText(
             QCoreApplication.translate("MainWindow", "&Status bar", None)
@@ -626,6 +633,19 @@ class Ui_MainWindow:
             QCoreApplication.translate("MainWindow", "Ctrl+M", None)
         )
         # endif // QT_CONFIG(shortcut)
+        self.actionZoom_to_fit_ignore_aspect_ratio.setText(
+            QCoreApplication.translate(
+                "MainWindow", "Zoom to fit, ignore aspect ratio", None
+            )
+        )
+        self.actionRestore_aspect_ratio.setText(
+            QCoreApplication.translate("MainWindow", "Restore aspect ratio", None)
+        )
+        self.action_total_execution_times_of_variables.setText(
+            QCoreApplication.translate(
+                "MainWindow", "View total execution times of variables", None
+            )
+        )
         ___qtablewidgetitem = self.info_table.horizontalHeaderItem(0)
         ___qtablewidgetitem.setText(
             QCoreApplication.translate("MainWindow", "Property", None)
@@ -663,6 +683,11 @@ class Ui_MainWindow:
         self.menu_view_execution_times.setTitle(
             QCoreApplication.translate(
                 "MainWindow", "View execution times of type", None
+            )
+        )
+        self.menu_view_total_execution_times_of_type.setTitle(
+            QCoreApplication.translate(
+                "MainWindow", "View total execution times of type", None
             )
         )
         self.menu_Edit.setTitle(QCoreApplication.translate("MainWindow", "&Edit", None))

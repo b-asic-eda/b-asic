@@ -39,6 +39,7 @@ class SchedulerEvent:
         redraw_all = Signal()
         reopen = Signal()
         execution_time_plot = Signal(str)
+        total_execution_time_plot = Signal(str)
         TextSignal = Signal(str)
 
     _axes: AxesItem | None

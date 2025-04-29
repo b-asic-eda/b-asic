@@ -6,7 +6,7 @@ Contains the schedule class for scheduling operations in an SFG.
 
 import io
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Sequence
 from typing import cast
 
@@ -1429,17 +1429,6 @@ class Schedule:
 
     # SVG is valid HTML. This is useful for e.g. sphinx-gallery
     _repr_html_ = _repr_svg_
-
-    def _execution_times_of_type(self, op_type) -> Counter[int]:
-        c: Counter[int] = Counter()
-        for op in self._sfg.find_by_type(op_type):
-            start_time = self._start_times[op.graph_id]
-            times = (
-                ((start_time + time) % self._schedule_time)
-                for time in range(cast(int, cast(Operation, op).execution_time))
-            )
-            c.update(times)
-        return c
 
     def _execution_times_in_time(self, op_type, time: int) -> int:
         count = 0

@@ -202,7 +202,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -238,6 +238,11 @@
       <string>View execution times of type</string>
      </property>
     </widget>
+    <widget class="QMenu" name="menu_view_total_execution_times_of_type">
+     <property name="title">
+      <string>View total execution times of type</string>
+     </property>
+    </widget>
     <addaction name="menu_node_info"/>
     <addaction name="actionToolbar"/>
     <addaction name="actionStatus_bar"/>
@@ -246,10 +251,14 @@
     <addaction name="separator"/>
     <addaction name="actionPlot_schedule"/>
     <addaction name="action_view_variables"/>
+    <addaction name="action_total_execution_times_of_variables"/>
     <addaction name="action_view_port_accesses"/>
     <addaction name="menu_view_execution_times"/>
+    <addaction name="menu_view_total_execution_times_of_type"/>
     <addaction name="separator"/>
     <addaction name="actionZoom_to_fit"/>
+    <addaction name="actionZoom_to_fit_ignore_aspect_ratio"/>
+    <addaction name="actionRestore_aspect_ratio"/>
     <addaction name="actionToggle_full_screen"/>
    </widget>
    <widget class="QMenu" name="menu_Edit">
@@ -521,7 +530,7 @@
   </action>
   <action name="actionZoom_to_fit">
    <property name="text">
-    <string>Zoom to &amp;fit</string>
+    <string>Zoom to &amp;fit, keep aspect ratio</string>
    </property>
   </action>
   <action name="actionStatus_bar">
@@ -588,7 +597,8 @@
   </action>
   <action name="menu_open">
    <property name="icon">
-    <iconset theme="personal"/>
+    <iconset theme="personal">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Open...</string>
@@ -613,7 +623,8 @@
   </action>
   <action name="actionPreferences">
    <property name="icon">
-    <iconset theme="preferences-desktop-personal"/>
+    <iconset theme="preferences-desktop-personal">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Preferences</string>
@@ -623,6 +634,24 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+M</string>
+   </property>
+  </action>
+  <action name="actionZoom_to_fit_ignore_aspect_ratio">
+   <property name="text">
+    <string>Zoom to fit, ignore aspect ratio</string>
+   </property>
+  </action>
+  <action name="actionRestore_aspect_ratio">
+   <property name="text">
+    <string>Restore aspect ratio</string>
+   </property>
+  </action>
+  <action name="action_total_execution_times_of_variables">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>View total execution times of variables</string>
    </property>
   </action>
  </widget>

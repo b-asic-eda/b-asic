@@ -237,6 +237,9 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_show(self, simple_collection: ProcessCollection):
         simple_collection.show()
 
+    def test_show_total_execution_times(self, simple_collection: ProcessCollection):
+        simple_collection.show_total_execution_times()
+
     def test_add_remove_process(self, simple_collection: ProcessCollection):
         new_proc = PlainMemoryVariable(1, 0, {0: 3})
         assert len(simple_collection) == 7

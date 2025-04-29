@@ -333,6 +333,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     def _execution_time_plot(self, type_name: str):
         self._signals.execution_time_plot.emit(type_name)
 
+    def _total_execution_time_plot(self, type_name: str):
+        self._signals.total_execution_time_plot.emit(type_name)
+
     def _redraw_all(self) -> None:
         for graph_id in self._operation_items:
             self._set_position(graph_id)

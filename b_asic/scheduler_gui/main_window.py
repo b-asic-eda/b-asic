@@ -135,7 +135,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._show_incorrect_execution_time = True
         self._show_port_numbers = True
         self._execution_time_for_variables = None
+        self._total_execution_time_for_variables = None
         self._execution_time_plot_dialogs = defaultdict(lambda: None)
+        self._total_execution_time_plot_dialogs = defaultdict(lambda: None)
         self._ports_accesses_for_storage = None
         self._color_changed_per_type = False
         self._changed_operation_colors = {}
@@ -182,11 +184,18 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_view_variables.triggered.connect(
             self._show_execution_times_for_variables
         )
+        self.action_total_execution_times_of_variables.triggered.connect(
+            self._show_total_execution_times_for_variables
+        )
         self.action_view_port_accesses.triggered.connect(
             self._show_ports_accesses_for_storage
         )
         self.actionZoom_to_fit.setIcon(get_icon("zoom-to-fit"))
         self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
+        self.actionZoom_to_fit_ignore_aspect_ratio.triggered.connect(
+            self._zoom_to_fit_no_aspect
+        )
+        self.actionRestore_aspect_ratio.triggered.connect(self._reset_aspect_ratio)
         self.actionToggle_full_screen.setIcon(get_icon("full-screen"))
         self.actionToggle_full_screen.triggered.connect(self._toggle_fullscreen)
         self.actionUndo.setIcon(get_icon("undo"))
@@ -435,6 +444,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._graph._signals.execution_time_plot.disconnect(
                 self._execution_time_plot
             )
+            self._graph._signals.total_execution_time_plot.disconnect(
+                self._total_execution_time_plot
+            )
             self._graph.removeSceneEventFilters(self._graph.event_items)
             self._scene.removeItem(self._graph)
             self.menu_close_schedule.setEnabled(False)
@@ -449,8 +461,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.update_statusbar("Closed schedule")
             self._toggle_file_loaded(False)
             self.action_view_variables.setEnabled(False)
+            self.action_total_execution_times_of_variables.setEnabled(False)
             self.action_view_port_accesses.setEnabled(False)
             self.menu_view_execution_times.setEnabled(False)
+            self.menu_view_total_execution_times_of_type.setEnabled(False)
             self.actionPreferences.setEnabled(False)
 
     @Slot()
@@ -667,7 +681,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                 self._ports_accesses_for_storage.close()
             if self._execution_time_for_variables:
                 self._execution_time_for_variables.close()
+            if self._total_execution_time_for_variables:
+                self._total_execution_time_for_variables.close()
             for dialog in self._execution_time_plot_dialogs.values():
+                if dialog:
+                    dialog.close()
+            for dialog in self._total_execution_time_plot_dialogs.values():
                 if dialog:
                     dialog.close()
             event.accept()
@@ -711,11 +730,15 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._graph._signals.redraw_all.connect(self._redraw_all)
         self._graph._signals.reopen.connect(self._reopen_schedule)
         self._graph._signals.execution_time_plot.connect(self._execution_time_plot)
+        self._graph._signals.total_execution_time_plot.connect(
+            self._total_execution_time_plot
+        )
         self.info_table_fill_schedule(self._schedule)
         self._update_operation_types()
         self.actionPreferences.setEnabled(True)
         self.load_preferences()
         self.action_view_variables.setEnabled(True)
+        self.action_total_execution_times_of_variables.setEnabled(True)
         self.action_view_port_accesses.setEnabled(True)
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
@@ -911,6 +934,17 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             )
             self.menu_view_execution_times.addAction(type_action)
 
+        self.menu_view_total_execution_times_of_type.setEnabled(True)
+        for action in self.menu_view_total_execution_times_of_type.actions():
+            self.menu_view_total_execution_times_of_type.removeAction(action)
+        for type_name in self._schedule.get_used_type_names():
+            type_action = QAction(self.menu_view_total_execution_times_of_type)
+            type_action.setText(type_name)
+            type_action.triggered.connect(
+                lambda b=0, x=type_name: self._show_total_execution_times_for_type(x)
+            )
+            self.menu_view_total_execution_times_of_type.addAction(type_action)
+
     @Slot()
     def open_preferences_dialog(self):
         """Open the preferences dialog to customize fonts, colors, and settings."""
@@ -1046,6 +1080,33 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             )
             self._execution_time_plot_dialogs[type_name].redraw()
 
+    @Slot(str)
+    def _show_total_execution_times_for_type(self, type_name):
+        self._total_execution_time_plot(type_name)
+
+    def _closed_total_execution_times_for_type(self, type_name):
+        self._total_execution_time_plot_dialogs[type_name] = None
+
+    def _total_execution_time_plot(self, type_name: str) -> None:
+        self._total_execution_time_plot_dialogs[type_name] = MPLWindow(
+            f"Total execution times for {type_name}"
+        )
+        self._total_execution_time_plot_dialogs[type_name].finished.connect(
+            lambda b=0, x=type_name: self._closed_total_execution_times_for_type(x)
+        )
+        self._update_total_execution_times_for_type(type_name)
+        self._total_execution_time_plot_dialogs[type_name].show()
+
+    def _update_total_execution_times_for_type(self, type_name):
+        if self._total_execution_time_plot_dialogs[type_name]:
+            self._total_execution_time_plot_dialogs[type_name].axes.clear()
+            self._schedule.get_operations().get_by_type_name(
+                type_name
+            ).plot_total_execution_times(
+                self._total_execution_time_plot_dialogs[type_name].axes
+            )
+            self._total_execution_time_plot_dialogs[type_name].redraw()
+
     def _show_execution_times_for_variables(self):
         self._execution_time_for_variables = MPLWindow("Execution times for variables")
         self._execution_time_for_variables.finished.connect(
@@ -1065,6 +1126,28 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def _execution_times_for_variables_closed(self):
         self._execution_time_for_variables = None
+
+    def _show_total_execution_times_for_variables(self):
+        self._total_execution_time_for_variables = MPLWindow(
+            "Total execution times for variables"
+        )
+        self._total_execution_time_for_variables.finished.connect(
+            self._total_execution_times_for_variables_closed
+        )
+        self._update_total_execution_times_for_variables()
+        self._total_execution_time_for_variables.show()
+
+    def _update_total_execution_times_for_variables(self):
+        if self._total_execution_time_for_variables:
+            self._total_execution_time_for_variables.axes.clear()
+            self._schedule.get_memory_variables().plot_total_execution_times(
+                self._total_execution_time_for_variables.axes
+            )
+            self._total_execution_time_for_variables.redraw()
+
+    @Slot()
+    def _total_execution_times_for_variables_closed(self):
+        self._total_execution_time_for_variables = None
 
     def _show_ports_accesses_for_storage(self):
         self._ports_accesses_for_storage = MPLWindow(
@@ -1097,6 +1180,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         for key, dialog in self._execution_time_plot_dialogs.items():
             if dialog:
                 self._update_execution_times_for_type(key)
+
+        for key, dialog in self._total_execution_time_plot_dialogs.items():
+            if dialog:
+                self._update_total_execution_times_for_type(key)
 
     def _update_recent_file_list(self):
         settings = QSettings()
