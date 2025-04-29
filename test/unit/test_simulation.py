@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from b_asic import Simulation
+from b_asic.signal_generator import Impulse
 
 
 class TestRunFor:
@@ -125,6 +126,30 @@ class TestRunFor:
         assert simulation.results["0"][3] == 25
         assert simulation.results["0"][4] == -6
         assert simulation.results["0"][5] == 7
+
+    def test_delay_single_input_sequence(self, sfg_delay):
+        simulation = Simulation(sfg_delay, [5, -2, 25, -6, 7, 0])
+        simulation.run_for(6, save_results=True)
+
+        assert simulation.results["0"][0] == 0
+        assert simulation.results["0"][1] == 5
+        assert simulation.results["0"][2] == -2
+        assert simulation.results["0"][3] == 25
+        assert simulation.results["0"][4] == -6
+        assert simulation.results["0"][5] == 7
+
+    def test_delay_single_input_generator(self, sfg_delay):
+        simulation = Simulation(sfg_delay, Impulse())
+        simulation.run_for(3, save_results=True)
+
+        assert simulation.results["0"][0] == 0
+        assert simulation.results["0"][1] == 1
+        assert simulation.results["0"][2] == 0
+
+    def test_two_inputs_single_array(self, sfg_two_inputs_two_outputs):
+        input_data = [5, 7, 9]
+        with pytest.raises(ValueError, match="Wrong number of inputs supplied"):
+            Simulation(sfg_two_inputs_two_outputs, input_data)
 
     def test_find_result_key(self, precedence_sfg_delays):
         sim = Simulation(

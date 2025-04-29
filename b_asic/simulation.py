@@ -100,8 +100,12 @@ class Simulation:
 
         Parameters
         ----------
-        input_providers : array of list, callable, or number
+        input_providers : sequence of list, callable, or number
         """
+        if self._sfg.input_count == 1 and (
+            not np.iterable(input_providers) or len(input_providers) != 1
+        ):
+            input_providers = [input_providers]
         if len(input_providers) != self._sfg.input_count:
             raise ValueError(
                 "Wrong number of inputs supplied to simulation (expected"
