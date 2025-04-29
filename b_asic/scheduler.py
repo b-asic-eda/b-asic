@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from b_asic.schedule import Schedule
     from b_asic.types import GraphID
 
-log = b_asic.logger.getLogger(__name__)
+log = b_asic.logger.getLogger()
 
 PriorityTableType = list[tuple["GraphID", int, int, int, int]]
 

@@ -48,66 +48,66 @@ To log uncaught exceptions, implement the following in your program.
   `sys.excepthook = logger.log_exceptions`"""
 
 import logging
-import logging.handlers
 import os
 import sys
 from logging import Logger
 from types import TracebackType
+from typing import Literal
 
 
 def getLogger(
-    name: str, filename: str | None = "", console_log_level: str = "warning"
+    console_log_level: Literal[
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL",
+    ] = "WARNING",
+    filename: str | None = "",
 ) -> Logger:
     """
     Create console- and filehandler and from those, create a logger object.
 
     Parameters
     ----------
-    name : str
-        Name of the logger, creates a new if needed.
+    console_log_level : str, optional
+        The minimum level that the logger will log. Defaults to 'WARNING'.
     filename : str, optional
         Name of output logfile. Defaults to "".
-    console_log_level : str, optional
-        The minimum level that the logger will log. Defaults to 'info'.
 
     Returns
     -------
     Logger : 'logging.Logger' object.
     """
+    logger = logging.getLogger(__name__)
 
-    logger = logging.getLogger(name)
+    logger.setLevel(console_log_level)
 
-    if logger.handlers:
-        return logger
-    else:
-        console_log_level = getattr(logging, console_log_level.upper())
-        logger.setLevel(console_log_level)
+    # set up the console logger
+    c_fmt_date = "%T"
+    c_fmt = (
+        "[%(process)d] %(asctime)s %(filename)18s:%(lineno)-4s"
+        " %(funcName)20s() %(levelname)-8s: %(message)s"
+    )
+    c_formatter = logging.Formatter(c_fmt, c_fmt_date)
+    c_handler = logging.StreamHandler()
+    c_handler.setFormatter(c_formatter)
+    c_handler.setLevel(console_log_level)
+    logger.addHandler(c_handler)
 
-        # set up the console logger
-        c_fmt_date = "%T"
-        c_fmt = (
-            "[%(process)d] %(asctime)s %(filename)18s:%(lineno)-4s"
-            " %(funcName)20s() %(levelname)-8s: %(message)s"
-        )
-        c_formatter = logging.Formatter(c_fmt, c_fmt_date)
-        c_handler = logging.StreamHandler()
-        c_handler.setFormatter(c_formatter)
-        c_handler.setLevel(console_log_level)
-        logger.addHandler(c_handler)
+    # setup the file logger
+    f_fmt_date = "%Y-%m-%dT%T%Z"
+    f_fmt = (
+        "%(asctime)s %(filename)18s:%(lineno)-4s %(funcName)20s()"
+        " %(levelname)-8s: %(message)s"
+    )
 
-        # setup the file logger
-        f_fmt_date = "%Y-%m-%dT%T%Z"
-        f_fmt = (
-            "%(asctime)s %(filename)18s:%(lineno)-4s %(funcName)20s()"
-            " %(levelname)-8s: %(message)s"
-        )
-
-        if filename:
-            f_formatter = logging.Formatter(f_fmt, f_fmt_date)
-            f_handler = logging.FileHandler(filename, mode="w")
-            f_handler.setFormatter(f_formatter)
-            f_handler.setLevel(logging.DEBUG)
-            logger.addHandler(f_handler)
+    if filename:
+        f_formatter = logging.Formatter(f_fmt, f_fmt_date)
+        f_handler = logging.FileHandler(filename, mode="w")
+        f_handler.setFormatter(f_formatter)
+        f_handler.setLevel(logging.DEBUG)
+        logger.addHandler(f_handler)
 
     if logger.name == "scheduler-gui.log":
         logger.info(
@@ -136,21 +136,3 @@ def handle_exceptions(
     logging.exception(
         "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
     )
-
-
-# def qt_message_handler(mode, context, message):
-#     if mode == QtCore.QtInfoMsg:
-#         mode = 'INFO'
-#     elif mode == QtCore.QtWarningMsg:
-#         mode = 'WARNING'
-#     elif mode == QtCore.QtCriticalMsg:
-#         mode = 'CRITICAL'
-#     # elif mode == QtCore.QtErrorMsg:
-#     #     mode = 'ERROR'
-#     elif mode == QtCore.QtFatalMsg:
-#         mode = 'FATAL'
-#     else:
-#         mode = 'DEBUG'
-#     print('qt_message_handler: line: %d, func: %s(), file: %s' % (
-#           context.line, context.function, context.file))
-#     print('  %s: %s\n' % (mode, message))

@@ -70,7 +70,7 @@ from b_asic.scheduler_gui.ui_main_window import Ui_MainWindow
 if TYPE_CHECKING:
     from logging import Logger
 
-log: "Logger" = b_asic.logger.getLogger(__name__)
+log: "Logger" = b_asic.logger.getLogger()
 sys.excepthook = b_asic.logger.handle_exceptions
 
 
