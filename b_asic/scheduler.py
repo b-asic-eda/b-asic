@@ -399,6 +399,13 @@ class ListScheduler(Scheduler):
     sort_order : tuple(tuple(int, bool))
         Specifies which columns in the priority table to sort on and in
         which order, where True is ascending order.
+        There are five columns:
+            0 - GraphID of the operation.
+            1 - Deadline, i.e., the clock cycle that the data is required in the ALAP schedule.
+            2 - Output slack, i.e., the start time of the operation in the ALAP schedule when sorted on.
+            3 - Fan-out, i.e., the number of operations reading from the output of the operation.
+            4 - Memory reads, i.e., the number of memory reads required if operation is scheduled in the
+                current time slot.
     max_resources : dict[TypeName, int] | None, optional
         Max resources available to realize the schedule.
     max_concurrent_reads : int | None, optional
@@ -937,6 +944,13 @@ class RecursiveListScheduler(ListScheduler):
     sort_order : tuple(tuple(int, bool))
         Specifies which columns in the priority table to sort on and in
         which order, where True is ascending order.
+        There are five columns:
+            0 - GraphID of the operation.
+            1 - Deadline, i.e., the clock cycle that the data is required in the ALAP schedule.
+            2 - Output slack, i.e., the start time of the operation in the ALAP schedule when sorted on.
+            3 - Fan-out, i.e., the number of operations reading from the output of the operation.
+            4 - Memory reads, i.e., the number of memory reads required if operation is scheduled in the
+                current time slot.
     max_resources : dict[TypeName, int] | None, optional
         Max resources available to realize the schedule.
     input_times : dict(GraphID, int) | None, optional
