@@ -17,6 +17,7 @@ from pulp import (
     LpBinary,
     LpProblem,
     LpSolver,
+    LpStatusNotSolved,
     LpStatusOptimal,
     LpVariable,
     lpSum,
@@ -1517,10 +1518,8 @@ class ProcessCollection:
 
         status = problem.solve(solver)
 
-        if status != LpStatusOptimal:
-            raise ValueError(
-                "Optimal solution could not be found via ILP, use another method."
-            )
+        if status not in (LpStatusOptimal, LpStatusNotSolved):
+            raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
         for node in nodes:
@@ -1615,10 +1614,8 @@ class ProcessCollection:
 
         status = problem.solve(solver)
 
-        if status != LpStatusOptimal:
-            raise ValueError(
-                "Optimal solution could not be found via ILP, use another method."
-            )
+        if status not in (LpStatusOptimal, LpStatusNotSolved):
+            raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
         for node in nodes:
@@ -1712,10 +1709,8 @@ class ProcessCollection:
 
         status = problem.solve(solver)
 
-        if status != LpStatusOptimal:
-            raise ValueError(
-                "Optimal solution could not be found via ILP, use another method."
-            )
+        if status not in (LpStatusOptimal, LpStatusNotSolved):
+            raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
         for node in nodes:
@@ -1823,10 +1818,8 @@ class ProcessCollection:
 
         status = problem.solve(solver)
 
-        if status != LpStatusOptimal:
-            raise ValueError(
-                "Optimal solution could not be found via ILP, use another method."
-            )
+        if status not in (LpStatusOptimal, LpStatusNotSolved):
+            raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
         for node in nodes:
@@ -1960,10 +1953,8 @@ class ProcessCollection:
 
         status = problem.solve(solver)
 
-        if status != LpStatusOptimal:
-            raise ValueError(
-                "Optimal solution could not be found via ILP, use another method."
-            )
+        if status not in (LpStatusOptimal, LpStatusNotSolved):
+            raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
         for node in nodes:

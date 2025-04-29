@@ -6,6 +6,7 @@ from pulp import (
     PULP_CBC_CMD,
     LpBinary,
     LpProblem,
+    LpStatusNotSolved,
     LpStatusOptimal,
     LpVariable,
     lpSum,
@@ -291,10 +292,8 @@ def _ilp_coloring(
 
     status = problem.solve(solver)
 
-    if status != LpStatusOptimal:
-        raise ValueError(
-            "Optimal solution could not be found via ILP, use another method."
-        )
+    if status not in (LpStatusOptimal, LpStatusNotSolved):
+        raise ValueError("Solution could not be found via ILP, use another method.")
 
     return pe_x, mem_x
 
@@ -515,10 +514,8 @@ def _ilp_coloring_min_mux(
 
     status = problem.solve(solver)
 
-    if status != LpStatusOptimal:
-        raise ValueError(
-            "Optimal solution could not be found via ILP, use another method."
-        )
+    if status not in (LpStatusOptimal, LpStatusNotSolved):
+        raise ValueError("Solution could not be found via ILP, use another method.")
     return pe_x, mem_x
 
 
