@@ -130,7 +130,7 @@ class Schedule:
         if not self._schedule_time:
             self._schedule_time = max_end_time
 
-        self._validate_schedule()
+        self._validate()
 
     def __str__(self) -> str:
         """Return a string representation of this Schedule."""
@@ -166,12 +166,19 @@ class Schedule:
 
         return string_io.getvalue()
 
-    def _validate_schedule(self) -> None:
+    def _validate(self) -> None:
+        self._validate_schedule_time()
+        self._validate_start_times()
+        self._validate_laps()
+        self._validate_slacks()
+
+    def _validate_schedule_time(self) -> None:
         if self._schedule_time is None:
             raise ValueError("Schedule without set scheduling time detected.")
         if not isinstance(self._schedule_time, int):
             raise ValueError("Schedule with non-integer scheduling time detected.")
 
+    def _validate_start_times(self) -> None:
         ops = {op.graph_id for op in self._sfg.operations}
         missing_elems = ops - set(self._start_times)
         extra_elems = set(self._start_times) - ops
@@ -181,8 +188,27 @@ class Schedule:
             )
         if extra_elems:
             raise ValueError(f"Extra operations detected in start_times: {extra_elems}")
-
         for graph_id, time in self._start_times.items():
+            if time < 0:
+                raise ValueError(
+                    f"Negative start time detected in Schedule for operation {graph_id}"
+                )
+            if time > self._schedule_time and not isinstance(
+                self._sfg.find_by_id(graph_id), DontCare
+            ):
+                raise ValueError(
+                    f"Start time larger than scheduling time detected in Schedule for operation {graph_id}"
+                )
+
+    def _validate_laps(self) -> None:
+        for signal_id, lap in self._laps.items():
+            if lap < 0:
+                raise ValueError(
+                    f"Negative lap detected in Schedule for signal {signal_id}"
+                )
+
+    def _validate_slacks(self) -> None:
+        for graph_id in self._start_times:
             if self.forward_slack(graph_id) < 0:
                 raise ValueError(
                     f"Negative forward slack detected in Schedule for operation: {graph_id}, "
@@ -192,12 +218,6 @@ class Schedule:
                 raise ValueError(
                     f"Negative backward slack detected in Schedule for operation: {graph_id}, "
                     f"slack: {self.backward_slack(graph_id)}"
-                )
-            if time > self._schedule_time and not isinstance(
-                self._sfg.find_by_id(graph_id), DontCare
-            ):
-                raise ValueError(
-                    f"Start time larger than scheduling time detected in Schedule for operation {graph_id}"
                 )
 
     def start_time_of_operation(self, graph_id: GraphID) -> int:
