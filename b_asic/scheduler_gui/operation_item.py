@@ -34,6 +34,7 @@ from b_asic.scheduler_gui._preferences import (
     SIGNAL_COLOR_TYPE,
     SIGNAL_WARNING_COLOR_TYPE,
 )
+from b_asic.types import ShapeCoordinates
 
 if TYPE_CHECKING:
     from b_asic.scheduler_gui.scheduler_item import SchedulerItem
@@ -282,7 +283,8 @@ class OperationItem(QGraphicsItemGroup):
         execution_time_pen.setColor(execution_time_color)
         execution_time_pen.setWidthF(3 / self._scale)
 
-        def generate_path(points):
+        def generate_path(points: ShapeCoordinates) -> QPainterPath:
+            """Create a QPainterPath for the *points*."""
             path = QPainterPath(
                 QPointF(points[0][0], points[0][1] * self._height)
             )  # starting point
@@ -306,7 +308,8 @@ class OperationItem(QGraphicsItemGroup):
         # component item
         self._set_background(LATENCY_COLOR_TYPE.DEFAULT)  # used by component filling
 
-        def create_ports(io_coordinates, prefix):
+        def create_ports(io_coordinates: ShapeCoordinates, prefix: str) -> None:
+            """Draw port markers."""
             for i, (x, y) in enumerate(io_coordinates):
                 pos = QPointF(x, y * self._height)
                 key = f"{prefix}{i}"

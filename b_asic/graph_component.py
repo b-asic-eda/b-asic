@@ -4,10 +4,10 @@ B-ASIC Graph Component Module.
 Contains the base for all components with an ID in a signal flow graph.
 """
 
+import copy
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Generator, Iterable, Mapping
-from copy import copy, deepcopy
 from typing import Any, cast
 
 from b_asic.types import GraphID, Name, TypeName
@@ -168,10 +168,10 @@ class AbstractGraphComponent(GraphComponent):
 
     def copy(self, *args, **kwargs) -> GraphComponent:
         new_component = self.__class__(*args, **kwargs)
-        new_component.name = copy(self.name)
-        new_component.graph_id = copy(self.graph_id)
+        new_component.name = copy.copy(self.name)
+        new_component.graph_id = copy.copy(self.graph_id)
         for name, value in self.params.items():
-            new_component.set_param(copy(name), deepcopy(value))  # pylint: disable=no-member
+            new_component.set_param(copy.copy(name), copy.deepcopy(value))  # pylint: disable=no-member
         return new_component
 
     def traverse(self) -> Generator[GraphComponent, None, None]:

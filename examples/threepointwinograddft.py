@@ -12,7 +12,6 @@ import networkx as nx
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import AddSub, ConstantMultiplication
 from b_asic.schedule import Schedule
-from b_asic.scheduler import ASAPScheduler
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Input, Output
 
@@ -54,8 +53,8 @@ sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 sfg.set_execution_time_of_type(AddSub, 1)
 
 # %%
-# Generate schedule
-schedule = Schedule(sfg, scheduler=ASAPScheduler(), cyclic=True)
+# Generate initial schedule
+schedule = Schedule(sfg, cyclic=True)
 schedule.show()
 
 # %%
@@ -116,7 +115,7 @@ direct.show(title="Direct interconnects")
 
 fig, ax = plt.subplots()
 fig.suptitle('Exclusion graph based on ports')
-nx.draw(mem_vars.create_exclusion_graph_from_ports(1, 1, 2), ax=ax)
+nx.draw(mem_vars.exclusion_graph_from_ports(1, 1, 2), ax=ax)
 
 memories = []
 for i, mem in enumerate(mem_vars_set):

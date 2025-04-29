@@ -7,13 +7,13 @@ Contains the scheduler_gui MainWindow class for scheduling operations in an SFG.
 Start main-window with ``start_gui()``.
 """
 
+import copy
 import inspect
 import os
 import pickle
 import sys
 import webbrowser
 from collections import defaultdict, deque
-from copy import deepcopy
 from importlib.machinery import SourceFileLoader
 from typing import TYPE_CHECKING, ClassVar, cast, overload
 
@@ -691,7 +691,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def open(self, schedule: Schedule) -> None:
         """Take a Schedule and create a SchedulerItem object."""
         self.close_schedule()
-        self._schedule = deepcopy(schedule)
+        self._schedule = copy.deepcopy(schedule)
         self._graph = SchedulerItem(self._schedule)
         self._graph.setPos(1 / self._scale, 1 / self._scale)
         self.menu_close_schedule.setEnabled(True)

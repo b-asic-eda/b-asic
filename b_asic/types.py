@@ -20,3 +20,5 @@ Name = str
 TypeName = NewType("TypeName", str)
 GraphID = NewType("GraphID", str)
 GraphIDNumber = NewType("GraphIDNumber", int)
+
+ShapeCoordinates = tuple[tuple[float, float], ...]

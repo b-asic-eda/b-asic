@@ -20,7 +20,7 @@ from typing import (
 from b_asic.graph_component import AbstractGraphComponent, GraphComponent, GraphID, Name
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
-from b_asic.types import Num
+from b_asic.types import Num, ShapeCoordinates
 
 if TYPE_CHECKING:
     from b_asic.signal_flow_graph import SFG
@@ -333,7 +333,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def get_plot_coordinates(
         self,
-    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
+    ) -> tuple[ShapeCoordinates, ShapeCoordinates]:
         """
         Return coordinates for the latency and execution time polygons.
 
@@ -346,7 +346,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def get_input_coordinates(
         self,
-    ) -> tuple[tuple[float, float], ...]:
+    ) -> ShapeCoordinates:
         """
         Return coordinates for inputs.
 
@@ -362,7 +362,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def get_output_coordinates(
         self,
-    ) -> tuple[tuple[float, float], ...]:
+    ) -> ShapeCoordinates:
         """
         Return coordinates for outputs.
 
@@ -971,7 +971,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def get_plot_coordinates(
         self,
-    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
+    ) -> tuple[ShapeCoordinates, ShapeCoordinates]:
         # Doc-string inherited
         return (
             self._get_plot_coordinates_for_latency(),
@@ -980,7 +980,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def _get_plot_coordinates_for_execution_time(
         self,
-    ) -> tuple[tuple[float, float], ...]:
+    ) -> ShapeCoordinates:
         # Always a rectangle, but easier if coordinates are returned
         execution_time = self._execution_time  # Copy for type checking
         if execution_time is None:
@@ -995,7 +995,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def _get_plot_coordinates_for_latency(
         self,
-    ) -> tuple[tuple[float, float], ...]:
+    ) -> ShapeCoordinates:
         # Points for latency polygon
         latency = []
         input_latencies = self.input_latency_offsets
@@ -1020,7 +1020,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         return tuple(latency)
 
-    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
+    def get_input_coordinates(self) -> ShapeCoordinates:
         # doc-string inherited
         num_in = self.input_count
         return tuple(
@@ -1031,7 +1031,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             for k in range(num_in)
         )
 
-    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
+    def get_output_coordinates(self) -> ShapeCoordinates:
         # doc-string inherited
         num_out = self.output_count
         return tuple(

@@ -14,7 +14,6 @@ import networkx as nx
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import AddSub, Butterfly, ConstantMultiplication
 from b_asic.schedule import Schedule
-from b_asic.scheduler import ASAPScheduler
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Input, Output
 
@@ -171,7 +170,7 @@ for i, mem in enumerate(mem_vars_set):
 
 fig, ax = plt.subplots()
 fig.suptitle('Exclusion graph based on ports')
-nx.draw(mem_vars.create_exclusion_graph_from_ports(1, 1, 2), ax=ax)
+nx.draw(mem_vars.exclusion_graph_from_ports(1, 1, 2), ax=ax)
 
 # %%
 # Create architecture

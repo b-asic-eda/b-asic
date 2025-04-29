@@ -138,7 +138,7 @@ def _split_operations_and_variables(
     pe_colors = []
     pe_operations = []
     for group in operation_groups.values():
-        pe_ex_graph = group.create_exclusion_graph_from_execution_time()
+        pe_ex_graph = group.exclusion_graph_from_execution_time()
         pe_exclusion_graphs.append(pe_ex_graph)
         operation = next(iter(group)).operation
         pe_operations.append(operation)
@@ -154,7 +154,7 @@ def _split_operations_and_variables(
             pe_colors.append(list(range(resources[operation.type_name()])))
 
     # generate the exclusion graphs along with a color upper bound for memories
-    mem_exclusion_graph = memory_variables.create_exclusion_graph_from_ports(
+    mem_exclusion_graph = memory_variables.exclusion_graph_from_ports(
         memory_read_ports, memory_write_ports, memory_total_ports
     )
     if max_memories is None:

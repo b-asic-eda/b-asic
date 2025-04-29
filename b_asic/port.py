@@ -4,9 +4,9 @@ B-ASIC Port Module.
 Contains classes for managing the ports of operations.
 """
 
+import copy
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from copy import copy
 from numbers import Number
 from typing import TYPE_CHECKING, Optional, Union
 
@@ -404,7 +404,7 @@ class OutputPort(AbstractPort, SignalSourceProvider):
         signal.remove_source()
 
     def clear(self) -> None:
-        for signal in copy(self._destination_signals):
+        for signal in copy.copy(self._destination_signals):
             self.remove_signal(signal)
 
     @property

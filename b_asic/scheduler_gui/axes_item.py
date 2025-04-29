@@ -30,7 +30,8 @@ class AxesItem(QGraphicsItemGroup):
 
     Parameters
     ----------
-    width : int
+    width : int >= 0
+        Width in time units.
     height : float
     width_indent : float, default: {SCHEDULE_INDENT}
     height_indent : float, default: {SCHEDULE_INDENT}
@@ -143,7 +144,14 @@ class AxesItem(QGraphicsItemGroup):
         self._event_items.append(item)
 
     def set_height(self, height: float) -> None:
-        # TODO: docstring
+        """
+        Set height of y-axis.
+
+        Parameters
+        ----------
+        height : float >= 0
+            New height of y-axis.
+        """
         if height < 0:
             raise ValueError(f"'height' greater or equal to 0 expected, got: {height}.")
         if self._height != height:
@@ -151,6 +159,14 @@ class AxesItem(QGraphicsItemGroup):
             self._update_yaxis()
 
     def set_width(self, width: int) -> None:
+        """
+        Set width of x-axis in time units.
+
+        Parameters
+        ----------
+        width : int >= 0
+            New width of x-axis in time units.
+        """
         # TODO: docstring
         if width < 0:
             raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")

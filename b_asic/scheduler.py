@@ -512,7 +512,10 @@ class ListScheduler(Scheduler):
     def _validate_constraints(self) -> None:
         for time_slot in range(self._schedule._schedule_time):
             for op_type, constraint in self._remaining_resources.items():
-                if self._execution_times_in_time(op_type, time_slot) > constraint:
+                if (
+                    self._schedule._execution_times_in_time(op_type, time_slot)
+                    > constraint
+                ):
                     raise ValueError(
                         "Derived schedule breaches resource constraints for:",
                         op_type,
@@ -614,20 +617,6 @@ class ListScheduler(Scheduler):
                     reads += 1
             op_reads[op_id] = reads
         return op_reads
-
-    def _execution_times_in_time(self, op_type, time: int) -> int:
-        count = 0
-        for other_op_id, start_time in self._schedule.start_times.items():
-            if self._schedule._schedule_time is not None:
-                start_time %= self._schedule._schedule_time
-            if (
-                time >= start_time
-                and time
-                < start_time + max(self._cached_execution_times[other_op_id], 1)
-                and isinstance(self._schedule._sfg.find_by_id(other_op_id), op_type)
-            ):
-                count += 1
-        return count
 
     def _op_satisfies_resource_constraints(self, op: Operation) -> bool:
         op_type = type(op)
@@ -1077,7 +1066,7 @@ class RecursiveListScheduler(ListScheduler):
 
                     op_type = type(op)
                     exec_counts = (
-                        self._execution_times_in_time(op_type, new_time)
+                        self._schedule._execution_times_in_time(op_type, new_time)
                         for new_time in new_times
                     )
                     while any(
@@ -1093,7 +1082,7 @@ class RecursiveListScheduler(ListScheduler):
                             for time in range(self._cached_execution_times[op_id])
                         )
                         exec_counts = (
-                            self._execution_times_in_time(op_type, new_time)
+                            self._schedule._execution_times_in_time(op_type, new_time)
                             for new_time in new_times
                         )
                     if delta > self._schedule.forward_slack(op_id):
@@ -1153,10 +1142,12 @@ class RecursiveListScheduler(ListScheduler):
                 )
 
             op_type = type(op)
-            exec_count = self._execution_times_in_time(op_type, op_sched_time)
+            exec_count = self._schedule._execution_times_in_time(op_type, op_sched_time)
             while exec_count >= self._remaining_resources[op_type]:
                 op_sched_time += 1
-                exec_count = self._execution_times_in_time(op_type, op_sched_time)
+                exec_count = self._schedule._execution_times_in_time(
+                    op_type, op_sched_time
+                )
 
             self._schedule.place_operation(op, op_sched_time, self._op_laps)
             self._op_laps[op.graph_id] = 0

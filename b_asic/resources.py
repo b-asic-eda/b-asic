@@ -13,10 +13,10 @@ import networkx as nx
 from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
 from pulp import (
-    GUROBI,
     PULP_CBC_CMD,
     LpBinary,
     LpProblem,
+    LpSolver,
     LpStatusOptimal,
     LpVariable,
     lpSum,
@@ -157,7 +157,7 @@ def draw_exclusion_graph_coloring(
 
         fig, ax = plt.subplots()
         collection = ProcessCollection(...)
-        exclusion_graph = collection.create_exclusion_graph_from_ports(
+        exclusion_graph = collection.exclusion_graph_from_ports(
             read_ports=1,
             write_ports=1,
             total_ports=2,
@@ -783,7 +783,7 @@ class ProcessCollection:
         fig.set_figheight(floor(max(ax.get_ylim())) * 0.3 + height)
         fig.show()  # type: ignore
 
-    def create_exclusion_graph_from_ports(
+    def exclusion_graph_from_ports(
         self,
         read_ports: int | None = None,
         write_ports: int | None = None,
@@ -856,7 +856,7 @@ class ProcessCollection:
                         exclusion_graph.add_edge(node1, node2)
         return exclusion_graph
 
-    def create_exclusion_graph_from_execution_time(self) -> nx.Graph:
+    def exclusion_graph_from_execution_time(self) -> nx.Graph:
         """
         Create an exclusion graph from processes overlapping in execution time.
 
@@ -941,7 +941,7 @@ class ProcessCollection:
             "DSATUR",
         ] = "saturation_largest_first",
         max_colors: int | None = None,
-        solver: PULP_CBC_CMD | GUROBI | None = None,
+        solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         """
         Split based on overlapping execution time.
@@ -969,12 +969,8 @@ class ProcessCollection:
             The maximum amount of colors to split based on,
             only required if strategy is an ILP method.
 
-        solver : PuLP MIP solver object, optional
+        solver : :class:`LpSolver`, optional
             Only used if strategy is an ILP method.
-            Valid options are
-
-            * PULP_CBC_CMD() - preinstalled
-            * GUROBI() - license required, but likely faster
 
         Returns
         -------
@@ -1005,7 +1001,7 @@ class ProcessCollection:
         total_ports: int | None = None,
         processing_elements: list["ProcessingElement"] | None = None,
         max_colors: int | None = None,
-        solver: PULP_CBC_CMD | GUROBI | None = None,
+        solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         """
         Split based on concurrent read and write accesses.
@@ -1047,12 +1043,8 @@ class ProcessCollection:
             The maximum amount of colors to split based on,
             only required if strategy is an ILP method.
 
-        solver : PuLP MIP solver object, optional
+        solver : :class:`LpSolver`, optional
             Only used if strategy is an ILP method.
-            Valid options are:
-
-            * PULP_CBC_CMD() - preinstalled with the package
-            * GUROBI() - required licence but likely faster
 
         Returns
         -------
@@ -1450,7 +1442,7 @@ class ProcessCollection:
             * 'saturation_largest_first' or 'DSATUR'
         """
         # create new exclusion graph. Nodes are Processes
-        exclusion_graph = self.create_exclusion_graph_from_ports(
+        exclusion_graph = self.exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
         )
 
@@ -1465,7 +1457,7 @@ class ProcessCollection:
         total_ports: int,
     ) -> list["ProcessCollection"]:
         # create new exclusion graph. Nodes are Processes
-        exclusion_graph = self.create_exclusion_graph_from_ports(
+        exclusion_graph = self.exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
         )
 
@@ -1482,10 +1474,10 @@ class ProcessCollection:
         write_ports: int,
         total_ports: int,
         max_colors: int | None = None,
-        solver: PULP_CBC_CMD | GUROBI | None = None,
+        solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         # create new exclusion graph. Nodes are Processes
-        exclusion_graph = self.create_exclusion_graph_from_ports(
+        exclusion_graph = self.exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
         )
         nodes = list(exclusion_graph.nodes())
@@ -1564,10 +1556,10 @@ class ProcessCollection:
         total_ports: int,
         processing_elements: list["ProcessingElement"],
         amount_of_colors: int,
-        solver: PULP_CBC_CMD | GUROBI | None = None,
+        solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         # create new exclusion graph. Nodes are Processes
-        exclusion_graph = self.create_exclusion_graph_from_ports(
+        exclusion_graph = self.exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
         )
         nodes = list(exclusion_graph.nodes())
@@ -1655,10 +1647,10 @@ class ProcessCollection:
         total_ports: int,
         processing_elements: list["ProcessingElement"],
         amount_of_colors: int,
-        solver: PULP_CBC_CMD | GUROBI | None = None,
+        solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         # create new exclusion graph. Nodes are Processes
-        exclusion_graph = self.create_exclusion_graph_from_ports(
+        exclusion_graph = self.exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
         )
         nodes = list(exclusion_graph.nodes())
@@ -1745,10 +1737,10 @@ class ProcessCollection:
         total_ports: int,
         processing_elements: list["ProcessingElement"],
         amount_of_colors: int,
-        solver: PULP_CBC_CMD | GUROBI | None = None,
+        solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         # create new exclusion graph. Nodes are Processes
-        exclusion_graph = self.create_exclusion_graph_from_ports(
+        exclusion_graph = self.exclusion_graph_from_ports(
             read_ports, write_ports, total_ports
         )
         nodes = list(exclusion_graph.nodes())
@@ -1899,7 +1891,7 @@ class ProcessCollection:
     def _ilp_graph_color_assignment(
         self,
         max_colors: int | None = None,
-        solver: PULP_CBC_CMD | GUROBI | None = None,
+        solver: LpSolver | None = None,
     ) -> list["ProcessCollection"]:
         for process in self:
             if process.execution_time > self.schedule_time:
@@ -1908,7 +1900,7 @@ class ProcessCollection:
                 )
 
         cell_assignment: dict[int, ProcessCollection] = {}
-        exclusion_graph = self.create_exclusion_graph_from_execution_time()
+        exclusion_graph = self.exclusion_graph_from_execution_time()
 
         nodes = list(exclusion_graph.nodes())
         edges = list(exclusion_graph.edges())
@@ -2014,7 +2006,7 @@ class ProcessCollection:
                 )
 
         cell_assignment: dict[int, ProcessCollection] = {}
-        exclusion_graph = self.create_exclusion_graph_from_execution_time()
+        exclusion_graph = self.exclusion_graph_from_execution_time()
         if coloring is None:
             coloring = nx.coloring.greedy_color(
                 exclusion_graph, strategy=coloring_strategy

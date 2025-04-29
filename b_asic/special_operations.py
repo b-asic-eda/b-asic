@@ -14,7 +14,7 @@ from b_asic.operation import (
     MutableResultMap,
 )
 from b_asic.port import SignalSourceProvider
-from b_asic.types import Name, Num, TypeName
+from b_asic.types import Name, Num, ShapeCoordinates, TypeName
 
 
 class Input(AbstractOperation):
@@ -67,7 +67,7 @@ class Input(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
+    ) -> tuple[ShapeCoordinates, ShapeCoordinates]:
         # Doc-string inherited
         return (
             (
@@ -88,11 +88,11 @@ class Input(AbstractOperation):
             ),
         )
 
-    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
+    def get_input_coordinates(self) -> ShapeCoordinates:
         # doc-string inherited
         return ()
 
-    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
+    def get_output_coordinates(self) -> ShapeCoordinates:
         # doc-string inherited
         return ((0, 0.5),)
 
@@ -140,18 +140,18 @@ class Output(AbstractOperation):
 
     def get_plot_coordinates(
         self,
-    ) -> tuple[tuple[tuple[float, float], ...], tuple[tuple[float, float], ...]]:
+    ) -> tuple[ShapeCoordinates, ShapeCoordinates]:
         # Doc-string inherited
         return (
             ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
             ((0, 0), (0, 1), (0.25, 1), (0.5, 0.5), (0.25, 0), (0, 0)),
         )
 
-    def get_input_coordinates(self) -> tuple[tuple[float, float], ...]:
+    def get_input_coordinates(self) -> ShapeCoordinates:
         # doc-string inherited
         return ((0, 0.5),)
 
-    def get_output_coordinates(self) -> tuple[tuple[float, float], ...]:
+    def get_output_coordinates(self) -> ShapeCoordinates:
         # doc-string inherited
         return ()
 
