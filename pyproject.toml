@@ -15,6 +15,7 @@ dependencies = [
   "networkx>=3",
   "pulp",
   "qtawesome",
+  "natsort",
 ]
 classifiers = [
   "Intended Audience :: Education",

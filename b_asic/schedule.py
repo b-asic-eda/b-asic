@@ -18,6 +18,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
 from matplotlib.ticker import MaxNLocator
+from natsort import natsorted
 
 from b_asic import Signal
 from b_asic._preferences import (
@@ -142,7 +143,7 @@ class Schedule:
             )
             for op in self._sfg.operations
         ]
-        res.sort(key=lambda tup: tup[0])
+        res = natsorted(res, key=lambda tup: tup[0])
         res_str = [
             (
                 r[0],
@@ -441,7 +442,7 @@ class Schedule:
             )
             for op in operations
         ]
-        res.sort(key=lambda tup: tup[order])
+        res = natsorted(res, key=lambda tup: tup[order])
         res_str = [
             (
                 r[0],

@@ -25,6 +25,7 @@ The following packages are required in order to build the library:
   - [NetworkX](https://networkx.org/)
   - [QtAwesome](https://github.com/spyder-ide/qtawesome/)
   - [PuLP](https://github.com/coin-or/pulp)
+  - [natsort](https://github.com/SethMMorton/natsort)
 - Qt 6, with Python bindings, one of: (install with `pip install .[$BINDING_NAME]`)
   - pyqt6
   - pyside6
