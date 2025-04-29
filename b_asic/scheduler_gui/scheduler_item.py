@@ -373,6 +373,8 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
             for output_port in component.operation.outputs:
                 for signal in output_port.signals:
                     destination = cast(InputPort, signal.destination)
+                    if destination.operation.graph_id not in self._operation_items:
+                        continue
                     destination_component = self._operation_items[
                         destination.operation.graph_id
                     ]

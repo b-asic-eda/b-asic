@@ -1318,6 +1318,8 @@ class Schedule:
                 for output_signal in output_port.signals:
                     destination = cast(InputPort, output_signal.destination)
                     destination_op = destination.operation
+                    if destination_op.graph_id not in self._start_times:
+                        continue
                     destination_start_time = self._start_times[destination_op.graph_id]
                     destination_y_pos = self._get_y_plot_location(
                         destination_op.graph_id, operation_gap=operation_gap
