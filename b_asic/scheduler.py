@@ -166,7 +166,7 @@ class Scheduler(ABC):
                     if self._schedule._schedule_time
                     else new_time
                 )
-                log.debug("Output %s at time: %d", (output.graph_id, modulo_time))
+                log.debug("Output %s at time: %d", output.graph_id, modulo_time)
         log.debug("Output placement completed")
 
         log.debug("Output placement optimization starting")
@@ -195,7 +195,9 @@ class Scheduler(ABC):
                     )
                 log.debug(
                     "Output %s moved %d time steps backwards to new time %d",
-                    (output.graph_id, min_slack, new_time),
+                    output.graph_id,
+                    min_slack,
+                    new_time,
                 )
         log.debug("Output placement optimization completed")
 
@@ -895,7 +897,8 @@ class ListScheduler(Scheduler):
 
                 log.debug(
                     "Schedule operation: %s at time: %d",
-                    (self._current_time, next_op.graph_id),
+                    next_op.graph_id,
+                    self._current_time,
                 )
 
                 prio_table = self._get_priority_table(self._remaining_ops)
@@ -975,8 +978,10 @@ class RecursiveListScheduler(ListScheduler):
 
         loops = self._schedule._sfg.loops
         if loops:
+            log.debug("Scheduling recursive operations")
             self._schedule_recursive_ops(loops)
 
+        log.debug("Scheduling non-recursive operations")
         self._schedule_nonrecursive_ops()
 
         if self._output_delta_times:
@@ -989,6 +994,7 @@ class RecursiveListScheduler(ListScheduler):
         if loops:
             if int(period_bound) != period_bound:
                 log.warning("Rational iteration period bound: %d", period_bound)
+            log.debug("Retiming operations")
             self._retime_ops(math.ceil(period_bound))
         self._handle_dont_cares()
         if self._sort_y_location:
@@ -1087,6 +1093,7 @@ class RecursiveListScheduler(ListScheduler):
                         )
                     if delta > self._schedule.forward_slack(op_id):
                         continue
+                    log.debug("Moving operation %s %d time units", op_id, delta)
                     self._schedule.move_operation(op_id, delta)
 
                 # adjust time if a gap exists on the right side of the schedule
@@ -1107,9 +1114,14 @@ class RecursiveListScheduler(ListScheduler):
                         )
                     if max_end_time > self._schedule._schedule_time:
                         slack = min(slack, self._schedule.forward_slack(other_op_id))
-                for op_id in self._schedule._start_times:
-                    self._schedule._start_times[op_id] -= slack
-                self._schedule._schedule_time = self._schedule._schedule_time - slack
+                if slack > 0:
+                    log.debug("Reducing schedule time by %d", slack)
+                    for op_id in self._schedule._start_times:
+                        self._schedule._start_times[op_id] -= slack
+
+                    self._schedule._schedule_time = (
+                        self._schedule._schedule_time - slack
+                    )
 
                 if self._schedule._schedule_time <= time_goal:
                     break
@@ -1151,9 +1163,7 @@ class RecursiveListScheduler(ListScheduler):
 
             self._schedule.place_operation(op, op_sched_time, self._op_laps)
             self._op_laps[op.graph_id] = 0
-            log.debug(
-                "Schedule operation: %s at time: %d", (op.graph_id, op_sched_time)
-            )
+            log.debug("Schedule operation: %s at time: %d", op.graph_id, op_sched_time)
             self._remaining_recursive_ops.remove(op.graph_id)
             self._remaining_ops.remove(op.graph_id)
             self._remaining_ops_set.remove(op.graph_id)
