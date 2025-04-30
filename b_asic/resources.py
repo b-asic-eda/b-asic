@@ -991,6 +991,8 @@ class ProcessCollection:
         strategy: Literal[
             "ilp_graph_color",
             "ilp_min_input_mux",
+            "ilp_min_output_mux",
+            "ilp_min_total_mux",
             "greedy_graph_color",
             "equitable_graph_color",
             "left_edge",
@@ -1015,13 +1017,15 @@ class ProcessCollection:
             The strategy used when splitting this :class:`ProcessCollection`.
             Valid options are:
 
-            * "ilp_graph_color" - ILP-based optimal graph coloring
-            * "ilp_min_input_mux" - ILP-based optimal graph coloring minimizing the number of input multiplexers
-            * "greedy_graph_color"
-            * "equitable_graph_color"
-            * "left_edge"
-            * "left_edge_min_pe_to_mem"
-            * "left_edge_min_mem_to_pe"
+            * "ilp_graph_color" - ILP-based optimal graph coloring.
+            * "ilp_min_input_mux" - ILP-based optimal graph coloring reducing the number of PE -> memory multiplexers.
+            * "ilp_min_output_mux" - ILP-based optimal graph coloring reducing the number of memory -> PE multiplexers.
+            * "ilp_min_total_mux" - ILP-based optimal graph coloring reducing the number of total multiplexers.
+            * "greedy_graph_color" - Greedy graph coloring based heuristic.
+            * "equitable_graph_color" - Equitable graph coloring, attempting to divide the variables evenly.
+            * "left_edge" - Greedy heuristic for assigning variables.
+            * "left_edge_min_pe_to_mem" - Greedy heuristic for assigning variables, attempting to reduce the amount of PE -> memory connections.
+            * "left_edge_min_mem_to_pe" Greedy heuristic for assigning variables, attempting to reduce the amount of memory -> PE connections.
 
         read_ports : int, optional
             The number of read ports used when splitting process collection based on
