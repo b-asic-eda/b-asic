@@ -309,6 +309,19 @@ class TestProcessCollectionPlainMemoryVariable:
         assert exclusion_graph.degree(p2) == 1
         assert exclusion_graph.degree(p3) == 3
 
+    def test_processing_element_bound(self):
+        a = PlainMemoryVariable(2, 0, {0: 1}, "cmul1.0")
+        b = PlainMemoryVariable(4, 0, {0: 7}, "cmul4.0")
+        c = PlainMemoryVariable(5, 0, {0: 4}, "cmul5.0")
+        collection = ProcessCollection([a, b, c], schedule_time=7, cyclic=True)
+        assert collection.processing_element_bound() == 2
+
+        a = PlainMemoryVariable(2, 0, {0: 1}, "cmul1.0")
+        b = PlainMemoryVariable(2, 0, {0: 2}, "cmul2.0")
+        c = PlainMemoryVariable(2, 0, {0: 3}, "cmul3.0")
+        collection = ProcessCollection([a, b, c], schedule_time=5, cyclic=True)
+        assert collection.processing_element_bound() == 3
+
     def test_split_on_execution_time_maximum_lifetime(self):
         a = PlainMemoryVariable(2, 0, {0: 1}, "cmul1.0")
         b = PlainMemoryVariable(4, 0, {0: 7}, "cmul4.0")

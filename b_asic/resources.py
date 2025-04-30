@@ -2377,15 +2377,25 @@ class ProcessCollection:
             self._cyclic,
         )
 
-    def read_ports_bound(self) -> int:
+    def processing_element_bound(self) -> int:
         """
-        Get the read port lower-bound.
-
-        That is, the maximum number of concurrent reads.
+        Get the lower-bound on the number of processing elements.
 
         Returns
         -------
         int
+            The maximum number of concurrent executions times.
+        """
+        return max(self.total_execution_times().values())
+
+    def read_ports_bound(self) -> int:
+        """
+        Get the lower-bound on the number of read ports.
+
+        Returns
+        -------
+        int
+            The maximum number of concurrent reads.
         """
         return max(self.read_port_accesses().values())
 
@@ -2400,13 +2410,12 @@ class ProcessCollection:
 
     def write_ports_bound(self) -> int:
         """
-        Get the total port lower-bound.
-
-        That is, the maximum number of concurrent writes.
+        Get the lower-bound on the number of write ports.
 
         Returns
         -------
         int
+            The maximum number of concurrent writes.
         """
         return max(self.write_port_accesses().values())
 
@@ -2418,13 +2427,12 @@ class ProcessCollection:
 
     def total_ports_bound(self) -> int:
         """
-        Get the total port lower-bound.
-
-        That is the maximum number of concurrent reads and writes.
+        Get the lower-bound on the number of total ports.
 
         Returns
         -------
         int
+            The maximum number of concurrent reads and writes.
         """
         return max(self.total_port_accesses().values())
 
