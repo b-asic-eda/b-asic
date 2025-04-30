@@ -1488,30 +1488,30 @@ class ProcessCollection:
 
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        #   c[color] - whether color is used
         x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        #   c[color] - whether color is used
         c = LpVariable.dicts("c", colors, cat=LpBinary)
         problem = LpProblem()
         problem += lpSum(c[i] for i in colors)
 
         # constraints:
         #   (1) - nodes have exactly one color
-        #   (2) - adjacent nodes cannot have the same color
-        #   (3) - only permit assignments if color is used
-        #   (4) - reduce solution space by assigning colors to the largest clique
-        #   (5 & 6) - reduce solution space by ignoring the symmetry caused
-        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
+        #   (2) - adjacent nodes cannot have the same color
         for u, v in edges:
             for color in colors:
                 problem += x[u][color] + x[v][color] <= 1
+        #   (3) - only permit assignments if color is used
         for node in nodes:
             for color in colors:
                 problem += x[node][color] <= c[color]
+        #   (4) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += x[node][color] == c[color] == 1
+        #   (5 & 6) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for color in colors:
             problem += c[color] <= lpSum(x[node][color] for node in nodes)
         for color in colors[:-1]:
@@ -1576,10 +1576,10 @@ class ProcessCollection:
 
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        #   c[color] - whether color is used
-        #   y[pe, color] - whether a color has nodes generated from a certain pe
         x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        #   c[color] - whether color is used
         c = LpVariable.dicts("c", colors, cat=LpBinary)
+        #   y[pe, color] - whether a color has nodes generated from a certain pe
         y = LpVariable.dicts("y", (pe_out_ports, colors), cat=LpBinary)
 
         problem = LpProblem()
@@ -1587,27 +1587,27 @@ class ProcessCollection:
 
         # constraints:
         #   (1) - nodes have exactly one color
-        #   (2) - adjacent nodes cannot have the same color
-        #   (3) - only permit assignments if color is used
-        #   (4) - if node is colored then enable the PE which generates that node
-        #   (5) - reduce solution space by assigning colors to the largest clique
-        #   (6 & 7) - reduce solution space by ignoring the symmetry caused
-        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
+        #   (2) - adjacent nodes cannot have the same color
         for u, v in edges:
             for color in colors:
                 problem += x[u][color] + x[v][color] <= 1
+        #   (3) - only permit assignments if color is used
         for node in nodes:
             for color in colors:
                 problem += x[node][color] <= c[color]
+        #   (4) - if node is colored then enable the PE which generates that node
         for node in nodes:
             port = _get_source_port(node, processing_elements)
             for color in colors:
                 problem += x[node][color] <= y[port][color]
+        #   (5) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += x[node][color] == c[color] == 1
+        #   (6 & 7) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for color in colors:
             problem += c[color] <= lpSum(x[node][color] for node in nodes)
         for color in colors[:-1]:
@@ -1672,37 +1672,37 @@ class ProcessCollection:
 
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        #   c[color] - whether color is used
-        #   y[pe, color] - whether a color has nodes writing to a certain PE
         x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        #   c[color] - whether color is used
         c = LpVariable.dicts("c", colors, cat=LpBinary)
+        #   y[pe, color] - whether a color has nodes writing to a certain PE
         y = LpVariable.dicts("y", (pe_in_ports, colors), cat=LpBinary)
         problem = LpProblem()
         problem += lpSum(y[port][i] for port in pe_in_ports for i in colors)
 
         # constraints:
         #   (1) - nodes have exactly one color
-        #   (2) - adjacent nodes cannot have the same color
-        #   (3) - only permit assignments if color is used
-        #   (4) - if node is colored then enable the PE reads from that node (variable)
-        #   (5) - reduce solution space by assigning colors to the largest clique
-        #   (6 & 7) - reduce solution space by ignoring the symmetry caused
-        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
+        #   (2) - adjacent nodes cannot have the same color
         for u, v in edges:
             for color in colors:
                 problem += x[u][color] + x[v][color] <= 1
+        #   (3) - only permit assignments if color is used
         for node in nodes:
             for color in colors:
                 problem += x[node][color] <= c[color]
+        #   (4) - if node is colored then enable the PE reads from that node (variable)
         for node in nodes:
             port = _get_destination_port(node, processing_elements)
             for color in colors:
                 problem += x[node][color] <= y[port][color]
+        #   (5) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += x[node][color] == c[color] == 1
+        #   (6 & 7) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for color in colors:
             problem += c[color] <= lpSum(x[node][color] for node in nodes)
         for color in colors[:-1]:
@@ -1772,12 +1772,12 @@ class ProcessCollection:
 
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        #   c[color] - whether color is used
-        #   y[pe, color] - whether a color has nodes generated from a certain pe
-        #   z[pe, color] - whether a color has nodes writing to a certain PE
         x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        #   c[color] - whether color is used
         c = LpVariable.dicts("c", colors, cat=LpBinary)
+        #   y[pe, color] - whether a color has nodes generated from a certain pe
         y = LpVariable.dicts("y", (pe_out_ports, colors), cat=LpBinary)
+        #   z[pe, color] - whether a color has nodes writing to a certain PE
         z = LpVariable.dicts("z", (pe_in_ports, colors), cat=LpBinary)
         problem = LpProblem()
         problem += lpSum([y[port][i] for port in pe_out_ports for i in colors]) + lpSum(
@@ -1786,32 +1786,32 @@ class ProcessCollection:
 
         # constraints:
         #   (1) - nodes have exactly one color
-        #   (2) - adjacent nodes cannot have the same color
-        #   (3) - only permit assignments if color is used
-        #   (4) - if node is colored then enable the PE port which writes to that node
-        #   (5) - if node is colored then enable the PE port which reads from that node
-        #   (6) - reduce solution space by assigning colors to the largest clique
-        #   (7 & 8) - reduce solution space by ignoring the symmetry caused
-        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
+        #   (2) - adjacent nodes cannot have the same color
         for u, v in edges:
             for color in colors:
                 problem += x[u][color] + x[v][color] <= 1
+        #   (3) - only permit assignments if color is used
         for node in nodes:
             for color in colors:
                 problem += x[node][color] <= c[color]
+        #   (4) - if node is colored then enable the PE port which writes to that node
         for node in nodes:
             port = _get_source_port(node, processing_elements)
             for color in colors:
                 problem += x[node][color] <= y[port][color]
+        #   (5) - if node is colored then enable the PE port which reads from that node
         for node in nodes:
             port = _get_destination_port(node, processing_elements)
             for color in colors:
                 problem += x[node][color] <= z[port][color]
+        #   (6) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += x[node][color] == c[color] == 1
+        #   (7 & 8) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for color in colors:
             problem += c[color] <= lpSum(x[node][color] for node in nodes)
         for color in colors[:-1]:
@@ -1923,30 +1923,31 @@ class ProcessCollection:
 
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        #   c[color] - whether color is used
         x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        #   c[color] - whether color is used
         c = LpVariable.dicts("c", colors, cat=LpBinary)
+
         problem = LpProblem()
         problem += lpSum(c[i] for i in colors)
 
         # constraints:
         #   (1) - nodes have exactly one color
-        #   (2) - adjacent nodes cannot have the same color
-        #   (3) - only permit assignments if color is used
-        #   (4) - reduce solution space by assigning colors to the largest clique
-        #   (5 & 6) - reduce solution space by ignoring the symmetry caused
-        #       by cycling the graph colors
         for node in nodes:
             problem += lpSum(x[node][i] for i in colors) == 1
+        #   (2) - adjacent nodes cannot have the same color
         for u, v in edges:
             for color in colors:
                 problem += x[u][color] + x[v][color] <= 1
+        #   (3) - only permit assignments if color is used
         for node in nodes:
             for color in colors:
                 problem += x[node][color] <= c[color]
+        #   (4) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += x[node][color] == c[color] == 1
+        #   (5 & 6) - reduce solution space by ignoring the symmetry caused
+        #       by cycling the graph colors
         for color in colors:
             problem += c[color] <= lpSum(x[node][color] for node in nodes)
         for color in colors[:-1]:
