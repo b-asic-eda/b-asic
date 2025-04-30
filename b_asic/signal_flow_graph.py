@@ -18,6 +18,7 @@ from typing import Literal, Union, cast
 import numpy as np
 from graphviz import Digraph
 
+from b_asic.core_operations import Constant, ConstantMultiplication
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
     AbstractOperation,
@@ -1853,7 +1854,7 @@ class SFG(AbstractOperation):
             time_of_loop = 0
             number_of_t_in_loop = 0
             for element in loop:
-                if "".join([i for i in element if not i.isdigit()]) == "t":
+                if isinstance(self.find_by_id(element), Delay):
                     number_of_t_in_loop += 1
                 for key, item in op_and_latency.items():
                     if key in element:
@@ -1875,7 +1876,7 @@ class SFG(AbstractOperation):
         """
         inputs_used = []
         for used_input in self._used_ids:
-            if "in" in str(used_input):
+            if isinstance(self.find_by_id(used_input), Input):
                 used_input = used_input.replace("in", "")
                 inputs_used.append(int(used_input))
         if inputs_used == []:
@@ -1931,7 +1932,7 @@ class SFG(AbstractOperation):
         """
         delay_element_used = []
         for delay_element in self._used_ids:
-            if "".join([i for i in delay_element if not i.isdigit()]) == "t":
+            if isinstance(self.find_by_id(delay_element), Delay):
                 delay_element_used.append(delay_element)
         delay_element_used.sort()
         input_index_used = []
@@ -1939,10 +1940,11 @@ class SFG(AbstractOperation):
         output_index_used = []
         outputs_used = []
         for used_inout in self._used_ids:
-            if "in" in str(used_inout):
+            op = cast(Operation, self.find_by_id(used_inout))
+            if isinstance(op, Input):
                 inputs_used.append(used_inout)
                 input_index_used.append(int(used_inout.replace("in", "")))
-            elif "out" in str(used_inout):
+            elif isinstance(op, Output):
                 outputs_used.append(used_inout)
                 output_index_used.append(int(used_inout.replace("out", "")))
         if input_index_used == []:
@@ -1989,12 +1991,13 @@ class SFG(AbstractOperation):
             raise ValueError("Empty SFG")
         addition_with_constant = {}
         for key, item in dict_of_sfg.items():
-            if "".join([i for i in key if not i.isdigit()]) == "c":
-                addition_with_constant[item[0]] = self.find_by_id(key).value
+            op = cast(Operation, self.find_by_id(key))
+            if isinstance(op, Constant):
+                addition_with_constant[item[0]] = op.value
         cycles = [
             [node, *path]
             for node in dict_of_sfg
-            if node[0] == "t"
+            if isinstance(self.find_by_id(node), Delay)
             for path in self._dfs(dict_of_sfg, node, node)
         ]
         delay_loop_list = []
@@ -2003,7 +2006,10 @@ class SFG(AbstractOperation):
                 temp_list = []
                 for element in lista:
                     temp_list.append(element)
-                    if element[0] == "t" and len(temp_list) >= 2:
+                    if (
+                        isinstance(self.find_by_id(element), Delay)
+                        and len(temp_list) >= 2
+                    ):
                         delay_loop_list.append(temp_list)
                         temp_list = [element]
         state_space_lista = []
@@ -2033,7 +2039,7 @@ class SFG(AbstractOperation):
                     temp_list = []
                     for element in lista:
                         temp_list.append(element)
-                        if element[0] == "t":
+                        if isinstance(self.find_by_id(element), Delay):
                             state_space_lista.append(temp_list)
                             temp_list = [element]
             for out_signal in outputs_used:
@@ -2045,10 +2051,11 @@ class SFG(AbstractOperation):
                     temp_list1 = []
                     for element in lista:
                         temp_list1.append(element)
-                        if element[0] == "t":
+                        op = cast(Operation, self.find_by_id(element))
+                        if isinstance(op, Delay):
                             state_space_lista.append(temp_list1)
                             temp_list1 = [element]
-                        if "out" in element:
+                        elif isinstance(op, Output):
                             state_space_lista.append(temp_list1)
                             temp_list1 = []
         state_space_list_no_dup = []
@@ -2058,46 +2065,52 @@ class SFG(AbstractOperation):
             if x not in state_space_list_no_dup
         ]
         for lista in state_space_list_no_dup:
-            if "in" in lista[0] and lista[-1][0] == "t":
+            source_op = self.find_by_id(lista[0])
+            dest_op = self.find_by_id(lista[-1])
+            if isinstance(source_op, Input) and isinstance(dest_op, Delay):
                 row = int(lista[-1].replace("t", ""))
                 column = len(delay_element_used) + int(lista[0].replace("in", ""))
                 temp_value = 1
                 for element in lista:
-                    if "cmul" in element:
-                        temp_value *= self.find_by_id(element).value
+                    op = cast(Operation, self.find_by_id(element))
+                    if isinstance(op, ConstantMultiplication):
+                        temp_value *= op.value
                     for key, value in addition_with_constant.items():
                         if key == element:
                             temp_value += int(value)
                 mat_content[row, column] += temp_value
-            elif "in" in lista[0] and "out" in lista[-1]:
+            elif isinstance(source_op, Input) and isinstance(dest_op, Output):
                 row = len(delay_element_used) + int(lista[-1].replace("out", ""))
                 column = len(delay_element_used) + int(lista[0].replace("in", ""))
                 temp_value = 1
                 for element in lista:
-                    if "cmul" in element:
-                        temp_value *= self.find_by_id(element).value
+                    op = cast(Operation, self.find_by_id(element))
+                    if isinstance(op, ConstantMultiplication):
+                        temp_value *= op.value
                     for key, value in addition_with_constant.items():
                         if key == element:
                             temp_value += int(value)
                 mat_content[row, column] += temp_value
-            elif lista[0][0] == "t" and lista[-1][0] == "t":
+            elif isinstance(source_op, Delay) and isinstance(dest_op, Delay):
                 row = int(lista[-1].replace("t", ""))
                 column = int(lista[0].replace("t", ""))
                 temp_value = 1
                 for element in lista:
-                    if "cmul" in element:
-                        temp_value *= self.find_by_id(element).value
+                    op = cast(Operation, self.find_by_id(element))
+                    if isinstance(op, ConstantMultiplication):
+                        temp_value *= op.value
                     for key, value in addition_with_constant.items():
                         if key == element:
                             temp_value += int(value)
                 mat_content[row, column] += temp_value
-            elif lista[0][0] == "t" and "out" in lista[-1]:
+            elif isinstance(source_op, Delay) and isinstance(dest_op, Output):
                 row = len(delay_element_used) + int(lista[-1].replace("out", ""))
                 column = int(lista[0].replace("t", ""))
                 temp_value = 1
                 for element in lista:
-                    if "cmul" in element:
-                        temp_value *= self.find_by_id(element).value
+                    op = cast(Operation, self.find_by_id(element))
+                    if isinstance(op, ConstantMultiplication):
+                        temp_value *= op.value
                     for key, value in addition_with_constant.items():
                         if key == element:
                             temp_value += int(value)
