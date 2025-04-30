@@ -1915,7 +1915,7 @@ class SFG(AbstractOperation):
 
     def state_space_representation(
         self,
-    ) -> tuple[list[int], npt.NDArray[np.float64], list[int]]:
+    ) -> tuple[list[GraphID], npt.NDArray[np.float64], list[GraphID]]:
         """
         Find the state-space representation of the SFG.
 
@@ -2014,15 +2014,11 @@ class SFG(AbstractOperation):
         matrix_answer = [0] * mat_row
         for in_signal in inputs_used:
             matrix_in[len(delay_element_used) + int(in_signal.replace("in", ""))] = (
-                in_signal.replace("in", "x")
+                in_signal
             )
             for delay_element in delay_element_used:
-                matrix_answer[delay_element_used.index(delay_element)] = (
-                    delay_element.replace("t", "v")
-                )
-                matrix_in[delay_element_used.index(delay_element)] = (
-                    delay_element.replace("t", "v")
-                )
+                matrix_answer[delay_element_used.index(delay_element)] = delay_element
+                matrix_in[delay_element_used.index(delay_element)] = delay_element
                 paths = self.find_all_paths(dict_of_sfg, in_signal, delay_element)
                 for lista in paths:
                     temp_list = []
@@ -2035,7 +2031,7 @@ class SFG(AbstractOperation):
                 paths = self.find_all_paths(dict_of_sfg, in_signal, out_signal)
                 matrix_answer[
                     len(delay_element_used) + int(out_signal.replace("out", ""))
-                ] = out_signal.replace("out", "y")
+                ] = out_signal
                 for lista in paths:
                     temp_list1 = []
                     for element in lista:

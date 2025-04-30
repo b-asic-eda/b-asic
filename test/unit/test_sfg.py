@@ -1955,25 +1955,25 @@ class TestLoops:
 class TestStateSpace:
     def test_accumulator(self, sfg_simple_accumulator):
         ss = sfg_simple_accumulator.state_space_representation()
-        assert ss[0] == ["v0", "y0"]
+        assert ss[0] == ["t0", "out0"]
         assert (ss[1] == np.array([[1.0, 1.0], [0.0, 1.0]])).all()
-        assert ss[2] == ["v0", "x0"]
+        assert ss[2] == ["t0", "in0"]
 
     def test_secondorder_iir(self, precedence_sfg_delays):
         ss = precedence_sfg_delays.state_space_representation()
-        assert ss[0] == ["v0", "v1", "y0"]
+        assert ss[0] == ["t0", "t1", "out0"]
 
         mat = np.array([[3.0, 2.0, 5.0], [1.0, 0.0, 0.0], [4.0, 6.0, 35.0]])
         assert (ss[1] == mat).all()
-        assert ss[2] == ["v0", "v1", "x0"]
+        assert ss[2] == ["t0", "t1", "in0"]
 
     # @pytest.mark.xfail()
     def test_sfg_two_inputs_two_outputs(self, sfg_two_inputs_two_outputs):
         ss = sfg_two_inputs_two_outputs.state_space_representation()
 
-        assert ss[0] == ["y0", "y1"]
+        assert ss[0] == ["out0", "out1"]
         assert (ss[1] == np.array([[1.0, 1.0], [1.0, 2.0]])).all()
-        assert ss[2] == ["x0", "x1"]
+        assert ss[2] == ["in0", "in1"]
 
     def test_sfg_two_inputs_two_outputs_independent(
         self, sfg_two_inputs_two_outputs_independent
@@ -1981,15 +1981,15 @@ class TestStateSpace:
         # assert sfg_two_inputs_two_outputs_independent.state_space_representation() == 1
         ss = sfg_two_inputs_two_outputs_independent.state_space_representation()
 
-        assert ss[0] == ["y0", "y1"]
+        assert ss[0] == ["out0", "out1"]
         assert (ss[1] == np.array([[1.0, 0.0], [0.0, 4.0]])).all()
-        assert ss[2] == ["x0", "x1"]
+        assert ss[2] == ["in0", "in1"]
 
     def test_sfg_two_inputs_two_outputs_independent_with_cmul(
         self, sfg_two_inputs_two_outputs_independent_with_cmul
     ):
         ss = sfg_two_inputs_two_outputs_independent_with_cmul.state_space_representation()
 
-        assert ss[0] == ["y0", "y1"]
+        assert ss[0] == ["out0", "out1"]
         assert (ss[1] == np.array([[20.0, 0.0], [0.0, 8.0]])).all()
-        assert ss[2] == ["x0", "x1"]
+        assert ss[2] == ["in0", "in1"]
