@@ -645,7 +645,7 @@ def test_separate_ilp_color_no_max_colors_provided(mem_variables_fft16):
     assert len(arch.memories) == 4
 
 
-def test_joint_ilp_color_no_max_colors_or_resources_provided(mem_variables_fft16):
+def test_joint_ilp_color_no_max_colors_or_resources_provided():
     # test the joint resource assigner with mux reduction can handle no colors provided
     sfg = radix_2_dif_fft(8)
     sfg.set_latency_of_type_name("bfly", 1)
@@ -673,3 +673,55 @@ def test_joint_ilp_color_no_max_colors_or_resources_provided(mem_variables_fft16
     arch = Architecture(pes, mems, direct_interconnects=direct)
     assert len(arch.processing_elements) == 5
     assert len(arch.memories) == 3
+
+
+def test_ilp_resource_algorithm_single_port_memory(mem_variables_fft16):
+    direct, mem_vars, processing_elements = mem_variables_fft16
+
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1,
+        write_ports=1,
+        total_ports=1,
+        strategy="ilp_graph_color",
+        processing_elements=processing_elements,
+    )
+
+    memories = [
+        Memory(mem, memory_type="RAM", entity_name=f"memory{i}", assign=True)
+        for i, mem in enumerate(mem_vars_set)
+    ]
+
+    arch = Architecture(
+        processing_elements,
+        memories,
+        direct_interconnects=direct,
+    )
+    assert len(arch.processing_elements) == 5
+    assert len(arch.memories) <= 2 * 4  # upper bound
+
+    sfg = radix_2_dif_fft(32)
+    sfg.set_latency_of_type_name("bfly", 2)
+    sfg.set_latency_of_type_name("cmul", 3)
+    sfg.set_execution_time_of_type_name("bfly", 2)
+    sfg.set_execution_time_of_type_name("cmul", 3)
+
+    resources = {"bfly": 1, "cmul": 1, "in": 1, "out": 2}
+    schedule = Schedule(
+        sfg,
+        scheduler=HybridScheduler(
+            resources, max_concurrent_reads=3, max_concurrent_writes=3
+        ),
+    )
+
+    pes, mems, direct = assign_processing_elements_and_memories(
+        schedule.get_operations(),
+        schedule.get_memory_variables(),
+        strategy="ilp_graph_color",
+        memory_read_ports=1,
+        memory_write_ports=1,
+        memory_total_ports=1,
+    )
+
+    arch = Architecture(pes, mems, direct_interconnects=direct)
+    assert len(arch.processing_elements) == 5
+    assert len(arch.memories) <= 2 * 3  # upper bound
