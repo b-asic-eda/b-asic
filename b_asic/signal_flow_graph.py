@@ -16,6 +16,7 @@ from queue import PriorityQueue
 from typing import Literal, Union, cast
 
 import numpy as np
+import numpy.typing as npt
 from graphviz import Digraph
 
 from b_asic.core_operations import Constant, ConstantMultiplication
@@ -1874,18 +1875,11 @@ class SFG(AbstractOperation):
         -------
         A list of the recursive loops.
         """
-        inputs_used = []
-        for used_input in self._used_ids:
-            if isinstance(self.find_by_id(used_input), Input):
-                used_input = used_input.replace("in", "")
-                inputs_used.append(int(used_input))
-        if inputs_used == []:
+        if not self.input_count:
             return []
-        for input_index in inputs_used:
-            input_op = self._input_operations[input_index]
-        queue: deque[Operation] = deque([input_op])
-        visited: set[Operation] = {input_op}
-        dict_of_sfg = {}
+        dict_of_sfg: dict[GraphID, list[GraphID]] = {}
+        queue: deque[Operation] = deque(self._input_operations)
+        visited: set[Operation] = set(self._input_operations)
         while queue:
             op = queue.popleft()
             for output_port in op.outputs:
@@ -1897,32 +1891,31 @@ class SFG(AbstractOperation):
                         if not isinstance(op, (Input, Output)) and not isinstance(
                             new_op, Output
                         ):
-                            dict_of_sfg[op.graph_id] += [new_op.graph_id]
+                            dict_of_sfg[op.graph_id].append(new_op.graph_id)
                         if new_op not in visited:
                             queue.append(new_op)
                             visited.add(new_op)
                     else:
-                        raise ValueError("Destination does not exist")
+                        raise ValueError("Destination for {signal!r} does not exist")
         cycles = [
             [node, *path]
             for node in dict_of_sfg
             for path in self._dfs(dict_of_sfg, node, node)
         ]
 
-        loops = self._get_non_redundant_cycles(cycles)
-        return loops
-
-    def _get_non_redundant_cycles(self, loops):
+        # Get non-redundant cycles
         unique_lists = []
         seen_cycles = set()
-        for loop in loops:
-            operation_set = frozenset(loop)
+        for cycle in cycles:
+            operation_set = frozenset(cycle)
             if operation_set not in seen_cycles:
-                unique_lists.append(loop)
+                unique_lists.append(cycle)
                 seen_cycles.add(operation_set)
         return unique_lists
 
-    def state_space_representation(self):
+    def state_space_representation(
+        self,
+    ) -> tuple[list[int], npt.NDArray[np.float64], list[int]]:
         """
         Find the state-space representation of the SFG.
 
@@ -1930,63 +1923,59 @@ class SFG(AbstractOperation):
         -------
         The state-space representation.
         """
-        delay_element_used = []
-        for delay_element in self._used_ids:
-            if isinstance(self.find_by_id(delay_element), Delay):
-                delay_element_used.append(delay_element)
+        delay_element_used = [
+            graph_id
+            for graph_id, comp in self._components_by_id.items()
+            if isinstance(comp, Delay)
+        ]
         delay_element_used.sort()
         input_index_used = []
         inputs_used = []
         output_index_used = []
         outputs_used = []
-        for used_inout in self._used_ids:
-            op = cast(Operation, self.find_by_id(used_inout))
-            if isinstance(op, Input):
-                inputs_used.append(used_inout)
-                input_index_used.append(int(used_inout.replace("in", "")))
-            elif isinstance(op, Output):
-                outputs_used.append(used_inout)
-                output_index_used.append(int(used_inout.replace("out", "")))
-        if input_index_used == []:
+        for graph_id, comp in self._components_by_id.items():
+            if isinstance(comp, Input):
+                inputs_used.append(graph_id)
+                input_index_used.append(int(graph_id.replace("in", "")))
+            elif isinstance(comp, Output):
+                outputs_used.append(graph_id)
+                output_index_used.append(int(graph_id.replace("out", "")))
+        if not self._input_operations:
             raise ValueError("No input(s) to sfg")
-        if output_index_used == []:
+        if not self._output_operations:
             raise ValueError("No output(s) to sfg")
-        dict_of_sfg = {}
-        for output in output_index_used:
-            output_op = self._output_operations[output]
-            queue: deque[Operation] = deque([output_op])
-            visited: set[Operation] = {output_op}
-            while queue:
-                op = queue.popleft()
-                for input_port in op.inputs:
-                    for signal in input_port.signals:
-                        if signal.source is not None:
-                            new_op = signal.source.operation
-                            dict_of_sfg[new_op.graph_id] = [op.graph_id]
-                            if new_op not in visited:
-                                queue.append(new_op)
-                                visited.add(new_op)
-                        else:
-                            raise ValueError("Source does not exist")
-        for input_index in input_index_used:
-            input_op = self._input_operations[input_index]
-            queue: deque[Operation] = deque([input_op])
-            visited: set[Operation] = {input_op}
-            while queue:
-                op = queue.popleft()
-                if isinstance(op, Output):
-                    dict_of_sfg[op.graph_id] = []
-                for output_port in op.outputs:
-                    dict_of_sfg[op.graph_id] = []
-                    for signal in output_port.signals:
-                        if signal.destination is not None:
-                            new_op = signal.destination.operation
-                            dict_of_sfg[op.graph_id] += [new_op.graph_id]
-                            if new_op not in visited:
-                                queue.append(new_op)
-                                visited.add(new_op)
-                        else:
-                            raise ValueError("Destination does not exist")
+        dict_of_sfg: dict[GraphID, list[GraphID]] = {}
+        queue: deque[Operation] = deque(self._output_operations)
+        visited: set[Operation] = set(self._output_operations)
+        while queue:
+            op = queue.popleft()
+            for input_port in op.inputs:
+                for signal in input_port.signals:
+                    if signal.source is not None:
+                        new_op = signal.source.operation
+                        dict_of_sfg[new_op.graph_id] = [op.graph_id]
+                        if new_op not in visited:
+                            queue.append(new_op)
+                            visited.add(new_op)
+                    else:
+                        raise ValueError("Source does not exist")
+        queue: deque[Operation] = deque(self._input_operations)
+        visited: set[Operation] = set(self._input_operations)
+        while queue:
+            op = queue.popleft()
+            if isinstance(op, Output):
+                dict_of_sfg[op.graph_id] = []
+            for output_port in op.outputs:
+                dict_of_sfg[op.graph_id] = []
+                for signal in output_port.signals:
+                    if signal.destination is not None:
+                        new_op = signal.destination.operation
+                        dict_of_sfg[op.graph_id] += [new_op.graph_id]
+                        if new_op not in visited:
+                            queue.append(new_op)
+                            visited.add(new_op)
+                    else:
+                        raise ValueError("Destination does not exist")
         if not dict_of_sfg:
             raise ValueError("Empty SFG")
         addition_with_constant = {}
