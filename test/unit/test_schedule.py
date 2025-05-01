@@ -118,21 +118,21 @@ class TestInit:
             start_times_names[op_name] = schedule.start_time_of_operation(op_id)
 
         assert start_times_names == {
-            "IN1": 8 - 4,
-            "C0": 8 - 4,
-            "B1": 4 - 4,
-            "B2": 4 - 4,
-            "ADD2": 7 - 4,
-            "ADD1": 11 - 4,
-            "Q1": 15 - 4,
-            "A0": 18 - 4,
-            "A1": 14 - 4,
-            "A2": 14 - 4,
-            "ADD3": 17 - 4,
-            "ADD4": 21 - 4,
-            "OUT1": 25 - 4,
+            "IN1": 8,
+            "C0": 8,
+            "B1": 4,
+            "B2": 4,
+            "ADD2": 7,
+            "ADD1": 11,
+            "Q1": 15,
+            "A0": 18,
+            "A1": 14,
+            "A2": 14,
+            "ADD3": 17,
+            "ADD4": 21,
+            "OUT1": 25,
         }
-        assert schedule.schedule_time == 25 - 4
+        assert schedule.schedule_time == 25
 
     def test_complicated_single_outputs_normal_latency_alap_too_short_schedule_time(
         self, precedence_sfg_delays

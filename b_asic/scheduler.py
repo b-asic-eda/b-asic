@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import TYPE_CHECKING, cast
 
+import pulp
+
 import b_asic.logger
 from b_asic.core_operations import DontCare, Sink
 from b_asic.operation import Operation
@@ -374,10 +376,11 @@ class ALAPScheduler(Scheduler):
 
         log.debug("ALAP scheduling completed")
         # adjust the scheduling time if empty time slots have appeared in the start
-        slack = min(schedule.start_times.values())
-        for op_id in schedule.start_times:
-            schedule.move_operation(op_id, -slack)
-        schedule.set_schedule_time(schedule._schedule_time - slack)
+        if schedule.schedule_time is None:
+            slack = min(schedule.start_times.values())
+            for op_id in schedule.start_times:
+                schedule.move_operation(op_id, -slack)
+            schedule.set_schedule_time(schedule._schedule_time - slack)
 
         self._handle_dont_cares()
 
@@ -1250,3 +1253,153 @@ class RecursiveListScheduler(ListScheduler):
             if available_time > required_time:
                 return False
         return True
+
+
+class ILPScheduler(Scheduler):
+    """
+    ILP-based scheduler that minimizes the amount of concurrent operations.
+
+    Parameters
+    ----------
+    solver : :class:`~pulp.LpSolver`, optional
+        Only used if *strategy* is an ILP method. To see which solvers are available:
+        .. code-block:: python
+
+            import pulp
+
+            print(pulp.listSolvers(onlyAvailable=True))
+
+    sort_y_location : bool, default: True
+        If the y-location should be sorted based on start time of operations.
+    """
+
+    def __init__(
+        self, solver: pulp.LpSolver | None = None, sort_y_location: bool = True
+    ):
+        self._solver = solver
+        self._sort_y_location = sort_y_location
+
+    def apply_scheduling(self, schedule: "Schedule") -> None:
+        # Inspired by K.K. Parhi https://doi.org/10.1109/CICC.1993.590480
+
+        Tr = schedule.schedule_time
+
+        time_slots = range(Tr + 1)
+        ops = [op for op in schedule._sfg.operations if not isinstance(op, Delay)]
+        op_types = list({op.type_name() for op in ops})
+
+        LB = self._get_asap_start_times(schedule)
+        UB = self._get_alap_start_times(schedule)
+
+        X = pulp.LpVariable.dicts("X", (ops, time_slots), cat=pulp.LpBinary)
+        R_used = pulp.LpVariable.dicts("R_used", op_types, cat=pulp.LpInteger)
+
+        # w - Stage difference between operations (i.e. number of Delays between)
+        W = {}
+        for op in ops:
+            tmp = {}
+            for input_port in op.inputs:
+                depth = 0
+                source_op = input_port.connected_source.operation
+                while isinstance(source_op, Delay):
+                    source_op = source_op.inputs[0].connected_source.operation
+                    depth += 1
+                tmp[source_op.graph_id] = depth
+            W[op.graph_id] = tmp
+
+        # Minimize the amount of concurrent processes and I/O
+        problem = pulp.LpProblem()
+        problem += pulp.lpSum(R_used[op_type] for op_type in op_types)
+
+        # (1) - Each operation should have one and only one start time
+        for op in ops:
+            problem += (
+                pulp.lpSum(
+                    X[op][j] for j in range(LB[op.graph_id], UB[op.graph_id] + 1)
+                )
+                == 1
+            )
+
+        # (2) - At most R_used[resource_type] can be used in each time slot for every resource type
+        for op_type in op_types:
+            for j in time_slots:
+                problem += (
+                    pulp.lpSum(
+                        X[op][start_time]
+                        for op in ops
+                        if op.type_name() == op_type
+                        for start_time in time_slots
+                        if X[op][start_time] == 1
+                        and start_time <= j < start_time + op.execution_time
+                    )
+                    <= R_used[op_type]
+                )
+
+        # (3) - Ensure that all timing constraints are met
+        for op in ops:
+            for input_port in op.inputs:
+                source_port = input_port.connected_source
+                source_op = source_port.operation
+                while isinstance(source_op, Delay):
+                    source_port = source_op.inputs[0].connected_source
+                    source_op = source_port.operation
+                a = set(
+                    range(
+                        LB[source_op.graph_id],
+                        UB[source_op.graph_id] + source_op.latency,
+                    )
+                )
+                b = set(
+                    range(
+                        LB[op.graph_id] + Tr * W[op.graph_id][source_op.graph_id],
+                        UB[op.graph_id] + Tr * W[op.graph_id][source_op.graph_id] + 1,
+                    )
+                )
+                for j in list(a & b):
+                    problem += (
+                        pulp.lpSum(
+                            X[source_op][j2]
+                            for j2 in range(
+                                LB[source_op.graph_id] + input_port.latency_offset,
+                                UB[source_op.graph_id] + 1,
+                            )
+                            if j2 >= j - source_port.latency_offset + 1
+                        )
+                        + pulp.lpSum(
+                            X[op][j1]
+                            for j1 in range(LB[op.graph_id], UB[op.graph_id] + 1)
+                            if j1 <= j - W[op.graph_id][source_op.graph_id] * Tr
+                        )
+                        <= 1
+                    )
+
+        status = problem.solve(self._solver)
+
+        if status not in (pulp.LpStatusOptimal, pulp.LpStatusNotSolved):
+            raise ValueError("Solution could not be found via ILP, use another method.")
+
+        for op in ops:
+            for time in time_slots:
+                if pulp.value(X[op][time]) == 1:
+                    schedule.start_times[op.graph_id] = time
+                    break
+
+        schedule.remove_delays()
+        if self._sort_y_location:
+            schedule.sort_y_locations_on_start_times()
+
+    def _get_asap_start_times(self, schedule: "Schedule") -> dict["GraphID", int]:
+        asap_schedule = copy.copy(schedule)
+        asap_scheduler = ASAPScheduler(sort_y_location=False)
+        asap_scheduler.apply_scheduling(asap_schedule)
+        for key in schedule._laps:
+            schedule._laps[key] = 0
+        return copy.copy(asap_schedule.start_times)
+
+    def _get_alap_start_times(self, schedule: "Schedule") -> dict["GraphID", int]:
+        alap_schedule = copy.copy(schedule)
+        alap_scheduler = ALAPScheduler(sort_y_location=False)
+        alap_scheduler.apply_scheduling(alap_schedule)
+        for key in schedule._laps:
+            schedule._laps[key] = 0
+        return copy.copy(alap_schedule.start_times)

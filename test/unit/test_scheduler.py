@@ -2,7 +2,7 @@ import pytest
 
 from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
 from b_asic.schedule import Schedule
-from b_asic.scheduler import ALAPScheduler, ASAPScheduler
+from b_asic.scheduler import ALAPScheduler, ASAPScheduler, ILPScheduler
 from b_asic.sfg_generators import direct_form_1_iir, radix_2_dif_fft
 
 
@@ -204,19 +204,19 @@ class TestALAPScheduler:
         )
 
         assert schedule.start_times == {
-            "cmul3": 7 - 7,
-            "cmul4": 7 - 7,
-            "add1": 11 - 7,
-            "in0": 16 - 7,
-            "cmul2": 16 - 7,
-            "cmul1": 16 - 7,
-            "add0": 16 - 7,
-            "add3": 20 - 7,
-            "cmul0": 21 - 7,
-            "add2": 25 - 7,
-            "out0": 30 - 7,
+            "cmul3": 7,
+            "cmul4": 7,
+            "add1": 11,
+            "in0": 16,
+            "cmul2": 16,
+            "cmul1": 16,
+            "add0": 16,
+            "add3": 20,
+            "cmul0": 21,
+            "add2": 25,
+            "out0": 30,
         }
-        assert schedule.schedule_time == 30 - 7
+        assert schedule.schedule_time == 30
 
     def test_radix_2_fft_8_points(self):
         sfg = radix_2_dif_fft(points=8)
@@ -264,3 +264,62 @@ class TestALAPScheduler:
             "out7": 7,
         }
         assert schedule.schedule_time == 7
+
+
+class TestILPScheduler:
+    def test_empty_sfg(self, sfg_empty):
+        with pytest.raises(
+            ValueError, match="Empty signal flow graph cannot be scheduled."
+        ):
+            Schedule(sfg_empty, scheduler=ALAPScheduler())
+
+    def test_direct_form_1_iir(self):
+        sfg = direct_form_1_iir([0.1, 0.2, 0.3], [1, 2, 3])
+
+        sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
+        sfg.set_latency_of_type_name(Addition.type_name(), 3)
+        sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
+        sfg.set_execution_time_of_type_name(Addition.type_name(), 1)
+
+        schedule = Schedule(sfg, ILPScheduler(), schedule_time=11)
+
+        assert schedule.schedule_time == 11
+
+        schedule = Schedule(sfg, ILPScheduler(), schedule_time=50)
+        assert schedule.schedule_time == 50
+
+        ops = schedule.get_operations()
+        assert (
+            ops.get_by_type_name("add").processing_element_bound()
+            + ops.get_by_type_name("cmul").processing_element_bound()
+            + ops.get_by_type_name("in").processing_element_bound()
+            + ops.get_by_type_name("out").processing_element_bound()
+            == 4
+        )
+
+    def test_direct_form_2_iir(self, sfg_direct_form_iir_lp_filter):
+        sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition, 2)
+        sfg_direct_form_iir_lp_filter.set_latency_of_type(ConstantMultiplication, 3)
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(
+            ConstantMultiplication, 1
+        )
+        sfg_direct_form_iir_lp_filter.set_execution_time_of_type(Addition, 1)
+
+        schedule = Schedule(
+            sfg_direct_form_iir_lp_filter, ILPScheduler(), schedule_time=15
+        )
+        assert schedule.schedule_time == 15
+
+        schedule = Schedule(
+            sfg_direct_form_iir_lp_filter, ILPScheduler(), schedule_time=60
+        )
+        assert schedule.schedule_time == 60
+
+        ops = schedule.get_operations()
+        assert (
+            ops.get_by_type_name("add").processing_element_bound()
+            + ops.get_by_type_name("cmul").processing_element_bound()
+            + ops.get_by_type_name("in").processing_element_bound()
+            + ops.get_by_type_name("out").processing_element_bound()
+            == 4
+        )
