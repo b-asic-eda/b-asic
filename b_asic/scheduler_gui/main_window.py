@@ -781,7 +781,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if settings.isWritable():
             log.debug("Settings written to '%s'", settings.fileName())
         else:
-            log.warning("Settings cant be saved to file, read-only.")
+            log.warning("Settings cannot be saved to file, read-only.")
 
     def _read_settings(self) -> None:
         """Read settings from Settings to MainWindow."""

@@ -99,7 +99,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         Get all the signals that are connected to this operation's input ports.
 
-        The signals are ore not ordered.
+        The signals are not ordered.
         """
         raise NotImplementedError
 
@@ -109,7 +109,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         Get all the signals that are connected to this operation's output ports.
 
-        The signals are ore not ordered.
+        The signals are not ordered.
         """
         raise NotImplementedError
 

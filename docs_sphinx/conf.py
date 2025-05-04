@@ -42,6 +42,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
     "networkx": ("https://networkx.org/documentation/stable", None),
     "mplsignal": ("https://mplsignal.readthedocs.io/en/stable/", None),
+    "pulp": ("https://coin-or.github.io/pulp/", None),
 }
 
 numpydoc_show_class_members = False

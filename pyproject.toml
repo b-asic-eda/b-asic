@@ -119,5 +119,5 @@ select = [
 ]
 ignore = ["F403", "B008", "B021", "B006", "UP038", "RUF023", "A005", "E741"]
 
-[tool.typos]
-default.extend-identifiers = { ba = "ba", addd0 = "addd0", inout = "inout", ArChItEctUrE = "ArChItEctUrE" }
+[tool.codespell]
+ignore-words-list = ["inout"]

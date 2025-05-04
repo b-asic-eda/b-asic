@@ -13,10 +13,12 @@ repos:
         exclude_types: [svg]
       - id: check-toml
 
-  - repo: https://github.com/crate-ci/typos
-    rev: v1.30.2
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
     hooks:
-      - id: typos
+      - id: codespell
+        additional_dependencies:
+          - tomli
 
   - repo: https://github.com/Carreau/velin
     rev: 0.0.11

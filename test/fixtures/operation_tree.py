@@ -74,7 +74,7 @@ def large_operation_tree_names():
 
 @pytest.fixture
 def butterfly_operation_tree():
-    """Valid butterfly operations connected to eachother with 3 butterfly operations and 2 constants as inputs and 2 outputs.
+    """Valid butterfly operations connected to each other with 3 butterfly operations and 2 constants as inputs and 2 outputs.
     2 ---+       +--- (2 + 4) ---+       +--- (6 + (-2)) ---+       +--- (4 + 8) ---> out1 = 12
          |       |               |       |                  |       |
          v       ^               v       ^                  v       ^
