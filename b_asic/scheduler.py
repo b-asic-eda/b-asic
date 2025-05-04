@@ -406,15 +406,15 @@ class ListScheduler(Scheduler):
             3 - Fan-out, i.e., the number of operations reading from the output of the operation.
             4 - Memory reads, i.e., the number of memory reads required if operation is scheduled in the
                 current time slot.
-    max_resources : dict[TypeName, int] | None, optional
+    max_resources : dict[TypeName, int], optional
         Max resources available to realize the schedule.
-    max_concurrent_reads : int | None, optional
+    max_concurrent_reads : int, optional
         Max number of conccurent reads.
-    max_concurrent_writes : int | None, optional
+    max_concurrent_writes : int, optional
         Max number of conccurent writes.
-    input_times : dict(GraphID, int) | None, optional
+    input_times : dict(GraphID, int), optional
         The times when inputs arrive.
-    output_delta_times : dict(GraphID, int) | None, optional
+    output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
@@ -951,11 +951,11 @@ class RecursiveListScheduler(ListScheduler):
             3 - Fan-out, i.e., the number of operations reading from the output of the operation.
             4 - Memory reads, i.e., the number of memory reads required if operation is scheduled in the
                 current time slot.
-    max_resources : dict[TypeName, int] | None, optional
+    max_resources : dict[TypeName, int], optional
         Max resources available to realize the schedule.
-    input_times : dict(GraphID, int) | None, optional
+    input_times : dict(GraphID, int), optional
         The times when inputs arrive.
-    output_delta_times : dict(GraphID, int) | None, optional
+    output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.

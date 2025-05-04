@@ -13,7 +13,6 @@ import networkx as nx
 from matplotlib.axes import Axes
 from matplotlib.ticker import MaxNLocator
 from pulp import (
-    PULP_CBC_CMD,
     LpBinary,
     LpProblem,
     LpSolver,
@@ -970,8 +969,13 @@ class ProcessCollection:
             The maximum amount of colors to split based on,
             only required if strategy is an ILP method.
 
-        solver : :class:`LpSolver`, optional
-            Only used if strategy is an ILP method.
+        solver : :class:`~pulp.LpSolver`, optional
+            Only used if strategy is an ILP method. To see which solvers are available:
+            .. code-block:: python
+
+                import pulp
+
+                print(pulp.listSolvers(onlyAvailable=True))
 
         Returns
         -------
@@ -1046,10 +1050,15 @@ class ProcessCollection:
 
         max_colors : int, optional
             The maximum amount of colors to split based on,
-            only required if strategy is an ILP method.
+            only required if *strategy* is an ILP method.
 
-        solver : :class:`LpSolver`, optional
-            Only used if strategy is an ILP method.
+        solver : :class:`~pulp.LpSolver`, optional
+            Only used if *strategy* is an ILP method. To see which solvers are available:
+            .. code-block:: python
+
+                import pulp
+
+                print(pulp.listSolvers(onlyAvailable=True))
 
         Returns
         -------
@@ -1517,9 +1526,6 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        if solver is None:
-            solver = PULP_CBC_CMD()
-
         status = problem.solve(solver)
 
         if status not in (LpStatusOptimal, LpStatusNotSolved):
@@ -1613,9 +1619,6 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        if solver is None:
-            solver = PULP_CBC_CMD()
-
         status = problem.solve(solver)
 
         if status not in (LpStatusOptimal, LpStatusNotSolved):
@@ -1707,9 +1710,6 @@ class ProcessCollection:
             problem += c[color] <= lpSum(x[node][color] for node in nodes)
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
-
-        if solver is None:
-            solver = PULP_CBC_CMD()
 
         status = problem.solve(solver)
 
@@ -1816,9 +1816,6 @@ class ProcessCollection:
             problem += c[color] <= lpSum(x[node][color] for node in nodes)
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
-
-        if solver is None:
-            solver = PULP_CBC_CMD()
 
         status = problem.solve(solver)
 
@@ -1952,9 +1949,6 @@ class ProcessCollection:
             problem += c[color] <= lpSum(x[node][color] for node in nodes)
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
-
-        if solver is None:
-            solver = PULP_CBC_CMD()
 
         status = problem.solve(solver)
 

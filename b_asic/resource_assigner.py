@@ -2,10 +2,9 @@ from typing import Literal, cast
 
 import networkx as nx
 from pulp import (
-    GUROBI,
-    PULP_CBC_CMD,
     LpBinary,
     LpProblem,
+    LpSolver,
     LpStatusNotSolved,
     LpStatusOptimal,
     LpVariable,
@@ -33,7 +32,7 @@ def assign_processing_elements_and_memories(
     memory_read_ports: int | None = None,
     memory_write_ports: int | None = None,
     memory_total_ports: int | None = None,
-    solver: PULP_CBC_CMD | GUROBI | None = None,
+    solver: LpSolver | None = None,
 ) -> tuple[list[ProcessingElement], list[Memory], ProcessCollection]:
     """
     Assign PEs and memories jointly using ILP.
@@ -46,31 +45,33 @@ def assign_processing_elements_and_memories(
     memory_variables : ProcessCollection
         All memory variables from a schedule.
 
-    resources : dict[TypeName, int] | None, optional
+    resources : dict[TypeName, int], optional
         The maximum amount of resources to assign to, used to limit the solution
         space for performance gains.
 
-    max_memories : int | None, optional
+    max_memories : int, optional
         The maximum amount of memories to assign to, used to limit the solution
         space for performance gains.
 
-    memory_read_ports : int | None, optional
+    memory_read_ports : int, optional
         The number of read ports used when splitting process collection based on
         memory variable access.
 
-    memory_write_ports : int | None, optional
+    memory_write_ports : int, optional
         The number of write ports used when splitting process collection based on
         memory variable access.
 
-    memory_total_ports : int | None, optional
+    memory_total_ports : int, optional
         The total number of ports used when splitting process collection based on
         memory variable access.
 
-    solver : PuLP MIP solver object, optional
-        Valid options are:
+    solver : :class:`~pulp.LpSolver`, optional
+        Solver to use. To see which solvers are available:
+        .. code-block:: python
 
-        * PULP_CBC_CMD() - preinstalled
-        * GUROBI() - license required, but likely faster
+           import pulp
+
+           print(pulp.listSolvers(onlyAvailable=True))
 
     Returns
     -------
@@ -119,7 +120,7 @@ def _split_operations_and_variables(
     memory_read_ports: int | None = None,
     memory_write_ports: int | None = None,
     memory_total_ports: int | None = None,
-    solver: PULP_CBC_CMD | GUROBI | None = None,
+    solver: LpSolver | None = None,
 ) -> tuple[dict[TypeName, list[ProcessCollection]], list[ProcessCollection]]:
     for group in operation_groups.values():
         for process in group:
@@ -204,7 +205,7 @@ def _ilp_coloring(
     mem_exclusion_graph: nx.Graph,
     mem_colors: list[int],
     pe_colors: list[list[int]],
-    solver: PULP_CBC_CMD | GUROBI | None = None,
+    solver: LpSolver | None = None,
 ) -> tuple[dict, dict]:
     mem_graph_nodes = list(mem_exclusion_graph.nodes())
     mem_graph_edges = list(mem_exclusion_graph.edges())
@@ -287,9 +288,6 @@ def _ilp_coloring(
         for color in pe_colors[i][:-1]:
             problem += pe_c[i][color + 1] <= pe_c[i][color]
 
-    if solver is None:
-        solver = PULP_CBC_CMD()
-
     status = problem.solve(solver)
 
     if status not in (LpStatusOptimal, LpStatusNotSolved):
@@ -305,7 +303,7 @@ def _ilp_coloring_min_mux(
     pe_colors: list[list[int]],
     pe_operations: list[Operation],
     direct: ProcessCollection,
-    solver: PULP_CBC_CMD | GUROBI | None = None,
+    solver: LpSolver | None = None,
 ) -> tuple[dict, dict]:
     mem_graph_nodes = list(mem_exclusion_graph.nodes())
     mem_graph_edges = list(mem_exclusion_graph.edges())
@@ -508,9 +506,6 @@ def _ilp_coloring_min_mux(
             problem += pe_c[i][color] <= lpSum(pe_x[i][node][color] for node in nodes)
         for color in pe_colors[i][:-1]:
             problem += pe_c[i][color + 1] <= pe_c[i][color]
-
-    if solver is None:
-        solver = PULP_CBC_CMD()
 
     status = problem.solve(solver)
 
