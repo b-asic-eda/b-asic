@@ -15,6 +15,7 @@ from b_asic.sfg_generators import (
     direct_form_2_iir,
     direct_form_fir,
     ldlt_matrix_inverse,
+    matrix_multiplication,
     radix_2_dif_fft,
     symmetric_fir,
     transposed_direct_form_fir,
@@ -989,3 +990,96 @@ class TestLdltMatrixInverse:
     #     min_eig = np.min(np.linalg.eigvals(A))
     #     A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
     #     return A
+
+
+class TestMatrixMultiplication:
+    def test_1x1_1x1(self):
+        sfg = matrix_multiplication(1, 1, 1)
+
+        assert len(sfg.inputs) == 2
+        assert len(sfg.outputs) == 1
+
+        assert len(sfg.find_by_type_name("dontcare")) == 1
+        assert len(sfg.find_by_type_name("mad")) == 1
+
+        sim = Simulation(sfg, [Constant(2), Constant(3)])
+
+        sim.run_for(1)
+        assert np.isclose(sim.results["0"], 6)
+
+    def test_2x1_1x1(self):
+        sfg = matrix_multiplication(2, 1, 1)
+
+        assert len(sfg.inputs) == 3
+        assert len(sfg.outputs) == 2
+
+        assert len(sfg.find_by_type_name("dontcare")) == 2
+        assert len(sfg.find_by_type_name("mad")) == 2
+
+        sim = Simulation(sfg, [Constant(2), Constant(3), Constant(5)])
+
+        sim.run_for(1)
+        assert np.isclose(sim.results["0"], 10)
+        assert np.isclose(sim.results["1"], 15)
+
+    def test_2x2_2x2(self):
+        sfg = matrix_multiplication(2, 2, 2)
+
+        assert len(sfg.inputs) == 8
+        assert len(sfg.outputs) == 4
+
+        assert len(sfg.find_by_type_name("dontcare")) == 4
+        assert len(sfg.find_by_type_name("mad")) == 8
+
+        sim = Simulation(
+            sfg,
+            [
+                Constant(3),
+                Constant(5),
+                Constant(7),
+                Constant(11),
+                Constant(2),
+                Constant(4),
+                Constant(9),
+                Constant(13),
+            ],
+        )
+
+        sim.run_for(1)
+        assert np.isclose(sim.results["0"], 51)
+        assert np.isclose(sim.results["1"], 77)
+        assert np.isclose(sim.results["2"], 113)
+        assert np.isclose(sim.results["3"], 171)
+
+    def test_2x3_3x2(self):
+        sfg = matrix_multiplication(2, 3, 2)
+
+        assert len(sfg.inputs) == 12
+        assert len(sfg.outputs) == 4
+
+        assert len(sfg.find_by_type_name("dontcare")) == 4
+        assert len(sfg.find_by_type_name("mad")) == 12
+
+        sim = Simulation(
+            sfg,
+            [
+                Constant(1),
+                Constant(2),
+                Constant(3),
+                Constant(4),
+                Constant(5),
+                Constant(6),
+                Constant(7),
+                Constant(8),
+                Constant(9),
+                Constant(10),
+                Constant(11),
+                Constant(12),
+            ],
+        )
+
+        sim.run_for(1)
+        assert np.isclose(sim.results["0"], 58)
+        assert np.isclose(sim.results["1"], 64)
+        assert np.isclose(sim.results["2"], 139)
+        assert np.isclose(sim.results["3"], 154)

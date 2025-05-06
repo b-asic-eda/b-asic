@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from b_asic.core_operations import (
+    MAD,
     MADS,
     Addition,
     Butterfly,
@@ -532,9 +533,7 @@ def radix_2_dif_fft(points: int) -> SFG:
     twiddles = _generate_twiddles(points, number_of_stages)
 
     for stage in range(number_of_stages):
-        ports = _construct_dif_fft_stage(
-            ports, number_of_stages, stage, twiddles[stage]
-        )
+        ports = _construct_dif_fft_stage(ports, stage, twiddles[stage])
 
     ports = _get_bit_reversed_ports(ports)
     outputs = []
@@ -558,7 +557,7 @@ def ldlt_matrix_inverse(
     N : int
         Dimension of the square input matrix.
     name : Name, optional
-        The name of the SFG. If None, "Direct-form FIR filter".
+        The name of the SFG. If None, "LDLT matrix-inversion".
     mads_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.MADS`.
     reciprocal_properties : dictionary, optional
@@ -677,9 +676,61 @@ def ldlt_matrix_inverse(
     return SFG(inputs, outputs)
 
 
+def matrix_multiplication(
+    m: int,
+    n: int,
+    p: int,
+    name: str | None = None,
+    mad_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+) -> SFG:
+    """
+    Generate a structure for the multiplication of matrices A and B.
+    Where A is of size MxN and B NxP.
+
+    Parameters
+    ----------
+    m : int
+        Number of rows in A.
+    n : int
+        Number of columns in A (and rows in B).
+    p : int
+        Number of columns in B.
+    pipeline : bool
+        Whether to add Delay elements after MAD operations to minimize the critical path.
+    name : Name, optional
+        The name of the SFG. If None, "Matrix-multiplication".
+    mad_properties : dictionary, optional
+        Properties passed to :class:`~b_asic.core_operations.MAD`.
+
+    Returns
+    -------
+    SFG
+        Signal Flow Graph
+    """
+    if name is None:
+        name = "Matrix-multiplication"
+    if mad_properties is None:
+        mad_properties = {}
+
+    A = [[Input(f"A[{i},{j}]") for i in range(n)] for j in range(m)]
+    B = [[Input(f"B[{i},{j}]") for i in range(p)] for j in range(n)]
+
+    C = []
+    for i in range(m):
+        for j in range(p):
+            tmp = DontCare()
+            for k in range(n):
+                tmp = MAD(A[i][k], B[k][j], tmp, do_add=(k != 0), **mad_properties)
+            C.append(Output(tmp, f"C[{i},{j}]"))
+
+    inputs = [elem for row in A for elem in row] + [elem for row in B for elem in row]
+    outputs = C
+
+    return SFG(inputs, outputs, name=name)
+
+
 def _construct_dif_fft_stage(
     ports_from_previous_stage: list["OutputPort"],
-    number_of_stages: int,
     stage: int,
     twiddles: list[np.complex128],
 ):

@@ -1093,6 +1093,7 @@ class MAD(AbstractOperation):
         "_latency",
         "_latency_offsets",
         "_execution_time",
+        "_do_add",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -1101,6 +1102,7 @@ class MAD(AbstractOperation):
     _latency: int | None
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
+    _do_add: bool
 
     is_swappable = True
 
@@ -1113,6 +1115,7 @@ class MAD(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        do_add: bool = True,
     ):
         """Construct a MAD operation."""
         super().__init__(
@@ -1124,13 +1127,14 @@ class MAD(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
+        self.set_param("do_add", do_add)
 
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("mad")
 
     def evaluate(self, a, b, c):
-        return a * b + c
+        return a * b + c if self.do_add else a * b
 
     @property
     def is_linear(self) -> bool:
@@ -1138,6 +1142,16 @@ class MAD(AbstractOperation):
             self.input(0).connected_source.operation.is_constant
             or self.input(1).connected_source.operation.is_constant
         )
+
+    @property
+    def do_add(self) -> bool:
+        """Get whether the input to src2 is used when computing."""
+        return self.param("do_add")
+
+    @do_add.setter
+    def do_add(self, do_add: bool) -> None:
+        """Set whether the input to src2 is used when computing."""
+        self.set_param("do_add", do_add)
 
     def swap_io(self) -> None:
         self._input_ports = [
