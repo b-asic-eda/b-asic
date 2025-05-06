@@ -34,7 +34,6 @@ class Constant(AbstractOperation):
     _value: Num
     _name: Name
 
-    _execution_time = 0
     is_linear = True
     is_constant = True
 
@@ -47,6 +46,7 @@ class Constant(AbstractOperation):
             output_count=1,
             name=name,
             latency_offsets={"out0": 0},
+            execution_time=1,
         )
         self.set_param("value", value)
 

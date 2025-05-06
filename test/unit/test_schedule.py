@@ -708,7 +708,7 @@ class TestTimeResolution:
             start_times_names[op.name] = (start_time, op.latency, op.execution_time)
 
         assert start_times_names == {
-            "C1": (0, 0, None),
+            "C1": (0, 0, 1),
             "IN1": (0, 0, 1),
             "IN2": (0, 0, 1),
             "CMUL1": (0, 30, 18),
@@ -745,7 +745,7 @@ class TestTimeResolution:
             start_times_names[op.name] = (start_time, op.latency, op.execution_time)
 
         assert start_times_names == {
-            "C1": (0, 0, None),
+            "C1": (0, 0, 1),
             "IN1": (0, 0, 1),
             "IN2": (0, 0, 1),
             "CMUL1": (0, 30, 18),
@@ -766,7 +766,7 @@ class TestTimeResolution:
             start_times_names[op.name] = (start_time, op.latency, op.execution_time)
 
         assert start_times_names == {
-            "C1": (0, 0, None),
+            "C1": (0, 0, 1),
             "IN1": (0, 0, 1),
             "IN2": (0, 0, 1),
             "CMUL1": (0, 10, 6),

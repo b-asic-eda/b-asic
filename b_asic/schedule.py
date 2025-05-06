@@ -30,7 +30,7 @@ from b_asic._preferences import (
     SIGNAL_LINEWIDTH,
     SPLINE_OFFSET,
 )
-from b_asic.core_operations import DontCare, Sink
+from b_asic.core_operations import Constant, DontCare, Sink
 from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -597,7 +597,7 @@ class Schedule:
         self._start_times = {k: factor * v for k, v in self._start_times.items()}
         for graph_id in self._start_times:
             op = cast(Operation, self._sfg.find_by_id(graph_id))
-            if not isinstance(op, (Input, Output)):
+            if not isinstance(op, (Input, Output, Constant)):
                 op._increase_time_resolution(factor)
         self._schedule_time *= factor
         return self
@@ -613,7 +613,7 @@ class Schedule:
         # Loop over operations
         for graph_id in self._start_times:
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
-            if not isinstance(operation, (Input, Output)):
+            if not isinstance(operation, (Input, Output, Constant)):
                 ret += [
                     cast(int, operation.execution_time),
                     *operation.latency_offsets.values(),
@@ -656,7 +656,7 @@ class Schedule:
         self._start_times = {k: v // factor for k, v in self._start_times.items()}
         for graph_id in self._start_times:
             op = cast(Operation, self._sfg.find_by_id(graph_id))
-            if not isinstance(op, (Input, Output)):
+            if not isinstance(op, (Input, Output, Constant)):
                 op._decrease_time_resolution(factor)
         self._schedule_time = self._schedule_time // factor
         return self
