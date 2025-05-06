@@ -695,8 +695,6 @@ def matrix_multiplication(
         Number of columns in A (and rows in B).
     p : int
         Number of columns in B.
-    pipeline : bool
-        Whether to add Delay elements after MAD operations to minimize the critical path.
     name : Name, optional
         The name of the SFG. If None, "Matrix-multiplication".
     mad_properties : dictionary, optional

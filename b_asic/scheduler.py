@@ -1285,7 +1285,11 @@ class ILPScheduler(Scheduler):
         Tr = schedule.schedule_time
 
         time_slots = range(Tr + 1)
-        ops = [op for op in schedule._sfg.operations if not isinstance(op, Delay)]
+        ops = [
+            op
+            for op in schedule._sfg.operations
+            if not isinstance(op, (Delay, DontCare, Sink))
+        ]
         op_types = list({op.type_name() for op in ops})
 
         LB = self._get_asap_start_times(schedule)
@@ -1383,6 +1387,12 @@ class ILPScheduler(Scheduler):
                 if pulp.value(X[op][time]) == 1:
                     schedule.start_times[op.graph_id] = time
                     break
+
+        for op in schedule._sfg.operations:
+            if isinstance(op, DontCare):
+                schedule.move_operation_alap(op.graph_id)
+            elif isinstance(op, Sink):
+                schedule.move_operation_asap(op.graph_id)
 
         schedule.remove_delays()
         if self._sort_y_location:
