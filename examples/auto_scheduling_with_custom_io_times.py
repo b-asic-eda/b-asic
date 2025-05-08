@@ -8,13 +8,9 @@ It is possible to specify the IO times and provide those to the scheduling.
 
 from b_asic.core_operations import Butterfly, ConstantMultiplication
 from b_asic.list_schedulers import HybridScheduler
-from b_asic.logger import getLogger
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg_generators import radix_2_dif_fft
-
-# Activate the scheduler logger
-getLogger("DEBUG")
 
 points = 8
 sfg = radix_2_dif_fft(points=points)

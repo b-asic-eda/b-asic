@@ -27,6 +27,7 @@ extensions = [
     "numpydoc",  # Needs to be loaded *after* autodoc.
     "sphinx_copybutton",
 ]
+language = "en"
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]

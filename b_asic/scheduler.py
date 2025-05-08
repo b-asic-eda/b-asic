@@ -204,26 +204,14 @@ class Scheduler(ABC):
         log.debug("Output placement optimization completed")
 
     def _handle_dont_cares(self) -> None:
-        # schedule all dont cares ALAP
         for dc_op in self._schedule._sfg.find_by_type(DontCare):
             self._schedule.start_times[dc_op.graph_id] = 0
-            self._schedule.place_operation(
-                cast(Operation, dc_op),
-                self._schedule.forward_slack(dc_op.graph_id),
-                self._op_laps,
-            )
-            self._op_laps[dc_op.graph_id] = 0
+            self._schedule.move_operation_alap(dc_op.graph_id)
 
     def _handle_sinks(self) -> None:
-        # schedule all sinks ASAP
         for sink_op in self._schedule._sfg.find_by_type(Sink):
             self._schedule.start_times[sink_op.graph_id] = self._schedule._schedule_time
-            self._schedule.place_operation(
-                cast(Operation, sink_op),
-                self._schedule.backward_slack(sink_op.graph_id),
-                self._op_laps,
-            )
-            self._op_laps[sink_op.graph_id] = 0
+            self._schedule.move_operation_asap(sink_op.graph_id)
 
 
 class ASAPScheduler(Scheduler):
@@ -316,6 +304,7 @@ class ASAPScheduler(Scheduler):
             raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
 
         self._handle_dont_cares()
+        self._handle_sinks()
 
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
@@ -383,6 +372,7 @@ class ALAPScheduler(Scheduler):
             schedule.set_schedule_time(schedule._schedule_time - slack)
 
         self._handle_dont_cares()
+        self._handle_sinks()
 
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
@@ -516,6 +506,7 @@ class ListScheduler(Scheduler):
             self._schedule.set_schedule_time(self._schedule.get_max_end_time())
         self._schedule.remove_delays()
         self._handle_dont_cares()
+        self._handle_sinks()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
         self._validate_constraints()
@@ -1014,6 +1005,7 @@ class RecursiveListScheduler(ListScheduler):
             log.debug("Retiming operations")
             self._retime_ops(math.ceil(period_bound))
         self._handle_dont_cares()
+        self._handle_sinks()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
         self._validate_constraints()
@@ -1263,6 +1255,7 @@ class ILPScheduler(Scheduler):
     ----------
     solver : :class:`~pulp.LpSolver`, optional
         Only used if *strategy* is an ILP method. To see which solvers are available:
+
         .. code-block:: python
 
             import pulp
@@ -1282,9 +1275,10 @@ class ILPScheduler(Scheduler):
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Inspired by K.K. Parhi https://doi.org/10.1109/CICC.1993.590480
 
-        Tr = schedule.schedule_time
+        self._schedule = schedule
+        Ts = schedule.schedule_time
 
-        time_slots = range(Tr + 1)
+        time_slots = range(Ts + 1)
         ops = [
             op
             for op in schedule._sfg.operations
@@ -1344,6 +1338,8 @@ class ILPScheduler(Scheduler):
             for input_port in op.inputs:
                 source_port = input_port.connected_source
                 source_op = source_port.operation
+                if isinstance(source_op, DontCare):
+                    continue
                 while isinstance(source_op, Delay):
                     source_port = source_op.inputs[0].connected_source
                     source_op = source_port.operation
@@ -1355,8 +1351,8 @@ class ILPScheduler(Scheduler):
                 )
                 b = set(
                     range(
-                        LB[op.graph_id] + Tr * W[op.graph_id][source_op.graph_id],
-                        UB[op.graph_id] + Tr * W[op.graph_id][source_op.graph_id] + 1,
+                        LB[op.graph_id] + Ts * W[op.graph_id][source_op.graph_id],
+                        UB[op.graph_id] + Ts * W[op.graph_id][source_op.graph_id] + 1,
                     )
                 )
                 for j in list(a & b):
@@ -1372,7 +1368,7 @@ class ILPScheduler(Scheduler):
                         + pulp.lpSum(
                             X[op][j1]
                             for j1 in range(LB[op.graph_id], UB[op.graph_id] + 1)
-                            if j1 <= j - W[op.graph_id][source_op.graph_id] * Tr
+                            if j1 <= j - W[op.graph_id][source_op.graph_id] * Ts
                         )
                         <= 1
                     )
@@ -1388,12 +1384,8 @@ class ILPScheduler(Scheduler):
                     schedule.start_times[op.graph_id] = time
                     break
 
-        for op in schedule._sfg.operations:
-            if isinstance(op, DontCare):
-                schedule.move_operation_alap(op.graph_id)
-            elif isinstance(op, Sink):
-                schedule.move_operation_asap(op.graph_id)
-
+        self._handle_dont_cares()
+        self._handle_sinks()
         schedule.remove_delays()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()

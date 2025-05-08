@@ -971,6 +971,7 @@ class ProcessCollection:
 
         solver : :class:`~pulp.LpSolver`, optional
             Only used if strategy is an ILP method. To see which solvers are available:
+
             .. code-block:: python
 
                 import pulp
@@ -1054,6 +1055,7 @@ class ProcessCollection:
 
         solver : :class:`~pulp.LpSolver`, optional
             Only used if *strategy* is an ILP method. To see which solvers are available:
+
             .. code-block:: python
 
                 import pulp

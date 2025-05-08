@@ -67,6 +67,7 @@ def assign_processing_elements_and_memories(
 
     solver : :class:`~pulp.LpSolver`, optional
         Solver to use. To see which solvers are available:
+
         .. code-block:: python
 
            import pulp
