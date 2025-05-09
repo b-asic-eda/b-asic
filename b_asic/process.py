@@ -15,7 +15,7 @@ class Process:
     contain additional information for resource assignment.
 
     Parameters
-    ==========
+    ----------
     start_time : int
         Start time of process.
     execution_time : int
@@ -78,7 +78,7 @@ class OperatorProcess(Process):
     Object that corresponds to usage of an operator.
 
     Parameters
-    ==========
+    ----------
     start_time : int
         Start time of process.
     operation : :class:`~b_asic.operation.Operation`
@@ -272,8 +272,7 @@ class MemoryVariable(MemoryProcess):
     Object that corresponds to a memory variable.
 
     Parameters
-    ==========
-
+    ----------
     write_time : int
         Time when the memory variable is written.
     write_port : :class:`~b_asic.port.OutputPort`
@@ -362,7 +361,7 @@ class PlainMemoryVariable(MemoryProcess):
     no connection to a schedule.
 
     Parameters
-    ==========
+    ----------
     write_time : int
         The time the memory variable is written.
     write_port : int

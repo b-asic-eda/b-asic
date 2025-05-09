@@ -48,8 +48,10 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def __ilshift__(self, src: SignalSourceProvider) -> "Operation":
         """
-        Overload the inline left shift operator to make it connect the provided signal
-        source to this operation's input, assuming it has exactly one input port.
+        Overload the inline left shift operator.
+
+        In order to make it connect the provided signal source
+        to this operation's input, assuming it has exactly one input port.
         """
         raise NotImplementedError
 
@@ -237,8 +239,7 @@ class Operation(GraphComponent, SignalSourceProvider):
     @abstractmethod
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
         """
-        Get the input indices of all inputs in this operation whose values are
-        required in order to evaluate the output at the given output index.
+        Return the input indices needed to evaluate the output at a given index.
         """
         raise NotImplementedError
 
@@ -779,8 +780,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @property
     def preceding_operations(self) -> list[Operation]:
         """
-        Return an Iterable of all Operations that are connected to this
-        Operations input ports.
+        Return an Iterable of all Operations that are connected to the
+        input ports of the operation.
         """
         return [
             signal.source_operation for signal in self.input_signals if signal.source
@@ -789,8 +790,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     @property
     def subsequent_operations(self) -> list[Operation]:
         """
-        Return an Iterable of all Operations that are connected to this
-        Operations output ports.
+        Return an Iterable of all Operations that are connected to the
+        output ports of the operation.
         """
         return [
             signal.destination.operation
@@ -882,7 +883,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def _check_all_latencies_set(self) -> None:
         """
-        Raises an exception if an input or output does not have a latency offset.
+        Raise an exception if an input or output does not have a latency offset.
         """
         self.input_latency_offsets  # noqa: B018
         self.output_latency_offsets  # noqa: B018

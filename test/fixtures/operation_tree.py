@@ -10,7 +10,9 @@ def operation():
 
 @pytest.fixture
 def operation_tree():
-    """Valid addition operation connected with 2 constants.
+    """
+    Valid addition operation connected with 2 constants.
+
     2---+
         |
         v
@@ -24,7 +26,10 @@ def operation_tree():
 
 @pytest.fixture
 def large_operation_tree():
-    """Valid addition operation connected with a large operation tree with 2 other additions and 4 constants.
+    """
+    Valid addition operation connected with a large operation tree
+    with 2 other additions and 4 constants.
+
     2---+
         |
         v
@@ -48,8 +53,10 @@ def large_operation_tree():
 
 @pytest.fixture
 def large_operation_tree_names():
-    """Valid addition operation connected with a large operation tree with 2 other additions and 4 constants.
-    With names.
+    """
+    Valid addition operation connected with a large operation tree
+    with 2 other additions and 4 constants with names.
+
     2---+
         |
         v
@@ -74,7 +81,10 @@ def large_operation_tree_names():
 
 @pytest.fixture
 def butterfly_operation_tree():
-    """Valid butterfly operations connected to each other with 3 butterfly operations and 2 constants as inputs and 2 outputs.
+    """
+    Valid butterfly operations connected to each other
+    with 3 butterfly operations and 2 constants as inputs and 2 outputs.
+
     2 ---+       +--- (2 + 4) ---+       +--- (6 + (-2)) ---+       +--- (4 + 8) ---> out1 = 12
          |       |               |       |                  |       |
          v       ^               v       ^                  v       ^
@@ -96,7 +106,10 @@ def butterfly_operation_tree():
 
 @pytest.fixture
 def operation_graph_with_cycle():
-    """Invalid addition operation connected with an operation graph containing a cycle.
+    """
+    Invalid addition operation connected with an
+    operation graph containing a cycle.
+
      +-+
      | |
      v |

@@ -40,7 +40,7 @@ ICONS = {
 
 
 def get_icon(name):
-    """Return icon for given name"""
+    """Return icon for given name."""
     info = ICONS[name]
     if isinstance(info, str):
         return qtawesome.icon(info)

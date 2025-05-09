@@ -22,8 +22,7 @@ class Constant(AbstractOperation):
     .. math:: y = \text{value}
 
     Parameters
-    ==========
-
+    ----------
     value : Number, default: 0
         The constant value.
     name : Name, optional
@@ -122,8 +121,7 @@ class Addition(AbstractOperation):
     .. math:: y = x_0 + x_1
 
     Parameters
-    ==========
-
+    ----------
     src0, src1 : SignalSourceProvider, optional
         The two signals to add.
     name : Name, optional
@@ -140,8 +138,8 @@ class Addition(AbstractOperation):
         Operation execution time (time units before operator can be
         reused).
 
-    See also
-    ========
+    See Also
+    --------
     AddSub
     """
 
@@ -202,8 +200,7 @@ class Subtraction(AbstractOperation):
     .. math:: y = x_0 - x_1
 
     Parameters
-    ==========
-
+    ----------
     src0, src1 : SignalSourceProvider, optional
         The two signals to subtract.
     name : Name, optional
@@ -220,8 +217,8 @@ class Subtraction(AbstractOperation):
         Operation execution time (time units before operator can be
         reused).
 
-    See also
-    ========
+    See Also
+    --------
     AddSub
     """
 
@@ -288,8 +285,7 @@ class AddSub(AbstractOperation):
     operator.
 
     Parameters
-    ==========
-
+    ----------
     is_add : bool, default: True
         If True, the operation is an addition, if False, a subtraction.
     src0, src1 : SignalSourceProvider, optional
@@ -308,8 +304,8 @@ class AddSub(AbstractOperation):
         Operation execution time (time units before operator can be
         reused).
 
-    See also
-    ========
+    See Also
+    --------
     Addition, Subtraction
     """
 
@@ -396,8 +392,7 @@ class Multiplication(AbstractOperation):
     .. math:: y = x_0 \times x_1
 
     Parameters
-    ==========
-
+    ----------
     src0, src1 : SignalSourceProvider, optional
         The two signals to multiply.
     name : Name, optional
@@ -415,7 +410,7 @@ class Multiplication(AbstractOperation):
         Operation execution time (time units before operator can be reused).
 
     See Also
-    ========
+    --------
     ConstantMultiplication
     """
 
@@ -479,8 +474,7 @@ class Division(AbstractOperation):
     .. math:: y = \frac{x_0}{x_1}
 
     Parameters
-    ==========
-
+    ----------
     src0, src1 : SignalSourceProvider, optional
         The two signals to divide.
     name : Name, optional
@@ -498,7 +492,7 @@ class Division(AbstractOperation):
         Operation execution time (time units before operator can be reused).
 
     See Also
-    ========
+    --------
     Reciprocal
     """
 
@@ -562,8 +556,7 @@ class Min(AbstractOperation):
     .. note:: Only real-valued numbers are supported.
 
     Parameters
-    ==========
-
+    ----------
     src0, src1 : SignalSourceProvider, optional
         The two signals to determine the min of.
     name : Name, optional
@@ -581,7 +574,7 @@ class Min(AbstractOperation):
         Operation execution time (time units before operator can be reused).
 
     See Also
-    ========
+    --------
     Max
     """
 
@@ -643,8 +636,7 @@ class Max(AbstractOperation):
     .. note:: Only real-valued numbers are supported.
 
     Parameters
-    ==========
-
+    ----------
     src0, src1 : SignalSourceProvider, optional
         The two signals to determine the min of.
     name : Name, optional
@@ -662,7 +654,7 @@ class Max(AbstractOperation):
         Operation execution time (time units before operator can be reused).
 
     See Also
-    ========
+    --------
     Min
     """
 
@@ -987,8 +979,7 @@ class Butterfly(AbstractOperation):
         \end{eqnarray}
 
     Parameters
-    ==========
-
+    ----------
     src0, src1 : SignalSourceProvider, optional
         The two signals to compute the 2-point DFT of.
     name : Name, optional
@@ -1061,8 +1052,7 @@ class MAD(AbstractOperation):
     .. math:: y = x_0 \times x_1 + x_2
 
     Parameters
-    ==========
-
+    ----------
     src0, src1, src2 : SignalSourceProvider, optional
         The three signals to determine the multiply-add operation of.
     name : Name, optional
@@ -1371,8 +1361,8 @@ class Reciprocal(AbstractOperation):
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
 
-    See also
-    ========
+    See Also
+    --------
     Division
     """
 
@@ -1688,8 +1678,8 @@ class Shift(AbstractOperation):
 
 
 class DontCare(AbstractOperation):
-    r"""
-    Dont-care operation
+    """
+    Dont-care operation.
 
     Used for ignoring the input to another operation and thus avoiding dangling input nodes.
 
@@ -1764,14 +1754,13 @@ class DontCare(AbstractOperation):
 
 
 class Sink(AbstractOperation):
-    r"""
+    """
     Sink operation.
 
     Used for ignoring the output from another operation to avoid dangling output nodes.
 
     Parameters
-    ==========
-
+    ----------
     name : Name, optional
         Operation name.
     """

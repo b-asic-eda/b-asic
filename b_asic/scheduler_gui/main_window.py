@@ -151,8 +151,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._init_graphics()
 
     def _init_ui(self) -> None:
-        """Initialize the ui"""
-
+        """Initialize the UI."""
         # Connect signals to slots
         self.menu_load_from_file.triggered.connect(self._load_schedule_from_pyfile)
         self.menu_load_from_file.setIcon(get_icon("import"))
@@ -247,19 +246,19 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     #########
     @Slot()
     def _plot_schedule(self) -> None:
-        """Callback for plotting schedule using Matplotlib."""
+        """Plot the schedule using Matplotlib."""
         if self.schedule is None:
             return
         self.schedule.show()
 
     @Slot()
     def _open_documentation(self) -> None:
-        """Callback to open documentation web page."""
+        """Open documentation web page."""
         webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
 
     @Slot()
     def _action_reorder(self) -> None:
-        """Callback to reorder all operations vertically based on start time."""
+        """Reorder all operations vertically based on start time."""
         if self.schedule is None:
             return
         if self._graph is not None:
@@ -268,7 +267,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _increase_time_resolution(self) -> None:
-        """Callback for increasing time resolution."""
+        """Increasing the time resolution."""
         # Create dialog asking for int
         factor, ok = QInputDialog.getInt(
             self, "Increase time resolution", "Factor", 1, 1
@@ -287,7 +286,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _decrease_time_resolution(self) -> None:
-        """Callback for decreasing time resolution."""
+        """Decreasing the time resolution."""
         schedule = cast(Schedule, self._schedule)
         # Get possible factors
         vals = [str(v) for v in schedule.get_possible_time_resolution_decrements()]
@@ -323,9 +322,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _load_schedule_from_pyfile(self) -> None:
-        """
-        SLOT() for SIGNAL(menu_load_from_file.triggered)
-        """
+        """SLOT() for SIGNAL(menu_load_from_file.triggered)."""
         settings = QSettings()
         last_file = settings.value(
             "scheduler/last_opened_file",
@@ -645,8 +642,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     ##########
     def _close_event(self, event: QCloseEvent) -> None:
         """
-        EVENT: Replaces QMainWindow default closeEvent(QCloseEvent) event. Takes
-        in a QCloseEvent and display an exit dialog, depending on
+        EVENT: Replaces QMainWindow default closeEvent(QCloseEvent) event.
+        Takes in a QCloseEvent and display an exit dialog, depending on
         'hide_exit_dialog' in settings.
         """
         settings = QSettings()
@@ -952,7 +949,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._preferences_dialog.show()
 
     def load_preferences(self):
-        "Load the last saved preferences from settings."
+        """Load the last saved preferences from settings."""
         settings = QSettings()
         LATENCY_COLOR_TYPE.current_color = QColor(
             settings.value(
@@ -1187,10 +1184,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _update_recent_file_list(self):
         settings = QSettings()
-
         rfp = cast(deque, settings.value("scheduler/recentFiles"))
-
-        # print(rfp)
         if rfp:
             dequelen = len(rfp)
             if dequelen > 0:
@@ -1211,53 +1205,50 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _add_recent_file(self, filename):
         settings = QSettings()
-
         rfp = cast(deque, settings.value("scheduler/recentFiles"))
-
         if rfp:
             if filename not in rfp:
                 rfp.append(filename)
         else:
             rfp = deque(maxlen=self._max_recent_files)
             rfp.append(filename)
-
         settings.setValue("scheduler/recentFiles", rfp)
 
         self._update_recent_file_list()
 
     def _zoom_to_fit(self, event=None):
-        """Callback for zoom to fit schedule in window keeping aspect ratio."""
+        """Zoom to fit schedule in window keeping aspect ratio."""
         self.view.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def _zoom_to_fit_no_aspect(self, event=None):
-        """Callback for zoom to fit schedule in window ignoring aspect ratio."""
+        """Zoom to fit schedule in window ignoring aspect ratio."""
         self.view.fitInView(
             self._scene.sceneRect(), Qt.AspectRatioMode.IgnoreAspectRatio
         )
 
     def _reset_aspect_ratio(self, event=None):
-        """Callback for zoom to fit schedule in window ignoring aspect ratio."""
+        """Reset the aspect ratio."""
         self.view.setTransform(QTransform())
         self.view.scale(self._scale, self._scale)
 
     def _toggle_statusbar(self, event=None) -> None:
-        """Callback for toggling the status bar."""
+        """Toggle the status bar."""
         self.statusbar.setVisible(self.actionStatus_bar.isChecked())
 
     def _toggle_execution_time_warning(self, event=None) -> None:
-        """Callback for toggling the status bar."""
+        """Toggle whether to show the execution time warning."""
         self._show_incorrect_execution_time = (
             self.action_incorrect_execution_time.isChecked()
         )
         self._graph.set_warnings(self._show_incorrect_execution_time)
 
     def _toggle_port_number(self, event=None) -> None:
-        """Callback for toggling the status bar."""
+        """Toggle whether to show port numbers."""
         self._show_port_numbers = self.action_show_port_numbers.isChecked()
         self._graph.set_port_numbers(self._show_port_numbers)
 
     def _toggle_fullscreen(self, event=None):
-        """Callback for toggling full screen mode."""
+        """Toggle full screen mode."""
         if self.isFullScreen():
             self.showNormal()
             self.actionToggle_full_screen.setIcon(get_icon("full-screen"))

@@ -1,5 +1,5 @@
 """
-Module for code generation of VHDL entity declarations
+Module for code generation of VHDL entity declarations.
 """
 
 from typing import TextIO

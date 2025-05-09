@@ -1,3 +1,9 @@
+"""
+B-ASIC List Schedulers Module.
+
+Contains classes implementing ListScheduler by providing a sort order.
+"""
+
 from b_asic.scheduler import ListScheduler
 from b_asic.types import GraphID, TypeName
 

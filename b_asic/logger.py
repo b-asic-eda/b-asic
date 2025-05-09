@@ -45,7 +45,8 @@ See https://docs.python.org/3/howto/logging.html for more information.
 Log Uncaught Exceptions:
 ------------------------
 To log uncaught exceptions, implement the following in your program.
-  `sys.excepthook = logger.log_exceptions`"""
+  `sys.excepthook = logger.log_exceptions`
+"""
 
 import logging
 import os
@@ -125,7 +126,7 @@ def handle_exceptions(
     exc_traceback: TracebackType | None,
 ) -> None:
     """
-    Helper function to log uncaught exceptions.
+    Log uncaught exceptions.
 
     Install with: `sys.excepthook = <module>.handle_exceptions`
     """

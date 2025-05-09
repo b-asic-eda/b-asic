@@ -394,7 +394,7 @@ class SFGMainWindow(QMainWindow):
         self._update_recent_file_list()
 
     def _toggle_fullscreen(self, event=None):
-        """Callback for toggling full screen mode."""
+        """Toggle full screen mode."""
         if self.isFullScreen():
             self.showNormal()
             self._fullscreen_action.setIcon(get_icon("full-screen"))
@@ -404,10 +404,7 @@ class SFGMainWindow(QMainWindow):
 
     def _update_recent_file_list(self):
         settings = QSettings()
-
         rfp = cast(deque, settings.value("SFG/recentFiles"))
-
-        # print(rfp)
         if rfp:
             dequelen = len(rfp)
             if dequelen > 0:
@@ -425,9 +422,7 @@ class SFGMainWindow(QMainWindow):
 
     def _add_recent_file(self, module):
         settings = QSettings()
-
         rfp = cast(deque, settings.value("SFG/recentFiles"))
-
         if rfp:
             if module not in rfp:
                 rfp.append(module)
@@ -469,7 +464,7 @@ class SFGMainWindow(QMainWindow):
         self.update_statusbar("Workspace cleared.")
 
     def create_sfg_from_toolbar(self) -> None:
-        """Callback to create an SFG."""
+        """Create an SFG."""
         inputs = []
         outputs = []
         for pressed_op in self._pressed_operations:
@@ -589,7 +584,7 @@ class SFGMainWindow(QMainWindow):
         self._sfg_dict[sfg.name] = sfg
 
     def _show_precedence_graph(self, event=None) -> None:
-        """Callback for showing precedence graph."""
+        """Show the precedence graph."""
         if not self._sfg_dict:
             self.update_statusbar("No SFG to show")
             return
@@ -598,7 +593,7 @@ class SFGMainWindow(QMainWindow):
         self._precedence_graph_dialog.show()
 
     def _toggle_statusbar(self, event=None) -> None:
-        """Callback for toggling the status bar."""
+        """Toggle the status bar."""
         self._statusbar.setVisible(self._statusbar_visible.isChecked())
 
     def get_operations_from_namespace(self, namespace: ModuleType) -> list[str]:
@@ -648,7 +643,7 @@ class SFGMainWindow(QMainWindow):
         self._logger.info("Added operations from namespace: %s", namespace.__name__)
 
     def add_namespace(self, event=None) -> None:
-        """Callback for adding namespace."""
+        """Add namespace."""
         module, accepted = QFileDialog().getOpenFileName()
         if not accepted:
             return
@@ -789,7 +784,7 @@ class SFGMainWindow(QMainWindow):
         super().keyPressEvent(event)
 
     def _connect_callback(self, *event) -> None:
-        """Callback for connecting operation buttons."""
+        """Connect operation buttons."""
         if len(self._pressed_ports) < 2:
             self._logger.warning(
                 "Cannot connect less than two ports. Please select at least two."
@@ -827,10 +822,6 @@ class SFGMainWindow(QMainWindow):
             The PortButton to start the signal at.
         destination : PortButton
             The PortButton to end the signal at.
-
-        Returns
-        -------
-        None.
         """
         signal_exists = (
             signal
@@ -871,7 +862,7 @@ class SFGMainWindow(QMainWindow):
         self._pressed_operations = selected
 
     def _select_all(self, event=None) -> None:
-        """Callback for selecting all operation buttons."""
+        """Select all operation buttons."""
         if not self._drag_buttons:
             self.update_statusbar("No operations to select")
             return
@@ -881,7 +872,7 @@ class SFGMainWindow(QMainWindow):
         self.update_statusbar("Selected all operations")
 
     def _unselect_all(self, event=None) -> None:
-        """Callback for unselecting all operation buttons."""
+        """Unselect all operation buttons."""
         if not self._drag_buttons:
             self.update_statusbar("No operations to unselect")
             return
@@ -891,13 +882,13 @@ class SFGMainWindow(QMainWindow):
         self.update_statusbar("Unselected all operations")
 
     def _zoom_to_fit(self, event=None):
-        """Callback for zoom to fit SFGs in window."""
+        """Zoom to fit SFGs in window."""
         self._graphics_view.fitInView(
             self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio
         )
 
     def _simulate_sfg(self) -> None:
-        """Callback for simulating SFGs in separate threads."""
+        """Simulate SFGs in separate threads."""
         self._thread = {}
         self._sim_worker = {}
         for sfg, properties in self._simulation_dialog._properties.items():
@@ -913,12 +904,12 @@ class SFGMainWindow(QMainWindow):
             self._thread[sfg].start()
 
     def _show_plot_window(self, sim: Simulation):
-        """Callback for displaying simulation results window."""
+        """Show the simulation results window."""
         self._plot[sim] = PlotWindow(sim.results, sfg_name=sim.sfg.name)
         self._plot[sim].show()
 
     def simulate_sfg(self, event=None) -> None:
-        """Callback for showing simulation dialog."""
+        """Show the simulation dialog."""
         if not self._sfg_dict:
             self.update_statusbar("No SFG to simulate")
             return
@@ -936,23 +927,23 @@ class SFGMainWindow(QMainWindow):
 
     @Slot()
     def _open_documentation(self, event=None) -> None:
-        """Callback to open documentation web page."""
+        """Open the documentation web page."""
         webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
 
     def display_faq_page(self, event=None) -> None:
-        """Callback for displaying FAQ dialog."""
+        """Display the FAQ dialog."""
         if self._faq_page is None:
             self._faq_page = FaqWindow(self)
         self._faq_page._scroll_area.show()
 
     def display_about_page(self, event=None) -> None:
-        """Callback for displaying about dialog."""
+        """Display the about dialog."""
         if self._about_page is None:
             self._about_page = AboutWindow(self)
         self._about_page.show()
 
     def display_keybindings_page(self, event=None) -> None:
-        """Callback for displaying keybindings dialog."""
+        """Display the keybindings dialog."""
         if self._keybindings_page is None:
             self._keybindings_page = KeybindingsWindow(self)
         self._keybindings_page.show()

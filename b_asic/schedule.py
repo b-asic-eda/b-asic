@@ -50,12 +50,20 @@ _SIGNAL_COLOR: tuple[float, ...] = tuple(float(c / 255) for c in SIGNAL_COLOR)
 
 
 def _laps_default():
-    """Default value for _laps. Cannot use lambda."""
+    """
+    Return the default value for _laps.
+
+    Cannot use lambda.
+    """
     return 0
 
 
 def _y_locations_default():
-    """Default value for _y_locations. Cannot use lambda."""
+    """
+    Return the default value for _y_locations.
+
+    Cannot use lambda.
+    """
     return None
 
 
@@ -280,8 +288,7 @@ class Schedule:
 
         See Also
         --------
-        backward_slack
-        slacks
+        backward_slack : slacks
         """
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
@@ -348,8 +355,7 @@ class Schedule:
 
         See Also
         --------
-        forward_slack
-        slacks
+        forward_slack : slacks
         """
         if graph_id not in self._start_times:
             raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
@@ -558,12 +564,16 @@ class Schedule:
 
     @property
     def schedule_time(self) -> int:
-        """The schedule time of the current schedule."""
+        """
+        The schedule time of the current schedule.
+        """
         return self._schedule_time
 
     @property
     def cyclic(self) -> bool:
-        """If the current schedule is cyclic."""
+        """
+        If the current schedule is cyclic.
+        """
         return self._cyclic
 
     def edit(self, inplace=False) -> "Schedule":
@@ -1480,8 +1490,9 @@ class Schedule:
 
     def _repr_svg_(self) -> str:
         """
-        Generate an SVG of the schedule. This is automatically displayed in e.g.
-        Jupyter Qt console.
+        Generate an SVG of the schedule.
+
+        This is automatically displayed in e.g. Jupyter Qt console.
         """
         fig = self._get_figure()
         buffer = io.StringIO()

@@ -1,3 +1,9 @@
+"""
+B-ASIC GUI Arrow Module.
+
+Contains a GUI class for arrows.
+"""
+
 from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QPointF

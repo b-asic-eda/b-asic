@@ -1,3 +1,7 @@
+"""
+B-ASIC GUI Utility Dialogs Module.
+"""
+
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QDialog,

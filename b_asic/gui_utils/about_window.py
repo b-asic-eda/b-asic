@@ -1,3 +1,9 @@
+"""
+B-ASIC GUI About Window Module.
+
+Contains a GUI class for the about window.
+"""
+
 import pathlib
 import sys  # ONLY FOR DEBUG
 

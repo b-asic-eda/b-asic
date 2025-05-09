@@ -1,5 +1,5 @@
 """
-Generation of common VHDL constructs
+Generation of common VHDL constructs.
 """
 
 import re

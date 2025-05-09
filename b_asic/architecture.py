@@ -178,7 +178,6 @@ class Resource(HardwareBlock):
         fontname : str, default: "Times New Roman"
             Font to use.
         """
-
         dg = Digraph(node_attr={"shape": "box"})
         dg.node(
             self.entity_name,
@@ -889,7 +888,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
     def assign_resources(self, strategy: Literal["left_edge"] = "left_edge") -> None:
         """
-        Convenience method to assign all resources in the architecture.
+        Assign all resources in the architecture.
 
         Parameters
         ----------
@@ -986,7 +985,6 @@ of :class:`~b_asic.architecture.ProcessingElement`
         colored : bool, default: True
             Whether to color the nodes.
         """
-
         dg = self._digraph(
             branch_node=branch_node,
             cluster=cluster,
@@ -1010,6 +1008,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         fontname: str = "Times New Roman",
     ) -> Digraph:
         """
+        Return a Digraph of the architecture.
+
+        Can be directly displayed in IPython.
+
         Parameters
         ----------
         branch_node : bool, default: True
@@ -1027,6 +1029,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether to color the nodes.
         fontname : str, default: "Times New Roman"
             Font to use.
+
+        Returns
+        -------
+        Digraph
+            Digraph of the rendered architecture.
         """
         dg = Digraph(node_attr={"shape": "box"})
         dg.attr(splines=splines)

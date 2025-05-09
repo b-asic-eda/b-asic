@@ -36,8 +36,7 @@ def wdf_allpass(
     execution_time: int | None = None,
 ) -> SFG:
     """
-    Generate a signal flow graph of a WDF allpass section based on symmetric two-port\
- adaptors.
+    Generate a signal flow graph of a WDF allpass section based on symmetric two-port adaptors.
 
     Simplifies the SFG in case an adaptor operation is 0.
 
@@ -45,22 +44,19 @@ def wdf_allpass(
     ----------
     coefficients : 1D-array
         Coefficients to use for the allpass section.
-
     name : Name, optional
         The name of the SFG. If None, "WDF allpass section".
-
     latency : int, optional
         Latency of the symmetric two-port adaptors.
-
     latency_offsets : optional
         Latency offsets of the symmetric two-port adaptors.
-
     execution_time : int, optional
         Execution time of the symmetric two-port adaptors.
 
     Returns
     -------
-        Signal flow graph
+    SFG
+        Signal Flow Graph
     """
     np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
     order = len(np_coefficients)
@@ -683,9 +679,9 @@ def matrix_multiplication(
     name: str | None = None,
     mad_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
-    """
+    r"""
     Generate a structure for the multiplication of matrices A and B.
-    Where A is of size MxN and B NxP.
+    Where A is of size :math:`m \times n` and B :math:`n \times p`.
 
     Parameters
     ----------

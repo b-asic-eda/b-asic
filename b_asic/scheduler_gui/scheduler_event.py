@@ -111,7 +111,6 @@ class SchedulerEvent:
         If False is returned, the event is forwarded to the appropriate child in
         the event chain.
         """
-
         if isinstance(item, OperationItem):  # one component
             switch = {
                 QEvent.GraphicsSceneMouseMove: self.operation_mouseMoveEvent,

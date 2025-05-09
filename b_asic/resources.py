@@ -1,3 +1,9 @@
+"""
+B-ASIC Resources Module.
+
+Contains functionality for grouping processes into collections.
+"""
+
 import io
 import itertools
 import re
@@ -69,6 +75,7 @@ def _sanitize_port_option(
 ) -> tuple[int, int, int]:
     """
     General port sanitization function used to test if a port specification makes sense.
+
     Raises ValueError if the port specification is in-proper.
 
     Parameters
@@ -146,7 +153,7 @@ def draw_exclusion_graph_coloring(
     **kwargs,
 ) -> None:
     """
-    Helper function for drawing colored exclusion graphs.
+    Draw the colored exclusion graphs.
 
     Example usage:
 
@@ -180,10 +187,6 @@ def draw_exclusion_graph_coloring(
         A list of colors in Matplotlib format.
     **kwargs : Any
         Named arguments passed on to :func:`networkx.draw_networkx`
-
-    Returns
-    -------
-    None
     """
     COLOR_LIST = [
         "#aa0000",
@@ -249,6 +252,7 @@ class _ForwardBackwardEntry:
             Dictionary containing the back edge of the previous entry to registers in
             this entry.
         outputs_from : int, optional
+            outputs from
         """
         self.inputs: list[Process] = [] if inputs is None else inputs
         self.outputs: list[Process] = [] if outputs is None else outputs
@@ -271,7 +275,7 @@ class _ForwardBackwardTable:
         Parameters
         ----------
         collection : ProcessCollection
-            ProcessCollection to apply forward-backward allocation on
+            ProcessCollection to apply forward-backward allocation on.
         """
         # Generate an alive variable list
         self._collection = set(collection.collection)
@@ -555,7 +559,7 @@ class ProcessCollection:
 
     def __contains__(self, process: Process) -> bool:
         """
-        Test if a process is part of this ProcessCollection
+        Test if a process is part of this ProcessCollection.
 
         Parameters
         ----------
@@ -622,7 +626,6 @@ class ProcessCollection:
         ax : :class:`matplotlib.axes.Axes`
             Associated Matplotlib Axes (or array of Axes) object.
         """
-
         # Set up the Axes object
         if ax is None:
             _, _ax = plt.subplots(layout="constrained")
@@ -1189,7 +1192,6 @@ class ProcessCollection:
         list of :class:`ProcessCollection`
             A list of new :class:`ProcessCollection` objects with the process splitting.
         """
-
         if set(self.collection) != set(sequence):
             raise KeyError("processes in `sequence` must be equal to processes in self")
 
@@ -1422,6 +1424,8 @@ class ProcessCollection:
         coloring_strategy: str = "saturation_largest_first",
     ) -> list["ProcessCollection"]:
         """
+        Split this collection by greedy graph coloring.
+
         Parameters
         ----------
         read_ports : int
@@ -1444,6 +1448,11 @@ class ProcessCollection:
             * 'connected_sequential_bfs'
             * 'connected_sequential_dfs' or 'connected_sequential'
             * 'saturation_largest_first' or 'DSATUR'
+
+        Returns
+        -------
+        list of :class:`ProcessCollection`
+            A list of new :class:`ProcessCollection` objects with the process splitting.
         """
         # create new exclusion graph. Nodes are Processes
         exclusion_graph = self.exclusion_graph_from_ports(
@@ -1495,13 +1504,13 @@ class ProcessCollection:
             max_colors = len(set(coloring.values()))
         colors = range(max_colors)
 
-        # find the minimal amount of colors (memories)
-
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
         x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
         #   c[color] - whether color is used
         c = LpVariable.dicts("c", colors, cat=LpBinary)
+
+        # find the minimal amount of colors (memories)
         problem = LpProblem()
         problem += lpSum(c[i] for i in colors)
 

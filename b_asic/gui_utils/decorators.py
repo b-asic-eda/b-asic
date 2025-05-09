@@ -1,3 +1,7 @@
+"""
+B-ASIC GUI Decorators Module.
+"""
+
 from traceback import format_exc
 
 from qtpy.QtWidgets import QErrorMessage

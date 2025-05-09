@@ -1,3 +1,9 @@
+"""
+B-ASIC GUI Simulation Worker Module.
+
+Contains a class for simulation workers.
+"""
+
 from qtpy.QtCore import QObject, Signal
 
 from b_asic.signal_flow_graph import SFG

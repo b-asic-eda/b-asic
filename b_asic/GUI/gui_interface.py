@@ -1,4 +1,9 @@
-# Originally generated from QT designer, but now manually maintained
+"""
+B-ASIC GUI interface module.
+
+Contains a GUI class for the interface.
+Originally generated from QT designer, but now manually maintained.
+"""
 
 from qtpy import QtCore, QtWidgets
 

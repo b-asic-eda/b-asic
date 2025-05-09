@@ -44,8 +44,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     to OperationItem objects.
 
     Parameters
-    ==========
-
+    ----------
     schedule : :class:`~b_asic.schedule.Schedule`
         The Schedule to draw.
 

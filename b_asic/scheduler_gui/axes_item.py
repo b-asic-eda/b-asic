@@ -167,7 +167,6 @@ class AxesItem(QGraphicsItemGroup):
         width : int >= 0
             New width of x-axis in time units.
         """
-        # TODO: docstring
         if width < 0:
             raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")
 

@@ -115,9 +115,34 @@ select = [
   "RUF",
   "A",
   "I",
-  "G004"
+  "G004",
+  "D",
 ]
-ignore = ["F403", "B008", "B021", "B006", "UP038", "RUF023", "A005", "E741"]
+ignore = [
+  "F403",
+  "B008",
+  "B021",
+  "B006",
+  "UP038",
+  "RUF023",
+  "A005",
+  "E741",
+  "D101",
+  "D102",
+  "D103",
+  "D105",
+  "D107",
+  "D200",
+  "D203",
+  "D205",
+  "D212",
+  "D413",
+  "D418",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"test/*" = ["D1", "D401"]
+"b_asic/scheduler_gui/ui_main_window.py" = ["D100"]
 
 [tool.codespell]
 ignore-words-list = ["inout"]

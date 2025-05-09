@@ -1,3 +1,9 @@
+"""
+B-ASIC GUI Signal Generator Input Module.
+
+Contains classes for signal generator input.
+"""
+
 from qtpy.QtWidgets import (
     QFileDialog,
     QGridLayout,

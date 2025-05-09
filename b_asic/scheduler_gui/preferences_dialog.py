@@ -1,3 +1,9 @@
+"""
+B-ASIC Scheduler-GUI Preferences Dialog Module.
+
+Contains the scheduler_gui PreferencesDialog class.
+"""
+
 # QGraphics and QPainter imports
 from qtpy.QtCore import (
     QCoreApplication,

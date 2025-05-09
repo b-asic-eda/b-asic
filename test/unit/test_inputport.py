@@ -1,5 +1,5 @@
 """
-B-ASIC test suite for Inputport
+B-ASIC test suite for Inputport.
 """
 
 import pytest
@@ -32,7 +32,7 @@ def test_connect_used_port_to_new_port(input_port, output_port, output_port2):
 
 
 def test_add_signal_then_disconnect(input_port, s_w_source):
-    """Can signal be connected then disconnected properly?"""
+    """Test if signal be connected then disconnected properly."""
     input_port.add_signal(s_w_source)
 
     assert input_port.connected_source == s_w_source.source

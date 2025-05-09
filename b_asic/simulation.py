@@ -101,6 +101,7 @@ class Simulation:
         Parameters
         ----------
         input_providers : sequence of list, callable, or number
+            The input functions to use.
         """
         if self._sfg.input_count == 1 and (
             not np.iterable(input_providers) or len(input_providers) != 1
@@ -127,8 +128,18 @@ class Simulation:
         Parameters
         ----------
         save_results : bool, default: True
+            Whether the results should be saved.
         bits_override : int, optional
+            Specifies a word length override when truncating inputs
+            which ignores the word length specified by the input signal.
         quantize : bool, default: True
+            Specifies whether input truncation should be enabled in the first
+            place. If set to False, input values will be used directly without any
+            bit truncation.
+
+        Returns
+        -------
+        The result of the simulation.
         """
         return self.run_for(1, save_results, bits_override, quantize)
 
@@ -151,8 +162,18 @@ class Simulation:
         iteration : int
             Iteration number to stop the simulation at.
         save_results : bool, default: True
+            Whether the results should be saved.
         bits_override : int, optional
+            Specifies a word length override when truncating inputs
+            which ignores the word length specified by the input signal.
         quantize : bool, default: True
+            Specifies whether input truncation should be enabled in the first
+            place. If set to False, input values will be used directly without any
+            bit truncation.
+
+        Returns
+        -------
+        The result of the simulation.
         """
         result: Sequence[Num] = []
         while self._iteration < iteration:
@@ -192,8 +213,18 @@ class Simulation:
         iterations : int
             Number of iterations to simulate.
         save_results : bool, default: True
+            Whether the results should be saved.
         bits_override : int, optional
+            Specifies a word length override when truncating inputs
+            which ignores the word length specified by the input signal.
         quantize : bool, default: True
+            Specifies whether input truncation should be enabled in the first
+            place. If set to False, input values will be used directly without any
+            bit truncation.
+
+        Returns
+        -------
+        The result of the simulation.
         """
         return self.run_until(
             self._iteration + iterations, save_results, bits_override, quantize
@@ -213,8 +244,18 @@ class Simulation:
         Parameters
         ----------
         save_results : bool, default: True
+            Whether the results should be saved.
         bits_override : int, optional
+            Specifies a word length override when truncating inputs
+            which ignores the word length specified by the input signal.
         quantize : bool, default: True
+            Specifies whether input truncation should be enabled in the first
+            place. If set to False, input values will be used directly without any
+            bit truncation.
+
+        Returns
+        -------
+        The result of the simulation.
         """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")

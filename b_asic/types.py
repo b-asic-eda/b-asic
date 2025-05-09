@@ -1,3 +1,9 @@
+"""
+B-ASIC Typing Module.
+
+Contains custom types used in the library.
+"""
+
 from typing import NewType
 
 # https://stackoverflow.com/questions/69334475/how-to-hint-at-number-types-i-e-subclasses-of-number-not-numbers-themselv

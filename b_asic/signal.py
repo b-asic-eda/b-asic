@@ -24,8 +24,7 @@ class Signal(AbstractGraphComponent):
               changed, it will not affect the current Signal.
 
     Parameters
-    ==========
-
+    ----------
     source : OutputPort, Signal, or Operation, optional
         OutputPort, Signal, or Operation to connect as source to the signal.
     destination : InputPort, Signal, or Operation, optional
@@ -35,8 +34,8 @@ class Signal(AbstractGraphComponent):
     name : Name, default: ""
         The signal name.
 
-    See also
-    ========
+    See Also
+    --------
     set_source, set_destination
     """
 

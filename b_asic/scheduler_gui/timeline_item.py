@@ -8,7 +8,6 @@ maintain the timeline in a schedule.
 
 from typing import overload
 
-# QGraphics and QPainter imports
 from qtpy.QtCore import QLineF, Qt
 from qtpy.QtGui import QCursor
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsLineItem, QGraphicsTextItem
@@ -23,16 +22,18 @@ class TimelineItem(QGraphicsLineItem):
     @overload
     def __init__(self, line: QLineF, parent: QGraphicsItem | None = None) -> None:
         """
-        Constructs a TimelineItem out of *line*.
+        Construct a TimelineItem out of *line*.
 
         *parent* is passed to QGraphicsLineItem's constructor.
         """
 
     @overload
     def __init__(self, parent: QGraphicsItem | None = None) -> None:
-        """Constructs a TimelineItem.
+        """
+        Construct a TimelineItem.
 
-        *parent* is passed to QGraphicsLineItem's constructor."""
+        *parent* is passed to QGraphicsLineItem's constructor.
+        """
 
     @overload
     def __init__(
@@ -44,7 +45,7 @@ class TimelineItem(QGraphicsLineItem):
         parent: QGraphicsItem | None = None,
     ) -> None:
         """
-        Constructs a TimelineItem from (x1, y1) to (x2, y2).
+        Construct a TimelineItem from (x1, y1) to (x2, y2).
 
         *parent* is passed to QGraphicsLineItem's constructor.
         """

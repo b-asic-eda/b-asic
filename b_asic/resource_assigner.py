@@ -1,3 +1,9 @@
+"""
+B-ASIC Resource Assigner Module.
+
+Contains functions for joint resource assignment of processing elements and memories.
+"""
+
 from typing import Literal, cast
 
 import networkx as nx
@@ -44,6 +50,13 @@ def assign_processing_elements_and_memories(
 
     memory_variables : ProcessCollection
         All memory variables from a schedule.
+
+    strategy : str, default: "left_edge"
+        The strategy used when assigning resources.
+        Valid options are:
+
+        * "ilp_graph_color" - ILP-based optimal resource assignment.
+        * "ilp_min_total_mux" - ILP-based optimal resource assignment with multiplexer minimization.
 
     resources : dict[TypeName, int], optional
         The maximum amount of resources to assign to, used to limit the solution

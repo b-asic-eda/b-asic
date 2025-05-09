@@ -317,8 +317,7 @@ class SFG(AbstractOperation):
         self, *src: SignalSourceProvider | None, name: Name = Name("")
     ) -> "SFG":
         """
-        Return a new independent SFG instance that is identical to this SFG
-        except without any of its external connections.
+        Return a new SFG identical without any of its external connections.
         """
         return SFG(
             inputs=self._input_operations,
@@ -646,7 +645,6 @@ class SFG(AbstractOperation):
         graph_id : GraphID
             The GraphID to match the operation to replace.
         """
-
         sfg_copy = self()  # Copy to not mess with this SFG.
         component_copy = sfg_copy.find_by_id(graph_id)
 
@@ -692,7 +690,6 @@ class SFG(AbstractOperation):
         output_comp_id : GraphID
             The source operation GraphID to connect from.
         """
-
         # Preserve the original SFG by creating a copy.
         sfg_copy = self()
         comp = sfg_copy._add_component_unconnected_copy(component)
@@ -744,7 +741,6 @@ class SFG(AbstractOperation):
         new_operation : Operation
             The new operation, e.g. Multiplication.
         """
-
         # Preserve the original SFG by creating a copy.
         sfg_copy = self()
         if new_operation.output_count != 1 or new_operation.input_count != 1:
@@ -801,7 +797,6 @@ class SFG(AbstractOperation):
             The number of the InputPort before which the new operation shall be
             inserted.
         """
-
         # Preserve the original SFG by creating a copy.
         sfg_copy = self()
         if new_operation.output_count != 1 or new_operation.input_count != 1:
@@ -834,7 +829,6 @@ class SFG(AbstractOperation):
 
         Returns a copy of the simplified SFG.
         """
-
         sfg_copy = self()
         no_of_delays = len(sfg_copy.find_by_type(Delay))
         while True:
@@ -1757,7 +1751,6 @@ class SFG(AbstractOperation):
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
         """
-
         dg = self.sfg_digraph(
             show_signal_id=show_signal_id,
             engine=engine,
@@ -1779,7 +1772,7 @@ class SFG(AbstractOperation):
 
     def _dfs(self, graph, start, end):
         """
-        Find loop(s) in graph
+        Find loop(s) in graph.
 
         Parameters
         ----------
@@ -2106,7 +2099,7 @@ class SFG(AbstractOperation):
         self, graph: dict, start: str, end: str, path: list | None = None
     ) -> list:
         """
-        Returns all paths in graph from node start to node end
+        Find all paths in graph from node start to node end.
 
         Parameters
         ----------
@@ -2162,7 +2155,6 @@ class SFG(AbstractOperation):
         factor : int
             Number of times to unfold.
         """
-
         if factor == 0:
             raise ValueError("Unfolding 0 times removes the SFG")
 

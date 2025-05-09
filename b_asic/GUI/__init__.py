@@ -1,4 +1,5 @@
-"""B-ASIC GUI Module.
+"""
+B-ASIC GUI Module.
 
 Graphical user interface for B-ASIC.
 """

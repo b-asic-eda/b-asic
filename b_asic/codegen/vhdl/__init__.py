@@ -17,9 +17,9 @@ def write(
     start: str | None = None,
 ):
     r"""
-    Base VHDL code generation utility.
+    Write text to a VHDL file.
 
-    First, ``f'{VHDL_TAB*indent_level}'`` is first written to *f* as indentation.
+    First, ``f'{VHDL_TAB*indent_level}'`` is written to *f* as indentation.
     Immediately after the indentation, *text* is written to *f*. Finally,
     *text* is also written to *f*.
 
@@ -44,7 +44,7 @@ def write(
 
 def write_lines(f: TextIO, lines: list[tuple[int, str] | tuple[int, str, str]]):
     """
-    Multiline VHDL code generation utility.
+    Write provided lines to a VHDL file.
 
     Each tuple ``(int, str, [int])`` in the list *lines* is written to the
     TextIO object *f* using the :func:`vhdl.write` function.

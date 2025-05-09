@@ -1,3 +1,9 @@
+"""
+B-ASIC Scheduler Module.
+
+Contains classes for automatic scheduling of SFGs.
+"""
+
 import copy
 import math
 from abc import ABC, abstractmethod

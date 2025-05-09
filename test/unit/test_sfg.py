@@ -752,7 +752,7 @@ class TestDepends:
 
 class TestConnectExternalSignalsToComponentsSoloComp:
     def test_connect_external_signals_to_components_mac(self):
-        """Replace a MAC with inner components in an SFG"""
+        """Replace a MAC with inner components in an SFG."""
         inp1 = Input("INP1")
         inp2 = Input("INP2")
         inp3 = Input("INP3")
@@ -789,7 +789,7 @@ class TestConnectExternalSignalsToComponentsSoloComp:
         self, operation_tree
     ):
         """
-        Replaces an SFG with only a operation_tree component with its inner components
+        Replaces an SFG with only a operation_tree component with its inner components.
         """
         sfg1 = SFG(outputs=[Output(operation_tree)])
         out1 = Output(None, "OUT1")
@@ -805,7 +805,7 @@ class TestConnectExternalSignalsToComponentsSoloComp:
     ):
         """
         Replaces an SFG with only a large_operation_tree component with its inner
-        components
+        components.
         """
         sfg1 = SFG(outputs=[Output(large_operation_tree)])
         out1 = Output(None, "OUT1")
@@ -821,7 +821,7 @@ class TestConnectExternalSignalsToComponentsSoloComp:
     ):
         """
         Replaces an SFG with a symmetric two-port adaptor to test when the input
-        port goes to multiple operations
+        port goes to multiple operations.
         """
         sfg1 = wdf_allpass(0.5)
         sfg2 = sfg1.replace_operation(sfg1.find_by_id("sym2p0").to_sfg(), "sym2p0")
@@ -836,7 +836,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
     def test_connect_external_signals_to_components_operation_tree(
         self, operation_tree
     ):
-        """Replaces a operation_tree in an SFG with other components"""
+        """Replaces a operation_tree in an SFG with other components."""
         sfg1 = SFG(outputs=[Output(operation_tree)])
 
         inp1 = Input("INP1")
@@ -861,7 +861,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
     def test_connect_external_signals_to_components_large_operation_tree(
         self, large_operation_tree
     ):
-        """Replaces a large_operation_tree in an SFG with other components"""
+        """Replaces a large_operation_tree in an SFG with other components."""
         sfg1 = SFG(outputs=[Output(large_operation_tree)])
 
         inp1 = Input("INP1")
@@ -883,7 +883,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         assert not test_sfg.connect_external_signals_to_components()
 
     def create_sfg(self, op_tree):
-        """Create a simple SFG with either operation_tree or large_operation_tree"""
+        """Create a simple SFG with either operation_tree or large_operation_tree."""
         sfg1 = SFG(outputs=[Output(op_tree)])
 
         inp1 = Input("INP1")
@@ -901,7 +901,7 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
         return SFG(inputs=[inp1, inp2], outputs=[out1])
 
     def test_connect_external_signals_to_components_many_op(self, large_operation_tree):
-        """Replace an sfg component in a larger SFG with several component operations"""
+        """Replace an sfg component in a larger SFG with several component operations."""
         inp1 = Input("INP1")
         inp2 = Input("INP2")
         inp3 = Input("INP3")

@@ -1,3 +1,9 @@
+"""
+B-ASIC GUI Properties Module.
+
+Contains a GUI class the properties window.
+"""
+
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QDoubleValidator
 from qtpy.QtWidgets import (

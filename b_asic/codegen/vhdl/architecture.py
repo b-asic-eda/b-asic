@@ -75,7 +75,6 @@ def memory_based_storage(
         An optional Quartus Prime RAM style attribute to apply to this memory.
         If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K", "MLAB" or "logic".
     """
-
     # Code settings
     mem_depth = len(assignment)
     architecture_name = "rtl"
