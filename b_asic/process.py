@@ -29,7 +29,7 @@ class Process:
     _execution_time: int
     _name: str
 
-    def __init__(self, start_time: int, execution_time: int, name: str = ""):
+    def __init__(self, start_time: int, execution_time: int, name: str = "") -> None:
         self._start_time = start_time
         self._execution_time = execution_time
         self._name = name
@@ -95,7 +95,7 @@ class OperatorProcess(Process):
         start_time: int,
         operation: Operation,
         name: str | None = None,
-    ):
+    ) -> None:
         execution_time = operation.execution_time
         if execution_time is None:
             raise ValueError(
@@ -147,7 +147,7 @@ class MemoryProcess(Process):
         write_time: int,
         life_times: list[int],
         name: str = "",
-    ):
+    ) -> None:
         pass
         self._life_times = life_times
         super().__init__(
@@ -222,7 +222,7 @@ class MemoryProcess(Process):
             )
         return short_process, long_process
 
-    def _add_life_time(self, life_time: int):
+    def _add_life_time(self, life_time: int) -> None:
         """
         Add a lifetime to this :class:`~b_asic.process.MultiReadProcess` set of
         lifetimes.
@@ -242,7 +242,7 @@ class MemoryProcess(Process):
             self._life_times.append(life_time)
             self._execution_time = max(self.life_times)
 
-    def _remove_life_time(self, life_time: int):
+    def _remove_life_time(self, life_time: int) -> None:
         """
         Remove a lifetime from this :class:`~b_asic.process.MultiReadProcess`
         set of lifetimes.
@@ -295,7 +295,7 @@ class MemoryVariable(MemoryProcess):
         write_port: OutputPort,
         reads: dict[InputPort, int],
         name: str | None = None,
-    ):
+    ) -> None:
         self._read_ports = list(reads.keys())
         self._reads = reads
         self._write_port = write_port
@@ -385,7 +385,7 @@ class PlainMemoryVariable(MemoryProcess):
         write_port: int,
         reads: dict[int, int],
         name: str | None = None,
-    ):
+    ) -> None:
         self._read_ports = list(reads.keys())
         self._write_port = write_port
         self._reads = reads

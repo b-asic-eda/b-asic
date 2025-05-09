@@ -98,7 +98,7 @@ ignore_missing_imports = true
 precision = 2
 
 [tool.ruff]
-exclude = ["examples", "docs_sphinx"]
+exclude = ["examples", "docs_sphinx", "b_asic/scheduler_gui/ui_main_window.py"]
 
 [tool.ruff.lint]
 select = [
@@ -148,7 +148,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"test/*" = ["D1", "D401", "PERF401"]
+"test/*" = ["D1", "D401", "PERF401", "ANN"]
 "b_asic/scheduler_gui/ui_main_window.py" = ["D100"]
 
 [tool.codespell]

@@ -4,6 +4,8 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
+from typing import NoReturn
+
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
 
@@ -36,7 +38,7 @@ class Constant(AbstractOperation):
     is_linear = True
     is_constant = True
 
-    def __init__(self, value: Num = 0, name: Name = ""):
+    def __init__(self, value: Num = 0, name: Name = "") -> None:
         """
         Construct a Constant operation with the given value.
         """
@@ -53,7 +55,7 @@ class Constant(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("c")
 
-    def evaluate(self):
+    def evaluate(self) -> Num:
         return self.param("value")
 
     @property
@@ -169,7 +171,7 @@ class Addition(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """
         Construct an Addition operation.
         """
@@ -187,7 +189,7 @@ class Addition(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("add")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         return a + b
 
 
@@ -247,7 +249,7 @@ class Subtraction(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """
         Construct a Subtraction operation.
         """
@@ -265,7 +267,7 @@ class Subtraction(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("sub")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         return a - b
 
 
@@ -337,7 +339,7 @@ class AddSub(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """
         Construct an Addition/Subtraction operation.
         """
@@ -356,7 +358,7 @@ class AddSub(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("addsub")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         return a + b if self.is_add else a - b
 
     @property
@@ -439,7 +441,7 @@ class Multiplication(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a Multiplication operation."""
         super().__init__(
             input_count=2,
@@ -455,7 +457,7 @@ class Multiplication(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mul")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         return a * b
 
     @property
@@ -519,7 +521,7 @@ class Division(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a Division operation."""
         super().__init__(
             input_count=2,
@@ -535,7 +537,7 @@ class Division(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("div")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         if b == 0:
             return float("inf")
         return a / b
@@ -603,7 +605,7 @@ class Min(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a Min operation."""
         super().__init__(
             input_count=2,
@@ -619,7 +621,7 @@ class Min(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("min")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         if isinstance(a, complex) or isinstance(b, complex):
             raise ValueError("core_operations.Min does not support complex numbers.")
         return min(a, b)
@@ -683,7 +685,7 @@ class Max(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a Max operation."""
         super().__init__(
             input_count=2,
@@ -699,7 +701,7 @@ class Max(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("max")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         if isinstance(a, complex) or isinstance(b, complex):
             raise ValueError("core_operations.Max does not support complex numbers.")
         return max(a, b)
@@ -743,7 +745,7 @@ class SquareRoot(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a SquareRoot operation."""
         super().__init__(
             input_count=1,
@@ -759,7 +761,7 @@ class SquareRoot(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("sqrt")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         return sqrt(complex(a))
 
 
@@ -801,7 +803,7 @@ class ComplexConjugate(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a ComplexConjugate operation."""
         super().__init__(
             input_count=1,
@@ -817,7 +819,7 @@ class ComplexConjugate(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("conj")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         return conjugate(a)
 
 
@@ -859,7 +861,7 @@ class Absolute(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct an Absolute operation."""
         super().__init__(
             input_count=1,
@@ -875,7 +877,7 @@ class Absolute(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("abs")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         return np_abs(a)
 
 
@@ -934,7 +936,7 @@ class ConstantMultiplication(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a ConstantMultiplication operation with the given value."""
         super().__init__(
             input_count=1,
@@ -951,7 +953,7 @@ class ConstantMultiplication(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("cmul")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         return a * self.param("value")
 
     @property
@@ -1022,7 +1024,7 @@ class Butterfly(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a Butterfly operation."""
         super().__init__(
             input_count=2,
@@ -1038,7 +1040,7 @@ class Butterfly(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("bfly")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         return a + b, a - b
 
 
@@ -1106,7 +1108,7 @@ class MAD(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         do_add: bool = True,
-    ):
+    ) -> None:
         """Construct a MAD operation."""
         super().__init__(
             input_count=3,
@@ -1123,7 +1125,7 @@ class MAD(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mad")
 
-    def evaluate(self, a, b, c):
+    def evaluate(self, a, b, c) -> Num:
         return a * b + c if self.do_add else a * b
 
     @property
@@ -1188,7 +1190,7 @@ class MADS(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         do_addsub: bool = True,
-    ):
+    ) -> None:
         """Construct a MADS operation."""
         super().__init__(
             input_count=3,
@@ -1206,7 +1208,7 @@ class MADS(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mads")
 
-    def evaluate(self, a, b, c):
+    def evaluate(self, a, b, c) -> Num:
         if self.is_add:
             if self.do_addsub:
                 return a + b * c
@@ -1293,7 +1295,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a SymmetricTwoportAdaptor operation."""
         super().__init__(
             input_count=2,
@@ -1310,7 +1312,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("sym2p")
 
-    def evaluate(self, a, b):
+    def evaluate(self, a, b) -> Num:
         tmp = self.value * (b - a)
         return b + tmp, a + tmp
 
@@ -1380,7 +1382,7 @@ class Reciprocal(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a Reciprocal operation."""
         super().__init__(
             input_count=1,
@@ -1396,7 +1398,7 @@ class Reciprocal(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("rec")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         if a == 0:
             return float("inf")
         return 1 / a
@@ -1459,7 +1461,7 @@ class RightShift(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a RightShift operation with the given value."""
         super().__init__(
             input_count=1,
@@ -1476,7 +1478,7 @@ class RightShift(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("rshift")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         return a * 2 ** (-self.param("value"))
 
     @property
@@ -1551,7 +1553,7 @@ class LeftShift(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a RightShift operation with the given value."""
         super().__init__(
             input_count=1,
@@ -1568,7 +1570,7 @@ class LeftShift(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("lshift")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         return a * 2 ** (self.param("value"))
 
     @property
@@ -1644,7 +1646,7 @@ class Shift(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """Construct a Shift operation with the given value."""
         super().__init__(
             input_count=1,
@@ -1661,7 +1663,7 @@ class Shift(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("shift")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         return a * 2 ** (self.param("value"))
 
     @property
@@ -1694,7 +1696,7 @@ class DontCare(AbstractOperation):
 
     is_linear = True
 
-    def __init__(self, name: Name = ""):
+    def __init__(self, name: Name = "") -> None:
         """Construct a DontCare operation."""
         super().__init__(
             input_count=0,
@@ -1708,7 +1710,7 @@ class DontCare(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("dontcare")
 
-    def evaluate(self):
+    def evaluate(self) -> int:
         return 0
 
     @property
@@ -1770,7 +1772,7 @@ class Sink(AbstractOperation):
 
     is_linear = True
 
-    def __init__(self, name: Name = ""):
+    def __init__(self, name: Name = "") -> None:
         """Construct a Sink operation."""
         super().__init__(
             input_count=1,
@@ -1784,7 +1786,7 @@ class Sink(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("sink")
 
-    def evaluate(self):
+    def evaluate(self) -> NoReturn:
         raise NotImplementedError
 
     @property

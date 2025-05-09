@@ -9,7 +9,7 @@ from qtpy import QtCore, QtWidgets
 
 
 class Ui_main_window:
-    def setupUi(self, main_window):
+    def setupUi(self, main_window) -> None:
         main_window.setObjectName("main_window")
         main_window.setEnabled(True)
         main_window.resize(897, 633)
@@ -206,7 +206,7 @@ class Ui_main_window:
         self.core_operations_list.setCurrentRow(-1)
         QtCore.QMetaObject.connectSlotsByName(main_window)
 
-    def retranslateUi(self, main_window):
+    def retranslateUi(self, main_window) -> None:
         _translate = QtCore.QCoreApplication.translate
         main_window.setWindowTitle(_translate("main_window", "B-ASIC"))
         self.operation_box.setTitle(_translate("main_window", "Operations"))

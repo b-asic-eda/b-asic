@@ -9,6 +9,7 @@ from io import TextIOWrapper
 from itertools import chain
 from typing import (
     Literal,
+    NoReturn,
     cast,
 )
 
@@ -52,7 +53,7 @@ class HardwareBlock:
     __slots__ = "_entity_name"
     _entity_name: str | None
 
-    def __init__(self, entity_name: str | None = None):
+    def __init__(self, entity_name: str | None = None) -> None:
         self._entity_name: str | None = None
         if entity_name is not None:
             self.set_entity_name(entity_name)
@@ -156,7 +157,7 @@ class Resource(HardwareBlock):
 
     def __init__(
         self, process_collection: ProcessCollection, entity_name: str | None = None
-    ):
+    ) -> None:
         if not len(process_collection):
             raise ValueError("Do not create Resource with empty ProcessCollection")
         super().__init__(entity_name=entity_name)
@@ -165,10 +166,10 @@ class Resource(HardwareBlock):
         self._output_count = -1
         self._assignment: list[ProcessCollection] | None = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.entity_name
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[ProcessCollection]:
         return iter(self._collection)
 
     def _digraph(self, fontname: str = "Times New Roman") -> Digraph:
@@ -285,7 +286,7 @@ class Resource(HardwareBlock):
     def is_assigned(self) -> bool:
         return self._assignment is not None
 
-    def assign(self, strategy: Literal["left_edge"] = "left_edge"):
+    def assign(self, strategy: Literal["left_edge"] = "left_edge") -> NoReturn:
         """
         Perform assignment of processes to resource.
 
@@ -322,7 +323,7 @@ class Resource(HardwareBlock):
     def operation_type(self) -> type[MemoryProcess] | type[Operation]:
         raise NotImplementedError("ABC Resource does not implement operation_type")
 
-    def add_process(self, proc: Process, assign=False):
+    def add_process(self, proc: Process, assign=False) -> None:
         """
         Add a :class:`~b_asic.process.Process` to this :class:`Resource`.
 
@@ -352,7 +353,7 @@ class Resource(HardwareBlock):
         else:
             self._assignment = None
 
-    def remove_process(self, proc: Process, assign: bool = False):
+    def remove_process(self, proc: Process, assign: bool = False) -> None:
         """
         Remove a :class:`~b_asic.process.Process` from this :class:`Resource`.
 
@@ -402,7 +403,7 @@ class ProcessingElement(Resource):
         process_collection: ProcessCollection,
         entity_name: str | None = None,
         assign: bool = True,
-    ):
+    ) -> None:
         super().__init__(process_collection=process_collection, entity_name=entity_name)
 
         if not isinstance(process_collection, ProcessCollection):
@@ -512,7 +513,7 @@ class Memory(Resource):
         write_ports: int | None = None,
         total_ports: int | None = None,
         assign: bool = False,
-    ):
+    ) -> None:
         super().__init__(process_collection=process_collection, entity_name=entity_name)
         if not all(
             isinstance(operator, MemoryProcess)
@@ -631,7 +632,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         memories: Memory | Iterable[Memory],
         entity_name: str = "arch",
         direct_interconnects: ProcessCollection | None = None,
-    ):
+    ) -> None:
         super().__init__(entity_name)
 
         pe_names = [pe._entity_name for pe in processing_elements]

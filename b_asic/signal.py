@@ -48,7 +48,7 @@ class Signal(AbstractGraphComponent):
         destination: Union["InputPort", "Signal", "Operation"] | None = None,
         bits: int | None = None,
         name: Name = Name(""),
-    ):
+    ) -> None:
         """Construct a Signal."""
         super().__init__(Name(name))
         self._source = None

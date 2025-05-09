@@ -71,7 +71,7 @@ class AxesItem(QGraphicsItemGroup):
         width_padding: float = 0.6,
         height_padding: float = 0.5,
         parent: QGraphicsItem | None = None,
-    ):
+    ) -> None:
         """
         Class for an AxesItem.
 

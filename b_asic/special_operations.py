@@ -33,7 +33,7 @@ class Input(AbstractOperation):
     is_linear = True
     is_constant = False
 
-    def __init__(self, name: Name = ""):
+    def __init__(self, name: Name = "") -> None:
         """Construct an Input operation."""
         super().__init__(
             input_count=0,
@@ -48,7 +48,7 @@ class Input(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("in")
 
-    def evaluate(self):
+    def evaluate(self) -> Num:
         return self.param("value")
 
     @property
@@ -119,7 +119,7 @@ class Output(AbstractOperation):
         self,
         src0: SignalSourceProvider | None = None,
         name: Name = Name(""),
-    ):
+    ) -> None:
         """Construct an Output operation."""
         super().__init__(
             input_count=1,
@@ -134,7 +134,7 @@ class Output(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("out")
 
-    def evaluate(self, _):
+    def evaluate(self, _) -> None:
         return None
 
     def get_plot_coordinates(
@@ -183,7 +183,7 @@ class Delay(AbstractOperation):
         src0: SignalSourceProvider | None = None,
         initial_value: Num = 0,
         name: Name = Name(""),
-    ):
+    ) -> None:
         """Construct a Delay operation."""
         super().__init__(
             input_count=1,
@@ -198,7 +198,7 @@ class Delay(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("t")
 
-    def evaluate(self, a):
+    def evaluate(self, a) -> Num:
         return self.param("initial_value")
 
     def current_output(

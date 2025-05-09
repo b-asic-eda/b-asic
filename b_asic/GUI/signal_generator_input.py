@@ -29,7 +29,7 @@ from b_asic.signal_generator import (
 class SignalGeneratorInput(QGridLayout):
     """Abstract class for graphically configuring and generating signal generators."""
 
-    def __init__(self, logger, *args, **kwargs):
+    def __init__(self, logger, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._logger = logger
 
@@ -37,7 +37,13 @@ class SignalGeneratorInput(QGridLayout):
         """Return the SignalGenerator based on the graphical input."""
         raise NotImplementedError
 
-    def _parse_number(self, string, _type, name, default):
+    def _parse_number(
+        self,
+        string,
+        _type: type[float] | type[int] | type[complex],
+        name,
+        default: float,
+    ) -> float | int | complex:
         string = string.strip()
         try:
             if not string:
@@ -60,7 +66,7 @@ class DelayInput(SignalGeneratorInput):
     have a single delay parameter.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.delay_label = QLabel("Delay")
         self.addWidget(self.delay_label, 0, 0)
@@ -98,7 +104,7 @@ class ZeroPadInput(SignalGeneratorInput):
     :class:`~b_asic.signal_generators.ZeroPad` signal generator.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.input_label = QLabel("Input")
         self.addWidget(self.input_label, 0, 0)
@@ -127,7 +133,7 @@ class FromFileInput(SignalGeneratorInput):
     :class:`~b_asic.signal_generators.FromFile` signal generator.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.file_label = QLabel("Browse")
         self.addWidget(self.file_label, 0, 0)
@@ -140,7 +146,7 @@ class FromFileInput(SignalGeneratorInput):
     def get_generator(self) -> SignalGenerator:
         return FromFile(self.file_browser.text())
 
-    def get_input_file(self, i, file_browser):
+    def get_input_file(self, i, file_browser) -> None:
         module, accepted = QFileDialog().getOpenFileName()
         file_browser.setText(module)
         return
@@ -152,7 +158,7 @@ class SinusoidInput(SignalGeneratorInput):
     :class:`~b_asic.signal_generators.Sinusoid` signal generator.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.frequency_label = QLabel("Frequency")
         self.addWidget(self.frequency_label, 0, 0)
@@ -180,7 +186,7 @@ class GaussianInput(SignalGeneratorInput):
     :class:`~b_asic.signal_generators.Gaussian` signal generator.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.scale_label = QLabel("Standard deviation")
         self.addWidget(self.scale_label, 0, 0)
@@ -214,7 +220,7 @@ class UniformInput(SignalGeneratorInput):
     :class:`~b_asic.signal_generators.Uniform` signal generator.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.low_label = QLabel("Lower bound")
         self.addWidget(self.low_label, 0, 0)
@@ -246,7 +252,7 @@ class ConstantInput(SignalGeneratorInput):
     :class:`~b_asic.signal_generators.Constant` signal generator.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.constant_label = QLabel("Constant")
         self.addWidget(self.constant_label, 0, 0)

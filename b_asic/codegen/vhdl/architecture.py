@@ -30,7 +30,7 @@ def memory_based_storage(
     quartus_ram_style: (
         Literal["M4K", "M9K", "M10K", "M20K", "M144K", "MLAB", "logic"] | None
     ) = None,
-):
+) -> None:
     """
     Generate the VHDL architecture for a memory-based storage architecture.
 
@@ -585,7 +585,7 @@ def register_based_storage(
     total_ports: int,
     sync_rst: bool = False,
     async_rst: bool = False,
-):
+) -> None:
     architecture_name = "rtl"
     schedule_time = len(forward_backward_table)
 

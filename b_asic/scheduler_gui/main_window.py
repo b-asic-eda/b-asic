@@ -32,7 +32,7 @@ from qtpy.QtCore import (
     Qt,
     Slot,
 )
-from qtpy.QtGui import QCloseEvent, QColor, QPalette, QTransform
+from qtpy.QtGui import QCloseEvent, QColor, QPalette, QTransform, QWheelEvent
 from qtpy.QtWidgets import (
     QAbstractButton,
     QAction,
@@ -120,7 +120,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     _recent_files_actions: list[QAction]
     _recent_file_paths: deque[str]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize Scheduler-GUI."""
         super().__init__()
         self._schedule = None
@@ -305,7 +305,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         else:  # Cancelled
             self.update_statusbar("Cancelled")
 
-    def wheelEvent(self, event) -> None:
+    def wheelEvent(self, event: QWheelEvent) -> None:
         """Zoom in or out using mouse wheel if control is pressed."""
         delta = event.angleDelta().y() / 2500
         new_zoom = 1.0 + delta
@@ -319,6 +319,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # Both directions
         elif modifiers == Qt.KeyboardModifier.ControlModifier:
             self.view.scale(new_zoom, new_zoom)
+
+        event.ignore()
 
     @Slot()
     def _load_schedule_from_pyfile(self) -> None:
@@ -348,7 +350,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         self._load_from_file(abs_path_filename)
 
-    def _load_from_file(self, abs_path_filename):
+    def _load_from_file(self, abs_path_filename) -> None:
         """
         Import from Python-file.
 
@@ -529,7 +531,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
         self._open_schedule_file(abs_path_filename)
 
-    def _open_schedule_file(self, abs_path_filename: str):
+    def _open_schedule_file(self, abs_path_filename: str) -> None:
         """Open a saved schedule (*.bsc-file), which is a pickled Schedule."""
         self._file_name = abs_path_filename
         self._add_recent_file(abs_path_filename)
@@ -564,7 +566,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.splitter.moveSplitter(max_, 1)
 
-    def _toggle_file_loaded(self, enable: bool):
+    def _toggle_file_loaded(self, enable: bool) -> None:
         self.menu_save.setEnabled(enable)
         self.menu_save_as.setEnabled(enable)
 
@@ -691,7 +693,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         else:
             event.ignore()
 
-    def _open_about_window(self, event=None):
+    def _open_about_window(self, event=None) -> None:
         self.about_page = AboutWindow(self)
         self.about_page.show()
 
@@ -908,7 +910,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         else:
             log.error("'Operator' not found in info table. It may have been renamed.")
 
-    def _create_recent_file_actions_and_menus(self):
+    def _create_recent_file_actions_and_menus(self) -> None:
         for _ in range(self._max_recent_files):
             recent_file_action = QAction(self.menu_Recent_Schedule)
             recent_file_action.setVisible(False)
@@ -920,7 +922,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         self._update_recent_file_list()
 
-    def _update_operation_types(self):
+    def _update_operation_types(self) -> None:
         self.menu_view_execution_times.setEnabled(True)
         for action in self.menu_view_execution_times.actions():
             self.menu_view_execution_times.removeAction(action)
@@ -944,12 +946,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.menu_view_total_execution_times_of_type.addAction(type_action)
 
     @Slot()
-    def open_preferences_dialog(self):
+    def open_preferences_dialog(self) -> None:
         """Open the preferences dialog to customize fonts, colors, and settings."""
         self._preferences_dialog = PreferencesDialog(self)
         self._preferences_dialog.show()
 
-    def load_preferences(self):
+    def load_preferences(self) -> None:
         """Load the last saved preferences from settings."""
         settings = QSettings()
         LATENCY_COLOR_TYPE.current_color = QColor(
@@ -1054,10 +1056,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         )
 
     @Slot(str)
-    def _show_execution_times_for_type(self, type_name):
+    def _show_execution_times_for_type(self, type_name) -> None:
         self._execution_time_plot(type_name)
 
-    def _closed_execution_times_for_type(self, type_name):
+    def _closed_execution_times_for_type(self, type_name) -> None:
         self._execution_time_plot_dialogs[type_name] = None
 
     def _execution_time_plot(self, type_name: str) -> None:
@@ -1070,7 +1072,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_execution_times_for_type(type_name)
         self._execution_time_plot_dialogs[type_name].show()
 
-    def _update_execution_times_for_type(self, type_name):
+    def _update_execution_times_for_type(self, type_name) -> None:
         if self._execution_time_plot_dialogs[type_name]:
             self._execution_time_plot_dialogs[type_name].axes.clear()
             self._schedule.get_operations().get_by_type_name(type_name).plot(
@@ -1079,10 +1081,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._execution_time_plot_dialogs[type_name].redraw()
 
     @Slot(str)
-    def _show_total_execution_times_for_type(self, type_name):
+    def _show_total_execution_times_for_type(self, type_name) -> None:
         self._total_execution_time_plot(type_name)
 
-    def _closed_total_execution_times_for_type(self, type_name):
+    def _closed_total_execution_times_for_type(self, type_name) -> None:
         self._total_execution_time_plot_dialogs[type_name] = None
 
     def _total_execution_time_plot(self, type_name: str) -> None:
@@ -1095,7 +1097,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_total_execution_times_for_type(type_name)
         self._total_execution_time_plot_dialogs[type_name].show()
 
-    def _update_total_execution_times_for_type(self, type_name):
+    def _update_total_execution_times_for_type(self, type_name) -> None:
         if self._total_execution_time_plot_dialogs[type_name]:
             self._total_execution_time_plot_dialogs[type_name].axes.clear()
             self._schedule.get_operations().get_by_type_name(
@@ -1105,7 +1107,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             )
             self._total_execution_time_plot_dialogs[type_name].redraw()
 
-    def _show_execution_times_for_variables(self):
+    def _show_execution_times_for_variables(self) -> None:
         self._execution_time_for_variables = MPLWindow("Execution times for variables")
         self._execution_time_for_variables.finished.connect(
             self._execution_times_for_variables_closed
@@ -1113,7 +1115,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_execution_times_for_variables()
         self._execution_time_for_variables.show()
 
-    def _update_execution_times_for_variables(self):
+    def _update_execution_times_for_variables(self) -> None:
         if self._execution_time_for_variables:
             self._execution_time_for_variables.axes.clear()
             self._schedule.get_memory_variables().plot(
@@ -1122,10 +1124,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._execution_time_for_variables.redraw()
 
     @Slot()
-    def _execution_times_for_variables_closed(self):
+    def _execution_times_for_variables_closed(self) -> None:
         self._execution_time_for_variables = None
 
-    def _show_total_execution_times_for_variables(self):
+    def _show_total_execution_times_for_variables(self) -> None:
         self._total_execution_time_for_variables = MPLWindow(
             "Total execution times for variables"
         )
@@ -1135,7 +1137,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_total_execution_times_for_variables()
         self._total_execution_time_for_variables.show()
 
-    def _update_total_execution_times_for_variables(self):
+    def _update_total_execution_times_for_variables(self) -> None:
         if self._total_execution_time_for_variables:
             self._total_execution_time_for_variables.axes.clear()
             self._schedule.get_memory_variables().plot_total_execution_times(
@@ -1144,10 +1146,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._total_execution_time_for_variables.redraw()
 
     @Slot()
-    def _total_execution_times_for_variables_closed(self):
+    def _total_execution_times_for_variables_closed(self) -> None:
         self._total_execution_time_for_variables = None
 
-    def _show_ports_accesses_for_storage(self):
+    def _show_ports_accesses_for_storage(self) -> None:
         self._ports_accesses_for_storage = MPLWindow(
             "Port accesses for storage", subplots=(3, 1)
         )
@@ -1172,7 +1174,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     @Slot(str)
-    def _schedule_changed(self, type_name: str | None = None):
+    def _schedule_changed(self, type_name: str | None = None) -> None:
         self._update_execution_times_for_variables()
         self._update_ports_accesses_for_storage()
         for key, dialog in self._execution_time_plot_dialogs.items():
@@ -1183,7 +1185,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if dialog:
                 self._update_total_execution_times_for_type(key)
 
-    def _update_recent_file_list(self):
+    def _update_recent_file_list(self) -> None:
         settings = QSettings()
         rfp = cast(deque, settings.value("scheduler/recentFiles"))
         if rfp:
@@ -1198,13 +1200,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
                 for i in range(dequelen, self._max_recent_files):
                     self._recent_files_actions[i].setVisible(False)
 
-    def _open_recent_file(self, action):
+    def _open_recent_file(self, action) -> None:
         if action.data().filePath().endswith(".bsc"):
             self._open_schedule_file(action.data().filePath())
         else:
             self._load_from_file(action.data().filePath())
 
-    def _add_recent_file(self, filename):
+    def _add_recent_file(self, filename) -> None:
         settings = QSettings()
         rfp = cast(deque, settings.value("scheduler/recentFiles"))
         if rfp:
@@ -1217,17 +1219,17 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         self._update_recent_file_list()
 
-    def _zoom_to_fit(self, event=None):
+    def _zoom_to_fit(self, event=None) -> None:
         """Zoom to fit schedule in window keeping aspect ratio."""
         self.view.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
-    def _zoom_to_fit_no_aspect(self, event=None):
+    def _zoom_to_fit_no_aspect(self, event=None) -> None:
         """Zoom to fit schedule in window ignoring aspect ratio."""
         self.view.fitInView(
             self._scene.sceneRect(), Qt.AspectRatioMode.IgnoreAspectRatio
         )
 
-    def _reset_aspect_ratio(self, event=None):
+    def _reset_aspect_ratio(self, event=None) -> None:
         """Reset the aspect ratio."""
         self.view.setTransform(QTransform())
         self.view.scale(self._scale, self._scale)
@@ -1248,7 +1250,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._show_port_numbers = self.action_show_port_numbers.isChecked()
         self._graph.set_port_numbers(self._show_port_numbers)
 
-    def _toggle_fullscreen(self, event=None):
+    def _toggle_fullscreen(self, event=None) -> None:
         """Toggle full screen mode."""
         if self.isFullScreen():
             self.showNormal()

@@ -51,7 +51,7 @@ class GraphIDGenerator:
 
     _next_id_number: defaultdict[TypeName, GraphIDNumber]
 
-    def __init__(self, id_number_offset: GraphIDNumber = GraphIDNumber(0)):
+    def __init__(self, id_number_offset: GraphIDNumber = GraphIDNumber(0)) -> None:
         """Construct a GraphIDGenerator."""
         self._next_id_number = defaultdict(lambda: id_number_offset)
 
@@ -127,7 +127,7 @@ class SFG(AbstractOperation):
         id_number_offset: GraphIDNumber = GraphIDNumber(0),
         name: Name = Name(""),
         input_sources: Sequence[SignalSourceProvider | None] | None = None,
-    ):
+    ) -> None:
         input_signal_count = 0 if input_signals is None else len(input_signals)
         input_operation_count = 0 if inputs is None else len(inputs)
         output_signal_count = 0 if output_signals is None else len(output_signals)
@@ -332,7 +332,7 @@ class SFG(AbstractOperation):
         # doc-string inherited.
         return TypeName("sfg")
 
-    def evaluate(self, *args):
+    def evaluate(self, *args) -> Num | list[Num] | None:
         result = self.evaluate_outputs(args)
         n = len(result)
         return None if n == 0 else result[0] if n == 1 else result
@@ -854,19 +854,19 @@ class SFG(AbstractOperation):
 
     def _insert_operation_after_operation(
         self, output_operation: Operation, new_operation: Operation
-    ):
+    ) -> None:
         for output in output_operation.outputs:
             self._insert_operation_after_outputport(output, new_operation.copy())
 
     def _insert_operation_before_operation(
         self, input_operation: Operation, new_operation: Operation
-    ):
+    ) -> None:
         for port in input_operation.inputs:
             self._insert_operation_before_inputport(port, new_operation.copy())
 
     def _insert_operation_after_outputport(
         self, output_port: OutputPort, new_operation: Operation
-    ):
+    ) -> None:
         # Make copy as list will be updated
         signal_list = output_port.signals[:]
         for signal in signal_list:
@@ -875,18 +875,22 @@ class SFG(AbstractOperation):
 
     def _insert_operation_before_inputport(
         self, input_port: InputPort, new_operation: Operation
-    ):
+    ) -> None:
         # Make copy as list will be updated
         input_port.signals[0].set_destination(new_operation)
         new_operation.output(0).add_signal(Signal(destination=input_port))
 
-    def _insert_operation_before_signal(self, signal: Signal, new_operation: Operation):
+    def _insert_operation_before_signal(
+        self, signal: Signal, new_operation: Operation
+    ) -> None:
         output_port = signal.source
         output_port.remove_signal(signal)
         Signal(output_port, new_operation)
         signal.set_source(new_operation)
 
-    def _insert_operation_after_signal(self, signal: Signal, new_operation: Operation):
+    def _insert_operation_after_signal(
+        self, signal: Signal, new_operation: Operation
+    ) -> None:
         input_port = signal.destination
         input_port.remove_signal(signal)
         Signal(new_operation, input_port)

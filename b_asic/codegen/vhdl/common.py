@@ -10,7 +10,7 @@ from typing import Any, Literal, TextIO
 from b_asic.codegen.vhdl import write, write_lines
 
 
-def b_asic_preamble(f: TextIO):
+def b_asic_preamble(f: TextIO) -> None:
     """
     Write a standard BASIC VHDL preamble comment.
 
@@ -49,7 +49,7 @@ def ieee_header(
     f: TextIO,
     std_logic_1164: bool = True,
     numeric_std: bool = True,
-):
+) -> None:
     """
     Write the standard IEEE VHDL use header.
 
@@ -84,7 +84,7 @@ def signal_declaration(
     quartus_ram_style: (
         Literal["M4K", "M9K", "M10K", "M20K", "M144K", "MLAB", "logic"] | None
     ) = None,
-):
+) -> None:
     """
     Create a VHDL signal declaration.
 
@@ -143,7 +143,7 @@ def alias_declaration(
     signal_type: str,
     value: str | None = None,
     name_pad: int | None = None,
-):
+) -> None:
     name_pad = name_pad or 0
     write(f, 1, f"alias {name:<{name_pad}} : {signal_type} is {value};")
 
@@ -154,7 +154,7 @@ def constant_declaration(
     signal_type: str,
     value: Any,
     name_pad: int | None = None,
-):
+) -> None:
     """
     Write a VHDL constant declaration with a name, a type and a value.
 
@@ -179,7 +179,7 @@ def type_declaration(
     f: TextIO,
     name: str,
     alias: str,
-):
+) -> None:
     """
     Write a VHDL type declaration with a name tied to an alias.
 
@@ -200,7 +200,7 @@ def process_prologue(
     sensitivity_list: str,
     indent: int = 1,
     name: str | None = None,
-):
+) -> None:
     """
     Write the prologue of a regular VHDL process with a user provided sensitivity list.
 
@@ -229,7 +229,7 @@ def process_epilogue(
     sensitivity_list: str | None = None,
     indent: int = 1,
     name: str | None = None,
-):
+) -> None:
     """
     Write the epilogue of a regular VHDL process.
 
@@ -258,7 +258,7 @@ def synchronous_process_prologue(
     clk: str,
     indent: int = 1,
     name: str | None = None,
-):
+) -> None:
     """
     Write the prologue of a regular VHDL synchronous process with a single clock object.
 
@@ -287,7 +287,7 @@ def synchronous_process_epilogue(
     clk: str | None = None,
     indent: int = 1,
     name: str | None = None,
-):
+) -> None:
     """
     Write the epilogue of a regular VHDL synchronous process with a single clock.
 
@@ -316,7 +316,7 @@ def synchronous_process(
     body: str,
     indent: int = 1,
     name: str | None = None,
-):
+) -> None:
     """
     Write a regular VHDL synchronous process with a single clock.
 
@@ -349,7 +349,7 @@ def synchronous_memory(
     read_ports: set[tuple[str, str, str]],
     write_ports: set[tuple[str, str, str]],
     name: str | None = None,
-):
+) -> None:
     """
     Infer a VHDL synchronous reads and writes.
 
@@ -396,7 +396,7 @@ def asynchronous_read_memory(
     read_ports: set[tuple[str, str, str]],
     write_ports: set[tuple[str, str, str]],
     name: str | None = None,
-):
+) -> None:
     """
     Infer a VHDL memory with synchronous writes and asynchronous reads.
 

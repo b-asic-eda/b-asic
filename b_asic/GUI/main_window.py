@@ -71,7 +71,7 @@ QCoreApplication.setApplicationVersion(__version__)
 
 @decorate_class(handle_error)
 class SFGMainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._logger = logging.getLogger(__name__)
         self._window = self
@@ -347,7 +347,7 @@ class SFGMainWindow(QMainWindow):
                 positions[op.graph_id][-1] if op.graph_id in positions else None,
             )
 
-        def connect_ports(ports: Sequence[InputPort]):
+        def connect_ports(ports: Sequence[InputPort]) -> None:
             for port in ports:
                 for signal in port.signals:
                     sources = [
@@ -381,7 +381,7 @@ class SFGMainWindow(QMainWindow):
         self._sfg_dict[sfg.name] = sfg
         self.update()
 
-    def _create_recent_file_actions_and_menus(self):
+    def _create_recent_file_actions_and_menus(self) -> None:
         for _ in range(self._max_recent_files):
             recent_file_action = QAction(self._ui.recent_sfg)
             recent_file_action.setVisible(False)
@@ -393,7 +393,7 @@ class SFGMainWindow(QMainWindow):
 
         self._update_recent_file_list()
 
-    def _toggle_fullscreen(self, event=None):
+    def _toggle_fullscreen(self, event=None) -> None:
         """Toggle full screen mode."""
         if self.isFullScreen():
             self.showNormal()
@@ -402,7 +402,7 @@ class SFGMainWindow(QMainWindow):
             self.showFullScreen()
             self._fullscreen_action.setIcon(get_icon("full-screen-exit"))
 
-    def _update_recent_file_list(self):
+    def _update_recent_file_list(self) -> None:
         settings = QSettings()
         rfp = cast(deque, settings.value("SFG/recentFiles"))
         if rfp:
@@ -417,10 +417,10 @@ class SFGMainWindow(QMainWindow):
                 for i in range(dequelen, self._max_recent_files):
                     self._recent_files_actions[i].setVisible(False)
 
-    def _open_recent_file(self, action):
+    def _open_recent_file(self, action) -> None:
         self._load_from_file(action.data().filePath())
 
-    def _add_recent_file(self, module):
+    def _add_recent_file(self, module) -> None:
         settings = QSettings()
         rfp = cast(deque, settings.value("SFG/recentFiles"))
         if rfp:
@@ -649,7 +649,7 @@ class SFGMainWindow(QMainWindow):
             return
         self._add_namespace(module)
 
-    def _add_namespace(self, module: str):
+    def _add_namespace(self, module: str) -> None:
         spec = importlib.util.spec_from_file_location(
             f"{QFileInfo(module).fileName()}", module
         )
@@ -658,7 +658,7 @@ class SFGMainWindow(QMainWindow):
 
         self.add_operations_from_namespace(namespace, self._ui.custom_operations_list)
 
-    def _update(self):
+    def _update(self) -> None:
         self._scene.update()
         self._graphics_view.update()
 
@@ -882,7 +882,7 @@ class SFGMainWindow(QMainWindow):
             operation._toggle_button(pressed=True)
         self.update_statusbar("Unselected all operations")
 
-    def _zoom_to_fit(self, event=None):
+    def _zoom_to_fit(self, event=None) -> None:
         """Zoom to fit SFGs in window."""
         self._graphics_view.fitInView(
             self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio
@@ -904,7 +904,7 @@ class SFGMainWindow(QMainWindow):
             self._thread[sfg].finished.connect(self._thread[sfg].deleteLater)
             self._thread[sfg].start()
 
-    def _show_plot_window(self, sim: Simulation):
+    def _show_plot_window(self, sim: Simulation) -> None:
         """Show the simulation results window."""
         self._plot[sim] = PlotWindow(sim.results, sfg_name=sim.sfg.name)
         self._plot[sim].show()

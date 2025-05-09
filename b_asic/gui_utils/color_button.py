@@ -23,7 +23,7 @@ class ColorButton(QPushButton):
     _color: None | QColor
     _color_changed = Signal(QColor)
 
-    def __init__(self, color: QColor, *args, **kwargs):
+    def __init__(self, color: QColor, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self._color = None

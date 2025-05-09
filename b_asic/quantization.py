@@ -50,7 +50,7 @@ def quantize(
     integer_bits: int = 1,
     quantization: Quantization = Quantization.TRUNCATION,
     overflow: Overflow = Overflow.TWOS_COMPLEMENT,
-):
+) -> Num:
     r"""
     Quantize *value* assuming two's complement representation.
 

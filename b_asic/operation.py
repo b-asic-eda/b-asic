@@ -467,7 +467,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
-    ):
+    ) -> None:
         """
         Construct an operation with the given input/output count.
 

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class SelectSFGWindow(QDialog):
     ok = Signal()
 
-    def __init__(self, window: "SFGMainWindow"):
+    def __init__(self, window: "SFGMainWindow") -> None:
         super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
@@ -41,7 +41,7 @@ class SelectSFGWindow(QDialog):
             self.accept()
             self.ok.emit()
 
-    def save_properties(self):
+    def save_properties(self) -> None:
         self.sfg = self._window._sfg_dict[self._sfg_combo_box.currentText()]
         self.accept()
         self.ok.emit()

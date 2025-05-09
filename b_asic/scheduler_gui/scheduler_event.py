@@ -49,7 +49,7 @@ class SchedulerEvent:
     _schedule: Schedule
     _old_op_position: int = -1
 
-    def __init__(self, parent: QGraphicsItem | None = None):
+    def __init__(self, parent: QGraphicsItem | None = None) -> None:
         super().__init__(parent=parent)
         self._signals = self.Signals()
 
@@ -150,7 +150,7 @@ class SchedulerEvent:
         coordinate system of the parent object.
         """
 
-        def update_pos(operation_item, dx, dy):
+        def update_pos(operation_item, dx, dy) -> None:
             pos_x = operation_item.x() + dx
             if self.is_component_valid_pos(operation_item, pos_x):
                 pos_y = operation_item.y() + dy * (OPERATION_GAP + OPERATION_HEIGHT)
@@ -252,7 +252,7 @@ class SchedulerEvent:
         horizontally in x-axis scale steps.
         """
 
-        def update_pos(timeline_item, dx):
+        def update_pos(timeline_item, dx) -> None:
             pos = timeline_item.x() + dx
             if self.is_valid_delta_time(self._delta_time + dx):
                 timeline_item.setX(pos)

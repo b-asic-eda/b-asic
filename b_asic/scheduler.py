@@ -58,7 +58,7 @@ class Scheduler(ABC):
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
         sort_y_location: bool = True,
-    ):
+    ) -> None:
         self._op_laps = {}
 
         if input_times is not None:
@@ -812,7 +812,7 @@ class ListScheduler(Scheduler):
 
         used_op_types = self._schedule._sfg.get_used_operation_types()
 
-        def find_type_from_type_name(type_name):
+        def find_type_from_type_name(type_name: TypeName) -> type[Operation]:
             for op_type in used_op_types:
                 if op_type.type_name() == type_name:
                     return op_type
@@ -1040,7 +1040,7 @@ class RecursiveListScheduler(ListScheduler):
                 return False
         return True
 
-    def _get_recursive_priority_table(self):
+    def _get_recursive_priority_table(self) -> list[tuple["GraphID", int]]:
         ready_ops = [
             op_id
             for op_id in self._remaining_recursive_ops
@@ -1274,7 +1274,7 @@ class ILPScheduler(Scheduler):
 
     def __init__(
         self, solver: pulp.LpSolver | None = None, sort_y_location: bool = True
-    ):
+    ) -> None:
         self._solver = solver
         self._sort_y_location = sort_y_location
 

@@ -26,7 +26,7 @@ from b_asic._version import __version__
 class AboutWindow(QDialog):
     """About window."""
 
-    def __init__(self, window):
+    def __init__(self, window) -> None:
         super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
@@ -37,7 +37,7 @@ class AboutWindow(QDialog):
 
         self._add_information_to_layout()
 
-    def _hover_text(self, url):
+    def _hover_text(self, url) -> None:
         # self.setWindowTitle(url)
         # When removing mouse, the title gets "B-ASIC Scheduler".
         # Where does THAT come from?
@@ -46,7 +46,7 @@ class AboutWindow(QDialog):
         else:
             QToolTip.hideText()
 
-    def _add_information_to_layout(self):
+    def _add_information_to_layout(self) -> None:
         # |1 Title   |2        |
         # |  License |  Logo   |  <- layout12
         # |  Version |         |
@@ -118,7 +118,7 @@ class AboutWindow(QDialog):
 # ONLY FOR DEBUG below
 
 
-def show_about_window():
+def show_about_window() -> None:
     """Simply show the about window."""
     app = QApplication(sys.argv)
     window = AboutWindow(QDialog)

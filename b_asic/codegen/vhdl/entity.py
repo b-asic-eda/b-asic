@@ -12,7 +12,7 @@ from b_asic.resources import ProcessCollection
 
 def memory_based_storage(
     f: TextIO, entity_name: str, collection: ProcessCollection, word_length: int
-):
+) -> None:
     # Check that this is a ProcessCollection of (Plain)MemoryVariables
     is_memory_variable = all(
         isinstance(process, MemoryVariable) for process in collection
@@ -80,5 +80,5 @@ def memory_based_storage(
 
 def register_based_storage(
     f: TextIO, entity_name: str, collection: ProcessCollection, word_length: int
-):
+) -> None:
     memory_based_storage(f, entity_name, collection, word_length)

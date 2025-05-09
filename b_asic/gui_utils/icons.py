@@ -1,6 +1,11 @@
 """B-ASIC icons."""
 
+from typing import TYPE_CHECKING
+
 import qtawesome
+
+if TYPE_CHECKING:
+    from qtpy.QtGui import QIcon
 
 ICONS = {
     "save": "mdi6.content-save",
@@ -39,7 +44,7 @@ ICONS = {
 }
 
 
-def get_icon(name):
+def get_icon(name: str) -> "QIcon":
     """Return icon for given name."""
     info = ICONS[name]
     if isinstance(info, str):

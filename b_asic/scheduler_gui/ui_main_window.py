@@ -25,7 +25,7 @@ from qtpy.QtWidgets import (
 
 
 class Ui_MainWindow:
-    def setupUi(self, MainWindow):
+    def setupUi(self, MainWindow) -> None:
         if not MainWindow.objectName():
             MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
@@ -389,7 +389,7 @@ class Ui_MainWindow:
 
     # setupUi
 
-    def retranslateUi(self, MainWindow):
+    def retranslateUi(self, MainWindow) -> None:
         self.menu_load_from_file.setText(
             QCoreApplication.translate(
                 "MainWindow", "&Import schedule from file...", None

@@ -48,7 +48,7 @@ class Simulation:
         self,
         sfg: SFG,
         input_providers: Sequence[InputProvider | None] | None = None,
-    ):
+    ) -> None:
         """Construct a Simulation of an SFG."""
         if not isinstance(sfg, SFG):
             raise TypeError("An SFG must be provided")

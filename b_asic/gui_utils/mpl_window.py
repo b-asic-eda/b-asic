@@ -1,5 +1,6 @@
 """MPLWindow is a dialog that provides an Axes for plotting in."""
 
+from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -12,7 +13,7 @@ class MPLWindow(QDialog):
     Dialog for plotting Matplotlib things.
     """
 
-    def __init__(self, title: str = "B-ASIC", subplots=(1, 1)):
+    def __init__(self, title: str = "B-ASIC", subplots=(1, 1)) -> None:
         super().__init__()
         self.setWindowFlags(
             Qt.WindowTitleHint
@@ -35,8 +36,8 @@ class MPLWindow(QDialog):
         self._dialog_layout.addWidget(self._plot_canvas)
 
     @property
-    def axes(self):
+    def axes(self) -> Axes | list[Axes]:
         return self._plot_axes
 
-    def redraw(self):
+    def redraw(self) -> None:
         self._plot_canvas.draw()

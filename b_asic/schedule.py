@@ -49,7 +49,7 @@ _LATENCY_COLOR: tuple[float, ...] = tuple(float(c / 255) for c in LATENCY_COLOR)
 _SIGNAL_COLOR: tuple[float, ...] = tuple(float(c / 255) for c in SIGNAL_COLOR)
 
 
-def _laps_default():
+def _laps_default() -> int:
     """
     Return the default value for _laps.
 
@@ -58,7 +58,7 @@ def _laps_default():
     return 0
 
 
-def _y_locations_default():
+def _y_locations_default() -> None:
     """
     Return the default value for _y_locations.
 
@@ -105,7 +105,7 @@ class Schedule:
         cyclic: bool = False,
         start_times: dict[GraphID, int] | None = None,
         laps: dict[GraphID, int] | None = None,
-    ):
+    ) -> None:
         """Construct a Schedule from an SFG."""
         if not isinstance(sfg, SFG):
             raise TypeError("An SFG must be provided")
@@ -824,7 +824,7 @@ class Schedule:
 
     def _get_minimum_height(
         self, operation_height: float = 1.0, operation_gap: float = OPERATION_GAP
-    ):
+    ) -> float:
         max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
         return self._get_y_plot_location(
             max_pos_graph_id, operation_height, operation_gap

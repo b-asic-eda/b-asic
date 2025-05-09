@@ -19,7 +19,7 @@ from qtpy.QtWidgets import (
 
 
 class PropertiesWindow(QDialog):
-    def __init__(self, operation, main_window):
+    def __init__(self, operation, main_window) -> None:
         super().__init__()
         self.operation = operation
         self._window = main_window
@@ -143,7 +143,7 @@ class PropertiesWindow(QDialog):
         self._vertical_layout.addWidget(self._ok_button)
         self.setLayout(self._vertical_layout)
 
-    def save_properties(self):
+    def save_properties(self) -> None:
         self._window._logger.info(
             "Saving properties of operation: %s", self.operation.name
         )

@@ -46,7 +46,7 @@ class Arrow(QGraphicsPathItem):
         window: "SFGMainWindow",
         signal: Signal | None = None,
         parent=None,
-    ):
+    ) -> None:
         super().__init__(parent)
         self._source_port_button = source_port_button
         if signal is None:
@@ -58,7 +58,7 @@ class Arrow(QGraphicsPathItem):
         self._source_port_button.moved.connect(self.update_arrow)
         self._destination_port_button.moved.connect(self.update_arrow)
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event) -> None:
         """
         Open right-click menu.
 
@@ -111,7 +111,7 @@ class Arrow(QGraphicsPathItem):
         """The destination InputPort."""
         return cast("InputPort", self._destination_port_button.port)
 
-    def set_source_operation(self, source: "Operation"):
+    def set_source_operation(self, source: "Operation") -> None:
         """
         Set operation of the source DragButton.
 
@@ -122,7 +122,7 @@ class Arrow(QGraphicsPathItem):
         """
         self._source_port_button._operation_button.operation = source
 
-    def set_destination_operation(self, destination: "Operation"):
+    def set_destination_operation(self, destination: "Operation") -> None:
         """
         Set operation of the destination DragButton.
 
@@ -133,7 +133,7 @@ class Arrow(QGraphicsPathItem):
         """
         self._destination_port_button._operation_button.operation = destination
 
-    def remove(self):
+    def remove(self) -> None:
         """Remove line and connections to signals etc."""
         self.signal.remove_destination()
         self.signal.remove_source()
@@ -165,7 +165,7 @@ class Arrow(QGraphicsPathItem):
 
         del self._window._arrow_ports[self]
 
-    def update_arrow(self):
+    def update_arrow(self) -> None:
         """
         Update coordinates for arrow.
 

@@ -56,7 +56,7 @@ class SignalItem(QGraphicsPathItem):
         dest_operation: OperationItem,
         signal: Signal,
         parent: "SchedulerItem",
-    ):
+    ) -> None:
         super().__init__(parent=parent)
         self._src_operation = src_operation
         self._dest_operation = dest_operation

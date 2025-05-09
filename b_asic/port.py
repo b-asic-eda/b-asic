@@ -141,7 +141,7 @@ class AbstractPort(Port):
         operation: "Operation",
         index: int,
         latency_offset: int | None = None,
-    ):
+    ) -> None:
         """Construct a port of the given operation at the given port index."""
         self._operation = operation
         self._index = index
@@ -160,11 +160,11 @@ class AbstractPort(Port):
         return self._latency_offset
 
     @latency_offset.setter
-    def latency_offset(self, latency_offset: int | None):
+    def latency_offset(self, latency_offset: int | None) -> None:
         self._latency_offset = latency_offset
 
     @property
-    def name(self):
+    def name(self) -> str:
         return f"{self.operation.graph_id}.{self.index}"
 
 
@@ -281,7 +281,7 @@ class InputPort(AbstractPort):
     __slots__ = ("_source_signal",)
     _source_signal: Signal | None
 
-    def __init__(self, operation: "Operation", index: int):
+    def __init__(self, operation: "Operation", index: int) -> None:
         """Construct an InputPort."""
         super().__init__(operation, index)
         self._source_signal = None
@@ -378,7 +378,7 @@ class OutputPort(AbstractPort, SignalSourceProvider):
     __slots__ = ("_destination_signals",)
     _destination_signals: list[Signal]
 
-    def __init__(self, operation: "Operation", index: int):
+    def __init__(self, operation: "Operation", index: int) -> None:
         """Construct an OutputPort."""
         super().__init__(operation, index)
         self._destination_signals = []

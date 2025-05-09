@@ -47,7 +47,7 @@ class PlotWindow(QWidget):
         self,
         sim_result: Mapping[ResultKey, Sequence[Num]],
         sfg_name: str | None = None,
-    ):
+    ) -> None:
         super().__init__()
         self.setWindowFlags(
             Qt.WindowTitleHint
@@ -194,32 +194,32 @@ class PlotWindow(QWidget):
         # self.plotcanvas.draw()
         self._auto_redraw = True
 
-    def _legend_checkbox_change(self, check_state):
+    def _legend_checkbox_change(self, check_state) -> None:
         self._legend.set(visible=(check_state == Qt.CheckState.Checked))
         if self._auto_redraw:
             if check_state == Qt.CheckState.Checked:
                 self._legend = self._plot_axes.legend()
             self._plot_canvas.draw()
 
-    def _button_all_click(self, event):
+    def _button_all_click(self, event) -> None:
         self._auto_redraw = False
         for x in range(self._checklist.count()):
             self._checklist.item(x).setCheckState(Qt.CheckState.Checked)
         self._auto_redraw = True
         self._update_legend()
 
-    def _update_legend(self):
+    def _update_legend(self) -> None:
         self._legend = self._plot_axes.legend()
         self._plot_canvas.draw()
 
-    def _button_none_click(self, event):
+    def _button_none_click(self, event) -> None:
         self._auto_redraw = False
         for x in range(self._checklist.count()):
             self._checklist.item(x).setCheckState(Qt.CheckState.Unchecked)
         self._auto_redraw = True
         self._update_legend()
 
-    def _item_change(self, listitem):
+    def _item_change(self, listitem) -> None:
         key = listitem.text()
         if listitem.checkState() == Qt.CheckState.Checked:
             self._plot_axes.add_line(self._lines[key])
@@ -228,7 +228,7 @@ class PlotWindow(QWidget):
         if self._auto_redraw:
             self._update_legend()
 
-    def _relim(self, event=None):
+    def _relim(self, event=None) -> None:
         self._plot_axes.relim(True)
         self._plot_axes.autoscale(True)
         self._plot_axes.autoscale(axis="x", tight=True)
@@ -238,7 +238,7 @@ class PlotWindow(QWidget):
 
 def start_simulation_dialog(
     sim_results: dict[str, list[complex]], sfg_name: str | None = None
-):
+) -> None:
     """
     Display the simulation results window.
 

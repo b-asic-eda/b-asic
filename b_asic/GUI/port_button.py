@@ -31,7 +31,7 @@ class PortButton(QPushButton):
     connectionRequested = Signal(QPushButton)
     moved = Signal()
 
-    def __init__(self, name: str, operation_button: "DragButton", port: "Port"):
+    def __init__(self, name: str, operation_button: "DragButton", port: "Port") -> None:
         super().__init__(name, parent=operation_button)
         self.pressed = False
         self._window = operation_button._window
@@ -50,25 +50,25 @@ class PortButton(QPushButton):
         """Operation associated with PortButton."""
         return self._operation_button.operation
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event) -> None:
         menu = QMenu()
         menu.addAction("Connect", lambda: self.connectionRequested.emit(self))
         menu.exec_(self.cursor().pos())
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._window._mouse_pressed = True
             self.select_port(event.modifiers())
         super().mousePressEvent(event)
 
-    def mouseReleaseEvent(self, event):
+    def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton and self._window._mouse_pressed:
             self._window._mouse_pressed = False
             if self._window._mouse_dragging:
                 self._window._mouse_dragging = False
         super().mouseReleaseEvent(event)
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event) -> None:
         if self._window._mouse_pressed:
             self._window._mouse_dragging = True
             self._window._starting_port = self
@@ -78,20 +78,20 @@ class PortButton(QPushButton):
             drag.exec()
         super().mouseMoveEvent(event)
 
-    def dragEnterEvent(self, event):
+    def dragEnterEvent(self, event) -> None:
         event.acceptProposedAction()
         self.update()
         super().dragEnterEvent(event)
 
-    def dragLeaveEvent(self, event):
+    def dragLeaveEvent(self, event) -> None:
         self.update()
         super().dragLeaveEvent(event)
 
-    def dragMoveEvent(self, event):
+    def dragMoveEvent(self, event) -> None:
         event.acceptProposedAction()
         super().dragMoveEvent(event)
 
-    def dropEvent(self, event):
+    def dropEvent(self, event) -> None:
         event.acceptProposedAction()
         if self != self._window._starting_port:
             self.select_port(Qt.KeyboardModifier.ControlModifier)
@@ -99,13 +99,13 @@ class PortButton(QPushButton):
         self.update()
         super().dropEvent(event)
 
-    def _toggle_port(self, pressed: bool = False):
+    def _toggle_port(self, pressed: bool = False) -> None:
         self.pressed = not pressed
         self.setStyleSheet(
             f"background-color: {'white' if not self.pressed else 'grey'}"
         )
 
-    def select_port(self, modifiers=None):
+    def select_port(self, modifiers=None) -> None:
         """
         Select the port taking *modifiers* into account.
 

@@ -38,7 +38,7 @@ from b_asic.scheduler_gui._preferences import (
 
 
 class PreferencesDialog(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent) -> None:
         super().__init__()
         self._parent = parent
         self.setWindowTitle("Preferences")
@@ -212,7 +212,7 @@ class PreferencesDialog(QWidget):
         else:
             self._font_size_input.setText(str(FONT.size))
 
-    def set_font_size_clicked(self):
+    def set_font_size_clicked(self) -> None:
         """
         Set the font size to the specified size and update the font.
         """
@@ -244,7 +244,7 @@ class PreferencesDialog(QWidget):
             button.pressed.connect(lambda: self.color_button_clicked(color))
         return button
 
-    def italic_font_clicked(self):
+    def italic_font_clicked(self) -> None:
         """
         Toggle the font style to italic if not already italic, otherwise remove italic.
         """
@@ -256,7 +256,7 @@ class PreferencesDialog(QWidget):
             self._italic_button.set_color(QColor("snow"))
         self.update_font()
 
-    def bold_font_clicked(self):
+    def bold_font_clicked(self) -> None:
         """
         Toggle the font style to bold if not already bold, otherwise unbold.
         """
@@ -355,7 +355,7 @@ class PreferencesDialog(QWidget):
             self.match_dialog_font()
             self._parent.update_statusbar("Preferences Updated")
 
-    def reset_font_clicked(self):
+    def reset_font_clicked(self) -> None:
         """
         Reset the font settings.
         """
@@ -385,7 +385,7 @@ class PreferencesDialog(QWidget):
         else:
             self._boldbutton.set_color(QColor("snow"))
 
-    def update_font(self):
+    def update_font(self) -> None:
         """Update font preferences based on current Font settings."""
         settings = QSettings()
         FONT.changed = not (
@@ -401,7 +401,7 @@ class PreferencesDialog(QWidget):
         settings.sync()
         self._parent.load_preferences()
 
-    def font_color_clicked(self):
+    def font_color_clicked(self) -> None:
         """Select a font color and update preferences."""
         settings = QSettings()
         color = QColorDialog.getColor(FONT.color, self, "Select font color")
@@ -412,7 +412,7 @@ class PreferencesDialog(QWidget):
         settings.sync()
         self._parent._graph._font_color_change(FONT.color)
 
-    def reset_color_clicked(self):
+    def reset_color_clicked(self) -> None:
         """Reset the color settings."""
         settings = QSettings()
         reset_color_settings(settings)
@@ -423,7 +423,7 @@ class PreferencesDialog(QWidget):
         self._parent._graph._signals.reopen.emit()
         self._parent.load_preferences()
 
-    def reset_all_clicked(self):
+    def reset_all_clicked(self) -> None:
         """Reset both the color and the font settings."""
         self.reset_color_clicked()
         self.reset_font_clicked()

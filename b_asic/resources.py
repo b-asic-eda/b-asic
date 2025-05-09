@@ -9,7 +9,7 @@ import itertools
 import re
 import sys
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from functools import reduce
 from math import floor, log2
 from typing import TYPE_CHECKING, Literal, TypeVar, Union
@@ -231,7 +231,7 @@ class _ForwardBackwardEntry:
         back_edge_to: dict[int, int] | None = None,
         back_edge_from: dict[int, int] | None = None,
         outputs_from: int | None = None,
-    ):
+    ) -> None:
         """
         Single entry in a _ForwardBackwardTable.
 
@@ -265,7 +265,7 @@ class _ForwardBackwardEntry:
 
 
 class _ForwardBackwardTable:
-    def __init__(self, collection: "ProcessCollection"):
+    def __init__(self, collection: "ProcessCollection") -> None:
         """
         Forward-Backward allocation table for ProcessCollections.
 
@@ -322,7 +322,7 @@ class _ForwardBackwardTable:
         s = {proc for e in self.table for proc in e.outputs}
         return len(self._collection - s) == 0
 
-    def _do_forward_allocation(self):
+    def _do_forward_allocation(self) -> None:
         """
         Forward all Processes as far as possible in the register chain.
 
@@ -355,7 +355,7 @@ class _ForwardBackwardTable:
                             else:
                                 self.table[(time + 1) % rows].regs[reg_idx + 1] = reg
 
-    def _do_single_backward_allocation(self):
+    def _do_single_backward_allocation(self) -> None:
         """
         Perform backward allocation of Processes in the allocation table.
         """
@@ -399,16 +399,16 @@ class _ForwardBackwardTable:
             "Can't backward allocate any variable. This should not happen."
         )
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> _ForwardBackwardEntry:
         return self.table[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[_ForwardBackwardEntry]:
         yield from self.table
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.table)
 
-    def __str__(self):
+    def __str__(self) -> str:
         # ANSI escape codes for coloring in the forward-backward table string
         GREEN_BACKGROUND_ANSI = "\u001b[42m"
         BROWN_BACKGROUND_ANSI = "\u001b[43m"
@@ -509,7 +509,7 @@ class ProcessCollection:
         collection: Iterable[Process],
         schedule_time: int,
         cyclic: bool = False,
-    ):
+    ) -> None:
         self._collection = list(collection)
         self._schedule_time = schedule_time
         self._cyclic = cyclic
@@ -522,10 +522,10 @@ class ProcessCollection:
     def schedule_time(self) -> int:
         return self._schedule_time
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.collection)
 
-    def add_process(self, process: Process):
+    def add_process(self, process: Process) -> None:
         """
         Add a :class:`~b_asic.process.Process`.
 
@@ -538,7 +538,7 @@ class ProcessCollection:
             raise ValueError("Process already in ProcessCollection")
         self.collection.append(process)
 
-    def remove_process(self, process: Process):
+    def remove_process(self, process: Process) -> None:
         """
         Remove a :class:`~b_asic.process.Process`.
 
@@ -580,7 +580,7 @@ class ProcessCollection:
         show_markers: bool = True,
         row: int | None = None,
         allow_excessive_lifetimes: bool = False,
-    ):
+    ) -> Axes:
         """
         Plot lifetime diagram.
 
@@ -1887,13 +1887,13 @@ class ProcessCollection:
     # SVG is valid HTML. This is useful for e.g. sphinx-gallery
     _repr_html_ = _repr_svg_
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"ProcessCollection({self._collection}, {self._schedule_time},"
             f" {self._cyclic})"
         )
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Process]:
         return iter(self._collection)
 
     def _ilp_graph_color_assignment(
@@ -2098,7 +2098,7 @@ class ProcessCollection:
         input_sync: bool = True,
         adr_mux_size: int | None = None,
         adr_pipe_depth: int | None = None,
-    ):
+    ) -> None:
         """
         Generate VHDL code for memory-based storage of processes (MemoryVariables).
 
@@ -2279,7 +2279,7 @@ class ProcessCollection:
         read_ports: int = 1,
         write_ports: int = 1,
         total_ports: int = 2,
-    ):
+    ) -> None:
         """
         Generate VHDL code for register-based storage of processes (MemoryVariables).
 
@@ -2447,7 +2447,7 @@ class ProcessCollection:
 
         return dict(sorted(Counter(accesses).items()))
 
-    def show_port_accesses(self, title: str = ""):
+    def show_port_accesses(self, title: str = "") -> None:
         """
         Show read, write, and total accesses.
 
@@ -2462,7 +2462,7 @@ class ProcessCollection:
             fig.suptitle(title)
         fig.show()  # type: ignore
 
-    def plot_port_accesses(self, axes):
+    def plot_port_accesses(self, axes) -> None:
         """
         Plot read, write, and total accesses.
 
@@ -2484,7 +2484,7 @@ class ProcessCollection:
             ax.yaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))
             ax.set_xlim(-0.5, self.schedule_time - 0.5)
 
-    def from_name(self, name: str):
+    def from_name(self, name: str) -> Process:
         """
         Get a :class:`~b_asic.process.Process` from its name.
 
@@ -2501,8 +2501,7 @@ class ProcessCollection:
         name_to_proc = {p.name: p for p in self.collection}
         if name in name_to_proc:
             return name_to_proc[name]
-        else:
-            raise KeyError(f"{name} not in {self}")
+        raise KeyError(f"{name} not in {self}")
 
     def total_execution_times(self) -> dict[int, int]:
         c: Counter[int] = Counter()
@@ -2515,7 +2514,7 @@ class ProcessCollection:
 
         return dict(sorted(c.items()))
 
-    def show_total_execution_times(self, title: str = ""):
+    def show_total_execution_times(self, title: str = "") -> None:
         """
         Show total execution time for each time slot.
 
@@ -2530,7 +2529,7 @@ class ProcessCollection:
             fig.suptitle(title)
         fig.show()  # type: ignore
 
-    def plot_total_execution_times(self, ax):
+    def plot_total_execution_times(self, ax) -> None:
         """
         Plot total execution times for each time slot.
 

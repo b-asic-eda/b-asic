@@ -70,7 +70,7 @@ _QUESTIONS = {
 
 
 class KeybindingsWindow(QDialog):
-    def __init__(self, window):
+    def __init__(self, window) -> None:
         super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
@@ -81,7 +81,7 @@ class KeybindingsWindow(QDialog):
 
         self.add_information_to_layout()
 
-    def add_information_to_layout(self):
+    def add_information_to_layout(self) -> None:
         information_layout = QVBoxLayout()
 
         title_label = QLabel("B-ASIC / Better ASIC Toolbox")
@@ -112,7 +112,7 @@ class KeybindingsWindow(QDialog):
 
 
 class FaqWindow(QDialog):
-    def __init__(self, window):
+    def __init__(self, window) -> None:
         super().__init__()
         self._window = window
         self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
@@ -127,7 +127,7 @@ class FaqWindow(QDialog):
         self._scroll_area.setWidget(self)
         self._scroll_area.setWidgetResizable(True)
 
-    def _add_question_to_layout(self, question, answer):
+    def _add_question_to_layout(self, question, answer) -> None:
         question_layout = QVBoxLayout()
         answer_layout = QHBoxLayout()
 

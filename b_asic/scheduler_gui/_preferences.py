@@ -30,7 +30,7 @@ class ColorDataType:
         current_color: QColor = SIGNAL_INACTIVE,
         changed: bool = False,
         name: str = "",
-    ):
+    ) -> None:
         self.current_color = current_color
         self.DEFAULT = DEFAULT
         self.changed = changed
@@ -69,7 +69,7 @@ class FontDataType:
         italic: bool = False,
         bold: bool = False,
         changed: bool = False,
-    ):
+    ) -> None:
         self.current_font = current_font
         self.DEFAULT = DEFAULT
         self.DEFAULT_COLOR = DEFAULT_COLOR
@@ -85,7 +85,7 @@ FONT = FontDataType(
 )
 
 
-def read_from_settings(settings: QSettings):
+def read_from_settings(settings: QSettings) -> None:
     FONT.current_font = QFont(
         settings.value("font", defaultValue=FONT.DEFAULT.toString(), type=str)
     )
@@ -157,7 +157,7 @@ def read_from_settings(settings: QSettings):
     )
 
 
-def write_to_settings(settings: QSettings):
+def write_to_settings(settings: QSettings) -> None:
     settings.setValue("font", FONT.current_font.toString())
     settings.setValue("font_size", FONT.size)
     settings.setValue("font_color", FONT.color)
@@ -184,7 +184,7 @@ def write_to_settings(settings: QSettings):
     )
 
 
-def reset_color_settings(settings: QSettings):
+def reset_color_settings(settings: QSettings) -> None:
     LATENCY_COLOR_TYPE.changed = False
     ACTIVE_COLOR_TYPE.changed = False
     SIGNAL_WARNING_COLOR_TYPE.changed = False

@@ -72,7 +72,7 @@ class OperationItem(QGraphicsItemGroup):
         operation: Operation,
         parent: "SchedulerItem",
         height: float = OPERATION_HEIGHT,
-    ):
+    ) -> None:
         """
         Construct a OperationItem.
 
@@ -229,12 +229,12 @@ class OperationItem(QGraphicsItemGroup):
         self._label_item.prepareGeometryChange()
         self._label_item.setBrush(color)
 
-    def set_show_port_numbers(self, port_number: bool = True):
+    def set_show_port_numbers(self, port_number: bool = True) -> None:
         """Set if port numbers are shown."""
         for item in self._port_number_items:
             item.setVisible(port_number)
 
-    def set_port_active(self, key: str):
+    def set_port_active(self, key: str) -> None:
         """Set the port as active, i.e., draw it in special colors."""
         item = cast(QPointF, self._ports[key]["item"])
         if ACTIVE_COLOR_TYPE.changed:
@@ -248,7 +248,7 @@ class OperationItem(QGraphicsItemGroup):
         item.setBrush(self._port_filling_brush_active)
         item.setPen(self._port_outline_pen_active)
 
-    def set_port_inactive(self, key: str, warning: bool = False):
+    def set_port_inactive(self, key: str, warning: bool = False) -> None:
         """Set the port as inactive, i.e., draw it in standard colors."""
         item = cast(QPointF, self._ports[key]["item"])
         item.setBrush(
@@ -352,7 +352,7 @@ class OperationItem(QGraphicsItemGroup):
 
         self.set_inactive()
 
-    def _open_context_menu(self):
+    def _open_context_menu(self) -> None:
         """Create and open context menu."""
         menu = QMenu()
         swap = QAction(get_icon("swap"), "Swap")
@@ -390,8 +390,8 @@ class OperationItem(QGraphicsItemGroup):
     def _total_execution_time_plot(self, event=None) -> None:
         self._parent._total_execution_time_plot(self._operation.type_name())
 
-    def _move_asap(self, event=None):
+    def _move_asap(self, event=None) -> None:
         self._parent.schedule.move_operation_asap(self._operation.graph_id)
 
-    def _move_alap(self, event=None):
+    def _move_alap(self, event=None) -> None:
         self._parent.schedule.move_operation_alap(self._operation.graph_id)

@@ -124,7 +124,7 @@ class AbstractGraphComponent(GraphComponent):
     _graph_id: GraphID
     _parameters: dict[str, Any]
 
-    def __init__(self, name: Name = Name("")):
+    def __init__(self, name: Name = Name("")) -> None:
         """Construct a graph component."""
         self._name = Name(name)
         self._graph_id = GraphID("")

@@ -17,6 +17,7 @@ from b_asic.GUI.properties_window import PropertiesWindow
 from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.operation import Operation
 from b_asic.port import InputPort
+from b_asic.types import TypeName
 
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QGraphicsTextItem
@@ -54,7 +55,7 @@ class DragButton(QPushButton):
         show_name: bool,
         window: "SFGMainWindow",
         parent=None,
-    ):
+    ) -> None:
         self.name = operation.name or operation.graph_id
         self._ports: list[PortButton] = []
         self.show_name = show_name
@@ -70,7 +71,7 @@ class DragButton(QPushButton):
         self.label = None
         super().__init__(parent)
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event) -> None:
         menu = QMenu()
         properties = QAction("Properties")
         menu.addAction(properties)
@@ -90,7 +91,7 @@ class DragButton(QPushButton):
         self._properties_window = PropertiesWindow(self, self._window)
         self._properties_window.show()
 
-    def type_name(self):
+    def type_name(self) -> TypeName:
         """Return the type name of the underlying operation."""
         return self.operation.type_name()
 
@@ -105,7 +106,7 @@ class DragButton(QPushButton):
         """
         self.label = label
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._m_press = True
             pos = event.pos()
@@ -119,7 +120,7 @@ class DragButton(QPushButton):
         """Return a list of PortButtons."""
         return self._ports
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event) -> None:
         if event.buttons() == Qt.MouseButton.LeftButton and self._m_press:
             self._m_drag = True
             self.move(self.mapToParent(event.pos() - self._mouse_press_pos))
@@ -133,7 +134,7 @@ class DragButton(QPushButton):
         self._window._update()
         super().mouseMoveEvent(event)
 
-    def mouseReleaseEvent(self, event):
+    def mouseReleaseEvent(self, event) -> None:
         self._m_press = False
         if self._m_drag:
             if self._mouse_press_pos is not None:
@@ -156,7 +157,7 @@ class DragButton(QPushButton):
         self._window._update()
         super().mouseReleaseEvent(event)
 
-    def _flip(self, event=None):
+    def _flip(self, event=None) -> None:
         self._flipped = not self._flipped
         for pb in self._ports:
             if isinstance(pb.port, InputPort):
@@ -169,7 +170,7 @@ class DragButton(QPushButton):
 
         self._window._update()
 
-    def _toggle_button(self, pressed=False):
+    def _toggle_button(self, pressed=False) -> None:
         self.pressed = not pressed
         self.setStyleSheet(
             f"background-color: {'white' if not self.pressed else 'grey'};"
@@ -185,7 +186,7 @@ class DragButton(QPushButton):
         self.setIcon(QIcon(path_to_image))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
 
-    def is_flipped(self):
+    def is_flipped(self) -> bool:
         """Return True if the button is flipped (inputs to the right)."""
         return self._flipped
 
@@ -215,7 +216,7 @@ class DragButton(QPushButton):
         for arrow in self._window._arrow_ports:
             arrow.update()
 
-    def remove(self, event=None):
+    def remove(self, event=None) -> None:
         """Remove button/operation from signal flow graph."""
         self._window._logger.info(
             "Removing operation with name %s", self.operation.name
@@ -261,10 +262,10 @@ class DragButton(QPushButton):
         if self.operation in self._window._drag_buttons:
             del self._window._drag_buttons[self.operation]
 
-    def add_ports(self):
+    def add_ports(self) -> None:
         """Add ports to button."""
 
-        def _determine_port_distance(opheight, ports):
+        def _determine_port_distance(opheight, ports: int) -> list[float]:
             """
             Determine the distance between each port on the side of an operation.
             The method returns the distance that each port should have from 0.

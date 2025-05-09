@@ -71,7 +71,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         warnings: bool = True,
         show_port_numbers: bool = False,
         parent: QGraphicsItem | None = None,
-    ):
+    ) -> None:
         """
         Construct a SchedulerItem.
 
@@ -168,13 +168,13 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         for signal in self._signal_dict[item]:
             signal.update_path()
 
-    def _get_all_signals(self):
+    def _get_all_signals(self) -> set[SignalItem]:
         s = set()
         for signals in self._signal_dict.values():
             s.update(signals)
         return s
 
-    def set_warnings(self, warnings: bool = True):
+    def set_warnings(self, warnings: bool = True) -> None:
         """
         Set warnings for long execution times.
 
@@ -189,7 +189,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
             for signal in self._get_all_signals():
                 signal.set_inactive()
 
-    def set_port_numbers(self, port_numbers: bool = True):
+    def set_port_numbers(self, port_numbers: bool = True) -> None:
         """
         Set if port numbers are shown.
 
@@ -329,10 +329,10 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         self._redraw_all_lines()
         self._update_axes()
 
-    def _execution_time_plot(self, type_name: str):
+    def _execution_time_plot(self, type_name: str) -> None:
         self._signals.execution_time_plot.emit(type_name)
 
-    def _total_execution_time_plot(self, type_name: str):
+    def _total_execution_time_plot(self, type_name: str) -> None:
         self._signals.total_execution_time_plot.emit(type_name)
 
     def _redraw_all(self) -> None:

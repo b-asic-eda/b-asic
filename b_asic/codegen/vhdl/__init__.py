@@ -15,7 +15,7 @@ def write(
     *,
     end: str = "\n",
     start: str | None = None,
-):
+) -> None:
     r"""
     Write text to a VHDL file.
 
@@ -42,7 +42,7 @@ def write(
     f.write(f"{VHDL_TAB * indent_level}{text}{end}")
 
 
-def write_lines(f: TextIO, lines: list[tuple[int, str] | tuple[int, str, str]]):
+def write_lines(f: TextIO, lines: list[tuple[int, str] | tuple[int, str, str]]) -> None:
     """
     Write provided lines to a VHDL file.
 
