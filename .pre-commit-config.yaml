@@ -20,25 +20,15 @@ repos:
         additional_dependencies:
           - tomli
 
-  - repo: https://github.com/Carreau/velin
-    rev: 0.0.11
-    hooks:
-      - id: velin
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.11.5"
+    rev: "v0.11.8"
     hooks:
       # Run the linter.
       - id: ruff
         args: [--fix]
       # Run the formatter.
       - id: ruff-format
-
-  - repo: https://github.com/adamchainz/blacken-docs
-    rev: 1.19.1
-    hooks:
-      - id: blacken-docs
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.19.1
