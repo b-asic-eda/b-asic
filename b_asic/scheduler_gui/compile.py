@@ -18,7 +18,7 @@ from qtpy import uic
 from setuptools_scm import get_version
 
 try:
-    import b_asic.logger as logger
+    from b_asic import logger
 
     log = logger.getLogger()
     sys.excepthook = logger.handle_exceptions

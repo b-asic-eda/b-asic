@@ -519,9 +519,7 @@ def radix_2_dif_fft(points: int) -> SFG:
     if points & (points - 1) != 0:
         raise ValueError("Points must be a power of two.")
 
-    inputs = []
-    for _ in range(points):
-        inputs.append(Input())
+    inputs = [Input() for _ in range(points)]
 
     ports = inputs
     number_of_stages = int(np.log2(points))
@@ -532,9 +530,7 @@ def radix_2_dif_fft(points: int) -> SFG:
         ports = _construct_dif_fft_stage(ports, stage, twiddles[stage])
 
     ports = _get_bit_reversed_ports(ports)
-    outputs = []
-    for port in ports:
-        outputs.append(Output(port))
+    outputs = [Output(port) for port in ports]
 
     return SFG(inputs=inputs, outputs=outputs)
 

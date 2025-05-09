@@ -367,7 +367,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         except Exception as e:
             log.exception(
                 "Exception occurred. Could not load module from file '%s'.\n\n%s",
-                (abs_path_filename, e),
+                abs_path_filename,
+                e,
             )
             return
 

@@ -46,7 +46,10 @@ class SignalGeneratorInput(QGridLayout):
         except ValueError:
             self._logger.warning(
                 "Cannot parse %s: %s not a %s, setting to %s",
-                (name, string, _type.__name__, default),
+                name,
+                string,
+                _type.__name__,
+                default,
             )
             return default
 

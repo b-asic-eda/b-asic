@@ -623,11 +623,11 @@ class SFG(AbstractOperation):
         output_index : int, default: 0
             The desired output index to get the result from.
         """
-        keys = []
-        for comp in self.find_by_name(name):
-            if isinstance(comp, Operation):
-                keys.append(comp.key(output_index, comp.graph_id))
-        return keys
+        return [
+            comp.key(output_index, comp.graph_id)
+            for comp in self.find_by_name(name)
+            if isinstance(comp, Operation)
+        ]
 
     def replace_operation(self, component: Operation, graph_id: GraphID) -> "SFG":
         """
@@ -2163,13 +2163,13 @@ class SFG(AbstractOperation):
         # Remove all delay elements in the SFG and replace each one
         # with one input operation and one output operation
         for delay in sfg.find_by_type(Delay):
-            i = Input(name="input_" + delay.graph_id)
-            o = Output(
+            tmp_input = Input(name="input_" + delay.graph_id)
+            tmp_output = Output(
                 src0=delay.input(0).signals[0].source, name="output_" + delay.graph_id
             )
 
-            inputs.append(i)
-            outputs.append(o)
+            inputs.append(tmp_input)
+            outputs.append(tmp_output)
 
             # move all outgoing signals from the delay to the new input operation
             while len(delay.output(0).signals) > 0:
@@ -2177,7 +2177,7 @@ class SFG(AbstractOperation):
                 destination = signal.destination
                 destination.remove_signal(signal)
                 signal.remove_source()
-                destination.connect(i.output(0))
+                destination.connect(tmp_input.output(0))
 
             delay.input(0).signals[0].remove_source()
             delay.input(0).clear()

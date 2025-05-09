@@ -285,7 +285,7 @@ class SFGMainWindow(QMainWindow):
                 )
         except Exception as e:
             self._logger.error(
-                "Failed to save SFG to path: %s, with error: %s.", (module, e)
+                "Failed to save SFG to path: %s, with error: %s.", module, e
             )
             return
 
@@ -314,7 +314,7 @@ class SFGMainWindow(QMainWindow):
             sfg, positions = python_to_sfg(module)
         except ImportError as e:
             self._logger.error(
-                "Failed to load module: %s with the following error: %s.", (module, e)
+                "Failed to load module: %s with the following error: %s.", module, e
             )
             return
 
@@ -830,7 +830,8 @@ class SFGMainWindow(QMainWindow):
         )
         self._logger.info(
             "Connecting: %s -> %s",
-            (source.operation.type_name(), destination.operation.type_name()),
+            source.operation.type_name(),
+            destination.operation.type_name(),
         )
         try:
             arrow = Arrow(source, destination, self, signal=next(signal_exists))
