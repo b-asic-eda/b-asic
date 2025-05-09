@@ -158,7 +158,7 @@ class Scheduler(ABC):
                     and self._schedule._schedule_time is not None
                     and isinstance(self, ListScheduler)
                 ):
-                    self._schedule.place_operation(output, new_time, self._op_laps)
+                    self._schedule._place_operation(output, new_time, self._op_laps)
                 else:
                     self._schedule.start_times[output.graph_id] = new_time
 
@@ -878,7 +878,7 @@ class ListScheduler(Scheduler):
                 ]
                 self._remaining_ops_set.remove(next_op_id)
 
-                self._schedule.place_operation(
+                self._schedule._place_operation(
                     next_op, self._current_time, self._op_laps
                 )
                 self._op_laps[next_op_id] = (
@@ -1176,7 +1176,7 @@ class RecursiveListScheduler(ListScheduler):
                     op_type, op_sched_time
                 )
 
-            self._schedule.place_operation(op, op_sched_time, self._op_laps)
+            self._schedule._place_operation(op, op_sched_time, self._op_laps)
             self._op_laps[op.graph_id] = 0
             log.debug("Schedule operation: %s at time: %d", op.graph_id, op_sched_time)
             self._remaining_recursive_ops.remove(op.graph_id)

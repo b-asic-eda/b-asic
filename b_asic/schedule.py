@@ -832,7 +832,7 @@ class Schedule:
             max_pos_graph_id, operation_height, operation_gap
         )
 
-    def place_operation(
+    def _place_operation(
         self, op: Operation, time: int, op_laps: dict[GraphID, int]
     ) -> None:
         """
