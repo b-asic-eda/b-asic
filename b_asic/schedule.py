@@ -677,6 +677,21 @@ class Schedule:
         """
         self._sfg.set_execution_time_of_type_name(type_name, execution_time)
 
+    def set_execution_time_of_type(
+        self, operation_type: type[Operation], execution_time: int
+    ) -> None:
+        """
+        Set the execution time of all operations of the given type.
+
+        Parameters
+        ----------
+        operation_type : type of Operation
+            The operation type. For example, ``Addition``.
+        execution_time : int
+            The execution time of the operation.
+        """
+        self._sfg.set_execution_time_of_type(operation_type, execution_time)
+
     def set_latency_of_type_name(
         self, type_name: TypeName | GraphID, latency: int
     ) -> None:
@@ -698,13 +713,40 @@ class Schedule:
                 if change_in_latency > (self.forward_slack(op.graph_id)):
                     passed = False
                     raise ValueError(
-                        f"Error: Can't increase latency for all components. Try increasing forward slack time by rescheduling. "
-                        f"Error in: {op.graph_id}"
+                        f"Cannot increase latency for {op.graph_id}. Try increasing forward slack time by rescheduling."
                     )
                     break
         if change_in_latency < 0 or passed:
             for op in self._sfg.operations:
                 if type_name in (op.type_name(), op.graph_id):
+                    cast(Operation, op).set_latency(latency)
+
+    def set_latency_of_type(
+        self, operation_type: type[Operation], latency: int
+    ) -> None:
+        """
+        Set the latency of all operations of the given type.
+
+        Parameters
+        ----------
+        operation_type : type of Operation
+            The operation type. For example, ``Addition``.
+        latency : int
+            The latency of the operation.
+        """
+        passed = True
+        for op in self._sfg.operations:
+            if isinstance(op, operation_type):
+                change_in_latency = latency - op.latency
+                if change_in_latency > (self.forward_slack(op.graph_id)):
+                    passed = False
+                    raise ValueError(
+                        f"Cannot increase latency for {op.graph_id}. Try increasing forward slack time by rescheduling."
+                    )
+                    break
+        if change_in_latency < 0 or passed:
+            for op in self._sfg.operations:
+                if isinstance(op, operation_type):
                     cast(Operation, op).set_latency(latency)
 
     def move_y_location(
