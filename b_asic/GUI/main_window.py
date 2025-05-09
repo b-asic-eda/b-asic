@@ -916,7 +916,7 @@ class SFGMainWindow(QMainWindow):
 
         self._simulation_dialog = SimulateSFGWindow(self)
 
-        for _, sfg in self._sfg_dict.items():
+        for sfg in self._sfg_dict.values():
             self._simulation_dialog.add_sfg_to_dialog(sfg)
 
         self._simulation_dialog.show()

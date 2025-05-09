@@ -147,7 +147,7 @@ class SimulateSFGWindow(QDialog):
 
     def save_properties(self) -> None:
         """Save the simulation properties and emit a signal to start the simulation."""
-        for sfg, _properties in self._input_fields.items():
+        for sfg in self._input_fields:
             ic_value = self._input_fields[sfg]["iteration_count"].value()
             if ic_value == 0:
                 self._window._logger.error("Iteration count is set to zero.")

@@ -506,7 +506,7 @@ class TestShift:
         test_operation = Shift(-2)
         assert test_operation.evaluate_output(0, [2 + 1j]) == 0.5 + 0.25j
 
-    @pytest.mark.parametrize("val", (-0.5, 0.5))
+    @pytest.mark.parametrize("val", [-0.5, 0.5])
     def test_leftshift_errors(self, val):
         with pytest.raises(TypeError, match="value must be an int"):
             _ = Shift(val)

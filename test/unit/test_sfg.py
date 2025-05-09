@@ -1085,7 +1085,7 @@ class TestRemove:
         assert "bfly2" not in {op.name for op in new_sfg.operations}
 
     def remove_different_number_inputs_outputs(self, sfg_simple_filter):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="foo"):
             sfg_simple_filter.remove_operation("add1")
 
 
@@ -1340,11 +1340,11 @@ class TestSFGGraph:
         )
 
     def test_show_sfg_invalid_format(self, sfg_simple_filter):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="unknown format: 'ppddff'"):
             sfg_simple_filter.show(fmt="ppddff")
 
     def test_show_sfg_invalid_engine(self, sfg_simple_filter):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="unknown engine: 'ppddff'"):
             sfg_simple_filter.show(engine="ppddff")
 
 

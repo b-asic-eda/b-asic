@@ -114,8 +114,12 @@ select = [
   "RUF",
   "A",
   "I",
-  "G004",
+  "G",
   "D",
+  "SLOT",
+  "RET504",
+  "PT",
+  "PERF102",
 ]
 ignore = [
   "F403",

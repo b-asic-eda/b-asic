@@ -538,8 +538,7 @@ class Schedule:
     def sfg(self) -> SFG:
         """The SFG corresponding to the current schedule."""
         reconstructed_sfg = self._reintroduce_delays()
-        simplified_sfg = reconstructed_sfg.simplify_delay_element_placement()
-        return simplified_sfg
+        return reconstructed_sfg.simplify_delay_element_placement()
 
     @property
     def start_times(self) -> dict[GraphID, int]:
@@ -629,8 +628,7 @@ class Schedule:
                     *operation.latency_offsets.values(),
                 ]
         # Remove not set values (None)
-        ret = [v for v in ret if v is not None]
-        return ret
+        return [v for v in ret if v is not None]
 
     def get_possible_time_resolution_decrements(self) -> list[int]:
         """Return a list with possible factors to reduce time resolution."""

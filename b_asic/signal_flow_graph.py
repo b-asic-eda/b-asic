@@ -558,10 +558,7 @@ class SFG(AbstractOperation):
         """
         reg = f"{type_name}[0-9]+"
         p = re.compile(reg)
-        components = [
-            val for key, val in self._components_by_id.items() if p.match(key)
-        ]
-        return components
+        return [val for key, val in self._components_by_id.items() if p.match(key)]
 
     def find_by_type(
         self, component_type: type[GraphComponent]

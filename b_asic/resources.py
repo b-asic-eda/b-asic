@@ -1275,10 +1275,7 @@ class ProcessCollection:
             if best_collection is not None:
                 best_collection.add_process(process)
 
-        collections = [
-            collection for collection in collections if collection.collection
-        ]
-        return collections
+        return [collection for collection in collections if collection.collection]
 
     def _split_ports_sequentially_minimize_memory_to_pe_connections(
         self,
@@ -1340,10 +1337,7 @@ class ProcessCollection:
             if best_collection is not None:
                 best_collection.add_process(process)
 
-        collections = [
-            collection for collection in collections if collection.collection
-        ]
-        return collections
+        return [collection for collection in collections if collection.collection]
 
     def _get_process_fits_in_collection(
         self, process, collections, write_ports, read_ports, total_ports

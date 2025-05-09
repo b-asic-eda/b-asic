@@ -13,8 +13,7 @@ def secondorder_iir_schedule(precedence_sfg_delays):
         ConstantMultiplication.type_name(), 3
     )
 
-    schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
-    return schedule
+    return Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
 
 
 @pytest.fixture
@@ -28,8 +27,7 @@ def secondorder_iir_schedule_with_execution_times(precedence_sfg_delays):
         ConstantMultiplication.type_name(), 1
     )
 
-    schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
-    return schedule
+    return Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
 
 
 @pytest.fixture

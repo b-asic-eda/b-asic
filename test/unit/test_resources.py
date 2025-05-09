@@ -351,12 +351,15 @@ class TestProcessCollectionPlainMemoryVariable:
             schedule_time=4,
         )
         short, long = collection.split_on_length(0)
-        assert len(short) == 0 and len(long) == 1
+        assert len(short) == 0
+        assert len(long) == 1
         for split_time in [1, 2]:
             short, long = collection.split_on_length(split_time)
-            assert len(short) == 1 and len(long) == 1
+            assert len(short) == 1
+            assert len(long) == 1
         short, long = collection.split_on_length(3)
-        assert len(short) == 1 and len(long) == 0
+        assert len(short) == 1
+        assert len(long) == 0
 
         # Test 2: Include a zero-time access time
         collection = ProcessCollection(
@@ -364,10 +367,12 @@ class TestProcessCollectionPlainMemoryVariable:
             schedule_time=4,
         )
         short, long = collection.split_on_length(0)
-        assert len(short) == 1 and len(long) == 1
+        assert len(short) == 1
+        assert len(long) == 1
         for split_time in [1, 2]:
             short, long = collection.split_on_length(split_time)
-            assert len(short) == 1 and len(long) == 1
+            assert len(short) == 1
+            assert len(long) == 1
 
     def test_from_name(self):
         a = PlainMemoryVariable(0, 0, {0: 2}, name="cool name 1337")

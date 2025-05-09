@@ -62,9 +62,12 @@ def test_MultiReadProcess():
 def test_split_on_length():
     mv = PlainMemoryVariable(3, 0, {0: 1, 1: 2, 2: 5}, name="MV")
     short, long = mv.split_on_length(2)
-    assert short is not None and long is not None
-    assert short.start_time == 3 and long.start_time == 3
-    assert short.execution_time == 2 and long.execution_time == 5
+    assert short is not None
+    assert long is not None
+    assert short.start_time == 3
+    assert long.start_time == 3
+    assert short.execution_time == 2
+    assert long.execution_time == 5
     assert short.reads == {0: 1, 1: 2}
     assert long.reads == {2: 5}
 

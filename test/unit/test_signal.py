@@ -75,7 +75,7 @@ class TestBits:
         assert signal.bits == 0
 
     def test_bits_neg_int(self, signal):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Bits cannot be negative"):
             signal.bits = -10
 
     def test_bits_complex(self, signal):

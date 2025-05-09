@@ -4,7 +4,7 @@ from b_asic.process import PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_collection():
     NO_PORT = 0
     return ProcessCollection(
@@ -21,7 +21,7 @@ def simple_collection():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def cyclic_simple_collection():
     NO_PORT = 0
     return ProcessCollection(
