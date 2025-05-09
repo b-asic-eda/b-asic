@@ -2,6 +2,23 @@
 name = "b-asic"
 description = "Better ASIC Toolbox"
 readme = "README.md"
+authors = [
+  { name = "Oscar Gustafsson", email = "oscar.gustafsson@liu.se" },
+  { name = "Mikael Henriksson", email = "mikael.henriksson@liu.se" },
+  { name = "Frans Skarman", email = "frans.skarman@liu.se" },
+  { name = "Petter Källström", email = "petter.kallstrom@liu.se" },
+  { name = "Olle Hansson", email = "olle.hansson@liu.se" },
+  { name = "Adam Jakobsson" },
+  { name = "Andreas Bolin" },
+  { name = "Angus Lothian" },
+  { name = "Arvid Westerlund" },
+  { name = "Felix Goding" },
+  { name = "Ivar Härnqvist" },
+  { name = "Jacob Wahlman" },
+  { name = "Kevin Scott" },
+  { name = "Rasmus Karlsson" },
+  { name = "Simon Bjurek" },
+]
 maintainers = [{ name = "Oscar Gustafsson", email = "oscar.gustafsson@liu.se" }]
 license = "MIT"
 license-files = ["LICENSE"]
@@ -11,7 +28,6 @@ dependencies = [
   "qtpy",
   "graphviz>=0.19",
   "matplotlib>=3.7",
-  "setuptools_scm[toml]>=6.2",
   "networkx>=3",
   "pulp",
   "qtawesome",
@@ -30,7 +46,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
   "Development Status :: 3 - Alpha",
 ]
-dynamic = ["version", "authors"]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 pyqt6 = ["pyqt6"]
@@ -53,6 +69,10 @@ doc = [
   "sphinx-copybutton",
 ]
 
+[project.urls]
+homepage = "https://gitlab.liu.se/da/B-ASIC"
+documentation = "https://da.gitlab-pages.liu.se/B-ASIC/"
+
 [tool.setuptools]
 zip-safe = false
 
@@ -60,12 +80,7 @@ zip-safe = false
 include = ["b_asic*"]
 
 [build-system]
-requires = [
-  "setuptools>=45",
-  "setuptools_scm[toml]>=6.2",
-  "wheel",
-  "oldest-supported-numpy"
-]
+requires = ["setuptools>=80", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
@@ -73,22 +88,6 @@ write_to = "b_asic/_version.py"
 version_scheme = "release-branch-semver"
 local_scheme = "node-and-date"
 fallback_version = "0.0+UNKNOWN"
-
-[project.urls]
-homepage = "https://gitlab.liu.se/da/B-ASIC"
-documentation = "https://da.gitlab-pages.liu.se/B-ASIC/"
-
-[tool.black]
-skip-string-normalization = true
-preview = true
-line-length = 88
-exclude = "(test/test_gui/*|b_asic/scheduler_gui/ui_main_window.py)"
-
-[tool.isort]
-profile = "black"
-line_length = 88
-src_paths = ["b_asic", "test"]
-skip = ["test/test_gui", "b_asic/scheduler_gui/ui_main_window.py"]
 
 [tool.mypy]
 packages = ["b_asic", "test"]
