@@ -30,7 +30,7 @@ from b_asic._preferences import (
     SIGNAL_LINEWIDTH,
     SPLINE_OFFSET,
 )
-from b_asic.core_operations import Constant, DontCare, Sink
+from b_asic.core_operations import Constant
 from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -40,6 +40,7 @@ from b_asic.scheduler import Scheduler
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
+from b_asic.utility_operations import DontCare, Sink
 
 # Need RGB from 0 to 1
 _EXECUTION_TIME_COLOR: tuple[float, ...] = tuple(

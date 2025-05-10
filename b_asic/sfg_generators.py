@@ -15,7 +15,6 @@ from b_asic.core_operations import (
     Addition,
     Butterfly,
     ConstantMultiplication,
-    DontCare,
     Name,
     Reciprocal,
     SymmetricTwoportAdaptor,
@@ -23,6 +22,7 @@ from b_asic.core_operations import (
 from b_asic.signal import Signal
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.utility_operations import DontCare
 
 if TYPE_CHECKING:
     from b_asic.port import OutputPort

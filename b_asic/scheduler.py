@@ -13,11 +13,11 @@ from typing import TYPE_CHECKING, cast
 import pulp
 
 import b_asic.logger
-from b_asic.core_operations import DontCare, Sink
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
+from b_asic.utility_operations import DontCare, Sink
 
 if TYPE_CHECKING:
     from b_asic.schedule import Schedule
