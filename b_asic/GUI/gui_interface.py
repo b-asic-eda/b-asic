@@ -128,6 +128,15 @@ class Ui_main_window:
         self.special_operations_list.setGeometry(QtCore.QRect(10, 0, 141, 211))
         self.special_operations_list.setObjectName("special_operations_list")
         self.operation_list.addItem(self.special_operations_page, "")
+        self.utility_operations_page = QtWidgets.QWidget()
+        self.utility_operations_page.setGeometry(QtCore.QRect(0, 0, 171, 217))
+        self.utility_operations_page.setObjectName("utility_operations_page")
+        self.utility_operations_list = QtWidgets.QListWidget(
+            self.utility_operations_page
+        )
+        self.utility_operations_list.setGeometry(QtCore.QRect(10, 0, 141, 211))
+        self.utility_operations_list.setObjectName("utility_operations_list")
+        self.operation_list.addItem(self.utility_operations_page, "")
         self.custom_operations_page = QtWidgets.QWidget()
         self.custom_operations_page.setGeometry(QtCore.QRect(0, 0, 171, 217))
         self.custom_operations_page.setObjectName("custom_operations_page")
@@ -225,7 +234,14 @@ class Ui_main_window:
             self.operation_list.indexOf(self.special_operations_page),
             _translate("main_window", "Special operations"),
         )
-        __sortingEnabled = self.special_operations_list.isSortingEnabled()
+        __sortingEnabled = self.utility_operations_list.isSortingEnabled()
+        self.utility_operations_list.setSortingEnabled(False)
+        self.utility_operations_list.setSortingEnabled(__sortingEnabled)
+        self.operation_list.setItemText(
+            self.operation_list.indexOf(self.utility_operations_page),
+            _translate("main_window", "Utility operations"),
+        )
+        __sortingEnabled = self.utility_operations_list.isSortingEnabled()
         self.custom_operations_list.setSortingEnabled(False)
         self.custom_operations_list.setSortingEnabled(__sortingEnabled)
         self.operation_list.setItemText(

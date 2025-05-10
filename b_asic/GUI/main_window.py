@@ -129,6 +129,9 @@ class SFGMainWindow(QMainWindow):
         self.add_operations_from_namespace(
             b_asic.special_operations, self._ui.special_operations_list
         )
+        self.add_operations_from_namespace(
+            b_asic.utility_operations, self._ui.utility_operations_list
+        )
 
         self._shortcut_refresh_operations = QShortcut(
             QKeySequence("Ctrl+R"), self._ui.operation_box
@@ -160,6 +163,9 @@ class SFGMainWindow(QMainWindow):
             self._on_list_widget_item_clicked
         )
         self._ui.special_operations_list.itemClicked.connect(
+            self._on_list_widget_item_clicked
+        )
+        self._ui.utility_operations_list.itemClicked.connect(
             self._on_list_widget_item_clicked
         )
         self._ui.custom_operations_list.itemClicked.connect(

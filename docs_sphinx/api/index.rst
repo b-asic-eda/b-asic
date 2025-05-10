@@ -24,4 +24,5 @@ API
     signal_generator.rst
     simulation.rst
     special_operations.rst
+    utility_operations.rst
     utils.rst
