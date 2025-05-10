@@ -84,12 +84,9 @@ def upsample(a: Sequence[Num], factor: int, phase: int = 0) -> list[Num]:
     """
     length = len(a)
     zeros = [0] * length
-    args = []
-    for _ in range(phase):
-        args.append(zeros)
+    args = [zeros for _ in range(phase)]
     args.append(a)
-    for _ in range(factor - phase - 1):
-        args.append(zeros)
+    args.extend(zeros for _ in range(factor - phase - 1))
     return interleave(*args)
 
 

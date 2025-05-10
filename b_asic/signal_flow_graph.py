@@ -820,8 +820,9 @@ class SFG(AbstractOperation):
 
     def simplify_delay_element_placement(self) -> "SFG":
         """
-        Simplify an SFG by removing some redundant delay elements.
-        For example two signals originating from the same starting point, each
+        Simplify an SFG by removing redundant delay elements.
+
+        For example, two signals originating from the same starting point, each
         connected to a delay element will combine into a single delay element.
 
         Returns a copy of the simplified SFG.
@@ -830,21 +831,22 @@ class SFG(AbstractOperation):
         no_of_delays = len(sfg_copy.find_by_type(Delay))
         while True:
             for delay_element in sfg_copy.find_by_type(Delay):
-                neighboring_delays = []
                 if len(delay_element.inputs[0].signals) > 0:
-                    for signal in delay_element.inputs[0].signals[0].source.signals:
-                        if isinstance(signal.destination.operation, Delay):
-                            neighboring_delays.append(signal.destination.operation)
+                    neighboring_delays = [
+                        signal.destination.operation
+                        for signal in delay_element.inputs[0].signals[0].source.signals
+                        if isinstance(signal.destination.operation, Delay)
+                    ]
 
-                if delay_element in neighboring_delays:
-                    neighboring_delays.remove(delay_element)
+                    if delay_element in neighboring_delays:
+                        neighboring_delays.remove(delay_element)
 
-                for delay in neighboring_delays:
-                    for output in delay.outputs[0].signals:
-                        output.set_source(delay_element.outputs[0])
-                    in_sig = delay.input(0).signals[0]
-                    delay.input(0).remove_signal(in_sig)
-                    in_sig.source.remove_signal(in_sig)
+                    for delay in neighboring_delays:
+                        for output in delay.outputs[0].signals:
+                            output.set_source(delay_element.outputs[0])
+                        in_sig = delay.input(0).signals[0]
+                        delay.input(0).remove_signal(in_sig)
+                        in_sig.source.remove_signal(in_sig)
             sfg_copy = sfg_copy()
             if no_of_delays <= len(sfg_copy.find_by_type(Delay)):
                 break
@@ -2128,9 +2130,7 @@ class SFG(AbstractOperation):
         paths = []
         for node in graph[start]:
             if node not in path:
-                newpaths = self.find_all_paths(graph, node, end, path)
-                for newpath in newpaths:
-                    paths.append(newpath)
+                paths.extend(self.find_all_paths(graph, node, end, path))
         return paths
 
     def operation_counter(self) -> Counter:

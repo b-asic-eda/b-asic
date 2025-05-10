@@ -612,16 +612,14 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def input_signals(self) -> Sequence[Signal]:
         result = []
         for p in self.inputs:
-            for s in p.signals:
-                result.append(s)
+            result.extend(p.signals)
         return result
 
     @property
     def output_signals(self) -> Sequence[Signal]:
         result = []
         for p in self.outputs:
-            for s in p.signals:
-                result.append(s)
+            result.extend(p.signals)
         return result
 
     def key(self, index: int, prefix: str = "") -> ResultKey:

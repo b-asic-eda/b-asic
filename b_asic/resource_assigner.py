@@ -602,8 +602,9 @@ def _get_pe_to_pe_connection(
                     for output_signal in port.signals:
                         if output_signal.destination.index == pe_in_port_index:
                             op = output_signal.destination_operation
-
-                            for other_pe_node in other_pe_nodes:
-                                if other_pe_node.name == op.graph_id:
-                                    nodes.append(other_pe_node)
+                            nodes.extend(
+                                other_pe_node
+                                for other_pe_node in other_pe_nodes
+                                if other_pe_node.name == op.graph_id
+                            )
     return nodes

@@ -209,12 +209,11 @@ class Scheduler(ABC):
                 )
         log.debug("Output placement optimization completed")
 
-    def _handle_dont_cares(self) -> None:
+    def _handle_utility_operations(self) -> None:
         for dc_op in self._schedule._sfg.find_by_type(DontCare):
             self._schedule.start_times[dc_op.graph_id] = 0
             self._schedule.move_operation_alap(dc_op.graph_id)
 
-    def _handle_sinks(self) -> None:
         for sink_op in self._schedule._sfg.find_by_type(Sink):
             self._schedule.start_times[sink_op.graph_id] = self._schedule._schedule_time
             self._schedule.move_operation_asap(sink_op.graph_id)
@@ -309,8 +308,7 @@ class ASAPScheduler(Scheduler):
         elif schedule._schedule_time < max_end_time:
             raise ValueError(f"Too short schedule time. Minimum is {max_end_time}.")
 
-        self._handle_dont_cares()
-        self._handle_sinks()
+        self._handle_utility_operations()
 
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
@@ -343,9 +341,9 @@ class ALAPScheduler(Scheduler):
         if self._output_delta_times:
             self._place_outputs_on_given_times()
 
-        for output in schedule.sfg.find_by_type(Input):
-            output = cast(Output, output)
-            self._op_laps[output.graph_id] = 0
+        for input_op in schedule.sfg.find_by_type(Input):
+            input_op = cast(Input, input_op)
+            self._op_laps[input_op.graph_id] = 0
 
         log.debug("ALAP scheduling starting")
         # move all outputs ALAP before operations
@@ -377,8 +375,7 @@ class ALAPScheduler(Scheduler):
                 schedule.move_operation(op_id, -slack)
             schedule.set_schedule_time(schedule._schedule_time - slack)
 
-        self._handle_dont_cares()
-        self._handle_sinks()
+        self._handle_utility_operations()
 
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
@@ -511,8 +508,7 @@ class ListScheduler(Scheduler):
         if self._schedule._schedule_time is None:
             self._schedule.set_schedule_time(self._schedule.get_max_end_time())
         self._schedule.remove_delays()
-        self._handle_dont_cares()
-        self._handle_sinks()
+        self._handle_utility_operations()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
         self._validate_constraints()
@@ -1011,8 +1007,7 @@ class RecursiveListScheduler(ListScheduler):
                 log.warning("Rational iteration period bound: %d", period_bound)
             log.debug("Retiming operations")
             self._retime_ops(math.ceil(period_bound))
-        self._handle_dont_cares()
-        self._handle_sinks()
+        self._handle_utility_operations()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
         self._validate_constraints()
@@ -1391,8 +1386,7 @@ class ILPScheduler(Scheduler):
                     schedule.start_times[op.graph_id] = time
                     break
 
-        self._handle_dont_cares()
-        self._handle_sinks()
+        self._handle_utility_operations()
         schedule.remove_delays()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()

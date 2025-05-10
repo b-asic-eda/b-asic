@@ -139,8 +139,6 @@ ignore = [
   "D418",
   "E501", # Line too long
   "E741",
-  "PERF401", # List comprehensions: would be good to activate
-  "PERF402", # List copy: would be good to activate
   "PLR0911",
   "PLR0912",
   "PLR0913",

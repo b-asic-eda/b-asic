@@ -571,7 +571,7 @@ def ldlt_matrix_inverse(
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i, N):
-            in_op = Input()
+            in_op = Input(name=f"A[{i},{j}]")
             A[i][j] = in_op
             inputs.append(in_op)
 
@@ -596,7 +596,7 @@ def ldlt_matrix_inverse(
                 **mads_properties,
             )
 
-        D_inv[i] = Reciprocal(D[i], **reciprocal_properties)
+        D_inv[i] = Reciprocal(D[i], **reciprocal_properties, name=f"D_inv[{i}]")
 
         for j in range(i + 1, N):
             R[i][j] = A[i][j]
@@ -660,10 +660,11 @@ def ldlt_matrix_inverse(
                             **mads_properties,
                         )
 
-    outputs = []
-    for i in range(N):
-        for j in range(i, N):
-            outputs.append(Output(A_inv[i][j]))
+    outputs = [
+        Output(A_inv[i][j], name=f"A_inv[{i},{j}]")
+        for i in range(N)
+        for j in range(i, N)
+    ]
 
     return SFG(inputs, outputs)
 

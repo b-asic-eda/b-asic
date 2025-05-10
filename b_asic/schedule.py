@@ -606,7 +606,7 @@ class Schedule:
         self._start_times = {k: factor * v for k, v in self._start_times.items()}
         for graph_id in self._start_times:
             op = cast(Operation, self._sfg.find_by_id(graph_id))
-            if not isinstance(op, (Input, Output, Constant)):
+            if not isinstance(op, (Input, Output, Constant, Sink, DontCare)):
                 op._increase_time_resolution(factor)
         self._schedule_time *= factor
         return self
@@ -622,7 +622,7 @@ class Schedule:
         # Loop over operations
         for graph_id in self._start_times:
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
-            if not isinstance(operation, (Input, Output, Constant)):
+            if not isinstance(operation, (Input, Output, Constant, Sink, DontCare)):
                 ret += [
                     cast(int, operation.execution_time),
                     *operation.latency_offsets.values(),
@@ -634,12 +634,13 @@ class Schedule:
         """Return a list with possible factors to reduce time resolution."""
         vals = self._get_all_times()
         max_loop = min(val for val in vals if val)
-        if max_loop <= 1:
-            return [1]
         ret = [1]
-        for candidate in range(2, max_loop + 1):
-            if not any(val % candidate for val in vals):
-                ret.append(candidate)
+        if max_loop >= 2:
+            ret.extend(
+                candidate
+                for candidate in range(2, max_loop + 1)
+                if not any(val % candidate for val in vals)
+            )
         return ret
 
     def decrease_time_resolution(self, factor: int) -> "Schedule":
@@ -664,7 +665,7 @@ class Schedule:
         self._start_times = {k: v // factor for k, v in self._start_times.items()}
         for graph_id in self._start_times:
             op = cast(Operation, self._sfg.find_by_id(graph_id))
-            if not isinstance(op, (Input, Output, Constant)):
+            if not isinstance(op, (Input, Output, Constant, Sink, DontCare)):
                 op._decrease_time_resolution(factor)
         self._schedule_time = self._schedule_time // factor
         return self

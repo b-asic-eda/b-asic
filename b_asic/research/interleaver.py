@@ -111,15 +111,17 @@ def generate_matrix_transposer(
             f" ({rows}*{cols} = {rows * cols})"
         )
 
-    inputorders = []
-    for col in range(cols):
-        for row in range(rows):
-            inputorders.append(((row + rows * col) // parallelism, row % parallelism))
+    inputorders = [
+        ((row + rows * col) // parallelism, row % parallelism)
+        for col in range(cols)
+        for row in range(rows)
+    ]
 
-    outputorders = []
-    for row in range(rows):
-        for col in range(cols):
-            outputorders.append(((col * rows + row) // parallelism, col % parallelism))
+    outputorders = [
+        ((col * rows + row) // parallelism, col % parallelism)
+        for row in range(rows)
+        for col in range(cols)
+    ]
 
     inputorders, outputorders = _insert_delays(
         inputorders, outputorders, min_lifetime, cyclic, rows * cols // parallelism
