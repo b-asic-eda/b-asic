@@ -55,7 +55,7 @@ class GraphIDGenerator:
         """Construct a GraphIDGenerator."""
         self._next_id_number = defaultdict(lambda: id_number_offset)
 
-    def next_id(self, type_name: TypeName, used_ids: MutableSet = set()) -> GraphID:
+    def next_id(self, type_name: TypeName, used_ids: MutableSet = set()) -> GraphID:  # noqa: B006
         """Get the next graph id for a certain graph id type."""
         new_id = type_name + str(self._next_id_number[type_name])
         while new_id in used_ids:

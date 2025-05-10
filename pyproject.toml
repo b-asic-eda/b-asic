@@ -116,6 +116,7 @@ select = [
   "PIE",
   "PL",
   "PT",
+  "PTH",
   "RET",
   "RUF",
   "SIM",
@@ -123,36 +124,37 @@ select = [
   "UP",
 ]
 ignore = [
-  "B006",
   "B008",
-  "B021",
-  "D101",
-  "D102",
-  "D103",
-  "D105",
-  "D107",
-  "D200",
-  "D203",
-  "D205",
-  "D212",
-  "D413",
-  "D418",
-  "E501", # Line too long
-  "E741",
-  "PLR0911",
-  "PLR0912",
-  "PLR0913",
-  "PLR0915",
-  "PLR2004",
-  "PLR5501",
+  "B021", # f-string as doc-string
+  "D101", # Missing doc-string in public class
+  "D102", # Missing doc-string in public method
+  "D103", # Missing doc-string in public function
+  "D105", # Missing doc-string in magic method
+  "D107", # Missing doc-string in __init__
+  "D200", # Single line doc-string on single line
+  "D203", # One empty line before class docstring
+  "D205", # Blank line between summary and description/multi-line summary
+  "D212", # Start doc-string on first line
+  "D413", # End last section with empty line
+  "D418", # overload should not have doc-string: FIXME
+  "E501", # Line too long, formatter will deal with possible fixes
+  "E741", # Ambiguous variable name: FIXME
+  "PLR0911", # Too many return statements
+  "PLR0912", # Too many branches
+  "PLR0913", # Too many arguments in function definition
+  "PLR0915", # Too many statements
+  "PLR2004", # Compare to constants
+  "PLR5501", # Use `elif` instead of `else` then `if`: good for readability
   "PLW2901", # Overwrite loop variable: would be good to activate
   "RET505", # else after return: good for readability
-  "UP038",
+  "UP038", # isinstance form (deprecated)
+
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "test/*" = ["D1", "D401", "PERF401", "E501", "ANN"]
 "b_asic/scheduler_gui/ui_main_window.py" = ["D100"]
+"b_asic/scheduler_gui/compile.py" = ["PTH118", "PTH122"]
 "b_asic/__init__.py" = ["F403"]
 "test/conftest.py" = ["F403"]
 
