@@ -24,7 +24,7 @@ class Process:
         The name of the process.
     """
 
-    __slots__ = ("_start_time", "_execution_time", "_name")
+    __slots__ = ("_execution_time", "_name", "_start_time")
     _start_time: int
     _execution_time: int
     _name: str
@@ -148,7 +148,6 @@ class MemoryProcess(Process):
         life_times: list[int],
         name: str = "",
     ) -> None:
-        pass
         self._life_times = life_times
         super().__init__(
             start_time=write_time,
@@ -262,9 +261,8 @@ class MemoryProcess(Process):
             raise KeyError(
                 f"Process {self.name}: {life_time} not in life_times: {self.life_times}"
             )
-        else:
-            self._life_times.remove(life_time)
-            self._execution_time = max(self.life_times)
+        self._life_times.remove(life_time)
+        self._execution_time = max(self.life_times)
 
 
 class MemoryVariable(MemoryProcess):
@@ -284,7 +282,7 @@ class MemoryVariable(MemoryProcess):
         The name of the process.
     """
 
-    __slots__ = ("_reads", "_read_ports", "_write_port")
+    __slots__ = ("_read_ports", "_reads", "_write_port")
     _reads: dict[InputPort, int]
     _read_ports: list[InputPort]
     _write_port: OutputPort
@@ -374,7 +372,7 @@ class PlainMemoryVariable(MemoryProcess):
         The name of the process.
     """
 
-    __slots__ = ("_reads", "_read_ports", "_write_port")
+    __slots__ = ("_read_ports", "_reads", "_write_port")
     _reads: dict[int, int]
     _read_ports: list[int]
     _write_port: int

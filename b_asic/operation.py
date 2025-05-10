@@ -453,7 +453,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     behavior.
     """
 
-    __slots__ = ("_input_ports", "_output_ports", "_execution_time")
+    __slots__ = ("_execution_time", "_input_ports", "_output_ports")
     _input_ports: list[InputPort]
     _output_ports: list[OutputPort]
     _execution_time: int | None

@@ -177,7 +177,7 @@ def compile_ui(*filenames: str) -> None:
             )
 
             os_ = sys.platform
-            if os_.startswith("linux") or os_.startswith("win32"):
+            if os_.startswith(("linux", "win32")):
                 cmd = f"{uic_} {arguments}"
                 subprocess.call(cmd.split())
 

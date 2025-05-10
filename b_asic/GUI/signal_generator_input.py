@@ -149,7 +149,6 @@ class FromFileInput(SignalGeneratorInput):
     def get_input_file(self, i, file_browser) -> None:
         module, accepted = QFileDialog().getOpenFileName()
         file_browser.setText(module)
-        return
 
 
 class SinusoidInput(SignalGeneratorInput):

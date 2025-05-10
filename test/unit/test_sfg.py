@@ -1572,8 +1572,7 @@ class TestUnfold:
             # To avoid problems with missing inputs at the end of the sequence,
             # we generate i*(some large enough) number
             input_list = [
-                [random.random() for _ in range(0, NUM_TESTS * factor)]
-                for _ in sfg.inputs
+                [random.random() for _ in range(NUM_TESTS * factor)] for _ in sfg.inputs
             ]
 
             sim = Simulation(sfg, input_list)
@@ -1582,9 +1581,9 @@ class TestUnfold:
 
             # We have i copies of the inputs, each sourcing their input from the orig
             unfolded_input_lists = [[] for _ in range(len(sfg.inputs) * factor)]
-            for t in range(0, NUM_TESTS):
-                for n in range(0, factor):
-                    for k in range(0, len(sfg.inputs)):
+            for t in range(NUM_TESTS):
+                for n in range(factor):
+                    for k in range(len(sfg.inputs)):
                         unfolded_input_lists[k + n * len(sfg.inputs)].append(
                             input_list[k][t * factor + n]
                         )
@@ -1637,9 +1636,7 @@ class TestSwapIOOfOperation:
         # Evaluate with some random values
         # To avoid problems with missing inputs at the end of the sequence,
         # we generate i*(some large enough) number
-        input_list = [
-            [random.random() for _ in range(0, NUM_TESTS)] for _ in sfg.inputs
-        ]
+        input_list = [[random.random() for _ in range(NUM_TESTS)] for _ in sfg.inputs]
         sim_ref = Simulation(sfg, input_list)
         sim_ref.run()
 

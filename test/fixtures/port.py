@@ -15,12 +15,12 @@ def output_port():
 
 @pytest.fixture
 def list_of_input_ports():
-    return [InputPort(None, i) for i in range(0, 3)]
+    return [InputPort(None, i) for i in range(3)]
 
 
 @pytest.fixture
 def list_of_output_ports():
-    return [OutputPort(None, i) for i in range(0, 3)]
+    return [OutputPort(None, i) for i in range(3)]
 
 
 @pytest.fixture

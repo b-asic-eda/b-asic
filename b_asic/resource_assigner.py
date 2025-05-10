@@ -294,7 +294,7 @@ def _ilp_coloring(
         for node in nodes:
             for color in pe_colors[i]:
                 problem += pe_x[i][node][color] <= pe_c[i][color]
-        max_clique = next(nx.find_cliques(pe_exclusion_graphs[i]))
+        max_clique = next(nx.find_cliques(pe_exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += pe_x[i][node][color] == pe_c[i][color] == 1
         for color in pe_colors[i]:
@@ -513,7 +513,7 @@ def _ilp_coloring_min_mux(
             for color in pe_colors[i]:
                 problem += pe_x[i][node][color] <= pe_c[i][color]
         # speed
-        max_clique = next(nx.find_cliques(pe_exclusion_graphs[i]))
+        max_clique = next(nx.find_cliques(pe_exclusion_graph))
         for color, node in enumerate(max_clique):
             problem += pe_x[i][node][color] == pe_c[i][color] == 1
         for color in pe_colors[i]:

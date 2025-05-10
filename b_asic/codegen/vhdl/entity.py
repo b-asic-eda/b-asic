@@ -25,8 +25,6 @@ def memory_based_storage(
             "HDL can only be generated for ProcessCollection of (Plain)MemoryVariables"
         )
 
-    entity_name = entity_name
-
     # Write the entity header
     write_lines(
         f,

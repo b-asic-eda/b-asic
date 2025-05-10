@@ -129,7 +129,7 @@ def generate_matrix_transposer(
             PlainMemoryVariable(
                 *inputorder,
                 {outputorders[i][1]: outputorders[i][0] - inputorder[0]},
-                name=f"{inputorders[i][0] * parallelism + inputorders[i][1]}",
+                name=f"{inputorder[0] * parallelism + inputorder[1]}",
             )
             for i, inputorder in enumerate(inputorders)
         },

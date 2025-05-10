@@ -43,10 +43,10 @@ class Scheduler(ABC):
     """
 
     __slots__ = (
-        "_schedule",
-        "_op_laps",
         "_input_times",
+        "_op_laps",
         "_output_delta_times",
+        "_schedule",
         "_sort_y_location",
     )
 
@@ -420,23 +420,23 @@ class ListScheduler(Scheduler):
     """
 
     __slots__ = (
-        "_remaining_ops",
-        "_deadlines",
-        "_output_slacks",
-        "_fan_outs",
-        "_current_time",
-        "_cached_execution_times_in_time",
-        "_alap_start_times",
-        "_sort_order",
-        "_max_resources",
-        "_max_concurrent_reads",
-        "_max_concurrent_writes",
-        "_remaining_ops_set",
         "_alap_op_laps",
         "_alap_schedule_time",
-        "_used_reads",
-        "_remaining_resources",
+        "_alap_start_times",
         "_cached_execution_times",
+        "_cached_execution_times_in_time",
+        "_current_time",
+        "_deadlines",
+        "_fan_outs",
+        "_max_concurrent_reads",
+        "_max_concurrent_writes",
+        "_max_resources",
+        "_output_slacks",
+        "_remaining_ops",
+        "_remaining_ops_set",
+        "_remaining_resources",
+        "_sort_order",
+        "_used_reads",
     )
     _remaining_ops: list["GraphID"]
     _deadlines: dict["GraphID", int]
@@ -816,6 +816,7 @@ class ListScheduler(Scheduler):
             for op_type in used_op_types:
                 if op_type.type_name() == type_name:
                     return op_type
+            raise ValueError(f"Internal bug: {type_name} not in schedule.")
 
         self._remaining_resources = {
             find_type_from_type_name(type_name): cnt
@@ -1131,8 +1132,8 @@ class RecursiveListScheduler(ListScheduler):
                         slack = min(slack, self._schedule.forward_slack(other_op_id))
                 if slack > 0:
                     log.debug("Reducing schedule time by %d", slack)
-                    for op_id in self._schedule._start_times:
-                        self._schedule._start_times[op_id] -= slack
+                    for inner_op_id in self._schedule._start_times:
+                        self._schedule._start_times[inner_op_id] -= slack
 
                     self._schedule._schedule_time = (
                         self._schedule._schedule_time - slack

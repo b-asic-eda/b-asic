@@ -65,7 +65,7 @@ def _y_locations_default() -> None:
 
     Cannot use lambda.
     """
-    return None
+    return
 
 
 class Schedule:
@@ -264,12 +264,11 @@ class Schedule:
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
             if isinstance(operation, Output):
                 continue
-            else:
-                for outport in operation.outputs:
-                    max_end_time = max(
-                        max_end_time,
-                        op_start_time + cast(int, outport.latency_offset),
-                    )
+            for outport in operation.outputs:
+                max_end_time = max(
+                    max_end_time,
+                    op_start_time + cast(int, outport.latency_offset),
+                )
         return max_end_time
 
     def forward_slack(self, graph_id: GraphID) -> int:

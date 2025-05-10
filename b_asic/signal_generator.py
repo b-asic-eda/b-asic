@@ -262,7 +262,7 @@ class Gaussian(SignalGenerator):
         The standard deviation of the noise.
     """
 
-    __slots__ = ("_rng", "_seed", "_loc", "_scale")
+    __slots__ = ("_loc", "_rng", "_scale", "_seed")
 
     _seed: int | None
     _loc: float
@@ -307,7 +307,7 @@ class Uniform(SignalGenerator):
         The upper value of the uniform range.
     """
 
-    __slots__ = ("_rng", "_seed", "_low", "_high")
+    __slots__ = ("_high", "_low", "_rng", "_seed")
 
     _seed: int | None
     _low: float
@@ -493,7 +493,7 @@ class Upsample(SignalGenerator):
         The phase of the upsampling.
     """
 
-    __slots__ = ("_generator", "_factor", "_phase")
+    __slots__ = ("_factor", "_generator", "_phase")
 
     _generator: SignalGenerator | Sequence[complex]
     _factor: int
@@ -538,7 +538,7 @@ class Downsample(SignalGenerator):
         The phase of the downsampling.
     """
 
-    __slots__ = ("_generator", "_factor", "_phase")
+    __slots__ = ("_factor", "_generator", "_phase")
 
     _generator: SignalGenerator | Sequence[complex]
     _factor: int

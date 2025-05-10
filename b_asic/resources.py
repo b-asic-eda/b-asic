@@ -101,8 +101,7 @@ def _sanitize_port_option(
                 "If total_ports is unset, both read_ports and write_ports"
                 " must be provided."
             )
-        else:
-            total_ports = read_ports + write_ports
+        total_ports = read_ports + write_ports
     else:
         read_ports = total_ports if read_ports is None else read_ports
         write_ports = total_ports if write_ports is None else write_ports
@@ -353,8 +352,7 @@ class _ForwardBackwardTable:
                                     f" col={reg_idx} to next_row={next_row},"
                                     f" next_col={next_col} (cell contains: {cell})"
                                 )
-                            else:
-                                self.table[(time + 1) % rows].regs[reg_idx + 1] = reg
+                            self.table[(time + 1) % rows].regs[reg_idx + 1] = reg
 
     def _do_single_backward_allocation(self) -> None:
         """
@@ -500,7 +498,7 @@ class ProcessCollection:
         .. math:: t = t \bmod T_{\textrm{schedule}}.
     """
 
-    __slots__ = ("_collection", "_schedule_time", "_cyclic")
+    __slots__ = ("_collection", "_cyclic", "_schedule_time")
     _collection: list[Process]
     _schedule_time: int
     _cyclic: bool
@@ -555,8 +553,7 @@ class ProcessCollection:
             raise KeyError(
                 f"Can't remove process: '{process}', as it is not in collection."
             )
-        else:
-            self.collection.remove(process)
+        self.collection.remove(process)
 
     def __contains__(self, process: Process) -> bool:
         """
@@ -842,22 +839,19 @@ class ProcessCollection:
             for node2 in exclusion_graph:
                 if node1 == node2:
                     continue
-                else:
-                    node2_stop_times = tuple(
-                        read_time % self.schedule_time for read_time in node2.read_times
-                    )
-                    node2_start_time = node2.start_time % self.schedule_time
-                    if write_ports == 1 and node1_start_time == node2_start_time:
-                        exclusion_graph.add_edge(node1, node2)
-                    if read_ports == 1 and node1_stop_times.intersection(
-                        node2_stop_times
-                    ):
-                        exclusion_graph.add_edge(node1, node2)
-                    if total_ports == 1 and (
-                        node1_start_time in node2_stop_times
-                        or node2_start_time in node1_stop_times
-                    ):
-                        exclusion_graph.add_edge(node1, node2)
+                node2_stop_times = tuple(
+                    read_time % self.schedule_time for read_time in node2.read_times
+                )
+                node2_start_time = node2.start_time % self.schedule_time
+                if write_ports == 1 and node1_start_time == node2_start_time:
+                    exclusion_graph.add_edge(node1, node2)
+                if read_ports == 1 and node1_stop_times.intersection(node2_stop_times):
+                    exclusion_graph.add_edge(node1, node2)
+                if total_ports == 1 and (
+                    node1_start_time in node2_stop_times
+                    or node2_start_time in node1_stop_times
+                ):
+                    exclusion_graph.add_edge(node1, node2)
         return exclusion_graph
 
     def exclusion_graph_from_execution_time(self) -> nx.Graph:
@@ -874,45 +868,42 @@ class ProcessCollection:
             for process2 in self._collection:
                 if process1 == process2:
                     continue
-                else:
-                    t1 = set(
+                t1 = set(
+                    range(
+                        process1.start_time,
+                        min(
+                            process1.start_time + process1.execution_time,
+                            self._schedule_time,
+                        ),
+                    )
+                ).union(
+                    set(
                         range(
-                            process1.start_time,
-                            min(
-                                process1.start_time + process1.execution_time,
-                                self._schedule_time,
-                            ),
-                        )
-                    ).union(
-                        set(
-                            range(
-                                0,
-                                process1.start_time
-                                + process1.execution_time
-                                - self._schedule_time,
-                            )
+                            process1.start_time
+                            + process1.execution_time
+                            - self._schedule_time,
                         )
                     )
-                    t2 = set(
+                )
+                t2 = set(
+                    range(
+                        process2.start_time,
+                        min(
+                            process2.start_time + process2.execution_time,
+                            self._schedule_time,
+                        ),
+                    )
+                ).union(
+                    set(
                         range(
-                            process2.start_time,
-                            min(
-                                process2.start_time + process2.execution_time,
-                                self._schedule_time,
-                            ),
-                        )
-                    ).union(
-                        set(
-                            range(
-                                0,
-                                process2.start_time
-                                + process2.execution_time
-                                - self._schedule_time,
-                            )
+                            process2.start_time
+                            + process2.execution_time
+                            - self._schedule_time,
                         )
                     )
-                    if t1.intersection(t2):
-                        exclusion_graph.add_edge(process1, process2)
+                )
+                if t1.intersection(t2):
+                    exclusion_graph.add_edge(process1, process2)
         return exclusion_graph
 
     def split_on_type_name(self) -> dict[TypeName, "ProcessCollection"]:
@@ -2043,7 +2034,7 @@ class ProcessCollection:
                 raise ValueError(
                     f"{next_process} has execution time greater than the schedule time"
                 )
-            elif next_process.execution_time == self.schedule_time:
+            if next_process.execution_time == self.schedule_time:
                 assignment.append(
                     ProcessCollection(
                         (next_process,),

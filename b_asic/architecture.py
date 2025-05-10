@@ -47,10 +47,7 @@ class HardwareBlock:
         The name of the resulting entity.
     """
 
-    __slots__ = "_entity_name"
-    _entity_name: str | None
-
-    __slots__ = "_entity_name"
+    __slots__ = ("_entity_name",)
     _entity_name: str | None
 
     def __init__(self, entity_name: str | None = None) -> None:
@@ -394,7 +391,7 @@ class ProcessingElement(Resource):
     """
 
     _color = f"#{''.join(f'{v:0>2X}' for v in PE_COLOR)}"
-    __slots__ = ("_process_collection", "_entity_name")
+    __slots__ = ("_entity_name", "_process_collection")
     _process_collection: ProcessCollection
     _entity_name: str | None
 

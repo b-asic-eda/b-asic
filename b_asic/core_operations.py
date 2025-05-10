@@ -29,7 +29,7 @@ class Constant(AbstractOperation):
         Operation name.
     """
 
-    __slots__ = ("_value", "_name")
+    __slots__ = ("_name", "_value")
     _value: Num
     _name: Name
 
@@ -144,12 +144,12 @@ class Addition(AbstractOperation):
     """
 
     __slots__ = (
-        "_src0",
-        "_src1",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -225,12 +225,12 @@ class Subtraction(AbstractOperation):
     is_linear = True
 
     __slots__ = (
-        "_src0",
-        "_src1",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -310,13 +310,13 @@ class AddSub(AbstractOperation):
     """
 
     __slots__ = (
+        "_execution_time",
         "_is_add",
-        "_src0",
-        "_src1",
-        "_name",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _is_add: bool
     _src0: SignalSourceProvider | None
@@ -415,12 +415,12 @@ class Multiplication(AbstractOperation):
     """
 
     __slots__ = (
-        "_src0",
-        "_src1",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -497,12 +497,12 @@ class Division(AbstractOperation):
     """
 
     __slots__ = (
-        "_src0",
-        "_src1",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -579,12 +579,12 @@ class Min(AbstractOperation):
     """
 
     __slots__ = (
-        "_src0",
-        "_src1",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -659,12 +659,12 @@ class Max(AbstractOperation):
     """
 
     __slots__ = (
-        "_src0",
-        "_src1",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -729,7 +729,7 @@ class SquareRoot(AbstractOperation):
         Operation execution time (time units before operator can be reused).
     """
 
-    __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
+    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
     _src0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
@@ -787,7 +787,7 @@ class ComplexConjugate(AbstractOperation):
         Operation execution time (time units before operator can be reused).
     """
 
-    __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
+    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
     _src0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
@@ -845,7 +845,7 @@ class Absolute(AbstractOperation):
         Operation execution time (time units before operator can be reused).
     """
 
-    __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
+    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
     _src0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
@@ -910,12 +910,12 @@ class ConstantMultiplication(AbstractOperation):
     """
 
     __slots__ = (
-        "_value",
-        "_src0",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_value",
     )
     _value: Num
     _src0: SignalSourceProvider | None
@@ -998,12 +998,12 @@ class Butterfly(AbstractOperation):
     """
 
     __slots__ = (
-        "_src0",
-        "_src1",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -1076,14 +1076,14 @@ class MAD(AbstractOperation):
     """
 
     __slots__ = (
+        "_do_add",
+        "_execution_time",
+        "_latency",
+        "_latency_offsets",
+        "_name",
         "_src0",
         "_src1",
         "_src2",
-        "_name",
-        "_latency",
-        "_latency_offsets",
-        "_execution_time",
-        "_do_add",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -1155,15 +1155,15 @@ class MAD(AbstractOperation):
 
 class MADS(AbstractOperation):
     __slots__ = (
+        "_do_addsub",
+        "_execution_time",
         "_is_add",
+        "_latency",
+        "_latency_offsets",
+        "_name",
         "_src0",
         "_src1",
         "_src2",
-        "_name",
-        "_latency",
-        "_latency_offsets",
-        "_execution_time",
-        "_do_addsub",
     )
     _is_add: bool | None
     _src0: SignalSourceProvider | None
@@ -1267,12 +1267,12 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     """
 
     __slots__ = (
-        "_src0",
-        "_src1",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_src1",
     )
     _src0: SignalSourceProvider | None
     _src1: SignalSourceProvider | None
@@ -1366,7 +1366,7 @@ class Reciprocal(AbstractOperation):
     Division
     """
 
-    __slots__ = ("_src0", "_name", "_latency", "_latency_offsets", "_execution_time")
+    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
     _src0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
@@ -1435,12 +1435,12 @@ class RightShift(AbstractOperation):
     """
 
     __slots__ = (
-        "_value",
-        "_src0",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_value",
     )
     _value: Num
     _src0: SignalSourceProvider | None
@@ -1527,12 +1527,12 @@ class LeftShift(AbstractOperation):
     """
 
     __slots__ = (
-        "_value",
-        "_src0",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_value",
     )
     _value: Num
     _src0: SignalSourceProvider | None
@@ -1620,12 +1620,12 @@ class Shift(AbstractOperation):
     """
 
     __slots__ = (
-        "_value",
-        "_src0",
-        "_name",
+        "_execution_time",
         "_latency",
         "_latency_offsets",
-        "_execution_time",
+        "_name",
+        "_src0",
+        "_value",
     )
     _value: Num
     _src0: SignalSourceProvider | None

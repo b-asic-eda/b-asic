@@ -23,7 +23,7 @@ class DontCare(AbstractOperation):
         Operation name.
     """
 
-    __slots__ = "_name"
+    __slots__ = ("_name",)
     _name: Name
 
     is_linear = True
@@ -99,7 +99,7 @@ class Sink(AbstractOperation):
         Operation name.
     """
 
-    __slots__ = "_name"
+    __slots__ = ("_name",)
     _name: Name
 
     is_linear = True

@@ -131,7 +131,7 @@ class AbstractPort(Port):
     behavior.
     """
 
-    __slots__ = ("_operation", "_index", "_latency_offset")
+    __slots__ = ("_index", "_latency_offset", "_operation")
     _operation: "Operation"
     _index: int
     _latency_offset: int | None
