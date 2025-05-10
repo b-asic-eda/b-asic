@@ -6,11 +6,11 @@ This file opens the main SFG editor window of the GUI for B-ASIC when run.
 
 import importlib.util
 import logging
-import os
 import sys
 import webbrowser
 from collections import deque
 from collections.abc import Sequence
+from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, cast
 
@@ -285,7 +285,7 @@ class SFGMainWindow(QMainWindow):
             )
 
         try:
-            with open(module, "w+") as file_obj:
+            with Path(module).open("w+") as file_obj:
                 file_obj.write(
                     sfg_to_python(sfg, suffix=f"positions = {operation_positions}")
                 )
@@ -710,18 +710,18 @@ class SFGMainWindow(QMainWindow):
             attr_button.add_ports()
             self._ports[attr_button] = attr_button.port_list
 
-            icon_path = os.path.join(
-                os.path.dirname(__file__),
-                "operation_icons",
-                f"{op.type_name().lower()}.png",
+            icon_path = (
+                Path(__file__).parent
+                / "operation_icons"
+                / f"{op.type_name().lower()}.png"
             )
-            if not os.path.exists(icon_path):
-                icon_path = os.path.join(
-                    os.path.dirname(__file__),
-                    "operation_icons",
-                    "custom_operation.png",
+
+            print(icon_path)
+            if not Path(icon_path).exists():
+                icon_path = (
+                    Path(__file__).parent / "operation_icons" / "custom_operation.png"
                 )
-            attr_button.setIcon(QIcon(icon_path))
+            attr_button.setIcon(QIcon(str(icon_path)))
             attr_button.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
             attr_button.setToolTip("No SFG")
             attr_button.setStyleSheet(

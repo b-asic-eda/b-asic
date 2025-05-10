@@ -49,9 +49,9 @@ To log uncaught exceptions, implement the following in your program.
 """
 
 import logging
-import os
 import sys
 from logging import Logger
+from pathlib import Path
 from types import TracebackType
 from typing import Literal
 
@@ -113,7 +113,7 @@ def getLogger(
     if logger.name == "scheduler-gui.log":
         logger.info(
             "Running: %s %s",
-            os.path.basename(sys.argv[0]),
+            Path(sys.argv[0]).name,
             " ".join(sys.argv[1:]),
         )
 

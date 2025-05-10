@@ -1,5 +1,5 @@
-import os
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -14,10 +14,11 @@ from test.fixtures.signal_flow_graph import *
 
 @pytest.fixture
 def datadir(tmpdir, request):
-    filename = request.module.__file__
-    test_dir, _ = os.path.splitext(filename)
+    filepath = Path(request.module.__file__)
 
-    if os.path.isdir(test_dir):
-        shutil.copytree(test_dir, str(tmpdir), dirs_exist_ok=True)
+    test_dir = filepath.parent / filepath.stem
+
+    if test_dir.is_dir():
+        shutil.copytree(test_dir, Path(tmpdir), dirs_exist_ok=True)
 
     return tmpdir

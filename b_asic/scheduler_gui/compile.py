@@ -53,11 +53,11 @@ def replace_qt_bindings(filename: str) -> None:
     filename : str
         The name of the file to replace bindings in.
     """
-    with open(f"{filename}") as file:
+    with Path(filename).open() as file:
         filedata = file.read()
         filedata = filedata.replace("from PyQt6", "from qtpy")
         filedata = filedata.replace("from PySide6", "from qtpy")
-    with open(f"{filename}", "w") as file:
+    with Path(filename).open("w") as file:
         file.write(filedata)
 
 
@@ -159,7 +159,7 @@ def compile_ui(*filenames: str) -> None:
         if uic.PYQT6:
             from qtpy.uic import compileUi
 
-            with open(outfile, "w") as ofile:
+            with Path(outfile).open("w") as ofile:
                 compileUi(filename, ofile)
 
         elif uic.PYSIDE6:

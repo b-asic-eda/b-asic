@@ -12,6 +12,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator
 from functools import reduce
 from math import floor, log2
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypeVar, Union
 
 import matplotlib.pyplot as plt
@@ -2211,7 +2212,7 @@ class ProcessCollection:
                     "both or none of adr_mux_size and adr_pipe_depth needs to be set"
                 )
 
-        with open(filename, "w") as f:
+        with Path(filename).open("w") as f:
             from b_asic.codegen.vhdl import architecture, common, entity
 
             common.b_asic_preamble(f)
@@ -2335,7 +2336,7 @@ class ProcessCollection:
         # Create the forward-backward table
         forward_backward_table = _ForwardBackwardTable(self)
 
-        with open(filename, "w") as f:
+        with Path(filename).open("w") as f:
             from b_asic.codegen.vhdl import architecture, common, entity
 
             common.b_asic_preamble(f)

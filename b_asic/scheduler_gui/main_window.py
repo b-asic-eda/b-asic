@@ -15,6 +15,7 @@ import sys
 import webbrowser
 from collections import defaultdict, deque
 from importlib.machinery import SourceFileLoader
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast, overload
 
 # Qt/qtpy
@@ -119,6 +120,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     _changed_operation_colors: dict[str, QColor]
     _recent_files_actions: list[QAction]
     _recent_file_paths: deque[str]
+    _file_name: str | None
 
     def __init__(self) -> None:
         """Initialize Scheduler-GUI."""
@@ -331,9 +333,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             QStandardPaths.standardLocations(QStandardPaths.HomeLocation)[0],
             str,
         )
-        if not os.path.exists(last_file):  # if filename does not exist
-            last_file = os.path.dirname(last_file) + "/"
-            if not os.path.exists(last_file):  # if path does not exist
+        if not Path(last_file).exists():  # if filename does not exist
+            last_file = Path(last_file).parent
+            if not last_file.exists():  # if path does not exist
                 last_file = QStandardPaths.standardLocations(
                     QStandardPaths.HomeLocation
                 )[0]
@@ -381,16 +383,15 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         )
 
         if not schedule_obj_list:  # return if no Schedule objects in script
+            filename = Path(abs_path_filename).name
             QMessageBox.warning(
                 self,
                 self.tr("File not found"),
-                self.tr("Cannot find any Schedule object in file {}").format(
-                    os.path.basename(abs_path_filename)
-                ),
+                self.tr("Cannot find any Schedule object in file {}").format(filename),
             )
             log.info(
                 "Cannot find any Schedule object in file %s",
-                os.path.basename(abs_path_filename),
+                filename,
             )
             del module
             return
@@ -481,7 +482,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.save_as()
             return
         self._schedule._sfg._graph_id_generator = None
-        with open(self._file_name, "wb") as f:
+        with Path(self._file_name).open("wb") as f:
             pickle.dump(self._schedule, f)
         self._add_recent_file(self._file_name)
         self.update_statusbar(self.tr("Schedule saved successfully"))
@@ -505,7 +506,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             filename += ".bsc"
         self._file_name = filename
         self._schedule._sfg._graph_id_generator = None
-        with open(self._file_name, "wb") as f:
+        with Path(self._file_name).open("wb") as f:
             pickle.dump(self._schedule, f)
         self._add_recent_file(self._file_name)
         self.update_statusbar(self.tr("Schedule saved successfully"))
@@ -536,7 +537,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._file_name = abs_path_filename
         self._add_recent_file(abs_path_filename)
 
-        with open(self._file_name, "rb") as f:
+        with Path(self._file_name).open("rb") as f:
             schedule = pickle.load(f)
         self.open(schedule)
         settings = QSettings()
@@ -676,7 +677,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if not hide_dialog:
                 settings.setValue("scheduler/hide_exit_dialog", checkbox.isChecked())
             self._write_settings()
-            log.info("Exit: %s", os.path.basename(__file__))
+            log.info("Exit: %s", Path(__file__).name)
             if self._ports_accesses_for_storage:
                 self._ports_accesses_for_storage.close()
             if self._execution_time_for_variables:

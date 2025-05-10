@@ -7,6 +7,7 @@ stored as files.
 
 from datetime import datetime
 from inspect import signature
+from pathlib import Path
 from typing import cast
 
 from b_asic.graph_component import GraphComponent
@@ -152,7 +153,7 @@ def python_to_sfg(path: str) -> tuple[SFG, dict[str, tuple[int, int]]]:
     """
     local_vars = {}
 
-    with open(path) as file:
+    with Path(path).open() as file:
         code = compile(file.read(), path, "exec")
         exec(code, globals(), local_vars)
 

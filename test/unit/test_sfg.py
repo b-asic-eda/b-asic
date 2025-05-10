@@ -5,7 +5,7 @@ import re
 import string
 import sys
 from collections import Counter
-from os import path, remove
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -1090,82 +1090,83 @@ class TestRemove:
 
 
 class TestSaveLoadSFG:
-    def get_path(self, existing=False):
-        path_ = "".join(random.choices(string.ascii_uppercase, k=4)) + ".py"
-        while path.exists(path_) if not existing else not path.exists(path_):
-            path_ = "".join(random.choices(string.ascii_uppercase, k=4)) + ".py"
+    # TODO: Rewrite to use TempDir/TempFileF
+    def get_path(self, existing=False) -> Path:
+        path = Path("".join(random.choices(string.ascii_uppercase, k=4)) + ".py")
+        while path.exists() if not existing else not path.exists():
+            path = Path("".join(random.choices(string.ascii_uppercase, k=4)) + ".py")
 
-        return path_
+        return path
 
     def test_save_simple_sfg(self, sfg_simple_filter):
         result = sfg_to_python(sfg_simple_filter)
-        path_ = self.get_path()
+        path = self.get_path()
 
-        assert not path.exists(path_)
-        with open(path_, "w") as file_obj:
+        assert not path.exists()
+        with path.open("w") as file_obj:
             file_obj.write(result)
 
-        assert path.exists(path_)
+        assert path.exists()
 
-        with open(path_) as file_obj:
+        with path.open() as file_obj:
             assert file_obj.read() == result
 
-        remove(path_)
+        path.unlink()
 
     def test_save_complex_sfg(self, precedence_sfg_delays_and_constants):
         result = sfg_to_python(precedence_sfg_delays_and_constants)
-        path_ = self.get_path()
+        path = self.get_path()
 
-        assert not path.exists(path_)
-        with open(path_, "w") as file_obj:
+        assert not path.exists()
+        with path.open("w") as file_obj:
             file_obj.write(result)
 
-        assert path.exists(path_)
+        assert path.exists()
 
-        with open(path_) as file_obj:
+        with path.open() as file_obj:
             assert file_obj.read() == result
 
-        remove(path_)
+        path.unlink()
 
     def test_load_simple_sfg(self, sfg_simple_filter):
         result = sfg_to_python(sfg_simple_filter)
-        path_ = self.get_path()
+        path = self.get_path()
 
-        assert not path.exists(path_)
-        with open(path_, "w") as file_obj:
+        assert not path.exists()
+        with path.open("w") as file_obj:
             file_obj.write(result)
 
-        assert path.exists(path_)
+        assert path.exists()
 
-        simple_filter_, _ = python_to_sfg(path_)
+        simple_filter_, _ = python_to_sfg(path)
 
         assert str(sfg_simple_filter) == str(simple_filter_)
         assert sfg_simple_filter.evaluate([2]) == simple_filter_.evaluate([2])
 
-        remove(path_)
+        path.unlink()
 
     def test_load_complex_sfg(self, precedence_sfg_delays_and_constants):
         result = sfg_to_python(precedence_sfg_delays_and_constants)
-        path_ = self.get_path()
+        path = self.get_path()
 
-        assert not path.exists(path_)
-        with open(path_, "w") as file_obj:
+        assert not path.exists()
+        with path.open("w") as file_obj:
             file_obj.write(result)
 
-        assert path.exists(path_)
+        assert path.exists()
 
-        precedence_sfg_registers_and_constants_, _ = python_to_sfg(path_)
+        precedence_sfg_registers_and_constants_, _ = python_to_sfg(path)
 
         assert str(precedence_sfg_delays_and_constants) == str(
             precedence_sfg_registers_and_constants_
         )
 
-        remove(path_)
+        path.unlink()
 
     def test_load_invalid_path(self):
-        path_ = self.get_path(existing=False)
+        path = self.get_path(existing=False)
         with pytest.raises(FileNotFoundError):
-            python_to_sfg(path_)
+            python_to_sfg(path)
 
 
 class TestGetComponentsOfType:

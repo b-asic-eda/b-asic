@@ -4,7 +4,7 @@ B-ASIC Drag Button Module.
 Contains a GUI class for drag buttons.
 """
 
-import os.path
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QSize, Qt, Signal
@@ -177,13 +177,12 @@ class DragButton(QPushButton):
             " border-style: solid;        border-color: black;"
             " border-width: 2px"
         )
-        path_to_image = os.path.join(
-            os.path.dirname(__file__),
-            "operation_icons",
-            f"{self.operation.type_name().lower()}"
-            f"{'_grey.png' if self.pressed else '.png'}",
+        path_to_image = (
+            Path(__file__).parent
+            / "operation_icons"
+            / f"{self.operation.type_name().lower()}{'_grey' if self.pressed else ''}.png"
         )
-        self.setIcon(QIcon(path_to_image))
+        self.setIcon(QIcon(str(path_to_image)))
         self.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
 
     def is_flipped(self) -> bool:
