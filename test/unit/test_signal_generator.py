@@ -1,4 +1,4 @@
-from math import sqrt
+import math
 
 import pytest
 
@@ -95,10 +95,10 @@ def test_sinusoid():
     assert str(g) == "Sinusoid(0.5)"
 
     g = Sinusoid(0.5, 0.25)
-    assert g(0) == pytest.approx(sqrt(2) / 2)
-    assert g(1) == pytest.approx(sqrt(2) / 2)
-    assert g(2) == pytest.approx(-sqrt(2) / 2)
-    assert g(3) == pytest.approx(-sqrt(2) / 2)
+    assert g(0) == pytest.approx(math.sqrt(2) / 2)
+    assert g(1) == pytest.approx(math.sqrt(2) / 2)
+    assert g(2) == pytest.approx(-math.sqrt(2) / 2)
+    assert g(3) == pytest.approx(-math.sqrt(2) / 2)
 
     assert str(g) == "Sinusoid(0.5, 0.25)"
 
@@ -228,19 +228,19 @@ def test_multiplication():
     assert isinstance(g, _MulGenerator)
 
     g = 2 * Sinusoid(0.5, 0.25)
-    assert g(0) == pytest.approx(sqrt(2))
-    assert g(1) == pytest.approx(sqrt(2))
-    assert g(2) == pytest.approx(-sqrt(2))
-    assert g(3) == pytest.approx(-sqrt(2))
+    assert g(0) == pytest.approx(math.sqrt(2))
+    assert g(1) == pytest.approx(math.sqrt(2))
+    assert g(2) == pytest.approx(-math.sqrt(2))
+    assert g(3) == pytest.approx(-math.sqrt(2))
 
     assert str(g) == "2 * Sinusoid(0.5, 0.25)"
     assert isinstance(g, _MulGenerator)
 
     g = Step(1) * (Sinusoid(0.5, 0.25) + 1.0)
     assert g(0) == 0
-    assert g(1) == pytest.approx(sqrt(2) / 2 + 1)
-    assert g(2) == pytest.approx(-sqrt(2) / 2 + 1)
-    assert g(3) == pytest.approx(-sqrt(2) / 2 + 1)
+    assert g(1) == pytest.approx(math.sqrt(2) / 2 + 1)
+    assert g(2) == pytest.approx(-math.sqrt(2) / 2 + 1)
+    assert g(3) == pytest.approx(-math.sqrt(2) / 2 + 1)
 
     assert str(g) == "Step(1) * (Sinusoid(0.5, 0.25) + 1.0)"
     assert isinstance(g, _MulGenerator)
@@ -265,10 +265,10 @@ def test_division():
     assert isinstance(g, _DivGenerator)
 
     g = Sinusoid(0.5, 0.25) / (0.5 * Step())
-    assert g(0) == pytest.approx(sqrt(2))
-    assert g(1) == pytest.approx(sqrt(2))
-    assert g(2) == pytest.approx(-sqrt(2))
-    assert g(3) == pytest.approx(-sqrt(2))
+    assert g(0) == pytest.approx(math.sqrt(2))
+    assert g(1) == pytest.approx(math.sqrt(2))
+    assert g(2) == pytest.approx(-math.sqrt(2))
+    assert g(3) == pytest.approx(-math.sqrt(2))
 
     assert str(g) == "Sinusoid(0.5, 0.25) / (0.5 * Step())"
     assert isinstance(g, _DivGenerator)
@@ -319,13 +319,13 @@ def test_upsample():
     assert str(g) == "Upsample(ZeroPad([0.4, 0.6]), 3, 0)"
 
     g = Upsample(Sinusoid(0.5, 0.25), 3)
-    assert g(0) == pytest.approx(sqrt(2) / 2)
+    assert g(0) == pytest.approx(math.sqrt(2) / 2)
     assert g(1) == 0.0
     assert g(2) == 0.0
-    assert g(3) == pytest.approx(sqrt(2) / 2)
+    assert g(3) == pytest.approx(math.sqrt(2) / 2)
     assert g(4) == 0.0
     assert g(5) == 0.0
-    assert g(6) == pytest.approx(-sqrt(2) / 2)
+    assert g(6) == pytest.approx(-math.sqrt(2) / 2)
 
     assert str(g) == "Upsample(Sinusoid(0.5, 0.25), 3, 0)"
 

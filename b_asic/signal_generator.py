@@ -11,8 +11,8 @@ This is handled by a number of private generator classes. Check out the source c
 if you want more information.
 """
 
+import math
 from collections.abc import Sequence
-from math import pi, sin
 from numbers import Number
 
 import numpy as np
@@ -236,7 +236,7 @@ class Sinusoid(SignalGenerator):
         self._phase = phase
 
     def __call__(self, time: int) -> complex:
-        return sin(pi * (self._frequency * time + self._phase))
+        return math.sin(math.pi * (self._frequency * time + self._phase))
 
     def __repr__(self) -> str:
         return (

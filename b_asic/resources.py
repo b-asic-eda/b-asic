@@ -6,12 +6,12 @@ Contains functionality for grouping processes into collections.
 
 import io
 import itertools
+import math
 import re
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator
 from functools import reduce
-from math import floor, log2
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypeVar, Union
 
@@ -784,7 +784,7 @@ class ProcessCollection:
         if title:
             height = 0.8
             fig.suptitle(title)
-        fig.set_figheight(floor(max(ax.get_ylim())) * 0.3 + height)
+        fig.set_figheight(math.floor(max(ax.get_ylim())) * 0.3 + height)
         fig.show()  # type: ignore
 
     def exclusion_graph_from_ports(
@@ -2196,7 +2196,7 @@ class ProcessCollection:
                 )
             if not input_sync:
                 raise ValueError("input_sync needs to be set to use address pipelining")
-            if not log2(adr_mux_size).is_integer():
+            if not math.log2(adr_mux_size).is_integer():
                 raise ValueError(
                     f"adr_mux_size={adr_mux_size} needs to be integer power of two"
                 )

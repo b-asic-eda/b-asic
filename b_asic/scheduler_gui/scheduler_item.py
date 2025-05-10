@@ -6,8 +6,8 @@ Contains the scheduler_gui SchedulerItem class for drawing and
 maintaining a schedule.
 """
 
+import math
 from collections import defaultdict
-from math import floor
 from pprint import pprint
 from typing import cast
 
@@ -120,7 +120,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         """
         if self.schedule is None:
             raise ValueError("No schedule installed.")
-        new_start_time = floor(pos) - floor(self._x_axis_indent)
+        new_start_time = math.floor(pos) - math.floor(self._x_axis_indent)
         slacks = self.schedule.slacks(item.graph_id)
         op_start_time = (
             self.schedule.start_time_of_operation(item.graph_id)
@@ -244,7 +244,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         """
         pos = item.x()
         op_start_time = self.schedule.start_time_of_operation(item.graph_id)
-        new_start_time = floor(pos) - floor(self._x_axis_indent)
+        new_start_time = math.floor(pos) - math.floor(self._x_axis_indent)
         move_time = new_start_time - op_start_time
         op = self._schedule._sfg.find_by_id(item.graph_id)
         if (

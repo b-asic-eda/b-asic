@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 B-ASIC Scheduler-gui Axes Item Module.
 
@@ -6,7 +5,7 @@ Contains the scheduler-gui AxesItem class for drawing and maintaining the
 axes in a graph.
 """
 
-from math import pi, sin
+import math
 
 # QGraphics and QPainter imports
 from qtpy.QtCore import QPointF, Qt
@@ -292,9 +291,9 @@ class AxesItem(QGraphicsItemGroup):
 
         # x-axis arrow
         arrow_size = 8 / self._scale
-        point_0 = QPointF(0, sin(pi / 6) * arrow_size)
+        point_0 = QPointF(0, math.sin(math.pi / 6) * arrow_size)
         point_1 = QPointF(arrow_size, 0)
-        point_2 = QPointF(0, -sin(pi / 6) * arrow_size)
+        point_2 = QPointF(0, -math.sin(math.pi / 6) * arrow_size)
         polygon = QPolygonF([point_0, point_1, point_2])
         self._x_arrow.setPolygon(polygon)
         self._x_arrow.setPen(self._base_pen)

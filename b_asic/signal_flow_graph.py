@@ -5,13 +5,13 @@ Contains the signal flow graph operation.
 """
 
 import itertools
+import math
 import re
 import warnings
 from collections import Counter, defaultdict, deque
 from collections.abc import Iterable, MutableSet, Sequence
 from fractions import Fraction
 from io import StringIO
-from math import ceil
 from queue import PriorityQueue
 from typing import Literal, Union, cast
 
@@ -1820,7 +1820,7 @@ class SFG(AbstractOperation):
             )
 
         total_exec_time = sum(exec_times)
-        return ceil(total_exec_time / schedule_time)
+        return math.ceil(total_exec_time / schedule_time)
 
     def iteration_period_bound(self) -> Fraction:
         """

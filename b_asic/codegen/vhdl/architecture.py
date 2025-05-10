@@ -2,7 +2,7 @@
 Module for code generation of VHDL architectures.
 """
 
-from math import ceil, log2
+import math
 from typing import TYPE_CHECKING, Literal, TextIO, cast
 
 from b_asic.codegen.vhdl import common, write, write_lines
@@ -82,9 +82,9 @@ def memory_based_storage(
 
     # Address generation "ROMs"
     total_roms = adr_mux_size**adr_pipe_depth
-    bits_per_mux = int(log2(adr_mux_size))
+    bits_per_mux = int(math.log2(adr_mux_size))
     elements_per_rom = int(
-        2 ** ceil(log2(schedule_time / total_roms))
+        2 ** math.ceil(math.log2(schedule_time / total_roms))
     )  # Next power-of-two
 
     # Write architecture header
@@ -128,7 +128,7 @@ def memory_based_storage(
         f,
         name="SCHEDULE_CNT_LEN",
         signal_type="integer",
-        value=ceil(log2(schedule_time)),
+        value=math.ceil(math.log2(schedule_time)),
         name_pad=16,
     )
     common.signal_declaration(
@@ -148,7 +148,7 @@ def memory_based_storage(
         f,
         name="ADR_LEN",
         signal_type="integer",
-        value=f"SCHEDULE_CNT_LEN-({int(log2(adr_mux_size))}*{adr_pipe_depth})",
+        value=f"SCHEDULE_CNT_LEN-({int(math.log2(adr_mux_size))}*{adr_pipe_depth})",
         name_pad=16,
     )
     common.alias_declaration(
