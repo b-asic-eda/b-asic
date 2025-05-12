@@ -2249,14 +2249,14 @@ class ProcessCollection:
                 short.append(process)
             else:
                 if isinstance(process, MemoryProcess):
-                    # Split this MultiReadProcess into two new processes
+                    # Split this MemoryProcess into two new processes
                     p_short, p_long = process.split_on_length(length)
                     if p_short is not None:
                         short.append(p_short)
                     if p_long is not None:
                         long.append(p_long)
                 else:
-                    # Not a MultiReadProcess: has only a single read
+                    # Not a MemoryProcess: has only a single read
                     long.append(process)
         return (
             ProcessCollection(short, self.schedule_time, self._cyclic),

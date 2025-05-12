@@ -211,7 +211,7 @@ def sfg_custom_operation():
             )
 
         @classmethod
-        def type_name(self) -> TypeName:
+        def type_name(cls) -> TypeName:
             return "custom"
 
         def evaluate(self, a):

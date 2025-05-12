@@ -165,15 +165,15 @@ class MemoryProcess(Process):
 
     @property
     def reads(self) -> dict[Any, int]:
-        raise NotImplementedError("MultiReadProcess should be derived from")
+        raise NotImplementedError("MemoryProcess should be derived from")
 
     @property
     def read_ports(self) -> list[Any]:
-        raise NotImplementedError("MultiReadProcess should be derived from")
+        raise NotImplementedError("MemoryProcess should be derived from")
 
     @property
     def write_port(self) -> Any:
-        raise NotImplementedError("MultiReadProcess should be derived from")
+        raise NotImplementedError("MemoryProcess should be derived from")
 
     def split_on_length(
         self,
@@ -203,7 +203,7 @@ class MemoryProcess(Process):
         long_process = None
         if short_reads:
             # Create a new Process of type self (which is a derived variant of
-            # MultiReadProcess) by calling the self constructor
+            # MemoryProcess) by calling the self constructor
             short_process = type(self)(
                 self.start_time,  # type: ignore
                 self.write_port,  # type: ignore
@@ -212,7 +212,7 @@ class MemoryProcess(Process):
             )
         if long_reads:
             # Create a new Process of type self (which is a derived variant of
-            # MultiReadProcess) by calling the self constructor
+            # MemoryProcess) by calling the self constructor
             long_process = type(self)(
                 self.start_time,  # type: ignore
                 self.write_port,  # type: ignore
@@ -223,19 +223,19 @@ class MemoryProcess(Process):
 
     def _add_life_time(self, life_time: int) -> None:
         """
-        Add a lifetime to this :class:`~b_asic.process.MultiReadProcess` set of
+        Add a lifetime to this :class:`~b_asic.process.MemoryProcess` set of
         lifetimes.
 
         If the lifetime specified by ``life_time`` is already in this
-        :class:`~b_asic.process.MultiReadProcess`, nothing happens
+        :class:`~b_asic.process.MemoryProcess`, nothing happens
 
-        After adding a lifetime from this :class:`~b_asic.process.MultiReadProcess`,
+        After adding a lifetime from this :class:`~b_asic.process.MemoryProcess`,
         the execution time is re-evaluated.
 
         Parameters
         ----------
         life_time : int
-            The lifetime to add to this :class:`~b_asic.process.MultiReadProcess`.
+            The lifetime to add to this :class:`~b_asic.process.MemoryProcess`.
         """
         if life_time not in self.life_times:
             self._life_times.append(life_time)
@@ -243,19 +243,19 @@ class MemoryProcess(Process):
 
     def _remove_life_time(self, life_time: int) -> None:
         """
-        Remove a lifetime from this :class:`~b_asic.process.MultiReadProcess`
+        Remove a lifetime from this :class:`~b_asic.process.MemoryProcess`
         set of lifetimes.
 
-        After removing a lifetime from this :class:`~b_asic.process.MultiReadProcess`,
+        After removing a lifetime from this :class:`~b_asic.process.MemoryProcess`,
         the execution time is re-evaluated.
 
         Raises :class:`KeyError` if the specified lifetime is not a lifetime of this
-        :class:`~b_asic.process.MultiReadProcess`.
+        :class:`~b_asic.process.MemoryProcess`.
 
         Parameters
         ----------
         life_time : int
-            The lifetime to remove from this :class:`~b_asic.process.MultiReadProcess`.
+            The lifetime to remove from this :class:`~b_asic.process.MemoryProcess`.
         """
         if life_time not in self.life_times:
             raise KeyError(

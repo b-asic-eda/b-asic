@@ -563,7 +563,7 @@ class SFGMainWindow(QMainWindow):
                 and signal_destination_index == signal_2_destination_index
             )
 
-        for _pressed_op in self._pressed_operations:
+        for _ in self._pressed_operations:
             for operation in sfg.operations:
                 for input_ in operation.inputs:
                     for signal in input_.signals:

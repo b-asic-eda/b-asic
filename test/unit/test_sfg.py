@@ -1768,7 +1768,7 @@ class TestGetUsedTypeNames:
         assert sfg.get_used_type_names() == ["add", "c", "out"]
 
 
-class Test_Keep_GraphIDs:
+class TestKeepGraphIDs:
     def test_single_accumulator(self):
         i = Input()
         d = Delay()

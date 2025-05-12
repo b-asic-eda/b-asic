@@ -527,24 +527,8 @@ class Memory(Resource):
             read_ports, write_ports, total_ports = _sanitize_port_option(
                 read_ports, write_ports, total_ports
             )
-        read_ports_bound = self._collection.read_ports_bound()
-        if read_ports is None:
-            self._output_count = read_ports_bound
-        else:
-            if read_ports < read_ports_bound:
-                raise ValueError(f"At least {read_ports_bound} read ports required")
-            self._output_count = read_ports
-        write_ports_bound = self._collection.write_ports_bound()
-        if write_ports is None:
-            self._input_count = write_ports_bound
-        else:
-            if write_ports < write_ports_bound:
-                raise ValueError(f"At least {write_ports_bound} write ports required")
-            self._input_count = write_ports
 
-        total_ports_bound = self._collection.total_ports_bound()
-        if total_ports is not None and total_ports < total_ports_bound:
-            raise ValueError(f"At least {total_ports_bound} total ports required")
+        self._validate_ports_in_bounds(read_ports, write_ports, total_ports)
 
         self._memory_type = memory_type
         if assign:
@@ -561,6 +545,27 @@ class Memory(Resource):
     def __iter__(self) -> Iterator[MemoryVariable]:
         # Add information about the iterator type
         return cast(Iterator[MemoryVariable], iter(self._collection))
+
+    def _validate_ports_in_bounds(self, read_ports, write_ports, total_ports):
+        read_ports_bound = self._collection.read_ports_bound()
+        if read_ports is None:
+            self._output_count = read_ports_bound
+        else:
+            if read_ports < read_ports_bound:
+                raise ValueError(f"At least {read_ports_bound} read ports required")
+            self._output_count = read_ports
+
+        write_ports_bound = self._collection.write_ports_bound()
+        if write_ports is None:
+            self._input_count = write_ports_bound
+        else:
+            if write_ports < write_ports_bound:
+                raise ValueError(f"At least {write_ports_bound} write ports required")
+            self._input_count = write_ports
+
+        total_ports_bound = self._collection.total_ports_bound()
+        if total_ports is not None and total_ports < total_ports_bound:
+            raise ValueError(f"At least {total_ports_bound} total ports required")
 
     def _info(self) -> str:
         if self.is_assigned:
