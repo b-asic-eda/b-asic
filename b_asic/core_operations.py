@@ -1148,7 +1148,7 @@ class MADS(AbstractOperation):
 
     @is_add.setter
     def is_add(self, is_add: bool) -> None:
-        """Setwhether to add or subtract with the product."""
+        """Set whether to add or subtract with the product."""
         self.set_param("is_add", is_add)
 
     @property
