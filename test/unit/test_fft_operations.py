@@ -1,6 +1,11 @@
 """B-ASIC test suite for fft operations."""
 
-from b_asic.fft_operations import R2Butterfly, R2DIFButterfly, R2DITButterfly
+from b_asic.fft_operations import (
+    R2Butterfly,
+    R2DIFButterfly,
+    R2DITButterfly,
+    R2TFButterfly,
+)
 
 
 class TestR2Butterfly:
@@ -80,3 +85,36 @@ class TestR2DITButterfly:
         assert test_operation.w == 3
         assert test_operation.evaluate_output(0, [2, 3]) == 11
         assert test_operation.evaluate_output(1, [2, 3]) == -7
+
+
+class TestR2TFButterfly:
+    """Tests for the R2TFButterfly class."""
+
+    def test_positive(self):
+        test_operation = R2TFButterfly(w0=2, w1=3)
+        assert test_operation.evaluate_output(0, [2, 3]) == 10
+        assert test_operation.evaluate_output(1, [2, 3]) == -3
+
+    def test_negative(self):
+        test_operation = R2TFButterfly(w0=-2, w1=-4)
+        assert test_operation.evaluate_output(0, [-2, -3]) == 10
+        assert test_operation.evaluate_output(1, [-2, -3]) == -4
+
+    def test_complex(self):
+        test_operation = R2TFButterfly(w0=-3 + 5j, w1=5 - 7j)
+        assert test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == -10 + 28j
+        assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == 16 + 22j
+
+    def test_set_and_get_w(self):
+        test_operation = R2TFButterfly(w0=1, w1=2)
+        assert test_operation.w0 == 1
+        assert test_operation.w1 == 2
+        assert test_operation.evaluate_output(0, [2, 3]) == 5
+        assert test_operation.evaluate_output(1, [2, 3]) == -2
+
+        test_operation.w0 = 3
+        test_operation.w1 = 4
+        assert test_operation.w0 == 3
+        assert test_operation.w1 == 4
+        assert test_operation.evaluate_output(0, [2, 3]) == 15
+        assert test_operation.evaluate_output(1, [2, 3]) == -4

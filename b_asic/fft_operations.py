@@ -274,3 +274,113 @@ class R2DITButterfly(AbstractOperation):
     def w(self, w: complex) -> None:
         """Set the twiddle factor."""
         self.set_param("w", w)
+
+
+class R2TFButterfly(AbstractOperation):
+    r"""
+    Radix-2 butterfly operation for FFTs with twiddle factor (TF) multiplications at both outputs.
+
+    Gives the result of adding its two inputs, as well as the result of subtracting the
+    second input from the first one. This corresponds to a 2-point DFT.
+    Both outputs are multiplied with the provided TFs.
+
+    .. math::
+        \begin{eqnarray}
+        y_0 & = & w_0(x_0 + x_1)\\
+        y_1 & = & w_1(x_0 - x_1)
+        \end{eqnarray}
+
+    Parameters
+    ----------
+    w0: complex
+        Twiddle factor to multiply the first output with.
+    w1: complex
+        Twiddle factor to multiply the second output with.
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to compute the 2-point DFT of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        corresponds to *src1* arriving one time unit later than *src0* and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+        "_src0",
+        "_src1",
+        "_w0",
+        "_w1",
+    )
+    _w0: complex
+    _w1: complex
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    is_linear = True
+
+    def __init__(
+        self,
+        w0: complex,
+        w1: complex,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """Construct a R2TFButterfly operation."""
+        super().__init__(
+            input_count=2,
+            output_count=2,
+            name=Name(name),
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self.set_param("w0", w0)
+        self.set_param("w1", w1)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("r2tfbfly")
+
+    def evaluate(self, a, b) -> Num:
+        return self.w0 * (a + b), self.w1 * (a - b)
+
+    @property
+    def w0(self) -> complex:
+        """Get the twiddle factor that the first output is multiplied with."""
+        return self.param("w0")
+
+    @w0.setter
+    def w0(self, w0: complex) -> None:
+        """Set the twiddle factor that the first output is multiplied with."""
+        self.set_param("w0", w0)
+
+    @property
+    def w1(self) -> complex:
+        """Get the twiddle factor that the second output is multiplied with."""
+        return self.param("w1")
+
+    @w1.setter
+    def w1(self, w1: complex) -> None:
+        """Set the twiddle factor that the second output is multiplied with."""
+        self.set_param("w1", w1)

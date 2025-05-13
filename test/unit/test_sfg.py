@@ -1834,8 +1834,8 @@ class TestResourceLowerBound:
         assert sfg.resource_lower_bound("cmul", 1000) == 0
 
     def test_type_not_in_sfg(self, sfg_simple_accumulator):
-        assert sfg_simple_accumulator.resource_lower_bound("bflyr2", 2) == 0
-        assert sfg_simple_accumulator.resource_lower_bound("bflyr2", 1000) == 0
+        assert sfg_simple_accumulator.resource_lower_bound("r2bfly", 2) == 0
+        assert sfg_simple_accumulator.resource_lower_bound("r2bfly", 1000) == 0
 
     def test_negative_schedule_time(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type_name("add", 2)
