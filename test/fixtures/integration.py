@@ -1,7 +1,8 @@
 import pytest
 
 from b_asic.architecture import ProcessingElement
-from b_asic.core_operations import Butterfly, ConstantMultiplication
+from b_asic.core_operations import ConstantMultiplication
+from b_asic.fft_operations import R2Butterfly
 from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
 from b_asic.sfg_generators import radix_2_dif_fft
@@ -12,13 +13,13 @@ from b_asic.special_operations import Input, Output
 def mem_variables_fft16():
     POINTS = 16
     sfg = radix_2_dif_fft(POINTS)
-    sfg.set_latency_of_type(Butterfly, 1)
+    sfg.set_latency_of_type(R2Butterfly, 1)
     sfg.set_latency_of_type(ConstantMultiplication, 3)
-    sfg.set_execution_time_of_type(Butterfly, 1)
+    sfg.set_execution_time_of_type(R2Butterfly, 1)
     sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
     resources = {
-        Butterfly.type_name(): 2,
+        R2Butterfly.type_name(): 2,
         ConstantMultiplication.type_name(): 2,
         Input.type_name(): 1,
         Output.type_name(): 1,
@@ -31,7 +32,7 @@ def mem_variables_fft16():
     )
 
     operations = schedule.get_operations()
-    bfs = operations.get_by_type_name(Butterfly.type_name())
+    bfs = operations.get_by_type_name(R2Butterfly.type_name())
     bfs = bfs.split_on_execution_time()
     const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
     inputs = operations.get_by_type_name(Input.type_name())
@@ -56,13 +57,13 @@ def mem_variables_fft16():
 def mem_variables_fft32():
     POINTS = 32
     sfg = radix_2_dif_fft(POINTS)
-    sfg.set_latency_of_type(Butterfly, 1)
+    sfg.set_latency_of_type(R2Butterfly, 1)
     sfg.set_latency_of_type(ConstantMultiplication, 3)
-    sfg.set_execution_time_of_type(Butterfly, 1)
+    sfg.set_execution_time_of_type(R2Butterfly, 1)
     sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
     resources = {
-        Butterfly.type_name(): 2,
+        R2Butterfly.type_name(): 2,
         ConstantMultiplication.type_name(): 2,
         Input.type_name(): 1,
         Output.type_name(): 1,
@@ -75,7 +76,7 @@ def mem_variables_fft32():
     )
 
     operations = schedule.get_operations()
-    bfs = operations.get_by_type_name(Butterfly.type_name())
+    bfs = operations.get_by_type_name(R2Butterfly.type_name())
     bfs = bfs.split_on_execution_time()
     const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
     const_muls = const_muls.split_on_execution_time()

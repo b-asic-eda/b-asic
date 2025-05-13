@@ -1,6 +1,6 @@
 import pytest
 
-from b_asic import Addition, Butterfly, Constant
+from b_asic import Addition, Constant, R2Butterfly
 
 
 @pytest.fixture
@@ -93,14 +93,14 @@ def butterfly_operation_tree():
          |       |               |       |                  |       |
     4 ---+       +--- (2 - 4) ---+       +--- (6 - (-2)) ---+       +--- (4 - 8) ---> out2 = -4
     """
-    return Butterfly(
+    return R2Butterfly(
         *(
-            Butterfly(
-                *(Butterfly(Constant(2), Constant(4), name="bfly3").outputs),
-                name="bfly2",
+            R2Butterfly(
+                *(R2Butterfly(Constant(2), Constant(4), name="r2bfly3").outputs),
+                name="r2bfly2",
             ).outputs
         ),
-        name="bfly1",
+        name="r2bfly1",
     )
 
 

@@ -6,7 +6,8 @@ Automatic scheduling with custom IO times
 It is possible to specify the IO times and provide those to the scheduling.
 """
 
-from b_asic.core_operations import Butterfly, ConstantMultiplication
+from b_asic.core_operations import ConstantMultiplication
+from b_asic.fft_operations import R2Butterfly
 from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
@@ -21,9 +22,9 @@ sfg
 
 # %%
 # Set latencies and execution times.
-sfg.set_latency_of_type(Butterfly, 1)
+sfg.set_latency_of_type(R2Butterfly, 1)
 sfg.set_latency_of_type(ConstantMultiplication, 3)
-sfg.set_execution_time_of_type(Butterfly, 1)
+sfg.set_execution_time_of_type(R2Butterfly, 1)
 sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
 # %%
@@ -41,7 +42,7 @@ schedule_t.show()
 # %%
 # Generate a non-cyclic Schedule from HybridScheduler with custom IO times,
 # one input and output per time unit and one butterfly/multiplication per time unit.
-resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 schedule2 = Schedule(
     sfg,
     scheduler=HybridScheduler(

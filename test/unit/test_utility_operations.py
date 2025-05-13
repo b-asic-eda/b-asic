@@ -5,10 +5,10 @@ import pytest
 from b_asic import (
     SFG,
     Addition,
-    Butterfly,
     DontCare,
     Input,
     Output,
+    R2Butterfly,
     Sink,
 )
 
@@ -42,7 +42,7 @@ class TestDontCare:
 
 class TestSink:
     def test_create_sfg_with_sink(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
         sfg = bfly.to_sfg()
         s = Sink()
         with pytest.warns(UserWarning, match="Output port out0 has been removed"):

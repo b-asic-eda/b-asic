@@ -4,13 +4,13 @@ from b_asic import (
     SFG,
     AbstractOperation,
     Addition,
-    Butterfly,
     Constant,
     ConstantMultiplication,
     Delay,
     Input,
     Name,
     Output,
+    R2Butterfly,
     Signal,
     SignalSourceProvider,
     TypeName,
@@ -279,7 +279,7 @@ def precedence_sfg_delays_and_constants():
     add3 = Addition(a1, a2, "ADD3")
     a0 = ConstantMultiplication(7, Q1, "A0")
     # Replace ADD4 with a butterfly to test multiple output ports
-    bfly1 = Butterfly(a0, add3, "BFLY1")
+    bfly1 = R2Butterfly(a0, add3, "BFLY1")
     out1 = Output(bfly1.output(0), "OUT1")
     Output(bfly1.output(1), "OUT2")
 

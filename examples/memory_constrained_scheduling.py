@@ -6,7 +6,8 @@ Memory Constrained Scheduling
 """
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
-from b_asic.core_operations import Butterfly, ConstantMultiplication
+from b_asic.core_operations import ConstantMultiplication
+from b_asic.fft_operations import R2Butterfly
 from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
@@ -21,9 +22,9 @@ sfg
 
 # %%
 # Set latencies and execution times.
-sfg.set_latency_of_type(Butterfly, 3)
+sfg.set_latency_of_type(R2Butterfly, 3)
 sfg.set_latency_of_type(ConstantMultiplication, 2)
-sfg.set_execution_time_of_type(Butterfly, 1)
+sfg.set_execution_time_of_type(R2Butterfly, 1)
 sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
 # # %%
@@ -33,7 +34,7 @@ schedule1.show()
 
 # %%
 # Generate a PE constrained HybridSchedule
-resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 schedule2 = Schedule(sfg, scheduler=HybridScheduler(resources))
 schedule2.show()
 
@@ -44,8 +45,8 @@ print("Max write ports:", mem_vars.write_ports_bound())
 
 # %%
 operations = schedule2.get_operations()
-bfs = operations.get_by_type_name(Butterfly.type_name())
-bfs.show(title="Butterfly executions")
+bfs = operations.get_by_type_name(R2Butterfly.type_name())
+bfs.show(title="R2Butterfly executions")
 const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
 const_muls.show(title="ConstMul executions")
 inputs = operations.get_by_type_name(Input.type_name())
@@ -88,7 +89,7 @@ arch
 
 # %%
 # Generate another HybridSchedule but this time constrain the amount of reads and writes to reduce the amount of memories
-resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 schedule3 = Schedule(
     sfg,
     scheduler=HybridScheduler(
@@ -104,8 +105,8 @@ print("Max write ports:", mem_vars.write_ports_bound())
 
 # %% Proceed to construct PEs and plot executions and non-direct memory variables
 operations = schedule3.get_operations()
-bfs = operations.get_by_type_name(Butterfly.type_name())
-bfs.show(title="Butterfly executions")
+bfs = operations.get_by_type_name(R2Butterfly.type_name())
+bfs.show(title="R2Butterfly executions")
 const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
 const_muls.show(title="ConstMul executions")
 inputs = operations.get_by_type_name(Input.type_name())

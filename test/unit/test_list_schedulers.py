@@ -8,10 +8,10 @@ from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import (
     MADS,
     Addition,
-    Butterfly,
     ConstantMultiplication,
     Reciprocal,
 )
+from b_asic.fft_operations import R2Butterfly
 from b_asic.list_schedulers import (
     EarliestDeadlineScheduler,
     HybridScheduler,
@@ -158,11 +158,11 @@ class TestEarliestDeadlineScheduler:
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 2,
+            R2Butterfly.type_name(): 2,
             ConstantMultiplication.type_name(): 2,
             Input.type_name(): sys.maxsize,
             Output.type_name(): sys.maxsize,
@@ -180,25 +180,25 @@ class TestEarliestDeadlineScheduler:
             "in5": 0,
             "in6": 0,
             "in7": 0,
-            "bfly6": 0,
-            "bfly8": 0,
+            "r2bfly6": 0,
+            "r2bfly8": 0,
             "cmul2": 1,
             "cmul3": 1,
-            "bfly11": 1,
-            "bfly7": 1,
+            "r2bfly11": 1,
+            "r2bfly7": 1,
             "cmul0": 2,
-            "bfly0": 2,
+            "r2bfly0": 2,
             "cmul4": 2,
-            "bfly5": 3,
-            "bfly1": 3,
+            "r2bfly5": 3,
+            "r2bfly1": 3,
             "cmul1": 4,
-            "bfly2": 4,
-            "bfly9": 4,
-            "bfly10": 5,
-            "bfly3": 5,
+            "r2bfly2": 4,
+            "r2bfly9": 4,
+            "r2bfly10": 5,
+            "r2bfly3": 5,
             "out0": 5,
             "out4": 5,
-            "bfly4": 6,
+            "r2bfly4": 6,
             "out1": 6,
             "out2": 6,
             "out5": 6,
@@ -336,11 +336,11 @@ class TestLeastSlackTimeScheduler:
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 2,
+            R2Butterfly.type_name(): 2,
             ConstantMultiplication.type_name(): 2,
             Input.type_name(): sys.maxsize,
             Output.type_name(): sys.maxsize,
@@ -358,25 +358,25 @@ class TestLeastSlackTimeScheduler:
             "in5": 0,
             "in6": 0,
             "in7": 0,
-            "bfly6": 0,
-            "bfly8": 0,
+            "r2bfly6": 0,
+            "r2bfly8": 0,
             "cmul2": 1,
             "cmul3": 1,
-            "bfly11": 1,
-            "bfly7": 1,
+            "r2bfly11": 1,
+            "r2bfly7": 1,
             "cmul0": 2,
-            "bfly0": 2,
+            "r2bfly0": 2,
             "cmul4": 2,
-            "bfly5": 3,
-            "bfly1": 3,
+            "r2bfly5": 3,
+            "r2bfly1": 3,
             "cmul1": 4,
-            "bfly2": 4,
-            "bfly9": 4,
-            "bfly10": 5,
-            "bfly3": 5,
+            "r2bfly2": 4,
+            "r2bfly9": 4,
+            "r2bfly10": 5,
+            "r2bfly3": 5,
             "out0": 5,
             "out4": 5,
-            "bfly4": 6,
+            "r2bfly4": 6,
             "out1": 6,
             "out2": 6,
             "out5": 6,
@@ -514,11 +514,11 @@ class TestHybridScheduler:
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 2,
+            R2Butterfly.type_name(): 2,
             ConstantMultiplication.type_name(): 2,
             Input.type_name(): sys.maxsize,
             Output.type_name(): sys.maxsize,
@@ -534,25 +534,25 @@ class TestHybridScheduler:
             "in5": 0,
             "in6": 0,
             "in7": 0,
-            "bfly6": 0,
-            "bfly8": 0,
+            "r2bfly6": 0,
+            "r2bfly8": 0,
             "cmul2": 1,
             "cmul3": 1,
-            "bfly11": 1,
-            "bfly7": 1,
+            "r2bfly11": 1,
+            "r2bfly7": 1,
             "cmul0": 2,
-            "bfly0": 2,
+            "r2bfly0": 2,
             "cmul4": 2,
-            "bfly5": 3,
-            "bfly1": 3,
+            "r2bfly5": 3,
+            "r2bfly1": 3,
             "cmul1": 4,
-            "bfly2": 4,
-            "bfly9": 4,
-            "bfly10": 5,
-            "bfly3": 5,
+            "r2bfly2": 4,
+            "r2bfly9": 4,
+            "r2bfly10": 5,
+            "r2bfly3": 5,
             "out0": 5,
             "out4": 5,
-            "bfly4": 6,
+            "r2bfly4": 6,
             "out1": 6,
             "out2": 6,
             "out5": 6,
@@ -568,11 +568,11 @@ class TestHybridScheduler:
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 2,
+            R2Butterfly.type_name(): 2,
             ConstantMultiplication.type_name(): 2,
             Input.type_name(): sys.maxsize,
             Output.type_name(): 1,
@@ -588,24 +588,24 @@ class TestHybridScheduler:
             "in5": 0,
             "in6": 0,
             "in7": 0,
-            "bfly6": 0,
-            "bfly8": 0,
+            "r2bfly6": 0,
+            "r2bfly8": 0,
             "cmul2": 1,
             "cmul3": 1,
-            "bfly11": 1,
-            "bfly7": 1,
+            "r2bfly11": 1,
+            "r2bfly7": 1,
             "cmul0": 2,
-            "bfly0": 2,
+            "r2bfly0": 2,
             "cmul4": 2,
-            "bfly5": 3,
-            "bfly1": 3,
+            "r2bfly5": 3,
+            "r2bfly1": 3,
             "cmul1": 4,
-            "bfly2": 4,
-            "bfly9": 4,
-            "bfly10": 5,
-            "bfly3": 5,
+            "r2bfly2": 4,
+            "r2bfly9": 4,
+            "r2bfly10": 5,
+            "r2bfly3": 5,
             "out0": 5,
-            "bfly4": 6,
+            "r2bfly4": 6,
             "out2": 6,
             "out3": 7,
             "out7": 8,
@@ -622,13 +622,13 @@ class TestHybridScheduler:
     def test_radix_2_fft_8_points_specified_IO_times_cyclic(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 3)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 3)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 1,
+            R2Butterfly.type_name(): 1,
             ConstantMultiplication.type_name(): 1,
             Input.type_name(): sys.maxsize,
             Output.type_name(): sys.maxsize,
@@ -671,23 +671,23 @@ class TestHybridScheduler:
             "in5": 5,
             "in6": 6,
             "in7": 7,
-            "bfly0": 4,
-            "bfly8": 5,
-            "bfly11": 6,
-            "bfly6": 7,
+            "r2bfly0": 4,
+            "r2bfly8": 5,
+            "r2bfly11": 6,
+            "r2bfly6": 7,
             "cmul2": 8,
             "cmul0": 9,
-            "bfly1": 9,
+            "r2bfly1": 9,
             "cmul3": 10,
-            "bfly7": 10,
-            "bfly2": 11,
-            "bfly5": 12,
+            "r2bfly7": 10,
+            "r2bfly2": 11,
+            "r2bfly5": 12,
             "cmul4": 13,
-            "bfly9": 13,
-            "bfly3": 15,
+            "r2bfly9": 13,
+            "r2bfly3": 15,
             "cmul1": 15,
-            "bfly10": 16,
-            "bfly4": 17,
+            "r2bfly10": 16,
+            "r2bfly4": 17,
             "out0": 17,
             "out1": 18,
             "out2": 19,
@@ -726,12 +726,12 @@ class TestHybridScheduler:
     def test_radix_2_fft_8_points_specified_IO_times_non_cyclic(self):
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 3)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 3)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
-        resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
         input_times = {
             "in0": 0,
             "in1": 1,
@@ -769,23 +769,23 @@ class TestHybridScheduler:
             "in5": 5,
             "in6": 6,
             "in7": 7,
-            "bfly0": 4,
-            "bfly8": 5,
-            "bfly11": 6,
-            "bfly6": 7,
+            "r2bfly0": 4,
+            "r2bfly8": 5,
+            "r2bfly11": 6,
+            "r2bfly6": 7,
             "cmul2": 8,
             "cmul0": 9,
-            "bfly1": 9,
+            "r2bfly1": 9,
             "cmul3": 10,
-            "bfly7": 10,
-            "bfly2": 11,
-            "bfly5": 12,
+            "r2bfly7": 10,
+            "r2bfly2": 11,
+            "r2bfly5": 12,
             "cmul4": 13,
-            "bfly9": 13,
-            "bfly3": 15,
+            "r2bfly9": 13,
+            "r2bfly3": 15,
             "cmul1": 15,
-            "bfly10": 16,
-            "bfly4": 17,
+            "r2bfly10": 16,
+            "r2bfly4": 17,
             "out0": 17,
             "out1": 18,
             "out2": 19,
@@ -1184,12 +1184,12 @@ class TestHybridScheduler:
         POINTS = 32
         sfg = radix_2_dif_fft(POINTS)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
-        resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
         input_times = {f"in{i}": i for i in range(POINTS)}
         output_delta_times = {f"out{i}": i for i in range(POINTS)}
         schedule = Schedule(
@@ -1210,12 +1210,12 @@ class TestHybridScheduler:
     #     POINTS = 64
     #     sfg = radix_2_dif_fft(POINTS)
 
-    #     sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+    #     sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
     #     sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-    #     sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+    #     sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
     #     sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
-    #     resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+    #     resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
     #     input_times = {f"in{i}": i for i in range(POINTS)}
     #     output_delta_times = {f"out{i}": i for i in range(POINTS)}
     #     schedule = Schedule(
@@ -1238,12 +1238,12 @@ class TestHybridScheduler:
         POINTS = 32
         sfg = radix_2_dif_fft(POINTS)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
-        resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
         input_times = {f"in{i}": i for i in range(POINTS)}
         output_delta_times = {f"out{i}": i for i in range(POINTS)}
         schedule = Schedule(
@@ -1265,13 +1265,13 @@ class TestHybridScheduler:
     def test_cyclic_scheduling(self):
         sfg = radix_2_dif_fft(points=4)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 1,
+            R2Butterfly.type_name(): 1,
             ConstantMultiplication.type_name(): 1,
         }
         schedule_1 = Schedule(sfg, scheduler=HybridScheduler(resources))
@@ -1288,13 +1288,13 @@ class TestHybridScheduler:
         assert schedule_1.start_times == {
             "in1": 0,
             "in3": 1,
-            "bfly3": 1,
+            "r2bfly3": 1,
             "cmul0": 2,
             "in0": 2,
             "in2": 3,
-            "bfly0": 3,
-            "bfly1": 4,
-            "bfly2": 5,
+            "r2bfly0": 3,
+            "r2bfly1": 4,
+            "r2bfly2": 5,
             "out0": 5,
             "out1": 6,
             "out3": 7,
@@ -1320,13 +1320,13 @@ class TestHybridScheduler:
         assert schedule_2.start_times == {
             "in1": 0,
             "in3": 1,
-            "bfly3": 1,
+            "r2bfly3": 1,
             "cmul0": 2,
             "in0": 2,
             "in2": 3,
-            "bfly0": 3,
-            "bfly1": 4,
-            "bfly2": 5,
+            "r2bfly0": 3,
+            "r2bfly1": 4,
+            "r2bfly2": 5,
             "out0": 5,
             "out1": 6,
             "out3": 1,
@@ -1352,13 +1352,13 @@ class TestHybridScheduler:
         assert schedule_3.start_times == {
             "in1": 0,
             "in3": 1,
-            "bfly3": 1,
+            "r2bfly3": 1,
             "cmul0": 2,
             "in0": 2,
             "in2": 3,
-            "bfly0": 3,
-            "bfly1": 4,
-            "bfly2": 0,
+            "r2bfly0": 3,
+            "r2bfly1": 4,
+            "r2bfly2": 0,
             "out0": 5,
             "out1": 1,
             "out3": 2,
@@ -1384,14 +1384,14 @@ class TestHybridScheduler:
         assert schedule_4.start_times == {
             "in1": 0,
             "in3": 1,
-            "bfly3": 1,
+            "r2bfly3": 1,
             "cmul0": 2,
             "in0": 2,
             "in2": 3,
-            "bfly0": 3,
-            "bfly1": 0,
+            "r2bfly0": 3,
+            "r2bfly1": 0,
             "out0": 1,
-            "bfly2": 2,
+            "r2bfly2": 2,
             "out2": 2,
             "out1": 3,
             "out3": 4,
@@ -1436,18 +1436,18 @@ class TestHybridScheduler:
 
         sfg = radix_2_dif_fft(points=8)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 1,
+            R2Butterfly.type_name(): 1,
             ConstantMultiplication.type_name(): 1,
         }
         with pytest.raises(
             ValueError,
-            match="Amount of resource: bfly is not enough to realize schedule for scheduling time: 6.",
+            match="Amount of resource: r2bfly is not enough to realize schedule for scheduling time: 6.",
         ):
             Schedule(
                 sfg,
@@ -1487,13 +1487,13 @@ class TestHybridScheduler:
     def test_cyclic_scheduling_write_and_read_constrained(self):
         sfg = radix_2_dif_fft(points=4)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 1,
+            R2Butterfly.type_name(): 1,
             ConstantMultiplication.type_name(): 1,
         }
         schedule = Schedule(
@@ -1508,13 +1508,13 @@ class TestHybridScheduler:
         assert schedule.start_times == {
             "in1": 0,
             "in3": 1,
-            "bfly3": 1,
+            "r2bfly3": 1,
             "cmul0": 2,
             "in0": 2,
             "in2": 3,
-            "bfly0": 3,
-            "bfly1": 4,
-            "bfly2": 5,
+            "r2bfly0": 3,
+            "r2bfly1": 4,
+            "r2bfly2": 5,
             "out0": 5,
             "out1": 6,
             "out3": 1,
@@ -1546,13 +1546,13 @@ class TestHybridScheduler:
     def test_cyclic_scheduling_several_inputs_and_outputs(self):
         sfg = radix_2_dif_fft(points=4)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 1,
+            R2Butterfly.type_name(): 1,
             ConstantMultiplication.type_name(): 1,
             Input.type_name(): 2,
             Output.type_name(): 2,
@@ -1567,13 +1567,13 @@ class TestHybridScheduler:
     def test_invalid_output_delta_time(self):
         sfg = radix_2_dif_fft(points=4)
 
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 3)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
         resources = {
-            Butterfly.type_name(): 1,
+            R2Butterfly.type_name(): 1,
             ConstantMultiplication.type_name(): 1,
             Input.type_name(): 2,
             Output.type_name(): 2,
@@ -1795,12 +1795,12 @@ class TestListScheduler:
     def test_execution_time_not_one_port_constrained(self):
         sfg = radix_2_dif_fft(points=16)
 
-        sfg.set_latency_of_type(Butterfly, 3)
+        sfg.set_latency_of_type(R2Butterfly, 3)
         sfg.set_latency_of_type(ConstantMultiplication, 10)
-        sfg.set_execution_time_of_type(Butterfly, 2)
+        sfg.set_execution_time_of_type(R2Butterfly, 2)
         sfg.set_execution_time_of_type(ConstantMultiplication, 10)
 
-        resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 
         schedule = Schedule(
             sfg,
@@ -1833,7 +1833,7 @@ class TestListScheduler:
         _validate_recreated_sfg_fft(schedule, points=16)
 
         operations = schedule.get_operations()
-        bfs = operations.get_by_type_name(Butterfly.type_name())
+        bfs = operations.get_by_type_name(R2Butterfly.type_name())
         const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
         inputs = operations.get_by_type_name(Input.type_name())
         outputs = operations.get_by_type_name(Output.type_name())
@@ -1876,13 +1876,13 @@ class TestListScheduler:
         sfg = radix_2_dif_fft(points=16)
 
         sfg.set_latency_offsets_of_type(
-            Butterfly, {"in0": 0, "in1": 1, "out0": 2, "out1": 3}
+            R2Butterfly, {"in0": 0, "in1": 1, "out0": 2, "out1": 3}
         )
         sfg.set_latency_of_type(ConstantMultiplication, 7)
-        sfg.set_execution_time_of_type(Butterfly, 2)
+        sfg.set_execution_time_of_type(R2Butterfly, 2)
         sfg.set_execution_time_of_type(ConstantMultiplication, 5)
 
-        resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+        resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 
         schedule = Schedule(
             sfg,
@@ -1915,7 +1915,7 @@ class TestListScheduler:
         _validate_recreated_sfg_fft(schedule, points=16)
 
         operations = schedule.get_operations()
-        bfs = operations.get_by_type_name(Butterfly.type_name())
+        bfs = operations.get_by_type_name(R2Butterfly.type_name())
         const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
         inputs = operations.get_by_type_name(Input.type_name())
         outputs = operations.get_by_type_name(Output.type_name())

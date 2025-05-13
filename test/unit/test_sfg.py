@@ -13,7 +13,6 @@ import pytest
 from b_asic import Input, Output, Signal
 from b_asic.core_operations import (
     Addition,
-    Butterfly,
     Constant,
     ConstantMultiplication,
     Multiplication,
@@ -21,6 +20,7 @@ from b_asic.core_operations import (
     Subtraction,
     SymmetricTwoportAdaptor,
 )
+from b_asic.fft_operations import R2Butterfly
 from b_asic.operation import ResultKey
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 from b_asic.sfg_generators import wdf_allpass
@@ -402,7 +402,7 @@ class TestInsertComponent:
 
     def test_insert_multiple_output_ports(self, butterfly_operation_tree):
         sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
-        _sfg = sfg.insert_operation(Butterfly(name="n_bfly"), "bfly2")
+        _sfg = sfg.insert_operation(R2Butterfly(name="n_bfly"), "r2bfly2")
 
         assert sfg.evaluate() != _sfg.evaluate()
 
@@ -411,41 +411,41 @@ class TestInsertComponent:
 
         # Correctly connected old output -> new input
         assert (
-            _sfg.find_by_name("bfly3")[0].output(0).signals[0].destination.operation
+            _sfg.find_by_name("r2bfly3")[0].output(0).signals[0].destination.operation
             is _sfg.find_by_name("n_bfly")[0]
         )
         assert (
-            _sfg.find_by_name("bfly3")[0].output(1).signals[0].destination.operation
+            _sfg.find_by_name("r2bfly3")[0].output(1).signals[0].destination.operation
             is _sfg.find_by_name("n_bfly")[0]
         )
 
         # Correctly connected new input -> old output
         assert (
             _sfg.find_by_name("n_bfly")[0].input(0).signals[0].source.operation
-            is _sfg.find_by_name("bfly3")[0]
+            is _sfg.find_by_name("r2bfly3")[0]
         )
         assert (
             _sfg.find_by_name("n_bfly")[0].input(1).signals[0].source.operation
-            is _sfg.find_by_name("bfly3")[0]
+            is _sfg.find_by_name("r2bfly3")[0]
         )
 
         # Correctly connected new output -> next input
         assert (
             _sfg.find_by_name("n_bfly")[0].output(0).signals[0].destination.operation
-            is _sfg.find_by_name("bfly2")[0]
+            is _sfg.find_by_name("r2bfly2")[0]
         )
         assert (
             _sfg.find_by_name("n_bfly")[0].output(1).signals[0].destination.operation
-            is _sfg.find_by_name("bfly2")[0]
+            is _sfg.find_by_name("r2bfly2")[0]
         )
 
         # Correctly connected next input -> new output
         assert (
-            _sfg.find_by_name("bfly2")[0].input(0).signals[0].source.operation
+            _sfg.find_by_name("r2bfly2")[0].input(0).signals[0].source.operation
             is _sfg.find_by_name("n_bfly")[0]
         )
         assert (
-            _sfg.find_by_name("bfly2")[0].input(1).signals[0].source.operation
+            _sfg.find_by_name("r2bfly2")[0].input(1).signals[0].source.operation
             is _sfg.find_by_name("n_bfly")[0]
         )
 
@@ -1035,54 +1035,54 @@ class TestRemove:
 
         sfg = SFG(outputs=[out1, out2])
 
-        new_sfg = sfg.remove_operation(sfg.find_by_name("bfly2")[0].graph_id)
+        new_sfg = sfg.remove_operation(sfg.find_by_name("r2bfly2")[0].graph_id)
 
-        assert sfg.find_by_name("bfly3")[0].output(0).signal_count == 1
-        assert new_sfg.find_by_name("bfly3")[0].output(0).signal_count == 1
+        assert sfg.find_by_name("r2bfly3")[0].output(0).signal_count == 1
+        assert new_sfg.find_by_name("r2bfly3")[0].output(0).signal_count == 1
 
-        sfg_dest_0 = sfg.find_by_name("bfly3")[0].output(0).signals[0].destination
+        sfg_dest_0 = sfg.find_by_name("r2bfly3")[0].output(0).signals[0].destination
         new_sfg_dest_0 = (
-            new_sfg.find_by_name("bfly3")[0].output(0).signals[0].destination
+            new_sfg.find_by_name("r2bfly3")[0].output(0).signals[0].destination
         )
 
         assert sfg_dest_0.index == 0
         assert new_sfg_dest_0.index == 0
-        assert sfg_dest_0.operation.name == "bfly2"
-        assert new_sfg_dest_0.operation.name == "bfly1"
+        assert sfg_dest_0.operation.name == "r2bfly2"
+        assert new_sfg_dest_0.operation.name == "r2bfly1"
 
-        assert sfg.find_by_name("bfly3")[0].output(1).signal_count == 1
-        assert new_sfg.find_by_name("bfly3")[0].output(1).signal_count == 1
+        assert sfg.find_by_name("r2bfly3")[0].output(1).signal_count == 1
+        assert new_sfg.find_by_name("r2bfly3")[0].output(1).signal_count == 1
 
-        sfg_dest_1 = sfg.find_by_name("bfly3")[0].output(1).signals[0].destination
+        sfg_dest_1 = sfg.find_by_name("r2bfly3")[0].output(1).signals[0].destination
         new_sfg_dest_1 = (
-            new_sfg.find_by_name("bfly3")[0].output(1).signals[0].destination
+            new_sfg.find_by_name("r2bfly3")[0].output(1).signals[0].destination
         )
 
         assert sfg_dest_1.index == 1
         assert new_sfg_dest_1.index == 1
-        assert sfg_dest_1.operation.name == "bfly2"
-        assert new_sfg_dest_1.operation.name == "bfly1"
+        assert sfg_dest_1.operation.name == "r2bfly2"
+        assert new_sfg_dest_1.operation.name == "r2bfly1"
 
-        assert sfg.find_by_name("bfly1")[0].input(0).signal_count == 1
-        assert new_sfg.find_by_name("bfly1")[0].input(0).signal_count == 1
+        assert sfg.find_by_name("r2bfly1")[0].input(0).signal_count == 1
+        assert new_sfg.find_by_name("r2bfly1")[0].input(0).signal_count == 1
 
-        sfg_source_0 = sfg.find_by_name("bfly1")[0].input(0).signals[0].source
-        new_sfg_source_0 = new_sfg.find_by_name("bfly1")[0].input(0).signals[0].source
+        sfg_source_0 = sfg.find_by_name("r2bfly1")[0].input(0).signals[0].source
+        new_sfg_source_0 = new_sfg.find_by_name("r2bfly1")[0].input(0).signals[0].source
 
         assert sfg_source_0.index == 0
         assert new_sfg_source_0.index == 0
-        assert sfg_source_0.operation.name == "bfly2"
-        assert new_sfg_source_0.operation.name == "bfly3"
+        assert sfg_source_0.operation.name == "r2bfly2"
+        assert new_sfg_source_0.operation.name == "r2bfly3"
 
-        sfg_source_1 = sfg.find_by_name("bfly1")[0].input(1).signals[0].source
-        new_sfg_source_1 = new_sfg.find_by_name("bfly1")[0].input(1).signals[0].source
+        sfg_source_1 = sfg.find_by_name("r2bfly1")[0].input(1).signals[0].source
+        new_sfg_source_1 = new_sfg.find_by_name("r2bfly1")[0].input(1).signals[0].source
 
         assert sfg_source_1.index == 1
         assert new_sfg_source_1.index == 1
-        assert sfg_source_1.operation.name == "bfly2"
-        assert new_sfg_source_1.operation.name == "bfly3"
+        assert sfg_source_1.operation.name == "r2bfly2"
+        assert new_sfg_source_1.operation.name == "r2bfly3"
 
-        assert "bfly2" not in {op.name for op in new_sfg.operations}
+        assert "r2bfly2" not in {op.name for op in new_sfg.operations}
 
     def remove_different_number_inputs_outputs(self, sfg_simple_filter):
         with pytest.raises(ValueError, match="foo"):
@@ -1710,7 +1710,7 @@ class TestInsertComponentBefore:
         sqrt = SquareRoot()
 
         _sfg = sfg.insert_operation_before(
-            sfg.find_by_name("bfly1")[0].graph_id, sqrt, port=0
+            sfg.find_by_name("r2bfly1")[0].graph_id, sqrt, port=0
         )
         assert _sfg.evaluate() != sfg.evaluate()
 
@@ -1718,25 +1718,25 @@ class TestInsertComponentBefore:
         assert not any(isinstance(comp, SquareRoot) for comp in sfg.operations)
 
         assert not isinstance(
-            sfg.find_by_name("bfly1")[0].input(0).signals[0].source.operation,
+            sfg.find_by_name("r2bfly1")[0].input(0).signals[0].source.operation,
             SquareRoot,
         )
         assert isinstance(
-            _sfg.find_by_name("bfly1")[0].input(0).signals[0].source.operation,
+            _sfg.find_by_name("r2bfly1")[0].input(0).signals[0].source.operation,
             SquareRoot,
         )
 
         assert (
-            sfg.find_by_name("bfly1")[0].input(0).signals[0].source.operation
-            is sfg.find_by_name("bfly2")[0]
+            sfg.find_by_name("r2bfly1")[0].input(0).signals[0].source.operation
+            is sfg.find_by_name("r2bfly2")[0]
         )
         assert (
-            _sfg.find_by_name("bfly1")[0].input(0).signals[0].destination.operation
-            is not _sfg.find_by_name("bfly2")[0]
+            _sfg.find_by_name("r2bfly1")[0].input(0).signals[0].destination.operation
+            is not _sfg.find_by_name("r2bfly2")[0]
         )
         assert (
             _sfg.find_by_id("sqrt0").input(0).signals[0].source.operation
-            is _sfg.find_by_name("bfly2")[0]
+            is _sfg.find_by_name("r2bfly2")[0]
         )
 
     def test_insert_component_before_mimo_operation_error(
@@ -1800,7 +1800,7 @@ class TestKeepGraphIDs:
 class TestInsertDelays:
     def test_insert_delays_before_operation(self):
         in1 = Input()
-        bfly = Butterfly()
+        bfly = R2Butterfly()
         d1 = bfly.input(0).delay(2)
         d2 = bfly.input(1).delay(1)
         d1 <<= in1
@@ -1834,8 +1834,8 @@ class TestResourceLowerBound:
         assert sfg.resource_lower_bound("cmul", 1000) == 0
 
     def test_type_not_in_sfg(self, sfg_simple_accumulator):
-        assert sfg_simple_accumulator.resource_lower_bound("bfly", 2) == 0
-        assert sfg_simple_accumulator.resource_lower_bound("bfly", 1000) == 0
+        assert sfg_simple_accumulator.resource_lower_bound("bflyr2", 2) == 0
+        assert sfg_simple_accumulator.resource_lower_bound("bflyr2", 1000) == 0
 
     def test_negative_schedule_time(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type_name("add", 2)

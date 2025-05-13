@@ -3,10 +3,10 @@ import pytest
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import (
     MADS,
-    Butterfly,
     ConstantMultiplication,
     Reciprocal,
 )
+from b_asic.fft_operations import R2Butterfly
 from b_asic.list_schedulers import HybridScheduler
 from b_asic.resource_assigner import assign_processing_elements_and_memories
 from b_asic.schedule import Schedule
@@ -95,16 +95,16 @@ def test_pe_constrained_schedule():
 def test_pe_and_memory_constrained_schedule():
     sfg = radix_2_dif_fft(points=16)
 
-    sfg.set_latency_of_type_name(Butterfly.type_name(), 3)
+    sfg.set_latency_of_type_name(R2Butterfly.type_name(), 3)
     sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
-    sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+    sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
     sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
 
     # generate a schedule to ensure that schedule can be overwritten without bugs
     schedule = Schedule(sfg, scheduler=ASAPScheduler())
 
     # generate the real constrained schedule
-    resources = {Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
+    resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
     schedule = Schedule(
         sfg,
         scheduler=HybridScheduler(
@@ -113,7 +113,7 @@ def test_pe_and_memory_constrained_schedule():
     )
 
     operations = schedule.get_operations()
-    bfs = operations.get_by_type_name(Butterfly.type_name())
+    bfs = operations.get_by_type_name(R2Butterfly.type_name())
     const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
     inputs = operations.get_by_type_name(Input.type_name())
     outputs = operations.get_by_type_name(Output.type_name())
@@ -430,13 +430,13 @@ def test_ilp_color_total_mux(mem_variables_fft16):
 def test_ilp_resource_algorithm_custom_solver():
     POINTS = 16
     sfg = radix_2_dif_fft(POINTS)
-    sfg.set_latency_of_type(Butterfly, 3)
+    sfg.set_latency_of_type(R2Butterfly, 3)
     sfg.set_latency_of_type(ConstantMultiplication, 8)
-    sfg.set_execution_time_of_type(Butterfly, 2)
+    sfg.set_execution_time_of_type(R2Butterfly, 2)
     sfg.set_execution_time_of_type(ConstantMultiplication, 8)
 
     resources = {
-        Butterfly.type_name(): 1,
+        R2Butterfly.type_name(): 1,
         ConstantMultiplication.type_name(): 1,
         Input.type_name(): 1,
         Output.type_name(): 1,
@@ -449,7 +449,7 @@ def test_ilp_resource_algorithm_custom_solver():
     )
 
     operations = schedule.get_operations()
-    bfs = operations.get_by_type_name(Butterfly.type_name())
+    bfs = operations.get_by_type_name(R2Butterfly.type_name())
     const_muls = operations.get_by_type_name(ConstantMultiplication.type_name())
     inputs = operations.get_by_type_name(Input.type_name())
     outputs = operations.get_by_type_name(Output.type_name())
@@ -495,12 +495,12 @@ def test_ilp_resource_algorithm_custom_solver():
 def test_joint_resource_assignment():
     POINTS = 32
     sfg = radix_2_dif_fft(POINTS)
-    sfg.set_latency_of_type_name("bfly", 1)
+    sfg.set_latency_of_type_name("r2bfly", 1)
     sfg.set_latency_of_type_name("cmul", 3)
-    sfg.set_execution_time_of_type_name("bfly", 1)
+    sfg.set_execution_time_of_type_name("r2bfly", 1)
     sfg.set_execution_time_of_type_name("cmul", 1)
 
-    resources = {"bfly": 1, "cmul": 1, "in": 1, "out": 1}
+    resources = {"r2bfly": 1, "cmul": 1, "in": 1, "out": 1}
     schedule = Schedule(
         sfg,
         scheduler=HybridScheduler(
@@ -522,7 +522,7 @@ def test_joint_resource_assignment():
     assert len(arch.processing_elements) == 4
     assert len(arch.memories) == 3
 
-    resources = {"bfly": 2, "cmul": 1, "in": 1, "out": 1}
+    resources = {"r2bfly": 2, "cmul": 1, "in": 1, "out": 1}
     schedule = Schedule(
         sfg,
         scheduler=HybridScheduler(
@@ -548,12 +548,12 @@ def test_joint_resource_assignment():
 def test_joint_resource_assignment_mux_reduction():
     POINTS = 32
     sfg = radix_2_dif_fft(POINTS)
-    sfg.set_latency_of_type_name("bfly", 1)
+    sfg.set_latency_of_type_name("r2bfly", 1)
     sfg.set_latency_of_type_name("cmul", 3)
-    sfg.set_execution_time_of_type_name("bfly", 1)
+    sfg.set_execution_time_of_type_name("r2bfly", 1)
     sfg.set_execution_time_of_type_name("cmul", 1)
 
-    resources = {"bfly": 1, "cmul": 1, "in": 1, "out": 1}
+    resources = {"r2bfly": 1, "cmul": 1, "in": 1, "out": 1}
     schedule = Schedule(
         sfg,
         scheduler=HybridScheduler(
@@ -648,12 +648,12 @@ def test_separate_ilp_color_no_max_colors_provided(mem_variables_fft16):
 def test_joint_ilp_color_no_max_colors_or_resources_provided():
     # test the joint resource assigner with mux reduction can handle no colors provided
     sfg = radix_2_dif_fft(8)
-    sfg.set_latency_of_type_name("bfly", 1)
+    sfg.set_latency_of_type_name("r2bfly", 1)
     sfg.set_latency_of_type_name("cmul", 3)
-    sfg.set_execution_time_of_type_name("bfly", 1)
+    sfg.set_execution_time_of_type_name("r2bfly", 1)
     sfg.set_execution_time_of_type_name("cmul", 1)
 
-    resources = {"bfly": 1, "cmul": 1, "in": 2, "out": 1}
+    resources = {"r2bfly": 1, "cmul": 1, "in": 2, "out": 1}
     schedule = Schedule(
         sfg,
         scheduler=HybridScheduler(
@@ -700,12 +700,12 @@ def test_ilp_resource_algorithm_single_port_memory(mem_variables_fft16):
     assert len(arch.memories) <= 2 * 4  # upper bound
 
     sfg = radix_2_dif_fft(32)
-    sfg.set_latency_of_type_name("bfly", 2)
+    sfg.set_latency_of_type_name("r2bfly", 2)
     sfg.set_latency_of_type_name("cmul", 3)
-    sfg.set_execution_time_of_type_name("bfly", 2)
+    sfg.set_execution_time_of_type_name("r2bfly", 2)
     sfg.set_execution_time_of_type_name("cmul", 3)
 
-    resources = {"bfly": 1, "cmul": 1, "in": 1, "out": 2}
+    resources = {"r2bfly": 1, "cmul": 1, "in": 1, "out": 2}
     schedule = Schedule(
         sfg,
         scheduler=HybridScheduler(

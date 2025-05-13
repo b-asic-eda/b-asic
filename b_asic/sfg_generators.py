@@ -13,12 +13,12 @@ from b_asic.core_operations import (
     MAD,
     MADS,
     Addition,
-    Butterfly,
     ConstantMultiplication,
     Name,
     Reciprocal,
     SymmetricTwoportAdaptor,
 )
+from b_asic.fft_operations import R2Butterfly
 from b_asic.signal import Signal
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
@@ -738,7 +738,7 @@ def _construct_dif_fft_stage(
             input1 = ports[input1_index]
             input2 = ports[input2_index]
 
-            butterfly = Butterfly(input1, input2)
+            butterfly = R2Butterfly(input1, input2)
             output1, output2 = butterfly.outputs
 
             twiddle_factor = twiddles[bf_index]

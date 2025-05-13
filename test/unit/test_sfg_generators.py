@@ -5,11 +5,11 @@ from scipy import signal
 from b_asic.core_operations import (
     MADS,
     Addition,
-    Butterfly,
     ConstantMultiplication,
     Reciprocal,
     SymmetricTwoportAdaptor,
 )
+from b_asic.fft_operations import R2Butterfly
 from b_asic.sfg_generators import (
     direct_form_1_iir,
     direct_form_2_iir,
@@ -678,7 +678,7 @@ class TestRadix2FFT:
         assert len(sfg.inputs) == 4
         assert len(sfg.outputs) == 4
 
-        bfs = sfg.find_by_type_name(Butterfly.type_name())
+        bfs = sfg.find_by_type_name(R2Butterfly.type_name())
         assert len(bfs) == 4
 
         muls = sfg.find_by_type_name(ConstantMultiplication.type_name())
@@ -701,7 +701,7 @@ class TestRadix2FFT:
         assert len(sfg.inputs) == 8
         assert len(sfg.outputs) == 8
 
-        bfs = sfg.find_by_type_name(Butterfly.type_name())
+        bfs = sfg.find_by_type_name(R2Butterfly.type_name())
         assert len(bfs) == 12
 
         muls = sfg.find_by_type_name(ConstantMultiplication.type_name())
@@ -746,7 +746,7 @@ class TestRadix2FFT:
         assert len(sfg.inputs) == POINTS
         assert len(sfg.outputs) == POINTS
 
-        bfs = sfg.find_by_type_name(Butterfly.type_name())
+        bfs = sfg.find_by_type_name(R2Butterfly.type_name())
         assert len(bfs) == 8 * 4
 
         muls = sfg.find_by_type_name(ConstantMultiplication.type_name())

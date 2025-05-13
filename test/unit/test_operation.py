@@ -9,12 +9,12 @@ import pytest
 from b_asic import (
     MAD,
     Addition,
-    Butterfly,
     Constant,
     ConstantMultiplication,
     Division,
     LeftShift,
     Multiplication,
+    R2Butterfly,
     Reciprocal,
     RightShift,
     Shift,
@@ -44,7 +44,7 @@ class TestOperationOverloading:
         assert add5.input(0).signals[0].source.operation.value == 5
         assert add5.input(1).signals == add4.output(0).signals
 
-        bfly = Butterfly()
+        bfly = R2Butterfly()
         add6 = bfly.output(0) + add5
         assert isinstance(add6, Addition)
         assert add6.input(0).signals == bfly.output(0).signals
@@ -70,7 +70,7 @@ class TestOperationOverloading:
         assert sub3.input(0).signals[0].source.operation.value == 5
         assert sub3.input(1).signals == sub2.output(0).signals
 
-        bfly = Butterfly()
+        bfly = R2Butterfly()
         sub4 = bfly.output(0) - sub3
         assert isinstance(sub4, Subtraction)
         assert sub4.input(0).signals == bfly.output(0).signals
@@ -173,7 +173,7 @@ class TestToSfg:
         assert len(mad1_sfg.operations) == 6
 
     def test_butterfly_to_sfg(self):
-        but1 = Butterfly()
+        but1 = R2Butterfly()
         but1_sfg = but1.to_sfg()
 
         assert but1.evaluate(1, 1)[0] == but1_sfg.evaluate(1, 1)[0]
@@ -195,7 +195,7 @@ class TestToSfg:
 
 class TestLatency:
     def test_latency_constructor(self):
-        bfly = Butterfly(latency=5)
+        bfly = R2Butterfly(latency=5)
 
         assert bfly.latency == 5
         assert bfly.latency_offsets == {
@@ -206,7 +206,7 @@ class TestLatency:
         }
 
     def test_latency_offsets_constructor(self):
-        bfly = Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
+        bfly = R2Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
 
         assert bfly.latency == 8
         assert bfly.latency_offsets == {
@@ -217,7 +217,7 @@ class TestLatency:
         }
 
     def test_latency_and_latency_offsets_constructor(self):
-        bfly = Butterfly(latency=5, latency_offsets={"in1": 2, "out0": 9})
+        bfly = R2Butterfly(latency=5, latency_offsets={"in1": 2, "out0": 9})
 
         assert bfly.latency == 9
         assert bfly.latency_offsets == {
@@ -228,7 +228,7 @@ class TestLatency:
         }
 
     def test_set_latency(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
 
         bfly.set_latency(9)
 
@@ -242,7 +242,7 @@ class TestLatency:
 
     def test_set_latency_negative(self):
         with pytest.raises(ValueError, match="Latency cannot be negative"):
-            Butterfly(latency=-1)
+            R2Butterfly(latency=-1)
 
 
 class TestExecutionTime:
@@ -250,20 +250,20 @@ class TestExecutionTime:
         pass
 
     def test_set_execution_time(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
         bfly.execution_time = 3
 
         assert bfly.execution_time == 3
 
     def test_set_execution_time_negative(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
         with pytest.raises(ValueError, match="Execution time cannot be negative"):
             bfly.execution_time = -1
 
 
 class TestCopyOperation:
     def test_copy_butterfly_latency_offsets(self):
-        bfly = Butterfly(latency_offsets={"in0": 4, "in1": 2, "out0": 10, "out1": 9})
+        bfly = R2Butterfly(latency_offsets={"in0": 4, "in1": 2, "out0": 10, "out1": 9})
 
         bfly_copy = bfly.copy()
 
@@ -294,7 +294,7 @@ class TestPlotCoordinates:
         assert exe == ((0, 0), (0, 1), (1, 1), (1, 0), (0, 0))
 
     def test_complicated_case(self):
-        bfly = Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
+        bfly = R2Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
         bfly.execution_time = 7
 
         lat, exe = bfly.get_plot_coordinates()
@@ -322,14 +322,14 @@ class TestIOCoordinates:
         assert cmult.get_output_coordinates() == ((3, 0.5),)
 
     def test_complicated_case(self):
-        bfly = Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
+        bfly = R2Butterfly(latency_offsets={"in0": 2, "in1": 3, "out0": 5, "out1": 10})
         bfly.execution_time = 7
 
         assert bfly.get_input_coordinates() == ((2, 0.25), (3, 0.75))
         assert bfly.get_output_coordinates() == ((5, 0.25), (10, 0.75))
 
     def test_io_coordinates_error(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
 
         bfly.set_latency_offsets({"in0": 3, "out1": 5})
         with pytest.raises(
@@ -345,7 +345,7 @@ class TestIOCoordinates:
 
 class TestSplit:
     def test_simple_case(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
         split = bfly.split()
         assert len(split) == 2
         assert sum(isinstance(op, Addition) for op in split) == 1
@@ -354,7 +354,7 @@ class TestSplit:
 
 class TestLatencyOffset:
     def test_set_latency_offsets(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
 
         bfly.set_latency_offsets({"in0": 3, "out1": 5})
 
@@ -366,7 +366,7 @@ class TestLatencyOffset:
         }
 
     def test_set_latency_offsets_error(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
 
         with pytest.raises(
             ValueError,
@@ -398,7 +398,7 @@ class TestLatencyOffset:
 
 class TestIsSwappable:
     def test_butterfly_is_swappable(self):
-        bfly = Butterfly()
+        bfly = R2Butterfly()
         assert not bfly.is_swappable
         with pytest.raises(TypeError, match="operation io cannot be swapped"):
             bfly.swap_io()

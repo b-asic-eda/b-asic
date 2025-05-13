@@ -1,6 +1,7 @@
 import pytest
 
-from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
+from b_asic.core_operations import Addition, ConstantMultiplication
+from b_asic.fft_operations import R2Butterfly
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler, ILPScheduler
 from b_asic.sfg_generators import direct_form_1_iir, radix_2_dif_fft
@@ -93,8 +94,8 @@ class TestASAPScheduler:
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
 
         schedule = Schedule(sfg, scheduler=ASAPScheduler())
 
@@ -107,29 +108,29 @@ class TestASAPScheduler:
             "in5": 0,
             "in6": 0,
             "in7": 0,
-            "bfly0": 0,
-            "bfly6": 0,
-            "bfly8": 0,
-            "bfly11": 0,
+            "r2bfly0": 0,
+            "r2bfly6": 0,
+            "r2bfly8": 0,
+            "r2bfly11": 0,
             "cmul3": 1,
-            "bfly7": 1,
+            "r2bfly7": 1,
             "cmul2": 1,
-            "bfly1": 1,
+            "r2bfly1": 1,
             "cmul0": 1,
             "cmul4": 2,
-            "bfly9": 2,
-            "bfly5": 3,
-            "bfly2": 3,
+            "r2bfly9": 2,
+            "r2bfly5": 3,
+            "r2bfly2": 3,
             "out0": 3,
             "out4": 3,
-            "bfly10": 4,
+            "r2bfly10": 4,
             "cmul1": 4,
-            "bfly3": 4,
+            "r2bfly3": 4,
             "out1": 5,
             "out2": 5,
             "out5": 5,
             "out6": 5,
-            "bfly4": 6,
+            "r2bfly4": 6,
             "out3": 7,
             "out7": 7,
         }
@@ -223,8 +224,8 @@ class TestALAPScheduler:
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
         sfg.set_execution_time_of_type_name(ConstantMultiplication.type_name(), 1)
-        sfg.set_latency_of_type_name(Butterfly.type_name(), 1)
-        sfg.set_execution_time_of_type_name(Butterfly.type_name(), 1)
+        sfg.set_latency_of_type_name(R2Butterfly.type_name(), 1)
+        sfg.set_execution_time_of_type_name(R2Butterfly.type_name(), 1)
 
         schedule = Schedule(sfg, scheduler=ALAPScheduler())
 
@@ -233,27 +234,27 @@ class TestALAPScheduler:
             "in7": 0,
             "in1": 0,
             "in5": 0,
-            "bfly6": 0,
-            "bfly8": 0,
+            "r2bfly6": 0,
+            "r2bfly8": 0,
             "cmul2": 1,
             "cmul3": 1,
             "in2": 2,
             "in6": 2,
-            "bfly11": 2,
-            "bfly7": 3,
+            "r2bfly11": 2,
+            "r2bfly7": 3,
             "cmul0": 3,
-            "bfly5": 3,
+            "r2bfly5": 3,
             "in0": 4,
             "in4": 4,
             "cmul4": 4,
             "cmul1": 4,
-            "bfly0": 4,
-            "bfly1": 5,
-            "bfly2": 5,
-            "bfly9": 6,
-            "bfly10": 6,
-            "bfly3": 6,
-            "bfly4": 6,
+            "r2bfly0": 4,
+            "r2bfly1": 5,
+            "r2bfly2": 5,
+            "r2bfly9": 6,
+            "r2bfly10": 6,
+            "r2bfly3": 6,
+            "r2bfly4": 6,
             "out0": 7,
             "out1": 7,
             "out2": 7,

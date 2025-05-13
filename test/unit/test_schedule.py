@@ -7,7 +7,8 @@ import re
 import matplotlib.testing.decorators
 import pytest
 
-from b_asic.core_operations import Addition, Butterfly, ConstantMultiplication
+from b_asic.core_operations import Addition, ConstantMultiplication
+from b_asic.fft_operations import R2Butterfly
 from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
@@ -813,19 +814,19 @@ class TestErrors:
     def test_no_output_latency(self):
         in1 = Input()
         in2 = Input()
-        bfly = Butterfly(in1, in2, latency_offsets={"in0": 4, "in1": 2, "out0": 10})
+        bfly = R2Butterfly(in1, in2, latency_offsets={"in0": 4, "in1": 2, "out0": 10})
         out1 = Output(bfly.output(0))
         out2 = Output(bfly.output(1))
         sfg = SFG([in1, in2], [out1, out2])
         with pytest.raises(
             ValueError,
-            match="Output port 1 of operation bfly0 has no latency-offset.",
+            match="Output port 1 of operation r2bfly0 has no latency-offset.",
         ):
             Schedule(sfg, scheduler=ASAPScheduler())
         in1 = Input()
         in2 = Input()
-        bfly1 = Butterfly(in1, in2, latency_offsets={"in0": 4, "in1": 2, "out1": 10})
-        bfly2 = Butterfly(
+        bfly1 = R2Butterfly(in1, in2, latency_offsets={"in0": 4, "in1": 2, "out1": 10})
+        bfly2 = R2Butterfly(
             bfly1.output(0),
             bfly1.output(1),
             latency_offsets={"in0": 4, "in1": 2, "out0": 10, "out1": 8},
@@ -835,7 +836,7 @@ class TestErrors:
         sfg = SFG([in1, in2], [out1, out2])
         with pytest.raises(
             ValueError,
-            match="Output port 0 of operation bfly0 has no latency-offset.",
+            match="Output port 0 of operation r2bfly0 has no latency-offset.",
         ):
             Schedule(sfg, scheduler=ASAPScheduler())
 

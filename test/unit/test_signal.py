@@ -4,7 +4,12 @@ B-ASIC test suit for the signal module which consists of the Signal class.
 
 import pytest
 
-from b_asic.core_operations import Addition, Butterfly, Constant, ConstantMultiplication
+from b_asic.core_operations import (
+    Addition,
+    Constant,
+    ConstantMultiplication,
+)
+from b_asic.fft_operations import R2Butterfly
 from b_asic.port import InputPort, OutputPort
 from b_asic.signal import Signal
 from b_asic.special_operations import Input
@@ -128,11 +133,11 @@ def test_signal_errors():
     ):
         _ = Signal(cm1, add1)
 
-    bf = Butterfly()
+    bf = R2Butterfly()
     with pytest.raises(
         TypeError,
         match=(
-            "Butterfly cannot be used as an input source because it has more"
+            "R2Butterfly cannot be used as an input source because it has more"
             " than one output"
         ),
     ):
@@ -152,7 +157,7 @@ def test_signal_errors():
     with pytest.raises(
         TypeError,
         match=(
-            "Butterfly cannot be used as an input source because it has more"
+            "R2Butterfly cannot be used as an input source because it has more"
             " than one output"
         ),
     ):

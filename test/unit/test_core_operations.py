@@ -8,7 +8,6 @@ from b_asic import (
     Absolute,
     Addition,
     AddSub,
-    Butterfly,
     ComplexConjugate,
     Constant,
     ConstantMultiplication,
@@ -18,6 +17,7 @@ from b_asic import (
     Max,
     Min,
     Multiplication,
+    R2Butterfly,
     Reciprocal,
     RightShift,
     Shift,
@@ -511,25 +511,6 @@ class TestShift:
             test_operation.value = val
 
 
-class TestButterfly:
-    """Tests for Butterfly class."""
-
-    def test_butterfly_positive(self):
-        test_operation = Butterfly()
-        assert test_operation.evaluate_output(0, [2, 3]) == 5
-        assert test_operation.evaluate_output(1, [2, 3]) == -1
-
-    def test_butterfly_negative(self):
-        test_operation = Butterfly()
-        assert test_operation.evaluate_output(0, [-2, -3]) == -5
-        assert test_operation.evaluate_output(1, [-2, -3]) == 1
-
-    def test_butterfly_complex(self):
-        test_operation = Butterfly()
-        assert test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == 5 - 1j
-        assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == -1 + 3j
-
-
 class TestSymmetricTwoportAdaptor:
     """Tests for SymmetricTwoportAdaptor class."""
 
@@ -589,6 +570,6 @@ class TestDepends:
         assert set(add1.inputs_required_for_output(0)) == {0, 1}
 
     def test_depends_butterfly(self):
-        bfly1 = Butterfly()
+        bfly1 = R2Butterfly()
         assert set(bfly1.inputs_required_for_output(0)) == {0, 1}
         assert set(bfly1.inputs_required_for_output(1)) == {0, 1}
