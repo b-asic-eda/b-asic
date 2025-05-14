@@ -384,3 +384,100 @@ class R2TFButterfly(AbstractOperation):
     def w1(self, w1: complex) -> None:
         """Set the twiddle factor that the second output is multiplied with."""
         self.set_param("w1", w1)
+
+
+class R4Butterfly(AbstractOperation):
+    r"""
+    Radix-4 butterfly operation for FFTs.
+
+    This corresponds to a 4-point DFT.
+
+    .. math::
+        \begin{eqnarray}
+            s0 & = & a + c\\
+            s1 & = & b + d\\
+            s2 & = & a - c\\
+            s3 & = & -jb + jd\\
+            y0 & = & s0 + s1\\
+            y1 & = & s2 + s3\\
+            y2 & = & s0 - s1\\
+            y3 & = & s2 - s3
+        \end{eqnarray}
+
+    Parameters
+    ----------
+    src0, src1, src2, src3 : SignalSourceProvider, optional
+        The four signals to compute the 4-point DFT of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0}`` which
+        corresponds to *src1* arriving one time unit later than the other inputs and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+        "_src0",
+        "_src1",
+        "_src2",
+        "_src3",
+    )
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
+    _src2: SignalSourceProvider | None
+    _src3: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    is_linear = True
+
+    def __init__(
+        self,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
+        src2: SignalSourceProvider | None = None,
+        src3: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """Construct a R4Butterfly operation."""
+        super().__init__(
+            input_count=4,
+            output_count=4,
+            name=Name(name),
+            input_sources=[src0, src1, src2, src3],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("r4bfly")
+
+    def evaluate(self, a, b, c, d) -> Num:
+        s0 = a + c
+        s1 = b + d
+        s2 = a - c
+        s3 = -1j * b + 1j * d
+
+        y0 = s0 + s1  # y0 = a + b + c + d
+        y1 = s2 + s3  # y1 = a -1j*b - c + 1j*d
+        y2 = s0 - s1  # y2 = a - b + c - d
+        y3 = s2 - s3  # y3 = a + 1j*b - c - 1j*d
+        return y0, y1, y2, y3
