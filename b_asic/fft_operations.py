@@ -4,6 +4,8 @@ B-ASIC FFT Operations Module.
 Contains selected FFT butterfly operations.
 """
 
+from math import cos, pi, sin
+
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
@@ -394,10 +396,10 @@ class R4Butterfly(AbstractOperation):
 
     .. math::
         \begin{eqnarray}
-            s0 & = & a + c\\
-            s1 & = & b + d\\
-            s2 & = & a - c\\
-            s3 & = & -jb + jd\\
+            s0 & = & x_0 + x_2\\
+            s1 & = & x_1 + x_3\\
+            s2 & = & x_0 - x_2\\
+            s3 & = & -j*x_1 + j*x_3\\
             y0 & = & s0 + s1\\
             y1 & = & s2 + s3\\
             y2 & = & s0 - s1\\
@@ -481,3 +483,109 @@ class R4Butterfly(AbstractOperation):
         y2 = s0 - s1  # y2 = a - b + c - d
         y3 = s2 - s3  # y3 = a + 1j*b - c - 1j*d
         return y0, y1, y2, y3
+
+
+class R3Winograd(AbstractOperation):
+    r"""
+    Three-point Winograd DFT.
+
+    .. math::
+        \begin{eqnarray}
+            u = -2 * pi / 3
+            c_{30} = cos(u) - 1
+            c_{31} = j * sin(u)
+            s_0 = x_1 + x_2
+            s_1 = x_1 - x_2
+            s_2 = s_0 + x_0
+            m_0 = c_{30} * s_0
+            m_1 = c_{31} * s_1
+            s_3 = s_2 + m_0
+            s_4 = s_3 + m_1
+            s_5 = s_3 - m_1
+            y_0 = s_2
+            y_1 = s_4
+            y_2 = s_5
+        \end{eqnarray}
+
+    Parameters
+    ----------
+    src0, src1, src2 : SignalSourceProvider, optional
+        The three signals to compute the 3-point DFT of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared. For example, ``{"in0": 0, "in1": 1, "in2": 0}`` which
+        corresponds to *src1* arriving one time unit later than the other inputs and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+        "_src0",
+        "_src1",
+        "_src2",
+    )
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
+    _src2: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    is_linear = True
+
+    def __init__(
+        self,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
+        src2: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """Construct a R3Winograd operation."""
+        super().__init__(
+            input_count=3,
+            output_count=3,
+            name=Name(name),
+            input_sources=[src0, src1, src2],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("r3win")
+
+    def evaluate(self, a, b, c) -> Num:
+        u = -2 * pi / 3
+        c30 = cos(u) - 1
+        c31 = 1j * sin(u)
+
+        s0 = b + c
+        s1 = b - c
+        s2 = s0 + a
+        m0 = c30 * s0
+        m1 = c31 * s1
+        s3 = s2 + m0
+        s4 = s3 + m1
+        s5 = s3 - m1
+
+        y0 = s2
+        y1 = s4
+        y2 = s5
+
+        return y0, y1, y2

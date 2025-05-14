@@ -7,6 +7,7 @@ from b_asic.fft_operations import (
     R2DIFButterfly,
     R2DITButterfly,
     R2TFButterfly,
+    R3Winograd,
     R4Butterfly,
 )
 
@@ -146,3 +147,28 @@ class TestR4Butterfly:
         test_operation = R4Butterfly()
         for i, exp in enumerate(expected):
             assert test_operation.evaluate_output(i, input_sequence) == exp
+
+
+class TestR3Winograd:
+    """Tests for the R3Winograd class."""
+
+    def test_positive(self):
+        input_sequence = [11, 21, 35]
+        expected = np.fft.fft(input_sequence)
+        test_operation = R3Winograd()
+        for i, exp in enumerate(expected):
+            assert np.allclose(test_operation.evaluate_output(i, input_sequence), exp)
+
+    def test_negative(self):
+        input_sequence = [-51, -92, -3]
+        expected = np.fft.fft(input_sequence)
+        test_operation = R3Winograd()
+        for i, exp in enumerate(expected):
+            assert np.allclose(test_operation.evaluate_output(i, input_sequence), exp)
+
+    def test_complex(self):
+        input_sequence = [(1.1 - 4.3j), (7.3 - 4.9j), (-6.2 - 2.6j)]
+        expected = np.fft.fft(input_sequence)
+        test_operation = R3Winograd()
+        for i, exp in enumerate(expected):
+            assert np.allclose(test_operation.evaluate_output(i, input_sequence), exp)

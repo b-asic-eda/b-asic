@@ -17,7 +17,7 @@ from b_asic.special_operations import Input, Output
 
 u = -2 * pi / 3
 c30 = cos(u) - 1
-c31 = sin(u)
+c31 = 1j*sin(u)
 
 
 in0 = Input("x0")
