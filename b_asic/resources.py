@@ -1389,17 +1389,20 @@ class ProcessCollection:
         processing_elements: list["ProcessingElement"],
         collection: Union["ProcessCollection", list["Process"]],
     ) -> int:
-        collection_process_names = {proc.name.split(".")[0] for proc in collection}
+        collection_process_names = {proc.name for proc in collection}
         count = 0
         for pe in processing_elements:
+            tmp_count = 0
             for process in pe.processes:
                 for input_port in process.operation.inputs:
+                    port = input_port.connected_source
                     input_op = input_port.connected_source.operation
-                    if input_op.graph_id in collection_process_names:
-                        count += 1
+                    if f"{input_op.graph_id}.{port.index}" in collection_process_names:
+                        tmp_count += 1
                         break
-                if count != 0:
+                if tmp_count != 0:
                     break
+            count += tmp_count
         return count
 
     def _split_ports_greedy_graph_color(
