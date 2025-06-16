@@ -589,3 +589,137 @@ class R3Winograd(AbstractOperation):
         y2 = s5
 
         return y0, y1, y2
+
+
+class R5Winograd(AbstractOperation):
+    r"""
+    Five-point Winograd DFT.
+
+    .. math::
+        \begin{eqnarray}
+        \end{eqnarray}
+
+    Parameters
+    ----------
+    src0, src1, src2, src3, src4 : SignalSourceProvider, optional
+        The five signals to compute the 5-point DFT of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared.
+        For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0, "in4": 0,}`` which
+        corresponds to *src1* arriving one time unit later than the other inputs and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+        "_src0",
+        "_src1",
+        "_src2",
+        "_src3",
+        "_src4",
+    )
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
+    _src2: SignalSourceProvider | None
+    _src3: SignalSourceProvider | None
+    _src4: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    is_linear = True
+
+    def __init__(
+        self,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
+        src2: SignalSourceProvider | None = None,
+        src3: SignalSourceProvider | None = None,
+        src4: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """Construct a R5Winograd operation."""
+        super().__init__(
+            input_count=5,
+            output_count=5,
+            name=Name(name),
+            input_sources=[src0, src1, src2, src3, src4],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("r3win")
+
+    def evaluate(self, a, b, c, d, e) -> Num:
+        # % Fast Fourier Transform and Convolution Algorithms-Springer-Verlag
+        # % Berlin Heidelberg (1982). Page 146
+
+        # Constants
+        u = 2 * pi / 5
+        shift1 = 1 / 4
+        M2 = (cos(u) - cos(2 * u)) / 2
+        M3 = sin(u)
+        M4 = sin(u) + sin(2 * u)
+        M5 = sin(u) - sin(2 * u)
+
+        # Op 1
+        a1 = b + e
+        a2 = b - e
+
+        # Op 2
+        a3 = c + d
+        a4 = c - d
+
+        # Op 3
+        a5 = a1 + a3
+        a6 = a1 - a3
+
+        # Op 4
+        a7 = a + a5
+        a8 = a - shift1 * a5
+
+        # Op 5
+        a9 = a4 - a2
+
+        # Multiplications
+        M2out = M2 * a6
+        M3out = 1j * M3 * a9
+        M4out = 1j * M4 * a4
+        M5out = 1j * M5 * a2
+
+        # Op 6
+        a10 = a8 + M2out
+        a11 = a8 - M2out
+
+        # Op 7 - Type 2
+        a13 = M5out + M3out
+        a12 = M4out - M3out
+
+        # Op 8
+        a15 = a10 + a12
+        a14 = a10 - a12
+
+        # Op 9
+        a16 = a11 + a13
+        a17 = a11 - a13
+
+        return a7, a14, a16, a17, a15

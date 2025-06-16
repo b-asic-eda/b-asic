@@ -9,6 +9,7 @@ from b_asic.fft_operations import (
     R2TFButterfly,
     R3Winograd,
     R4Butterfly,
+    R5Winograd,
 )
 
 
@@ -170,5 +171,36 @@ class TestR3Winograd:
         input_sequence = [(1.1 - 4.3j), (7.3 - 4.9j), (-6.2 - 2.6j)]
         expected = np.fft.fft(input_sequence)
         test_operation = R3Winograd()
+        for i, exp in enumerate(expected):
+            assert np.allclose(test_operation.evaluate_output(i, input_sequence), exp)
+
+
+class TestR5Winograd:
+    """Tests for the R5Winograd class."""
+
+    def test_positive(self):
+        input_sequence = [11, 21, 35, 102, 7]
+        expected = np.fft.fft(input_sequence)
+        test_operation = R5Winograd()
+        for i, exp in enumerate(expected):
+            assert np.allclose(test_operation.evaluate_output(i, input_sequence), exp)
+
+    def test_negative(self):
+        input_sequence = [-51, -92, -3, -194, -0]
+        expected = np.fft.fft(input_sequence)
+        test_operation = R5Winograd()
+        for i, exp in enumerate(expected):
+            assert np.allclose(test_operation.evaluate_output(i, input_sequence), exp)
+
+    def test_complex(self):
+        input_sequence = [
+            (1.1 - 4.3j),
+            (7.3 - 4.9j),
+            (-6.2 - 2.6j),
+            (-10.4 + 5.6j),
+            (-2.0 - 43.7j),
+        ]
+        expected = np.fft.fft(input_sequence)
+        test_operation = R5Winograd()
         for i, exp in enumerate(expected):
             assert np.allclose(test_operation.evaluate_output(i, input_sequence), exp)
