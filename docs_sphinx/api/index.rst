@@ -7,6 +7,7 @@ API
 
     architecture.rst
     core_operations.rst
+    fft_operations.rst
     graph_component.rst
     list_schedulers.rst
     operation.rst

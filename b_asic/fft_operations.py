@@ -4,7 +4,7 @@ B-ASIC FFT Operations Module.
 Contains selected FFT butterfly operations.
 """
 
-from math import cos, pi, sin
+import math
 
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
@@ -476,7 +476,7 @@ class R4Butterfly(AbstractOperation):
         s0 = a + c
         s1 = b + d
         s2 = a - c
-        s3 = -1j * b + 1j * d
+        s3 = 1j * (d - b)
 
         y0 = s0 + s1  # y0 = a + b + c + d
         y1 = s2 + s3  # y1 = a -1j*b - c + 1j*d
@@ -571,9 +571,9 @@ class R3Winograd(AbstractOperation):
         return TypeName("r3win")
 
     def evaluate(self, a, b, c) -> Num:
-        u = -2 * pi / 3
-        c30 = cos(u) - 1
-        c31 = 1j * sin(u)
+        u = -2 * math.pi / 3
+        c30 = -1.5  # cos(u) - 1
+        c31 = 1j * math.sin(u)
 
         s0 = b + c
         s1 = b - c
@@ -667,19 +667,19 @@ class R5Winograd(AbstractOperation):
 
     @classmethod
     def type_name(cls) -> TypeName:
-        return TypeName("r3win")
+        return TypeName("r5win")
 
     def evaluate(self, a, b, c, d, e) -> Num:
-        # % Fast Fourier Transform and Convolution Algorithms-Springer-Verlag
-        # % Berlin Heidelberg (1982). Page 146
+        # Fast Fourier Transform and Convolution Algorithms-Springer-Verlag
+        # Berlin Heidelberg (1982). Page 146
 
         # Constants
-        u = 2 * pi / 5
+        u = 2 * math.pi / 5
         shift1 = 1 / 4
-        M2 = (cos(u) - cos(2 * u)) / 2
-        M3 = sin(u)
-        M4 = sin(u) + sin(2 * u)
-        M5 = sin(u) - sin(2 * u)
+        M2 = (math.cos(u) - math.cos(2 * u)) / 2
+        M3 = math.sin(u)
+        M4 = math.sin(u) + math.sin(2 * u)
+        M5 = math.sin(u) - math.sin(2 * u)
 
         # Op 1
         a1 = b + e
@@ -723,3 +723,195 @@ class R5Winograd(AbstractOperation):
         a17 = a11 - a13
 
         return a7, a14, a16, a17, a15
+
+
+class R7Winograd(AbstractOperation):
+    r"""
+    Seven-point Winograd DFT.
+
+    .. math::
+        \begin{eqnarray}
+        \end{eqnarray}
+
+    Parameters
+    ----------
+    src0, src1, src2, src3, src4, src5, src6 : SignalSourceProvider, optional
+        The seven signals to compute the 7-point DFT of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has stared.
+        For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0, "in4": 0, "in5": 0, "in6": 0,}`` which
+        corresponds to *src1* arriving one time unit later than the other inputs and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+        "_src0",
+        "_src1",
+        "_src2",
+        "_src3",
+        "_src4",
+        "_src5",
+        "_src6",
+    )
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
+    _src2: SignalSourceProvider | None
+    _src3: SignalSourceProvider | None
+    _src4: SignalSourceProvider | None
+    _src5: SignalSourceProvider | None
+    _src6: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    is_linear = True
+
+    def __init__(
+        self,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
+        src2: SignalSourceProvider | None = None,
+        src3: SignalSourceProvider | None = None,
+        src4: SignalSourceProvider | None = None,
+        src5: SignalSourceProvider | None = None,
+        src6: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """Construct a R7Winograd operation."""
+        super().__init__(
+            input_count=7,
+            output_count=7,
+            name=Name(name),
+            input_sources=[src0, src1, src2, src3, src4, src5, src6],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("r7win")
+
+    def evaluate(self, a, b, c, d, e, f, g) -> Num:
+        # Constants
+        u = -2 * math.pi / 7
+        C70 = -((math.cos(u) + math.cos(2 * u) + math.cos(3 * u)) / 3 - 1)
+        C71 = (2 * math.cos(u) - math.cos(2 * u) - math.cos(3 * u)) / 3
+        C72 = (math.cos(u) - 2 * math.cos(2 * u) + math.cos(3 * u)) / 3
+        C73 = (math.cos(u) + math.cos(2 * u) - 2 * math.cos(3 * u)) / 3
+        C74 = -((math.sin(u) + math.sin(2 * u) - math.sin(3 * u)) / 3)
+        C76 = -((2 * math.sin(u) - math.sin(2 * u) + math.sin(3 * u)) / 3)
+        C77 = (math.sin(u) - 2 * math.sin(2 * u) - math.sin(3 * u)) / 3
+        C78 = -((math.sin(u) + math.sin(2 * u) + 2 * math.sin(3 * u)) / 3)
+
+        # Op 1
+        s1 = g + b
+        s2 = g - b
+
+        # Op 2
+        s3 = e + d
+        s4 = e - d
+
+        # Op 3
+        s5 = c + f
+        s6 = c - f
+
+        # Op 4
+        s7 = s1 + s3
+        s10 = s1 - s3
+
+        # Op 5
+        # Type 3
+        s11 = s3 - s5
+        s12 = s1 - s5
+
+        # Op 6
+        s15 = s4 + s2
+        s13 = s4 - s2
+
+        # Op 7
+        # ype 2
+        s17 = s2 + s6
+        s16 = s4 - s6
+
+        # Op 8
+        s8 = s7 + s5
+
+        # Op 9
+        s9 = s8 + a
+
+        # Op 10
+        s14 = s13 + s6
+
+        # Multiplications
+        # m0 = s9
+        m1 = C70 * (s8)
+        m2 = C71 * (s10)
+        m3 = C72 * (s11)
+        m4 = C73 * (s12)
+        m5 = 1j * C74 * (s14)
+        m6 = 1j * C76 * (s15)
+        m7 = 1j * C77 * (s16)
+        m8 = 1j * C78 * (s17)
+
+        # Op 11
+        s18 = s9 - m1
+
+        # Op 12
+        s27 = m5 + m6
+        s25 = m5 - m6
+
+        # Op 13
+        # Type 2
+        s29 = m5 + m7
+        s26 = s25 - m7
+
+        # Op 14
+        s19 = s18 + m2
+        s21 = s18 - m2
+
+        # Op 15
+        # Type 2
+        s20 = s19 + m3
+        s23 = s18 - m3
+
+        # Op 16
+        # Type 2
+        s30 = s29 + m8
+        s28 = s27 - m8
+
+        # Op 17
+        # Type 2
+        s22 = s21 + m4
+        s24 = s23 - m4
+
+        # Op 18
+        s32 = s20 + s26  # (m0+m1)+m2+m3-m5-m6-m7
+        s31 = s20 - s26  # (m0+m1)+m2+m3+m5+m6+m7
+
+        # Op 19
+        s34 = s22 + s28  # (m0+m1)-m2-m4-m5+m6+m8
+        s33 = s22 - s28  # (m0+m1)-m2-m4+m5-m6-m8
+
+        # Op 20
+        s36 = s24 + s30  # (m0+m1)-m3+m4-m5+m7-m8
+        s35 = s24 - s30  # (m0+m1)-m3+m4+m5-m7+m8
+
+        return s9, s31, s33, s36, s35, s34, s32
