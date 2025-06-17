@@ -157,7 +157,7 @@ class TestProcessCollectionPlainMemoryVariable:
             )
             collection.generate_memory_based_storage_vhdl(
                 filename=(
-                    "b_asic/codegen/testbench/"
+                    "lib/b_asic/codegen/testbench/"
                     f"streaming_matrix_transposition_memory_{rows}x{cols}.vhdl"
                 ),
                 entity_name=f"streaming_matrix_transposition_memory_{rows}x{cols}",
@@ -173,7 +173,7 @@ class TestProcessCollectionPlainMemoryVariable:
                 rows, min_lifetime=0
             ).generate_register_based_storage_vhdl(
                 filename=(
-                    "b_asic/codegen/testbench/streaming_matrix_transposition_"
+                    "lib/b_asic/codegen/testbench/streaming_matrix_transposition_"
                     f"register_{rows}x{rows}.vhdl"
                 ),
                 entity_name=f"streaming_matrix_transposition_register_{rows}x{rows}",
@@ -184,7 +184,7 @@ class TestProcessCollectionPlainMemoryVariable:
         collection = generate_matrix_transposer(rows=4, cols=8, min_lifetime=2)
         collection.generate_register_based_storage_vhdl(
             filename=(
-                "b_asic/codegen/testbench/streaming_matrix_transposition_register_"
+                "lib/b_asic/codegen/testbench/streaming_matrix_transposition_register_"
                 "4x8.vhdl"
             ),
             entity_name="streaming_matrix_transposition_register_4x8",

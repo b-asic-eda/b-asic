@@ -77,14 +77,14 @@ documentation = "https://da.gitlab-pages.liu.se/B-ASIC/"
 zip-safe = false
 
 [tool.setuptools.packages.find]
-include = ["b_asic*"]
+where = ["lib"]
 
 [build-system]
 requires = ["setuptools>=80", "setuptools_scm[toml]>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-write_to = "b_asic/_version.py"
+write_to = "lib/b_asic/_version.py"
 version_scheme = "release-branch-semver"
 local_scheme = "node-and-date"
 fallback_version = "0.0+UNKNOWN"
@@ -98,7 +98,11 @@ ignore_missing_imports = true
 precision = 2
 
 [tool.ruff]
-exclude = ["examples", "docs_sphinx", "b_asic/scheduler_gui/ui_main_window.py"]
+exclude = [
+  "examples",
+  "docs_sphinx",
+  "lib/b_asic/scheduler_gui/ui_main_window.py"
+]
 
 [tool.ruff.lint]
 select = [
@@ -153,9 +157,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "test/*" = ["D1", "D401", "PERF401", "E501", "ANN"]
-"b_asic/scheduler_gui/ui_main_window.py" = ["D100"]
-"b_asic/scheduler_gui/compile.py" = ["PTH118", "PTH122"]
-"b_asic/__init__.py" = ["F403"]
+"lib/b_asic/scheduler_gui/ui_main_window.py" = ["D100"]
+"lib/b_asic/scheduler_gui/compile.py" = ["PTH118", "PTH122"]
+"lib/b_asic/__init__.py" = ["F403"]
 "test/conftest.py" = ["F403"]
 
 [tool.codespell]

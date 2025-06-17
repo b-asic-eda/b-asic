@@ -698,6 +698,5 @@ class Ui_MainWindow:
         self.toolBar.setWindowTitle(
             QCoreApplication.translate("MainWindow", "toolBar", None)
         )
-        pass
 
     # retranslateUi

@@ -113,7 +113,7 @@ _b_asic_debug_log.txt
 *.pyproject
 TODO.txt
 *.log
-b_asic/_version.py
+lib/b_asic/_version.py
 docs_sphinx/_build/
 docs_sphinx/examples
 docs_sphinx/sg_execution_times.rst

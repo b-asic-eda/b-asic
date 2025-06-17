@@ -91,7 +91,7 @@ run-vhdl-tests:
     - pytest
     - pip install vunit_hdl
     - apt install -y ghdl
-    - cd b_asic/codegen/testbench
+    - cd lib/b_asic/codegen/testbench
     - python test.py
 
 run-doc-test:
@@ -106,7 +106,7 @@ run-doc-test:
     - pip install black velin
     - velin . --check --black
     - pip install ruff
-    - ruff check b_asic --output-format=gitlab > ruff.json
+    - ruff check lib/b_asic --output-format=gitlab > ruff.json
   artifacts:
     name: "${CI_PROJECT_NAME}_code_quality"
     when: always

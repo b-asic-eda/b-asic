@@ -121,7 +121,7 @@ def compile_rc(*filenames: str) -> None:
 
     if not filenames:
         rc_files = [
-            os.path.join(root, name)
+            Path(root) / name
             for root, _, files in os.walk(".")
             for name in files
             if name.endswith(".qrc")
@@ -151,10 +151,10 @@ def compile_ui(*filenames: str) -> None:
     _check_qt_version()
 
     def _compile(filename: str) -> None:
-        directory, file = os.path.split(filename)
-        file = os.path.splitext(file)[0]
-        directory = directory if directory else "."
-        outfile = f"{directory}/ui_{file}.py"
+        path = Path(filename)
+        directory = path.parent if path.parent.name else Path()
+        file_stem = path.stem
+        outfile = f"{directory}/ui_{file_stem}.py"
 
         if uic.PYQT6:
             from qtpy.uic import compileUi
@@ -194,7 +194,7 @@ def compile_ui(*filenames: str) -> None:
 
     if not filenames:
         ui_files = [
-            os.path.join(root, name)
+            Path(root) / name
             for root, _, files in os.walk(".")
             for name in files
             if name.endswith(".ui")
