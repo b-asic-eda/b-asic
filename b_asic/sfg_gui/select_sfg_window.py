@@ -8,7 +8,7 @@ from qtpy.QtCore import Qt, Signal
 from qtpy.QtWidgets import QComboBox, QDialog, QPushButton, QVBoxLayout
 
 if TYPE_CHECKING:
-    from b_asic.GUI.main_window import SFGMainWindow
+    from b_asic.sfg_gui.main_window import SFGMainWindow
 
 
 class SelectSFGWindow(QDialog):

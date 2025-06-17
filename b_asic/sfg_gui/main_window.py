@@ -36,16 +36,6 @@ from qtpy.QtWidgets import (
 import b_asic.core_operations
 import b_asic.special_operations
 from b_asic._version import __version__
-from b_asic.GUI._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
-from b_asic.GUI.arrow import Arrow
-from b_asic.GUI.drag_button import DragButton
-from b_asic.GUI.gui_interface import Ui_main_window
-from b_asic.GUI.port_button import PortButton
-from b_asic.GUI.precedence_graph_window import PrecedenceGraphWindow
-from b_asic.GUI.select_sfg_window import SelectSFGWindow
-from b_asic.GUI.simulate_sfg_window import SimulateSFGWindow
-from b_asic.GUI.simulation_worker import SimulationWorker
-from b_asic.GUI.util_dialogs import FaqWindow, KeybindingsWindow
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.gui_utils.icons import get_icon
@@ -53,6 +43,16 @@ from b_asic.gui_utils.plot_window import PlotWindow
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.sfg_gui._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
+from b_asic.sfg_gui.arrow import Arrow
+from b_asic.sfg_gui.drag_button import DragButton
+from b_asic.sfg_gui.gui_interface import Ui_main_window
+from b_asic.sfg_gui.port_button import PortButton
+from b_asic.sfg_gui.precedence_graph_window import PrecedenceGraphWindow
+from b_asic.sfg_gui.select_sfg_window import SelectSFGWindow
+from b_asic.sfg_gui.simulate_sfg_window import SimulateSFGWindow
+from b_asic.sfg_gui.simulation_worker import SimulationWorker
+from b_asic.sfg_gui.util_dialogs import FaqWindow, KeybindingsWindow
 from b_asic.signal import Signal
 from b_asic.signal_flow_graph import SFG
 from b_asic.simulation import Simulation

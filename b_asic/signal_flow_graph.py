@@ -2139,7 +2139,7 @@ class SFG(AbstractOperation):
 
     def edit(self) -> dict[str, "SFG"]:
         """Edit SFG in GUI."""
-        from b_asic.GUI.main_window import start_editor
+        from b_asic.sfg_gui.main_window import start_editor
 
         return start_editor(self)
 

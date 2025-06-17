@@ -10,15 +10,15 @@ from qtpy.QtCore import QPointF
 from qtpy.QtGui import QPainterPath, QPen
 from qtpy.QtWidgets import QGraphicsPathItem, QMenu
 
-from b_asic.GUI._preferences import GRID, LINECOLOR, PORTHEIGHT, PORTWIDTH
+from b_asic.sfg_gui._preferences import GRID, LINECOLOR, PORTHEIGHT, PORTWIDTH
 from b_asic.signal import Signal
 
 if TYPE_CHECKING:
-    from b_asic.GUI.drag_button import DragButton
-    from b_asic.GUI.main_window import SFGMainWindow
-    from b_asic.GUI.port_button import PortButton
     from b_asic.operation import Operation
     from b_asic.port import InputPort, OutputPort
+    from b_asic.sfg_gui.drag_button import DragButton
+    from b_asic.sfg_gui.main_window import SFGMainWindow
+    from b_asic.sfg_gui.port_button import PortButton
 
 
 class Arrow(QGraphicsPathItem):

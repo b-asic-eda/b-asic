@@ -9,9 +9,9 @@ from qtpy.QtGui import QDrag
 from qtpy.QtWidgets import QMenu, QPushButton
 
 if TYPE_CHECKING:
-    from b_asic.GUI.drag_button import DragButton
     from b_asic.operation import Operation
     from b_asic.port import Port
+    from b_asic.sfg_gui.drag_button import DragButton
 
 
 class PortButton(QPushButton):
