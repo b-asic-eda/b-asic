@@ -30,6 +30,8 @@ The following packages are required in order to build the library:
   - pyqt6
   - pyside6
 
+During the compilation process, [fmtlib](https://github.com/fmtlib/fmt) and [pybind11](https://pybind11.readthedocs.io/) are used.
+
 To build a binary distribution, the following additional packages are required:
 
 - Python:
@@ -55,6 +57,40 @@ To generate the documentation, the following additional packages are required:
   - [Sphinx-Gallery](https://sphinx-gallery.github.io/)
   - [mplsignal](https://mplsignal.readthedocs.io/)
   - [sphinx-copybutton](https://sphinx-copybutton.readthedocs.io/)
+
+### Using CMake directly
+
+How to build using CMake.
+
+#### Configuring
+
+In `B-ASIC`:
+
+```
+mkdir build
+cd build
+cmake ..
+```
+
+#### Building (Debug)
+
+In `B-ASIC/build`:
+
+```
+cmake --build .
+```
+
+The output gets written to `B-ASIC/build/lib`.
+
+#### Building (Release)
+
+In `B-ASIC/build`:
+
+```
+cmake --build . --config Release
+```
+
+The output gets written to `B-ASIC/build/lib`.
 
 ### Using setuptools to create a package
 

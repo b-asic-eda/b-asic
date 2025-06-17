@@ -10,11 +10,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from b_asic import Input, Output, Signal
+from b_asic import FastSimulation, Input, Output, Signal
 from b_asic.core_operations import (
+    Absolute,
     Addition,
+    ComplexConjugate,
     Constant,
     ConstantMultiplication,
+    Division,
+    Max,
+    Min,
     Multiplication,
     SquareRoot,
     Subtraction,
@@ -349,6 +354,112 @@ class TestReplaceOperation:
             sfg = sfg.replace_operation(
                 Multiplication(name="Multi"), graph_id=component_id
             )
+
+
+class TestConstructSFG:
+    def test_1k_additions(self):
+        prev_op = Addition(Constant(1), Constant(1))
+        for _ in range(999):
+            prev_op = Addition(prev_op, Constant(2))
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 2000
+
+    def test_1k_subtractions(self):
+        prev_op = Subtraction(Constant(0), Constant(2))
+        for _ in range(999):
+            prev_op = Subtraction(prev_op, Constant(2))
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == -2000
+
+    def test_1k_butterfly(self):
+        prev_op_add = Addition(Constant(1), Constant(1))
+        prev_op_sub = Subtraction(Constant(-1), Constant(1))
+        for _ in range(499):
+            prev_op_add = Addition(prev_op_add, Constant(2))
+        for _ in range(499):
+            prev_op_sub = Subtraction(prev_op_sub, Constant(2))
+        butterfly = R2Butterfly(prev_op_add, prev_op_sub)
+        sfg = SFG(outputs=[Output(butterfly.output(0)), Output(butterfly.output(1))])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 0
+        assert sim.results["1"][0].real == 2000
+
+    def test_1k_multiplications(self):
+        prev_op = Multiplication(Constant(3), Constant(0.5))
+        for _ in range(999):
+            prev_op = Multiplication(prev_op, Constant(1.01))
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 31127.458868040336
+
+    def test_1k_divisions(self):
+        prev_op = Division(Constant(3), Constant(0.5))
+        for _ in range(999):
+            prev_op = Division(prev_op, Constant(1.01))
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 0.00028913378500165966
+
+    def test_1k_mins(self):
+        prev_op = Min(Constant(3.14159), Constant(43.14123843))
+        for _ in range(999):
+            prev_op = Min(prev_op, Constant(43.14123843))
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 3.14159
+
+    def test_1k_maxs(self):
+        prev_op = Max(Constant(3.14159), Constant(43.14123843))
+        for _ in range(999):
+            prev_op = Max(prev_op, Constant(3.14159))
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 43.14123843
+
+    def test_1k_square_roots(self):
+        prev_op = SquareRoot(Constant(1000000))
+        for _ in range(4):
+            prev_op = SquareRoot(prev_op)
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 1.539926526059492
+
+    def test_1k_complex_conjugates(self):
+        prev_op = ComplexConjugate(Constant(10 + 5j))
+        for _ in range(999):
+            prev_op = ComplexConjugate(prev_op)
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"] == [10 + 5j]
+
+    def test_1k_absolutes(self):
+        prev_op = Absolute(Constant(-3.14159))
+        for _ in range(999):
+            prev_op = Absolute(prev_op)
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 3.14159
+
+    def test_1k_constant_multiplications(self):
+        prev_op = ConstantMultiplication(1.02, Constant(3.14159))
+        for _ in range(999):
+            prev_op = ConstantMultiplication(1.02, prev_op)
+        sfg = SFG(outputs=[Output(prev_op)])
+        sim = FastSimulation(sfg)
+        sim.step()
+        assert sim.results["0"][0].real == 1251184247.0026844
 
 
 class TestInsertComponent:

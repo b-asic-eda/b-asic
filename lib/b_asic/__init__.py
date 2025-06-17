@@ -4,6 +4,12 @@ B-ASIC - Better ASIC Toolbox.
 A Python toolbox that simplifies implementation and optimization of static algorithms.
 """
 
+# Extension module (C++).
+# NOTE: If this import gives an error,
+# make sure the C++ module has been compiled and installed properly.
+# See the included README.md for more information on how to build/install.
+# from b_asic._b_asic import *
+
 # Python modules.
 from b_asic.architecture import *
 from b_asic.core_operations import *
