@@ -162,5 +162,8 @@ ignore = [
 "lib/b_asic/__init__.py" = ["F403"]
 "test/conftest.py" = ["F403"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["b_asic"]
+
 [tool.codespell]
 ignore-words-list = ["inout"]
