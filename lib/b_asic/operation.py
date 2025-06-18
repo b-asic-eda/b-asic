@@ -720,7 +720,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def split(self) -> Iterable[Operation]:
         # Import here to avoid circular imports.
-        from b_asic.special_operations import Input
+        from b_asic.special_operations import Input  # noqa: PLC0415
 
         result = self.evaluate(*([Input()] * self.input_count))
         if isinstance(result, collections.abc.Sequence) and all(
@@ -731,8 +731,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def to_sfg(self) -> "SFG":
         # Import here to avoid circular imports.
-        from b_asic.signal_flow_graph import SFG
-        from b_asic.special_operations import Input, Output
+        from b_asic.signal_flow_graph import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
 
         inputs = [Input() for _ in range(self.input_count)]
 

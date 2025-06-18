@@ -1768,8 +1768,8 @@ class SFG(AbstractOperation):
     def critical_path_time(self) -> int:
         """Return the time of the critical path."""
         # Import here needed to avoid circular imports
-        from b_asic.schedule import Schedule
-        from b_asic.scheduler import ASAPScheduler
+        from b_asic.schedule import Schedule  # noqa: PLC0415
+        from b_asic.scheduler import ASAPScheduler  # noqa: PLC0415
 
         return Schedule(self, ASAPScheduler()).schedule_time
 
@@ -2139,7 +2139,7 @@ class SFG(AbstractOperation):
 
     def edit(self) -> dict[str, "SFG"]:
         """Edit SFG in GUI."""
-        from b_asic.sfg_gui.main_window import start_editor
+        from b_asic.sfg_gui.main_window import start_editor  # noqa: PLC0415
 
         return start_editor(self)
 

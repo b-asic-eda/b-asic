@@ -31,7 +31,7 @@ from pulp import (
 )
 
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
-from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
+from b_asic.codegen.vhdl import architecture, common, entity
 from b_asic.process import (
     MemoryProcess,
     MemoryVariable,
@@ -2136,7 +2136,7 @@ class ProcessCollection:
             pipelining. If any other value than None, `input_sync` must also be set.
         """
         # Check that entity name is a valid VHDL identifier
-        if not is_valid_vhdl_identifier(entity_name):
+        if not common.is_valid_vhdl_identifier(entity_name):
             raise KeyError(f"{entity_name} is not a valid identifier")
 
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
@@ -2207,8 +2207,6 @@ class ProcessCollection:
                 )
 
         with Path(filename).open("w") as f:
-            from b_asic.codegen.vhdl import architecture, common, entity
-
             common.b_asic_preamble(f)
             common.ieee_header(f)
             entity.memory_based_storage(
@@ -2306,7 +2304,7 @@ class ProcessCollection:
           Implementation, Ch. 6.3.2
         """
         # Check that entity name is a valid VHDL identifier
-        if not is_valid_vhdl_identifier(entity_name):
+        if not common.is_valid_vhdl_identifier(entity_name):
             raise KeyError(f"{entity_name} is not a valid identifier")
 
         # Check that this is a ProcessCollection of (Plain)MemoryVariables
@@ -2331,8 +2329,6 @@ class ProcessCollection:
         forward_backward_table = _ForwardBackwardTable(self)
 
         with Path(filename).open("w") as f:
-            from b_asic.codegen.vhdl import architecture, common, entity
-
             common.b_asic_preamble(f)
             common.ieee_header(f)
             entity.register_based_storage(

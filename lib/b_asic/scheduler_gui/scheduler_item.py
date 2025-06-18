@@ -125,14 +125,15 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
             self.schedule.start_time_of_operation(item.graph_id)
             % self.schedule.schedule_time
         )
-        # check dependencies
         if not -slacks[0] <= new_start_time - op_start_time <= slacks[1]:
+            # breaches circular dependencies
             return False
         if (
             not -slacks[0]
             <= new_start_time - self.schedule.start_time_of_operation(item.graph_id)
             <= slacks[1]
         ):
+            # breaches noncircular dependencies
             return False
         if self.schedule.cyclic:
             if new_start_time < -1:

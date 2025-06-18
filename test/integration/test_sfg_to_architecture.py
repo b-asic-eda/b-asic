@@ -1,4 +1,5 @@
 import pytest
+from pulp import PULP_CBC_CMD
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import (
@@ -464,8 +465,6 @@ def test_ilp_resource_algorithm_custom_solver():
 
     mem_vars = schedule.get_memory_variables()
     direct, mem_vars = mem_vars.split_on_length()
-
-    from pulp import PULP_CBC_CMD
 
     mem_vars_set = mem_vars.split_on_ports(
         read_ports=1,

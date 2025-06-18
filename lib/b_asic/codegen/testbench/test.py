@@ -12,7 +12,7 @@ from vunit import VUnit
 testbench_path = Path(__file__).resolve().parent
 
 vu = VUnit.from_argv(
-    argv=["--output-path", str(testbench_path / "vunit_out")] + argv[1:]
+    argv=["--output-path", str(testbench_path / "vunit_out"), *argv[1:]]
 )
 
 lib = vu.add_library("lib")

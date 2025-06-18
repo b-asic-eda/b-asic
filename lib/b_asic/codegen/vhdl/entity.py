@@ -2,17 +2,20 @@
 Module for code generation of VHDL entity declarations.
 """
 
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
 
 from b_asic.codegen.vhdl import VHDL_TAB, write_lines
-from b_asic.port import Port
-from b_asic.process import MemoryVariable, PlainMemoryVariable
-from b_asic.resources import ProcessCollection
+
+if TYPE_CHECKING:
+    from b_asic.port import Port
+    from b_asic.resources import ProcessCollection
 
 
 def memory_based_storage(
-    f: TextIO, entity_name: str, collection: ProcessCollection, word_length: int
+    f: TextIO, entity_name: str, collection: "ProcessCollection", word_length: int
 ) -> None:
+    from b_asic.process import MemoryVariable, PlainMemoryVariable  # noqa: PLC0415
+
     # Check that this is a ProcessCollection of (Plain)MemoryVariables
     is_memory_variable = all(
         isinstance(process, MemoryVariable) for process in collection
@@ -77,6 +80,6 @@ def memory_based_storage(
 
 
 def register_based_storage(
-    f: TextIO, entity_name: str, collection: ProcessCollection, word_length: int
+    f: TextIO, entity_name: str, collection: "ProcessCollection", word_length: int
 ) -> None:
     memory_based_storage(f, entity_name, collection, word_length)

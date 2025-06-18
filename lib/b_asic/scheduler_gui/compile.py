@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 from qtpy import uic
+from qtpy.uic import compileUi
 from setuptools_scm import get_version
 
 try:
@@ -157,8 +158,6 @@ def compile_ui(*filenames: str) -> None:
         outfile = f"{directory}/ui_{file_stem}.py"
 
         if uic.PYQT6:
-            from qtpy.uic import compileUi
-
             with Path(outfile).open("w") as ofile:
                 compileUi(filename, ofile)
 

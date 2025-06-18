@@ -48,10 +48,10 @@ class TestSink:
         with pytest.warns(UserWarning, match="Output port out0 has been removed"):
             sfg1 = sfg.replace_operation(s, "out0")
 
-            assert sfg1.output_count == 1
-            assert sfg1.input_count == 2
+        assert sfg1.output_count == 1
+        assert sfg1.input_count == 2
 
-            assert sfg.evaluate_output(1, [0, 1]) == sfg1.evaluate_output(0, [0, 1])
+        assert sfg.evaluate_output(1, [0, 1]) == sfg1.evaluate_output(0, [0, 1])
 
     def test_sink_latency_getter(self):
         test_operation = Sink()

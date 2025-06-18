@@ -184,7 +184,7 @@ class SignalSourceProvider(ABC):
 
     def __add__(self, src: Union["SignalSourceProvider", Num]) -> "Addition":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Addition, Constant
+        from b_asic.core_operations import Addition, Constant  # noqa: PLC0415
 
         if isinstance(src, Number):
             return Addition(self, Constant(src))
@@ -193,19 +193,19 @@ class SignalSourceProvider(ABC):
 
     def __radd__(self, src: Union["SignalSourceProvider", Num]) -> "Addition":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Addition, Constant
+        from b_asic.core_operations import Addition, Constant  # noqa: PLC0415
 
         return Addition(Constant(src) if isinstance(src, Number) else src, self)
 
     def __sub__(self, src: Union["SignalSourceProvider", Num]) -> "Subtraction":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Subtraction
+        from b_asic.core_operations import Constant, Subtraction  # noqa: PLC0415
 
         return Subtraction(self, Constant(src) if isinstance(src, Number) else src)
 
     def __rsub__(self, src: Union["SignalSourceProvider", Num]) -> "Subtraction":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Subtraction
+        from b_asic.core_operations import Constant, Subtraction  # noqa: PLC0415
 
         return Subtraction(Constant(src) if isinstance(src, Number) else src, self)
 
@@ -213,7 +213,10 @@ class SignalSourceProvider(ABC):
         self, src: Union["SignalSourceProvider", Num]
     ) -> Union["Multiplication", "ConstantMultiplication"]:
         # Import here to avoid circular imports.
-        from b_asic.core_operations import ConstantMultiplication, Multiplication
+        from b_asic.core_operations import (  # noqa: PLC0415
+            ConstantMultiplication,
+            Multiplication,
+        )
 
         return (
             ConstantMultiplication(src, self)
@@ -225,7 +228,10 @@ class SignalSourceProvider(ABC):
         self, src: Union["SignalSourceProvider", Num]
     ) -> Union["Multiplication", "ConstantMultiplication"]:
         # Import here to avoid circular imports.
-        from b_asic.core_operations import ConstantMultiplication, Multiplication
+        from b_asic.core_operations import (  # noqa: PLC0415
+            ConstantMultiplication,
+            Multiplication,
+        )
 
         return (
             ConstantMultiplication(src, self)
@@ -235,7 +241,7 @@ class SignalSourceProvider(ABC):
 
     def __truediv__(self, src: Union["SignalSourceProvider", Num]) -> "Division":
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Division
+        from b_asic.core_operations import Constant, Division  # noqa: PLC0415
 
         return Division(self, Constant(src) if isinstance(src, Number) else src)
 
@@ -243,7 +249,11 @@ class SignalSourceProvider(ABC):
         self, src: Union["SignalSourceProvider", Num]
     ) -> Union["Division", "Reciprocal"]:
         # Import here to avoid circular imports.
-        from b_asic.core_operations import Constant, Division, Reciprocal
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Constant,
+            Division,
+            Reciprocal,
+        )
 
         if isinstance(src, Number):
             if src == 1:
@@ -253,7 +263,8 @@ class SignalSourceProvider(ABC):
         return Division(src, self)
 
     def __lshift__(self, src: int) -> Union["LeftShift", "Shift"]:
-        from b_asic.core_operations import LeftShift, Shift
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import LeftShift, Shift  # noqa: PLC0415
 
         if not isinstance(src, int):
             raise TypeError("Can only shift with an int")
@@ -262,7 +273,8 @@ class SignalSourceProvider(ABC):
         return Shift(src, self)
 
     def __rshift__(self, src: int) -> Union["RightShift", "Shift"]:
-        from b_asic.core_operations import RightShift, Shift
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import RightShift, Shift  # noqa: PLC0415
 
         if not isinstance(src, int):
             raise TypeError("Can only shift with an int")
@@ -350,7 +362,8 @@ class InputPort(AbstractPort):
 
         Returns the input port of the first delay element in the chain.
         """
-        from b_asic.special_operations import Delay
+        # Import here to avoid circular imports.
+        from b_asic.special_operations import Delay  # noqa: PLC0415
 
         if not isinstance(number, int) or number < 0:
             raise TypeError("Number of delays must be a positive integer")

@@ -110,7 +110,7 @@ class Signal(AbstractGraphComponent):
             raised. That output is used to extract the OutputPort.
         """
         # import here to avoid cyclic imports
-        from b_asic.operation import Operation
+        from b_asic.operation import Operation  # noqa: PLC0415
 
         if isinstance(source, (Signal, Operation)):
             # Signal or Operation
@@ -144,7 +144,7 @@ class Signal(AbstractGraphComponent):
             is raised.
         """
         # import here to avoid cyclic imports
-        from b_asic.operation import Operation
+        from b_asic.operation import Operation  # noqa: PLC0415
 
         if isinstance(destination, (Signal, Operation)):
             # Signal or Operation

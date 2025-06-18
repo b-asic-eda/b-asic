@@ -300,6 +300,8 @@ class Simulation:
     def show(self) -> None:
         """Show the simulation results."""
         # import here to avoid cyclic imports
-        from b_asic.gui_utils.plot_window import start_simulation_dialog
+        from b_asic.gui_utils.plot_window import (  # noqa: PLC0415
+            start_simulation_dialog,
+        )
 
         start_simulation_dialog(self.results, self._sfg.name)

@@ -36,7 +36,7 @@ from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, OperatorProcess
 from b_asic.resources import ProcessCollection
-from b_asic.scheduler import Scheduler
+from b_asic.scheduler import ASAPScheduler, Scheduler
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
@@ -122,8 +122,6 @@ class Schedule:
             self._scheduler = scheduler
             self._scheduler.apply_scheduling(self)
         elif start_times is None and laps is None:
-            from b_asic.scheduler import ASAPScheduler
-
             self._scheduler = ASAPScheduler()
             self._scheduler.apply_scheduling(self)
         else:
@@ -584,7 +582,7 @@ class Schedule:
         inplace : bool, default: False
             If True, replace the current schedule.
         """
-        from b_asic.scheduler_gui.main_window import start_scheduler
+        from b_asic.scheduler_gui.main_window import start_scheduler  # noqa: PLC0415
 
         new_schedule = start_scheduler(self)
         if inplace:

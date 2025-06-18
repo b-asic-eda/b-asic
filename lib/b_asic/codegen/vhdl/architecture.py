@@ -6,9 +6,9 @@ import math
 from typing import TYPE_CHECKING, Literal, TextIO, cast
 
 from b_asic.codegen.vhdl import common, write, write_lines
-from b_asic.process import MemoryVariable
 
 if TYPE_CHECKING:
+    from b_asic.process import MemoryVariable
     from b_asic.resources import ProcessCollection, _ForwardBackwardTable
 
 
@@ -341,7 +341,7 @@ def memory_based_storage(
     ]
     for i, collection in enumerate(assignment):
         for mv in collection:
-            mv = cast(MemoryVariable, mv)
+            mv = cast("MemoryVariable", mv)
             if mv.start_time >= schedule_time:
                 raise ValueError("start_time greater than schedule_time")
             if mv.execution_time:
@@ -468,7 +468,7 @@ def memory_based_storage(
     ]
     for i, collection in enumerate(assignment):
         for mv in collection:
-            mv = cast(MemoryVariable, mv)
+            mv = cast("MemoryVariable", mv)
             for read_time in mv.reads.values():
                 read_list[
                     (mv.start_time + read_time - int(not (input_sync))) % schedule_time
