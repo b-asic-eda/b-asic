@@ -29,7 +29,6 @@ from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.scheduler_event import SchedulerEvent
 from b_asic.scheduler_gui.signal_item import SignalItem
-from b_asic.special_operations import Output
 from b_asic.types import GraphID
 
 
@@ -126,8 +125,14 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
             self.schedule.start_time_of_operation(item.graph_id)
             % self.schedule.schedule_time
         )
+        # check dependencies
         if not -slacks[0] <= new_start_time - op_start_time <= slacks[1]:
-            # Cannot move due to dependencies
+            return False
+        if (
+            not -slacks[0]
+            <= new_start_time - self.schedule.start_time_of_operation(item.graph_id)
+            <= slacks[1]
+        ):
             return False
         if self.schedule.cyclic:
             if new_start_time < -1:
@@ -246,13 +251,6 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         op_start_time = self.schedule.start_time_of_operation(item.graph_id)
         new_start_time = math.floor(pos) - math.floor(self._x_axis_indent)
         move_time = new_start_time - op_start_time
-        op = self._schedule._sfg.find_by_id(item.graph_id)
-        if (
-            isinstance(op, Output)
-            and op_start_time == self.schedule.schedule_time
-            and new_start_time < self.schedule.schedule_time
-        ):
-            move_time = new_start_time
         if move_time:
             self.schedule.move_operation(item.graph_id, move_time)
             print(f"schedule.move_operation({item.graph_id!r}, {move_time})")

@@ -18,6 +18,8 @@ from b_asic.scheduler_gui._preferences import OPERATION_GAP, OPERATION_HEIGHT
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.timeline_item import TimelineItem
+from b_asic.special_operations import Output
+from b_asic.utility_operations import Sink
 
 
 class SchedulerEvent:
@@ -208,15 +210,17 @@ class SchedulerEvent:
         self.set_item_inactive(item)
         pos_x = item.x()
         redraw = False
-        if pos_x < 0:
+        if (
+            math.floor(pos_x) == 0 and isinstance(item.operation, (Output, Sink))
+        ) or pos_x < 0:
             pos_x += self._schedule.schedule_time
             redraw = True
         if (
             pos_x > self._schedule.schedule_time
-            # If zero execution time, keep operation at the edge
+            # If output or sink, keep operation at the edge
             and (
                 pos_x > self._schedule.schedule_time + 1
-                or item.operation.execution_time
+                or not isinstance(item.operation, (Output, Sink))
             )
         ):
             pos_x = pos_x % self._schedule.schedule_time
