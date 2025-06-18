@@ -1,10 +1,10 @@
-Block Diagram GUI
+SFG GUI
 =================
 
 Module contents
 ---------------
 
-.. automodule:: b_asic.GUI
+.. automodule:: b_asic.sfg_gui
    :members:
    :undoc-members:
    :show-inheritance:
@@ -12,102 +12,102 @@ Module contents
 Submodules
 ----------
 
-GUI.main\_window module
+sfg_gui.main\_window module
 -----------------------
 
-.. automodule:: b_asic.GUI.main_window
+.. automodule:: b_asic.sfg_gui.main_window
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.arrow module
+sfg_gui.arrow module
 ----------------
 
-.. automodule:: b_asic.GUI.arrow
+.. automodule:: b_asic.sfg_gui.arrow
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.drag\_button module
+sfg_gui.drag\_button module
 -----------------------
 
-.. automodule:: b_asic.GUI.drag_button
+.. automodule:: b_asic.sfg_gui.drag_button
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.gui\_interface module
+sfg_gui.gui\_interface module
 -------------------------
 
-.. automodule:: b_asic.GUI.gui_interface
+.. automodule:: b_asic.sfg_gui.gui_interface
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.port\_button module
+sfg_gui.port\_button module
 -----------------------
 
-.. automodule:: b_asic.GUI.port_button
+.. automodule:: b_asic.sfg_gui.port_button
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.precedence\_graph\_window module
+sfg_gui.precedence\_graph\_window module
 ------------------------------------
 
-.. automodule:: b_asic.GUI.precedence_graph_window
+.. automodule:: b_asic.sfg_gui.precedence_graph_window
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.properties\_window module
+sfg_gui.properties\_window module
 -----------------------------
 
-.. automodule:: b_asic.GUI.properties_window
+.. automodule:: b_asic.sfg_gui.properties_window
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.select\_sfg\_window module
+sfg_gui.select\_sfg\_window module
 ------------------------------
 
-.. automodule:: b_asic.GUI.select_sfg_window
+.. automodule:: b_asic.sfg_gui.select_sfg_window
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.signal\_generator\_input module
+sfg_gui.signal\_generator\_input module
 -----------------------------------
 
-.. inheritance-diagram:: b_asic.GUI.signal_generator_input
+.. inheritance-diagram:: b_asic.sfg_gui.signal_generator_input
    :parts: 1
-   :top-classes: b_asic.GUI.signal_generator_input.SignalGeneratorInput
+   :top-classes: b_asic.sfg_gui.signal_generator_input.SignalGeneratorInput
 
-.. automodule:: b_asic.GUI.signal_generator_input
+.. automodule:: b_asic.sfg_gui.signal_generator_input
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.simulate\_sfg\_window module
+sfg_gui.simulate\_sfg\_window module
 --------------------------------
 
-.. automodule:: b_asic.GUI.simulate_sfg_window
+.. automodule:: b_asic.sfg_gui.simulate_sfg_window
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.simulation\_worker module
+sfg_gui.simulation\_worker module
 --------------------------------
 
-.. automodule:: b_asic.GUI.simulation_worker
+.. automodule:: b_asic.sfg_gui.simulation_worker
    :members:
    :undoc-members:
    :show-inheritance:
 
-GUI.util\_dialogs module
+sfg_gui.util\_dialogs module
 ------------------------
 
-.. automodule:: b_asic.GUI.util_dialogs
+.. automodule:: b_asic.sfg_gui.util_dialogs
    :members:
    :undoc-members:
    :show-inheritance:

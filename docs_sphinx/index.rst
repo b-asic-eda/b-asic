@@ -66,7 +66,7 @@ Table of Contents
 
    self
    api/index
-   GUI
+   sfg_gui
    scheduler_gui
    gui_utils
    codegen/index
