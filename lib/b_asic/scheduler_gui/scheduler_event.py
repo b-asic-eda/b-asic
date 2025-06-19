@@ -228,14 +228,16 @@ class SchedulerEvent:
         pos_y = self._schedule.get_y_location(item.operation.graph_id)
         # Check move in y-direction
         if pos_y != self._old_op_position:
+            insert = (pos_y % 1) != 0 or pos_y < 0
+            pos_y = max(math.ceil(pos_y), 0)
             self._schedule.move_y_location(
                 item.operation.graph_id,
-                math.ceil(pos_y),
-                (pos_y % 1) != 0,
+                pos_y,
+                insert,
             )
             print(
                 f"schedule.move_y_location({item.operation.graph_id!r},"
-                f" {math.ceil(pos_y)}, {(pos_y % 1) != 0})"
+                f" {pos_y}, {insert})"
             )
             self._signals.redraw_all.emit()
         # Operation has been moved in x-direction
