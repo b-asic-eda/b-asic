@@ -269,6 +269,8 @@
     <addaction name="actionRedo"/>
     <addaction name="separator"/>
     <addaction name="actionReorder"/>
+    <addaction name="actionRotateForward"/>
+    <addaction name="actionRotateBackward"/>
     <addaction name="actionIncrease_time_resolution"/>
     <addaction name="actionDecrease_time_resolution"/>
    </widget>
@@ -464,6 +466,22 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+R</string>
+   </property>
+  </action>
+  <action name="actionRotateForward">
+   <property name="text">
+    <string>Rotate Forward</string>
+   </property>
+   <property name="toolTip">
+    <string>Rotate the schedule one step forward</string>
+   </property>
+  </action>
+  <action name="actionRotateBackward">
+   <property name="text">
+    <string>Rotate Backward</string>
+   </property>
+   <property name="toolTip">
+    <string>Rotate the schedule one step backward</string>
    </property>
   </action>
   <action name="actionPlot_schedule">

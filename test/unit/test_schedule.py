@@ -655,6 +655,140 @@ class TestRescheduling:
         sfg = schedule.sfg
         assert fir_sfg.evaluate(5) == sfg.evaluate(5)
 
+    def test_rotate_forward(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
+
+        schedule = Schedule(precedence_sfg_delays, cyclic=True)
+        schedule = schedule.rotate_forward()
+        assert schedule.start_times == {
+            "in0": 1,
+            "cmul0": 1,
+            "cmul3": 1,
+            "cmul4": 1,
+            "cmul5": 1,
+            "cmul6": 1,
+            "add3": 4,
+            "add1": 4,
+            "add0": 5,
+            "cmul1": 6,
+            "cmul2": 9,
+            "add2": 0,
+            "out0": 1,
+        }
+
+        sfg = schedule._sfg
+        assert schedule.laps == {
+            sfg.find_by_id("in0").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul0").input_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul0").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul3").input_signals[0].graph_id: 1,
+            sfg.find_by_id("cmul3").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul6").input_signals[0].graph_id: 1,
+            sfg.find_by_id("cmul6").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul4").input_signals[0].graph_id: 2,
+            sfg.find_by_id("cmul4").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul5").input_signals[0].graph_id: 2,
+            sfg.find_by_id("cmul5").output_signals[0].graph_id: 0,
+            sfg.find_by_id("add3").input_signals[0].graph_id: 0,
+            sfg.find_by_id("add3").input_signals[1].graph_id: 0,
+            sfg.find_by_id("add3").output_signals[0].graph_id: 1,
+            sfg.find_by_id("add1").input_signals[0].graph_id: 0,
+            sfg.find_by_id("add1").input_signals[1].graph_id: 0,
+            sfg.find_by_id("add1").output_signals[0].graph_id: 0,
+            sfg.find_by_id("add0").input_signals[0].graph_id: 0,
+            sfg.find_by_id("add0").input_signals[1].graph_id: 0,
+            sfg.find_by_id("add0").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul1").input_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul1").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul1").output_signals[1].graph_id: 1,
+            sfg.find_by_id("cmul1").output_signals[2].graph_id: 1,
+            sfg.find_by_id("cmul1").output_signals[3].graph_id: 2,
+            sfg.find_by_id("cmul1").output_signals[4].graph_id: 2,
+            sfg.find_by_id("cmul2").input_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul2").output_signals[0].graph_id: 1,
+            sfg.find_by_id("add2").input_signals[0].graph_id: 1,
+            sfg.find_by_id("add2").input_signals[1].graph_id: 1,
+            sfg.find_by_id("add2").output_signals[0].graph_id: 0,
+            sfg.find_by_id("out0").input_signals[0].graph_id: 0,
+        }
+
+    def test_rotate_backward(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
+
+        schedule = Schedule(precedence_sfg_delays, cyclic=True)
+
+        schedule = schedule.rotate_backward()
+        schedule = schedule.rotate_backward()
+        assert schedule.start_times == {
+            "in0": 10,
+            "cmul0": 10,
+            "cmul3": 10,
+            "cmul4": 10,
+            "cmul5": 10,
+            "cmul6": 10,
+            "add3": 1,
+            "add1": 1,
+            "add0": 2,
+            "cmul1": 3,
+            "cmul2": 6,
+            "add2": 9,
+            "out0": 10,
+        }
+
+        sfg = schedule._sfg
+        assert schedule.laps == {
+            sfg.find_by_id("in0").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul0").input_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul0").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul3").input_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul3").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul6").input_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul6").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul4").input_signals[0].graph_id: 1,
+            sfg.find_by_id("cmul4").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul5").input_signals[0].graph_id: 1,
+            sfg.find_by_id("cmul5").output_signals[0].graph_id: 0,
+            sfg.find_by_id("add3").input_signals[0].graph_id: 0,
+            sfg.find_by_id("add3").input_signals[1].graph_id: 0,
+            sfg.find_by_id("add3").output_signals[0].graph_id: 0,
+            sfg.find_by_id("add1").input_signals[0].graph_id: 0,
+            sfg.find_by_id("add1").input_signals[1].graph_id: 0,
+            sfg.find_by_id("add1").output_signals[0].graph_id: 0,
+            sfg.find_by_id("add0").input_signals[0].graph_id: 0,
+            sfg.find_by_id("add0").input_signals[1].graph_id: 0,
+            sfg.find_by_id("add0").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul1").input_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul1").output_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul1").output_signals[1].graph_id: 0,
+            sfg.find_by_id("cmul1").output_signals[2].graph_id: 0,
+            sfg.find_by_id("cmul1").output_signals[3].graph_id: 1,
+            sfg.find_by_id("cmul1").output_signals[4].graph_id: 1,
+            sfg.find_by_id("cmul2").input_signals[0].graph_id: 0,
+            sfg.find_by_id("cmul2").output_signals[0].graph_id: 0,
+            sfg.find_by_id("add2").input_signals[0].graph_id: 0,
+            sfg.find_by_id("add2").input_signals[1].graph_id: 0,
+            sfg.find_by_id("add2").output_signals[0].graph_id: 0,
+            sfg.find_by_id("out0").input_signals[0].graph_id: 0,
+        }
+
+    def test_rotate_noncyclic_schedule(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
+
+        schedule = Schedule(precedence_sfg_delays)
+        with pytest.raises(ValueError, match="Cannot rotate non-cyclic schedule."):
+            schedule.rotate_forward()
+        with pytest.raises(ValueError, match="Cannot rotate non-cyclic schedule."):
+            schedule.rotate_backward()
+
 
 class TestTimeResolution:
     def test_increase_time_resolution(

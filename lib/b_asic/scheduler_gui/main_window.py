@@ -173,6 +173,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
         self.actionReorder.triggered.connect(self._action_reorder)
         self.actionReorder.setIcon(get_icon("reorder"))
+        self.actionRotateForward.triggered.connect(self._rotate_forward)
+        self.actionRotateBackward.triggered.connect(self._rotate_backward)
         self.actionStatus_bar.triggered.connect(self._toggle_statusbar)
         self.action_incorrect_execution_time.setIcon(get_icon("warning"))
         self.action_incorrect_execution_time.triggered.connect(
@@ -266,6 +268,28 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if self._graph is not None:
             self._graph._redraw_from_start()
             self.update_statusbar("Operations reordered based on start time")
+
+    @Slot()
+    def _rotate_forward(self) -> None:
+        """Rotate the schedule one step forward."""
+        if self.schedule is None:
+            return
+        if self._graph is not None:
+            self._schedule = self._schedule.rotate_forward()
+            self.open(self._schedule)
+            print("schedule.rotate_forward())")
+            self.update_statusbar("Scheduled rotated forward.")
+
+    @Slot()
+    def _rotate_backward(self) -> None:
+        """Rotate the schedule one step backward."""
+        if self.schedule is None:
+            return
+        if self._graph is not None:
+            self._schedule = self._schedule.rotate_backward()
+            self.open(self._schedule)
+            print("schedule.rotate_backward())")
+            self.update_statusbar("Scheduled rotated backward.")
 
     @Slot()
     def _increase_time_resolution(self) -> None:

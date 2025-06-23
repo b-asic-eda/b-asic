@@ -1035,6 +1035,98 @@ class Schedule:
             self.move_operation(graph_id, -backward_slack)
         return self
 
+    def rotate_forward(self) -> "Schedule":
+        """Rotate the schedule one cycle forward."""
+        if not self._cyclic:
+            raise ValueError("Cannot rotate non-cyclic schedule.")
+
+        for graph_id, start_time in self._start_times.items():
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
+            new_time = (start_time + 1) % self._schedule_time
+
+            for input_signal in op.input_signals:
+                # move resulted in the input wrapping around
+                if (
+                    start_time + 1 + input_signal.destination.latency_offset
+                    == self._schedule_time
+                ):
+                    self._laps[input_signal.graph_id] += 1
+
+            for output_signal in op.output_signals:
+                # move resulted in the output wrapping around
+                if (
+                    start_time + output_signal.source.latency_offset
+                    == self._schedule_time
+                ):
+                    self._laps[output_signal.graph_id] -= 1
+
+            if isinstance(op, (Output, Sink)) and start_time == self._schedule_time:
+                # special case, output has wrapped around
+                for input_signal in op.input_signals:
+                    self._laps[input_signal.graph_id] += 1
+
+            # place the operation at the correct position
+            if (
+                isinstance(op, (Input, DontCare))
+                and start_time == self._schedule_time - 1
+            ):
+                self._start_times[graph_id] = 0
+                for output_signal in op.output_signals:
+                    self._laps[output_signal.graph_id] -= 1
+            elif (
+                isinstance(op, (Output, Sink)) and start_time == self._schedule_time - 1
+            ):
+                self._start_times[graph_id] = self._schedule_time
+                for input_signal in op.input_signals:
+                    self._laps[input_signal.graph_id] -= 1
+            else:
+                self._start_times[graph_id] = new_time
+        return self
+
+    def rotate_backward(self) -> "Schedule":
+        """Rotate the schedule one cycle backward."""
+        if not self._cyclic:
+            raise ValueError("Cannot rotate non-cyclic schedule.")
+
+        for graph_id, start_time in self._start_times.items():
+            op = cast(Operation, self._sfg.find_by_id(graph_id))
+            new_time = (start_time - 1) % self._schedule_time
+
+            for input_signal in op.input_signals:
+                # move resulted in the input wrapping around
+                if start_time + input_signal.destination.latency_offset == 0:
+                    self._laps[input_signal.graph_id] -= 1
+
+            for output_signal in op.output_signals:
+                # move resulted in the output wrapping around
+                if start_time - 1 + output_signal.source.latency_offset == 0:
+                    # normal wrap around
+                    self._laps[output_signal.graph_id] += 1
+                if (
+                    start_time - 1 + output_signal.source.latency_offset
+                    == self._schedule_time
+                ):
+                    # output time now in schedule period
+                    self._laps[output_signal.graph_id] += 1
+
+            if isinstance(op, (Input, DontCare)) and start_time == 0:
+                # special case, input has wrapped around
+                for output_signal in op.output_signals:
+                    self._laps[output_signal.graph_id] += 1
+
+            # place the operation at the correct position
+            if isinstance(op, (Input, DontCare)) and start_time == 1:
+                self._start_times[graph_id] = 0
+                for output_signal in op.output_signals:
+                    self._laps[output_signal.graph_id] -= 1
+            elif isinstance(op, (Output, Sink)) and start_time == 1:
+                self._start_times[graph_id] = self._schedule_time
+                for input_signal in op.input_signals:
+                    self._laps[input_signal.graph_id] -= 1
+            else:
+                self._start_times[graph_id] = new_time
+        return self
+
     def _remove_delays_no_laps(self) -> None:
         """Remove delay elements without updating laps. Used when loading schedule."""
         delay_list = self._sfg.find_by_type(Delay)
