@@ -195,6 +195,50 @@ def type_declaration(
     write(f, 1, f"type {name} is {alias};")
 
 
+def component_declaration(
+    f: TextIO,
+    entity_name: str,
+    generics: list[str],
+    ports: list[str],
+) -> None:
+    (write(f, 1, f"component {entity_name}"),)
+    if generics:
+        write(f, 2, "generic (")
+        for i, generic in enumerate(generics):
+            write(f, 3, f"{generic}{'' if i == len(generics) - 1 else ';'}")
+        write(f, 2, ");")
+    if ports:
+        write(f, 2, "port (")
+        for i, port in enumerate(ports):
+            write(f, 3, f"{port}{'' if i == len(ports) - 1 else ';'}")
+        write(f, 2, ");")
+    write(f, 1, "end component;")
+
+
+def component_instantiation(
+    f: TextIO,
+    label: str,
+    entity_name: str,
+    generic_mappings: list[str] | None = None,
+    port_mappings: list[str] | None = None,
+) -> None:
+    (write(f, 1, f"{label}: {entity_name}"),)
+    if generic_mappings:
+        write(f, 2, "generic map (")
+        for i, generic_mapping in enumerate(generic_mappings):
+            write(
+                f,
+                3,
+                f"{generic_mapping}{'' if i == len(generic_mappings) - 1 else ','}",
+            )
+        write(f, 2, ")")
+    if port_mappings:
+        write(f, 2, "port map (")
+        for i, port_mapping in enumerate(port_mappings):
+            write(f, 3, f"{port_mapping}{'' if i == len(port_mappings) - 1 else ','}")
+        write(f, 2, ");")
+
+
 def process_prologue(
     f: TextIO,
     sensitivity_list: str,

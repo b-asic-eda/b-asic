@@ -123,3 +123,4 @@ Digraph.gv
 Digraph.gv.pdf
 *.pstat
 *.prof
+*.spyproject

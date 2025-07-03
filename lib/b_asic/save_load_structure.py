@@ -72,7 +72,7 @@ def sfg_to_python(
                 for attr in params_filtered
             }
             params = {k: v for k, v in params.items() if v}
-            if params.get("latency_offsets", None) is not None:
+            if params.get("latency_offsets") is not None:
                 params["latency_offsets"] = {
                     k: v for k, v in params["latency_offsets"].items() if v is not None
                 }

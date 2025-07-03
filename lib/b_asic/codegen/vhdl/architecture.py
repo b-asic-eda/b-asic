@@ -6,22 +6,365 @@ import math
 from typing import TYPE_CHECKING, Literal, TextIO, cast
 
 from b_asic.codegen.vhdl import common, write, write_lines
+from b_asic.special_operations import Input, Output
 
 if TYPE_CHECKING:
+    from b_asic.architecture import Architecture, Memory, ProcessingElement
     from b_asic.process import MemoryVariable
-    from b_asic.resources import ProcessCollection, _ForwardBackwardTable
+    from b_asic.resources import _ForwardBackwardTable
+
+
+def architecture(f: TextIO, arch: "Architecture", word_length: int) -> None:
+    architecture_name = "rtl"
+    write(f, 0, f"architecture {architecture_name} of {arch.entity_name} is", end="\n")
+    # Component declaration
+    write(f, 1, "-- component declaration")
+    for pe in arch.processing_elements:
+        generics = [f"WL : integer := {word_length}"]
+        ports = [
+            "clk : in std_logic",
+            "rst : in std_logic",
+        ]
+        ports += [
+            f"p_{port_number}_in : in std_logic_vector(WL-1 downto 0)"
+            for port_number in range(pe.input_count)
+        ]
+        if pe.operation_type == Input:
+            ports.append("p_0_in : in std_logic_vector(WL-1 downto 0)")
+        ports += [
+            f"p_{port_number}_out : out std_logic_vector(WL-1 downto 0)"
+            for port_number in range(pe.output_count)
+        ]
+        if pe.operation_type == Output:
+            ports.append("p_0_out : out std_logic_vector(WL-1 downto 0)")
+
+        common.component_declaration(f, pe.entity_name, generics, ports)
+        write(f, 1, "")
+
+    for mem in arch.memories:
+        generics = [
+            f"WL : integer := {word_length}",
+            f"SCHEDULE_CNT_LEN : integer := {arch.schedule_time.bit_length()}",
+        ]
+        ports = [
+            "clk : in std_logic",
+            "rst : in std_logic",
+        ]
+        ports += ["schedule_cnt : in unsigned(SCHEDULE_CNT_LEN-1 downto 0)"]
+        ports += [
+            f"p_{port_number}_in : in std_logic_vector(WL-1 downto 0)"
+            for port_number in range(mem.input_count)
+        ]
+        ports += [
+            f"p_{port_number}_out : out std_logic_vector(WL-1 downto 0)"
+            for port_number in range(mem.output_count)
+        ]
+
+        common.component_declaration(f, mem.entity_name, generics, ports)
+        write(f, 1, "")
+
+    # Signal declaration
+    for pe in arch.processing_elements:
+        write(f, 1, f"-- {pe.entity_name} signals")
+        if pe.operation_type != Input:
+            for port_number in range(pe.input_count):
+                common.signal_declaration(
+                    f,
+                    name=f"{pe.entity_name}_{port_number}_in",
+                    signal_type="std_logic_vector(WL-1 downto 0)",
+                )
+        if pe.operation_type != Output:
+            for port_number in range(pe.output_count):
+                common.signal_declaration(
+                    f,
+                    name=f"{pe.entity_name}_{port_number}_out",
+                    signal_type="std_logic_vector(WL-1 downto 0)",
+                )
+        write(f, 1, "")
+
+    for mem in arch.memories:
+        write(f, 1, f"-- {mem.entity_name} signals")
+        for port_number in range(mem.input_count):
+            common.signal_declaration(
+                f,
+                name=f"{mem.entity_name}_{port_number}_in",
+                signal_type="std_logic_vector(WL-1 downto 0)",
+            )
+        for port_number in range(mem.output_count):
+            common.signal_declaration(
+                f,
+                name=f"{mem.entity_name}_{port_number}_out",
+                signal_type="std_logic_vector(WL-1 downto 0)",
+            )
+        write(f, 1, "")
+
+    common.signal_declaration(
+        f, "schedule_cnt", "unsigned(SCHEDULE_CNT_LEN-1 downto 0)"
+    )
+
+    write(f, 0, "begin", start="\n", end="\n")
+
+    #   component instantiation
+    write(f, 1, "-- component instantiation")
+    for pe in arch.processing_elements:
+        # TODO: Change so that generics are mapped!!!
+        port_mappings = ["clk => clk", "rst => rst"]
+        port_mappings += [
+            f"p_{port_number}_in => {pe.entity_name}_{port_number}_in"
+            for port_number in range(pe.input_count)
+        ]
+        if pe.operation_type == Input:
+            port_mappings.append(f"p_0_in => {pe.entity_name}_0_in")
+        port_mappings += [
+            f"p_{port_number}_out => {pe.entity_name}_{port_number}_out"
+            for port_number in range(pe.output_count)
+        ]
+        if pe.operation_type == Output:
+            port_mappings.append(f"p_0_out => {pe.entity_name}_0_out")
+        common.component_instantiation(
+            f,
+            f"{pe.entity_name}_inst",
+            pe.entity_name,
+            # generic_mappings=generic_mappings,
+            port_mappings=port_mappings,
+        )
+        write(f, 1, "")
+
+    for mem in arch.memories:
+        # TODO: Change so that generics are mapped!!!
+        port_mappings = ["clk => clk", "rst => rst"]
+        port_mappings += ["schedule_cnt => schedule_cnt"]
+        port_mappings += [
+            f"p_{port_number}_in => {mem.entity_name}_{port_number}_in"
+            for port_number in range(mem.input_count)
+        ]
+        port_mappings += [
+            f"p_{port_number}_out => {mem.entity_name}_{port_number}_out"
+            for port_number in range(mem.output_count)
+        ]
+        common.component_instantiation(
+            f,
+            f"{mem.entity_name}_inst",
+            mem.entity_name,
+            # generic_mappings=generic_mappings,
+            port_mappings=port_mappings,
+        )
+        write(f, 1, "")
+
+    # Schedule counter
+    write(f, 1, "-- Schedule counter")
+    common.synchronous_process_prologue(f=f, name="schedule_cnt_proc", clk="clk")
+    write_lines(
+        f,
+        [
+            (3, "if rst = '1' then"),
+            (4, "schedule_cnt <= (others => '0');"),
+            (3, "else"),
+            (4, f"if schedule_cnt = {arch.schedule_time - 1} then"),
+            (5, "schedule_cnt <= (others => '0');"),
+            (4, "else"),
+            (5, "schedule_cnt <= schedule_cnt + 1;"),
+            (4, "end if;"),
+            (3, "end if;"),
+        ],
+    )
+    common.synchronous_process_epilogue(f, name="schedule_cnt_proc", clk="clk")
+    write(f, 1, "")
+
+    # Wire stuff together
+    _generate_interconnect(f, arch)
+
+    write(f, 0, f"end architecture {architecture_name};", start="", end="\n\n")
+
+
+def _generate_interconnect(f: TextIO, arch: "Architecture") -> None:
+    # Define PE input interconnect
+    for pe in arch.processing_elements:
+        for port_number in range(pe.input_count):
+            write(f, 1, "with to_integer(schedule_cnt) select")
+            write(f, 2, f"{pe.entity_name}_{port_number}_in <=")
+            for process in sorted(pe.collection):
+                op = process.operation
+                if isinstance(op, Input):
+                    continue
+                op_input_port = op.inputs[port_number]
+                # Find the source resource
+                source_port = op_input_port.signals[0].source
+                source_op = source_port.operation
+                is_found = False
+                # Check in memories
+                for mem in arch.memories:
+                    for var in mem.collection:
+                        # Skip all variables written at the same clock cycle
+                        if process.start_time == var.start_time:
+                            continue
+                        var_op_id = var.name.split(".")[0]
+                        var_port_index = int(var.name.split(".")[1])
+                        if (
+                            var_op_id == source_op.graph_id
+                            and var_port_index == source_port.index
+                        ):
+                            source_resource = mem
+                            is_found = True
+                if not is_found:
+                    for other_pe in arch.processing_elements:
+                        for pro in other_pe.collection:
+                            if pro.operation == source_op:
+                                source_resource = other_pe
+                                is_found = True
+                if not is_found:
+                    raise ValueError("Source resource not found.")
+                time = process.start_time % arch.schedule_time
+                write(
+                    f,
+                    3,
+                    f"{source_resource.entity_name}_{source_port.index}_out when {time},",
+                )
+            write(f, 3, "(others => '-') when others;", end="\n\n")
+
+    # Define memory input interconnect
+    for mem in arch.memories:
+        write(f, 1, "with to_integer(schedule_cnt) select")
+        write(f, 2, f"{mem.entity_name}_0_in <=")
+        for process in mem.collection:
+            # an execution found -> write rows
+            # TODO: Support multi-port memories here
+            source_op_graph_id = process.name.split(".")[0]
+            source_port_index = process.name.split(".")[1]
+            is_found = False
+            for other_pe in arch.processing_elements:
+                for pro in other_pe.collection:
+                    if pro.name == source_op_graph_id:
+                        source_pe = other_pe
+                        is_found = True
+            if not is_found:
+                raise ValueError("Source resource not found.")
+            time = process.start_time % arch.schedule_time
+            write(f, 3, f"{source_pe.entity_name}_{source_port_index}_out when {time},")
+        write(f, 3, "(others => '-') when others;", end="\n\n")
+
+
+def architecture_test_bench(f: TextIO, arch: "Architecture", word_length: int) -> None:
+    architecture_name = "tb"
+    write(
+        f, 0, f"architecture {architecture_name} of {arch.entity_name}_tb is", end="\n"
+    )
+
+    # DUT declaration
+    write(f, 1, "-- DUT declaration", start="\n")
+    generics = [
+        f"WL : integer := {word_length}",
+        f"SCHEDULE_CNT_LEN : integer := {arch.schedule_time.bit_length()}",
+    ]
+    ports = [
+        "clk : in std_logic",
+        "rst : in std_logic",
+    ]
+    inputs = [pe for pe in arch.processing_elements if pe.operation_type == Input]
+    ports += [
+        f"{pe.entity_name}_0_in : in std_logic_vector(WL-1 downto 0)" for pe in inputs
+    ]
+    outputs = [pe for pe in arch.processing_elements if pe.operation_type == Output]
+    ports += [
+        f"{pe.entity_name}_0_out : out std_logic_vector(WL-1 downto 0)"
+        for pe in outputs
+    ]
+    common.component_declaration(f, arch.entity_name, generics, ports)
+
+    # Constant declaration
+    write(f, 1, "-- Constant declaration", start="\n")
+    common.constant_declaration(f, "CLK_PERIOD", "time", "2 ns")
+    common.constant_declaration(f, "WL", "integer", f"{word_length}")
+    common.constant_declaration(
+        f, "SCHEDULE_CNT_LEN", "integer", f"{arch.schedule_time.bit_length()}"
+    )
+
+    # Signal declaration
+    write(f, 1, "-- Signal declaration", start="\n")
+    common.signal_declaration(f, "tb_clk", "std_logic", "'0'")
+    common.signal_declaration(f, "tb_rst", "std_logic", "'0'")
+    for pe in inputs:
+        common.signal_declaration(
+            f,
+            f"tb_{pe.entity_name}_0_in",
+            "std_logic_vector(WL-1 downto 0)",
+            "(others => '0')",
+        )
+    for pe in outputs:
+        common.signal_declaration(
+            f,
+            f"tb_{pe.entity_name}_0_out",
+            "std_logic_vector(WL-1 downto 0)",
+            "(others => '0')",
+        )
+
+    write(f, 0, "begin", end="\n")
+
+    # DUT Instantiation
+    write(f, 1, "-- DUT Instantiation", start="\n")
+    generic_mappings = ["WL => WL", "SCHEDULE_CNT_LEN => SCHEDULE_CNT_LEN"]
+    port_mappings = ["clk => tb_clk", "rst => tb_rst"]
+    port_mappings += [
+        f"{pe.entity_name}_0_in => tb_{pe.entity_name}_0_in" for pe in inputs
+    ]
+    port_mappings += [
+        f"{pe.entity_name}_0_out => tb_{pe.entity_name}_0_out" for pe in outputs
+    ]
+    common.component_instantiation(
+        f,
+        f"{arch.entity_name}_inst",
+        arch.entity_name,
+        generic_mappings,
+        port_mappings,
+    )
+
+    # Clock generation
+    write(f, 1, "-- Clock generation", start="\n")
+    write_lines(
+        f,
+        [
+            (1, "CLK_GEN : process"),
+            (1, "begin"),
+            (2, "tb_clk <= '0';"),
+            (2, "wait for CLK_PERIOD / 2;"),
+            (2, "tb_clk <= '1';"),
+            (2, "wait for CLK_PERIOD / 2;"),
+            (1, "end process CLK_GEN;"),
+        ],
+    )
+
+    # Stimulus generation
+    write(f, 1, "-- Stimulus generation", start="\n")
+    write_lines(
+        f,
+        [
+            (1, "process"),
+            (1, "begin"),
+            (2, "-- WRITE CODE HERE"),
+            (1, "end process;"),
+        ],
+    )
+
+    write(f, 0, f"end architecture {architecture_name};", start="", end="\n\n")
+
+
+def process_element(f: TextIO, pe: "ProcessingElement", word_length: int) -> None:
+    architecture_name = "rtl"
+    write(f, 0, f"architecture {architecture_name} of {pe.entity_name} is", end="\n")
+    write(f, 0, "begin", end="\n")
+    write(f, 1, "-- WRITE CODE HERE", end="\n")
+    if pe.operation_type in (Input, Output):
+        write(f, 1, "p_0_out <= p_0_in;")
+    write(f, 0, f"end architecture {architecture_name};", start="", end="\n\n")
 
 
 def memory_based_storage(
     f: TextIO,
-    assignment: list["ProcessCollection"],
-    entity_name: str,
+    memory: "Memory",
     word_length: int,
-    read_ports: int,
-    write_ports: int,
-    total_ports: int,
     *,
     input_sync: bool = True,
+    output_sync: bool = True,
     adr_mux_size: int = 1,
     adr_pipe_depth: int = 0,
     vivado_ram_style: (
@@ -41,27 +384,17 @@ def memory_based_storage(
     ----------
     f : TextIO
         File object (or other TextIO object) to write the architecture onto.
-    assignment : list
-        A possible cell assignment to use when generating the memory based storage.
-        The cell assignment is a dictionary int to ProcessCollection where the integer
-        corresponds to the cell to assign all MemoryVariables in corresponding process
-        collection.
-        If unset, each MemoryVariable will be assigned to a unique cell.
-    entity_name : str
-        The entity name for the resulting HDL.
-    word_length : int
-        Word length of the memory variable objects.
-    read_ports : int
-        Number of read ports.
-    write_ports : int
-        Number of write ports.
-    total_ports : int
-        Total concurrent memory accesses possible.
+    memory: Memory
+        Memory object to generate code for.
+    word_length: int
+        Word length of the memory elements.
     input_sync : bool, default: True
         Add registers to the input signals (enable signal and data input signals).
         Adding registers to the inputs allow pipelining of address generation (which
         is added automatically). For large interleavers, this can improve timing
         significantly.
+    output_sync : bool, default: True
+        Add registers to the output signal.
     adr_mux_size : int, default: 1
         Size of multiplexer if using address generation pipelining. Set to 1 for no
         multiplexer pipelining. If any other value than 1, `input_sync` must be set.
@@ -76,9 +409,9 @@ def memory_based_storage(
         If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K", "MLAB" or "logic".
     """
     # Code settings
-    mem_depth = len(assignment)
+    mem_depth = len(memory.assignment)
     architecture_name = "rtl"
-    schedule_time = next(iter(assignment)).schedule_time
+    schedule_time = next(iter(memory.assignment)).schedule_time
 
     # Address generation "ROMs"
     total_roms = adr_mux_size**adr_pipe_depth
@@ -88,7 +421,9 @@ def memory_based_storage(
     )  # Next power-of-two
 
     # Write architecture header
-    write(f, 0, f"architecture {architecture_name} of {entity_name} is", end="\n\n")
+    write(
+        f, 0, f"architecture {architecture_name} of {memory.entity_name} is", end="\n\n"
+    )
 
     #
     # Architecture declarative region begin
@@ -122,21 +457,7 @@ def memory_based_storage(
     else:
         common.signal_declaration(f, name="memory", signal_type="mem_type", name_pad=18)
 
-    # Schedule time counter
-    write(f, 1, "-- Schedule counter", start="\n")
-    common.constant_declaration(
-        f,
-        name="SCHEDULE_CNT_LEN",
-        signal_type="integer",
-        value=math.ceil(math.log2(schedule_time)),
-        name_pad=16,
-    )
-    common.signal_declaration(
-        f,
-        name="schedule_cnt",
-        signal_type="unsigned(SCHEDULE_CNT_LEN-1 downto 0)",
-        name_pad=18,
-    )
+    # Schedule time counter pipelined signals
     for i in range(adr_pipe_depth):
         common.signal_declaration(
             f,
@@ -161,7 +482,7 @@ def memory_based_storage(
 
     # Address generation signals
     write(f, 1, "-- Memory address generation", start="\n")
-    for i in range(read_ports):
+    for i in range(memory.input_count):
         common.signal_declaration(
             f, f"read_port_{i}", "std_logic_vector(MEM_WL-1 downto 0)", name_pad=18
         )
@@ -169,7 +490,7 @@ def memory_based_storage(
             f, f"read_adr_{i}", "integer range 0 to MEM_DEPTH-1", name_pad=18
         )
         common.signal_declaration(f, f"read_en_{i}", "std_logic", name_pad=18)
-    for i in range(write_ports):
+    for i in range(memory.output_count):
         common.signal_declaration(
             f, f"write_port_{i}", "std_logic_vector(MEM_WL-1 downto 0)", name_pad=18
         )
@@ -180,7 +501,7 @@ def memory_based_storage(
 
     # Address generation mutltiplexing signals
     write(f, 1, "-- Address generation multiplexing signals", start="\n")
-    for write_port_idx in range(write_ports):
+    for write_port_idx in range(memory.output_count):
         for depth in range(adr_pipe_depth + 1):
             for rom in range(total_roms // adr_mux_size**depth):
                 common.signal_declaration(
@@ -189,7 +510,7 @@ def memory_based_storage(
                     signal_type="integer range 0 to MEM_DEPTH-1",
                     name_pad=18,
                 )
-    for write_port_idx in range(write_ports):
+    for write_port_idx in range(memory.output_count):
         for depth in range(adr_pipe_depth + 1):
             for rom in range(total_roms // adr_mux_size**depth):
                 common.signal_declaration(
@@ -198,7 +519,7 @@ def memory_based_storage(
                     signal_type="std_logic",
                     name_pad=18,
                 )
-    for read_port_idx in range(read_ports):
+    for read_port_idx in range(memory.input_count):
         for depth in range(adr_pipe_depth + 1):
             for rom in range(total_roms // adr_mux_size**depth):
                 common.signal_declaration(
@@ -211,7 +532,7 @@ def memory_based_storage(
     # Input sync signals
     if input_sync:
         write(f, 1, "-- Input synchronization", start="\n")
-        for i in range(read_ports):
+        for i in range(memory.input_count):
             common.signal_declaration(
                 f, f"p_{i}_in_sync", "std_logic_vector(WL-1 downto 0)", name_pad=18
             )
@@ -219,37 +540,24 @@ def memory_based_storage(
     #
     # Architecture body begin
     #
-
-    # Schedule counter
+    # write(f, 1, "begin")
     write(f, 0, "begin", start="\n", end="\n\n")
-    write(f, 1, "-- Schedule counter")
-    common.synchronous_process_prologue(f=f, name="schedule_cnt_proc", clk="clk")
-    write_lines(
-        f,
-        [
-            (3, "if rst = '1' then"),
-            (4, "schedule_cnt <= (others => '0');"),
-            (3, "else"),
-            (4, "if en = '1' then"),
-            (5, f"if schedule_cnt = {schedule_time - 1} then"),
-            (6, "schedule_cnt <= (others => '0');"),
-            (5, "else"),
-            (6, "schedule_cnt <= schedule_cnt + 1;"),
-            (5, "end if;"),
-            (4, "end if;"),
-        ],
-    )
-    for i in range(adr_pipe_depth):
-        if i == 0:
-            write(f, 4, "schedule_cnt1 <= schedule_cnt;")
-        else:
-            write(f, 4, f"schedule_cnt{i + 1} <= schedule_cnt{i};")
-    write(f, 3, "end if;")
-    common.synchronous_process_epilogue(
-        f=f,
-        name="schedule_cnt_proc",
-        clk="clk",
-    )
+
+    # Schedule counter pipelining
+    if adr_pipe_depth > 0:
+        write(f, 1, "-- Schedule counter")
+        common.synchronous_process_prologue(f=f, name="schedule_cnt_proc", clk="clk")
+        for i in range(adr_pipe_depth):
+            if i == 0:
+                write(f, 4, "schedule_cnt1 <= schedule_cnt;")
+            else:
+                write(f, 4, f"schedule_cnt{i + 1} <= schedule_cnt{i};")
+        write(f, 3, "end if;")
+        common.synchronous_process_epilogue(
+            f=f,
+            name="schedule_cnt_proc",
+            clk="clk",
+        )
 
     # Input synchronization
     if input_sync:
@@ -259,7 +567,7 @@ def memory_based_storage(
             name="input_sync_proc",
             clk="clk",
         )
-        for i in range(read_ports):
+        for i in range(memory.input_count):
             write(f, 3, f"p_{i}_in_sync <= p_{i}_in;")
         common.synchronous_process_epilogue(
             f=f,
@@ -275,11 +583,11 @@ def memory_based_storage(
         name=f"mem_{0}_proc",
         read_ports={
             (f"read_port_{i}", f"read_adr_{i}", f"read_en_{i}")
-            for i in range(read_ports)
+            for i in range(memory.input_count)
         },
         write_ports={
             (f"write_port_{i}", f"write_adr_{i}", f"write_en_{i}")
-            for i in range(write_ports)
+            for i in range(memory.output_count)
         },
     )
     write(f, 1, f"read_adr_0 <= read_adr_0_{adr_pipe_depth}_0;")
@@ -291,42 +599,45 @@ def memory_based_storage(
         write(f, 1, "write_port_0 <= p_0_in;")
 
     # Input and output assignments
-    write(f, 1, "-- Input and output assignments", start="\n")
-    p_zero_exec = filter(
-        lambda p: p.execution_time == 0, (p for pc in assignment for p in pc)
-    )
-    common.synchronous_process_prologue(
-        f,
-        clk="clk",
-        name="output_reg_proc",
-    )
-    write(f, 3, "case to_integer(schedule_cnt) is")
-    for p in p_zero_exec:
-        if input_sync:
-            write_time = (p.start_time + 1) % schedule_time
-            if adr_pipe_depth:
-                write(
-                    f,
-                    4,
-                    f"when {write_time}+{adr_pipe_depth} => p_0_out <= p_0_in_sync;",
-                )
+    if output_sync:
+        write(f, 1, "-- Input and output assignments", start="\n")
+        p_zero_exec = filter(
+            lambda p: p.execution_time == 0, (p for pc in memory.assignment for p in pc)
+        )
+        common.synchronous_process_prologue(
+            f,
+            clk="clk",
+            name="output_reg_proc",
+        )
+        write(f, 3, "case to_integer(schedule_cnt) is")
+        for p in p_zero_exec:
+            if input_sync:
+                write_time = (p.start_time + 1) % schedule_time
+                if adr_pipe_depth:
+                    write(
+                        f,
+                        4,
+                        f"when {write_time}+{adr_pipe_depth} => p_0_out <= p_0_in_sync;",
+                    )
+                else:
+                    write(f, 4, f"when {write_time} => p_0_out <= p_0_in_sync;")
             else:
-                write(f, 4, f"when {write_time} => p_0_out <= p_0_in_sync;")
-        else:
-            write_time = (p.start_time) % schedule_time
-            write(f, 4, f"when {write_time} => p_0_out <= p_0_in;")
-    write_lines(
-        f,
-        [
-            (4, "when others => p_0_out <= read_port_0;"),
-            (3, "end case;"),
-        ],
-    )
-    common.synchronous_process_epilogue(
-        f,
-        clk="clk",
-        name="output_reg_proc",
-    )
+                write_time = (p.start_time) % schedule_time
+                write(f, 4, f"when {write_time} => p_0_out <= p_0_in;")
+        write_lines(
+            f,
+            [
+                (4, "when others => p_0_out <= read_port_0;"),
+                (3, "end case;"),
+            ],
+        )
+        common.synchronous_process_epilogue(
+            f,
+            clk="clk",
+            name="output_reg_proc",
+        )
+    else:
+        write(f, 1, "p_0_out <= read_port_0;")
 
     #
     # ROM Write address generation
@@ -339,7 +650,7 @@ def memory_based_storage(
     write_list: list[tuple[int, MemoryVariable] | None] = [
         None for _ in range(schedule_time)
     ]
-    for i, collection in enumerate(assignment):
+    for i, collection in enumerate(memory.assignment):
         for mv in collection:
             mv = cast("MemoryVariable", mv)
             if mv.start_time >= schedule_time:
@@ -466,7 +777,7 @@ def memory_based_storage(
     read_list: list[tuple[int, MemoryVariable] | None] = [
         None for _ in range(schedule_time)
     ]
-    for i, collection in enumerate(assignment):
+    for i, collection in enumerate(memory.assignment):
         for mv in collection:
             mv = cast("MemoryVariable", mv)
             for read_time in mv.reads.values():
@@ -578,11 +889,7 @@ def memory_based_storage(
 def register_based_storage(
     f: TextIO,
     forward_backward_table: "_ForwardBackwardTable",
-    entity_name: str,
-    word_length: int,
-    read_ports: int,
-    write_ports: int,
-    total_ports: int,
+    memory: "Memory",
     sync_rst: bool = False,
     async_rst: bool = False,
 ) -> None:
@@ -616,7 +923,9 @@ def register_based_storage(
     # Architecture declarative region begin
     #
     # Write architecture header
-    write(f, 0, f"architecture {architecture_name} of {entity_name} is", end="\n\n")
+    write(
+        f, 0, f"architecture {architecture_name} of {memory.entity_name} is", end="\n\n"
+    )
 
     # Schedule time counter
     write(f, 1, "-- Schedule counter")

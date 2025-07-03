@@ -7,6 +7,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from io import TextIOWrapper
 from itertools import chain
+from pathlib import Path
 from typing import (
     Literal,
     NoReturn,
@@ -25,7 +26,9 @@ from b_asic._preferences import (
     PE_CLUSTER_COLOR,
     PE_COLOR,
 )
-from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
+from b_asic.codegen.vhdl import architecture as vhdl_architecture
+from b_asic.codegen.vhdl import common as vhdl_common
+from b_asic.codegen.vhdl import entity as vhdl_entity
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
@@ -64,7 +67,7 @@ class HardwareBlock:
         entity_name : str
             The entity name.
         """
-        if not is_valid_vhdl_identifier(entity_name):
+        if not vhdl_common.is_valid_vhdl_identifier(entity_name):
             raise ValueError(f"{entity_name} is not a valid VHDL identifier")
         self._entity_name = entity_name
 
@@ -317,6 +320,10 @@ class Resource(HardwareBlock):
         return self._collection
 
     @property
+    def assignment(self) -> list[ProcessCollection] | None:
+        return self._assignment
+
+    @property
     def operation_type(self) -> type[MemoryProcess] | type[Operation]:
         raise NotImplementedError("ABC Resource does not implement operation_type")
 
@@ -456,6 +463,19 @@ class ProcessingElement(Resource):
             self._assignment = None
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
+    def generate_vhdl(self, dir_path: Path, wordlength: int) -> None:
+        with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
+            vhdl_common.b_asic_preamble(f)
+            vhdl_common.ieee_header(f)
+
+            vhdl_entity.process_element(
+                f,
+                self,
+                wordlength,
+            )
+
+            vhdl_architecture.process_element(f, self, wordlength)
+
     @property
     def operation_type(self) -> type[Operation]:
         return self._operation_type
@@ -566,6 +586,7 @@ class Memory(Resource):
         total_ports_bound = self._collection.total_ports_bound()
         if total_ports is not None and total_ports < total_ports_bound:
             raise ValueError(f"At least {total_ports_bound} total ports required")
+        self._total_ports = total_ports
 
     def _info(self) -> str:
         if self.is_assigned:
@@ -604,6 +625,15 @@ class Memory(Resource):
             )
         else:  # "register"
             raise NotImplementedError()
+
+    def generate_vhdl(self, dir_path: Path, wordlength: int) -> None:
+        with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
+            vhdl_common.b_asic_preamble(f)
+            vhdl_common.ieee_header(f)
+            vhdl_entity.memory_based_storage(f, self, wordlength)
+            vhdl_architecture.memory_based_storage(
+                f, self, wordlength, input_sync=False, output_sync=False
+            )
 
     @property
     def operation_type(self) -> type[MemoryProcess]:
@@ -776,6 +806,51 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 f" {[port.name for port in write_port_diff]}"
             )
 
+    def generate_vhdl(self, wordlength: int) -> None:
+        counter = 0
+        dir_path = Path(f"{self.entity_name}_{counter}")
+        while dir_path.exists():
+            counter += 1
+            dir_path = Path(f"{self.entity_name}_{counter}")
+        dir_path.mkdir(parents=True)
+
+        for pe in self.processing_elements:
+            pe.generate_vhdl(dir_path, wordlength)
+
+        for mem in self.memories:
+            mem.generate_vhdl(dir_path, wordlength)
+
+        self._generate_vhdl(dir_path, wordlength)
+        self._generate_vhdl_test_bench(dir_path, wordlength)
+
+    def _generate_vhdl(self, dir_path: Path, wordlength) -> None:
+        with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
+            vhdl_common.b_asic_preamble(f)
+            vhdl_common.ieee_header(f)
+
+            vhdl_entity.architecture(
+                f,
+                self,
+                wordlength,
+            )
+            vhdl_architecture.architecture(
+                f,
+                self,
+                wordlength,
+            )
+
+    def _generate_vhdl_test_bench(self, dir_path, wordlength) -> None:
+        with (dir_path / f"{self._entity_name}_tb.vhd").open("w") as f:
+            vhdl_common.b_asic_preamble(f)
+            vhdl_common.ieee_header(f)
+
+            vhdl_entity.architecture_test_bench(f, self)
+            vhdl_architecture.architecture_test_bench(
+                f,
+                self,
+                wordlength,
+            )
+
     def get_interconnects_for_memory(
         self, mem: Memory | str
     ) -> tuple[dict[Resource, int], dict[Resource, int]]:
@@ -863,6 +938,27 @@ of :class:`~b_asic.architecture.ProcessingElement`
         """
         re = {p.entity_name: p for p in chain(self.memories, self.processing_elements)}
         return re[name]
+
+    def add_resource(
+        self,
+        resource: Resource,
+    ) -> None:
+        """
+        Add a new :class:`Resource` to the architecture.
+
+        Parameters
+        ----------
+        resource : :class:`~b_asic.architecture.Resource`
+            The resource to add.
+        """
+        if isinstance(resource, Memory):
+            self.memories.append(resource)
+        elif isinstance(resource, ProcessingElement):
+            self.processing_elements.append(resource)
+        else:
+            raise ValueError(
+                "Provided resource must be a Memory or a ProcessingElement"
+            )
 
     def remove_resource(
         self,
