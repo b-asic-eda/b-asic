@@ -245,7 +245,7 @@ class Schedule:
         max_end_time = 0
         for graph_id, op_start_time in self._start_times.items():
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
-            if isinstance(operation, Output):
+            if isinstance(operation, (Output, Sink)):
                 max_end_time = max(max_end_time, op_start_time)
             else:
                 for outport in operation.outputs:

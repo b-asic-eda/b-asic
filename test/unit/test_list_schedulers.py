@@ -1582,7 +1582,7 @@ class TestHybridScheduler:
 
         with pytest.raises(
             ValueError,
-            match="Cannot place output out2 at time 6 for scheduling time 5. Try to relax the scheduling time, change the output delta times or enable cyclic.",
+            match="Provided scheduling time 5 cannot be reached, try to enable the cyclic property or increase the time to at least 7.",
         ):
             Schedule(
                 sfg,

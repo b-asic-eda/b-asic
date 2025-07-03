@@ -38,6 +38,8 @@ class Scheduler(ABC):
         The times when inputs arrive.
     output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
+    output_times : dict(GraphID, int), optional
+        The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
     """
@@ -46,6 +48,7 @@ class Scheduler(ABC):
         "_input_times",
         "_op_laps",
         "_output_delta_times",
+        "_output_times",
         "_schedule",
         "_sort_y_location",
     )
@@ -57,6 +60,7 @@ class Scheduler(ABC):
         self,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
+        output_times: dict["GraphID", int] | None = None,
         sort_y_location: bool = True,
     ) -> None:
         self._op_laps = {}
@@ -94,6 +98,22 @@ class Scheduler(ABC):
             self._output_delta_times = output_delta_times
         else:
             self._output_delta_times = {}
+
+        if output_times is not None:
+            if not isinstance(output_times, dict):
+                raise ValueError(
+                    f"Provided output_times must be a dictionary, not {type(output_times)} {output_times}."
+                )
+            for key, value in output_times.items():
+                if not isinstance(key, str):
+                    raise ValueError("Provided output_times keys must be strings.")
+                if not isinstance(value, int):
+                    raise ValueError("Provided output_times values must be integers.")
+            if any(time < 0 for time in output_times.values()):
+                raise ValueError("Provided output_times values must be non-negative.")
+            self._output_times = output_times
+        else:
+            self._output_times = {}
 
         self._sort_y_location = sort_y_location
 
@@ -142,10 +162,7 @@ class Scheduler(ABC):
 
     def _place_outputs_on_given_times(self) -> None:
         log.debug("Output placement starting")
-        if self._schedule._cyclic and isinstance(self, ListScheduler):
-            end = self._schedule._schedule_time
-        else:
-            end = self._schedule.get_max_end_time()
+        end = self._schedule._schedule_time or self._schedule.get_max_end_time()
         for output in self._schedule._sfg.find_by_type(Output):
             output = cast(Output, output)
             if output.graph_id in self._output_delta_times:
@@ -229,6 +246,8 @@ class ASAPScheduler(Scheduler):
         The times when inputs arrive.
     output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
+    output_times : dict(GraphID, int), optional
+        The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
     """
@@ -297,7 +316,7 @@ class ASAPScheduler(Scheduler):
 
         log.debug("ASAP scheduling completed")
         self._place_outputs_asap(schedule, non_schedulable_ops)
-        if self._input_times:
+        if self._output_delta_times:
             self._place_outputs_on_given_times()
         schedule.remove_delays()
 
@@ -324,6 +343,8 @@ class ALAPScheduler(Scheduler):
         The times when inputs arrive.
     output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
+    output_times : dict(GraphID, int), optional
+        The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
     """
@@ -332,14 +353,21 @@ class ALAPScheduler(Scheduler):
         # Doc-string inherited
         self._schedule = schedule
         ASAPScheduler(
-            self._input_times,
-            self._output_delta_times,
-            False,
+            input_times=self._input_times,
+            output_delta_times=self._output_delta_times,
+            sort_y_location=False,
         ).apply_scheduling(schedule)
         self._op_laps = {}
 
         if self._output_delta_times:
             self._place_outputs_on_given_times()
+
+        if self._output_times:
+            for output_id, output_time in self._output_times.items():
+                self._schedule.move_operation(
+                    output_id,
+                    output_time - self._schedule.start_time_of_operation(output_id),
+                )
 
         for input_op in schedule.sfg.find_by_type(Input):
             input_op = cast(Input, input_op)
@@ -350,7 +378,10 @@ class ALAPScheduler(Scheduler):
         for output in schedule.sfg.find_by_type(Output):
             output = cast(Output, output)
             self._op_laps[output.graph_id] = 0
-            if output.graph_id in self._output_delta_times:
+            if (
+                output.graph_id in self._output_delta_times
+                or output.graph_id in self._output_times
+            ):
                 continue
             schedule.move_operation_alap(output.graph_id)
 
@@ -412,6 +443,8 @@ class ListScheduler(Scheduler):
         The times when inputs arrive.
     output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
+    output_times : dict(GraphID, int), optional
+        The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
     """
@@ -455,9 +488,15 @@ class ListScheduler(Scheduler):
         max_concurrent_writes: int | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
+        output_times: dict["GraphID", int] | None = None,
         sort_y_location: bool = True,
     ) -> None:
-        super().__init__(input_times, output_delta_times, sort_y_location)
+        super().__init__(
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+            output_times=output_times,
+            sort_y_location=sort_y_location,
+        )
         self._sort_order = sort_order
 
         if max_resources is not None:
@@ -785,7 +824,9 @@ class ListScheduler(Scheduler):
         alap_schedule = copy.copy(self._schedule)
         alap_schedule._schedule_time = None
         alap_scheduler = ALAPScheduler(
-            self._input_times, self._output_delta_times, False
+            input_times=self._input_times,
+            output_delta_times=self._output_delta_times,
+            sort_y_location=False,
         )
         alap_scheduler.apply_scheduling(alap_schedule)
         self._alap_start_times = alap_schedule.start_times
@@ -954,6 +995,8 @@ class RecursiveListScheduler(ListScheduler):
         The times when inputs arrive.
     output_delta_times : dict(GraphID, int), optional
         The relative times when outputs should be produced.
+    output_times : dict(GraphID, int), optional
+        The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
     """
@@ -966,6 +1009,7 @@ class RecursiveListScheduler(ListScheduler):
         max_resources: dict[TypeName, int] | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
+        output_times: dict["GraphID", int] | None = None,
         sort_y_location: bool = True,
     ) -> None:
         super().__init__(
@@ -973,6 +1017,7 @@ class RecursiveListScheduler(ListScheduler):
             max_resources=max_resources,
             input_times=input_times,
             output_delta_times=output_delta_times,
+            output_times=output_times,
             sort_y_location=sort_y_location,
         )
 
@@ -1264,32 +1309,69 @@ class ILPScheduler(Scheduler):
 
             print(pulp.listSolvers(onlyAvailable=True))
 
+    input_times : dict(GraphID, int), optional
+        The times when inputs arrive.
+    output_delta_times : dict(GraphID, int), optional
+        The relative times when outputs should be produced.
+    output_times : dict(GraphID, int), optional
+        The times when outputs should be produced.
+    max_time : int, optional
+        The time horizon to schedule for in cyclic scheduling.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
     """
 
     def __init__(
-        self, solver: pulp.LpSolver | None = None, sort_y_location: bool = True
+        self,
+        solver: pulp.LpSolver | None = None,
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+        output_times: dict["GraphID", int] | None = None,
+        max_time: int | None = None,
+        sort_y_location: bool = True,
     ) -> None:
         self._solver = solver
-        self._sort_y_location = sort_y_location
+        super().__init__(
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+            output_times=output_times,
+            sort_y_location=sort_y_location,
+        )
+        self._max_time = max_time
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Inspired by K.K. Parhi https://doi.org/10.1109/CICC.1993.590480
 
-        self._schedule = schedule
         Ts = schedule.schedule_time
 
-        time_slots = range(Ts + 1)
+        self._schedule = schedule
+        LB, asap_max_time = self._get_asap_start_times(
+            schedule,
+            input_times=self._input_times,
+            output_delta_times=self._output_delta_times,
+        )
+        if not self._schedule.cyclic and asap_max_time > self._schedule.schedule_time:
+            raise ValueError(
+                f"Shortest possible schedule time, {asap_max_time}, is longer than requested schedule time {self._schedule.schedule_time}. Use cyclic scheduling or increase schedule time."
+            )
+        UB = self._get_alap_start_times(
+            schedule,
+            input_times=self._input_times,
+            output_delta_times=self._output_delta_times,
+            max_time=self._max_time,
+        )
+
+        if self._max_time:
+            time_slots = range(max(self._max_time, Ts) + 1)
+        else:
+            time_slots = range(Ts + 1)
+
         ops = [
             op
             for op in schedule._sfg.operations
             if not isinstance(op, (Delay, DontCare, Sink))
         ]
         op_types = list({op.type_name() for op in ops})
-
-        LB = self._get_asap_start_times(schedule)
-        UB = self._get_alap_start_times(schedule)
 
         X = pulp.LpVariable.dicts("X", (ops, time_slots), cat=pulp.LpBinary)
         R_used = pulp.LpVariable.dicts("R_used", op_types, cat=pulp.LpInteger)
@@ -1319,6 +1401,17 @@ class ILPScheduler(Scheduler):
                 )
                 == 1
             )
+
+        if self._input_times:
+            for input_id, input_time in self._input_times.items():
+                problem += X[schedule._sfg.find_by_id(input_id)][input_time] == 1
+
+        if self._output_times:
+            for output_id, output_time in self._output_times.items():
+                output_op = schedule._sfg.find_by_id(output_id)
+                for t in time_slots:
+                    if t % Ts != output_time:
+                        problem += X[output_op][t] == 0
 
         # (2) - At most R_used[resource_type] can be used in each time slot for every resource type
         for op_type in op_types:
@@ -1388,20 +1481,65 @@ class ILPScheduler(Scheduler):
 
         self._handle_utility_operations()
         schedule.remove_delays()
+
+        if self._max_time is not None and self._max_time > Ts:
+            schedule._schedule_time = self._max_time
+            diff = self._max_time - Ts
+            # Move operations ahead in time so that they wrap
+            for time in reversed(range(Ts, self._max_time + 1)):
+                ops_to_move = set()
+                # Find operations to move
+                for op_id, op_time in schedule.start_times.items():
+                    if op_time == time:
+                        ops_to_move.add(op_id)
+                # Do the move
+                for op_id in ops_to_move:
+                    schedule.move_operation(op_id, diff)
+            # Move any outputs at the schedule edge
+            for op_id, op_time in schedule.start_times.items():
+                # Any operations still at max_time will be Outputs or Sinks
+                # Move back to new schedule time
+                if op_time == self._max_time:
+                    schedule.move_operation(op_id, -diff)
+
+            schedule.set_schedule_time(Ts)
+
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
 
-    def _get_asap_start_times(self, schedule: "Schedule") -> dict["GraphID", int]:
+    def _get_asap_start_times(
+        self,
+        schedule: "Schedule",
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+    ) -> (dict["GraphID", int], int):
         asap_schedule = copy.copy(schedule)
-        asap_scheduler = ASAPScheduler(sort_y_location=False)
+        asap_schedule._schedule_time = None
+        asap_scheduler = ASAPScheduler(
+            sort_y_location=False,
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+        )
         asap_scheduler.apply_scheduling(asap_schedule)
         for key in schedule._laps:
             schedule._laps[key] = 0
-        return copy.copy(asap_schedule.start_times)
+        return copy.copy(asap_schedule.start_times), asap_schedule.schedule_time
 
-    def _get_alap_start_times(self, schedule: "Schedule") -> dict["GraphID", int]:
+    def _get_alap_start_times(
+        self,
+        schedule: "Schedule",
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+        max_time: int | None = None,
+    ) -> dict["GraphID", int]:
         alap_schedule = copy.copy(schedule)
-        alap_scheduler = ALAPScheduler(sort_y_location=False)
+        if max_time is not None:
+            alap_schedule._schedule_time = max_time
+        alap_scheduler = ALAPScheduler(
+            sort_y_location=False,
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+        )
         alap_scheduler.apply_scheduling(alap_schedule)
         for key in schedule._laps:
             schedule._laps[key] = 0

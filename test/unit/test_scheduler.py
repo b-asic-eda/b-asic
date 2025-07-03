@@ -290,13 +290,10 @@ class TestILPScheduler:
         assert schedule.schedule_time == 50
 
         ops = schedule.get_operations()
-        assert (
-            ops.get_by_type_name("add").processing_element_bound()
-            + ops.get_by_type_name("cmul").processing_element_bound()
-            + ops.get_by_type_name("in").processing_element_bound()
-            + ops.get_by_type_name("out").processing_element_bound()
-            == 4
-        )
+        assert ops.get_by_type_name("add").processing_element_bound() == 1
+        assert ops.get_by_type_name("cmul").processing_element_bound() == 1
+        assert ops.get_by_type_name("in").processing_element_bound() == 1
+        assert ops.get_by_type_name("out").processing_element_bound() == 1
 
     def test_direct_form_2_iir(self, sfg_direct_form_iir_lp_filter):
         sfg_direct_form_iir_lp_filter.set_latency_of_type(Addition, 2)
@@ -317,10 +314,7 @@ class TestILPScheduler:
         assert schedule.schedule_time == 60
 
         ops = schedule.get_operations()
-        assert (
-            ops.get_by_type_name("add").processing_element_bound()
-            + ops.get_by_type_name("cmul").processing_element_bound()
-            + ops.get_by_type_name("in").processing_element_bound()
-            + ops.get_by_type_name("out").processing_element_bound()
-            == 4
-        )
+        assert ops.get_by_type_name("add").processing_element_bound() == 1
+        assert ops.get_by_type_name("cmul").processing_element_bound() == 1
+        assert ops.get_by_type_name("in").processing_element_bound() == 1
+        assert ops.get_by_type_name("out").processing_element_bound() == 1
