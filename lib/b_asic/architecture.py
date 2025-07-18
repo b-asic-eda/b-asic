@@ -489,11 +489,15 @@ class ProcessingElement(Resource):
     def write_component_declaration(
         self, f: TextIOWrapper, word_length: int, indent: int = 1
     ) -> None:
-        generics = [f"WL : integer := {word_length}"]
+        generics = [
+            f"WL : integer := {word_length}",
+            f"SCHEDULE_CNT_LEN : integer := {self.schedule_time.bit_length()}",
+        ]
         ports = [
             "clk : in std_logic",
             "rst : in std_logic",
         ]
+        ports += ["schedule_cnt : in unsigned(SCHEDULE_CNT_LEN-1 downto 0)"]
         ports += [
             f"p_{port_number}_in : in std_logic_vector(WL-1 downto 0)"
             for port_number in range(self.input_count)
@@ -531,6 +535,7 @@ class ProcessingElement(Resource):
 
     def write_component_instantiation(self, f: TextIOWrapper, indent: int = 1) -> None:
         port_mappings = ["clk => clk", "rst => rst"]
+        port_mappings += ["schedule_cnt => schedule_cnt"]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)

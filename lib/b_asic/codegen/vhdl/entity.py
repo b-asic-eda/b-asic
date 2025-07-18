@@ -84,7 +84,9 @@ def process_element(
             (0, f"entity {pe.entity_name} is"),
             (1, "generic("),
             (2, "-- Data word length"),
-            (2, f"WL : integer := {word_length}"),
+            (2, f"WL : integer := {word_length};"),
+            (2, "-- Schedule counter length"),
+            (2, f"SCHEDULE_CNT_LEN : integer := {pe.schedule_time.bit_length()}"),
             (1, ");"),
             (1, "port("),
         ],
@@ -97,6 +99,16 @@ def process_element(
             (2, "-- Clock and synchronous reset signals"),
             (2, "clk : in std_logic;"),
             (2, "rst : in std_logic;"),
+            (0, ""),
+        ],
+    )
+
+    # Write the schedule counter signal
+    write_lines(
+        f,
+        [
+            (2, "-- State counter"),
+            (2, "schedule_cnt : in unsigned(SCHEDULE_CNT_LEN-1 downto 0);"),
             (0, ""),
         ],
     )
