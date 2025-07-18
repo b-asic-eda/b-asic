@@ -3,6 +3,7 @@ B-ASIC architecture classes.
 """
 
 import math
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from io import TextIOWrapper
@@ -27,12 +28,14 @@ from b_asic._preferences import (
     PE_COLOR,
 )
 from b_asic.codegen.vhdl import architecture as vhdl_architecture
+from b_asic.codegen.vhdl import common, write
 from b_asic.codegen.vhdl import common as vhdl_common
 from b_asic.codegen.vhdl import entity as vhdl_entity
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
 from b_asic.resources import ProcessCollection, _sanitize_port_option
+from b_asic.special_operations import Input, Output
 
 
 def _interconnect_dict() -> int:
@@ -40,7 +43,7 @@ def _interconnect_dict() -> int:
     return 0
 
 
-class HardwareBlock:
+class HardwareBlock(ABC):
     """
     Base class for architectures and resources.
 
@@ -71,7 +74,7 @@ class HardwareBlock:
             raise ValueError(f"{entity_name} is not a valid VHDL identifier")
         self._entity_name = entity_name
 
-    def write_code(self, path: str) -> None:
+    def write_code(self, path: str, word_length: int) -> None:
         """
         Write VHDL code for hardware block.
 
@@ -79,10 +82,16 @@ class HardwareBlock:
         ----------
         path : str
             Directory to write code in.
+        word_length : int
+            Bit width of all signals.
         """
         if not self._entity_name:
             raise ValueError("Entity name must be set")
-        raise NotImplementedError
+        self._write_code(Path(path), word_length)
+
+    @abstractmethod
+    def _write_code(self, path: Path, word_length: int) -> None:
+        raise NotImplementedError()
 
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self._digraph()._repr_mimebundle_(include=include, exclude=exclude)
@@ -116,6 +125,7 @@ class HardwareBlock:
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def write_component_declaration(self, f: TextIOWrapper, indent: int = 1) -> None:
         """
         Write component declaration of hardware block.
@@ -129,6 +139,7 @@ class HardwareBlock:
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def write_component_instantiation(self, f: TextIOWrapper, indent: int = 1) -> None:
         """
         Write component instantiation of hardware block.
@@ -143,7 +154,7 @@ class HardwareBlock:
         raise NotImplementedError()
 
 
-class Resource(HardwareBlock):
+class Resource(HardwareBlock, ABC):
     """
     Base class for resource.
 
@@ -463,18 +474,83 @@ class ProcessingElement(Resource):
             self._assignment = None
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
-    def generate_vhdl(self, dir_path: Path, wordlength: int) -> None:
-        with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
+    def _write_code(self, path: Path, word_length: int) -> None:
+        with (path / f"{self._entity_name}.vhd").open("w") as f:
             vhdl_common.b_asic_preamble(f)
             vhdl_common.ieee_header(f)
 
             vhdl_entity.process_element(
                 f,
                 self,
-                wordlength,
+                word_length,
             )
+            vhdl_architecture.process_element(f, self, word_length)
 
-            vhdl_architecture.process_element(f, self, wordlength)
+    def write_component_declaration(
+        self, f: TextIOWrapper, word_length: int, indent: int = 1
+    ) -> None:
+        generics = [f"WL : integer := {word_length}"]
+        ports = [
+            "clk : in std_logic",
+            "rst : in std_logic",
+        ]
+        ports += [
+            f"p_{port_number}_in : in std_logic_vector(WL-1 downto 0)"
+            for port_number in range(self.input_count)
+        ]
+        if self.operation_type == Input:
+            ports.append("p_0_in : in std_logic_vector(WL-1 downto 0)")
+        ports += [
+            f"p_{port_number}_out : out std_logic_vector(WL-1 downto 0)"
+            for port_number in range(self.output_count)
+        ]
+        if self.operation_type == Output:
+            ports.append("p_0_out : out std_logic_vector(WL-1 downto 0)")
+        common.component_declaration(f, self.entity_name, generics, ports, indent)
+        write(f, 1, "")
+
+    def write_signal_declarations(self, f: TextIOWrapper, indent: int = 1) -> None:
+        write(f, indent, f"-- {self.entity_name} signals")
+        if self.operation_type != Input:
+            for port_number in range(self.input_count):
+                common.signal_declaration(
+                    f,
+                    name=f"{self.entity_name}_{port_number}_in",
+                    signal_type="std_logic_vector(WL-1 downto 0)",
+                    indent=indent,
+                )
+        if self.operation_type != Output:
+            for port_number in range(self.output_count):
+                common.signal_declaration(
+                    f,
+                    name=f"{self.entity_name}_{port_number}_out",
+                    signal_type="std_logic_vector(WL-1 downto 0)",
+                    indent=indent,
+                )
+        write(f, indent, "")
+
+    def write_component_instantiation(self, f: TextIOWrapper, indent: int = 1) -> None:
+        port_mappings = ["clk => clk", "rst => rst"]
+        port_mappings += [
+            f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
+            for port_number in range(self.input_count)
+        ]
+        if self.operation_type == Input:
+            port_mappings.append(f"p_0_in => {self.entity_name}_0_in")
+        port_mappings += [
+            f"p_{port_number}_out => {self.entity_name}_{port_number}_out"
+            for port_number in range(self.output_count)
+        ]
+        if self.operation_type == Output:
+            port_mappings.append(f"p_0_out => {self.entity_name}_0_out")
+        common.component_instantiation(
+            f,
+            f"{self.entity_name}_inst",
+            self.entity_name,
+            port_mappings=port_mappings,
+            indent=indent,
+        )
+        write(f, indent, "")
 
     @property
     def operation_type(self) -> type[Operation]:
@@ -626,14 +702,76 @@ class Memory(Resource):
         else:  # "register"
             raise NotImplementedError()
 
-    def generate_vhdl(self, dir_path: Path, wordlength: int) -> None:
-        with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
+    def _write_code(self, path: Path, word_length: int) -> None:
+        with (path / f"{self._entity_name}.vhd").open("w") as f:
             vhdl_common.b_asic_preamble(f)
             vhdl_common.ieee_header(f)
-            vhdl_entity.memory_based_storage(f, self, wordlength)
+
+            vhdl_entity.memory_based_storage(f, self, word_length)
             vhdl_architecture.memory_based_storage(
-                f, self, wordlength, input_sync=False, output_sync=False
+                f, self, word_length, input_sync=False, output_sync=False
             )
+
+    def write_component_declaration(
+        self, f: TextIOWrapper, word_length: int, indent: int = 1
+    ):
+        generics = [
+            f"WL : integer := {word_length}",
+            f"SCHEDULE_CNT_LEN : integer := {self.schedule_time.bit_length()}",
+        ]
+        ports = [
+            "clk : in std_logic",
+            "rst : in std_logic",
+        ]
+        ports += ["schedule_cnt : in unsigned(SCHEDULE_CNT_LEN-1 downto 0)"]
+        ports += [
+            f"p_{port_number}_in : in std_logic_vector(WL-1 downto 0)"
+            for port_number in range(self.input_count)
+        ]
+        ports += [
+            f"p_{port_number}_out : out std_logic_vector(WL-1 downto 0)"
+            for port_number in range(self.output_count)
+        ]
+        common.component_declaration(f, self.entity_name, generics, ports, indent)
+        write(f, indent, "")
+
+    def write_signal_declarations(self, f: TextIOWrapper, indent: int = 1) -> None:
+        write(f, indent, f"-- {self.entity_name} signals")
+        for port_number in range(self.input_count):
+            common.signal_declaration(
+                f,
+                name=f"{self.entity_name}_{port_number}_in",
+                signal_type="std_logic_vector(WL-1 downto 0)",
+                indent=indent,
+            )
+        for port_number in range(self.output_count):
+            common.signal_declaration(
+                f,
+                name=f"{self.entity_name}_{port_number}_out",
+                signal_type="std_logic_vector(WL-1 downto 0)",
+                indent=indent,
+            )
+        write(f, indent, "")
+
+    def write_component_instantiation(self, f: TextIOWrapper, indent: int = 1) -> None:
+        port_mappings = ["clk => clk", "rst => rst"]
+        port_mappings += ["schedule_cnt => schedule_cnt"]
+        port_mappings += [
+            f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
+            for port_number in range(self.input_count)
+        ]
+        port_mappings += [
+            f"p_{port_number}_out => {self.entity_name}_{port_number}_out"
+            for port_number in range(self.output_count)
+        ]
+        common.component_instantiation(
+            f,
+            f"{self.entity_name}_inst",
+            self.entity_name,
+            port_mappings=port_mappings,
+            indent=indent,
+        )
+        write(f, 1, "")
 
     @property
     def operation_type(self) -> type[MemoryProcess]:
@@ -806,24 +944,20 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 f" {[port.name for port in write_port_diff]}"
             )
 
-    def generate_vhdl(self, wordlength: int) -> None:
+    def _write_code(self, path: Path, word_length: int) -> None:
         counter = 0
-        dir_path = Path(f"{self.entity_name}_{counter}")
+        dir_path = path / f"{self.entity_name}_{counter}"
         while dir_path.exists():
             counter += 1
-            dir_path = Path(f"{self.entity_name}_{counter}")
+            dir_path = path / f"{self.entity_name}_{counter}"
         dir_path.mkdir(parents=True)
 
         for pe in self.processing_elements:
-            pe.generate_vhdl(dir_path, wordlength)
+            pe._write_code(dir_path, word_length)
 
         for mem in self.memories:
-            mem.generate_vhdl(dir_path, wordlength)
+            mem._write_code(dir_path, word_length)
 
-        self._generate_vhdl(dir_path, wordlength)
-        self._generate_vhdl_test_bench(dir_path, wordlength)
-
-    def _generate_vhdl(self, dir_path: Path, wordlength) -> None:
         with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
             vhdl_common.b_asic_preamble(f)
             vhdl_common.ieee_header(f)
@@ -831,15 +965,14 @@ of :class:`~b_asic.architecture.ProcessingElement`
             vhdl_entity.architecture(
                 f,
                 self,
-                wordlength,
+                word_length,
             )
             vhdl_architecture.architecture(
                 f,
                 self,
-                wordlength,
+                word_length,
             )
 
-    def _generate_vhdl_test_bench(self, dir_path, wordlength) -> None:
         with (dir_path / f"{self._entity_name}_tb.vhd").open("w") as f:
             vhdl_common.b_asic_preamble(f)
             vhdl_common.ieee_header(f)
@@ -848,8 +981,63 @@ of :class:`~b_asic.architecture.ProcessingElement`
             vhdl_architecture.architecture_test_bench(
                 f,
                 self,
-                wordlength,
+                word_length,
             )
+
+    def write_component_declaration(
+        self, f: TextIOWrapper, word_length: int, indent: int = 1
+    ) -> None:
+        write(f, 1, "-- Component declaration", start="\n")
+        generics = [
+            f"WL : integer := {word_length}",
+            f"SCHEDULE_CNT_LEN : integer := {self.schedule_time.bit_length()}",
+        ]
+        ports = [
+            "clk : in std_logic",
+            "rst : in std_logic",
+        ]
+        inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
+        ports += [
+            f"{pe.entity_name}_0_in : in std_logic_vector(WL-1 downto 0)"
+            for pe in inputs
+        ]
+        outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
+        ports += [
+            f"{pe.entity_name}_0_out : out std_logic_vector(WL-1 downto 0)"
+            for pe in outputs
+        ]
+        common.component_declaration(f, self.entity_name, generics, ports, indent)
+
+    def write_signal_declarations(self, f: TextIOWrapper, indent: int = 1) -> None:
+        write(f, indent, "-- Signal declaration")
+        for pe in self.processing_elements:
+            pe.write_signal_declarations(f, indent)
+        for mem in self.memories:
+            mem.write_signal_declarations(f, indent)
+        common.signal_declaration(
+            f, "schedule_cnt", "unsigned(SCHEDULE_CNT_LEN-1 downto 0)"
+        )
+
+    def write_component_instantiation(self, f: TextIOWrapper, indent: int = 1) -> None:
+        write(f, 1, "-- Component Instantiation", start="\n")
+        generic_mappings = ["WL => WL", "SCHEDULE_CNT_LEN => SCHEDULE_CNT_LEN"]
+        port_mappings = ["clk => tb_clk", "rst => tb_rst"]
+        inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
+        port_mappings += [
+            f"{pe.entity_name}_0_in => tb_{pe.entity_name}_0_in" for pe in inputs
+        ]
+        outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
+        port_mappings += [
+            f"{pe.entity_name}_0_out => tb_{pe.entity_name}_0_out" for pe in outputs
+        ]
+        common.component_instantiation(
+            f,
+            f"{self.entity_name}_inst",
+            self.entity_name,
+            generic_mappings,
+            port_mappings,
+            indent,
+        )
 
     def get_interconnects_for_memory(
         self, mem: Memory | str

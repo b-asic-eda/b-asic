@@ -77,6 +77,7 @@ def signal_declaration(
     name: str,
     signal_type: str,
     default_value: str | None = None,
+    indent: int = 1,
     name_pad: int | None = None,
     vivado_ram_style: (
         Literal["block", "distributed", "registers", "ultra", "mixed", "auto"] | None
@@ -100,6 +101,8 @@ def signal_declaration(
         Signal name.
     signal_type : str
         Signal type.
+    indent : int, optional
+        Indentation level to use for this process.
     default_value : str, optional
         An optional default value to the signal.
     name_pad : int, optional
@@ -115,7 +118,7 @@ def signal_declaration(
     """
     # Spacing of VHDL signals declaration always with a single tab
     name_pad = name_pad or 0
-    write(f, 1, f"signal {name:<{name_pad}} : {signal_type}", end="")
+    write(f, indent, f"signal {name:<{name_pad}} : {signal_type}", end="")
     if default_value is not None:
         write(f, 0, f" := {default_value}", end="")
     write(f, 0, ";")
@@ -123,16 +126,22 @@ def signal_declaration(
         write_lines(
             f,
             [
-                (1, "attribute ram_style : string;"),
-                (1, f'attribute ram_style of {name} : signal is "{vivado_ram_style}";'),
+                (indent, "attribute ram_style : string;"),
+                (
+                    indent,
+                    f'attribute ram_style of {name} : signal is "{vivado_ram_style}";',
+                ),
             ],
         )
     if quartus_ram_style is not None:
         write_lines(
             f,
             [
-                (1, "attribute ramstyle : string;"),
-                (1, f'attribute ramstyle of {name} : signal is "{quartus_ram_style}";'),
+                (indent, "attribute ramstyle : string;"),
+                (
+                    indent,
+                    f'attribute ramstyle of {name} : signal is "{quartus_ram_style}";',
+                ),
             ],
         )
 
@@ -200,19 +209,20 @@ def component_declaration(
     entity_name: str,
     generics: list[str],
     ports: list[str],
+    indent: int = 1,
 ) -> None:
-    (write(f, 1, f"component {entity_name}"),)
+    write(f, indent, f"component {entity_name}")
     if generics:
-        write(f, 2, "generic (")
+        write(f, indent + 1, "generic (")
         for i, generic in enumerate(generics):
-            write(f, 3, f"{generic}{'' if i == len(generics) - 1 else ';'}")
-        write(f, 2, ");")
+            write(f, indent + 2, f"{generic}{'' if i == len(generics) - 1 else ';'}")
+        write(f, indent + 1, ");")
     if ports:
-        write(f, 2, "port (")
+        write(f, indent + 1, "port (")
         for i, port in enumerate(ports):
-            write(f, 3, f"{port}{'' if i == len(ports) - 1 else ';'}")
-        write(f, 2, ");")
-    write(f, 1, "end component;")
+            write(f, indent + 2, f"{port}{'' if i == len(ports) - 1 else ';'}")
+        write(f, indent + 1, ");")
+    write(f, indent, "end component;")
 
 
 def component_instantiation(
@@ -221,22 +231,27 @@ def component_instantiation(
     entity_name: str,
     generic_mappings: list[str] | None = None,
     port_mappings: list[str] | None = None,
+    indent: int = 1,
 ) -> None:
-    (write(f, 1, f"{label}: {entity_name}"),)
+    write(f, indent, f"{label}: {entity_name}")
     if generic_mappings:
-        write(f, 2, "generic map (")
+        write(f, indent + 1, "generic map (")
         for i, generic_mapping in enumerate(generic_mappings):
             write(
                 f,
-                3,
+                indent + 2,
                 f"{generic_mapping}{'' if i == len(generic_mappings) - 1 else ','}",
             )
-        write(f, 2, ")")
+        write(f, indent + 1, ")")
     if port_mappings:
-        write(f, 2, "port map (")
+        write(f, indent + 1, "port map (")
         for i, port_mapping in enumerate(port_mappings):
-            write(f, 3, f"{port_mapping}{'' if i == len(port_mappings) - 1 else ','}")
-        write(f, 2, ");")
+            write(
+                f,
+                indent + 2,
+                f"{port_mapping}{'' if i == len(port_mappings) - 1 else ','}",
+            )
+        write(f, indent + 1, ");")
 
 
 def process_prologue(
@@ -299,7 +314,7 @@ def process_epilogue(
 
 def synchronous_process_prologue(
     f: TextIO,
-    clk: str,
+    clk: str = "clk",
     indent: int = 1,
     name: str | None = None,
 ) -> None:
