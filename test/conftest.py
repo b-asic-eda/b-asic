@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from test.fixtures.architecture import *
 from test.fixtures.integration import *
 from test.fixtures.operation_tree import *
 from test.fixtures.port import *

@@ -34,7 +34,7 @@ def architecture(f: TextIO, arch: "Architecture", word_length: int) -> None:
 
     _write_schedule_counter(f, arch)
     _write_architecture_interconnect(f, arch)
-    write(f, 0, "end architecture rtl;", start="", end="\n\n")
+    write(f, 0, "end architecture rtl;", start="", end="\n")
 
 
 def _write_architecture_interconnect(f: TextIO, arch: "Architecture") -> None:
@@ -56,7 +56,10 @@ def _write_architecture_interconnect(f: TextIO, arch: "Architecture") -> None:
                 for mem in arch.memories:
                     for var in mem.collection:
                         # Skip all variables written at the same clock cycle
-                        if process.start_time == var.start_time:
+                        read_times = [
+                            time % arch.schedule_time for time in var.read_times
+                        ]
+                        if process.start_time not in read_times:
                             continue
                         var_op_id = var.name.split(".")[0]
                         var_port_index = int(var.name.split(".")[1])
