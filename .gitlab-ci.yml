@@ -7,6 +7,7 @@ before_script:
   # - apt-get install --yes build-essential cmake graphviz python3-pyqt6 xvfb xdg-utils lcov
   - apt-get install --yes graphviz python3-pyqt6 xvfb xdg-utils
   - apt-get install -y libxcb-cursor-dev
+  - apt install -y ghdl
   - python -m pip install --upgrade pip
   - python --version
   - git fetch --tags
@@ -82,17 +83,17 @@ run-test-3.13-pyside6:
   image: python:3.13
   extends: ".run-test"
 
-run-vhdl-tests:
-  variables:
-    QT_API: pyqt6
-  image: python:3.10
-  stage: test
-  script:
-    - pytest
-    - pip install vunit_hdl
-    - apt install -y ghdl
-    - cd lib/b_asic/codegen/testbench
-    - python test.py
+# run-vhdl-tests:
+#   variables:
+#     QT_API: pyqt6
+#   image: python:3.10
+#   stage: test
+#   script:
+#     - pytest
+#     - pip install vunit_hdl
+#     - apt install -y ghdl
+#     - cd lib/b_asic/codegen/testbench
+#     - python test.py
 
 run-doc-test:
   variables:
