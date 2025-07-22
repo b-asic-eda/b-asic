@@ -1,10 +1,70 @@
 import pytest
+from scipy.signal import iirfilter
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import Addition, AddSub, ConstantMultiplication
 from b_asic.schedule import Schedule
+from b_asic.sfg_generators import direct_form_2_iir
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Input, Output
+
+
+@pytest.fixture
+def arch_first_order_iir():
+    b, a = iirfilter(N=1, Wn=0.25, btype="low", ftype="butter", output="ba")
+    sfg = direct_form_2_iir(b, a)
+    sfg.set_latency_of_type(Addition, 1)
+    sfg.set_latency_of_type(ConstantMultiplication, 2)
+    sfg.set_execution_time_of_type(Addition, 1)
+    sfg.set_execution_time_of_type(ConstantMultiplication, 1)
+
+    schedule = Schedule(sfg, cyclic=True)
+    schedule.move_operation("cmul2", 1)
+    schedule.move_operation("out0", 1)
+    schedule.move_operation("add1", 1)
+    schedule.set_schedule_time(5)
+    schedule.move_operation("cmul2", -1)
+    schedule.move_operation("out0", 1)
+    schedule.move_operation("add1", 1)
+    schedule.move_operation("cmul1", 1)
+    schedule.move_operation("out0", 2)
+    schedule.move_operation("add1", 1)
+    schedule.move_operation("cmul1", 1)
+    schedule.move_operation("out0", -1)
+    schedule.set_schedule_time(3)
+    schedule.move_operation("cmul2", 1)
+    schedule.move_operation("in0", 2)
+    schedule.rotate_backward()
+    schedule.rotate_backward()
+    schedule.move_operation("out0", 1)
+    schedule.move_operation("add1", 1)
+    schedule.move_operation("cmul1", 1)
+    schedule.move_operation("cmul2", 1)
+
+    ops = schedule.get_operations()
+    adds = ops.get_by_type_name("add")
+    cmuls = ops.get_by_type_name("cmul")
+    inputs = ops.get_by_type_name("in")
+    outputs = ops.get_by_type_name("out")
+
+    adder = ProcessingElement(adds, entity_name="adder")
+    mult = ProcessingElement(cmuls, entity_name="mult")
+    input_pe = ProcessingElement(inputs, entity_name="input")
+    output_pe = ProcessingElement(outputs, entity_name="output")
+
+    mem_vars = schedule.get_memory_variables()
+    direct, mem_vars = mem_vars.split_on_length()
+    mem_vars_set = mem_vars.split_on_ports(read_ports=1, write_ports=1, total_ports=2)
+
+    memories = []
+    for i, mem in enumerate(mem_vars_set):
+        memory = Memory(mem, memory_type="RAM", entity_name=f"mem{i}")
+        memories.append(memory)
+        memory.assign("left_edge")
+
+    return Architecture(
+        {adder, mult, input_pe, output_pe}, memories, "first_order_iir", direct
+    )
 
 
 @pytest.fixture

@@ -622,9 +622,7 @@ def memory_based_storage(
         for mv in collection:
             mv = cast("MemoryVariable", mv)
             for read_time in mv.reads.values():
-                read_list[
-                    (mv.start_time + read_time - int(not (input_sync))) % schedule_time
-                ] = (i, mv)
+                read_list[(mv.start_time + read_time) % schedule_time] = (i, mv)
 
     for rom in range(total_roms):
         if input_sync:
