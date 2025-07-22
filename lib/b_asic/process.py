@@ -157,7 +157,7 @@ class MemoryProcess(Process):
 
     @property
     def read_times(self) -> tuple[int, ...]:
-        return tuple(self.start_time + read for read in self._life_times)
+        return tuple({self.start_time + read for read in self._life_times})
 
     @property
     def life_times(self) -> list[int]:

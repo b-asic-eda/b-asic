@@ -311,7 +311,7 @@ def test_resource_errors(precedence_sfg_delays):
         ValueError, match=re.escape("Total ports (6) less then write ports (7)")
     ):
         Memory(mv, read_ports=6, write_ports=7, total_ports=6)
-    with pytest.raises(ValueError, match="At least 6 read ports required"):
+    with pytest.raises(ValueError, match="At least 4 read ports required"):
         Memory(mv, read_ports=1, write_ports=1)
     with pytest.raises(ValueError, match="At least 5 write ports required"):
         Memory(mv, read_ports=6, write_ports=1)

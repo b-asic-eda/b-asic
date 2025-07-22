@@ -650,19 +650,19 @@ class Memory(Resource):
     def _validate_ports_in_bounds(self, read_ports, write_ports, total_ports):
         read_ports_bound = self._collection.read_ports_bound()
         if read_ports is None:
-            self._output_count = read_ports_bound
+            self._input_count = read_ports_bound
         else:
             if read_ports < read_ports_bound:
                 raise ValueError(f"At least {read_ports_bound} read ports required")
-            self._output_count = read_ports
+            self._input_count = read_ports
 
         write_ports_bound = self._collection.write_ports_bound()
         if write_ports is None:
-            self._input_count = write_ports_bound
+            self._output_count = write_ports_bound
         else:
             if write_ports < write_ports_bound:
                 raise ValueError(f"At least {write_ports_bound} write ports required")
-            self._input_count = write_ports
+            self._output_count = write_ports
 
         total_ports_bound = self._collection.total_ports_bound()
         if total_ports is not None and total_ports < total_ports_bound:
