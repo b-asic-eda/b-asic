@@ -59,7 +59,7 @@ def _write_architecture_interconnect(f: TextIO, arch: "Architecture") -> None:
                         read_times = [
                             time % arch.schedule_time for time in var.read_times
                         ]
-                        if process.start_time not in read_times:
+                        if process.start_time % arch.schedule_time not in read_times:
                             continue
                         var_op_id = var.name.split(".")[0]
                         var_port_index = int(var.name.split(".")[1])
@@ -89,11 +89,11 @@ def _write_architecture_interconnect(f: TextIO, arch: "Architecture") -> None:
     for mem in arch.memories:
         write(f, 1, "with to_integer(schedule_cnt) select")
         write(f, 2, f"{mem.entity_name}_0_in <=")
-        for process in mem.collection:
+        for var in mem.collection:
             # an execution found -> write rows
             # TODO: Support multi-port memories here
-            source_op_graph_id = process.name.split(".")[0]
-            source_port_index = process.name.split(".")[1]
+            source_op_graph_id = var.name.split(".")[0]
+            source_port_index = var.name.split(".")[1]
             is_found = False
             for other_pe in arch.processing_elements:
                 for pro in other_pe.collection:
@@ -102,7 +102,7 @@ def _write_architecture_interconnect(f: TextIO, arch: "Architecture") -> None:
                         is_found = True
             if not is_found:
                 raise ValueError("Source resource not found.")
-            time = process.start_time % arch.schedule_time
+            time = var.start_time % arch.schedule_time
             write(f, 3, f"{source_pe.entity_name}_{source_port_index}_out when {time},")
         write(f, 3, "(others => '-') when others;", end="\n\n")
 
