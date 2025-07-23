@@ -23,7 +23,7 @@ def test_r2bf_compile(tmp_path, arch_r2bf):
 def test_r2bf_simulate(tmp_path, arch_r2bf):
     arch_r2bf.write_code(tmp_path, word_length=16)
 
-    # Override the generated file for addsub0 with one containing an architecture
+    # Override the generated file with the ones specified in the directory "overrides"
     override_dir = Path(__file__).resolve().parent / "overrides"
     override_files = [f for f in override_dir.iterdir() if f.is_file()]
     for file in override_files:

@@ -23,7 +23,7 @@ def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
 def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
     arch_first_order_iir.write_code(tmp_path, word_length=16)
 
-    # Override the generated file for addsub0 with one containing an architecture
+    # Override the generated file with the ones specified in the directory "overrides"
     override_dir = Path(__file__).resolve().parent / "overrides"
     override_files = [f for f in override_dir.iterdir() if f.is_file()]
     for file in override_files:
