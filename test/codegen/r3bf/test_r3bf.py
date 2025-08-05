@@ -8,7 +8,7 @@ from cocotb.triggers import Timer
 
 
 def test_r3bf_compile(tmp_path, arch_r3bf):
-    arch_r3bf.write_code(tmp_path, word_length=32)
+    arch_r3bf.write_code(tmp_path, 32, 32, 32)
 
     sim = os.getenv("SIM", "ghdl")
     sources = list((tmp_path / "r3bf_0").glob("*.vhd"))
@@ -21,7 +21,7 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
 
 
 def test_r3bf_simulate(tmp_path, arch_r3bf):
-    arch_r3bf.write_code(tmp_path, word_length=32)
+    arch_r3bf.write_code(tmp_path, 32, 32, 32)
 
     # Override the generated file with the ones specified in the directory "overrides"
     override_dir = Path(__file__).resolve().parent / "overrides"

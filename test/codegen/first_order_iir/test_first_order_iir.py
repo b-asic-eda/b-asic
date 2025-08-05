@@ -8,7 +8,7 @@ from cocotb.triggers import Timer
 
 
 def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
-    arch_first_order_iir.write_code(tmp_path, word_length=16)
+    arch_first_order_iir.write_code(tmp_path, 16, 16, 16)
 
     sim = os.getenv("SIM", "ghdl")
     sources = list((tmp_path / "first_order_iir_0").glob("*.vhd"))
@@ -21,7 +21,7 @@ def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
 
 
 def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
-    arch_first_order_iir.write_code(tmp_path, word_length=16)
+    arch_first_order_iir.write_code(tmp_path, 16, 16, 16)
 
     # Override the generated file with the ones specified in the directory "overrides"
     override_dir = Path(__file__).resolve().parent / "overrides"

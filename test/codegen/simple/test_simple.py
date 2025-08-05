@@ -8,7 +8,7 @@ from cocotb.triggers import Timer
 
 
 def test_simple_compile(tmp_path, arch_simple):
-    arch_simple.write_code(tmp_path, word_length=16)
+    arch_simple.write_code(tmp_path, 7, 7, 7)
 
     sim = os.getenv("SIM", "ghdl")
     sources = list((tmp_path / "simple_0").glob("*.vhd"))
@@ -21,7 +21,28 @@ def test_simple_compile(tmp_path, arch_simple):
 
 
 def test_simple_simulate(tmp_path, arch_simple):
-    arch_simple.write_code(tmp_path, word_length=7)
+    arch_simple.write_code(tmp_path, 7, 7, 7)
+
+    # Override the generated file for mult and adder with one containing an architecture
+    override_dir = Path(__file__).resolve().parent / "overrides"
+    override_files = [f for f in override_dir.iterdir() if f.is_file()]
+    for file in override_files:
+        shutil.copy(file, tmp_path / "simple_0" / file.name)
+
+    sim = os.getenv("SIM", "ghdl")
+    sources = list((tmp_path / "simple_0").glob("*.vhd"))
+    runner = get_runner(sim)
+    runner.build(
+        sources=sources,
+        hdl_toplevel="simple",
+        build_dir=tmp_path,
+    )
+
+    runner.test(hdl_toplevel="simple", test_module="test_simple")
+
+
+def test_simple_simulate_different_word_lengths(tmp_path, arch_simple):
+    arch_simple.write_code(tmp_path, 7, 3, 6)
 
     # Override the generated file for mult and adder with one containing an architecture
     override_dir = Path(__file__).resolve().parent / "overrides"
@@ -45,9 +66,9 @@ def test_simple_simulate(tmp_path, arch_simple):
 async def simple_test(dut):
     cocotb.start_soon(_generate_clk(dut))
 
-    dut.rst = 1
+    dut.rst.value = 1
     await Timer(2, "ns")
-    dut.rst = 0
+    dut.rst.value = 0
     dut.input_0_in.value = 3
 
     await Timer(2, "ns")

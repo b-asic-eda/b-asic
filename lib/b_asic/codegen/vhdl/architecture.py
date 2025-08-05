@@ -9,32 +9,32 @@ from b_asic.codegen.vhdl import common, write, write_lines
 from b_asic.special_operations import Input, Output
 
 if TYPE_CHECKING:
-    from b_asic.architecture import Architecture, Memory, ProcessingElement
+    from b_asic.architecture import Architecture, Memory, ProcessingElement, WordLengths
     from b_asic.process import MemoryVariable
     from b_asic.resources import _ForwardBackwardTable
 
 
-def architecture(f: TextIO, arch: "Architecture", word_length: int) -> None:
+def architecture(f: TextIO, arch: "Architecture", wl: "WordLengths") -> None:
     write(f, 0, f"architecture rtl of {arch.entity_name} is", end="\n")
 
     write(f, 1, "-- Component declaration")
     for pe in arch.processing_elements:
-        pe.write_component_declaration(f, word_length)
+        pe.write_component_declaration(f, wl)
     for mem in arch.memories:
-        mem.write_component_declaration(f, word_length)
+        mem.write_component_declaration(f, wl)
     arch.write_signal_declarations(f)
 
     write(f, 0, "begin", start="\n", end="\n")
 
     write(f, 1, "-- Component instantiation")
     for pe in arch.processing_elements:
-        pe.write_component_instantiation(f)
+        pe.write_component_instantiation(f, wl)
     for mem in arch.memories:
-        mem.write_component_instantiation(f)
+        mem.write_component_instantiation(f, wl)
 
     _write_schedule_counter(f, arch)
     _write_architecture_interconnect(f, arch)
-    write(f, 0, "end architecture rtl;", start="", end="\n")
+    write(f, 0, "end architecture rtl;", start="", end="\n\n")
 
 
 def _write_architecture_interconnect(f: TextIO, arch: "Architecture") -> None:
@@ -128,11 +128,11 @@ def _write_schedule_counter(f: TextIO, arch: "Architecture") -> None:
     write(f, 1, "")
 
 
-def architecture_test_bench(f: TextIO, arch: "Architecture", word_length: int) -> None:
+def architecture_test_bench(f: TextIO, arch: "Architecture", wl: "WordLengths") -> None:
     write(f, 0, f"architecture tb of {arch.entity_name}_tb is", end="\n")
 
-    arch.write_component_declaration(f, word_length)
-    _write_tb_constant_generation(f, arch, word_length)
+    arch.write_component_declaration(f, wl)
+    _write_tb_constant_generation(f, arch, wl)
     _write_tb_signal_generation(f, arch)
     write(f, 0, "begin", end="\n")
 
@@ -143,13 +143,15 @@ def architecture_test_bench(f: TextIO, arch: "Architecture", word_length: int) -
 
 
 def _write_tb_constant_generation(
-    f: TextIO, arch: "Architecture", word_length: int
+    f: TextIO, arch: "Architecture", wl: "WordLengths"
 ) -> None:
     write(f, 1, "-- Constant declaration", start="\n")
     common.constant_declaration(f, "CLK_PERIOD", "time", "2 ns")
-    common.constant_declaration(f, "WL", "integer", f"{word_length}")
+    common.constant_declaration(f, "WL_INPUT", "integer", f"{wl.input}")
+    common.constant_declaration(f, "WL_INTERNAL", "integer", f"{wl.internal}")
+    common.constant_declaration(f, "WL_OUTPUT", "integer", f"{wl.output}")
     common.constant_declaration(
-        f, "SCHEDULE_CNT_LEN", "integer", f"{arch.schedule_time.bit_length()}"
+        f, "WL_STATE", "integer", f"{arch.schedule_time.bit_length()}"
     )
 
 
@@ -162,7 +164,7 @@ def _write_tb_signal_generation(f: TextIO, arch: "Architecture") -> None:
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_in",
-            "std_logic_vector(WL-1 downto 0)",
+            "std_logic_vector(WL_INPUT-1 downto 0)",
             "(others => '0')",
         )
     outputs = [pe for pe in arch.processing_elements if pe.operation_type == Output]
@@ -170,7 +172,7 @@ def _write_tb_signal_generation(f: TextIO, arch: "Architecture") -> None:
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_out",
-            "std_logic_vector(WL-1 downto 0)",
+            "std_logic_vector(WL_OUTPUT-1 downto 0)",
             "(others => '0')",
         )
 
@@ -204,20 +206,43 @@ def _write_tb_stimulus_generation(f: TextIO) -> None:
     )
 
 
-def process_element(f: TextIO, pe: "ProcessingElement", word_length: int) -> None:
+def processing_element(f: TextIO, pe: "ProcessingElement", is_signed: bool) -> None:
     write(f, 0, f"architecture rtl of {pe.entity_name} is", end="\n")
+    if pe.operation_type == Output:
+        if is_signed:
+            common.signal_declaration(f, "tmp_res", "signed(WL_INTERNAL-1 downto 0)")
+        else:
+            common.signal_declaration(f, "tmp_res", "unsigned(WL_INTERNAL-1 downto 0)")
+
     write(f, 0, "begin", end="\n")
     write(f, 1, "-- WRITE CODE HERE", end="\n")
-    if pe.operation_type in (Input, Output):
-        # Default to pass-through for I/O
-        write(f, 1, "p_0_out <= p_0_in;")
+    if pe.operation_type == Input:
+        if is_signed:
+            write(
+                f,
+                1,
+                "p_0_out <= std_logic_vector(resize(signed(p_0_in), WL_INTERNAL));",
+            )
+        else:
+            write(
+                f,
+                1,
+                "p_0_out <= std_logic_vector(resize(unsigned(p_0_in), WL_INTERNAL));",
+            )
+    elif pe.operation_type == Output:
+        if is_signed:
+            write(f, 1, "tmp_res <= signed(p_0_in);")
+        else:
+            write(f, 1, "tmp_res <= unsigned(p_0_in);")
+        write(f, 1, "p_0_out <= std_logic_vector(tmp_res(WL_OUTPUT-1 downto 0));")
+
     write(f, 0, "end architecture rtl;", end="\n\n")
 
 
 def memory_based_storage(
     f: TextIO,
     memory: "Memory",
-    word_length: int,
+    wl: "WordLengths",
     *,
     input_sync: bool = True,
     output_sync: bool = True,
@@ -242,8 +267,8 @@ def memory_based_storage(
         File object (or other TextIO object) to write the architecture onto.
     memory: Memory
         Memory object to generate code for.
-    word_length: int
-        Word length of the memory elements.
+    wl: WordLengths
+        Word length of all signals.
     input_sync : bool, default: True
         Add registers to the input signals (enable signal and data input signals).
         Adding registers to the inputs allow pipelining of address generation (which
@@ -282,12 +307,8 @@ def memory_based_storage(
     # Architecture declarative region begin
     #
     write(f, 1, "-- HDL memory description")
-    common.constant_declaration(
-        f, name="MEM_WL", signal_type="integer", value=word_length, name_pad=16
-    )
-    common.constant_declaration(
-        f, name="MEM_DEPTH", signal_type="integer", value=mem_depth, name_pad=16
-    )
+    common.constant_declaration(f, "MEM_WL", "integer", wl.internal, name_pad=16)
+    common.constant_declaration(f, "MEM_DEPTH", "integer", mem_depth, name_pad=16)
     common.type_declaration(
         f, "mem_type", "array(0 to MEM_DEPTH-1) of std_logic_vector(MEM_WL-1 downto 0)"
     )
@@ -315,14 +336,14 @@ def memory_based_storage(
         common.signal_declaration(
             f,
             name=f"schedule_cnt{i + 1}",
-            signal_type="unsigned(SCHEDULE_CNT_LEN-1 downto 0)",
+            signal_type="unsigned(WL_STATE-1 downto 0)",
             name_pad=18,
         )
     common.constant_declaration(
         f,
         name="ADR_LEN",
         signal_type="integer",
-        value=f"SCHEDULE_CNT_LEN-({int(math.log2(adr_mux_size))}*{adr_pipe_depth})",
+        value=f"WL_STATE-({int(math.log2(adr_mux_size))}*{adr_pipe_depth})",
         name_pad=16,
     )
     common.alias_declaration(
@@ -387,7 +408,10 @@ def memory_based_storage(
         write(f, 1, "-- Input synchronization", start="\n")
         for i in range(memory.input_count):
             common.signal_declaration(
-                f, f"p_{i}_in_sync", "std_logic_vector(WL-1 downto 0)", name_pad=18
+                f,
+                f"p_{i}_in_sync",
+                "std_logic_vector(WL_INTERNAL-1 downto 0)",
+                name_pad=18,
             )
 
     #
@@ -778,7 +802,7 @@ def register_based_storage(
     common.type_declaration(
         f,
         name="shift_reg_type",
-        alias=f"array(0 to {reg_cnt}-1) of std_logic_vector(WL-1 downto 0)",
+        alias=f"array(0 to {reg_cnt}-1) of std_logic_vector(WL_INTERNAL-1 downto 0)",
     )
     common.signal_declaration(
         f,

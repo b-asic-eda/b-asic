@@ -204,11 +204,32 @@ def type_declaration(
     write(f, 1, f"type {name} is {alias};")
 
 
+def entity_declaration(
+    f: TextIO,
+    entity_name: str,
+    generics: list[str] | None = None,
+    ports: list[str] | None = None,
+    indent: int = 0,
+) -> None:
+    write(f, indent, f"entity {entity_name} is")
+    if generics:
+        write(f, indent + 1, "generic (")
+        for i, generic in enumerate(generics):
+            write(f, indent + 2, f"{generic}{'' if i == len(generics) - 1 else ';'}")
+        write(f, indent + 1, ");")
+    if ports:
+        write(f, indent + 1, "port (")
+        for i, port in enumerate(ports):
+            write(f, indent + 2, f"{port}{'' if i == len(ports) - 1 else ';'}")
+        write(f, indent + 1, ");")
+    write(f, indent, f"end entity {entity_name};", end="\n\n")
+
+
 def component_declaration(
     f: TextIO,
     entity_name: str,
-    generics: list[str],
-    ports: list[str],
+    generics: list[str] | None = None,
+    ports: list[str] | None = None,
     indent: int = 1,
 ) -> None:
     write(f, indent, f"component {entity_name}")
