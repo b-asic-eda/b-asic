@@ -164,7 +164,7 @@ def _write_tb_signal_generation(f: TextIO, arch: "Architecture") -> None:
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_in",
-            "std_logic_vector(WL_INPUT-1 downto 0)",
+            "std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)",
             "(others => '0')",
         )
     outputs = [pe for pe in arch.processing_elements if pe.operation_type == Output]
@@ -172,7 +172,7 @@ def _write_tb_signal_generation(f: TextIO, arch: "Architecture") -> None:
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_out",
-            "std_logic_vector(WL_OUTPUT-1 downto 0)",
+            "std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)",
             "(others => '0')",
         )
 
@@ -210,9 +210,13 @@ def processing_element(f: TextIO, pe: "ProcessingElement", is_signed: bool) -> N
     write(f, 0, f"architecture rtl of {pe.entity_name} is", end="\n")
     if pe.operation_type == Output:
         if is_signed:
-            common.signal_declaration(f, "tmp_res", "signed(WL_INTERNAL-1 downto 0)")
+            common.signal_declaration(
+                f, "tmp_res", "signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+            )
         else:
-            common.signal_declaration(f, "tmp_res", "unsigned(WL_INTERNAL-1 downto 0)")
+            common.signal_declaration(
+                f, "tmp_res", "unsigned(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+            )
 
     write(f, 0, "begin", end="\n")
     write(f, 1, "-- WRITE CODE HERE", end="\n")
@@ -221,20 +225,24 @@ def processing_element(f: TextIO, pe: "ProcessingElement", is_signed: bool) -> N
             write(
                 f,
                 1,
-                "p_0_out <= std_logic_vector(resize(signed(p_0_in), WL_INTERNAL));",
+                "p_0_out <= std_logic_vector(resize(signed(p_0_in), WL_INTERNAL_INT+WL_INTERNAL_FRAC));",
             )
         else:
             write(
                 f,
                 1,
-                "p_0_out <= std_logic_vector(resize(unsigned(p_0_in), WL_INTERNAL));",
+                "p_0_out <= std_logic_vector(resize(unsigned(p_0_in), WL_INTERNAL_INT+WL_INTERNAL_FRAC));",
             )
     elif pe.operation_type == Output:
         if is_signed:
             write(f, 1, "tmp_res <= signed(p_0_in);")
         else:
             write(f, 1, "tmp_res <= unsigned(p_0_in);")
-        write(f, 1, "p_0_out <= std_logic_vector(tmp_res(WL_OUTPUT-1 downto 0));")
+        write(
+            f,
+            1,
+            "p_0_out <= std_logic_vector(tmp_res(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0));",
+        )
 
     write(f, 0, "end architecture rtl;", end="\n\n")
 
@@ -307,7 +315,9 @@ def memory_based_storage(
     # Architecture declarative region begin
     #
     write(f, 1, "-- HDL memory description")
-    common.constant_declaration(f, "MEM_WL", "integer", wl.internal, name_pad=16)
+    common.constant_declaration(
+        f, "MEM_WL", "integer", wl.internal[0] + wl.internal[1], name_pad=16
+    )
     common.constant_declaration(f, "MEM_DEPTH", "integer", mem_depth, name_pad=16)
     common.type_declaration(
         f, "mem_type", "array(0 to MEM_DEPTH-1) of std_logic_vector(MEM_WL-1 downto 0)"
@@ -410,7 +420,7 @@ def memory_based_storage(
             common.signal_declaration(
                 f,
                 f"p_{i}_in_sync",
-                "std_logic_vector(WL_INTERNAL-1 downto 0)",
+                "std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                 name_pad=18,
             )
 
@@ -802,7 +812,7 @@ def register_based_storage(
     common.type_declaration(
         f,
         name="shift_reg_type",
-        alias=f"array(0 to {reg_cnt}-1) of std_logic_vector(WL_INTERNAL-1 downto 0)",
+        alias=f"array(0 to {reg_cnt}-1) of std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
     )
     common.signal_declaration(
         f,

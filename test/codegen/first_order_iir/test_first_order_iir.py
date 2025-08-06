@@ -49,9 +49,9 @@ async def first_order_iir_test(dut):
     # Assume Q1.15 unsigned
     cocotb.start_soon(_generate_clk(dut))
 
-    dut.rst = 1
+    dut.rst.value = 1
     await Timer(2, "ns")
-    dut.rst = 0
+    dut.rst.value = 0
     dut.input_0_in.value = 32768
 
     await Timer(2 * 2, "ns")

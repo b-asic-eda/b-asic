@@ -46,32 +46,41 @@ def _interconnect_dict() -> int:
 
 @dataclass
 class WordLengths:
-    internal: int
-    input: int
-    output: int
+    internal: tuple[int, int]
+    input: tuple[int, int]
+    output: tuple[int, int]
     state: int
 
     def generics(self) -> list[str]:
         return [
-            "WL_INTERNAL : integer",
-            "WL_INPUT : integer",
-            "WL_OUTPUT : integer",
+            "WL_INTERNAL_INT : integer",
+            "WL_INTERNAL_FRAC : integer",
+            "WL_INPUT_INT : integer",
+            "WL_INPUT_FRAC : integer",
+            "WL_OUTPUT_INT : integer",
+            "WL_OUTPUT_FRAC : integer",
             "WL_STATE : integer",
         ]
 
     def generics_with_default(self) -> list[str]:
         return [
-            f"WL_INTERNAL : integer := {self.internal}",
-            f"WL_INPUT : integer := {self.input}",
-            f"WL_OUTPUT : integer := {self.output}",
+            f"WL_INTERNAL_INT : integer := {self.internal[0]}",
+            f"WL_INTERNAL_FRAC : integer := {self.internal[1]}",
+            f"WL_INPUT_INT : integer := {self.input[0]}",
+            f"WL_INPUT_FRAC : integer := {self.input[1]}",
+            f"WL_OUTPUT_INT : integer := {self.output[0]}",
+            f"WL_OUTPUT_FRAC : integer := {self.output[1]}",
             f"WL_STATE : integer := {self.state}",
         ]
 
     def generic_mapping(self) -> list[str]:
         return [
-            "WL_INTERNAL => WL_INTERNAL",
-            "WL_INPUT => WL_INPUT",
-            "WL_OUTPUT => WL_OUTPUT",
+            "WL_INTERNAL_INT => WL_INTERNAL_INT",
+            "WL_INTERNAL_FRAC => WL_INTERNAL_FRAC",
+            "WL_INPUT_INT => WL_INPUT_INT",
+            "WL_INPUT_FRAC => WL_INPUT_FRAC",
+            "WL_OUTPUT_INT => WL_OUTPUT_INT",
+            "WL_OUTPUT_FRAC => WL_OUTPUT_FRAC",
             "WL_STATE => WL_STATE",
         ]
 
@@ -110,9 +119,9 @@ class HardwareBlock(ABC):
     def write_code(
         self,
         path: str,
-        wl_internal: int,
-        wl_input: int,
-        wl_output: int,
+        wl_internal: int | tuple[int, int],
+        wl_input: int | tuple[int, int] | None = None,
+        wl_output: int | tuple[int, int] | None = None,
         is_signed: bool = False,
     ) -> None:
         """
@@ -133,12 +142,49 @@ class HardwareBlock(ABC):
         """
         if not self._entity_name:
             raise ValueError("Entity name must be set")
-        if not wl_input:
-            raise ValueError("Input word length must be set")
+
         if not wl_internal:
             raise ValueError("Internal word length must be set")
+        if isinstance(wl_internal, int):
+            if wl_internal < 1:
+                raise ValueError("Internal word length must be at least one bit")
+            wl_internal = (1, wl_internal - 1)
+        if isinstance(wl_internal, tuple):
+            if len(wl_internal) != 2:
+                raise ValueError(
+                    "Internal word length must be an int or a tuple[int, int]"
+                )
+            if wl_internal[0] == 0 and wl_internal[1] == 0:
+                raise ValueError("Internal word length must be at least one bit")
+
+        if not wl_input:
+            wl_input = wl_internal
+        if isinstance(wl_input, int):
+            if wl_input < 1:
+                raise ValueError("Input word length must be at least one bit")
+            wl_input = (1, wl_input - 1)
+        if isinstance(wl_input, tuple):
+            if len(wl_input) != 2:
+                raise ValueError(
+                    "Input word length must be an int or a tuple[int, int]"
+                )
+            if wl_input[0] == 0 and wl_input[1] == 0:
+                raise ValueError("Input word length must be at least one bit")
+
         if not wl_output:
-            raise ValueError("Output word length must be set")
+            wl_output = wl_internal
+        if isinstance(wl_output, int):
+            if wl_output < 1:
+                raise ValueError("Output word length must be at least one bit")
+            wl_output = (1, wl_output - 1)
+        if isinstance(wl_output, tuple):
+            if len(wl_output) != 2:
+                raise ValueError(
+                    "Output word length must be an int or a tuple[int, int]"
+                )
+            if wl_output[0] == 0 and wl_output[1] == 0:
+                raise ValueError("Output word length must be at least one bit")
+
         wl = WordLengths(
             wl_internal, wl_input, wl_output, self.schedule_time.bit_length()
         )
@@ -546,17 +592,21 @@ class ProcessingElement(Resource):
             "schedule_cnt : in unsigned(WL_STATE-1 downto 0)",
         ]
         ports += [
-            f"p_{port_number}_in : in std_logic_vector(WL_INTERNAL-1 downto 0)"
+            f"p_{port_number}_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.input_count)
         ]
         if self.operation_type == Input:
-            ports.append("p_0_in : in std_logic_vector(WL_INPUT-1 downto 0)")
+            ports.append(
+                "p_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
+            )
         ports += [
-            f"p_{port_number}_out : out std_logic_vector(WL_INTERNAL-1 downto 0)"
+            f"p_{port_number}_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.output_count)
         ]
         if self.operation_type == Output:
-            ports.append("p_0_out : out std_logic_vector(WL_OUTPUT-1 downto 0)")
+            ports.append(
+                "p_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
+            )
         common.component_declaration(f, self.entity_name, generics, ports, indent)
         write(f, 1, "")
 
@@ -567,7 +617,7 @@ class ProcessingElement(Resource):
                 common.signal_declaration(
                     f,
                     name=f"{self.entity_name}_{port_number}_in",
-                    signal_type="std_logic_vector(WL_INTERNAL-1 downto 0)",
+                    signal_type="std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                     indent=indent,
                 )
         if self.operation_type != Output:
@@ -575,7 +625,7 @@ class ProcessingElement(Resource):
                 common.signal_declaration(
                     f,
                     name=f"{self.entity_name}_{port_number}_out",
-                    signal_type="std_logic_vector(WL_INTERNAL-1 downto 0)",
+                    signal_type="std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                     indent=indent,
                 )
         write(f, indent, "")
@@ -777,11 +827,11 @@ class Memory(Resource):
         ]
         ports += ["schedule_cnt : in unsigned(WL_STATE-1 downto 0)"]
         ports += [
-            f"p_{port_number}_in : in std_logic_vector(WL_INTERNAL-1 downto 0)"
+            f"p_{port_number}_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.input_count)
         ]
         ports += [
-            f"p_{port_number}_out : out std_logic_vector(WL_INTERNAL-1 downto 0)"
+            f"p_{port_number}_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.output_count)
         ]
         common.component_declaration(f, self.entity_name, generics, ports, indent)
@@ -793,14 +843,14 @@ class Memory(Resource):
             common.signal_declaration(
                 f,
                 name=f"{self.entity_name}_{port_number}_in",
-                signal_type="std_logic_vector(WL_INTERNAL-1 downto 0)",
+                signal_type="std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                 indent=indent,
             )
         for port_number in range(self.output_count):
             common.signal_declaration(
                 f,
                 name=f"{self.entity_name}_{port_number}_out",
-                signal_type="std_logic_vector(WL_INTERNAL-1 downto 0)",
+                signal_type="std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                 indent=indent,
             )
         write(f, indent, "")
@@ -1039,12 +1089,12 @@ of :class:`~b_asic.architecture.ProcessingElement`
         ]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         ports += [
-            f"{pe.entity_name}_0_in : in std_logic_vector(WL_INPUT-1 downto 0)"
+            f"{pe.entity_name}_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
             for pe in inputs
         ]
         outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
         ports += [
-            f"{pe.entity_name}_0_out : out std_logic_vector(WL_OUTPUT-1 downto 0)"
+            f"{pe.entity_name}_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
             for pe in outputs
         ]
         common.component_declaration(f, self.entity_name, generics, ports, indent)

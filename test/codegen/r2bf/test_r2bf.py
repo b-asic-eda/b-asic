@@ -45,9 +45,9 @@ def test_r2bf_simulate(tmp_path, arch_r2bf):
 async def r2bf_test(dut):
     cocotb.start_soon(_generate_clk(dut))
 
-    dut.rst = 1
+    dut.rst.value = 1
     await Timer(2, "ns")
-    dut.rst = 0
+    dut.rst.value = 0
     dut.input0_0_in.value = 5
 
     await Timer(2, "ns")

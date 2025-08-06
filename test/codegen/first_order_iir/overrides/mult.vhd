@@ -11,24 +11,27 @@ use ieee.numeric_std.all;
 
 entity mult is
     generic (
-        WL_INTERNAL : integer;
-        WL_INPUT : integer;
-        WL_OUTPUT : integer;
+        WL_INTERNAL_INT : integer;
+        WL_INTERNAL_FRAC : integer;
+        WL_INPUT_INT : integer;
+        WL_INPUT_FRAC : integer;
+        WL_OUTPUT_INT : integer;
+        WL_OUTPUT_FRAC : integer;
         WL_STATE : integer
     );
     port (
         clk : in std_logic;
         rst : in std_logic;
         schedule_cnt : in unsigned(WL_STATE-1 downto 0);
-        p_0_in : in std_logic_vector(WL_INTERNAL-1 downto 0);
-        p_0_out : out std_logic_vector(WL_INTERNAL-1 downto 0)
+        p_0_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
+        p_0_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)
     );
 end entity mult;
 
 architecture rtl of mult is
-    signal op_a : unsigned(WL_INTERNAL-1 downto 0);
-    signal tmp_res : unsigned(2*WL_INTERNAL-1 downto 0);
-    signal value : unsigned(WL_INTERNAL-1 downto 0);
+    signal op_a : unsigned(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
+    signal tmp_res : unsigned(2*(WL_INTERNAL_INT+WL_INTERNAL_FRAC)-1 downto 0);
+    signal value : unsigned(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
 begin
     -- WRITE CODE HERE
     process(clk)
