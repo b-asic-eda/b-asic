@@ -21,15 +21,14 @@ entity mult is
     );
     port (
         clk : in std_logic;
-        rst : in std_logic;
         schedule_cnt : in unsigned(WL_STATE-1 downto 0);
-        p_0_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
-        p_0_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)
+        p_0_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
+        p_0_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)
     );
 end entity mult;
 
 architecture rtl of mult is
-    signal re_in, im_in, re_out, im_out : signed(15 downto 0);
+    signal re_in, im_in, re_out, im_out : signed(15 downto 0) := (others => '0');
 begin
 
     re_in <= signed(p_0_in(31 downto 16));
@@ -38,16 +37,11 @@ begin
     process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
-                re_out <= (others => '0');
-                im_out <= (others => '0');
-            else
-                re_out <= -im_in;
-                im_out <= re_in;
-            end if;
+            re_out <= -im_in;
+            im_out <= re_in;
         end if;
     end process;
 
-    p_0_out <= std_logic_vector(re_out) & std_logic_vector(im_out);
+    p_0_out <= re_out & im_out;
 
 end architecture rtl;

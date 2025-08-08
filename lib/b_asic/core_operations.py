@@ -4,13 +4,19 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
+from typing import TYPE_CHECKING
+
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
 
+from b_asic.codegen.vhdl import VHDL_TAB
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Num, ShapeCoordinates
+
+if TYPE_CHECKING:
+    from b_asic.architecture import ProcessingElement
 
 
 class Constant(AbstractOperation):
@@ -189,6 +195,15 @@ class Addition(AbstractOperation):
 
     def evaluate(self, a, b) -> Num:
         return a + b
+
+    @classmethod
+    def _vhdl(cls, pe: "ProcessingElement") -> str:
+        code = super()._vhdl(pe)
+        if pe._latency == 0:
+            new_arch_code = f"{VHDL_TAB}res_0 <= p_0_in + p_1_in;\n"
+        else:
+            new_arch_code = f"{VHDL_TAB}res_0 <= p_0_in_reg_0 + p_1_in_reg_0;\n"
+        return code[0], code[1] + new_arch_code
 
 
 class Subtraction(AbstractOperation):
@@ -381,6 +396,16 @@ class AddSub(AbstractOperation):
     @property
     def is_swappable(self) -> bool:
         return self.is_add
+
+    @classmethod
+    def _vhdl(cls, pe: "ProcessingElement") -> str:
+        code = super()._vhdl(pe)
+
+        if pe._latency == 0:
+            new_arch_code = f"{VHDL_TAB}res_0 <= p_0_in + p_1_in when is_add = '1' else p_0_in - p_1_in;\n"
+        else:
+            new_arch_code = f"{VHDL_TAB}res_0 <= p_0_in_reg_0 + p_1_in_reg_0 when is_add = '1' else p_0_in_reg_0 - p_1_in_reg_0;\n"
+        return code[0], code[1] + new_arch_code
 
 
 class Multiplication(AbstractOperation):
@@ -963,6 +988,20 @@ class ConstantMultiplication(AbstractOperation):
     def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
+
+    @classmethod
+    def _vhdl(cls, pe: "ProcessingElement") -> str:
+        code = super()._vhdl(pe)
+        new_preamble_code = f"{VHDL_TAB}signal mul_res : signed(p_0_in'length + value'length - 1 downto 0);\n"
+
+        if pe._latency == 0:
+            new_arch_code = f"{VHDL_TAB}mul_res <= p_0_in * value;\n"
+        else:
+            new_arch_code = f"{VHDL_TAB}mul_res <= p_0_in_reg_0 * value;\n"
+
+        new_arch_code += f"{VHDL_TAB}res_0 <= mul_res(mul_res'high - WL_VALUE_INT downto mul_res'high - WL_VALUE_INT - res_0'high);\n"
+
+        return code[0] + new_preamble_code, code[1] + new_arch_code
 
 
 class MAD(AbstractOperation):

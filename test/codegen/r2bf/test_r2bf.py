@@ -1,10 +1,8 @@
 import os
-import shutil
-from pathlib import Path
 
 import cocotb
-from cocotb.runner import get_runner
 from cocotb.triggers import Timer
+from cocotb_tools.runner import get_runner
 
 
 def test_r2bf_compile(tmp_path, arch_r2bf):
@@ -21,13 +19,7 @@ def test_r2bf_compile(tmp_path, arch_r2bf):
 
 
 def test_r2bf_simulate(tmp_path, arch_r2bf):
-    arch_r2bf.write_code(tmp_path, 16, 16, 16)
-
-    # Override the generated file with the ones specified in the directory "overrides"
-    override_dir = Path(__file__).resolve().parent / "overrides"
-    override_files = [f for f in override_dir.iterdir() if f.is_file()]
-    for file in override_files:
-        shutil.copy(file, tmp_path / "r2bf_0" / file.name)
+    arch_r2bf.write_code(tmp_path, 16, 16, 16, write_pe_archs=True)
 
     sim = os.getenv("SIM", "ghdl")
     sources = list((tmp_path / "r2bf_0").glob("*.vhd"))
@@ -69,8 +61,8 @@ async def r2bf_test(dut):
 
 
 async def _generate_clk(dut):
-    for _ in range(10):
+    for _ in range(100):
         dut.clk.value = 0
-        await Timer(1, units="ns")
+        await Timer(1, unit="ns")
         dut.clk.value = 1
-        await Timer(1, units="ns")
+        await Timer(1, unit="ns")

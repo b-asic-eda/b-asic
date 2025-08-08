@@ -164,7 +164,7 @@ def _write_tb_signal_generation(f: TextIO, arch: "Architecture") -> None:
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_in",
-            "std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)",
+            "signed(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)",
             "(others => '0')",
         )
     outputs = [pe for pe in arch.processing_elements if pe.operation_type == Output]
@@ -206,45 +206,21 @@ def _write_tb_stimulus_generation(f: TextIO) -> None:
     )
 
 
-def processing_element(f: TextIO, pe: "ProcessingElement", is_signed: bool) -> None:
+def processing_element(
+    f: TextIO, pe: "ProcessingElement", write_pe_archs: bool
+) -> None:
     write(f, 0, f"architecture rtl of {pe.entity_name} is", end="\n")
-    if pe.operation_type == Output:
-        if is_signed:
-            common.signal_declaration(
-                f, "tmp_res", "signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
-            )
-        else:
-            common.signal_declaration(
-                f, "tmp_res", "unsigned(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
-            )
+
+    if write_pe_archs or pe.operation_type in (Input, Output):
+        vhdl_code = pe.operation_type._vhdl(pe)
+        write(f, 0, vhdl_code[0])
 
     write(f, 0, "begin", end="\n")
-    write(f, 1, "-- WRITE CODE HERE", end="\n")
-    if pe.operation_type == Input:
-        if is_signed:
-            write(
-                f,
-                1,
-                "p_0_out <= std_logic_vector(resize(signed(p_0_in), WL_INTERNAL_INT+WL_INTERNAL_FRAC));",
-            )
-        else:
-            write(
-                f,
-                1,
-                "p_0_out <= std_logic_vector(resize(unsigned(p_0_in), WL_INTERNAL_INT+WL_INTERNAL_FRAC));",
-            )
-    elif pe.operation_type == Output:
-        if is_signed:
-            write(f, 1, "tmp_res <= signed(p_0_in);")
-        else:
-            write(f, 1, "tmp_res <= unsigned(p_0_in);")
-        write(
-            f,
-            1,
-            "p_0_out <= std_logic_vector(tmp_res(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0));",
-        )
 
-    write(f, 0, "end architecture rtl;", end="\n\n")
+    if write_pe_archs or pe.operation_type in (Input, Output):
+        write(f, 0, vhdl_code[1])
+
+    write(f, 0, "end architecture rtl;", end="\n")
 
 
 def memory_based_storage(
@@ -320,7 +296,7 @@ def memory_based_storage(
     )
     common.constant_declaration(f, "MEM_DEPTH", "integer", mem_depth, name_pad=16)
     common.type_declaration(
-        f, "mem_type", "array(0 to MEM_DEPTH-1) of std_logic_vector(MEM_WL-1 downto 0)"
+        f, "mem_type", "array(0 to MEM_DEPTH-1) of signed(MEM_WL-1 downto 0)"
     )
     if vivado_ram_style is not None:
         common.signal_declaration(
@@ -368,7 +344,7 @@ def memory_based_storage(
     write(f, 1, "-- Memory address generation", start="\n")
     for i in range(memory.input_count):
         common.signal_declaration(
-            f, f"read_port_{i}", "std_logic_vector(MEM_WL-1 downto 0)", name_pad=18
+            f, f"read_port_{i}", "signed(MEM_WL-1 downto 0)", name_pad=18
         )
         common.signal_declaration(
             f, f"read_adr_{i}", "integer range 0 to MEM_DEPTH-1", name_pad=18
@@ -376,7 +352,7 @@ def memory_based_storage(
         common.signal_declaration(f, f"read_en_{i}", "std_logic", name_pad=18)
     for i in range(memory.output_count):
         common.signal_declaration(
-            f, f"write_port_{i}", "std_logic_vector(MEM_WL-1 downto 0)", name_pad=18
+            f, f"write_port_{i}", "signed(MEM_WL-1 downto 0)", name_pad=18
         )
         common.signal_declaration(
             f, f"write_adr_{i}", "integer range 0 to MEM_DEPTH-1", name_pad=18
@@ -420,7 +396,7 @@ def memory_based_storage(
             common.signal_declaration(
                 f,
                 f"p_{i}_in_sync",
-                "std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                "signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                 name_pad=18,
             )
 
@@ -812,7 +788,7 @@ def register_based_storage(
     common.type_declaration(
         f,
         name="shift_reg_type",
-        alias=f"array(0 to {reg_cnt}-1) of std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+        alias=f"array(0 to {reg_cnt}-1) of signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
     )
     common.signal_declaration(
         f,

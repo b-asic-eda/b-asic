@@ -59,7 +59,7 @@ test = [
   "pytest-xvfb",
   "pytest-xdist",
   "scipy",
-  "cocotb",
+  "cocotb>=2.0.0b1",
 ]
 doc = [
   "sphinx",

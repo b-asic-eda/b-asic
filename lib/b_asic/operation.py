@@ -17,12 +17,14 @@ from typing import (
     overload,
 )
 
+from b_asic.codegen.vhdl import VHDL_TAB
 from b_asic.graph_component import AbstractGraphComponent, GraphComponent, GraphID, Name
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.types import Num, ShapeCoordinates
 
 if TYPE_CHECKING:
+    from b_asic.architecture import ProcessingElement
     from b_asic.signal_flow_graph import SFG
 
 
@@ -442,6 +444,11 @@ class Operation(GraphComponent, SignalSourceProvider):
 
         Errors if :meth:`is_swappable` is False.
         """
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def _vhdl(cls, pe: "ProcessingElement") -> str:
         raise NotImplementedError
 
 
@@ -1066,3 +1073,87 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             self._input_ports.reverse()
             for i, p in enumerate(self._input_ports):
                 p._index = i
+
+    @classmethod
+    def _vhdl(cls, pe: "ProcessingElement") -> str:
+        preamble_code = ""
+
+        # Define pipeline stages
+        for stage in range(pe._latency):
+            if stage == 0:
+                for input_port in range(pe.input_count):
+                    preamble_code += f"{VHDL_TAB}signal p_{input_port}_in_reg_{stage} : signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0) := (others => '0');\n"
+            else:
+                for output_port in range(pe.output_count):
+                    preamble_code += f"{VHDL_TAB}signal res_{output_port}_reg_{stage - 1} : signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);\n"
+
+        # Define results
+        for output_port in range(pe.output_count):
+            preamble_code += f"{VHDL_TAB}signal res_{output_port} : signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);\n"
+
+        # Define control signals
+        for entry in pe.control_table:
+            if entry.int_bits == 1 and entry.frac_bits == 0:
+                vhdl_type = "std_logic"
+            else:
+                vhdl_type = f"signed({entry.int_bits + entry.frac_bits - 1} downto 0)"
+            preamble_code += f"{VHDL_TAB}signal {entry.name} : {vhdl_type};\n"
+
+        # Define integer bits for control signals
+        for entry in pe.control_table:
+            preamble_code += f"{VHDL_TAB}constant WL_{entry.name.upper()}_INT : integer := {entry.int_bits};\n"
+
+        arch_code = ""
+
+        # Generate pipeline stages
+        if pe._latency > 0:
+            arch_code += f"{VHDL_TAB}process(clk)\n"
+            arch_code += f"{VHDL_TAB}begin\n"
+            arch_code += f"{2 * VHDL_TAB}if rising_edge(clk) then\n"
+
+            for stage in range(pe._latency):
+                if stage == 0:
+                    for input_port in range(pe.input_count):
+                        arch_code += f"{3 * VHDL_TAB}p_{input_port}_in_reg_{stage} <= p_{input_port}_in;\n"
+                elif stage == 1:
+                    for output_port in range(pe.output_count):
+                        arch_code += f"{3 * VHDL_TAB}res_{output_port}_reg_0 <= res_{output_port};\n"
+                elif stage >= 2:
+                    for output_port in range(pe.output_count):
+                        arch_code += f"{3 * VHDL_TAB}res_{output_port}_reg_{stage} <= res_{output_port}_reg_{stage - 1};\n"
+
+            arch_code += f"{2 * VHDL_TAB}end if;\n"
+            arch_code += f"{VHDL_TAB}end process;\n\n"
+
+        # Generate control signals
+        for entry in pe.control_table:
+            arch_code += f"{VHDL_TAB}with to_integer(schedule_cnt) select\n"
+            arch_code += f"{2 * VHDL_TAB}{entry.name} <=\n"
+            for time, val in entry.values.items():
+                if isinstance(val, bool):
+                    val_str = f"'{int(val)}'"
+                else:
+                    int_val = int(val * 2**entry.frac_bits)
+                    val_str = (
+                        f'b"{_get_bin_str(int_val, entry.int_bits + entry.frac_bits)}"'
+                    )
+                avail_time = (time + 1) % pe.schedule_time if pe._latency > 0 else time
+                arch_code += f"{3 * VHDL_TAB}{val_str} when {avail_time},\n"
+            if isinstance(val, bool):
+                arch_code += f"{3 * VHDL_TAB}'-' when others;\n\n"
+            else:
+                arch_code += f"{3 * VHDL_TAB}(others => '-') when others;\n\n"
+
+        # Connect results to outputs
+        if pe._latency < 2:
+            for output_port in range(pe.output_count):
+                arch_code += f"{VHDL_TAB}p_{output_port}_out <= res_{output_port};\n"
+        else:
+            for output_port in range(pe.output_count):
+                arch_code += f"{VHDL_TAB}p_{output_port}_out <= res_{output_port}_reg_{pe._latency - 2};\n"
+
+        return preamble_code, arch_code
+
+
+def _get_bin_str(num: int, bits: int) -> str:
+    return bin(num + 2**bits)[2:].zfill(bits) if num < 0 else bin(num)[2:].zfill(bits)

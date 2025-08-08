@@ -17,6 +17,7 @@ from typing import (
 )
 
 import matplotlib.pyplot as plt
+import numpy as np
 from graphviz import Digraph
 
 from b_asic._preferences import (
@@ -42,6 +43,29 @@ from b_asic.special_operations import Input, Output
 def _interconnect_dict() -> int:
     # Needed as pickle does not support lambdas
     return 0
+
+
+def _signed_bit_length(num: int) -> int:
+    magnitude = num if num >= 0 else ~num
+    return magnitude.bit_length() + 1
+
+
+def _fixed_point_bits(num: float) -> int:
+    if num == 0:
+        return 1, 0
+
+    int_part = int(num)
+    int_bits = _signed_bit_length(int_part)
+
+    frac_part = num - int_part
+    if frac_part == 0:
+        return int_bits, 0
+    man, _ = math.frexp(frac_part)
+    man_int = int(man * (2**53))  # 53 bits of precision for Python float
+    man_without_trailing_zeros = int(bin(man_int).rstrip("0"), 2)
+    frac_bits = man_without_trailing_zeros.bit_length()
+
+    return int_bits, frac_bits
 
 
 @dataclass
@@ -85,6 +109,14 @@ class WordLengths:
         ]
 
 
+@dataclass
+class ControlTableEntry:
+    name: int
+    int_bits: int
+    frac_bits: int
+    values: dict[int, int]
+
+
 class HardwareBlock(ABC):
     """
     Base class for architectures and resources.
@@ -122,7 +154,7 @@ class HardwareBlock(ABC):
         wl_internal: int | tuple[int, int],
         wl_input: int | tuple[int, int] | None = None,
         wl_output: int | tuple[int, int] | None = None,
-        is_signed: bool = False,
+        write_pe_archs: bool = False,
     ) -> None:
         """
         Write VHDL code for hardware block.
@@ -137,8 +169,8 @@ class HardwareBlock(ABC):
             Bit widths of all internal signals.
         wl_output : int
             Bit widths of all output signals.
-        is_signed : bool
-            Whether to use signed or unsigned data processing.
+        write_pe_archs : bool
+            Whether to generate VHDL architecture for processing elements.
         """
         if not self._entity_name:
             raise ValueError("Entity name must be set")
@@ -188,10 +220,10 @@ class HardwareBlock(ABC):
         wl = WordLengths(
             wl_internal, wl_input, wl_output, self.schedule_time.bit_length()
         )
-        self._write_code(Path(path), wl, is_signed)
+        self._write_code(Path(path), wl, write_pe_archs)
 
     @abstractmethod
-    def _write_code(self, path: Path, wl: WordLengths) -> None:
+    def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
         raise NotImplementedError()
 
     def _repr_mimebundle_(self, include=None, exclude=None):
@@ -547,12 +579,58 @@ class ProcessingElement(Resource):
         self._type_name = op_type.type_name()
         self._input_count = ops[0].input_count
         self._output_count = ops[0].output_count
+        self._latency = ops[0].latency
+        if not all(op.latency == self._latency for op in ops):
+            raise ValueError("Operations with different latencies in ProcessCollection")
         if assign:
             self.assign()
 
     @property
     def processes(self) -> list[OperatorProcess]:
         return [cast(OperatorProcess, p) for p in self._collection]
+
+    @property
+    def control_table(self) -> list[ControlTableEntry]:
+        # Loop through all params and set these values
+        control_table = []
+        params = cast(OperatorProcess, self.collection.collection[0]).operation.params
+        for param_name in params:
+            param = params[param_name]
+
+            # Calculate int_bits and frac_bits
+            if isinstance(param, bool):
+                int_bits = 1
+                frac_bits = 0
+            elif isinstance(param, (int, np.integer)):
+                int_bits = 0
+                for pro in self.collection:
+                    val = pro.operation.params[param_name]
+                    bits = _signed_bit_length(val)
+                    int_bits = max(int_bits, bits)
+                frac_bits = 0
+            elif isinstance(param, (float, np.floating)):
+                int_bits = 0
+                frac_bits = 0
+                for pro in self.collection:
+                    val = pro.operation.params[param_name]
+                    tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val)
+                    int_bits = max(int_bits, tmp_int_bits)
+                    frac_bits = max(frac_bits, tmp_frac_bits)
+            elif isinstance(param, (complex, np.complexfloating)):
+                raise NotImplementedError()
+            else:
+                raise ValueError(
+                    f"Parameter type {type(param)} not supported for VHDL code generation"
+                )
+
+            # Calculate values: dict[time, val]
+            values = {}
+            for pro in self.collection:
+                values[pro.start_time] = pro.operation.params[param_name]
+
+            entry = ControlTableEntry(param_name, int_bits, frac_bits, values)
+            control_table.append(entry)
+        return control_table
 
     def assign(
         self, strategy: Literal["left_edge", "graph_color"] = "left_edge"
@@ -575,12 +653,12 @@ class ProcessingElement(Resource):
             self._assignment = None
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
-    def _write_code(self, path: Path, wl: WordLengths, is_signed: bool) -> None:
+    def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
         with (path / f"{self._entity_name}.vhd").open("w") as f:
             vhdl_common.b_asic_preamble(f)
             vhdl_common.ieee_header(f)
             vhdl_entity.processing_element(f, self, wl)
-            vhdl_architecture.processing_element(f, self, is_signed)
+            vhdl_architecture.processing_element(f, self, write_pe_archs)
 
     def write_component_declaration(
         self, f: TextIO, wl: WordLengths, indent: int = 1
@@ -588,11 +666,10 @@ class ProcessingElement(Resource):
         generics = wl.generics()
         ports = [
             "clk : in std_logic",
-            "rst : in std_logic",
             "schedule_cnt : in unsigned(WL_STATE-1 downto 0)",
         ]
         ports += [
-            f"p_{port_number}_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+            f"p_{port_number}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.input_count)
         ]
         if self.operation_type == Input:
@@ -600,7 +677,7 @@ class ProcessingElement(Resource):
                 "p_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
             )
         ports += [
-            f"p_{port_number}_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+            f"p_{port_number}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.output_count)
         ]
         if self.operation_type == Output:
@@ -617,7 +694,7 @@ class ProcessingElement(Resource):
                 common.signal_declaration(
                     f,
                     name=f"{self.entity_name}_{port_number}_in",
-                    signal_type="std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                    signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                     indent=indent,
                 )
         if self.operation_type != Output:
@@ -625,7 +702,7 @@ class ProcessingElement(Resource):
                 common.signal_declaration(
                     f,
                     name=f"{self.entity_name}_{port_number}_out",
-                    signal_type="std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                    signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                     indent=indent,
                 )
         write(f, indent, "")
@@ -633,8 +710,7 @@ class ProcessingElement(Resource):
     def write_component_instantiation(
         self, f: TextIO, wl: WordLengths, indent: int = 1
     ) -> None:
-        port_mappings = ["clk => clk", "rst => rst"]
-        port_mappings += ["schedule_cnt => schedule_cnt"]
+        port_mappings = ["clk => clk", "schedule_cnt => schedule_cnt"]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
@@ -810,7 +886,7 @@ class Memory(Resource):
         else:  # "register"
             raise NotImplementedError()
 
-    def _write_code(self, path: Path, wl: WordLengths) -> None:
+    def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
         with (path / f"{self._entity_name}.vhd").open("w") as f:
             vhdl_common.b_asic_preamble(f)
             vhdl_common.ieee_header(f)
@@ -823,15 +899,14 @@ class Memory(Resource):
         generics = wl.generics()
         ports = [
             "clk : in std_logic",
-            "rst : in std_logic",
+            "schedule_cnt : in unsigned(WL_STATE-1 downto 0)",
         ]
-        ports += ["schedule_cnt : in unsigned(WL_STATE-1 downto 0)"]
         ports += [
-            f"p_{port_number}_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+            f"p_{port_number}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.input_count)
         ]
         ports += [
-            f"p_{port_number}_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+            f"p_{port_number}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.output_count)
         ]
         common.component_declaration(f, self.entity_name, generics, ports, indent)
@@ -843,14 +918,14 @@ class Memory(Resource):
             common.signal_declaration(
                 f,
                 name=f"{self.entity_name}_{port_number}_in",
-                signal_type="std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                 indent=indent,
             )
         for port_number in range(self.output_count):
             common.signal_declaration(
                 f,
                 name=f"{self.entity_name}_{port_number}_out",
-                signal_type="std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                 indent=indent,
             )
         write(f, indent, "")
@@ -858,8 +933,7 @@ class Memory(Resource):
     def write_component_instantiation(
         self, f: TextIO, wl: WordLengths, indent: int = 1
     ) -> None:
-        port_mappings = ["clk => clk", "rst => rst"]
-        port_mappings += ["schedule_cnt => schedule_cnt"]
+        port_mappings = ["clk => clk", "schedule_cnt => schedule_cnt"]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
@@ -1052,7 +1126,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 f" {[port.name for port in write_port_diff]}"
             )
 
-    def _write_code(self, path: Path, wl: WordLengths, is_signed: bool) -> None:
+    def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
         counter = 0
         dir_path = path / f"{self.entity_name}_{counter}"
         while dir_path.exists():
@@ -1061,10 +1135,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         dir_path.mkdir(parents=True)
 
         for pe in self.processing_elements:
-            pe._write_code(dir_path, wl, is_signed)
+            pe._write_code(dir_path, wl, write_pe_archs)
 
         for mem in self.memories:
-            mem._write_code(dir_path, wl)
+            mem._write_code(dir_path, wl, write_pe_archs)
 
         with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
             vhdl_common.b_asic_preamble(f)
@@ -1089,12 +1163,12 @@ of :class:`~b_asic.architecture.ProcessingElement`
         ]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         ports += [
-            f"{pe.entity_name}_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
+            f"{pe.entity_name}_0_in : in signed(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
             for pe in inputs
         ]
         outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
         ports += [
-            f"{pe.entity_name}_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
+            f"{pe.entity_name}_0_out : out signed(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
             for pe in outputs
         ]
         common.component_declaration(f, self.entity_name, generics, ports, indent)

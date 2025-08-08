@@ -183,11 +183,15 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
 
 def test_architecture_not_unique_entity_names():
     pe_1 = ProcessingElement(
-        ProcessCollection([OperatorProcess(0, Addition(execution_time=1))], 1),
+        ProcessCollection(
+            [OperatorProcess(0, Addition(execution_time=1, latency=1))], 1
+        ),
         entity_name="foo",
     )
     pe_2 = ProcessingElement(
-        ProcessCollection([OperatorProcess(0, Addition(execution_time=1))], 1),
+        ProcessCollection(
+            [OperatorProcess(0, Addition(execution_time=1, latency=1))], 1
+        ),
         entity_name="foo",
     )
     with pytest.raises(

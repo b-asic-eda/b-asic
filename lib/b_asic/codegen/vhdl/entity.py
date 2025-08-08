@@ -44,17 +44,16 @@ def processing_element(f: TextIO, pe: "ProcessingElement", wl: "WordLengths") ->
     generics = wl.generics()
     ports = [
         "clk : in std_logic",
-        "rst : in std_logic",
         "schedule_cnt : in unsigned(WL_STATE-1 downto 0)",
     ]
     ports += [
-        f"p_{input_port}_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+        f"p_{input_port}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
         for input_port in range(pe.input_count)
     ]
     if pe.operation_type == Input:
         ports += ["p_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"]
     ports += [
-        f"p_{output_port}_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+        f"p_{output_port}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
         for output_port in range(pe.output_count)
     ]
     if pe.operation_type == Output:
@@ -77,17 +76,13 @@ def memory_based_storage(f: TextIO, mem: "Memory", wl: "WordLengths") -> None:
         )
 
     generics = wl.generics()
-    ports = [
-        "clk : in std_logic",
-        "rst : in std_logic",
-        "schedule_cnt : in unsigned(WL_STATE-1 downto 0)",
-    ]
+    ports = ["clk : in std_logic", "schedule_cnt : in unsigned(WL_STATE-1 downto 0)"]
     ports += [
-        f"p_{input_port}_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+        f"p_{input_port}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
         for input_port in range(mem.input_count)
     ]
     ports += [
-        f"p_{output_port}_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+        f"p_{output_port}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
         for output_port in range(mem.output_count)
     ]
     vhdl_common.entity_declaration(f, mem.entity_name, generics, ports)

@@ -21,33 +21,25 @@ entity addsub1 is
     );
     port (
         clk : in std_logic;
-        rst : in std_logic;
         schedule_cnt : in unsigned(WL_STATE-1 downto 0);
-        p_0_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
-        p_1_in : in std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
-        p_0_out : out std_logic_vector(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)
+        p_0_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
+        p_1_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
+        p_0_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)
     );
 end entity addsub1;
 
 architecture rtl of addsub1 is
-    signal re_op_a, re_op_b, im_op_a, im_op_b : signed(15 downto 0);
+    signal re_op_a, re_op_b, im_op_a, im_op_b : signed(15 downto 0) := (others => '0');
     signal re_res, im_res : signed(15 downto 0);
     signal is_add : std_logic;
 begin
     process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
-                re_op_a <= (others => '0');
-                re_op_b <= (others => '0');
-                im_op_a <= (others => '0');
-                im_op_b <= (others => '0');
-            else
-                re_op_a <= signed(p_0_in(31 downto 16));
-                re_op_b <= signed(p_1_in(31 downto 16));
-                im_op_a <= signed(p_0_in(15 downto 0));
-                im_op_b <= signed(p_1_in(15 downto 0));
-            end if;
+            re_op_a <= signed(p_0_in(31 downto 16));
+            re_op_b <= signed(p_1_in(31 downto 16));
+            im_op_a <= signed(p_0_in(15 downto 0));
+            im_op_b <= signed(p_1_in(15 downto 0));
         end if;
     end process;
 
@@ -56,6 +48,6 @@ begin
     re_res <= re_op_a + re_op_b when is_add = '1' else re_op_a - re_op_b;
     im_res <= im_op_a + im_op_b when is_add = '1' else im_op_a - im_op_b;
 
-    p_0_out <= std_logic_vector(re_res) & std_logic_vector(im_res);
+    p_0_out <= re_res & im_res;
 
 end architecture rtl;

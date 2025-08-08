@@ -3,8 +3,8 @@ import shutil
 from pathlib import Path
 
 import cocotb
-from cocotb.runner import get_runner
 from cocotb.triggers import Timer
+from cocotb_tools.runner import get_runner
 
 
 def test_r3bf_compile(tmp_path, arch_r3bf):
@@ -90,8 +90,8 @@ async def r3bf_test(dut):
 
 
 async def _generate_clk(dut):
-    for _ in range(40):
+    for _ in range(100):
         dut.clk.value = 0
-        await Timer(1, units="ns")
+        await Timer(1, unit="ns")
         dut.clk.value = 1
-        await Timer(1, units="ns")
+        await Timer(1, unit="ns")
