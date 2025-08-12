@@ -4,10 +4,10 @@ import pytest
 from b_asic import (
     SFG,
     Addition,
-    Butterfly,
     Constant,
     FastSimulation,
     Output,
+    R2Butterfly,
     Subtraction,
 )
 
@@ -26,31 +26,31 @@ class TestRunFor:
         assert simulation.results["0"][100] == 304
         assert simulation.results["1"][100] == 505
 
-        assert simulation.results["in1"][0] == 3
-        assert simulation.results["in2"][0] == 1
-        assert simulation.results["add1"][0] == 4
-        assert simulation.results["add2"][0] == 5
+        assert simulation.results["in0"][0] == 3
+        assert simulation.results["in1"][0] == 1
+        assert simulation.results["add0"][0] == 4
+        assert simulation.results["add1"][0] == 5
         assert simulation.results["0"][0] == 4
         assert simulation.results["1"][0] == 5
 
-        assert simulation.results["in1"][1] == 4
-        assert simulation.results["in2"][1] == 3
-        assert simulation.results["add1"][1] == 7
-        assert simulation.results["add2"][1] == 10
+        assert simulation.results["in0"][1] == 4
+        assert simulation.results["in1"][1] == 3
+        assert simulation.results["add0"][1] == 7
+        assert simulation.results["add1"][1] == 10
         assert simulation.results["0"][1] == 7
         assert simulation.results["1"][1] == 10
 
+        assert simulation.results["in0"][2] == 5
         assert simulation.results["in1"][2] == 5
-        assert simulation.results["in2"][2] == 5
-        assert simulation.results["add1"][2] == 10
-        assert simulation.results["add2"][2] == 15
+        assert simulation.results["add0"][2] == 10
+        assert simulation.results["add1"][2] == 15
         assert simulation.results["0"][2] == 10
         assert simulation.results["1"][2] == 15
 
-        assert simulation.results["in1"][3] == 6
-        assert simulation.results["in2"][3] == 7
-        assert simulation.results["add1"][3] == 13
-        assert simulation.results["add2"][3] == 20
+        assert simulation.results["in0"][3] == 6
+        assert simulation.results["in1"][3] == 7
+        assert simulation.results["add0"][3] == 13
+        assert simulation.results["add1"][3] == 20
         assert simulation.results["0"][3] == 13
         assert simulation.results["1"][3] == 20
 
@@ -64,38 +64,38 @@ class TestRunFor:
         assert output[0] == 9
         assert output[1] == 11
 
+        assert isinstance(simulation.results["in0"], np.ndarray)
         assert isinstance(simulation.results["in1"], np.ndarray)
-        assert isinstance(simulation.results["in2"], np.ndarray)
+        assert isinstance(simulation.results["add0"], np.ndarray)
         assert isinstance(simulation.results["add1"], np.ndarray)
-        assert isinstance(simulation.results["add2"], np.ndarray)
         assert isinstance(simulation.results["0"], np.ndarray)
         assert isinstance(simulation.results["1"], np.ndarray)
 
-        assert simulation.results["in1"][0] == 5
-        assert simulation.results["in2"][0] == 7
-        assert simulation.results["add1"][0] == 12
-        assert simulation.results["add2"][0] == 19
+        assert simulation.results["in0"][0] == 5
+        assert simulation.results["in1"][0] == 7
+        assert simulation.results["add0"][0] == 12
+        assert simulation.results["add1"][0] == 19
         assert simulation.results["0"][0] == 12
         assert simulation.results["1"][0] == 19
 
-        assert simulation.results["in1"][1] == 9
-        assert simulation.results["in2"][1] == 3
-        assert simulation.results["add1"][1] == 12
-        assert simulation.results["add2"][1] == 15
+        assert simulation.results["in0"][1] == 9
+        assert simulation.results["in1"][1] == 3
+        assert simulation.results["add0"][1] == 12
+        assert simulation.results["add1"][1] == 15
         assert simulation.results["0"][1] == 12
         assert simulation.results["1"][1] == 15
 
-        assert simulation.results["in1"][2] == 25
-        assert simulation.results["in2"][2] == 3
-        assert simulation.results["add1"][2] == 28
-        assert simulation.results["add2"][2] == 31
+        assert simulation.results["in0"][2] == 25
+        assert simulation.results["in1"][2] == 3
+        assert simulation.results["add0"][2] == 28
+        assert simulation.results["add1"][2] == 31
         assert simulation.results["0"][2] == 28
         assert simulation.results["1"][2] == 31
 
-        assert simulation.results["in1"][3] == -5
-        assert simulation.results["in2"][3] == 54
-        assert simulation.results["add1"][3] == 49
-        assert simulation.results["add2"][3] == 103
+        assert simulation.results["in0"][3] == -5
+        assert simulation.results["in1"][3] == 54
+        assert simulation.results["add0"][3] == 49
+        assert simulation.results["add1"][3] == 103
         assert simulation.results["0"][3] == 49
         assert simulation.results["1"][3] == 103
 
@@ -257,7 +257,7 @@ class TestLarge:
             prev_op_add = Addition(prev_op_add, Constant(2))
         for _ in range(499):
             prev_op_sub = Subtraction(prev_op_sub, Constant(2))
-        butterfly = Butterfly(prev_op_add, prev_op_sub)
+        butterfly = R2Butterfly(prev_op_add, prev_op_sub)
         sfg = SFG(outputs=[Output(butterfly.output(0)), Output(butterfly.output(1))])
         simulation = FastSimulation(sfg, [])
         assert list(simulation.step()) == [0, 2000]

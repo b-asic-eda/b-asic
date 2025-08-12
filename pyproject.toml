@@ -81,14 +81,20 @@ zip-safe = false
 where = ["lib"]
 
 [build-system]
-requires = ["setuptools>=80", "setuptools_scm[toml]>=8"]
-build-backend = "setuptools.build_meta"
+build-backend = 'mesonpy'
+requires = ['meson-python>=0.16', 'setuptools_scm>=8.1']
+
+[tool.meson-python.args]
+install = ['--skip-subprojects']
 
 [tool.setuptools_scm]
 write_to = "lib/b_asic/_version.py"
 version_scheme = "release-branch-semver"
 local_scheme = "node-and-date"
 fallback_version = "0.0+UNKNOWN"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
 
 [tool.mypy]
 packages = ["b_asic", "test"]

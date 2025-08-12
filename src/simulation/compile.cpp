@@ -162,7 +162,7 @@ private:
 			m_incomplete_outputs.insert(pointer);
 			return it->second;
 		}
-		// If the result has already been added, we re-use the old result and
+		// If the result has already been added, we reuse the old result and
 		// return std::nullopt to indicate that we don't need to add all the required instructions again.
 		this->add_instruction(instruction_type::push_result, it->second, 1).index = static_cast<std::size_t>(it->second);
 		return std::nullopt;
@@ -253,7 +253,7 @@ private:
 			} else if (type_name == "cmul") {
 				this->add_source(op, 0, prefix, sfg_stack, deferred_delays);
 				this->add_instruction(instruction_type::constant_multiplication, *result_index, 0).value = op.attr("value").cast<number>();
-			} else if (type_name == "bfly") {
+			} else if (type_name == "r2bfly") {
 				if (output_index == 0) {
 					this->add_source(op, 0, prefix, sfg_stack, deferred_delays);
 					this->add_source(op, 1, prefix, sfg_stack, deferred_delays);

@@ -122,7 +122,7 @@ std::shared_ptr<operation> signal_flow_graph_operation::make_operation(pybind11:
 		auto const value = op.attr("value").cast<number>();
 		return add_unary_operation<constant_multiplication_operation>(op, added, prefix, std::move(key), value);
 	}
-	if (type_name == "bfly") {
+	if (type_name == "r2bfly") {
 		return add_binary_operation<butterfly_operation>(op, added, prefix, std::move(key));
 	}
 	if (type_name == "in") {

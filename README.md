@@ -26,7 +26,7 @@ The following packages are required in order to build the library:
   - [QtAwesome](https://github.com/spyder-ide/qtawesome/)
   - [PuLP](https://github.com/coin-or/pulp)
   - [natsort](https://github.com/SethMMorton/natsort)
-- Qt 6, with Python bindings, one of: (install with `pip install .[$BINDING_NAME]`)
+- Qt 6, with Python bindings, one of: (install with `pip install ."[$BINDING_NAME]"`)
   - pyqt6
   - pyside6
 
@@ -39,7 +39,7 @@ To build a binary distribution, the following additional packages are required:
 
 To run the test suite, the following additional packages are required:
 
-- Python (install with `pip install .[test]`):
+- Python (install with `pip install ."[test]"`):
   - [pytest](https://pytest.org/)
   - [pytest-qt](https://pytest-qt.readthedocs.io/)
   - [pytest-mpl](https://github.com/matplotlib/pytest-mpl/)
@@ -50,87 +50,13 @@ To run the test suite, the following additional packages are required:
 
 To generate the documentation, the following additional packages are required:
 
-- Python (install with `pip install .[doc]`):
+- Python (install with `pip install ."[doc]"`):
   - [Sphinx](https://www.sphinx-doc.org/)
   - [Furo](https://pradyunsg.me/furo/)
   - [numpydoc](https://numpydoc.readthedocs.io/)
   - [Sphinx-Gallery](https://sphinx-gallery.github.io/)
   - [mplsignal](https://mplsignal.readthedocs.io/)
   - [sphinx-copybutton](https://sphinx-copybutton.readthedocs.io/)
-
-### Using CMake directly
-
-How to build using CMake.
-
-#### Configuring
-
-In `B-ASIC`:
-
-```
-mkdir build
-cd build
-cmake ..
-```
-
-#### Building (Debug)
-
-In `B-ASIC/build`:
-
-```
-cmake --build .
-```
-
-The output gets written to `B-ASIC/build/lib`.
-
-#### Building (Release)
-
-In `B-ASIC/build`:
-
-```
-cmake --build . --config Release
-```
-
-The output gets written to `B-ASIC/build/lib`.
-
-### Using setuptools to create a package
-
-How to create a package using setuptools that can be installed using pip.
-
-#### Setup (Binary distribution)
-
-In `B-ASIC`:
-
-```bash
-python3 setup.py bdist_wheel
-```
-
-The output gets written to `B-ASIC/dist/b_asic-<version>-<python_tag>-<abi_tag>-<platform_tag>.whl`.
-
-#### Setup (Source distribution)
-
-In `B-ASIC`:
-
-```bash
-python3 setup.py sdist
-```
-
-The output gets written to `B-ASIC/dist/b-asic-<version>.tar.gz`.
-
-#### Installation (Binary distribution)
-
-In `B-ASIC/dist`:
-
-```bash
-pip install b_asic-<version>-<python_tag>-<abi_tag>-<platform_tag>.whl
-```
-
-#### Installation (Source distribution)
-
-In `B-ASIC/dist`:
-
-```bash
-pip install b-asic-<version>.tar.gz
-```
 
 ### Running tests
 
@@ -143,7 +69,7 @@ In `B-ASIC`:
 ```bash
 python3 -m venv env
 source env/bin/activate
-pip install .[test]
+pip install ."[test]"
 pytest
 ```
 
@@ -154,7 +80,7 @@ In `B-ASIC` (as admin):
 ```bash
 python3 -m venv env
 .\env\Scripts\activate.bat
-pip install .[test]
+pip install ."[test]"
 pytest
 ```
 
@@ -194,13 +120,13 @@ How to build and use the library as a user.
 ### Installation
 
 ```bash
-pip install .[pyqt6]
+pip install ."[pyqt6]"
 ```
 
 or
 
 ```bash
-pip install .[pyside6]
+pip install ."[pyside6]"
 ```
 
 ### Importing

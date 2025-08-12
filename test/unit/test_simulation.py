@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from b_asic._b_asic import FastSimulation as Simulation
 from b_asic.signal_generator import Impulse
+from b_asic.simulation import Simulation
 
 
 class TestRunFor:
@@ -128,7 +128,7 @@ class TestRunFor:
         assert simulation.results["0"][5] == 7
 
     def test_delay_single_input_sequence(self, sfg_delay):
-        simulation = Simulation(sfg_delay, [5, -2, 25, -6, 7, 0])
+        simulation = Simulation(sfg_delay, [[5, -2, 25, -6, 7, 0]])
         simulation.run_for(6, save_results=True)
 
         assert simulation.results["0"][0] == 0
@@ -139,7 +139,7 @@ class TestRunFor:
         assert simulation.results["0"][5] == 7
 
     def test_delay_single_input_generator(self, sfg_delay):
-        simulation = Simulation(sfg_delay, Impulse())
+        simulation = Simulation(sfg_delay, [Impulse()])
         simulation.run_for(3, save_results=True)
 
         assert simulation.results["0"][0] == 0
