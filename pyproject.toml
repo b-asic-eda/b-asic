@@ -32,6 +32,7 @@ dependencies = [
   "pulp",
   "qtawesome",
   "natsort",
+  "setuptools_scm"
 ]
 classifiers = [
   "Intended Audience :: Education",

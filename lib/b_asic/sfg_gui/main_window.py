@@ -35,7 +35,7 @@ from qtpy.QtWidgets import (
 
 import b_asic.core_operations
 import b_asic.special_operations
-from b_asic._version import __version__
+from b_asic._version import version
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.gui_utils.icons import get_icon
@@ -66,7 +66,7 @@ logging.basicConfig(level=logging.INFO)
 QCoreApplication.setOrganizationName("Linköping University")
 QCoreApplication.setOrganizationDomain("liu.se")
 QCoreApplication.setApplicationName("B-ASIC SFG GUI")
-QCoreApplication.setApplicationVersion(__version__)
+QCoreApplication.setApplicationVersion(version)
 
 
 @decorate_class(handle_error)

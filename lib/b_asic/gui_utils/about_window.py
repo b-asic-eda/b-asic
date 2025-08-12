@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
 )
 
-from b_asic._version import __version__
+from b_asic._version import version
 
 
 class AboutWindow(QDialog):
@@ -65,7 +65,7 @@ class AboutWindow(QDialog):
             ' href="https://gitlab.liu.se/da/B-ASIC/-/blob/master/LICENSE">'
             "MIT-license</a>"
             " and any extension to the program should follow that same"
-            f" license.\n\n*Version: {__version__}*\n\nCopyright 2020-2025,"
+            f" license.\n\n*Version: {version}*\n\nCopyright 2020-2025,"
             " Oscar Gustafsson et al."
         )
         label1.setTextFormat(Qt.MarkdownText)

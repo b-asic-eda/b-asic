@@ -50,7 +50,7 @@ from qtpy.QtWidgets import (
 
 # B-ASIC
 import b_asic.logger
-from b_asic._version import __version__
+from b_asic._version import version
 from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.icons import get_icon
@@ -102,7 +102,7 @@ if __debug__:
 QCoreApplication.setOrganizationName("Linköping University")
 QCoreApplication.setOrganizationDomain("liu.se")
 QCoreApplication.setApplicationName("B-ASIC Scheduling GUI")
-QCoreApplication.setApplicationVersion(__version__)
+QCoreApplication.setApplicationVersion(version)
 
 
 class ScheduleMainWindow(QMainWindow, Ui_MainWindow):

@@ -2,24 +2,20 @@ stages:
   - test
   - deploy
 
-before_script:
-  - apt-get update --yes
-  # - apt-get install --yes build-essential cmake graphviz python3-pyqt6 xvfb xdg-utils lcov
-  - apt-get install --yes graphviz python3-pyqt6 xvfb xdg-utils
-  - apt-get install -y libxcb-cursor-dev
-  - apt install -y ghdl
-  - python -m pip install --upgrade pip
-  - python --version
-  - git fetch --tags
-  - pip install -v .[$QT_API,test]
-  # - export CXXFLAGS='--coverage'
-  - pip show b_asic
-  - export QT_API=$QT_API
-  - export PYTEST_QT_API=$QT_API
-
 .run-test:
+  before_script:
+    - apt-get update -yy
+    # - apt-get install -yy build-essential cmake graphviz python3-pyqt6 xvfb xdg-utils lcov
+    - apt-get install -yy graphviz python3-pyqt6 xvfb xdg-utils libxcb-cursor-dev ghdl
+    - python -m pip install --upgrade pip
+    - python --version
+    - git fetch --tags
+    - export QT_API=$QT_API
+    - export PYTEST_QT_API=$QT_API
   stage: test
   script:
+    - pip install -v .[$QT_API,test]
+    - pip show b_asic
     - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --cov-branch --color=yes test --timeout=40 --durations=10
     # - lcov --capture --directory . --output-file coverage.info
     # - lcov --output-file coverage.info --extract coverage.info $PWD/src/'*' $PWD/b_asic/'*'
@@ -101,7 +97,14 @@ run-doc-test:
   image: python:3.10
   stage: test
   script:
-    - pip install .[doc]
+    - apt-get update --yes
+    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev
+    - python -m pip install --upgrade pip
+    - python --version
+    - git fetch --tags
+    - export QT_API=$QT_API
+    - export PYTEST_QT_API=$QT_API
+    - pip install -v .[$QT_API,doc]
     - sphinx-build -b html docs_sphinx public
     # Run linting on doc-strings
     - pip install black velin
@@ -120,7 +123,9 @@ pages:
   stage: deploy
   image: python:3.10
   script:
-    - apt-get install --yes optipng
+    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev optipng
+    - python --version
+    - git fetch --tags
     - pip install .[doc]
     - sphinx-build -b html docs_sphinx public
   artifacts:
