@@ -102,7 +102,7 @@ class Input(AbstractOperation):
         return ((0, 0.5),)
 
     @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> str:
+    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
         code = super()._vhdl(pe)
         new_arch_code = f"{VHDL_TAB}res_0 <= resize(signed(p_0_in), WL_INTERNAL_INT+WL_INTERNAL_FRAC);\n"
         return code[0], code[1] + new_arch_code
@@ -170,7 +170,7 @@ class Output(AbstractOperation):
         return 0
 
     @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> str:
+    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
         code = super()._vhdl(pe)
         new_preamble_code = f"{VHDL_TAB}signal res_0 : std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0);\n"
         new_arch_code = f"{VHDL_TAB}p_0_out <= res_0;\n"

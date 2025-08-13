@@ -4,9 +4,16 @@ import pytest
 from scipy.signal import iirfilter
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
-from b_asic.core_operations import Addition, AddSub, ConstantMultiplication
+from b_asic.core_operations import (
+    MADS,
+    Addition,
+    AddSub,
+    ConstantMultiplication,
+    Reciprocal,
+)
+from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
-from b_asic.sfg_generators import direct_form_2_iir
+from b_asic.sfg_generators import direct_form_2_iir, ldlt_matrix_inverse
 from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Input, Output
 
@@ -351,5 +358,58 @@ def arch_simple():
         {adder, mult, input_pe, output_pe},
         memories,
         entity_name="simple",
+        direct_interconnects=direct,
+    )
+
+
+@pytest.fixture
+def arch_mat_inv():
+    N = 4
+    sfg = ldlt_matrix_inverse(N)
+
+    sfg.set_execution_time_of_type(MADS, 1)
+    sfg.set_latency_of_type(MADS, 2)
+
+    sfg.set_execution_time_of_type(Reciprocal, 1)
+    sfg.set_latency_of_type(Reciprocal, 2)
+
+    input_times = {f"in{i}": i for i in range(N * (N + 1) // 2)}
+    output_delta_times = {
+        f"out{(N * (N + 1) // 2) - 1 - i}": i for i in range(N * (N + 1) // 2)
+    }
+    scheduler = HybridScheduler(
+        input_times=input_times, output_delta_times=output_delta_times
+    )
+    schedule = Schedule(sfg, scheduler)
+
+    operations = schedule.get_operations()
+    madss = operations.get_by_type_name("mads")
+    recs = operations.get_by_type_name("rec")
+    dontcares = operations.get_by_type_name("dontcare")
+    ins = operations.get_by_type_name("in")
+    outs = operations.get_by_type_name("out")
+
+    mads = ProcessingElement(madss, entity_name="mads")
+    rec = ProcessingElement(recs, entity_name="rec")
+    dc = ProcessingElement(dontcares, entity_name="dc")
+    input_pe = ProcessingElement(ins, entity_name="input")
+    output_pe = ProcessingElement(outs, entity_name="output")
+
+    mem_vars = schedule.get_memory_variables()
+    direct, mem_vars = mem_vars.split_on_length()
+    mem_vars_set = mem_vars.split_on_ports(
+        read_ports=1, write_ports=1, total_ports=2, strategy="greedy_graph_color"
+    )
+
+    memories = []
+    for i, mem in enumerate(mem_vars_set):
+        memory = Memory(mem, memory_type="RAM", entity_name=f"mem{i}")
+        memories.append(memory)
+        memory.assign("greedy_graph_color")
+
+    return Architecture(
+        {mads, rec, dc, input_pe, output_pe},
+        memories,
+        entity_name="mat_inv",
         direct_interconnects=direct,
     )

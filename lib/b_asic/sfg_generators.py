@@ -637,7 +637,7 @@ def ldlt_matrix_inverse(
                         src0=DontCare(),
                         src1=R[j][k],
                         src2=A_inv[i][k],
-                        do_addsub=True,
+                        do_addsub=False,
                         **mads_properties,
                     )
                 else:

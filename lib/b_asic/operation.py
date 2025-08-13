@@ -448,7 +448,7 @@ class Operation(GraphComponent, SignalSourceProvider):
 
     @classmethod
     @abstractmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> str:
+    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
         raise NotImplementedError
 
 
@@ -1075,7 +1075,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 p._index = i
 
     @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> str:
+    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
         preamble_code = ""
 
         # Define pipeline stages
@@ -1120,7 +1120,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                         arch_code += f"{3 * VHDL_TAB}res_{output_port}_reg_0 <= res_{output_port};\n"
                 elif stage >= 2:
                     for output_port in range(pe.output_count):
-                        arch_code += f"{3 * VHDL_TAB}res_{output_port}_reg_{stage} <= res_{output_port}_reg_{stage - 1};\n"
+                        arch_code += f"{3 * VHDL_TAB}res_{output_port}_reg_{stage - 1} <= res_{output_port}_reg_{stage - 2};\n"
 
             arch_code += f"{2 * VHDL_TAB}end if;\n"
             arch_code += f"{VHDL_TAB}end process;\n\n"
