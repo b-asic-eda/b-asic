@@ -18,10 +18,10 @@ def entity(f: TextIO, pe: "ProcessingElement", wl: "WordLengths") -> None:
             "HDL can only be generated for ProcessCollection of OperatorProcesses"
         )
 
-    generics = wl.generics()
+    generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
     ports = [
         "clk : in std_logic",
-        "schedule_cnt : in unsigned(WL_STATE-1 downto 0)",
+        f"schedule_cnt : in unsigned({wl.state - 1} downto 0)",
     ]
     ports += [
         f"p_{input_port}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
@@ -29,6 +29,8 @@ def entity(f: TextIO, pe: "ProcessingElement", wl: "WordLengths") -> None:
     ]
     if pe.operation_type == Input:
         ports += ["p_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"]
+        generics += ["WL_INPUT_INT : integer", "WL_INPUT_FRAC : integer"]
+
     ports += [
         f"p_{output_port}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
         for output_port in range(pe.output_count)
@@ -37,6 +39,8 @@ def entity(f: TextIO, pe: "ProcessingElement", wl: "WordLengths") -> None:
         ports += [
             "p_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
         ]
+        generics += ["WL_OUTPUT_INT : integer", "WL_OUTPUT_FRAC : integer"]
+
     common.entity_declaration(f, pe.entity_name, generics, ports)
 
 

@@ -13,7 +13,7 @@ def test_r2bf_compile(tmp_path, arch_r2bf):
     runner = get_runner(sim)
     runner.build(
         sources=sources,
-        hdl_toplevel="r2bf",
+        hdl_toplevel="r2bf_tb",
         build_dir=tmp_path,
     )
 

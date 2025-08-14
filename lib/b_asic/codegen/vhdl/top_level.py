@@ -12,7 +12,14 @@ if TYPE_CHECKING:
 
 
 def entity(f: TextIO, arch: "Architecture", wl: "WordLengths") -> None:
-    generics = wl.generics_with_default()
+    generics = [
+        f"WL_INTERNAL_INT : integer := {wl.internal[0]}",
+        f"WL_INTERNAL_FRAC : integer := {wl.internal[1]}",
+        f"WL_INPUT_INT : integer := {wl.input[0]}",
+        f"WL_INPUT_FRAC : integer := {wl.input[1]}",
+        f"WL_OUTPUT_INT : integer := {wl.output[0]}",
+        f"WL_OUTPUT_FRAC : integer := {wl.output[1]}",
+    ]
     ports = [
         "clk : in std_logic",
         "rst : in std_logic",
@@ -38,15 +45,15 @@ def architecture(f: TextIO, arch: "Architecture", wl: "WordLengths") -> None:
         pe.write_component_declaration(f, wl)
     for mem in arch.memories:
         mem.write_component_declaration(f, wl)
-    arch.write_signal_declarations(f)
+    arch.write_signal_declarations(f, wl)
 
     common.write(f, 0, "begin", start="\n", end="\n")
 
     common.write(f, 1, "-- Component instantiation")
     for pe in arch.processing_elements:
-        pe.write_component_instantiation(f, wl)
+        pe.write_component_instantiation(f)
     for mem in arch.memories:
-        mem.write_component_instantiation(f, wl)
+        mem.write_component_instantiation(f)
 
     _write_schedule_counter(f, arch)
     _write_interconnect(f, arch)

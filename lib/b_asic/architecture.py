@@ -93,39 +93,6 @@ class WordLengths:
     output: tuple[int, int]
     state: int
 
-    def generics(self) -> list[str]:
-        return [
-            "WL_INTERNAL_INT : integer",
-            "WL_INTERNAL_FRAC : integer",
-            "WL_INPUT_INT : integer",
-            "WL_INPUT_FRAC : integer",
-            "WL_OUTPUT_INT : integer",
-            "WL_OUTPUT_FRAC : integer",
-            "WL_STATE : integer",
-        ]
-
-    def generics_with_default(self) -> list[str]:
-        return [
-            f"WL_INTERNAL_INT : integer := {self.internal[0]}",
-            f"WL_INTERNAL_FRAC : integer := {self.internal[1]}",
-            f"WL_INPUT_INT : integer := {self.input[0]}",
-            f"WL_INPUT_FRAC : integer := {self.input[1]}",
-            f"WL_OUTPUT_INT : integer := {self.output[0]}",
-            f"WL_OUTPUT_FRAC : integer := {self.output[1]}",
-            f"WL_STATE : integer := {self.state}",
-        ]
-
-    def generic_mapping(self) -> list[str]:
-        return [
-            "WL_INTERNAL_INT => WL_INTERNAL_INT",
-            "WL_INTERNAL_FRAC => WL_INTERNAL_FRAC",
-            "WL_INPUT_INT => WL_INPUT_INT",
-            "WL_INPUT_FRAC => WL_INPUT_FRAC",
-            "WL_OUTPUT_INT => WL_OUTPUT_INT",
-            "WL_OUTPUT_FRAC => WL_OUTPUT_FRAC",
-            "WL_STATE => WL_STATE",
-        ]
-
 
 @dataclass
 class ControlTableEntry:
@@ -681,10 +648,10 @@ class ProcessingElement(Resource):
     def write_component_declaration(
         self, f: TextIO, wl: WordLengths, indent: int = 1
     ) -> None:
-        generics = wl.generics()
+        generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
         ports = [
             "clk : in std_logic",
-            "schedule_cnt : in unsigned(WL_STATE-1 downto 0)",
+            f"schedule_cnt : in unsigned({wl.state - 1} downto 0)",
         ]
         ports += [
             f"p_{port_number}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
@@ -694,6 +661,8 @@ class ProcessingElement(Resource):
             ports.append(
                 "p_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
             )
+            generics += ["WL_INPUT_INT : integer", "WL_INPUT_FRAC : integer"]
+
         ports += [
             f"p_{port_number}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
             for port_number in range(self.output_count)
@@ -702,6 +671,8 @@ class ProcessingElement(Resource):
             ports.append(
                 "p_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
             )
+            generics += ["WL_OUTPUT_INT : integer", "WL_OUTPUT_FRAC : integer"]
+
         common.component_declaration(f, self.entity_name, generics, ports, indent)
         common.write(f, 1, "")
 
@@ -725,24 +696,33 @@ class ProcessingElement(Resource):
                 )
         common.write(f, indent, "")
 
-    def write_component_instantiation(
-        self, f: TextIO, wl: WordLengths, indent: int = 1
-    ) -> None:
+    def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
         port_mappings = ["clk => clk", "schedule_cnt => schedule_cnt"]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
         ]
+        generic_mappings = [
+            "WL_INTERNAL_INT => WL_INTERNAL_INT",
+            "WL_INTERNAL_FRAC => WL_INTERNAL_FRAC",
+        ]
         if self.operation_type == Input:
             port_mappings.append(f"p_0_in => {self.entity_name}_0_in")
+            generic_mappings += [
+                "WL_INPUT_INT => WL_INPUT_INT",
+                "WL_INPUT_FRAC => WL_INPUT_FRAC",
+            ]
+
         port_mappings += [
             f"p_{port_number}_out => {self.entity_name}_{port_number}_out"
             for port_number in range(self.output_count)
         ]
         if self.operation_type == Output:
             port_mappings.append(f"p_0_out => {self.entity_name}_0_out")
-
-        generic_mappings = wl.generic_mapping()
+            generic_mappings += [
+                "WL_OUTPUT_INT => WL_OUTPUT_INT",
+                "WL_OUTPUT_FRAC => WL_OUTPUT_FRAC",
+            ]
 
         common.component_instantiation(
             f,
@@ -913,11 +893,13 @@ class Memory(Resource):
                 f, self, wl, input_sync=False, output_sync=False
             )
 
-    def write_component_declaration(self, f: TextIO, wl: WordLengths, indent: int = 1):
-        generics = wl.generics()
+    def write_component_declaration(
+        self, f: TextIO, wl: WordLengths, indent: int = 1
+    ) -> None:
+        generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
         ports = [
             "clk : in std_logic",
-            "schedule_cnt : in unsigned(WL_STATE-1 downto 0)",
+            f"schedule_cnt : in unsigned({wl.state - 1} downto 0)",
         ]
         ports += [
             f"p_{port_number}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
@@ -948,9 +930,7 @@ class Memory(Resource):
             )
         common.write(f, indent, "")
 
-    def write_component_instantiation(
-        self, f: TextIO, wl: WordLengths, indent: int = 1
-    ) -> None:
+    def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
         port_mappings = ["clk => clk", "schedule_cnt => schedule_cnt"]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
@@ -961,7 +941,10 @@ class Memory(Resource):
             for port_number in range(self.output_count)
         ]
 
-        generic_mappings = wl.generic_mapping()
+        generic_mappings = [
+            "WL_INTERNAL_INT => WL_INTERNAL_INT",
+            "WL_INTERNAL_FRAC => WL_INTERNAL_FRAC",
+        ]
 
         common.component_instantiation(
             f,
@@ -1150,38 +1133,55 @@ of :class:`~b_asic.architecture.ProcessingElement`
             test_bench.entity(f, self)
             test_bench.architecture(f, self, wl)
 
-    def write_component_declaration(
-        self, f: TextIO, wl: WordLengths, indent: int = 1
-    ) -> None:
+    def write_component_declaration(self, f: TextIO, indent: int = 1) -> None:
         common.write(f, 1, "-- Component declaration", start="\n")
-        generics = wl.generics()
+        generics = [
+            "WL_INTERNAL_INT : integer",
+            "WL_INTERNAL_FRAC : integer",
+            "WL_INPUT_INT : integer",
+            "WL_INPUT_FRAC : integer",
+            "WL_OUTPUT_INT : integer",
+            "WL_OUTPUT_FRAC : integer",
+        ]
         ports = [
             "clk : in std_logic",
             "rst : in std_logic",
         ]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         ports += [
-            f"{pe.entity_name}_0_in : in signed(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
+            f"{pe.entity_name}_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
             for pe in inputs
         ]
         outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
         ports += [
-            f"{pe.entity_name}_0_out : out signed(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
+            f"{pe.entity_name}_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
             for pe in outputs
         ]
         common.component_declaration(f, self.entity_name, generics, ports, indent)
 
-    def write_signal_declarations(self, f: TextIO, indent: int = 1) -> None:
+    def write_signal_declarations(
+        self, f: TextIO, wl: WordLengths, indent: int = 1
+    ) -> None:
         common.write(f, indent, "-- Signal declaration")
         for pe in self.processing_elements:
             pe.write_signal_declarations(f, indent)
         for mem in self.memories:
             mem.write_signal_declarations(f, indent)
-        common.signal_declaration(f, "schedule_cnt", "unsigned(WL_STATE-1 downto 0)")
+        common.signal_declaration(
+            f, "schedule_cnt", f"unsigned({wl.state - 1} downto 0)"
+        )
 
     def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
         common.write(f, 1, "-- Component Instantiation", start="\n")
-        generic_mappings = ["WL => WL", "WL_STATE => WL_STATE"]
+        generic_mappings = [
+            "WL_INTERNAL_INT => WL_INTERNAL_INT",
+            "WL_INTERNAL_FRAC => WL_INTERNAL_FRAC",
+            "WL_INPUT_INT => WL_INPUT_INT",
+            "WL_INPUT_FRAC => WL_INPUT_FRAC",
+            "WL_OUTPUT_INT => WL_OUTPUT_INT",
+            "WL_OUTPUT_FRAC => WL_OUTPUT_FRAC",
+        ]
+
         port_mappings = ["clk => tb_clk", "rst => tb_rst"]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         port_mappings += [

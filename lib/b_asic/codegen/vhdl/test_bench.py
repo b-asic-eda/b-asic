@@ -18,9 +18,9 @@ def entity(f: TextIO, arch: "Architecture") -> None:
 def architecture(f: TextIO, arch: "Architecture", wl: "WordLengths") -> None:
     common.write(f, 0, f"architecture tb of {arch.entity_name}_tb is", end="\n")
 
-    arch.write_component_declaration(f, wl)
-    _write_constant_generation(f, arch, wl)
-    _write_signal_generation(f, arch)
+    arch.write_component_declaration(f)
+    _write_constant_generation(f, wl)
+    _write_signal_generation(f, arch, wl)
     common.write(f, 0, "begin", end="\n")
 
     arch.write_component_instantiation(f)
@@ -29,21 +29,20 @@ def architecture(f: TextIO, arch: "Architecture", wl: "WordLengths") -> None:
     common.write(f, 0, "end architecture tb;", start="", end="\n\n")
 
 
-def _write_constant_generation(
+def _write_constant_generation(f: TextIO, wl: "WordLengths") -> None:
+    common.constant_declaration(f, "CLK_PERIOD", "time", "2 ns")
+
+    common.constant_declaration(f, "WL_INPUT_INT", "integer", f"{wl.input[0]}")
+    common.constant_declaration(f, "WL_INPUT_FRAC", "integer", f"{wl.input[1]}")
+    common.constant_declaration(f, "WL_INTERNAL_INT", "integer", f"{wl.internal[0]}")
+    common.constant_declaration(f, "WL_INTERNAL_FRAC", "integer", f"{wl.internal[1]}")
+    common.constant_declaration(f, "WL_OUTPUT_INT", "integer", f"{wl.output[0]}")
+    common.constant_declaration(f, "WL_OUTPUT_FRAC", "integer", f"{wl.output[1]}")
+
+
+def _write_signal_generation(
     f: TextIO, arch: "Architecture", wl: "WordLengths"
 ) -> None:
-    common.write(f, 1, "-- Constant declaration", start="\n")
-    common.constant_declaration(f, "CLK_PERIOD", "time", "2 ns")
-    common.constant_declaration(f, "WL_INPUT", "integer", f"{wl.input}")
-    common.constant_declaration(f, "WL_INTERNAL", "integer", f"{wl.internal}")
-    common.constant_declaration(f, "WL_OUTPUT", "integer", f"{wl.output}")
-    common.constant_declaration(
-        f, "WL_STATE", "integer", f"{arch.schedule_time.bit_length()}"
-    )
-
-
-def _write_signal_generation(f: TextIO, arch: "Architecture") -> None:
-    common.write(f, 1, "-- Signal declaration", start="\n")
     common.signal_declaration(f, "tb_clk", "std_logic", "'0'")
     common.signal_declaration(f, "tb_rst", "std_logic", "'0'")
     inputs = [pe for pe in arch.processing_elements if pe.operation_type == Input]
@@ -51,7 +50,7 @@ def _write_signal_generation(f: TextIO, arch: "Architecture") -> None:
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_in",
-            "signed(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)",
+            f"std_logic_vector({sum(wl.input) - 1} downto 0)",
             "(others => '0')",
         )
     outputs = [pe for pe in arch.processing_elements if pe.operation_type == Output]
@@ -59,7 +58,7 @@ def _write_signal_generation(f: TextIO, arch: "Architecture") -> None:
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_out",
-            "std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)",
+            f"std_logic_vector({sum(wl.output) - 1} downto 0)",
             "(others => '0')",
         )
 

@@ -24,8 +24,11 @@ def entity(f: TextIO, mem: "Memory", wl: "WordLengths") -> None:
             "HDL can only be generated for ProcessCollection of (Plain)MemoryVariables"
         )
 
-    generics = wl.generics()
-    ports = ["clk : in std_logic", "schedule_cnt : in unsigned(WL_STATE-1 downto 0)"]
+    generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
+    ports = [
+        "clk : in std_logic",
+        f"schedule_cnt : in unsigned({wl.state - 1} downto 0)",
+    ]
     ports += [
         f"p_{input_port}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
         for input_port in range(mem.input_count)
@@ -136,14 +139,14 @@ def architecture(
         common.signal_declaration(
             f,
             name=f"schedule_cnt{i + 1}",
-            signal_type="unsigned(WL_STATE-1 downto 0)",
+            signal_type=f"unsigned({wl.state - 1} downto 0)",
             name_pad=18,
         )
     common.constant_declaration(
         f,
         name="ADR_LEN",
         signal_type="integer",
-        value=f"WL_STATE-({int(math.log2(adr_mux_size))}*{adr_pipe_depth})",
+        value=f"{wl.state - int(math.log2(adr_mux_size)) * adr_pipe_depth}",
         name_pad=16,
     )
     common.alias_declaration(

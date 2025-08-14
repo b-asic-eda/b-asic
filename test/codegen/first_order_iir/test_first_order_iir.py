@@ -14,7 +14,7 @@ def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
     runner = get_runner(sim)
     runner.build(
         sources=sources,
-        hdl_toplevel="first_order_iir",
+        hdl_toplevel="first_order_iir_tb",
         build_dir=tmp_path,
     )
 

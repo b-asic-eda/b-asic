@@ -15,7 +15,7 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
     runner = get_runner(sim)
     runner.build(
         sources=sources,
-        hdl_toplevel="r3bf",
+        hdl_toplevel="r3bf_tb",
         build_dir=tmp_path,
     )
 

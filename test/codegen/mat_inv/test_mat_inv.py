@@ -14,7 +14,7 @@ def test_mat_inv_compile(tmp_path, arch_mat_inv):
     runner = get_runner(sim)
     runner.build(
         sources=sources,
-        hdl_toplevel="mat_inv",
+        hdl_toplevel="mat_inv_tb",
         build_dir=tmp_path,
     )
 

@@ -14,7 +14,7 @@ def test_simple_compile(tmp_path, arch_simple):
     runner = get_runner(sim)
     runner.build(
         sources=sources,
-        hdl_toplevel="simple",
+        hdl_toplevel="simple_tb",
         build_dir=tmp_path,
     )
 

@@ -12,16 +12,11 @@ use ieee.numeric_std.all;
 entity addsub1 is
     generic (
         WL_INTERNAL_INT : integer;
-        WL_INTERNAL_FRAC : integer;
-        WL_INPUT_INT : integer;
-        WL_INPUT_FRAC : integer;
-        WL_OUTPUT_INT : integer;
-        WL_OUTPUT_FRAC : integer;
-        WL_STATE : integer
+        WL_INTERNAL_FRAC : integer
     );
     port (
         clk : in std_logic;
-        schedule_cnt : in unsigned(WL_STATE-1 downto 0);
+        schedule_cnt : in unsigned(2 downto 0);
         p_0_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
         p_1_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0);
         p_0_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)
