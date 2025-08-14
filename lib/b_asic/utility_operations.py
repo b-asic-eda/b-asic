@@ -4,6 +4,7 @@ B-ASIC Utility Operations Module.
 Contains some operations that are not really operations, but needed for other reasons.
 """
 
+import random
 from typing import TYPE_CHECKING, NoReturn
 
 from b_asic.codegen.vhdl import VHDL_TAB
@@ -46,8 +47,9 @@ class DontCare(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("dontcare")
 
-    def evaluate(self) -> int:
-        return 0
+    def evaluate(self) -> float:
+        # Evaluate to random to flush out errors
+        return random.random()
 
     @property
     def latency(self) -> int:

@@ -24,9 +24,6 @@ class TestDontCare:
         assert sfg.output_count == 1
         assert sfg.input_count == 1
 
-        assert sfg.evaluate_output(0, [0]) == 0
-        assert sfg.evaluate_output(0, [1]) == 1
-
     def test_dontcare_latency_getter(self):
         test_operation = DontCare()
         assert test_operation.latency == 0
