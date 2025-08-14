@@ -8,6 +8,7 @@ authors = [
   { name = "Frans Skarman", email = "frans.skarman@liu.se" },
   { name = "Petter Källström", email = "petter.kallstrom@liu.se" },
   { name = "Olle Hansson", email = "olle.hansson@liu.se" },
+  { name = "Simon Bjurek", email = "simon.bjurek@liu.se" },
   { name = "Adam Jakobsson" },
   { name = "Andreas Bolin" },
   { name = "Angus Lothian" },
@@ -17,7 +18,6 @@ authors = [
   { name = "Jacob Wahlman" },
   { name = "Kevin Scott" },
   { name = "Rasmus Karlsson" },
-  { name = "Simon Bjurek" },
 ]
 maintainers = [{ name = "Oscar Gustafsson", email = "oscar.gustafsson@liu.se" }]
 license = "MIT"
