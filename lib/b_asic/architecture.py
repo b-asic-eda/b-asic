@@ -29,10 +29,13 @@ from b_asic._preferences import (
     PE_CLUSTER_COLOR,
     PE_COLOR,
 )
-from b_asic.codegen.vhdl import architecture as vhdl_architecture
-from b_asic.codegen.vhdl import common, write
-from b_asic.codegen.vhdl import common as vhdl_common
-from b_asic.codegen.vhdl import entity as vhdl_entity
+from b_asic.codegen.vhdl import (
+    common,
+    memory_storage,
+    processing_element,
+    test_bench,
+    top_level,
+)
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
@@ -159,7 +162,7 @@ class HardwareBlock(ABC):
         entity_name : str
             The entity name.
         """
-        if not vhdl_common.is_valid_vhdl_identifier(entity_name):
+        if not common.is_valid_vhdl_identifier(entity_name):
             raise ValueError(f"{entity_name} is not a valid VHDL identifier")
         self._entity_name = entity_name
 
@@ -670,10 +673,10 @@ class ProcessingElement(Resource):
 
     def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
         with (path / f"{self._entity_name}.vhd").open("w") as f:
-            vhdl_common.b_asic_preamble(f)
-            vhdl_common.ieee_header(f)
-            vhdl_entity.processing_element(f, self, wl)
-            vhdl_architecture.processing_element(f, self, write_pe_archs)
+            common.b_asic_preamble(f)
+            common.ieee_header(f)
+            processing_element.entity(f, self, wl)
+            processing_element.architecture(f, self, write_pe_archs)
 
     def write_component_declaration(
         self, f: TextIO, wl: WordLengths, indent: int = 1
@@ -700,10 +703,10 @@ class ProcessingElement(Resource):
                 "p_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
             )
         common.component_declaration(f, self.entity_name, generics, ports, indent)
-        write(f, 1, "")
+        common.write(f, 1, "")
 
     def write_signal_declarations(self, f: TextIO, indent: int = 1) -> None:
-        write(f, indent, f"-- {self.entity_name} signals")
+        common.write(f, indent, f"-- {self.entity_name} signals")
         if self.operation_type != Input:
             for port_number in range(self.input_count):
                 common.signal_declaration(
@@ -720,7 +723,7 @@ class ProcessingElement(Resource):
                     signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                     indent=indent,
                 )
-        write(f, indent, "")
+        common.write(f, indent, "")
 
     def write_component_instantiation(
         self, f: TextIO, wl: WordLengths, indent: int = 1
@@ -749,7 +752,7 @@ class ProcessingElement(Resource):
             generic_mappings=generic_mappings,
             indent=indent,
         )
-        write(f, indent, "")
+        common.write(f, indent, "")
 
     @property
     def operation_type(self) -> type[Operation]:
@@ -903,10 +906,10 @@ class Memory(Resource):
 
     def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
         with (path / f"{self._entity_name}.vhd").open("w") as f:
-            vhdl_common.b_asic_preamble(f)
-            vhdl_common.ieee_header(f)
-            vhdl_entity.memory_based_storage(f, self, wl)
-            vhdl_architecture.memory_based_storage(
+            common.b_asic_preamble(f)
+            common.ieee_header(f)
+            memory_storage.entity(f, self, wl)
+            memory_storage.architecture(
                 f, self, wl, input_sync=False, output_sync=False
             )
 
@@ -925,10 +928,10 @@ class Memory(Resource):
             for port_number in range(self.output_count)
         ]
         common.component_declaration(f, self.entity_name, generics, ports, indent)
-        write(f, indent, "")
+        common.write(f, indent, "")
 
     def write_signal_declarations(self, f: TextIO, indent: int = 1) -> None:
-        write(f, indent, f"-- {self.entity_name} signals")
+        common.write(f, indent, f"-- {self.entity_name} signals")
         for port_number in range(self.input_count):
             common.signal_declaration(
                 f,
@@ -943,7 +946,7 @@ class Memory(Resource):
                 signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
                 indent=indent,
             )
-        write(f, indent, "")
+        common.write(f, indent, "")
 
     def write_component_instantiation(
         self, f: TextIO, wl: WordLengths, indent: int = 1
@@ -968,7 +971,7 @@ class Memory(Resource):
             generic_mappings=generic_mappings,
             indent=indent,
         )
-        write(f, 1, "")
+        common.write(f, 1, "")
 
     @property
     def operation_type(self) -> type[MemoryProcess]:
@@ -1136,21 +1139,21 @@ of :class:`~b_asic.architecture.ProcessingElement`
             mem._write_code(dir_path, wl, write_pe_archs)
 
         with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
-            vhdl_common.b_asic_preamble(f)
-            vhdl_common.ieee_header(f)
-            vhdl_entity.architecture(f, self, wl)
-            vhdl_architecture.architecture(f, self, wl)
+            common.b_asic_preamble(f)
+            common.ieee_header(f)
+            top_level.entity(f, self, wl)
+            top_level.architecture(f, self, wl)
 
         with (dir_path / f"{self._entity_name}_tb.vhd").open("w") as f:
-            vhdl_common.b_asic_preamble(f)
-            vhdl_common.ieee_header(f)
-            vhdl_entity.architecture_test_bench(f, self)
-            vhdl_architecture.architecture_test_bench(f, self, wl)
+            common.b_asic_preamble(f)
+            common.ieee_header(f)
+            test_bench.entity(f, self)
+            test_bench.architecture(f, self, wl)
 
     def write_component_declaration(
         self, f: TextIO, wl: WordLengths, indent: int = 1
     ) -> None:
-        write(f, 1, "-- Component declaration", start="\n")
+        common.write(f, 1, "-- Component declaration", start="\n")
         generics = wl.generics()
         ports = [
             "clk : in std_logic",
@@ -1169,7 +1172,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         common.component_declaration(f, self.entity_name, generics, ports, indent)
 
     def write_signal_declarations(self, f: TextIO, indent: int = 1) -> None:
-        write(f, indent, "-- Signal declaration")
+        common.write(f, indent, "-- Signal declaration")
         for pe in self.processing_elements:
             pe.write_signal_declarations(f, indent)
         for mem in self.memories:
@@ -1177,7 +1180,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         common.signal_declaration(f, "schedule_cnt", "unsigned(WL_STATE-1 downto 0)")
 
     def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
-        write(f, 1, "-- Component Instantiation", start="\n")
+        common.write(f, 1, "-- Component Instantiation", start="\n")
         generic_mappings = ["WL => WL", "WL_STATE => WL_STATE"]
         port_mappings = ["clk => tb_clk", "rst => tb_rst"]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]

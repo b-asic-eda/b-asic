@@ -7,7 +7,7 @@ Contains some operations that are not really operations, but needed for other re
 import random
 from typing import TYPE_CHECKING, NoReturn
 
-from b_asic.codegen.vhdl import VHDL_TAB
+from b_asic.codegen.vhdl.common import VHDL_TAB
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.types import ShapeCoordinates
