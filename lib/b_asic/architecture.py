@@ -70,6 +70,21 @@ def _fixed_point_bits(num: float) -> int:
 
 @dataclass
 class WordLengths:
+    """
+    Data class for word lengths in architectures.
+
+    Parameters
+    ----------
+    internal : tuple[int, int]
+        The internal word length [INT_BITS, FRAC_BITS].
+    input : tuple[int, int]
+        The input word length [INT_BITS, FRAC_BITS].
+    output : tuple[int, int]
+        The output word length [INT_BITS, FRAC_BITS].
+    state : int
+        The word length of the state counter.
+    """
+
     internal: tuple[int, int]
     input: tuple[int, int]
     output: tuple[int, int]

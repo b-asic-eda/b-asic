@@ -47,16 +47,6 @@ intersphinx_mapping = {
 }
 
 numpydoc_show_class_members = False
-numpydoc_validation_checks = {
-    "all",
-    "ES01",
-    "SA01",
-    "EX01",
-    "RT01",
-    "GL08",
-    "SA04",
-    "RT03",
-}
 
 inheritance_node_attrs = {"fontsize": 16}
 

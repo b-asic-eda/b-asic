@@ -426,7 +426,8 @@ class ListScheduler(Scheduler):
     sort_order : tuple(tuple(int, bool))
         Specifies which columns in the priority table to sort on and in
         which order, where True is ascending order.
-        There are five columns:
+        There are five columns::
+
             0 - GraphID of the operation.
             1 - Deadline, i.e., the clock cycle that the data is required in the ALAP schedule.
             2 - Output slack, i.e., the start time of the operation in the ALAP schedule when sorted on.
@@ -982,7 +983,8 @@ class RecursiveListScheduler(ListScheduler):
     sort_order : tuple(tuple(int, bool))
         Specifies which columns in the priority table to sort on and in
         which order, where True is ascending order.
-        There are five columns:
+        There are five columns::
+
             0 - GraphID of the operation.
             1 - Deadline, i.e., the clock cycle that the data is required in the ALAP schedule.
             2 - Output slack, i.e., the start time of the operation in the ALAP schedule when sorted on.

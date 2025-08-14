@@ -249,9 +249,9 @@ def memory_based_storage(
     ----------
     f : TextIO
         File object (or other TextIO object) to write the architecture onto.
-    memory: Memory
+    memory : Memory
         Memory object to generate code for.
-    wl: WordLengths
+    wl : WordLengths
         Word length of all signals.
     input_sync : bool, default: True
         Add registers to the input signals (enable signal and data input signals).

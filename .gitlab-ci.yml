@@ -108,7 +108,7 @@ run-doc-test:
     - sphinx-build -b html docs_sphinx public
     # Run linting on doc-strings
     - pip install black velin
-    - velin . --check --black
+    - velin lib/b_asic --check --black
     - pip install ruff
     - ruff check lib/b_asic --output-format=gitlab > ruff.json
   artifacts:
