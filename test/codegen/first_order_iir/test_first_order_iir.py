@@ -1,16 +1,21 @@
 import os
+import shutil
 
-import cocotb
-from cocotb.triggers import Timer
-from cocotb.types import LogicArray
-from cocotb_tools.runner import get_runner
+import pytest
+
+from b_asic.codegen.test import cocotb_test
 
 
 def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
+    pytest.importorskip("cocotb_tools")
     arch_first_order_iir.write_code(tmp_path, 3, 3, 3)
 
     sim = os.getenv("SIM", "ghdl")
+    if not shutil.which(sim):
+        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "first_order_iir_0").glob("*.vhd"))
+    from cocotb_tools.runner import get_runner
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -20,10 +25,15 @@ def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
 
 
 def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
+    pytest.importorskip("cocotb_tools")
     arch_first_order_iir.write_code(tmp_path, 17, 17, 17, write_pe_archs=True)
 
     sim = os.getenv("SIM", "ghdl")
+    if not shutil.which(sim):
+        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "first_order_iir_0").glob("*.vhd"))
+    from cocotb_tools.runner import get_runner
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -39,12 +49,15 @@ def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
     )
 
 
-@cocotb.test()
+@cocotb_test()
 async def first_order_iir_test(dut):
     # Validate the impulse response of the first order IIR filter
     # Assume Q1.15 signed
-    cocotb.start_soon(_generate_clk(dut))
+    import cocotb
+    from cocotb.triggers import Timer
+    from cocotb.types import LogicArray
 
+    cocotb.start_soon(_generate_clk(dut))
     dut.rst.value = 1
     await Timer(2, "ns")
     dut.rst.value = 0
@@ -68,6 +81,8 @@ async def first_order_iir_test(dut):
 
 
 async def _generate_clk(dut):
+    from cocotb.triggers import Timer
+
     for _ in range(30):
         dut.clk.value = 0
         await Timer(1, unit="ns")

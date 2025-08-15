@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from scipy import signal
 
 from b_asic.core_operations import (
     MADS,
@@ -433,15 +432,16 @@ class TestDirectFormIIRType1:
             direct_form_1_iir(b=[1, 2, 3], a=[1.1, 2, 3])
 
     def test_first_order_filter(self):
-        N = 1
-        Wc = 0.5
-
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
-
-        input_signal = np.random.default_rng().standard_normal(100)
-        reference_filter_output = signal.lfilter(b, a, input_signal)
+        # First-order Butterworth
+        b = np.array([0.5, 0.5])
+        a = np.array([1, 0])
 
         sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
+
+        sp = pytest.importorskip("scipy")
+
+        input_signal = np.random.default_rng().standard_normal(100)
+        reference_filter_output = sp.signal.lfilter(b, a, input_signal)
 
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
@@ -449,13 +449,41 @@ class TestDirectFormIIRType1:
         assert np.allclose(sim.results["0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_butterworth_filter(self):
-        N = 10
-        Wc = 0.3
-
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        # Tenth-order Butterworth
+        b = np.array(
+            [
+                4.96135121e-05,
+                4.96135121e-04,
+                2.23260804e-03,
+                5.95362145e-03,
+                1.04188375e-02,
+                1.25026050e-02,
+                1.04188375e-02,
+                5.95362145e-03,
+                2.23260804e-03,
+                4.96135121e-04,
+                4.96135121e-05,
+            ]
+        )
+        a = np.array(
+            [
+                1.00000000e00,
+                -3.98765437e00,
+                8.09440659e00,
+                -1.04762754e01,
+                9.42333716e00,
+                -6.08421408e00,
+                2.83526165e00,
+                -9.36403463e-01,
+                2.08912325e-01,
+                -2.83358587e-02,
+                1.76963187e-03,
+            ]
+        )
 
         input_signal = np.random.default_rng().standard_normal(100)
-        reference_filter_output = signal.lfilter(b, a, input_signal)
+        sp = pytest.importorskip("scipy")
+        reference_filter_output = sp.signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
 
@@ -468,11 +496,13 @@ class TestDirectFormIIRType1:
         N = 2
         Wc = 0.3
 
-        b, a = signal.ellip(N, 0.1, 60, Wc, btype="low", analog=False)
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        sp = pytest.importorskip("scipy")
+
+        b, a = sp.signal.ellip(N, 0.1, 60, Wc, btype="low", analog=False)
+        # b, a = sp.signal.butter(N, Wc, btype="lowpass", output="ba")
 
         input_signal = np.random.default_rng().standard_normal(100)
-        reference_filter_output = signal.lfilter(b, a, input_signal)
+        reference_filter_output = sp.signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_1_iir(b, a, name="test iir direct form 1")
 
@@ -599,13 +629,12 @@ class TestDirectFormIIRType2:
             direct_form_2_iir([1, 2, 3], [1, 2])
 
     def test_first_order_filter(self):
-        N = 1
-        Wc = 0.5
-
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
-
+        # First-order Butterworth
+        b = np.array([0.5, 0.5])
+        a = np.array([1, 0])
+        sp = pytest.importorskip("scipy")
         input_signal = np.random.default_rng().standard_normal(100)
-        reference_filter_output = signal.lfilter(b, a, input_signal)
+        reference_filter_output = sp.signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_2_iir(b, a, name="test iir direct form 1")
 
@@ -617,11 +646,12 @@ class TestDirectFormIIRType2:
     def test_random_input_compare_with_scipy_butterworth_filter(self):
         N = 10
         Wc = 0.3
+        sp = pytest.importorskip("scipy")
 
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        b, a = sp.signal.butter(N, Wc, btype="lowpass", output="ba")
 
         input_signal = np.random.default_rng().standard_normal(100)
-        reference_filter_output = signal.lfilter(b, a, input_signal)
+        reference_filter_output = sp.signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_2_iir(b, a, name="test iir direct form 1")
 
@@ -633,12 +663,13 @@ class TestDirectFormIIRType2:
     def test_random_input_compare_with_scipy_elliptic_filter(self):
         N = 2
         Wc = 0.3
+        sp = pytest.importorskip("scipy")
 
-        b, a = signal.ellip(N, 0.1, 60, Wc, btype="low", analog=False)
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        b, a = sp.signal.ellip(N, 0.1, 60, Wc, btype="low", analog=False)
+        # b, a = sp.signal.butter(N, Wc, btype="lowpass", output="ba")
 
         input_signal = np.random.default_rng().standard_normal(100)
-        reference_filter_output = signal.lfilter(b, a, input_signal)
+        reference_filter_output = sp.signal.lfilter(b, a, input_signal)
 
         sfg = direct_form_2_iir(b, a, name="test iir direct form 1")
 

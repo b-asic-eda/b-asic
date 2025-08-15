@@ -2,16 +2,21 @@ import os
 import shutil
 from pathlib import Path
 
-import cocotb
-from cocotb.triggers import Timer
-from cocotb_tools.runner import get_runner
+import pytest
+
+from b_asic.codegen.test import cocotb_test
 
 
 def test_r3bf_compile(tmp_path, arch_r3bf):
+    pytest.importorskip("cocotb_tools")
     arch_r3bf.write_code(tmp_path, 32, 32, 32)
 
     sim = os.getenv("SIM", "ghdl")
+    if not shutil.which(sim):
+        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "r3bf_0").glob("*.vhd"))
+    from cocotb_tools.runner import get_runner
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -21,6 +26,7 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
 
 
 def test_r3bf_simulate(tmp_path, arch_r3bf):
+    pytest.importorskip("cocotb_tools")
     arch_r3bf.write_code(tmp_path, 32, 32, 32)
 
     # Override the generated file with the ones specified in the directory "overrides"
@@ -30,7 +36,11 @@ def test_r3bf_simulate(tmp_path, arch_r3bf):
         shutil.copy(file, tmp_path / "r3bf_0" / file.name)
 
     sim = os.getenv("SIM", "ghdl")
+    if not shutil.which(sim):
+        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "r3bf_0").glob("*.vhd"))
+    from cocotb_tools.runner import get_runner
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -41,8 +51,11 @@ def test_r3bf_simulate(tmp_path, arch_r3bf):
     runner.test(hdl_toplevel="r3bf", test_module="test_r3bf")
 
 
-@cocotb.test()
+@cocotb_test()
 async def r3bf_test(dut):
+    import cocotb
+    from cocotb.triggers import Timer
+
     cocotb.start_soon(_generate_clk(dut))
 
     dut.rst.value = 1
@@ -90,6 +103,8 @@ async def r3bf_test(dut):
 
 
 async def _generate_clk(dut):
+    from cocotb.triggers import Timer
+
     for _ in range(100):
         dut.clk.value = 0
         await Timer(1, unit="ns")

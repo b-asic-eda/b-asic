@@ -1,16 +1,21 @@
 import os
+import shutil
 
-import cocotb
-from cocotb.triggers import Timer
-from cocotb.types import LogicArray
-from cocotb_tools.runner import get_runner
+import pytest
+
+from b_asic.codegen.test import cocotb_test
 
 
 def test_simple_compile(tmp_path, arch_simple):
+    pytest.importorskip("cocotb_tools")
     arch_simple.write_code(tmp_path, 7, 7, 7)
 
     sim = os.getenv("SIM", "ghdl")
+    if not shutil.which(sim):
+        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "simple_0").glob("*.vhd"))
+    from cocotb_tools.runner import get_runner
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -20,10 +25,15 @@ def test_simple_compile(tmp_path, arch_simple):
 
 
 def test_simple_simulate(tmp_path, arch_simple):
+    pytest.importorskip("cocotb_tools")
     arch_simple.write_code(tmp_path, 8, 4, 7, write_pe_archs=True)
 
     sim = os.getenv("SIM", "ghdl")
+    if not shutil.which(sim):
+        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "simple_0").glob("*.vhd"))
+    from cocotb_tools.runner import get_runner
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -36,8 +46,12 @@ def test_simple_simulate(tmp_path, arch_simple):
     )
 
 
-@cocotb.test()
+@cocotb_test()
 async def simple_test(dut):
+    import cocotb
+    from cocotb.triggers import Timer
+    from cocotb.types import LogicArray
+
     cocotb.start_soon(_generate_clk(dut))
 
     dut.rst.value = 1
@@ -59,6 +73,8 @@ async def simple_test(dut):
 
 
 async def _generate_clk(dut):
+    from cocotb.triggers import Timer
+
     for _ in range(100):
         dut.clk.value = 0
         await Timer(1, unit="ns")

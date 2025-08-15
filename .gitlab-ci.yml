@@ -2,6 +2,12 @@ stages:
   - test
   - deploy
 
+workflow:
+  rules:
+    - when: always
+  auto_cancel:
+    on_new_commit: interruptible
+
 .run-test:
   before_script:
     - apt-get update -yy
@@ -30,6 +36,7 @@ stages:
         coverage_format: cobertura
         path: cov.xml
   coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
+  interruptible: true
 
 run-test-3.10-pyqt6:
   variables:
@@ -85,24 +92,30 @@ run-test-3.14-pyqt6:
   image: python:3.14-rc
   extends: ".run-test"
 
-# No wheels for 3.14 yet
+# No pyside wheels for 3.14 yet
 # run-test-3.14-pyside6:
 #   variables:
 #     QT_API: pyside6
 #   image: python:3.14-rc
 #   extends: ".run-test"
 
-# run-vhdl-tests:
-#   variables:
-#     QT_API: pyqt6
-#   image: python:3.10
-#   stage: test
-#   script:
-#     - pytest
-#     - pip install vunit_hdl
-#     - apt install -y ghdl
-#     - cd lib/b_asic/codegen/testbench
-#     - python test.py
+run-vhdl-tests:
+  image: python:3.10
+  stage: test
+  script:
+    - apt-get update -yy
+    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev
+    - python -m pip install --upgrade pip
+    - python --version
+    - git fetch --tags
+    - pip install -v .[test,test_optional]
+    - pip uninstall -y pytest_qt
+    - pip install vunit_hdl
+    - apt-get install -yy ghdl
+    - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --cov-branch --color=yes test --timeout=40 --durations=10
+    # Run matrix transposer test, currently not working
+    # - cd lib/b_asic/codegen/testbench
+    # - python test.py
 
 run-doc-test:
   variables:

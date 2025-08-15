@@ -1,15 +1,21 @@
 import os
+import shutil
 
-import cocotb
-from cocotb.triggers import Timer
-from cocotb_tools.runner import get_runner
+import pytest
+
+from b_asic.codegen.test import cocotb_test
 
 
 def test_r2bf_compile(tmp_path, arch_r2bf):
+    pytest.importorskip("cocotb_tools")
     arch_r2bf.write_code(tmp_path, 16, 16, 16)
 
     sim = os.getenv("SIM", "ghdl")
+    if not shutil.which(sim):
+        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "r2bf_0").glob("*.vhd"))
+    from cocotb_tools.runner import get_runner
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -19,10 +25,15 @@ def test_r2bf_compile(tmp_path, arch_r2bf):
 
 
 def test_r2bf_simulate(tmp_path, arch_r2bf):
+    pytest.importorskip("cocotb_tools")
     arch_r2bf.write_code(tmp_path, 16, 16, 16, write_pe_archs=True)
 
     sim = os.getenv("SIM", "ghdl")
+    if not shutil.which(sim):
+        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "r2bf_0").glob("*.vhd"))
+    from cocotb_tools.runner import get_runner
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -33,8 +44,11 @@ def test_r2bf_simulate(tmp_path, arch_r2bf):
     runner.test(hdl_toplevel="r2bf", test_module="test_r2bf")
 
 
-@cocotb.test()
+@cocotb_test()
 async def r2bf_test(dut):
+    import cocotb
+    from cocotb.triggers import Timer
+
     cocotb.start_soon(_generate_clk(dut))
 
     dut.rst.value = 1
@@ -61,6 +75,8 @@ async def r2bf_test(dut):
 
 
 async def _generate_clk(dut):
+    from cocotb.triggers import Timer
+
     for _ in range(100):
         dut.clk.value = 0
         await Timer(1, unit="ns")

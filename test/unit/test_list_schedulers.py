@@ -2,7 +2,6 @@ import sys
 
 import numpy as np
 import pytest
-from scipy import signal
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import (
@@ -1714,9 +1713,8 @@ class TestHybridScheduler:
 
 class TestListScheduler:
     def test_latencies_and_execution_times_not_set(self):
-        N = 3
-        Wc = 0.2
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        b = np.array([0.01809893, 0.0542968, 0.0542968, 0.01809893])
+        a = np.array([1.0, -1.76004188, 1.18289326, -0.27805992])
         sfg = direct_form_1_iir(b, a)
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
@@ -1968,9 +1966,8 @@ class TestRecursiveListScheduler:
             )
 
     def test_direct_form_1_iir(self):
-        N = 3
-        Wc = 0.2
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        b = np.array([0.01809893, 0.0542968, 0.0542968, 0.01809893])
+        a = np.array([1.0, -1.76004188, 1.18289326, -0.27805992])
         sfg = direct_form_1_iir(b, a)
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
@@ -1997,9 +1994,8 @@ class TestRecursiveListScheduler:
             assert schedule.forward_slack(op_id) >= 0
 
     def test_direct_form_2_iir(self):
-        N = 3
-        Wc = 0.2
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        b = np.array([0.01809893, 0.0542968, 0.0542968, 0.01809893])
+        a = np.array([1.0, -1.76004188, 1.18289326, -0.27805992])
         sfg = direct_form_2_iir(b, a)
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
@@ -2026,9 +2022,32 @@ class TestRecursiveListScheduler:
             assert schedule.forward_slack(op_id) >= 0
 
     def test_large_direct_form_2_iir(self):
-        N = 8
-        Wc = 0.2
-        b, a = signal.butter(N, Wc, btype="lowpass", output="ba")
+        b = np.array(
+            [
+                2.39596441e-05,
+                1.91677153e-04,
+                6.70870035e-04,
+                1.34174007e-03,
+                1.67717509e-03,
+                1.34174007e-03,
+                6.70870035e-04,
+                1.91677153e-04,
+                2.39596441e-05,
+            ]
+        )
+        a = np.array(
+            [
+                1.0,
+                -4.78451489,
+                10.44504107,
+                -13.45771989,
+                11.12933104,
+                -6.0252604,
+                2.0792738,
+                -0.41721716,
+                0.0372001,
+            ]
+        )
         sfg = direct_form_2_iir(b, a)
 
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
