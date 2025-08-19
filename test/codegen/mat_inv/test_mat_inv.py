@@ -5,10 +5,15 @@ import pytest
 
 from b_asic.codegen.test import cocotb_test
 
+from b_asic.code_printer.vhdl_printer import VhdlPrinter
+from b_asic.data_type import VhdlDataType
+
 
 def test_mat_inv_compile(tmp_path, arch_mat_inv):
     pytest.importorskip("cocotb_tools")
-    arch_mat_inv.write_code(tmp_path, 7, 7, 7, write_pe_archs=True)
+    dt = VhdlDataType(7)
+    printer = VhdlPrinter(dt)
+    printer.print(tmp_path, arch_mat_inv)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
@@ -26,7 +31,9 @@ def test_mat_inv_compile(tmp_path, arch_mat_inv):
 
 def test_mat_inv_simulate(tmp_path, arch_mat_inv):
     pytest.importorskip("cocotb_tools")
-    arch_mat_inv.write_code(tmp_path, (3, 13), write_pe_archs=True)
+    dt = VhdlDataType((3, 13))
+    printer = VhdlPrinter(dt)
+    printer.print(tmp_path, arch_mat_inv)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):

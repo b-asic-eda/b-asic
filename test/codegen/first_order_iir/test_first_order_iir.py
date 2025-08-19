@@ -5,10 +5,15 @@ import pytest
 
 from b_asic.codegen.test import cocotb_test
 
+from lib.b_asic.code_printer.vhdl_printer import VhdlPrinter
+from lib.b_asic.data_type import VhdlDataType
+
 
 def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
     pytest.importorskip("cocotb_tools")
-    arch_first_order_iir.write_code(tmp_path, 3, 3, 3)
+    dt = VhdlDataType(3)
+    printer = VhdlPrinter(dt)
+    printer.print(tmp_path, arch_first_order_iir)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
@@ -26,7 +31,9 @@ def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
 
 def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
     pytest.importorskip("cocotb_tools")
-    arch_first_order_iir.write_code(tmp_path, 17, 17, 17, write_pe_archs=True)
+    dt = VhdlDataType(17)
+    printer = VhdlPrinter(dt)
+    printer.print(tmp_path, arch_first_order_iir)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):

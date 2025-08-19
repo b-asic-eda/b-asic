@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
 
-from b_asic.codegen.vhdl.common import VHDL_TAB
+from b_asic.code_printer.vhdl.common import VHDL_TAB
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider

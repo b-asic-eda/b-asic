@@ -8,7 +8,7 @@ normal operations in an SFG.
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from b_asic.codegen.vhdl.common import VHDL_TAB
+from b_asic.code_printer.vhdl.common import VHDL_TAB
 from b_asic.operation import (
     AbstractOperation,
     DelayMap,

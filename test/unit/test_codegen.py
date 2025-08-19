@@ -1,4 +1,4 @@
-from b_asic.codegen.vhdl.common import is_valid_vhdl_identifier
+from b_asic.code_printer.vhdl.common import is_valid_vhdl_identifier
 
 
 def test_is_valid_vhdl_identifier():

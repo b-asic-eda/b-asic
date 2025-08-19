@@ -8,7 +8,6 @@ from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from itertools import chain
-from pathlib import Path
 from typing import (
     Literal,
     NoReturn,
@@ -29,13 +28,8 @@ from b_asic._preferences import (
     PE_CLUSTER_COLOR,
     PE_COLOR,
 )
-from b_asic.codegen.vhdl import (
-    common,
-    memory_storage,
-    processing_element,
-    test_bench,
-    top_level,
-)
+from b_asic.code_printer.vhdl import common
+from b_asic.data_type import DataType
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
@@ -132,84 +126,6 @@ class HardwareBlock(ABC):
         if not common.is_valid_vhdl_identifier(entity_name):
             raise ValueError(f"{entity_name} is not a valid VHDL identifier")
         self._entity_name = entity_name
-
-    def write_code(
-        self,
-        path: str,
-        wl_internal: int | tuple[int, int],
-        wl_input: int | tuple[int, int] | None = None,
-        wl_output: int | tuple[int, int] | None = None,
-        write_pe_archs: bool = False,
-    ) -> None:
-        """
-        Write VHDL code for hardware block.
-
-        Parameters
-        ----------
-        path : str
-            Directory to write code in.
-        wl_input : int
-            Bit widths of all input signals.
-        wl_internal : int
-            Bit widths of all internal signals.
-        wl_output : int
-            Bit widths of all output signals.
-        write_pe_archs : bool
-            Whether to generate VHDL architecture for processing elements.
-        """
-        if not self._entity_name:
-            raise ValueError("Entity name must be set")
-
-        if not wl_internal:
-            raise ValueError("Internal word length must be set")
-        if isinstance(wl_internal, int):
-            if wl_internal < 1:
-                raise ValueError("Internal word length must be at least one bit")
-            wl_internal = (1, wl_internal - 1)
-        if isinstance(wl_internal, tuple):
-            if len(wl_internal) != 2:
-                raise ValueError(
-                    "Internal word length must be an int or a tuple[int, int]"
-                )
-            if wl_internal[0] == 0 and wl_internal[1] == 0:
-                raise ValueError("Internal word length must be at least one bit")
-
-        if not wl_input:
-            wl_input = wl_internal
-        if isinstance(wl_input, int):
-            if wl_input < 1:
-                raise ValueError("Input word length must be at least one bit")
-            wl_input = (1, wl_input - 1)
-        if isinstance(wl_input, tuple):
-            if len(wl_input) != 2:
-                raise ValueError(
-                    "Input word length must be an int or a tuple[int, int]"
-                )
-            if wl_input[0] == 0 and wl_input[1] == 0:
-                raise ValueError("Input word length must be at least one bit")
-
-        if not wl_output:
-            wl_output = wl_internal
-        if isinstance(wl_output, int):
-            if wl_output < 1:
-                raise ValueError("Output word length must be at least one bit")
-            wl_output = (1, wl_output - 1)
-        if isinstance(wl_output, tuple):
-            if len(wl_output) != 2:
-                raise ValueError(
-                    "Output word length must be an int or a tuple[int, int]"
-                )
-            if wl_output[0] == 0 and wl_output[1] == 0:
-                raise ValueError("Output word length must be at least one bit")
-
-        wl = WordLengths(
-            wl_internal, wl_input, wl_output, self.schedule_time.bit_length()
-        )
-        self._write_code(Path(path), wl, write_pe_archs)
-
-    @abstractmethod
-    def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
-        raise NotImplementedError()
 
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self._digraph()._repr_mimebundle_(include=include, exclude=exclude)
@@ -638,20 +554,13 @@ class ProcessingElement(Resource):
             self._assignment = None
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
-    def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
-        with (path / f"{self._entity_name}.vhd").open("w") as f:
-            common.b_asic_preamble(f)
-            common.ieee_header(f)
-            processing_element.entity(f, self, wl)
-            processing_element.architecture(f, self, write_pe_archs)
-
     def write_component_declaration(
-        self, f: TextIO, wl: WordLengths, indent: int = 1
+        self, f: TextIO, dt: DataType, indent: int = 1
     ) -> None:
         generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
         ports = [
             "clk : in std_logic",
-            f"schedule_cnt : in unsigned({wl.state - 1} downto 0)",
+            f"schedule_cnt : in unsigned({self.schedule_time.bit_length() - 1} downto 0)",
         ]
         ports += [
             f"p_{port_number}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
@@ -884,22 +793,13 @@ class Memory(Resource):
         else:  # "register"
             raise NotImplementedError()
 
-    def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
-        with (path / f"{self._entity_name}.vhd").open("w") as f:
-            common.b_asic_preamble(f)
-            common.ieee_header(f)
-            memory_storage.entity(f, self, wl)
-            memory_storage.architecture(
-                f, self, wl, input_sync=False, output_sync=False
-            )
-
     def write_component_declaration(
-        self, f: TextIO, wl: WordLengths, indent: int = 1
+        self, f: TextIO, dt: DataType, indent: int = 1
     ) -> None:
         generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
         ports = [
             "clk : in std_logic",
-            f"schedule_cnt : in unsigned({wl.state - 1} downto 0)",
+            f"schedule_cnt : in unsigned({self.schedule_time.bit_length() - 1} downto 0)",
         ]
         ports += [
             f"p_{port_number}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
@@ -1107,32 +1007,6 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 f" {[port.name for port in write_port_diff]}"
             )
 
-    def _write_code(self, path: Path, wl: WordLengths, write_pe_archs: bool) -> None:
-        counter = 0
-        dir_path = path / f"{self.entity_name}_{counter}"
-        while dir_path.exists():
-            counter += 1
-            dir_path = path / f"{self.entity_name}_{counter}"
-        dir_path.mkdir(parents=True)
-
-        for pe in self.processing_elements:
-            pe._write_code(dir_path, wl, write_pe_archs)
-
-        for mem in self.memories:
-            mem._write_code(dir_path, wl, write_pe_archs)
-
-        with (dir_path / f"{self._entity_name}.vhd").open("w") as f:
-            common.b_asic_preamble(f)
-            common.ieee_header(f)
-            top_level.entity(f, self, wl)
-            top_level.architecture(f, self, wl)
-
-        with (dir_path / f"{self._entity_name}_tb.vhd").open("w") as f:
-            common.b_asic_preamble(f)
-            common.ieee_header(f)
-            test_bench.entity(f, self)
-            test_bench.architecture(f, self, wl)
-
     def write_component_declaration(self, f: TextIO, indent: int = 1) -> None:
         common.write(f, 1, "-- Component declaration", start="\n")
         generics = [
@@ -1160,7 +1034,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         common.component_declaration(f, self.entity_name, generics, ports, indent)
 
     def write_signal_declarations(
-        self, f: TextIO, wl: WordLengths, indent: int = 1
+        self, f: TextIO, dt: DataType, indent: int = 1
     ) -> None:
         common.write(f, indent, "-- Signal declaration")
         for pe in self.processing_elements:
@@ -1168,7 +1042,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
         for mem in self.memories:
             mem.write_signal_declarations(f, indent)
         common.signal_declaration(
-            f, "schedule_cnt", f"unsigned({wl.state - 1} downto 0)"
+            f,
+            "schedule_cnt",
+            f"unsigned({self.schedule_time.bit_length() - 1} downto 0)",
         )
 
     def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:

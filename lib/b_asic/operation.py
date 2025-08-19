@@ -17,7 +17,7 @@ from typing import (
     overload,
 )
 
-from b_asic.codegen.vhdl.common import VHDL_TAB
+from b_asic.code_printer.vhdl.common import VHDL_TAB
 from b_asic.graph_component import AbstractGraphComponent, GraphComponent, GraphID, Name
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal

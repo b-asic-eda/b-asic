@@ -5,10 +5,15 @@ import pytest
 
 from b_asic.codegen.test import cocotb_test
 
+from lib.b_asic.code_printer.vhdl_printer import VhdlPrinter
+from lib.b_asic.data_type import VhdlDataType
+
 
 def test_r2bf_compile(tmp_path, arch_r2bf):
     pytest.importorskip("cocotb_tools")
-    arch_r2bf.write_code(tmp_path, 16, 16, 16)
+    dt = VhdlDataType(16)
+    printer = VhdlPrinter(dt)
+    printer.print(tmp_path, arch_r2bf)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
@@ -26,7 +31,9 @@ def test_r2bf_compile(tmp_path, arch_r2bf):
 
 def test_r2bf_simulate(tmp_path, arch_r2bf):
     pytest.importorskip("cocotb_tools")
-    arch_r2bf.write_code(tmp_path, 16, 16, 16, write_pe_archs=True)
+    dt = VhdlDataType(16)
+    printer = VhdlPrinter(dt)
+    printer.print(tmp_path, arch_r2bf)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
