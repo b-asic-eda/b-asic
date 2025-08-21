@@ -25,20 +25,17 @@ def entity(f: TextIO, mem: "Memory", dt: VhdlDataType) -> None:
             "HDL can only be generated for ProcessCollection of (Plain)MemoryVariables"
         )
 
-    generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
     ports = [
         "clk : in std_logic",
         f"schedule_cnt : in unsigned({mem.schedule_time.bit_length() - 1} downto 0)",
     ]
     ports += [
-        f"p_{input_port}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
-        for input_port in range(mem.input_count)
+        f"p_{count}_in : in {dt.get_type_str()}" for count in range(mem.input_count)
     ]
     ports += [
-        f"p_{output_port}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
-        for output_port in range(mem.output_count)
+        f"p_{count}_out : out {dt.get_type_str()}" for count in range(mem.output_count)
     ]
-    common.entity_declaration(f, mem.entity_name, generics, ports)
+    common.entity_declaration(f, mem.entity_name, ports=ports)
 
 
 def architecture(
@@ -109,10 +106,9 @@ def architecture(
     # Architecture declarative region begin
     #
     common.write(f, 1, "-- HDL memory description")
-    common.constant_declaration(f, "MEM_WL", "integer", dt.internal_length, name_pad=16)
     common.constant_declaration(f, "MEM_DEPTH", "integer", mem_depth, name_pad=16)
     common.type_declaration(
-        f, "mem_type", "array(0 to MEM_DEPTH-1) of signed(MEM_WL-1 downto 0)"
+        f, "mem_type", f"array(0 to MEM_DEPTH-1) of {dt.get_type_str()}"
     )
     if vivado_ram_style is not None:
         common.signal_declaration(
@@ -159,17 +155,13 @@ def architecture(
     # Address generation signals
     common.write(f, 1, "-- Memory address generation", start="\n")
     for i in range(memory.input_count):
-        common.signal_declaration(
-            f, f"read_port_{i}", "signed(MEM_WL-1 downto 0)", name_pad=18
-        )
+        common.signal_declaration(f, f"read_port_{i}", dt.get_type_str(), name_pad=18)
         common.signal_declaration(
             f, f"read_adr_{i}", "integer range 0 to MEM_DEPTH-1", name_pad=18
         )
         common.signal_declaration(f, f"read_en_{i}", "std_logic", name_pad=18)
     for i in range(memory.output_count):
-        common.signal_declaration(
-            f, f"write_port_{i}", "signed(MEM_WL-1 downto 0)", name_pad=18
-        )
+        common.signal_declaration(f, f"write_port_{i}", dt.get_type_str(), name_pad=18)
         common.signal_declaration(
             f, f"write_adr_{i}", "integer range 0 to MEM_DEPTH-1", name_pad=18
         )
@@ -210,10 +202,7 @@ def architecture(
         common.write(f, 1, "-- Input synchronization", start="\n")
         for i in range(memory.input_count):
             common.signal_declaration(
-                f,
-                f"p_{i}_in_sync",
-                "signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
-                name_pad=18,
+                f, f"p_{i}_in_sync", dt.get_type_str(), name_pad=18
             )
 
     #
@@ -311,7 +300,7 @@ def architecture(
     #
     common.write(f, 1, "--", start="\n")
     common.write(f, 1, "-- Memory write address generation", start="")
-    common.write(f, 1, "--", end="\n")
+    common.write(f, 1, "--")
 
     # Extract all the write addresses
     write_list: list[tuple[int, MemoryVariable] | None] = [
@@ -438,7 +427,7 @@ def architecture(
     #
     common.write(f, 1, "--", start="\n")
     common.write(f, 1, "-- Memory read address generation", start="")
-    common.write(f, 1, "--", end="\n")
+    common.write(f, 1, "--")
 
     # Extract all the read addresses
     read_list: list[tuple[int, MemoryVariable] | None] = [

@@ -29,7 +29,7 @@ from b_asic._preferences import (
     PE_COLOR,
 )
 from b_asic.code_printer.vhdl import common
-from b_asic.data_type import DataType
+from b_asic.data_type import DataType, VhdlDataType
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
@@ -48,10 +48,10 @@ def _signed_bit_length(num: int) -> int:
 
 
 def _fixed_point_bits(num: float) -> int:
-    if num == 0:
+    if num == 0 or isinstance(num, bool):
         return 1, 0
 
-    int_part = int(num)
+    int_part = math.floor(num)
     int_bits = _signed_bit_length(int_part)
 
     frac_part = num - int_part
@@ -496,41 +496,46 @@ class ProcessingElement(Resource):
         control_table = []
         params = cast(OperatorProcess, self.collection.collection[0]).operation.params
         for param_name in params:
-            param = params[param_name]
-
-            # Calculate int_bits and frac_bits
-            if isinstance(param, bool):
-                int_bits = 1
-                frac_bits = 0
-            elif isinstance(param, (int, np.integer)):
-                int_bits = 0
-                for pro in self.collection:
-                    val = pro.operation.params[param_name]
-                    bits = _signed_bit_length(val)
-                    int_bits = max(int_bits, bits)
-                frac_bits = 0
-            elif isinstance(param, (float, np.floating)):
-                int_bits = 0
-                frac_bits = 0
-                for pro in self.collection:
-                    val = pro.operation.params[param_name]
-                    tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val)
+            int_bits = 0
+            frac_bits = 0
+            is_complex = False
+            for pro in self.collection:
+                val = pro.operation.params[param_name]
+                if isinstance(val, (complex, np.complexfloating)):
+                    is_complex = True
+                # real part
+                if isinstance(val, bool):
+                    int_bits = 1
+                else:
+                    # real part
+                    tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val.real)
                     int_bits = max(int_bits, tmp_int_bits)
                     frac_bits = max(frac_bits, tmp_frac_bits)
-            elif isinstance(param, (complex, np.complexfloating)):
-                raise NotImplementedError()
-            else:
-                raise ValueError(
-                    f"Parameter type {type(param)} not supported for VHDL code generation"
-                )
+                    # imag part
+                    tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val.imag)
+                    int_bits = max(int_bits, tmp_int_bits)
+                    frac_bits = max(frac_bits, tmp_frac_bits)
 
             # Calculate values: dict[time, val]
             values = {}
             for pro in self.collection:
                 values[pro.start_time] = pro.operation.params[param_name]
 
-            entry = ControlTableEntry(param_name, int_bits, frac_bits, values)
-            control_table.append(entry)
+            if is_complex:
+                real_values = {time: val.real for time, val in values.items()}
+                entry = ControlTableEntry(
+                    param_name + "_real", int_bits, frac_bits, real_values
+                )
+                control_table.append(entry)
+
+                imag_values = {time: val.imag for time, val in values.items()}
+                entry = ControlTableEntry(
+                    param_name + "_imag", int_bits, frac_bits, imag_values
+                )
+                control_table.append(entry)
+            else:
+                entry = ControlTableEntry(param_name, int_bits, frac_bits, values)
+                control_table.append(entry)
         return control_table
 
     def assign(
@@ -555,44 +560,39 @@ class ProcessingElement(Resource):
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
     def write_component_declaration(
-        self, f: TextIO, dt: DataType, indent: int = 1
+        self, f: TextIO, dt: VhdlDataType, indent: int = 1
     ) -> None:
-        generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
         ports = [
             "clk : in std_logic",
             f"schedule_cnt : in unsigned({self.schedule_time.bit_length() - 1} downto 0)",
         ]
         ports += [
-            f"p_{port_number}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
-            for port_number in range(self.input_count)
+            f"p_{count}_in : in {dt.get_type_str()}"
+            for count in range(self.input_count)
         ]
         if self.operation_type == Input:
-            ports.append(
-                "p_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
-            )
-            generics += ["WL_INPUT_INT : integer", "WL_INPUT_FRAC : integer"]
+            ports.append(f"p_0_in : in {dt.get_input_type_str()}")
 
         ports += [
-            f"p_{port_number}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
-            for port_number in range(self.output_count)
+            f"p_{count}_out : out {dt.get_type_str()}"
+            for count in range(self.output_count)
         ]
         if self.operation_type == Output:
-            ports.append(
-                "p_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
-            )
-            generics += ["WL_OUTPUT_INT : integer", "WL_OUTPUT_FRAC : integer"]
+            ports.append(f"p_0_out : out {dt.get_output_type_str()}")
 
-        common.component_declaration(f, self.entity_name, generics, ports, indent)
+        common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
         common.write(f, 1, "")
 
-    def write_signal_declarations(self, f: TextIO, indent: int = 1) -> None:
+    def write_signal_declarations(
+        self, f: TextIO, dt: DataType, indent: int = 1
+    ) -> None:
         common.write(f, indent, f"-- {self.entity_name} signals")
         if self.operation_type != Input:
             for port_number in range(self.input_count):
                 common.signal_declaration(
                     f,
                     name=f"{self.entity_name}_{port_number}_in",
-                    signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                    signal_type=f"{dt.get_type_str()}",
                     indent=indent,
                 )
         if self.operation_type != Output:
@@ -600,7 +600,7 @@ class ProcessingElement(Resource):
                 common.signal_declaration(
                     f,
                     name=f"{self.entity_name}_{port_number}_out",
-                    signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                    signal_type=f"{dt.get_type_str()}",
                     indent=indent,
                 )
         common.write(f, indent, "")
@@ -611,16 +611,8 @@ class ProcessingElement(Resource):
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
         ]
-        generic_mappings = [
-            "WL_INTERNAL_INT => WL_INTERNAL_INT",
-            "WL_INTERNAL_FRAC => WL_INTERNAL_FRAC",
-        ]
         if self.operation_type == Input:
             port_mappings.append(f"p_0_in => {self.entity_name}_0_in")
-            generic_mappings += [
-                "WL_INPUT_INT => WL_INPUT_INT",
-                "WL_INPUT_FRAC => WL_INPUT_FRAC",
-            ]
 
         port_mappings += [
             f"p_{port_number}_out => {self.entity_name}_{port_number}_out"
@@ -628,17 +620,12 @@ class ProcessingElement(Resource):
         ]
         if self.operation_type == Output:
             port_mappings.append(f"p_0_out => {self.entity_name}_0_out")
-            generic_mappings += [
-                "WL_OUTPUT_INT => WL_OUTPUT_INT",
-                "WL_OUTPUT_FRAC => WL_OUTPUT_FRAC",
-            ]
 
         common.component_instantiation(
             f,
             f"{self.entity_name}_inst",
             self.entity_name,
             port_mappings=port_mappings,
-            generic_mappings=generic_mappings,
             indent=indent,
         )
         common.write(f, indent, "")
@@ -796,36 +783,37 @@ class Memory(Resource):
     def write_component_declaration(
         self, f: TextIO, dt: DataType, indent: int = 1
     ) -> None:
-        generics = ["WL_INTERNAL_INT : integer", "WL_INTERNAL_FRAC : integer"]
         ports = [
             "clk : in std_logic",
             f"schedule_cnt : in unsigned({self.schedule_time.bit_length() - 1} downto 0)",
         ]
         ports += [
-            f"p_{port_number}_in : in signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+            f"p_{port_number}_in : in {dt.get_type_str()}"
             for port_number in range(self.input_count)
         ]
         ports += [
-            f"p_{port_number}_out : out signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)"
+            f"p_{port_number}_out : out {dt.get_type_str()}"
             for port_number in range(self.output_count)
         ]
-        common.component_declaration(f, self.entity_name, generics, ports, indent)
+        common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
         common.write(f, indent, "")
 
-    def write_signal_declarations(self, f: TextIO, indent: int = 1) -> None:
+    def write_signal_declarations(
+        self, f: TextIO, dt: DataType, indent: int = 1
+    ) -> None:
         common.write(f, indent, f"-- {self.entity_name} signals")
         for port_number in range(self.input_count):
             common.signal_declaration(
                 f,
                 name=f"{self.entity_name}_{port_number}_in",
-                signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                signal_type=f"{dt.get_type_str()}",
                 indent=indent,
             )
         for port_number in range(self.output_count):
             common.signal_declaration(
                 f,
                 name=f"{self.entity_name}_{port_number}_out",
-                signal_type="signed(WL_INTERNAL_INT+WL_INTERNAL_FRAC-1 downto 0)",
+                signal_type=f"{dt.get_type_str()}",
                 indent=indent,
             )
         common.write(f, indent, "")
@@ -841,17 +829,11 @@ class Memory(Resource):
             for port_number in range(self.output_count)
         ]
 
-        generic_mappings = [
-            "WL_INTERNAL_INT => WL_INTERNAL_INT",
-            "WL_INTERNAL_FRAC => WL_INTERNAL_FRAC",
-        ]
-
         common.component_instantiation(
             f,
             f"{self.entity_name}_inst",
             self.entity_name,
             port_mappings=port_mappings,
-            generic_mappings=generic_mappings,
             indent=indent,
         )
         common.write(f, 1, "")
@@ -1007,40 +989,30 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 f" {[port.name for port in write_port_diff]}"
             )
 
-    def write_component_declaration(self, f: TextIO, indent: int = 1) -> None:
-        common.write(f, 1, "-- Component declaration", start="\n")
-        generics = [
-            "WL_INTERNAL_INT : integer",
-            "WL_INTERNAL_FRAC : integer",
-            "WL_INPUT_INT : integer",
-            "WL_INPUT_FRAC : integer",
-            "WL_OUTPUT_INT : integer",
-            "WL_OUTPUT_FRAC : integer",
-        ]
-        ports = [
-            "clk : in std_logic",
-            "rst : in std_logic",
-        ]
+    def write_component_declaration(
+        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+    ) -> None:
+        ports = ["clk : in std_logic", "rst : in std_logic"]
+
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         ports += [
-            f"{pe.entity_name}_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
-            for pe in inputs
+            f"{pe.entity_name}_0_in : in {dt.get_input_type_str()}" for pe in inputs
         ]
+
         outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
         ports += [
-            f"{pe.entity_name}_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
-            for pe in outputs
+            f"{pe.entity_name}_0_out : out {dt.get_output_type_str()}" for pe in outputs
         ]
-        common.component_declaration(f, self.entity_name, generics, ports, indent)
+
+        common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
 
     def write_signal_declarations(
-        self, f: TextIO, dt: DataType, indent: int = 1
+        self, f: TextIO, dt: VhdlDataType, indent: int = 1
     ) -> None:
-        common.write(f, indent, "-- Signal declaration")
         for pe in self.processing_elements:
-            pe.write_signal_declarations(f, indent)
+            pe.write_signal_declarations(f, dt, indent)
         for mem in self.memories:
-            mem.write_signal_declarations(f, indent)
+            mem.write_signal_declarations(f, dt, indent)
         common.signal_declaration(
             f,
             "schedule_cnt",
@@ -1048,16 +1020,6 @@ of :class:`~b_asic.architecture.ProcessingElement`
         )
 
     def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
-        common.write(f, 1, "-- Component Instantiation", start="\n")
-        generic_mappings = [
-            "WL_INTERNAL_INT => WL_INTERNAL_INT",
-            "WL_INTERNAL_FRAC => WL_INTERNAL_FRAC",
-            "WL_INPUT_INT => WL_INPUT_INT",
-            "WL_INPUT_FRAC => WL_INPUT_FRAC",
-            "WL_OUTPUT_INT => WL_OUTPUT_INT",
-            "WL_OUTPUT_FRAC => WL_OUTPUT_FRAC",
-        ]
-
         port_mappings = ["clk => tb_clk", "rst => tb_rst"]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         port_mappings += [
@@ -1071,9 +1033,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             f,
             f"{self.entity_name}_inst",
             self.entity_name,
-            generic_mappings,
-            port_mappings,
-            indent,
+            port_mappings=port_mappings,
+            indent=indent,
         )
 
     def get_interconnects_for_memory(

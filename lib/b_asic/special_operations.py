@@ -6,9 +6,7 @@ normal operations in an SFG.
 """
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
 
-from b_asic.code_printer.vhdl.common import VHDL_TAB
 from b_asic.operation import (
     AbstractOperation,
     DelayMap,
@@ -17,9 +15,6 @@ from b_asic.operation import (
 )
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Name, Num, ShapeCoordinates, TypeName
-
-if TYPE_CHECKING:
-    from b_asic.architecture import ProcessingElement
 
 
 class Input(AbstractOperation):
@@ -101,12 +96,6 @@ class Input(AbstractOperation):
         # doc-string inherited
         return ((0, 0.5),)
 
-    @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
-        code = super()._vhdl(pe)
-        new_arch_code = f"{VHDL_TAB}res_0 <= resize(signed(p_0_in), WL_INTERNAL_INT+WL_INTERNAL_FRAC);\n"
-        return code[0], code[1] + new_arch_code
-
 
 class Output(AbstractOperation):
     """
@@ -168,14 +157,6 @@ class Output(AbstractOperation):
     @property
     def latency(self) -> int:
         return 0
-
-    @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
-        code = super()._vhdl(pe)
-        new_preamble_code = f"{VHDL_TAB}signal res_0 : std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0);\n"
-        new_arch_code = f"{VHDL_TAB}p_0_out <= res_0;\n"
-        new_arch_code += f"{VHDL_TAB}res_0 <= std_logic_vector(resize(p_0_in, WL_OUTPUT_INT+WL_OUTPUT_FRAC));\n"
-        return code[0] + new_preamble_code, code[1] + new_arch_code
 
 
 class Delay(AbstractOperation):

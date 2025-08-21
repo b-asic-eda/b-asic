@@ -4,19 +4,13 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
-from typing import TYPE_CHECKING
-
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
 
-from b_asic.code_printer.vhdl.common import VHDL_TAB
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Num, ShapeCoordinates
-
-if TYPE_CHECKING:
-    from b_asic.architecture import ProcessingElement
 
 
 class Constant(AbstractOperation):
@@ -195,15 +189,6 @@ class Addition(AbstractOperation):
 
     def evaluate(self, a, b) -> Num:
         return a + b
-
-    @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
-        code = super()._vhdl(pe)
-        if pe._latency == 0:
-            new_arch_code = f"{VHDL_TAB}res_0 <= p_0_in + p_1_in;\n"
-        else:
-            new_arch_code = f"{VHDL_TAB}res_0 <= p_0_in_reg_0 + p_1_in_reg_0;\n"
-        return code[0], code[1] + new_arch_code
 
 
 class Subtraction(AbstractOperation):
@@ -396,15 +381,6 @@ class AddSub(AbstractOperation):
     @property
     def is_swappable(self) -> bool:
         return self.is_add
-
-    @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
-        code = super()._vhdl(pe)
-        if pe._latency == 0:
-            new_arch_code = f"{VHDL_TAB}res_0 <= p_0_in + p_1_in when is_add = '1' else p_0_in - p_1_in;\n"
-        else:
-            new_arch_code = f"{VHDL_TAB}res_0 <= p_0_in_reg_0 + p_1_in_reg_0 when is_add = '1' else p_0_in_reg_0 - p_1_in_reg_0;\n"
-        return code[0], code[1] + new_arch_code
 
 
 class Multiplication(AbstractOperation):
@@ -988,20 +964,6 @@ class ConstantMultiplication(AbstractOperation):
         """Set the constant value of this operation."""
         self.set_param("value", value)
 
-    @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
-        code = super()._vhdl(pe)
-        new_preamble_code = f"{VHDL_TAB}signal mul_res : signed(p_0_in'length + value'length - 1 downto 0);\n"
-
-        if pe._latency == 0:
-            new_arch_code = f"{VHDL_TAB}mul_res <= p_0_in * value;\n"
-        else:
-            new_arch_code = f"{VHDL_TAB}mul_res <= p_0_in_reg_0 * value;\n"
-
-        new_arch_code += f"{VHDL_TAB}res_0 <= mul_res(mul_res'high - WL_VALUE_INT downto mul_res'high - WL_VALUE_INT - res_0'high);\n"
-
-        return code[0] + new_preamble_code, code[1] + new_arch_code
-
 
 class MAD(AbstractOperation):
     r"""
@@ -1215,28 +1177,6 @@ class MADS(AbstractOperation):
         for i, p in enumerate(self._input_ports):
             p._index = i
 
-    @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
-        code = super()._vhdl(pe)
-        new_preamble_code = f"{VHDL_TAB}signal mul_res : signed(p_1_in'length + p_2_in'length - 1 downto 0);\n"
-        new_preamble_code += (
-            f"{VHDL_TAB}signal mul_res_quant : signed(res_0'high downto 0);\n"
-        )
-        new_preamble_code += (
-            f"{VHDL_TAB}signal add_res : signed(res_0'high downto 0);\n"
-        )
-
-        new_arch_code = f"{VHDL_TAB}mul_res <= p_1_in_reg_0 * p_2_in_reg_0;\n"
-
-        new_arch_code += f"{VHDL_TAB}mul_res_quant <= mul_res(mul_res'high - WL_INTERNAL_INT downto mul_res'high - WL_INTERNAL_INT - mul_res_quant'high);\n"
-
-        new_arch_code += f"{VHDL_TAB}add_res <= p_0_in_reg_0 + mul_res_quant when is_add = '1' else p_0_in_reg_0 - mul_res_quant;\n"
-        new_arch_code += (
-            f"{VHDL_TAB}res_0 <= add_res when do_addsub = '1' else mul_res_quant;\n"
-        )
-
-        return code[0] + new_preamble_code, code[1] + new_arch_code
-
 
 class SymmetricTwoportAdaptor(AbstractOperation):
     r"""
@@ -1383,23 +1323,6 @@ class Reciprocal(AbstractOperation):
         if a == 0:
             return float("inf")
         return 1 / a
-
-    @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
-        code = super()._vhdl(pe)
-        new_prelude_code = f"{VHDL_TAB}signal unity : signed(WL_INTERNAL_INT + 2*WL_INTERNAL_FRAC - 1 downto 0);\n"
-        new_prelude_code += f"{VHDL_TAB}signal a : signed(WL_INTERNAL_INT + WL_INTERNAL_FRAC - 1 downto 0);\n"
-
-        new_prelude_code += f"{VHDL_TAB}signal tmp_res : signed(WL_INTERNAL_INT + 2*WL_INTERNAL_FRAC - 1 downto 0);\n"
-
-        new_arch_code = f"{VHDL_TAB}a <= p_0_in_reg_0;\n"
-        new_arch_code += f"{VHDL_TAB}unity <= to_signed(2**(2*WL_INTERNAL_FRAC), WL_INTERNAL_INT + 2*WL_INTERNAL_FRAC);\n"
-        new_arch_code += (
-            f"{VHDL_TAB}tmp_res <= unity / a when a /= 0 else (others => '0');\n"
-        )
-        new_arch_code += f"{VHDL_TAB}res_0 <= tmp_res(res_0'high downto 0);\n"
-
-        return code[0] + new_prelude_code, code[1] + new_arch_code
 
 
 class RightShift(AbstractOperation):

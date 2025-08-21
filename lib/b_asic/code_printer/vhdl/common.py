@@ -110,6 +110,7 @@ def ieee_header(
     f: TextIO,
     std_logic_1164: bool = True,
     numeric_std: bool = True,
+    fixed_pkg: bool = False,
 ) -> None:
     """
     Write the standard IEEE VHDL use header.
@@ -124,12 +125,16 @@ def ieee_header(
         Include the std_logic_1164 header.
     numeric_std : bool, default: True
         Include the numeric_std header.
+    fixed_pkg : bool, default: False
+        Include the fixed_pkg header.
     """
     write(f, 0, "library ieee;")
     if std_logic_1164:
         write(f, 0, "use ieee.std_logic_1164.all;")
     if numeric_std:
         write(f, 0, "use ieee.numeric_std.all;")
+    if fixed_pkg:
+        write(f, 0, "use ieee.fixed_pkg.all;")
     write(f, 0, "")
 
 
@@ -731,3 +736,7 @@ def is_vhdl_reserved_keyword(identifier: str) -> bool:
         "xor",
     )
     return identifier.lower() in reserved_keywords
+
+
+def _get_bin_str(num: int, bits: int) -> str:
+    return bin(num + 2**bits)[2:].zfill(bits) if num < 0 else bin(num)[2:].zfill(bits)

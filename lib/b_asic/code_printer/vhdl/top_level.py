@@ -13,33 +13,22 @@ if TYPE_CHECKING:
 
 
 def entity(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
-    generics = [
-        f"WL_INTERNAL_INT : integer := {dt.internal_wl[0]}",
-        f"WL_INTERNAL_FRAC : integer := {dt.internal_wl[1]}",
-        f"WL_INPUT_INT : integer := {dt.input_wl[0]}",
-        f"WL_INPUT_FRAC : integer := {dt.input_wl[1]}",
-        f"WL_OUTPUT_INT : integer := {dt.output_wl[0]}",
-        f"WL_OUTPUT_FRAC : integer := {dt.output_wl[1]}",
-    ]
-    ports = [
-        "clk : in std_logic",
-        "rst : in std_logic",
-    ]
+    ports = ["clk : in std_logic", "rst : in std_logic"]
     ports += [
-        f"{pe.entity_name}_0_in : in std_logic_vector(WL_INPUT_INT+WL_INPUT_FRAC-1 downto 0)"
+        f"{pe.entity_name}_0_in : in {dt.get_input_type_str()}"
         for pe in arch.processing_elements
         if pe.operation_type == Input
     ]
     ports += [
-        f"{pe.entity_name}_0_out : out std_logic_vector(WL_OUTPUT_INT+WL_OUTPUT_FRAC-1 downto 0)"
+        f"{pe.entity_name}_0_out : out {dt.get_output_type_str()}"
         for pe in arch.processing_elements
         if pe.operation_type == Output
     ]
-    common.entity_declaration(f, arch.entity_name, generics, ports)
+    common.entity_declaration(f, arch.entity_name, ports=ports)
 
 
 def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
-    common.write(f, 0, f"architecture rtl of {arch.entity_name} is", end="\n")
+    common.write(f, 0, f"architecture rtl of {arch.entity_name} is")
 
     common.write(f, 1, "-- Component declaration")
     for pe in arch.processing_elements:
@@ -48,7 +37,7 @@ def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
         mem.write_component_declaration(f, dt)
     arch.write_signal_declarations(f, dt)
 
-    common.write(f, 0, "begin", start="\n", end="\n")
+    common.write(f, 0, "begin", start="\n")
 
     common.write(f, 1, "-- Component instantiation")
     for pe in arch.processing_elements:

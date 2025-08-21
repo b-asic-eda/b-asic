@@ -5,15 +5,10 @@ Contains some operations that are not really operations, but needed for other re
 """
 
 import random
-from typing import TYPE_CHECKING, NoReturn
 
-from b_asic.code_printer.vhdl.common import VHDL_TAB
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.types import ShapeCoordinates
-
-if TYPE_CHECKING:
-    from b_asic.architecture import ProcessingElement
 
 
 class DontCare(AbstractOperation):
@@ -92,14 +87,6 @@ class DontCare(AbstractOperation):
         # doc-string inherited
         return ((0, 0.5),)
 
-    @classmethod
-    def _vhdl(cls, pe: "ProcessingElement") -> tuple[str, str]:
-        code = super()._vhdl(pe)
-
-        new_arch_code = f"{VHDL_TAB}res_0 <= (others => '-');\n"
-
-        return code[0], code[1] + new_arch_code
-
 
 class Sink(AbstractOperation):
     """
@@ -132,7 +119,7 @@ class Sink(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("sink")
 
-    def evaluate(self) -> NoReturn:
+    def evaluate(self) -> None:
         raise NotImplementedError
 
     @property

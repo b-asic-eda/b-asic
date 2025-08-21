@@ -2,7 +2,7 @@
 B-ASIC Data Type Module.
 """
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -13,7 +13,7 @@ class NumRepresentation(Enum):
 
 
 @dataclass
-class DataType:
+class DataType(ABC):
     internal_wl: tuple[int, int]
     input_wl: tuple[int, int] | None = None
     output_wl: tuple[int, int] | None = None
@@ -44,20 +44,53 @@ class DataType:
 
     @property
     def internal_high(self) -> int:
-        return sum(self.internal_wl) - 1
+        return self.internal_length - 1
+
+    @property
+    @abstractmethod
+    def internal_low(self) -> int:
+        raise NotImplementedError()
+
+    @property
+    def input_length(self) -> int:
+        return sum(self.input_wl)
 
     @property
     def input_high(self) -> int:
-        return sum(self.input_wl) - 1
+        return self.input_length - 1
+
+    @property
+    def output_length(self) -> int:
+        return sum(self.output_wl)
 
     @property
     def output_high(self) -> int:
-        return sum(self.output_wl) - 1
+        return self.output_length - 1
 
 
 @dataclass
 class VhdlDataType(DataType):
-    vhdl_2008: bool = True
+    vhdl_2008: bool = False
+
+    # @property
+    # def internal_high(self) -> int:
+    #     _HIGH_LUT = {
+    #         (0, 0): sum(self.internal_wl) - 1,
+    #         (0, 1): 2*sum(self.internal_wl) - 1,
+    #         (1, 0): self.internal_wl[0] - 1,
+    #         (1, 1): 2*sum(self.internal_wl) - 1,
+    #     }
+    #     return _HIGH_LUT[(self.vhdl_2008, self.is_complex)]
+
+    @property
+    def internal_low(self) -> int:
+        _LOW_LUT = {
+            (0, 0): 0,
+            (0, 1): 0,
+            (1, 0): -self.internal_wl[1],
+            (1, 1): 0,
+        }
+        return _LOW_LUT[(self.vhdl_2008, self.is_complex)]
 
     def get_type_str(self) -> str:
         _TYPE_LUT = {
@@ -75,15 +108,21 @@ class VhdlDataType(DataType):
         return _TYPE_LUT[(self.vhdl_2008, self.is_signed, self.is_complex)]()
 
     def get_input_type_str(self) -> str:
-        return f"std_logic_vector({self.input_high()} downto 0)"
+        if self.is_complex:
+            return f"std_logic_vector({2 * self.input_length - 1} downto 0)"
+        else:
+            return f"std_logic_vector({self.input_length - 1} downto 0)"
 
     def get_output_type_str(self) -> str:
-        return f"std_logic_vector({self.output_high()} downto 0)"
+        if self.is_complex:
+            return f"std_logic_vector({2 * self.output_length - 1} downto 0)"
+        else:
+            return f"std_logic_vector({self.output_length - 1} downto 0)"
 
     def _match_unsigned_real(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return f"unsigned({self.w1 - 1} downto -{self.w0 - 1})"
+                return f"unsigned({self.internal_high} downto {self.internal_low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -92,7 +131,7 @@ class VhdlDataType(DataType):
     def _match_unsigned_complex(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return "complex"
+                return f"std_logic_vector({2 * self.internal_length - 1} downto {self.internal_low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -101,7 +140,7 @@ class VhdlDataType(DataType):
     def _match_signed_real(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return f"signed({self.w0 + self.w1 - 1} downto 0)"
+                return f"signed({self.internal_high} downto {self.internal_low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -110,7 +149,7 @@ class VhdlDataType(DataType):
     def _match_signed_complex(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return "complex"
+                return f"std_logic_vector({2 * self.internal_length - 1} downto {self.internal_low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -119,7 +158,7 @@ class VhdlDataType(DataType):
     def _match_unsigned_real_2008(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return f"ufixed({self.w1 - 1} downto -{self.w0 - 1})"
+                return f"ufixed({self.internal_high} downto {self.internal_low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -128,7 +167,7 @@ class VhdlDataType(DataType):
     def _match_unsigned_complex_2008(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return "complex"
+                return f"std_logic_vector({2 * self.internal_length - 1} downto {self.internal_low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -137,7 +176,7 @@ class VhdlDataType(DataType):
     def _match_signed_real_2008(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return f"sfixed({self.w1 - 1} downto -{self.w0 - 1})"
+                return f"sfixed({self.internal_high} downto {self.internal_low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -146,7 +185,7 @@ class VhdlDataType(DataType):
     def _match_signed_complex_2008(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return "complex"
+                return f"std_logic_vector({2 * self.internal_length - 1} downto {self.internal_low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:

@@ -17,12 +17,12 @@ def entity(f: TextIO, arch: "Architecture") -> None:
 
 
 def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
-    common.write(f, 0, f"architecture tb of {arch.entity_name}_tb is", end="\n")
+    common.write(f, 0, f"architecture tb of {arch.entity_name}_tb is")
 
-    arch.write_component_declaration(f)
+    arch.write_component_declaration(f, dt)
     _write_constant_generation(f, dt)
     _write_signal_generation(f, arch, dt)
-    common.write(f, 0, "begin", end="\n")
+    common.write(f, 0, "begin")
 
     arch.write_component_instantiation(f)
     _write_clock_generation(f)
@@ -51,7 +51,7 @@ def _write_signal_generation(f: TextIO, arch: "Architecture", dt: VhdlDataType) 
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_in",
-            f"std_logic_vector({dt.input_high} downto 0)",
+            dt.get_input_type_str(),
             "(others => '0')",
         )
     outputs = [pe for pe in arch.processing_elements if pe.operation_type == Output]
@@ -59,7 +59,7 @@ def _write_signal_generation(f: TextIO, arch: "Architecture", dt: VhdlDataType) 
         common.signal_declaration(
             f,
             f"tb_{pe.entity_name}_0_out",
-            f"std_logic_vector({dt.output_high} downto 0)",
+            dt.get_input_type_str(),
             "(others => '0')",
         )
 

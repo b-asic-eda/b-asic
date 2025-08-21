@@ -1,15 +1,18 @@
 import os
 import shutil
-from pathlib import Path
 
 import pytest
 
-from b_asic.codegen.test import cocotb_test
+from b_asic.code_printer.test import cocotb_test
+from b_asic.code_printer.vhdl.vhdl_printer import VhdlPrinter
+from b_asic.data_type import VhdlDataType
 
 
 def test_r3bf_compile(tmp_path, arch_r3bf):
     pytest.importorskip("cocotb_tools")
-    arch_r3bf.write_code(tmp_path, 32, 32, 32)
+    dt = VhdlDataType(16, is_complex=True)
+    printer = VhdlPrinter(dt)
+    printer.print(tmp_path, arch_r3bf)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
@@ -27,13 +30,9 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
 
 def test_r3bf_simulate(tmp_path, arch_r3bf):
     pytest.importorskip("cocotb_tools")
-    arch_r3bf.write_code(tmp_path, 32, 32, 32)
-
-    # Override the generated file with the ones specified in the directory "overrides"
-    override_dir = Path(__file__).resolve().parent / "overrides"
-    override_files = [f for f in override_dir.iterdir() if f.is_file()]
-    for file in override_files:
-        shutil.copy(file, tmp_path / "r3bf_0" / file.name)
+    dt = VhdlDataType(16, is_complex=True)
+    printer = VhdlPrinter(dt)
+    printer.print(tmp_path, arch_r3bf)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
@@ -48,7 +47,7 @@ def test_r3bf_simulate(tmp_path, arch_r3bf):
         build_dir=tmp_path,
     )
 
-    runner.test(hdl_toplevel="r3bf", test_module="test_r3bf")
+    runner.test(hdl_toplevel="r3bf", test_module="test_r3bf", waves=True)
 
 
 @cocotb_test()
