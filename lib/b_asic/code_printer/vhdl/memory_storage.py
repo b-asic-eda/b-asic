@@ -89,7 +89,7 @@ def architecture(
         If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K", "MLAB" or "logic".
     """
     # Code settings
-    mem_depth = len(memory.assignment)
+    MEM_DEPTH = len(memory.assignment)
     schedule_time = next(iter(memory.assignment)).schedule_time
 
     # Address generation "ROMs"
@@ -106,16 +106,14 @@ def architecture(
     # Architecture declarative region begin
     #
     common.write(f, 1, "-- HDL memory description")
-    common.constant_declaration(f, "MEM_DEPTH", "integer", mem_depth, name_pad=16)
     common.type_declaration(
-        f, "mem_type", f"array(0 to MEM_DEPTH-1) of {dt.get_type_str()}"
+        f, "mem_type", f"array(0 to {MEM_DEPTH - 1}) of {dt.get_type_str()}"
     )
     if vivado_ram_style is not None:
         common.signal_declaration(
             f,
             name="memory",
             signal_type="mem_type",
-            name_pad=18,
             vivado_ram_style=vivado_ram_style,
         )
     elif quartus_ram_style is not None:
@@ -123,11 +121,10 @@ def architecture(
             f,
             name="memory",
             signal_type="mem_type",
-            name_pad=18,
             quartus_ram_style=quartus_ram_style,
         )
     else:
-        common.signal_declaration(f, name="memory", signal_type="mem_type", name_pad=18)
+        common.signal_declaration(f, name="memory", signal_type="mem_type")
 
     # Schedule time counter pipelined signals
     for i in range(adr_pipe_depth):
@@ -135,37 +132,33 @@ def architecture(
             f,
             name=f"schedule_cnt{i + 1}",
             signal_type=f"unsigned({memory.schedule_time.bit_length() - 1} downto 0)",
-            name_pad=18,
         )
-    common.constant_declaration(
-        f,
-        name="ADR_LEN",
-        signal_type="integer",
-        value=f"{memory.schedule_time.bit_length() - int(math.log2(adr_mux_size)) * adr_pipe_depth}",
-        name_pad=16,
+    ADR_LEN = (
+        memory.schedule_time.bit_length()
+        - int(math.log2(adr_mux_size)) * adr_pipe_depth
     )
+
     common.alias_declaration(
         f,
         name="schedule_cnt_adr",
-        signal_type="unsigned(ADR_LEN-1 downto 0)",
-        value="schedule_cnt(ADR_LEN-1 downto 0)",
-        name_pad=19,
+        signal_type=f"unsigned({ADR_LEN - 1} downto 0)",
+        value=f"schedule_cnt({ADR_LEN - 1} downto 0)",
     )
 
     # Address generation signals
     common.write(f, 1, "-- Memory address generation", start="\n")
     for i in range(memory.input_count):
-        common.signal_declaration(f, f"read_port_{i}", dt.get_type_str(), name_pad=18)
+        common.signal_declaration(f, f"read_port_{i}", dt.get_type_str())
         common.signal_declaration(
-            f, f"read_adr_{i}", "integer range 0 to MEM_DEPTH-1", name_pad=18
+            f, f"read_adr_{i}", f"unsigned({MEM_DEPTH.bit_length() - 1} downto 0)"
         )
-        common.signal_declaration(f, f"read_en_{i}", "std_logic", name_pad=18)
+        common.signal_declaration(f, f"read_en_{i}", "std_logic")
     for i in range(memory.output_count):
-        common.signal_declaration(f, f"write_port_{i}", dt.get_type_str(), name_pad=18)
+        common.signal_declaration(f, f"write_port_{i}", dt.get_type_str())
         common.signal_declaration(
-            f, f"write_adr_{i}", "integer range 0 to MEM_DEPTH-1", name_pad=18
+            f, f"write_adr_{i}", f"unsigned({MEM_DEPTH.bit_length() - 1} downto 0)"
         )
-        common.signal_declaration(f, f"write_en_{i}", "std_logic", name_pad=18)
+        common.signal_declaration(f, f"write_en_{i}", "std_logic")
 
     # Address generation mutltiplexing signals
     common.write(f, 1, "-- Address generation multiplexing signals", start="\n")
@@ -175,8 +168,7 @@ def architecture(
                 common.signal_declaration(
                     f,
                     f"write_adr_{write_port_idx}_{depth}_{rom}",
-                    signal_type="integer range 0 to MEM_DEPTH-1",
-                    name_pad=18,
+                    f"unsigned({MEM_DEPTH.bit_length() - 1} downto 0)",
                 )
     for write_port_idx in range(memory.output_count):
         for depth in range(adr_pipe_depth + 1):
@@ -185,7 +177,6 @@ def architecture(
                     f,
                     f"write_en_{write_port_idx}_{depth}_{rom}",
                     signal_type="std_logic",
-                    name_pad=18,
                 )
     for read_port_idx in range(memory.input_count):
         for depth in range(adr_pipe_depth + 1):
@@ -193,17 +184,14 @@ def architecture(
                 common.signal_declaration(
                     f,
                     f"read_adr_{read_port_idx}_{depth}_{rom}",
-                    signal_type="integer range 0 to MEM_DEPTH-1",
-                    name_pad=18,
+                    f"unsigned({MEM_DEPTH.bit_length() - 1} downto 0)",
                 )
 
     # Input sync signals
     if input_sync:
         common.write(f, 1, "-- Input synchronization", start="\n")
         for i in range(memory.input_count):
-            common.signal_declaration(
-                f, f"p_{i}_in_sync", dt.get_type_str(), name_pad=18
-            )
+            common.signal_declaration(f, f"p_{i}_in_sync", dt.get_type_str())
 
     #
     # Architecture body begin
@@ -334,11 +322,13 @@ def architecture(
                     (
                         4,
                         (
-                            f"when {mv.start_time % schedule_time} mod"
-                            f" {elements_per_rom} =>"
+                            f"when {(mv.start_time % schedule_time) % elements_per_rom} =>"
                         ),
                     ),
-                    (5, f"write_adr_0_{0}_{rom} <= {i};"),
+                    (
+                        5,
+                        f"write_adr_0_{0}_{rom} <= to_unsigned({i}, write_adr_0_{0}_{rom}'length);",
+                    ),
                     (5, f"write_en_0_{0}_{rom} <= '1';"),
                 ],
             )
@@ -346,7 +336,7 @@ def architecture(
             f,
             [
                 (4, "when others =>"),
-                (5, f"write_adr_0_{0}_{rom} <= 0;"),
+                (5, f"write_adr_0_{0}_{rom} <= (others => '-');"),
                 (5, f"write_en_0_{0}_{rom} <= '0';"),
                 (3, "end case;"),
             ],
@@ -373,8 +363,8 @@ def architecture(
                 3,
                 (
                     f"case to_integer(schedule_cnt{layer + 1}("
-                    f"ADR_LEN+{layer * bits_per_mux + bits_per_mux - 1} downto "
-                    f"ADR_LEN+{layer * bits_per_mux}"
+                    f"{ADR_LEN + layer * bits_per_mux + bits_per_mux - 1} downto "
+                    f"{ADR_LEN + layer * bits_per_mux}"
                     ")) is"
                 ),
             )
@@ -412,7 +402,7 @@ def architecture(
                 f,
                 [
                     (4, "when others =>"),
-                    (5, f"write_adr_0_{layer + 1}_{mux_idx} <= 0;"),
+                    (5, f"write_adr_0_{layer + 1}_{mux_idx} <= (others => '-');"),
                     (5, f"write_en_0_{layer + 1}_{mux_idx} <= '0';"),
                     (3, "end case;"),
                 ],
@@ -462,15 +452,18 @@ def architecture(
                     f,
                     [
                         (4, f"-- {mv!r}"),
-                        (4, f"when {idx} mod {elements_per_rom} =>"),
-                        (5, f"read_adr_0_{0}_{rom} <= {i};"),
+                        (4, f"when {idx % elements_per_rom} =>"),
+                        (
+                            5,
+                            f"read_adr_0_{0}_{rom} <= to_unsigned({i}, write_adr_0_{0}_{rom}'length);",
+                        ),
                     ],
                 )
         common.write_lines(
             f,
             [
                 (4, "when others =>"),
-                (5, f"read_adr_0_{0}_{rom} <= 0;"),
+                (5, f"read_adr_0_{0}_{rom} <= (others => '-');"),
                 (3, "end case;"),
             ],
         )
@@ -496,8 +489,8 @@ def architecture(
                 3,
                 (
                     f"case to_integer(schedule_cnt{layer + 1}("
-                    f"ADR_LEN+{layer * bits_per_mux + bits_per_mux - 1} downto "
-                    f"ADR_LEN+{layer * bits_per_mux}"
+                    f"{ADR_LEN + layer * bits_per_mux + bits_per_mux - 1} downto "
+                    f"{ADR_LEN + layer * bits_per_mux}"
                     ")) is"
                 ),
             )
@@ -528,7 +521,7 @@ def architecture(
                 f,
                 [
                     (4, "when others =>"),
-                    (5, f"read_adr_0_{layer + 1}_{mux_idx} <= 0;"),
+                    (5, f"read_adr_0_{layer + 1}_{mux_idx} <= (others => '-');"),
                     (3, "end case;"),
                 ],
             )
@@ -537,4 +530,4 @@ def architecture(
             )
             common.write(f, 1, "")
 
-    common.write(f, 0, "end architecture rtl;", start="\n")
+    common.write(f, 0, "end architecture rtl;")

@@ -567,13 +567,13 @@ def asynchronous_read_memory(
             f,
             [
                 (3, f"if {we} = '1' then"),
-                (4, f"memory({address}) <= {write_name};"),
+                (4, f"memory(to_integer({address})) <= {write_name};"),
                 (3, "end if;"),
             ],
         )
     synchronous_process_epilogue(f, clk=clk, name=name)
     for read_name, address, _ in read_ports:
-        write(f, 1, f"{read_name} <= memory({address});")
+        write(f, 1, f"{read_name} <= memory(to_integer({address}));")
 
 
 def is_valid_vhdl_identifier(identifier: str) -> bool:
