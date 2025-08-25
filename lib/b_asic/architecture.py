@@ -54,7 +54,7 @@ def _fixed_point_bits(num: float) -> int:
     int_part = math.floor(num)
     int_bits = _signed_bit_length(int_part)
 
-    frac_part = num - int_part
+    frac_part = abs(num) - abs(int(num))
     if frac_part == 0:
         return int_bits, 0
     man, _ = math.frexp(frac_part)
