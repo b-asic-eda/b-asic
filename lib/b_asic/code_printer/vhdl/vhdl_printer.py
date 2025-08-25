@@ -178,17 +178,6 @@ class VhdlPrinter(Printer):
         common.write(code[1], 1, "res_0 <= p_0_in_reg_0 + p_1_in_reg_0;")
         return code[0].getvalue(), code[1].getvalue()
 
-    # def print_Subtraction_fixed_point_real(self) -> tuple[str, str]:
-    #     code = (io.StringIO(), io.StringIO())
-    #     common.write(code[1], 1, "res_0 <= p_0_in_reg_0 - p_1_in_reg_0;")
-    #     return code
-
-    # def _print_add_sub(self, op: str) -> tuple[str, str]:
-    #     return "", f"res_0 <= p_0_in_reg_0 {op} p_1_in_reg_0;"
-
-    # print_Addition_fixed_point_real = functools.partial(_print_add_sub, op="+")
-    # print_Subtraction_fixed_point_real = functools.partial(_print_add_sub, op="-")
-
     def print_AddSub(self) -> tuple[str, str]:
         return getattr(
             self,  # TODO: Default to operation._vhdl somewhere...
@@ -197,11 +186,21 @@ class VhdlPrinter(Printer):
 
     def print_AddSub_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
-        common.write(
-            code[1],
-            1,
-            "res_0 <= p_0_in_reg_0 + p_1_in_reg_0 when is_add = '1' else p_0_in_reg_0 - p_1_in_reg_0;",
+
+        common.signal_declaration(
+            code[0], "tmp_res", f"signed({self._dt.input_length} downto 0)"
         )
+        common.signal_declaration(code[0], "op_b", self._dt.get_type_str())
+
+        common.write(
+            code[1], 1, "op_b <= p_1_in_reg_0 when is_add = '1' else not p_1_in_reg_0;"
+        )
+
+        common.write(
+            code[1], 1, "tmp_res <= (p_0_in_reg_0 & '1') + (op_b & not is_add);"
+        )
+        common.write(code[1], 1, f"res_0 <= tmp_res({self._dt.input_length} downto 1);")
+
         return code[0].getvalue(), code[1].getvalue()
 
     def print_AddSub_fixed_point_complex(self) -> tuple[str, str]:
@@ -215,7 +214,7 @@ class VhdlPrinter(Printer):
         common.write(
             code[0],
             1,
-            f"signal re_res, im_res : signed({self._dt.internal_length - 1} downto 0);",
+            f"signal re_res, im_res : signed({self._dt.internal_length} downto 0);",
         )
 
         common.write(
@@ -231,30 +230,24 @@ class VhdlPrinter(Printer):
         common.write(
             code[1],
             1,
-            f"re_op_b <= signed(p_1_in_reg_0({2 * self._dt.internal_length - 1} downto {self._dt.internal_length}));",
+            f"re_op_b <= signed(p_1_in_reg_0({2 * self._dt.internal_length - 1} downto {self._dt.internal_length}))"
+            f"when is_add = '1' else not signed(p_1_in_reg_0({2 * self._dt.internal_length - 1} downto {self._dt.internal_length}));",
         )
         common.write(
             code[1],
             1,
-            f"im_op_b <= signed(p_1_in_reg_0({self._dt.internal_length - 1} downto 0));",
+            f"im_op_b <= signed(p_1_in_reg_0({self._dt.internal_length - 1} downto 0))"
+            f"when is_add = '1' else not signed(p_1_in_reg_0({self._dt.internal_length - 1} downto 0));",
         )
 
+        common.write(code[1], 1, "re_res <= (re_op_a & '1') + (re_op_b & not is_add);")
+        common.write(code[1], 1, "im_res <= (im_op_a & '1') + (im_op_b & not is_add);")
         common.write(
             code[1],
             1,
-            "re_res <= re_op_a + re_op_b when is_add = '1' else re_op_a - re_op_b;",
+            f"res_0 <= std_logic_vector(re_res({self._dt.input_length} downto 1)) "
+            f"& std_logic_vector(im_res({self._dt.input_length} downto 1));",
         )
-        common.write(
-            code[1],
-            1,
-            "im_res <= im_op_a + im_op_b when is_add = '1' else im_op_a - im_op_b;",
-        )
-
-        common.write(
-            code[1], 1, "res_0 <= std_logic_vector(re_res) & std_logic_vector(im_res);"
-        )
-
-        # p_0_out <= re_res & im_res;
         return code[0].getvalue(), code[1].getvalue()
 
     def print_ConstantMultiplication(self) -> tuple[str, str]:
