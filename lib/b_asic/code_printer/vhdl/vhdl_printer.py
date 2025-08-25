@@ -21,7 +21,7 @@ class VhdlPrinter(Printer):
     def __init__(self, dt: VhdlDataType) -> None:
         super().__init__(dt=dt)
 
-    def print(self, path: str | Path, arch: Architecture, *args, **kwargs) -> None:
+    def print(self, path: str | Path, arch: Architecture, **kwargs) -> None:
         path = Path(path)
         counter = 0
         dir_path = path / f"{arch.entity_name}_{counter}"
@@ -45,10 +45,12 @@ class VhdlPrinter(Printer):
         with (dir_path / f"{arch.entity_name}.vhd").open("w") as f:
             common.write(f, 0, self.print_Architecture(arch))
 
-        with (dir_path / f"{arch.entity_name}_tb.vhd").open("w") as f:
-            common.write(f, 0, self.print_test_bench(arch))
+        vhdl_tb = kwargs.get("vhdl_tb", False)
+        if vhdl_tb:
+            with (dir_path / f"{arch.entity_name}_tb.vhd").open("w") as f:
+                common.write(f, 0, self.print_vhdl_tb(arch))
 
-    def print_Architecture(self, arch: Architecture, *args, **kwargs) -> str | None:
+    def print_Architecture(self, arch: Architecture, **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
@@ -58,7 +60,7 @@ class VhdlPrinter(Printer):
         top_level.architecture(f, arch, self._dt)
         return f.getvalue()
 
-    def print_Memory(self, mem: Memory, *args, **kwargs) -> str | None:
+    def print_Memory(self, mem: Memory, **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
@@ -69,9 +71,7 @@ class VhdlPrinter(Printer):
         )
         return f.getvalue()
 
-    def print_ProcessingElement(
-        self, pe: ProcessingElement, *args, **kwargs
-    ) -> str | None:
+    def print_ProcessingElement(self, pe: ProcessingElement, **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
@@ -86,7 +86,7 @@ class VhdlPrinter(Printer):
 
         return f.getvalue()
 
-    def print_test_bench(self, arch: Architecture, *args, **kwargs) -> str | None:
+    def print_vhdl_tb(self, arch: Architecture) -> str:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)

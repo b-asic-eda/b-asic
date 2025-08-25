@@ -12,7 +12,7 @@ def test_mat_inv_compile(tmp_path, arch_mat_inv):
     pytest.importorskip("cocotb_tools")
     dt = VhdlDataType(7)
     printer = VhdlPrinter(dt)
-    printer.print(tmp_path, arch_mat_inv)
+    printer.print(tmp_path, arch_mat_inv, vhdl_tb=True)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):

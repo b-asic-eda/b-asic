@@ -20,7 +20,7 @@ def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
     common.write(f, 0, f"architecture tb of {arch.entity_name}_tb is")
 
     arch.write_component_declaration(f, dt)
-    _write_constant_generation(f, dt)
+    common.constant_declaration(f, "CLK_PERIOD", "time", "2 ns")
     _write_signal_generation(f, arch, dt)
     common.write(f, 0, "begin")
 
@@ -28,19 +28,6 @@ def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
     _write_clock_generation(f)
     _write_stimulus_generation(f)
     common.write(f, 0, "end architecture tb;", start="", end="\n\n")
-
-
-def _write_constant_generation(f: TextIO, dt: VhdlDataType) -> None:
-    common.constant_declaration(f, "CLK_PERIOD", "time", "2 ns")
-
-    common.constant_declaration(f, "WL_INPUT_INT", "integer", f"{dt.input_wl[0]}")
-    common.constant_declaration(f, "WL_INPUT_FRAC", "integer", f"{dt.input_wl[1]}")
-    common.constant_declaration(f, "WL_INTERNAL_INT", "integer", f"{dt.internal_wl[0]}")
-    common.constant_declaration(
-        f, "WL_INTERNAL_FRAC", "integer", f"{dt.internal_wl[1]}"
-    )
-    common.constant_declaration(f, "WL_OUTPUT_INT", "integer", f"{dt.output_wl[0]}")
-    common.constant_declaration(f, "WL_OUTPUT_FRAC", "integer", f"{dt.output_wl[1]}")
 
 
 def _write_signal_generation(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:

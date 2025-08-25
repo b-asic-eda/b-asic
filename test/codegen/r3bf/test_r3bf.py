@@ -12,7 +12,7 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
     pytest.importorskip("cocotb_tools")
     dt = VhdlDataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
-    printer.print(tmp_path, arch_r3bf)
+    printer.print(tmp_path, arch_r3bf, vhdl_tb=True)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
