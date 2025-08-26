@@ -2,15 +2,17 @@
 Module for VHDL code generation of processing elements.
 """
 
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
 
 import numpy as np
 
-from b_asic.architecture import ProcessingElement
 from b_asic.code_printer.vhdl import common
 from b_asic.data_type import VhdlDataType
 from b_asic.process import OperatorProcess
 from b_asic.special_operations import Input, Output
+
+if TYPE_CHECKING:
+    from b_asic.architecture import ProcessingElement
 
 
 def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:

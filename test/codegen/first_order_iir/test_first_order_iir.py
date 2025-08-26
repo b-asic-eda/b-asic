@@ -3,9 +3,9 @@ import shutil
 
 import pytest
 
+from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test
-from b_asic.code_printer.vhdl.vhdl_printer import VhdlPrinter
-from lib.b_asic.data_type import VhdlDataType
+from b_asic.data_type import VhdlDataType
 
 
 def test_first_order_iir_compile(tmp_path, arch_first_order_iir):

@@ -3,8 +3,8 @@ import shutil
 
 import pytest
 
+from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test
-from b_asic.code_printer.vhdl.vhdl_printer import VhdlPrinter
 from b_asic.data_type import VhdlDataType
 
 

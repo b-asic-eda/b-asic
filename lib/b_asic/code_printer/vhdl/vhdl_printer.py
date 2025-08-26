@@ -4,8 +4,8 @@ Module for generating VHDL code for described architectures.
 
 import io
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.code_printer.printer import Printer
 from b_asic.code_printer.vhdl import (
     common,
@@ -16,12 +16,15 @@ from b_asic.code_printer.vhdl import (
 )
 from b_asic.data_type import VhdlDataType
 
+if TYPE_CHECKING:
+    from b_asic.architecture import Architecture, Memory, ProcessingElement
+
 
 class VhdlPrinter(Printer):
     def __init__(self, dt: VhdlDataType) -> None:
         super().__init__(dt=dt)
 
-    def print(self, path: str | Path, arch: Architecture, **kwargs) -> None:
+    def print(self, path: str | Path, arch: "Architecture", **kwargs) -> None:
         path = Path(path)
         counter = 0
         dir_path = path / f"{arch.entity_name}_{counter}"
@@ -50,7 +53,7 @@ class VhdlPrinter(Printer):
             with (dir_path / f"{arch.entity_name}_tb.vhd").open("w") as f:
                 common.write(f, 0, self.print_vhdl_tb(arch))
 
-    def print_Architecture(self, arch: Architecture, **kwargs) -> str | None:
+    def print_Architecture(self, arch: "Architecture", **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
@@ -60,7 +63,7 @@ class VhdlPrinter(Printer):
         top_level.architecture(f, arch, self._dt)
         return f.getvalue()
 
-    def print_Memory(self, mem: Memory, **kwargs) -> str | None:
+    def print_Memory(self, mem: "Memory", **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
@@ -71,22 +74,19 @@ class VhdlPrinter(Printer):
         )
         return f.getvalue()
 
-    def print_ProcessingElement(self, pe: ProcessingElement, **kwargs) -> str | None:
+    def print_ProcessingElement(self, pe: "ProcessingElement", **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
 
         processing_element.entity(f, pe, self._dt)
 
-        method = getattr(
-            self, f"print_{pe.operation_type.__name__}", self.print_default
-        )
-        core_code = method()
+        core_code = self.print_operation(pe)
         processing_element.architecture(f, pe, self._dt.get_type_str(), core_code)
 
         return f.getvalue()
 
-    def print_vhdl_tb(self, arch: Architecture) -> str:
+    def print_vhdl_tb(self, arch: "Architecture") -> str:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
@@ -94,12 +94,6 @@ class VhdlPrinter(Printer):
         test_bench.entity(f, arch)
         test_bench.architecture(f, arch, self._dt)
         return f.getvalue()
-
-    def print_Input(self) -> tuple[str, str]:
-        return getattr(
-            self,  # TODO: Default to operation._vhdl somewhere...
-            f"print_Input_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
-        )()
 
     def print_Input_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
@@ -134,12 +128,6 @@ class VhdlPrinter(Printer):
         )
         return code[0].getvalue(), code[1].getvalue()
 
-    def print_Output(self) -> tuple[str, str]:
-        return getattr(
-            self,  # TODO: Default to operation._vhdl somewhere...
-            f"print_Output_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
-        )()
-
     def print_Output_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
         common.write(code[0], 1, f"signal res_0 : {self._dt.get_output_type_str()};")
@@ -167,22 +155,10 @@ class VhdlPrinter(Printer):
         common.write(code[1], 1, "res_0 <= (others => '-');")
         return code[0].getvalue(), code[1].getvalue()
 
-    def print_Addition(self) -> tuple[str, str]:
-        return getattr(
-            self,  # TODO: Default to operation._vhdl somewhere...
-            f"print_Addition_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
-        )()
-
     def print_Addition_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
         common.write(code[1], 1, "res_0 <= p_0_in_reg_0 + p_1_in_reg_0;")
         return code[0].getvalue(), code[1].getvalue()
-
-    def print_AddSub(self) -> tuple[str, str]:
-        return getattr(
-            self,  # TODO: Default to operation._vhdl somewhere...
-            f"print_AddSub_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
-        )()
 
     def print_AddSub_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
@@ -249,12 +225,6 @@ class VhdlPrinter(Printer):
             f"& std_logic_vector(im_res({self._dt.input_length} downto 1));",
         )
         return code[0].getvalue(), code[1].getvalue()
-
-    def print_ConstantMultiplication(self) -> tuple[str, str]:
-        return getattr(
-            self,  # TODO: Default to operation._vhdl somewhere...
-            f"print_ConstantMultiplication_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
-        )()
 
     def print_ConstantMultiplication_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
@@ -355,12 +325,6 @@ class VhdlPrinter(Printer):
         )
         return code[0].getvalue(), code[1].getvalue()
 
-    def print_MADS(self) -> tuple[str, str]:
-        return getattr(
-            self,  # TODO: Default to operation._vhdl somewhere...
-            f"print_MADS_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
-        )()
-
     def print_MADS_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
 
@@ -388,12 +352,6 @@ class VhdlPrinter(Printer):
         )
 
         return code[0].getvalue(), code[1].getvalue()
-
-    def print_Reciprocal(self) -> tuple[str, str]:
-        return getattr(
-            self,  # TODO: Default to operation._vhdl somewhere...
-            f"print_Reciprocal_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
-        )()
 
     def print_Reciprocal_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
