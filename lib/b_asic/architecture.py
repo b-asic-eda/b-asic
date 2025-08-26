@@ -1017,6 +1017,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             f,
             "schedule_cnt",
             f"unsigned({self.schedule_time.bit_length() - 1} downto 0)",
+            "(others => '0')",
         )
 
     def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:

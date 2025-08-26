@@ -54,7 +54,7 @@ def _write_interconnect(f: TextIO, arch: "Architecture") -> None:
     # Define PE input interconnect
     for pe in arch.processing_elements:
         for port_number in range(pe.input_count):
-            common.write(f, 1, "with to_integer(schedule_cnt) select")
+            common.write(f, 1, "with schedule_cnt select")
             common.write(f, 2, f"{pe.entity_name}_{port_number}_in <=")
             for process in sorted(pe.collection):
                 op = process.operation
@@ -91,16 +91,17 @@ def _write_interconnect(f: TextIO, arch: "Architecture") -> None:
                 if not is_found:
                     raise ValueError("Source resource not found.")
                 time = process.start_time % arch.schedule_time
+                time_bit_str = bin(time)[2:].zfill(pe.schedule_time.bit_length())
                 common.write(
                     f,
                     3,
-                    f"{source_resource.entity_name}_{source_port.index}_out when {time},",
+                    f'{source_resource.entity_name}_{source_port.index}_out when "{time_bit_str}",',
                 )
             common.write(f, 3, "(others => '-') when others;", end="\n\n")
 
     # Define memory input interconnect
     for mem in arch.memories:
-        common.write(f, 1, "with to_integer(schedule_cnt) select")
+        common.write(f, 1, "with schedule_cnt select")
         common.write(f, 2, f"{mem.entity_name}_0_in <=")
         for var in mem.collection:
             # an execution found -> write rows
@@ -116,8 +117,11 @@ def _write_interconnect(f: TextIO, arch: "Architecture") -> None:
             if not is_found:
                 raise ValueError("Source resource not found.")
             time = var.start_time % arch.schedule_time
+            time_bit_str = bin(time)[2:].zfill(pe.schedule_time.bit_length())
             common.write(
-                f, 3, f"{source_pe.entity_name}_{source_port_index}_out when {time},"
+                f,
+                3,
+                f'{source_pe.entity_name}_{source_port_index}_out when "{time_bit_str}",',
             )
         common.write(f, 3, "(others => '-') when others;", end="\n\n")
 

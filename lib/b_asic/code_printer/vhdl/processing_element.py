@@ -118,7 +118,7 @@ def _statement_region_common(
 
     # Generate control signals
     for entry in pe.control_table:
-        common.write(f, 1, "with to_integer(schedule_cnt) select")
+        common.write(f, 1, "with schedule_cnt select")
         common.write(f, 2, f"{entry.name} <=")
         for time, val in entry.values.items():
             if isinstance(val, bool):
@@ -129,7 +129,10 @@ def _statement_region_common(
             else:
                 raise NotImplementedError
             avail_time = (time + 1) % pe.schedule_time if pe._latency > 0 else time
-            common.write(f, 3, f"{val_str} when {avail_time},")
+            avail_time_bit_str = bin(avail_time)[2:].zfill(
+                pe.schedule_time.bit_length()
+            )
+            common.write(f, 3, f'{val_str} when "{avail_time_bit_str}",')
         if isinstance(val, bool):
             common.write(f, 3, "'-' when others;", end="\n\n")
         else:
