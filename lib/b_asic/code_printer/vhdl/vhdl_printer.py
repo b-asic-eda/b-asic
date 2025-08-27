@@ -21,8 +21,11 @@ if TYPE_CHECKING:
 
 
 class VhdlPrinter(Printer):
+    _dt: VhdlDataType
+
     def __init__(self, dt: VhdlDataType) -> None:
         super().__init__(dt=dt)
+        self._dt = dt
 
     def print(self, path: str | Path, arch: "Architecture", **kwargs) -> None:
         path = Path(path)
@@ -33,9 +36,9 @@ class VhdlPrinter(Printer):
             dir_path = path / f"{arch.entity_name}_{counter}"
         dir_path.mkdir(parents=True)
 
-        # TODO: USE?
-        # with (dir_path / "types.vhd").open("w") as f:
-        #     types.package(f, wl)
+        if self._dt.is_complex:
+            with (dir_path / "types.vhd").open("w") as f:
+                common.write(f, 0, self.print_types(), end="")
 
         for pe in arch.processing_elements:
             with (dir_path / f"{pe.entity_name}.vhd").open("w") as f:
@@ -53,11 +56,26 @@ class VhdlPrinter(Printer):
             with (dir_path / f"{arch.entity_name}_tb.vhd").open("w") as f:
                 common.write(f, 0, self.print_vhdl_tb(arch))
 
+    def print_types(self) -> str:
+        f = io.StringIO()
+        common.b_asic_preamble(f)
+        common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+
+        common.write(f, 0, "package types is")
+        common.write(f, 1, "type complex is record")
+        common.write(f, 2, f"re : {self._dt.get_scalar_type_str()};")
+        common.write(f, 2, f"im : {self._dt.get_scalar_type_str()};")
+        common.write(f, 1, "end record;")
+        common.write(f, 0, "end package types;")
+
+        return f.getvalue()
+
     def print_Architecture(self, arch: "Architecture", **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
-        # lines.append("use work.types.all;") # TODO: USE?
+        if self._dt.is_complex:
+            common.package_header(f, "types")
 
         top_level.entity(f, arch, self._dt)
         top_level.architecture(f, arch, self._dt)
@@ -67,6 +85,8 @@ class VhdlPrinter(Printer):
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+        if self._dt.is_complex:
+            common.package_header(f, "types")
 
         memory_storage.entity(f, mem, self._dt)
         memory_storage.architecture(
@@ -78,11 +98,13 @@ class VhdlPrinter(Printer):
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+        if self._dt.is_complex:
+            common.package_header(f, "types")
 
         processing_element.entity(f, pe, self._dt)
 
         core_code = self.print_operation(pe)
-        processing_element.architecture(f, pe, self._dt.get_type_str(), core_code)
+        processing_element.architecture(f, pe, self._dt, core_code)
 
         return f.getvalue()
 
@@ -90,6 +112,8 @@ class VhdlPrinter(Printer):
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+        if self._dt.is_complex:
+            common.package_header(f, "types")
 
         test_bench.entity(f, arch)
         test_bench.architecture(f, arch, self._dt)
@@ -123,8 +147,8 @@ class VhdlPrinter(Printer):
         common.write(
             code[1],
             1,
-            f"res_0 <= std_logic_vector(resize(signed(in_re), {self._dt.internal_length})) & "
-            f"std_logic_vector(resize(signed(in_im), {self._dt.internal_length}));",
+            f"res_0 <= (re => resize(signed(in_re), {self._dt.internal_length}), "
+            f"im => resize(signed(in_im), {self._dt.internal_length}));",
         )
         return code[0].getvalue(), code[1].getvalue()
 
@@ -145,15 +169,16 @@ class VhdlPrinter(Printer):
         common.write(
             code[1],
             1,
-            f"res_0 <= std_logic_vector(resize(signed(p_0_in), {2 * self._dt.output_length}));\n",
+            f"res_0 <= std_logic_vector(resize(signed(p_0_in.re), {self._dt.output_length})) & "
+            f"std_logic_vector(resize(signed(p_0_in.im), {self._dt.output_length}));",
         )
         common.write(code[1], 1, "p_0_out <= res_0;")
         return code[0].getvalue(), code[1].getvalue()
 
     def print_DontCare(self) -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
-        common.write(code[1], 1, "res_0 <= (others => '-');")
-        return code[0].getvalue(), code[1].getvalue()
+        code = io.StringIO()
+        common.write(code, 1, f"res_0 <= {self._dt.get_dontcare_str()};")
+        return "", code.getvalue()
 
     def print_Addition_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
@@ -193,27 +218,17 @@ class VhdlPrinter(Printer):
             f"signal re_res, im_res : signed({self._dt.internal_length} downto 0);",
         )
 
+        common.write(code[1], 1, "re_op_a <= p_0_in_reg_0.re;")
+        common.write(code[1], 1, "im_op_a <= p_0_in_reg_0.im;")
         common.write(
             code[1],
             1,
-            f"re_op_a <= signed(p_0_in_reg_0({2 * self._dt.internal_length - 1} downto {self._dt.internal_length}));",
+            "re_op_b <= p_1_in_reg_0.re when is_add = '1' else not p_1_in_reg_0.re;",
         )
         common.write(
             code[1],
             1,
-            f"im_op_a <= signed(p_0_in_reg_0({self._dt.internal_length - 1} downto 0));",
-        )
-        common.write(
-            code[1],
-            1,
-            f"re_op_b <= signed(p_1_in_reg_0({2 * self._dt.internal_length - 1} downto {self._dt.internal_length}))"
-            f"when is_add = '1' else not signed(p_1_in_reg_0({2 * self._dt.internal_length - 1} downto {self._dt.internal_length}));",
-        )
-        common.write(
-            code[1],
-            1,
-            f"im_op_b <= signed(p_1_in_reg_0({self._dt.internal_length - 1} downto 0))"
-            f"when is_add = '1' else not signed(p_1_in_reg_0({self._dt.internal_length - 1} downto 0));",
+            "im_op_b <= p_1_in_reg_0.im when is_add = '1' else not p_1_in_reg_0.im;",
         )
 
         common.write(code[1], 1, "re_res <= (re_op_a & '1') + (re_op_b & not is_add);")
@@ -221,8 +236,7 @@ class VhdlPrinter(Printer):
         common.write(
             code[1],
             1,
-            f"res_0 <= std_logic_vector(re_res({self._dt.input_length} downto 1)) "
-            f"& std_logic_vector(im_res({self._dt.input_length} downto 1));",
+            f"res_0 <= (re => re_res({self._dt.input_length} downto 1), im => im_res({self._dt.input_length} downto 1));",
         )
         return code[0].getvalue(), code[1].getvalue()
 
@@ -245,12 +259,7 @@ class VhdlPrinter(Printer):
     def print_ConstantMultiplication_fixed_point_complex(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
 
-        print(self._dt)
-        common.write(
-            code[0],
-            1,
-            f"signal a, b : signed({self._dt.internal_length - 1} downto 0);",
-        )
+        common.write(code[0], 1, f"signal a, b : {self._dt.get_scalar_type_str()};")
 
         common.write(
             code[0],
@@ -288,16 +297,8 @@ class VhdlPrinter(Printer):
             f"signal res_0_re, res_0_im : signed({self._dt.internal_high} downto 0);",
         )
 
-        common.write(
-            code[1],
-            1,
-            f"a <= signed(p_0_in_reg_0({2 * sum(self._dt.internal_wl) - 1} downto {sum(self._dt.internal_wl)}));",
-        )
-        common.write(
-            code[1],
-            1,
-            f"b <= signed(p_0_in_reg_0({sum(self._dt.internal_wl) - 1} downto 0));",
-        )
+        common.write(code[1], 1, "a <= p_0_in_reg_0.re;")
+        common.write(code[1], 1, "b <= p_0_in_reg_0.im;")
 
         common.write(code[1], 1, "ac <= a * value_real;")
         common.write(code[1], 1, "ad <= a * value_imag;")
@@ -318,11 +319,7 @@ class VhdlPrinter(Printer):
             "res_0_im <= res_im(res_im'high - WL_VALUE_IMAG_INT downto res_im'high - WL_VALUE_IMAG_INT - res_0_im'high);",
         )
 
-        common.write(
-            code[1],
-            1,
-            "res_0 <= std_logic_vector(res_0_re) & std_logic_vector(res_0_im);",
-        )
+        common.write(code[1], 1, "res_0 <= (re => res_0_re,  im => res_0_im);")
         return code[0].getvalue(), code[1].getvalue()
 
     def print_MADS_fixed_point_real(self) -> tuple[str, str]:

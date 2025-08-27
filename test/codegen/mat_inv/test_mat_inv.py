@@ -47,9 +47,7 @@ def test_mat_inv_simulate(tmp_path, arch_mat_inv):
         build_dir=tmp_path,
     )
 
-    runner.test(
-        hdl_toplevel="mat_inv", test_module="test_mat_inv", waves=True, verbose=True
-    )
+    runner.test(hdl_toplevel="mat_inv", test_module="test_mat_inv")
 
 
 @cocotb_test()

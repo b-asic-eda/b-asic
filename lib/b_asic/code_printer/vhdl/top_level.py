@@ -46,11 +46,11 @@ def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
         mem.write_component_instantiation(f)
 
     _write_schedule_counter(f, arch)
-    _write_interconnect(f, arch)
+    _write_interconnect(f, arch, dt)
     common.write(f, 0, "end architecture rtl;", start="", end="\n\n")
 
 
-def _write_interconnect(f: TextIO, arch: "Architecture") -> None:
+def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
     # Define PE input interconnect
     for pe in arch.processing_elements:
         for port_number in range(pe.input_count):
@@ -97,7 +97,7 @@ def _write_interconnect(f: TextIO, arch: "Architecture") -> None:
                     3,
                     f'{source_resource.entity_name}_{source_port.index}_out when "{time_bit_str}",',
                 )
-            common.write(f, 3, "(others => '-') when others;", end="\n\n")
+            common.write(f, 3, f"{dt.get_dontcare_str()} when others;", end="\n\n")
 
     # Define memory input interconnect
     for mem in arch.memories:
@@ -123,7 +123,7 @@ def _write_interconnect(f: TextIO, arch: "Architecture") -> None:
                 3,
                 f'{source_pe.entity_name}_{source_port_index}_out when "{time_bit_str}",',
             )
-        common.write(f, 3, "(others => '-') when others;", end="\n\n")
+        common.write(f, 3, f"{dt.get_dontcare_str()} when others;", end="\n\n")
 
 
 def _write_schedule_counter(f: TextIO, arch: "Architecture") -> None:

@@ -50,8 +50,6 @@ def test_simple_simulate(tmp_path, arch_simple):
     runner.test(
         hdl_toplevel="simple",
         test_module="test_simple",
-        waves=True,
-        verbose=True,
     )
 
 

@@ -50,8 +50,6 @@ def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
     runner.test(
         hdl_toplevel="first_order_iir",
         test_module="test_first_order_iir",
-        waves=True,
-        verbose=True,
     )
 
 

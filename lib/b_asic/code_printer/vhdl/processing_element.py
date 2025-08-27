@@ -41,21 +41,21 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
 
 
 def architecture(
-    f: TextIO, pe: "ProcessingElement", type_str: str, core_code: tuple[str, str]
+    f: TextIO, pe: "ProcessingElement", dt: VhdlDataType, core_code: tuple[str, str]
 ) -> None:
     common.write(f, 0, f"architecture rtl of {pe.entity_name} is")
 
-    _declarative_region_common(f, pe, type_str)
+    _declarative_region_common(f, pe, dt)
     common.write(f, 0, core_code[0])
     common.write(f, 0, "begin")
-    _statement_region_common(f, pe, type_str)
+    _statement_region_common(f, pe, dt)
     common.write(f, 0, core_code[1])
 
     common.write(f, 0, "end architecture rtl;")
 
 
 def _declarative_region_common(
-    f: TextIO, pe: "ProcessingElement", type_str: str
+    f: TextIO, pe: "ProcessingElement", dt: VhdlDataType
 ) -> None:
     # Define pipeline stages
     for stage in range(pe._latency):
@@ -64,17 +64,21 @@ def _declarative_region_common(
                 common.write(
                     f,
                     1,
-                    f"signal p_{input_port}_in_reg_{stage} : {type_str} := (others => '0');",
+                    f"signal p_{input_port}_in_reg_{stage} : {dt.get_type_str()} := {dt.get_init_val()};",
                 )
         else:
             for output_port in range(pe.output_count):
                 common.write(
-                    f, 1, f"signal res_{output_port}_reg_{stage - 1} : {type_str};"
+                    f,
+                    1,
+                    f"signal res_{output_port}_reg_{stage - 1} : {dt.get_type_str()};",
                 )
 
     # Define results
     for count in range(pe.output_count):
-        common.write(f, 1, f"{common.VHDL_TAB}signal res_{count} : {type_str};")
+        common.write(
+            f, 1, f"{common.VHDL_TAB}signal res_{count} : {dt.get_type_str()};"
+        )
 
     # Define control signals
     for entry in pe.control_table:

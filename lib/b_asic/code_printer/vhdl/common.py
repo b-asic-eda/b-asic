@@ -138,6 +138,10 @@ def ieee_header(
     write(f, 0, "")
 
 
+def package_header(f: TextIO, package_name: str) -> None:
+    write(f, 0, f"use work.{package_name}.all;")
+
+
 def signal_declaration(
     f: TextIO,
     name: str,

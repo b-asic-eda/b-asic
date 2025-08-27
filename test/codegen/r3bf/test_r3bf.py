@@ -47,7 +47,7 @@ def test_r3bf_simulate(tmp_path, arch_r3bf):
         build_dir=tmp_path,
     )
 
-    runner.test(hdl_toplevel="r3bf", test_module="test_r3bf", waves=True)
+    runner.test(hdl_toplevel="r3bf", test_module="test_r3bf")
 
 
 @cocotb_test()
