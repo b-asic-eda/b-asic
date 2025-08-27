@@ -76,9 +76,7 @@ def _declarative_region_common(
 
     # Define results
     for count in range(pe.output_count):
-        common.write(
-            f, 1, f"{common.VHDL_TAB}signal res_{count} : {dt.get_type_str()};"
-        )
+        common.write(f, 1, f"signal res_{count} : {dt.get_type_str()};")
 
     # Define control signals
     for entry in pe.control_table:
