@@ -61,45 +61,58 @@ async def r4bf_test(dut):
     await Timer(2, "ns")
     dut.rst.value = 0
     # Iteration 1
-    dut.input_0_in.value = 1
+    dut.input_0_in_re.value = 0
+    dut.input_0_in_im.value = 1
 
     await Timer(2, "ns")
-    dut.input_0_in.value = 0
+    dut.input_0_in_re.value = 0
+    dut.input_0_in_im.value = 0
 
     await Timer(2, "ns")
-    dut.input_0_in.value = 0
+    dut.input_0_in_re.value = 0
+    dut.input_0_in_im.value = 0
 
     await Timer(2, "ns")
-    dut.input_0_in.value = 0
+    dut.input_0_in_re.value = 0
+    dut.input_0_in_im.value = 0
 
     await Timer(2, "ns")
-    dut.input_0_in.value = 2**16
-
-    # Iteration 2
-    await Timer(2, "ns")
-    assert dut.output_0_out.value == 1
-
-    await Timer(2, "ns")
-    assert dut.output_0_out.value == 1
-
-    await Timer(2, "ns")
-    assert dut.output_0_out.value == 1
-
-    await Timer(2, "ns")
-    assert dut.output_0_out.value == 1
+    dut.input_0_in_re.value = 1
+    dut.input_0_in_im.value = 0
 
     # Iteration 2
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 4 * 2**16
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 1
 
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 0
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 1
 
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 0
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 1
 
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 0
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 1
+
+    # Iteration 2
+    await Timer(2, "ns")
+    assert dut.output_0_out_re.value == 4
+    assert dut.output_0_out_im.value == 0
+
+    await Timer(2, "ns")
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 0
+
+    await Timer(2, "ns")
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 0
+
+    await Timer(2, "ns")
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 0
 
 
 async def _generate_clk(dut):

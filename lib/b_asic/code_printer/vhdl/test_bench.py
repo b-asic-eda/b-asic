@@ -24,7 +24,7 @@ def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
     _write_signal_generation(f, arch, dt)
     common.write(f, 0, "begin")
 
-    arch.write_component_instantiation(f)
+    arch.write_component_instantiation(f, dt)
     _write_clock_generation(f)
     _write_stimulus_generation(f)
     common.write(f, 0, "end architecture tb;", start="", end="\n\n")
@@ -35,20 +35,48 @@ def _write_signal_generation(f: TextIO, arch: "Architecture", dt: VhdlDataType) 
     common.signal_declaration(f, "tb_rst", "std_logic", "'0'")
     inputs = [pe for pe in arch.processing_elements if pe.operation_type == Input]
     for pe in inputs:
-        common.signal_declaration(
-            f,
-            f"tb_{pe.entity_name}_0_in",
-            dt.get_input_type_str(),
-            "(others => '0')",
-        )
+        if dt.is_complex:
+            common.signal_declaration(
+                f,
+                f"tb_{pe.entity_name}_0_in_re",
+                dt.get_input_type_str(),
+                "(others => '0')",
+            )
+            common.signal_declaration(
+                f,
+                f"tb_{pe.entity_name}_0_in_im",
+                dt.get_input_type_str(),
+                "(others => '0')",
+            )
+        else:
+            common.signal_declaration(
+                f,
+                f"tb_{pe.entity_name}_0_in",
+                dt.get_input_type_str(),
+                "(others => '0')",
+            )
     outputs = [pe for pe in arch.processing_elements if pe.operation_type == Output]
     for pe in outputs:
-        common.signal_declaration(
-            f,
-            f"tb_{pe.entity_name}_0_out",
-            dt.get_input_type_str(),
-            "(others => '0')",
-        )
+        if dt.is_complex:
+            common.signal_declaration(
+                f,
+                f"tb_{pe.entity_name}_0_out_re",
+                dt.get_input_type_str(),
+                "(others => '0')",
+            )
+            common.signal_declaration(
+                f,
+                f"tb_{pe.entity_name}_0_out_im",
+                dt.get_input_type_str(),
+                "(others => '0')",
+            )
+        else:
+            common.signal_declaration(
+                f,
+                f"tb_{pe.entity_name}_0_out",
+                dt.get_input_type_str(),
+                "(others => '0')",
+            )
 
 
 def _write_clock_generation(f: TextIO) -> None:

@@ -15,14 +15,16 @@ if TYPE_CHECKING:
 def entity(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
     ports = ["clk : in std_logic", "rst : in std_logic"]
     ports += [
-        f"{pe.entity_name}_0_in : in {dt.get_input_type_str()}"
+        port
         for pe in arch.processing_elements
         if pe.operation_type == Input
+        for port in dt.get_input_port_declaration(pe.entity_name)
     ]
     ports += [
-        f"{pe.entity_name}_0_out : out {dt.get_output_type_str()}"
+        port
         for pe in arch.processing_elements
         if pe.operation_type == Output
+        for port in dt.get_output_port_declaration(pe.entity_name)
     ]
     common.entity_declaration(f, arch.entity_name, ports=ports)
 
@@ -41,7 +43,7 @@ def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
 
     common.write(f, 1, "-- Component instantiation")
     for pe in arch.processing_elements:
-        pe.write_component_instantiation(f)
+        pe.write_component_instantiation(f, dt)
     for mem in arch.memories:
         mem.write_component_instantiation(f)
 

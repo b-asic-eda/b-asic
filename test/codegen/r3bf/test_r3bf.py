@@ -61,44 +61,62 @@ async def r3bf_test(dut):
     await Timer(2, "ns")
     dut.rst.value = 0
 
-    dut.input_0_in.value = 8192 * 2**16
+    dut.input_0_in_re.value = 8192
+    dut.input_0_in_im.value = 0
     await Timer(2, "ns")
-    dut.input_0_in.value = 0
+    dut.input_0_in_re.value = 0
+    dut.input_0_in_im.value = 0
     await Timer(2 * 2, "ns")
 
-    dut.input_0_in.value = 4096 * 2**16
+    dut.input_0_in_re.value = 4096
+    dut.input_0_in_im.value = 0
 
     await Timer(3 * 2, "ns")
-    dut.input_0_in.value = 4096
+    dut.input_0_in_re.value = 0
+    dut.input_0_in_im.value = 4096
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 8192 * 2**16
+    assert dut.output_0_out_re.value == 8192
+    assert dut.output_0_out_im.value == 0
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 8192 * 2**16
+    assert dut.output_0_out_re.value == 8192
+    assert dut.output_0_out_im.value == 0
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 8192 * 2**16
+    assert dut.output_0_out_re.value == 8192
+    assert dut.output_0_out_im.value == 0
 
-    dut.input_0_in.value = 4096
+    dut.input_0_in_re.value = 0
+    dut.input_0_in_im.value = 4096
     await Timer(2, "ns")
-    dut.input_0_in.value = 0
-    assert dut.output_0_out.value == 3 * 4096 * 2**16
+    dut.input_0_in_re.value = 0
+    dut.input_0_in_im.value = 0
+    assert dut.output_0_out_re.value == 3 * 4096
+    assert dut.output_0_out_im.value == 0
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 0
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 0
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 0
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 0
 
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 3 * 4096
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 3 * 4096
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 0
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 0
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 0
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 0
 
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 4096
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 4096
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 4096
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 4096
     await Timer(2, "ns")
-    assert dut.output_0_out.value == 4096
+    assert dut.output_0_out_re.value == 0
+    assert dut.output_0_out_im.value == 4096
 
 
 async def _generate_clk(dut):

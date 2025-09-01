@@ -127,30 +127,14 @@ class VhdlPrinter(Printer):
         return code[0].getvalue(), code[1].getvalue()
 
     def print_Input_fixed_point_complex(self) -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
-
+        code = io.StringIO()
         common.write(
-            code[0],
+            code,
             1,
-            f"signal in_re, in_im : std_logic_vector({self._dt.input_length - 1} downto 0);",
+            f"res_0 <= (re => resize(signed(p_0_in_re), {self._dt.internal_length}), "
+            f"im => resize(signed(p_0_in_im), {self._dt.internal_length}));",
         )
-
-        common.write(
-            code[1],
-            1,
-            f"in_re <= p_0_in({2 * self._dt.input_length - 1} downto {self._dt.input_length});",
-        )
-        common.write(
-            code[1], 1, f"in_im <= p_0_in({self._dt.input_length - 1} downto 0);"
-        )
-
-        common.write(
-            code[1],
-            1,
-            f"res_0 <= (re => resize(signed(in_re), {self._dt.internal_length}), "
-            f"im => resize(signed(in_im), {self._dt.internal_length}));",
-        )
-        return code[0].getvalue(), code[1].getvalue()
+        return "", code.getvalue()
 
     def print_Output_fixed_point_real(self) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
@@ -164,16 +148,18 @@ class VhdlPrinter(Printer):
         return code[0].getvalue(), code[1].getvalue()
 
     def print_Output_fixed_point_complex(self) -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
-        common.write(code[0], 1, f"signal res_0 : {self._dt.get_output_type_str()};")
+        code = io.StringIO()
         common.write(
-            code[1],
+            code,
             1,
-            f"res_0 <= std_logic_vector(resize(signed(p_0_in.re), {self._dt.output_length})) & "
-            f"std_logic_vector(resize(signed(p_0_in.im), {self._dt.output_length}));",
+            f"p_0_out_re <= std_logic_vector(resize(signed(p_0_in.re), {self._dt.output_length}));",
         )
-        common.write(code[1], 1, "p_0_out <= res_0;")
-        return code[0].getvalue(), code[1].getvalue()
+        common.write(
+            code,
+            1,
+            f"p_0_out_im <= std_logic_vector(resize(signed(p_0_in.im), {self._dt.output_length}));",
+        )
+        return "", code.getvalue()
 
     def print_DontCare(self) -> tuple[str, str]:
         code = io.StringIO()

@@ -108,16 +108,10 @@ class VhdlDataType(DataType):
             return self.get_type_str()
 
     def get_input_type_str(self) -> str:
-        if self.is_complex:
-            return f"std_logic_vector({2 * self.input_length - 1} downto 0)"
-        else:
-            return f"std_logic_vector({self.input_length - 1} downto 0)"
+        return f"std_logic_vector({self.input_length - 1} downto 0)"
 
     def get_output_type_str(self) -> str:
-        if self.is_complex:
-            return f"std_logic_vector({2 * self.output_length - 1} downto 0)"
-        else:
-            return f"std_logic_vector({self.output_length - 1} downto 0)"
+        return f"std_logic_vector({self.output_length - 1} downto 0)"
 
     def get_init_val(self) -> str:
         if self.is_complex:
@@ -130,6 +124,42 @@ class VhdlDataType(DataType):
             return "(re => (others => '-'), im => (others => '-'))"
         else:
             return "(others => '-')"
+
+    def get_input_port_declaration(self, entity_name: str) -> list[str]:
+        if self.is_complex:
+            return [
+                f"{entity_name}_0_in_re : in {self.get_input_type_str()}",
+                f"{entity_name}_0_in_im : in {self.get_input_type_str()}",
+            ]
+        else:
+            return [f"{entity_name}_0_in : in {self.get_input_type_str()}"]
+
+    def get_output_port_declaration(self, entity_name: str) -> list[str]:
+        if self.is_complex:
+            return [
+                f"{entity_name}_0_out_re : out {self.get_output_type_str()}",
+                f"{entity_name}_0_out_im : out {self.get_output_type_str()}",
+            ]
+        else:
+            return [f"{entity_name}_0_out : out {self.get_output_type_str()}"]
+
+    def get_input_port_mapping(self, entity_name: str) -> list[str]:
+        if self.is_complex:
+            return [
+                f"p_0_in_re => {entity_name}_0_in_re",
+                f"p_0_in_im => {entity_name}_0_in_im",
+            ]
+        else:
+            return [f"p_0_in => {entity_name}_0_in"]
+
+    def get_output_port_mapping(self, entity_name: str) -> list[str]:
+        if self.is_complex:
+            return [
+                f"p_0_out_re => {entity_name}_0_out_re",
+                f"p_0_out_im => {entity_name}_0_out_im",
+            ]
+        else:
+            return [f"p_0_out => {entity_name}_0_out"]
 
     def _match_unsigned_real(self):
         match self.num_repr:

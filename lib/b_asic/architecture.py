@@ -571,20 +571,20 @@ class ProcessingElement(Resource):
             for count in range(self.input_count)
         ]
         if self.operation_type == Input:
-            ports.append(f"p_0_in : in {dt.get_input_type_str()}")
+            ports.extend(dt.get_input_port_declaration("p"))
 
         ports += [
             f"p_{count}_out : out {dt.get_type_str()}"
             for count in range(self.output_count)
         ]
         if self.operation_type == Output:
-            ports.append(f"p_0_out : out {dt.get_output_type_str()}")
+            ports.extend(dt.get_output_port_declaration("p"))
 
         common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
         common.write(f, 1, "")
 
     def write_signal_declarations(
-        self, f: TextIO, dt: DataType, indent: int = 1
+        self, f: TextIO, dt: VhdlDataType, indent: int = 1
     ) -> None:
         common.write(f, indent, f"-- {self.entity_name} signals")
         if self.operation_type != Input:
@@ -605,21 +605,23 @@ class ProcessingElement(Resource):
                 )
         common.write(f, indent, "")
 
-    def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
+    def write_component_instantiation(
+        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+    ) -> None:
         port_mappings = ["clk => clk", "schedule_cnt => schedule_cnt"]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
         ]
         if self.operation_type == Input:
-            port_mappings.append(f"p_0_in => {self.entity_name}_0_in")
+            port_mappings.extend(dt.get_input_port_mapping(self.entity_name))
 
         port_mappings += [
             f"p_{port_number}_out => {self.entity_name}_{port_number}_out"
             for port_number in range(self.output_count)
         ]
         if self.operation_type == Output:
-            port_mappings.append(f"p_0_out => {self.entity_name}_0_out")
+            port_mappings.extend(dt.get_output_port_mapping(self.entity_name))
 
         common.component_instantiation(
             f,
@@ -995,14 +997,12 @@ of :class:`~b_asic.architecture.ProcessingElement`
         ports = ["clk : in std_logic", "rst : in std_logic"]
 
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
-        ports += [
-            f"{pe.entity_name}_0_in : in {dt.get_input_type_str()}" for pe in inputs
-        ]
+        for pe in inputs:
+            ports.extend(dt.get_input_port_declaration(pe.entity_name))
 
         outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
-        ports += [
-            f"{pe.entity_name}_0_out : out {dt.get_output_type_str()}" for pe in outputs
-        ]
+        for pe in outputs:
+            ports.extend(dt.get_output_port_declaration(pe.entity_name))
 
         common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
 
@@ -1020,16 +1020,36 @@ of :class:`~b_asic.architecture.ProcessingElement`
             "(others => '0')",
         )
 
-    def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
+    def write_component_instantiation(
+        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+    ) -> None:
         port_mappings = ["clk => tb_clk", "rst => tb_rst"]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
-        port_mappings += [
-            f"{pe.entity_name}_0_in => tb_{pe.entity_name}_0_in" for pe in inputs
-        ]
+        for pe in inputs:
+            if dt.is_complex:
+                port_mappings.append(
+                    f"{pe.entity_name}_0_in_re => tb_{pe.entity_name}_0_in_re"
+                )
+                port_mappings.append(
+                    f"{pe.entity_name}_0_in_im => tb_{pe.entity_name}_0_in_im"
+                )
+            else:
+                port_mappings.append(
+                    f"{pe.entity_name}_0_in => tb_{pe.entity_name}_0_in"
+                )
         outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
-        port_mappings += [
-            f"{pe.entity_name}_0_out => tb_{pe.entity_name}_0_out" for pe in outputs
-        ]
+        for pe in outputs:
+            if dt.is_complex:
+                port_mappings.append(
+                    f"{pe.entity_name}_0_out_re => tb_{pe.entity_name}_0_out_re"
+                )
+                port_mappings.append(
+                    f"{pe.entity_name}_0_out_im => tb_{pe.entity_name}_0_out_im"
+                )
+            else:
+                port_mappings.append(
+                    f"{pe.entity_name}_0_out => tb_{pe.entity_name}_0_out"
+                )
         common.component_instantiation(
             f,
             f"{self.entity_name}_inst",

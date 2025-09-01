@@ -29,13 +29,13 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
         f"p_{count}_in : in {dt.get_type_str()}" for count in range(pe.input_count)
     ]
     if pe.operation_type == Input:
-        ports.append(f"p_0_in : in {dt.get_input_type_str()}")
+        ports.extend(dt.get_input_port_declaration("p"))
 
     ports += [
         f"p_{count}_out : out {dt.get_type_str()}" for count in range(pe.output_count)
     ]
     if pe.operation_type == Output:
-        ports.append(f"p_0_out : out {dt.get_output_type_str()}")
+        ports.extend(dt.get_output_port_declaration("p"))
 
     common.entity_declaration(f, pe.entity_name, ports=ports)
 
