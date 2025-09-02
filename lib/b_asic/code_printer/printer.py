@@ -36,7 +36,7 @@ class Printer(ABC):
             self,
             f"print_{pe.operation_type.__name__}_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
             getattr(self, f"print_{pe.operation_type.__name__}", self.print_default),
-        )()
+        )(pe)
 
     def set_data_type(self, dt: DataType):
         self._dt = dt
