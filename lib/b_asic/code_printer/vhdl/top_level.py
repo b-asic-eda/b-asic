@@ -65,6 +65,7 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
                 op_input_port = op.inputs[port_number]
                 # Find the source resource
                 source_port = op_input_port.signals[0].source
+                source_port_index = source_port.index
                 source_op = source_port.operation
                 is_found = False
                 # Check in memories
@@ -84,6 +85,7 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
                         ):
                             source_resource = mem
                             is_found = True
+                            source_port_index = 0
                 if not is_found:
                     for other_pe in arch.processing_elements:
                         for pro in other_pe.collection:
@@ -97,7 +99,7 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
                 common.write(
                     f,
                     3,
-                    f'{source_resource.entity_name}_{source_port.index}_out when "{time_bit_str}",',
+                    f'{source_resource.entity_name}_{source_port_index}_out when "{time_bit_str}",',
                 )
             common.write(f, 3, f"{dt.get_dontcare_str()} when others;", end="\n\n")
 
