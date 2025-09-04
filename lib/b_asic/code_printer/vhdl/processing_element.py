@@ -60,19 +60,22 @@ def _declarative_region_common(
     # Define pipeline stages
     for stage in range(pe._latency):
         if stage == 0:
-            for input_port in range(pe.input_count):
-                common.write(
-                    f,
-                    1,
-                    f"signal p_{input_port}_in_reg_{stage} : {dt.get_type_str()} := {dt.get_init_val()};",
-                )
-        else:
             for output_port in range(pe.output_count):
                 common.write(
                     f,
                     1,
-                    f"signal res_{output_port}_reg_{stage - 1} : {dt.get_type_str()};",
+                    f"signal res_{output_port}_reg_{stage} : {dt.get_type_str()};",
                 )
+        else:
+            for input_port in range(pe.input_count):
+                common.write(
+                    f,
+                    1,
+                    f"signal p_{input_port}_in_reg_{stage - 1} : {dt.get_type_str()} := {dt.get_init_val()};",
+                )
+
+    for input_port in range(pe.input_count):
+        common.signal_declaration(f, f"op_{input_port}", dt.get_type_str())
 
     # Define results
     for count in range(pe.output_count):
@@ -104,21 +107,31 @@ def _statement_region_common(
 
         for stage in range(pe._latency):
             if stage == 0:
-                for count in range(pe.input_count):
-                    common.write(f, 3, f"p_{count}_in_reg_{stage} <= p_{count}_in;")
-            elif stage == 1:
                 for count in range(pe.output_count):
                     common.write(f, 3, f"res_{count}_reg_0 <= res_{count};")
+            elif stage == 1:
+                for count in range(pe.input_count):
+                    common.write(f, 3, f"p_{count}_in_reg_{stage - 1} <= p_{count}_in;")
             elif stage >= 2:
-                for count in range(pe.output_count):
+                for count in range(pe.input_count):
                     common.write(
                         f,
                         3,
-                        f"res_{count}_reg_{stage - 1} <= res_{count}_reg_{stage - 2};",
+                        f"p_{count}_in_reg_{stage - 1} <= p_{count}_in_reg_{stage - 2};",
                     )
 
         common.write(f, 2, "end if;")
         common.write(f, 1, "end process;", end="\n\n")
+
+    for input_port in range(pe.input_count):
+        if pe._latency > 1:
+            common.write(
+                f,
+                1,
+                f"op_{input_port} <= p_{input_port}_in_reg_{pe._latency - 2};",
+            )
+        else:
+            common.write(f, 1, f"op_{input_port} <= p_{input_port}_in;")
 
     # Generate control signals
     for entry in pe.control_table:
@@ -132,7 +145,8 @@ def _statement_region_common(
                 val_str = f'b"{common._get_bin_str(int_val, entry.int_bits + entry.frac_bits)}"'
             else:
                 raise NotImplementedError
-            avail_time = (time + 1) % pe.schedule_time if pe._latency > 0 else time
+            offset = pe._latency - 1 if pe._latency >= 2 else 0
+            avail_time = (time + offset) % pe.schedule_time if pe._latency > 0 else time
             avail_time_bit_str = bin(avail_time)[2:].zfill(
                 pe.schedule_time.bit_length()
             )
@@ -143,9 +157,9 @@ def _statement_region_common(
             common.write(f, 3, "(others => '-') when others;", end="\n\n")
 
     # Connect results to outputs
-    if pe._latency < 2:
+    if pe._latency == 0:
         for count in range(pe.output_count):
             common.write(f, 1, f"p_{count}_out <= res_{count};")
     else:
         for count in range(pe.output_count):
-            common.write(f, 1, f"p_{count}_out <= res_{count}_reg_{pe._latency - 2};")
+            common.write(f, 1, f"p_{count}_out <= res_{count}_reg_0;")

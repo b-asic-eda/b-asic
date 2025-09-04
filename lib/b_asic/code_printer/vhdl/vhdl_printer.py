@@ -174,7 +174,7 @@ class VhdlPrinter(Printer):
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
         code = (io.StringIO(), io.StringIO())
-        common.write(code[1], 1, "res_0 <= p_0_in_reg_0 + p_1_in_reg_0;")
+        common.write(code[1], 1, "res_0 <= op_0 + op_1;")
         return code[0].getvalue(), code[1].getvalue()
 
     def print_AddSub_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
@@ -185,13 +185,9 @@ class VhdlPrinter(Printer):
         )
         common.signal_declaration(code[0], "op_b", self._dt.get_type_str())
 
-        common.write(
-            code[1], 1, "op_b <= p_1_in_reg_0 when is_add = '1' else not p_1_in_reg_0;"
-        )
+        common.write(code[1], 1, "op_b <= op_1 when is_add = '1' else not op_1;")
 
-        common.write(
-            code[1], 1, "tmp_res <= (p_0_in_reg_0 & '1') + (op_b & not is_add);"
-        )
+        common.write(code[1], 1, "tmp_res <= (op_0 & '1') + (op_b & not is_add);")
         common.write(code[1], 1, f"res_0 <= tmp_res({self._dt.input_length} downto 1);")
 
         return code[0].getvalue(), code[1].getvalue()
@@ -212,17 +208,17 @@ class VhdlPrinter(Printer):
             f"signal re_res, im_res : signed({self._dt.internal_length} downto 0);",
         )
 
-        common.write(code[1], 1, "re_op_a <= p_0_in_reg_0.re;")
-        common.write(code[1], 1, "im_op_a <= p_0_in_reg_0.im;")
+        common.write(code[1], 1, "re_op_a <= op_0.re;")
+        common.write(code[1], 1, "im_op_a <= op_0.im;")
         common.write(
             code[1],
             1,
-            "re_op_b <= p_1_in_reg_0.re when is_add = '1' else not p_1_in_reg_0.re;",
+            "re_op_b <= op_1.re when is_add = '1' else not op_1.re;",
         )
         common.write(
             code[1],
             1,
-            "im_op_b <= p_1_in_reg_0.im when is_add = '1' else not p_1_in_reg_0.im;",
+            "im_op_b <= op_1.im when is_add = '1' else not op_1.im;",
         )
 
         common.write(code[1], 1, "re_res <= (re_op_a & '1') + (re_op_b & not is_add);")
@@ -244,7 +240,7 @@ class VhdlPrinter(Printer):
             f"signal mul_res : signed({self._dt.internal_length} + value'length - 1 downto 0);",
         )
 
-        common.write(code[1], 1, "mul_res <= p_0_in_reg_0 * value;")
+        common.write(code[1], 1, "mul_res <= op_0 * value;")
         common.write(
             code[1],
             1,
@@ -281,9 +277,13 @@ class VhdlPrinter(Printer):
             f"signal res_0_re, res_0_im : signed({self._dt.internal_high} downto 0);",
         )
 
-        # Assign inputs
-        common.write(code[1], 1, "a <= p_0_in_reg_0.re;")
-        common.write(code[1], 1, "b <= p_0_in_reg_0.im;")
+        if pe._latency > 2 and not is_complex and is_real and is_imag:
+            # Handle a special case where pipelining is done in the middle
+            common.write(code[1], 1, f"a <= p_0_in_reg_{pe._latency - 3}.re;")
+            common.write(code[1], 1, f"b <= p_0_in_reg_{pe._latency - 3}.im;")
+        else:
+            common.write(code[1], 1, "a <= op_0.re;")
+            common.write(code[1], 1, "b <= op_0.im;")
 
         # Multiplication logic
         if is_complex:
@@ -396,22 +396,22 @@ class VhdlPrinter(Printer):
                 common.write(
                     code[0],
                     1,
-                    f"signal op_a_re : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
+                    f"signal op_a_re, op_a_re_reg : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
                 )
                 common.write(
                     code[0],
                     1,
-                    f"signal op_b_re : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
+                    f"signal op_b_re, op_b_re_reg : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
                 )
                 common.write(
                     code[0],
                     1,
-                    f"signal op_a_im : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
+                    f"signal op_a_im, op_a_im_reg : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
                 )
                 common.write(
                     code[0],
                     1,
-                    f"signal op_b_im : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
+                    f"signal op_b_im, op_b_im_reg : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
                 )
 
                 common.write(code[0], 1, "signal is_real : std_logic;")
@@ -438,8 +438,12 @@ class VhdlPrinter(Printer):
                     "op_b_im <= resize(value_real, op_b_im'length) when is_real = '1' else resize(value_imag, op_b_im'length);",
                 )
 
-                common.write(code[1], 1, "res_re <= op_a_re * op_b_re;")
-                common.write(code[1], 1, "res_im <= op_a_im * op_b_im;")
+                if pe._latency > 2:
+                    common.write(code[1], 1, "res_re <= op_a_re_reg * op_b_re_reg;")
+                    common.write(code[1], 1, "res_im <= op_a_im_reg * op_b_im_reg;")
+                else:
+                    common.write(code[1], 1, "res_re <= op_a_re * op_b_re;")
+                    common.write(code[1], 1, "res_im <= op_a_im * op_b_im;")
 
                 common.write(
                     code[1],
@@ -452,6 +456,17 @@ class VhdlPrinter(Printer):
                     f"res_0_im <= resize(shift_right(res_im, {frac_bits}), res_0_im'length);",
                 )
 
+                if pe._latency > 2:
+                    common.write(code[1], 1, "process(clk)")
+                    common.write(code[1], 1, "begin")
+                    common.write(code[1], 2, "if rising_edge(clk) then")
+                    common.write(code[1], 3, "op_a_re_reg <= op_a_re;")
+                    common.write(code[1], 3, "op_b_re_reg <= op_b_re;")
+                    common.write(code[1], 3, "op_a_im_reg <= op_a_im;")
+                    common.write(code[1], 3, "op_b_im_reg <= op_b_im;")
+                    common.write(code[1], 2, "end if;")
+                    common.write(code[1], 1, "end process;", end="\n\n")
+
         common.write(code[1], 1, "res_0 <= (re => res_0_re,  im => res_0_im);")
 
         return code[0].getvalue(), code[1].getvalue()
@@ -462,12 +477,12 @@ class VhdlPrinter(Printer):
         common.write(
             code[0],
             1,
-            "signal mul_res : signed(p_1_in'length + p_2_in'length - 1 downto 0);",
+            "signal mul_res : signed(op_1'length + op_2'length - 1 downto 0);",
         )
         common.write(code[0], 1, "signal mul_res_quant : signed(res_0'high downto 0);")
         common.write(code[0], 1, "signal add_res : signed(res_0'high downto 0);")
 
-        common.write(code[1], 1, "mul_res <= p_1_in_reg_0 * p_2_in_reg_0;")
+        common.write(code[1], 1, "mul_res <= op_1 * op_2;")
         common.write(
             code[1],
             1,
@@ -476,7 +491,7 @@ class VhdlPrinter(Printer):
         common.write(
             code[1],
             1,
-            "add_res <= p_0_in_reg_0 + mul_res_quant when is_add = '1' else p_0_in_reg_0 - mul_res_quant;",
+            "add_res <= op_0 + mul_res_quant when is_add = '1' else op_0 - mul_res_quant;",
         )
         common.write(
             code[1], 1, "res_0 <= add_res when do_addsub = '1' else mul_res_quant;\n"
@@ -503,7 +518,7 @@ class VhdlPrinter(Printer):
             f"signal tmp_res : signed({self._dt.internal_wl[0] + 2 * self._dt.internal_wl[1] - 1} downto 0);",
         )
 
-        common.write(code[1], 1, "a <= p_0_in_reg_0;")
+        common.write(code[1], 1, "a <= op_0;")
         common.write(
             code[1],
             1,
