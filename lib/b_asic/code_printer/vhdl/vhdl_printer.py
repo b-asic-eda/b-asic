@@ -23,6 +23,8 @@ if TYPE_CHECKING:
 class VhdlPrinter(Printer):
     _dt: VhdlDataType
 
+    CUSTOM_FUNC = "_vhdl"
+
     def __init__(self, dt: VhdlDataType) -> None:
         super().__init__(dt=dt)
         self._dt = dt
@@ -531,5 +533,5 @@ class VhdlPrinter(Printer):
 
         return code[0].getvalue(), code[1].getvalue()
 
-    def print_default(self, pe: "ProcessingElement") -> tuple[str, str]:
+    def print_default(self) -> tuple[str, str]:
         return "", ""

@@ -31,12 +31,24 @@ class Printer(ABC):
     def print_ProcessingElement(self, pe: "ProcessingElement", **kwargs) -> str | None:
         raise NotImplementedError
 
+    @abstractmethod
+    def print_default(self, **kwargs) -> str | None:
+        raise NotImplementedError
+
     def print_operation(self, pe: "ProcessingElement") -> tuple[str, str]:
-        return getattr(
-            self,
-            f"print_{pe.operation_type.__name__}_{self._dt.num_repr.name.lower()}_{'complex' if self._dt.is_complex else 'real'}",
-            getattr(self, f"print_{pe.operation_type.__name__}", self.print_default),
-        )(pe)
+        fname = f"print_{pe.operation_type.__name__}_{self.num_repr()}_{'complex' if self._dt.is_complex else 'real'}"
+        if hasattr(self, fname):
+            return getattr(self, fname)(pe)
+        fname = f"print_{pe.operation_type.__name__}"
+        if hasattr(self, fname):
+            return getattr(self, fname)(pe)
+        if hasattr(pe, self.CUSTOM_FUNC):
+            return getattr(pe, self.CUSTOM_FUNC)(pe)
+        # warning, using default printer
+        return self.print_default()
+
+    def num_repr(self) -> str:
+        return self._dt.num_repr.name.lower()
 
     def set_data_type(self, dt: DataType):
         self._dt = dt
