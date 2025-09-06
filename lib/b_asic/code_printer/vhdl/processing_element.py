@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, TextIO
 
 import numpy as np
 
+from b_asic.code_printer.util import bin_str, time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.data_type import VhdlDataType
 from b_asic.process import OperatorProcess
@@ -61,17 +62,16 @@ def _declarative_region_common(
     for stage in range(pe._latency):
         if stage == 0:
             for output_port in range(pe.output_count):
-                common.write(
-                    f,
-                    1,
-                    f"signal res_{output_port}_reg_{stage} : {dt.get_type_str()};",
+                common.signal_declaration(
+                    f, f"res_{output_port}_reg_{stage}", dt.get_type_str()
                 )
         else:
             for input_port in range(pe.input_count):
-                common.write(
+                common.signal_declaration(
                     f,
-                    1,
-                    f"signal p_{input_port}_in_reg_{stage - 1} : {dt.get_type_str()} := {dt.get_init_val()};",
+                    f"p_{input_port}_in_reg_{stage - 1}",
+                    dt.get_type_str(),
+                    dt.get_init_val(),
                 )
 
     for input_port in range(pe.input_count):
@@ -79,20 +79,20 @@ def _declarative_region_common(
 
     # Define results
     for count in range(pe.output_count):
-        common.write(f, 1, f"signal res_{count} : {dt.get_type_str()};")
+        common.signal_declaration(f, f"res_{count}", dt.get_type_str())
 
     # Define control signals
-    for entry in pe.control_table:
+    for name, entry in pe.control_table.items():
         if entry.int_bits == 1 and entry.frac_bits == 0:
             vhdl_type = "std_logic"
         else:
-            vhdl_type = f"signed({entry.int_bits + entry.frac_bits - 1} downto 0)"
-        common.write(f, 1, f"signal {entry.name} : {vhdl_type};")
+            vhdl_type = f"signed({entry.bits - 1} downto 0)"
+        common.signal_declaration(f, name, vhdl_type)
 
     # Define integer bits for control signals
-    for entry in pe.control_table:
-        common.write(
-            f, 1, f"constant WL_{entry.name.upper()}_INT : integer := {entry.int_bits};"
+    for name, entry in pe.control_table.items():
+        common.constant_declaration(
+            f, f"WL_{name.upper()}_INT", "integer", entry.int_bits
         )
 
 
@@ -101,9 +101,7 @@ def _statement_region_common(
 ) -> None:
     # Generate pipeline stages
     if pe._latency > 0:
-        common.write(f, 1, "process(clk)")
-        common.write(f, 1, "begin")
-        common.write(f, 2, "if rising_edge(clk) then")
+        common.synchronous_process_prologue(f)
 
         for stage in range(pe._latency):
             if stage == 0:
@@ -120,8 +118,7 @@ def _statement_region_common(
                         f"p_{count}_in_reg_{stage - 1} <= p_{count}_in_reg_{stage - 2};",
                     )
 
-        common.write(f, 2, "end if;")
-        common.write(f, 1, "end process;", end="\n\n")
+        common.synchronous_process_epilogue(f)
 
     for input_port in range(pe.input_count):
         if pe._latency > 1:
@@ -134,23 +131,20 @@ def _statement_region_common(
             common.write(f, 1, f"op_{input_port} <= p_{input_port}_in;")
 
     # Generate control signals
-    for entry in pe.control_table:
+    for name, entry in pe.control_table.items():
         common.write(f, 1, "with schedule_cnt select")
-        common.write(f, 2, f"{entry.name} <=")
+        common.write(f, 2, f"{name} <=")
         for time, val in entry.values.items():
             if isinstance(val, bool):
                 val_str = f"'{int(val)}'"
             elif isinstance(val, (int, np.integer, float, np.floating)):
                 int_val = int(val * 2**entry.frac_bits)
-                val_str = f'b"{common._get_bin_str(int_val, entry.int_bits + entry.frac_bits)}"'
+                val_str = f'b"{bin_str(int_val, entry.bits)}"'
             else:
                 raise NotImplementedError
             offset = pe._latency - 1 if pe._latency >= 2 else 0
             avail_time = (time + offset) % pe.schedule_time if pe._latency > 0 else time
-            avail_time_bit_str = bin(avail_time)[2:].zfill(
-                pe.schedule_time.bit_length()
-            )
-            common.write(f, 3, f'{val_str} when "{avail_time_bit_str}",')
+            common.write(f, 3, f'{val_str} when "{time_bin_str(avail_time, pe)}",')
         if isinstance(val, bool):
             common.write(f, 3, "'-' when others;", end="\n\n")
         else:

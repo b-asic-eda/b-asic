@@ -4,6 +4,7 @@ Module for VHDL code generation of top level designs.
 
 from typing import TYPE_CHECKING, TextIO
 
+from b_asic.code_printer.util import time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.data_type import VhdlDataType
 from b_asic.special_operations import Input, Output
@@ -95,11 +96,10 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
                 if not is_found:
                     raise ValueError("Source resource not found.")
                 time = process.start_time % arch.schedule_time
-                time_bit_str = bin(time)[2:].zfill(pe.schedule_time.bit_length())
                 common.write(
                     f,
                     3,
-                    f'{source_resource.entity_name}_{source_port_index}_out when "{time_bit_str}",',
+                    f'{source_resource.entity_name}_{source_port_index}_out when "{time_bin_str(time, pe)}",',
                 )
             common.write(f, 3, f"{dt.get_dontcare_str()} when others;", end="\n\n")
 
@@ -121,11 +121,10 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
             if not is_found:
                 raise ValueError("Source resource not found.")
             time = var.start_time % arch.schedule_time
-            time_bit_str = bin(time)[2:].zfill(pe.schedule_time.bit_length())
             common.write(
                 f,
                 3,
-                f'{source_pe.entity_name}_{source_port_index}_out when "{time_bit_str}",',
+                f'{source_pe.entity_name}_{source_port_index}_out when "{time_bin_str(time, pe)}",',
             )
         common.write(f, 3, f"{dt.get_dontcare_str()} when others;", end="\n\n")
 

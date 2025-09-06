@@ -47,9 +47,8 @@ class DataType(ABC):
         return self.internal_length - 1
 
     @property
-    @abstractmethod
     def internal_low(self) -> int:
-        raise NotImplementedError()
+        return 0
 
     @property
     def input_length(self) -> int:

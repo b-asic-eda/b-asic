@@ -5,8 +5,14 @@ Code generation
 
 Code generation using the B-ASIC toolbox.
 
-Codegen
+Printer
 =======
+.. automodule:: b_asic.code_printer.printer
+   :members:
+   :undoc-members:
+
+Code Printer
+============
 .. toctree::
     :maxdepth: 1
 

@@ -14,6 +14,7 @@ from b_asic.code_printer.vhdl import (
     test_bench,
     top_level,
 )
+from b_asic.code_printer.vhdl.util import signed_type
 from b_asic.data_type import VhdlDataType
 
 if TYPE_CHECKING:
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 class VhdlPrinter(Printer):
     _dt: VhdlDataType
 
-    CUSTOM_FUNC = "_vhdl"
+    CUSTOM_PRINTER_PREFIX = "_vhdl"
 
     def __init__(self, dt: VhdlDataType) -> None:
         super().__init__(dt=dt)
@@ -38,7 +39,7 @@ class VhdlPrinter(Printer):
             dir_path = path / f"{arch.entity_name}_{counter}"
         dir_path.mkdir(parents=True)
 
-        if self._dt.is_complex:
+        if self.is_complex:
             with (dir_path / "types.vhd").open("w") as f:
                 common.write(f, 0, self.print_types(), end="")
 
@@ -76,7 +77,7 @@ class VhdlPrinter(Printer):
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
-        if self._dt.is_complex:
+        if self.is_complex:
             common.package_header(f, "types")
 
         top_level.entity(f, arch, self._dt)
@@ -87,7 +88,7 @@ class VhdlPrinter(Printer):
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
-        if self._dt.is_complex:
+        if self.is_complex:
             common.package_header(f, "types")
 
         memory_storage.entity(f, mem, self._dt)
@@ -100,7 +101,7 @@ class VhdlPrinter(Printer):
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
-        if self._dt.is_complex:
+        if self.is_complex:
             common.package_header(f, "types")
 
         processing_element.entity(f, pe, self._dt)
@@ -114,7 +115,7 @@ class VhdlPrinter(Printer):
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
-        if self._dt.is_complex:
+        if self.is_complex:
             common.package_header(f, "types")
 
         test_bench.entity(f, arch)
@@ -122,11 +123,9 @@ class VhdlPrinter(Printer):
         return f.getvalue()
 
     def print_Input_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
-        common.write(
-            code[1], 1, f"res_0 <= resize(signed(p_0_in), {self._dt.internal_length});"
-        )
-        return code[0].getvalue(), code[1].getvalue()
+        declarations, code = io.StringIO(), io.StringIO()
+        common.write(code, 1, f"res_0 <= resize(signed(p_0_in), {self.bits});")
+        return declarations.getvalue(), code.getvalue()
 
     def print_Input_fixed_point_complex(
         self, pe: "ProcessingElement"
@@ -135,21 +134,21 @@ class VhdlPrinter(Printer):
         common.write(
             code,
             1,
-            f"res_0 <= (re => resize(signed(p_0_in_re), {self._dt.internal_length}), "
-            f"im => resize(signed(p_0_in_im), {self._dt.internal_length}));",
+            f"res_0 <= (re => resize(signed(p_0_in_re), {self.bits}), "
+            f"im => resize(signed(p_0_in_im), {self.bits}));",
         )
         return "", code.getvalue()
 
     def print_Output_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
-        common.write(code[0], 1, f"signal res_0 : {self._dt.get_output_type_str()};")
-        common.write(code[1], 1, "p_0_out <= res_0;")
+        declarations, code = io.StringIO(), io.StringIO()
+        common.signal_declaration(declarations, "res_0", self._dt.get_output_type_str())
+        common.write(code, 1, "p_0_out <= res_0;")
         common.write(
-            code[1],
+            code,
             1,
             f"res_0 <= std_logic_vector(resize(signed(p_0_in), {self._dt.output_length}));\n",
         )
-        return code[0].getvalue(), code[1].getvalue()
+        return declarations.getvalue(), code.getvalue()
 
     def print_Output_fixed_point_complex(
         self, pe: "ProcessingElement"
@@ -175,85 +174,80 @@ class VhdlPrinter(Printer):
     def print_Addition_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
-        common.write(code[1], 1, "res_0 <= op_0 + op_1;")
-        return code[0].getvalue(), code[1].getvalue()
+        code = io.StringIO()
+        common.write(code, 1, "res_0 <= op_0 + op_1;")
+        return "", code.getvalue()
 
     def print_AddSub_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
+        declarations, code = io.StringIO(), io.StringIO()
 
-        common.signal_declaration(
-            code[0], "tmp_res", f"signed({self._dt.input_length} downto 0)"
+        common.signal_declaration(declarations, "tmp_res", signed_type(self.bits + 1))
+        common.signal_declaration(declarations, "op_b", self.type_str)
+
+        common.write(code, 1, "op_b <= op_1 when is_add = '1' else not op_1;")
+
+        common.write(code, 1, "tmp_res <= (op_0 & '1') + (op_b & not is_add);")
+        common.write(
+            code,
+            1,
+            f"res_0 <= resize(shift_right(tmp_res, 1), {self.bits});",
         )
-        common.signal_declaration(code[0], "op_b", self._dt.get_type_str())
 
-        common.write(code[1], 1, "op_b <= op_1 when is_add = '1' else not op_1;")
-
-        common.write(code[1], 1, "tmp_res <= (op_0 & '1') + (op_b & not is_add);")
-        common.write(code[1], 1, f"res_0 <= tmp_res({self._dt.input_length} downto 1);")
-
-        return code[0].getvalue(), code[1].getvalue()
+        return declarations.getvalue(), code.getvalue()
 
     def print_AddSub_fixed_point_complex(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
+        declarations, code = io.StringIO(), io.StringIO()
 
+        for part in "re", "im":
+            common.signal_declaration(
+                declarations, f"{part}_op_a, {part}_op_b", signed_type(self.bits)
+            )
+            common.signal_declaration(
+                declarations, f"{part}_res", signed_type(self.bits + 1)
+            )
+            common.write(code, 1, f"{part}_op_a <= op_0.{part};")
+            common.write(
+                code,
+                1,
+                f"{part}_op_b <= op_1.{part} when is_add = '1' else not op_1.{part};",
+            )
+            common.write(
+                code,
+                1,
+                f"{part}_res <= ({part}_op_a & '1') + ({part}_op_b & not is_add);",
+            )
         common.write(
-            code[0],
+            code,
             1,
-            f"signal re_op_a, re_op_b, im_op_a, im_op_b : signed({self._dt.internal_length - 1} downto 0);",
+            f"res_0 <= (re => resize(shift_right(re_res, 1), {self.bits}), im => resize(shift_right(im_res, 1), {self.bits}));",
         )
-        common.write(
-            code[0],
-            1,
-            f"signal re_res, im_res : signed({self._dt.internal_length} downto 0);",
-        )
-
-        common.write(code[1], 1, "re_op_a <= op_0.re;")
-        common.write(code[1], 1, "im_op_a <= op_0.im;")
-        common.write(
-            code[1],
-            1,
-            "re_op_b <= op_1.re when is_add = '1' else not op_1.re;",
-        )
-        common.write(
-            code[1],
-            1,
-            "im_op_b <= op_1.im when is_add = '1' else not op_1.im;",
-        )
-
-        common.write(code[1], 1, "re_res <= (re_op_a & '1') + (re_op_b & not is_add);")
-        common.write(code[1], 1, "im_res <= (im_op_a & '1') + (im_op_b & not is_add);")
-        common.write(
-            code[1],
-            1,
-            f"res_0 <= (re => re_res({self._dt.input_length} downto 1), im => im_res({self._dt.input_length} downto 1));",
-        )
-        return code[0].getvalue(), code[1].getvalue()
+        return declarations.getvalue(), code.getvalue()
 
     def print_ConstantMultiplication_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
-        common.write(
-            code[0],
-            1,
-            f"signal mul_res : signed({self._dt.internal_length} + value'length - 1 downto 0);",
+        coeff_bits = pe.control_table["value"].bits
+        declarations, code = io.StringIO(), io.StringIO()
+        common.signal_declaration(
+            declarations,
+            "mul_res",
+            signed_type(self.bits + coeff_bits),
         )
 
-        common.write(code[1], 1, "mul_res <= op_0 * value;")
+        common.write(code, 1, "mul_res <= op_0 * value;")
         common.write(
-            code[1],
+            code,
             1,
             "res_0 <= mul_res(mul_res'high - WL_VALUE_INT downto mul_res'high - WL_VALUE_INT - res_0'high);",
         )
-        return code[0].getvalue(), code[1].getvalue()
+        return declarations.getvalue(), code.getvalue()
 
     def print_ConstantMultiplication_fixed_point_complex(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
+        declarations, code = io.StringIO(), io.StringIO()
 
         is_real = any(
             p.operation.value.imag == 0 and p.operation.value.real != 0
@@ -268,270 +262,187 @@ class VhdlPrinter(Printer):
             for p in pe.collection
         )
 
-        real_entry = next((e for e in pe.control_table if e.name == "value_real"), None)
-        bits = real_entry.int_bits + real_entry.frac_bits
+        real_entry = pe.control_table["value_real"]
+        bits = real_entry.bits
         frac_bits = real_entry.frac_bits
 
-        common.write(code[0], 1, f"signal a, b : {self._dt.get_scalar_type_str()};")
-        common.write(
-            code[0],
-            1,
-            f"signal res_0_re, res_0_im : signed({self._dt.internal_high} downto 0);",
+        common.signal_declaration(declarations, "a, b", self._dt.get_scalar_type_str())
+        common.signal_declaration(
+            declarations, "res_0_re, res_0_im", self._dt.get_scalar_type_str()
         )
 
         if pe._latency > 2 and not is_complex and is_real and is_imag:
             # Handle a special case where pipelining is done in the middle
-            common.write(code[1], 1, f"a <= p_0_in_reg_{pe._latency - 3}.re;")
-            common.write(code[1], 1, f"b <= p_0_in_reg_{pe._latency - 3}.im;")
+            common.write(code, 1, f"a <= p_0_in_reg_{pe._latency - 3}.re;")
+            common.write(code, 1, f"b <= p_0_in_reg_{pe._latency - 3}.im;")
         else:
-            common.write(code[1], 1, "a <= op_0.re;")
-            common.write(code[1], 1, "b <= op_0.im;")
+            common.write(code, 1, "a <= op_0.re;")
+            common.write(code, 1, "b <= op_0.im;")
+
+        def result_declarations(bits):
+            common.signal_declaration(declarations, "res_re", signed_type(bits))
+            common.signal_declaration(declarations, "res_im", signed_type(bits))
 
         # Multiplication logic
         if is_complex:
-            common.write(
-                code[0],
-                1,
-                f"signal res_re : signed({self._dt.internal_length + bits - 1} downto 0);",
-            )
-            common.write(
-                code[0],
-                1,
-                f"signal res_im : signed({self._dt.internal_length + bits - 1} downto 0);",
-            )
+            result_declarations(self.bits + bits)
+            muL_type = signed_type(self.bits + bits)
+            common.signal_declaration(declarations, "ac", muL_type)
+            common.signal_declaration(declarations, "bc", muL_type)
+            common.signal_declaration(declarations, "ad", muL_type)
+            common.signal_declaration(declarations, "bd", muL_type)
 
+            common.write(code, 1, "ac <= a * value_real;")
+            common.write(code, 1, "bc <= b * value_real;")
+            common.write(code, 1, "ad <= a * value_imag;")
+            common.write(code, 1, "bd <= b * value_imag;")
+            common.write(code, 1, "res_re <= ac - bd;")
+            common.write(code, 1, "res_im <= ad + bc;")
             common.write(
-                code[0],
+                code,
                 1,
-                f"signal ac : signed({self._dt.internal_length + bits - 1} downto 0);",
+                f"res_0_re <= res_re({self.bits + frac_bits - 1} downto {frac_bits - 1});",
             )
             common.write(
-                code[0],
+                code,
                 1,
-                f"signal bc : signed({self._dt.internal_length + bits - 1} downto 0);",
-            )
-            common.write(
-                code[0],
-                1,
-                f"signal ad : signed({self._dt.internal_length + bits - 1} downto 0);",
-            )
-            common.write(
-                code[0],
-                1,
-                f"signal bd : signed({self._dt.internal_length + bits - 1} downto 0);",
-            )
-            common.write(code[1], 1, "ac <= a * value_real;")
-            common.write(code[1], 1, "bc <= b * value_real;")
-            common.write(code[1], 1, "ad <= a * value_imag;")
-            common.write(code[1], 1, "bd <= b * value_imag;")
-            common.write(code[1], 1, "res_re <= ac - bd;")
-            common.write(code[1], 1, "res_im <= ad + bc;")
-            common.write(
-                code[1],
-                1,
-                f"res_0_re <= res_re({self._dt.internal_length + frac_bits - 1} downto {frac_bits - 1});",
-            )
-            common.write(
-                code[1],
-                1,
-                f"res_0_im <= res_im({self._dt.internal_length + frac_bits - 1} downto {frac_bits - 1});",
+                f"res_0_im <= res_im({self.bits + frac_bits - 1} downto {frac_bits - 1});",
             )
         else:
             if is_real and not is_imag:
-                common.write(
-                    code[0],
-                    1,
-                    f"signal res_re : signed({self._dt.internal_length + bits - 1} downto 0);",
-                )
-                common.write(
-                    code[0],
-                    1,
-                    f"signal res_im : signed({self._dt.internal_length + bits - 1} downto 0);",
-                )
+                result_declarations(self.bits + bits)
 
-                common.write(code[1], 1, "res_re <= a * value_real;")
-                common.write(code[1], 1, "res_im <= b * value_real;")
-                common.write(
-                    code[1],
-                    1,
-                    f"res_0_re <= res_re({self._dt.internal_length + frac_bits - 1} downto {frac_bits});",
-                )
-                common.write(
-                    code[1],
-                    1,
-                    f"res_0_im <= res_im({self._dt.internal_length + frac_bits - 1} downto {frac_bits});",
-                )
+                common.write(code, 1, "res_re <= a * value_real;")
+                common.write(code, 1, "res_im <= b * value_real;")
+                for part in "re", "im":
+                    common.write(
+                        code,
+                        1,
+                        f"res_0_{part} <= resize(shift_right(res_{part}, {frac_bits}), {self.bits});",
+                    )
 
             elif is_imag and not is_real:
-                common.write(
-                    code[0],
-                    1,
-                    f"signal res_re : signed({self._dt.internal_length + bits - 1} downto 0);",
-                )
-                common.write(
-                    code[0],
-                    1,
-                    f"signal res_im : signed({self._dt.internal_length + bits - 1} downto 0);",
-                )
+                result_declarations(self.bits + bits)
 
-                common.write(code[1], 1, "res_re <= a * value_imag;")
-                common.write(code[1], 1, "res_im <= b * value_imag;")
-                common.write(
-                    code[1],
-                    1,
-                    f"res_0_re <= res_re({self._dt.internal_length + frac_bits - 1} downto {frac_bits});",
-                )
-                common.write(
-                    code[1],
-                    1,
-                    f"res_0_im <= res_im({self._dt.internal_length + frac_bits - 1} downto {frac_bits});",
-                )
+                common.write(code, 1, "res_re <= a * value_imag;")
+                common.write(code, 1, "res_im <= b * value_imag;")
+                for part in "re", "im":
+                    common.write(
+                        code,
+                        1,
+                        f"res_0_{part} <= resize(shift_right(res_{part}, {frac_bits}), {self.bits});",
+                    )
 
             elif is_real and is_imag:
-                common.write(
-                    code[0], 1, f"signal res_re : signed({bits + bits - 1} downto 0);"
+                result_declarations(bits + bits)
+
+                common.signal_declaration(
+                    declarations,
+                    "op_a_re, op_a_re_reg, op_b_re, op_b_re_reg,  op_a_im, op_a_im_reg, op_b_im, op_b_im_reg",
+                    signed_type(max(self.bits, bits)),
                 )
-                common.write(
-                    code[0], 1, f"signal res_im : signed({bits + bits - 1} downto 0);"
-                )
+                common.signal_declaration(declarations, "is_real", "std_logic")
+                common.write(code, 1, "is_real <= '1' when value_imag = 0 else '0';")
 
                 common.write(
-                    code[0],
-                    1,
-                    f"signal op_a_re, op_a_re_reg : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
-                )
-                common.write(
-                    code[0],
-                    1,
-                    f"signal op_b_re, op_b_re_reg : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
-                )
-                common.write(
-                    code[0],
-                    1,
-                    f"signal op_a_im, op_a_im_reg : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
-                )
-                common.write(
-                    code[0],
-                    1,
-                    f"signal op_b_im, op_b_im_reg : signed({max(self._dt.internal_length, bits) - 1} downto 0);",
-                )
-
-                common.write(code[0], 1, "signal is_real : std_logic;")
-                common.write(code[1], 1, "is_real <= '1' when value_imag = 0 else '0';")
-
-                common.write(
-                    code[1],
+                    code,
                     1,
                     "op_a_re <= resize(a, op_a_re'length) when is_real = '1' else resize(-b, op_a_re'length);",
                 )
                 common.write(
-                    code[1],
+                    code,
                     1,
                     "op_b_re <= resize(value_real, op_b_re'length) when is_real = '1' else resize(value_imag, op_b_re'length);",
                 )
                 common.write(
-                    code[1],
+                    code,
                     1,
                     "op_a_im <= resize(b, op_a_im'length) when is_real = '1' else resize(a, op_a_im'length);",
                 )
                 common.write(
-                    code[1],
+                    code,
                     1,
                     "op_b_im <= resize(value_real, op_b_im'length) when is_real = '1' else resize(value_imag, op_b_im'length);",
                 )
 
                 if pe._latency > 2:
-                    common.write(code[1], 1, "res_re <= op_a_re_reg * op_b_re_reg;")
-                    common.write(code[1], 1, "res_im <= op_a_im_reg * op_b_im_reg;")
+                    common.write(code, 1, "res_re <= op_a_re_reg * op_b_re_reg;")
+                    common.write(code, 1, "res_im <= op_a_im_reg * op_b_im_reg;")
                 else:
-                    common.write(code[1], 1, "res_re <= op_a_re * op_b_re;")
-                    common.write(code[1], 1, "res_im <= op_a_im * op_b_im;")
+                    common.write(code, 1, "res_re <= op_a_re * op_b_re;")
+                    common.write(code, 1, "res_im <= op_a_im * op_b_im;")
 
                 common.write(
-                    code[1],
+                    code,
                     1,
                     f"res_0_re <= resize(shift_right(res_re, {frac_bits}), res_0_re'length);",
                 )
                 common.write(
-                    code[1],
+                    code,
                     1,
                     f"res_0_im <= resize(shift_right(res_im, {frac_bits}), res_0_im'length);",
                 )
 
                 if pe._latency > 2:
-                    common.write(code[1], 1, "process(clk)")
-                    common.write(code[1], 1, "begin")
-                    common.write(code[1], 2, "if rising_edge(clk) then")
-                    common.write(code[1], 3, "op_a_re_reg <= op_a_re;")
-                    common.write(code[1], 3, "op_b_re_reg <= op_b_re;")
-                    common.write(code[1], 3, "op_a_im_reg <= op_a_im;")
-                    common.write(code[1], 3, "op_b_im_reg <= op_b_im;")
-                    common.write(code[1], 2, "end if;")
-                    common.write(code[1], 1, "end process;", end="\n\n")
+                    common.synchronous_process_prologue(code)
+                    common.write(code, 3, "op_a_re_reg <= op_a_re;")
+                    common.write(code, 3, "op_b_re_reg <= op_b_re;")
+                    common.write(code, 3, "op_a_im_reg <= op_a_im;")
+                    common.write(code, 3, "op_b_im_reg <= op_b_im;")
+                    common.synchronous_process_epilogue(code)
 
-        common.write(code[1], 1, "res_0 <= (re => res_0_re,  im => res_0_im);")
+        common.write(code, 1, "res_0 <= (re => res_0_re,  im => res_0_im);")
 
-        return code[0].getvalue(), code[1].getvalue()
+        return declarations.getvalue(), code.getvalue()
 
     def print_MADS_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
+        declarations, code = io.StringIO(), io.StringIO()
 
-        common.write(
-            code[0],
-            1,
-            "signal mul_res : signed(op_1'length + op_2'length - 1 downto 0);",
+        common.signal_declaration(
+            declarations,
+            "mul_res",
+            "signed(op_1'length + op_2'length - 1 downto 0)",
         )
-        common.write(code[0], 1, "signal mul_res_quant : signed(res_0'high downto 0);")
-        common.write(code[0], 1, "signal add_res : signed(res_0'high downto 0);")
+        common.signal_declaration(declarations, "mul_res_quant", self.type_str)
+        common.signal_declaration(declarations, "add_res", self.type_str)
 
-        common.write(code[1], 1, "mul_res <= op_1 * op_2;")
+        common.write(code, 1, "mul_res <= op_1 * op_2;")
         common.write(
-            code[1],
+            code,
             1,
-            f"mul_res_quant <= mul_res(mul_res'high - {self._dt.internal_wl[0]} downto mul_res'high - {self._dt.internal_wl[0]} - mul_res_quant'high);",
+            f"mul_res_quant <= mul_res(mul_res'high - {self.int_bits} downto mul_res'high - {self.int_bits} - mul_res_quant'high);",
         )
         common.write(
-            code[1],
+            code,
             1,
             "add_res <= op_0 + mul_res_quant when is_add = '1' else op_0 - mul_res_quant;",
         )
         common.write(
-            code[1], 1, "res_0 <= add_res when do_addsub = '1' else mul_res_quant;\n"
+            code, 1, "res_0 <= add_res when do_addsub = '1' else mul_res_quant;\n"
         )
 
-        return code[0].getvalue(), code[1].getvalue()
+        return declarations.getvalue(), code.getvalue()
 
     def print_Reciprocal_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
-        code = (io.StringIO(), io.StringIO())
+        declarations, code = io.StringIO(), io.StringIO()
 
-        common.write(
-            code[0],
-            1,
-            f"signal unity : signed({self._dt.internal_wl[0] + 2 * self._dt.internal_wl[1] - 1} downto 0);",
-        )
-        common.write(
-            code[0], 1, f"signal a : signed({self._dt.internal_high} downto 0);"
-        )
-        common.write(
-            code[0],
-            1,
-            f"signal tmp_res : signed({self._dt.internal_wl[0] + 2 * self._dt.internal_wl[1] - 1} downto 0);",
-        )
+        tmp_res_bits = self.int_bits + 2 * self.frac_bits
+        common.signal_declaration(declarations, "unity", signed_type(tmp_res_bits))
+        common.signal_declaration(declarations, "a", self.type_str)
+        common.signal_declaration(declarations, "tmp_res", signed_type(tmp_res_bits))
 
-        common.write(code[1], 1, "a <= op_0;")
+        common.write(code, 1, "a <= op_0;")
         common.write(
-            code[1],
+            code,
             1,
-            f"unity <= to_signed({2 ** (2 * self._dt.internal_wl[1])}, {self._dt.internal_wl[0] + 2 * self._dt.internal_wl[1]});",
+            f"unity <= to_signed({2 ** (2 * self.frac_bits)}, {tmp_res_bits});",
         )
-        common.write(
-            code[1], 1, "tmp_res <= unity / a when a /= 0 else (others => '0');"
-        )
-        common.write(code[1], 1, "res_0 <= tmp_res(res_0'high downto 0);")
+        common.write(code, 1, "tmp_res <= unity / a when a /= 0 else (others => '0');")
+        common.write(code, 1, "res_0 <= tmp_res(res_0'high downto 0);")
 
-        return code[0].getvalue(), code[1].getvalue()
+        return declarations.getvalue(), code.getvalue()
 
     def print_default(self) -> tuple[str, str]:
         return "", ""

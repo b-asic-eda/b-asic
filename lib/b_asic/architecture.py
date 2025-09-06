@@ -95,6 +95,10 @@ class ControlTableEntry:
     frac_bits: int
     values: dict[int, int]
 
+    @property
+    def bits(self) -> int:
+        return self.int_bits + self.frac_bits
+
 
 class HardwareBlock(ABC):
     """
@@ -491,9 +495,9 @@ class ProcessingElement(Resource):
         return [cast(OperatorProcess, p) for p in self._collection]
 
     @property
-    def control_table(self) -> list[ControlTableEntry]:
+    def control_table(self) -> dict[str, ControlTableEntry]:
         # Loop through all params and set these values
-        control_table = []
+        control_table = {}
         params = cast(OperatorProcess, self.collection.collection[0]).operation.params
         for param_name in params:
             int_bits = 0
@@ -526,16 +530,16 @@ class ProcessingElement(Resource):
                 entry = ControlTableEntry(
                     param_name + "_real", int_bits, frac_bits, real_values
                 )
-                control_table.append(entry)
+                control_table[param_name + "_real"] = entry
 
                 imag_values = {time: val.imag for time, val in values.items()}
                 entry = ControlTableEntry(
                     param_name + "_imag", int_bits, frac_bits, imag_values
                 )
-                control_table.append(entry)
+                control_table[param_name + "_imag"] = entry
             else:
                 entry = ControlTableEntry(param_name, int_bits, frac_bits, values)
-                control_table.append(entry)
+                control_table[param_name] = entry
         return control_table
 
     def assign(

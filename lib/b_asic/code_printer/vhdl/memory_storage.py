@@ -89,7 +89,8 @@ def architecture(
         If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K", "MLAB" or "logic".
     """
     # Code settings
-    MEM_DEPTH = len(memory.assignment)
+    mem_depth = len(memory.assignment)
+    mem_adress_bits = mem_depth.bit_length()
     schedule_time = next(iter(memory.assignment)).schedule_time
 
     # Address generation "ROMs"
@@ -107,7 +108,7 @@ def architecture(
     #
     common.write(f, 1, "-- HDL memory description")
     common.type_declaration(
-        f, "mem_type", f"array(0 to {MEM_DEPTH - 1}) of {dt.get_type_str()}"
+        f, "mem_type", f"array(0 to {mem_depth - 1}) of {dt.get_type_str()}"
     )
     if vivado_ram_style is not None:
         common.signal_declaration(
@@ -150,13 +151,13 @@ def architecture(
     for i in range(memory.input_count):
         common.signal_declaration(f, f"read_port_{i}", dt.get_type_str())
         common.signal_declaration(
-            f, f"read_adr_{i}", f"unsigned({MEM_DEPTH.bit_length() - 1} downto 0)"
+            f, f"read_adr_{i}", f"unsigned({mem_adress_bits - 1} downto 0)"
         )
         common.signal_declaration(f, f"read_en_{i}", "std_logic")
     for i in range(memory.output_count):
         common.signal_declaration(f, f"write_port_{i}", dt.get_type_str())
         common.signal_declaration(
-            f, f"write_adr_{i}", f"unsigned({MEM_DEPTH.bit_length() - 1} downto 0)"
+            f, f"write_adr_{i}", f"unsigned({mem_adress_bits - 1} downto 0)"
         )
         common.signal_declaration(f, f"write_en_{i}", "std_logic")
 
@@ -168,7 +169,7 @@ def architecture(
                 common.signal_declaration(
                     f,
                     f"write_adr_{write_port_idx}_{depth}_{rom}",
-                    f"unsigned({MEM_DEPTH.bit_length() - 1} downto 0)",
+                    f"unsigned({mem_adress_bits - 1} downto 0)",
                 )
     for write_port_idx in range(memory.output_count):
         for depth in range(adr_pipe_depth + 1):
@@ -184,7 +185,7 @@ def architecture(
                 common.signal_declaration(
                     f,
                     f"read_adr_{read_port_idx}_{depth}_{rom}",
-                    f"unsigned({MEM_DEPTH.bit_length() - 1} downto 0)",
+                    f"unsigned({mem_adress_bits - 1} downto 0)",
                 )
 
     # Input sync signals

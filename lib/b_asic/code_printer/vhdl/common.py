@@ -740,7 +740,3 @@ def is_vhdl_reserved_keyword(identifier: str) -> bool:
         "xor",
     )
     return identifier.lower() in reserved_keywords
-
-
-def _get_bin_str(num: int, bits: int) -> str:
-    return bin(num + 2**bits)[2:].zfill(bits) if num < 0 else bin(num)[2:].zfill(bits)
