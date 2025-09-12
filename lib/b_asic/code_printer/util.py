@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 
 def time_bin_str(time: int, pe: "ProcessingElement"):
-    return bin(time)[2:].zfill(pe.schedule_time.bit_length())
+    return f"{time:0{pe.schedule_time.bit_length()}b}"
 
 
 def bin_str(num: int, bits: int) -> str:
@@ -30,4 +30,4 @@ def bin_str(num: int, bits: int) -> str:
     str
         The resulting binary string.
     """
-    return bin(num + 2**bits)[2:].zfill(bits) if num < 0 else bin(num)[2:].zfill(bits)
+    return f"{(num + 2**bits):0{bits}b}" if num < 0 else f"{num:0{bits}b}"

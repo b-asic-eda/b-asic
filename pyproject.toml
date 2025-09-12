@@ -159,7 +159,8 @@ ignore = [
   "PLR5501", # Use `elif` instead of `else` then `if`: good for readability
   "PLW2901", # Overwrite loop variable: would be good to activate
   "RET505", # else after return: good for readability
-  # "UP038", # isinstance form (deprecated) (removed in later ruff versions)
+  "UP038", # isinstance form (deprecated) (removed in later ruff versions)
+  "RUF100", # unused noqa, seems to not work
 
 ]
 

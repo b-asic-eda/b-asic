@@ -2,6 +2,7 @@ import pytest
 
 try:
     from qtpy import QtCore
+
     from b_asic.gui_utils.plot_window import PlotWindow
 except ImportError:
     pytestmark = pytest.mark.skip("Qt not setup")

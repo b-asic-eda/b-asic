@@ -521,7 +521,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # TODO: Implement
         if self._schedule is None:
             return
-        filename, extension = QFileDialog.getSaveFileName(
+        filename, _ = QFileDialog.getSaveFileName(
             self, "Save File", ".", filter=self.tr("B-ASIC schedule (*.bsc)")
         )
         if not filename:

@@ -3,6 +3,7 @@ import pytest
 try:
     from qtpy import QtCore
     from qtpy.QtWidgets import QInputDialog
+
     from b_asic.sfg_gui.main_window import SFGMainWindow
 except ImportError:
     pytestmark = pytest.mark.skip("Qt not setup")

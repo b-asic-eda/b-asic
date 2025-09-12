@@ -147,7 +147,7 @@ class FromFileInput(SignalGeneratorInput):
         return FromFile(self.file_browser.text())
 
     def get_input_file(self, i, file_browser) -> None:
-        module, accepted = QFileDialog().getOpenFileName()
+        module, _ = QFileDialog().getOpenFileName()
         file_browser.setText(module)
 
 
