@@ -29,12 +29,8 @@ def entity(f: TextIO, mem: "Memory", dt: VhdlDataType) -> None:
         "clk : in std_logic",
         f"schedule_cnt : in unsigned({mem.schedule_time.bit_length() - 1} downto 0)",
     ]
-    ports += [
-        f"p_{count}_in : in {dt.get_type_str()}" for count in range(mem.input_count)
-    ]
-    ports += [
-        f"p_{count}_out : out {dt.get_type_str()}" for count in range(mem.output_count)
-    ]
+    ports += [f"p_{count}_in : in {dt.type_str}" for count in range(mem.input_count)]
+    ports += [f"p_{count}_out : out {dt.type_str}" for count in range(mem.output_count)]
     common.entity_declaration(f, mem.entity_name, ports=ports)
 
 
@@ -108,7 +104,7 @@ def architecture(
     #
     common.write(f, 1, "-- HDL memory description")
     common.type_declaration(
-        f, "mem_type", f"array(0 to {mem_depth - 1}) of {dt.get_type_str()}"
+        f, "mem_type", f"array(0 to {mem_depth - 1}) of {dt.type_str}"
     )
     if vivado_ram_style is not None:
         common.signal_declaration(
@@ -149,13 +145,13 @@ def architecture(
     # Address generation signals
     common.write(f, 1, "-- Memory address generation", start="\n")
     for i in range(memory.input_count):
-        common.signal_declaration(f, f"read_port_{i}", dt.get_type_str())
+        common.signal_declaration(f, f"read_port_{i}", dt.type_str)
         common.signal_declaration(
             f, f"read_adr_{i}", f"unsigned({mem_adress_bits - 1} downto 0)"
         )
         common.signal_declaration(f, f"read_en_{i}", "std_logic")
     for i in range(memory.output_count):
-        common.signal_declaration(f, f"write_port_{i}", dt.get_type_str())
+        common.signal_declaration(f, f"write_port_{i}", dt.type_str)
         common.signal_declaration(
             f, f"write_adr_{i}", f"unsigned({mem_adress_bits - 1} downto 0)"
         )
@@ -192,7 +188,7 @@ def architecture(
     if input_sync:
         common.write(f, 1, "-- Input synchronization", start="\n")
         for i in range(memory.input_count):
-            common.signal_declaration(f, f"p_{i}_in_sync", dt.get_type_str())
+            common.signal_declaration(f, f"p_{i}_in_sync", dt.type_str)
 
     #
     # Architecture body begin

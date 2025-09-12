@@ -26,15 +26,11 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
         "clk : in std_logic",
         f"schedule_cnt : in unsigned({pe.schedule_time.bit_length() - 1} downto 0)",
     ]
-    ports += [
-        f"p_{count}_in : in {dt.get_type_str()}" for count in range(pe.input_count)
-    ]
+    ports += [f"p_{count}_in : in {dt.type_str}" for count in range(pe.input_count)]
     if pe.operation_type == Input:
         ports.extend(dt.get_input_port_declaration("p"))
 
-    ports += [
-        f"p_{count}_out : out {dt.get_type_str()}" for count in range(pe.output_count)
-    ]
+    ports += [f"p_{count}_out : out {dt.type_str}" for count in range(pe.output_count)]
     if pe.operation_type == Output:
         ports.extend(dt.get_output_port_declaration("p"))
 
@@ -63,23 +59,23 @@ def _declarative_region_common(
         if stage == 0:
             for output_port in range(pe.output_count):
                 common.signal_declaration(
-                    f, f"res_{output_port}_reg_{stage}", dt.get_type_str()
+                    f, f"res_{output_port}_reg_{stage}", dt.type_str
                 )
         else:
             for input_port in range(pe.input_count):
                 common.signal_declaration(
                     f,
                     f"p_{input_port}_in_reg_{stage - 1}",
-                    dt.get_type_str(),
-                    dt.get_init_val(),
+                    dt.type_str,
+                    dt.init_val,
                 )
 
     for input_port in range(pe.input_count):
-        common.signal_declaration(f, f"op_{input_port}", dt.get_type_str())
+        common.signal_declaration(f, f"op_{input_port}", dt.type_str)
 
     # Define results
     for count in range(pe.output_count):
-        common.signal_declaration(f, f"res_{count}", dt.get_type_str())
+        common.signal_declaration(f, f"res_{count}", dt.type_str)
 
     # Define control signals
     for name, entry in pe.control_table.items():

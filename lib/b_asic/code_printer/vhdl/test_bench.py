@@ -39,20 +39,20 @@ def _write_signal_generation(f: TextIO, arch: "Architecture", dt: VhdlDataType) 
             common.signal_declaration(
                 f,
                 f"tb_{pe.entity_name}_0_in_re",
-                dt.get_input_type_str(),
+                dt.input_type_str,
                 "(others => '0')",
             )
             common.signal_declaration(
                 f,
                 f"tb_{pe.entity_name}_0_in_im",
-                dt.get_input_type_str(),
+                dt.input_type_str,
                 "(others => '0')",
             )
         else:
             common.signal_declaration(
                 f,
                 f"tb_{pe.entity_name}_0_in",
-                dt.get_input_type_str(),
+                dt.input_type_str,
                 "(others => '0')",
             )
     outputs = [pe for pe in arch.processing_elements if pe.operation_type == Output]
@@ -61,20 +61,20 @@ def _write_signal_generation(f: TextIO, arch: "Architecture", dt: VhdlDataType) 
             common.signal_declaration(
                 f,
                 f"tb_{pe.entity_name}_0_out_re",
-                dt.get_input_type_str(),
+                dt.input_type_str,
                 "(others => '0')",
             )
             common.signal_declaration(
                 f,
                 f"tb_{pe.entity_name}_0_out_im",
-                dt.get_input_type_str(),
+                dt.input_type_str,
                 "(others => '0')",
             )
         else:
             common.signal_declaration(
                 f,
                 f"tb_{pe.entity_name}_0_out",
-                dt.get_input_type_str(),
+                dt.input_type_str,
                 "(others => '0')",
             )
 

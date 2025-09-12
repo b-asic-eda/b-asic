@@ -571,15 +571,13 @@ class ProcessingElement(Resource):
             f"schedule_cnt : in unsigned({self.schedule_time.bit_length() - 1} downto 0)",
         ]
         ports += [
-            f"p_{count}_in : in {dt.get_type_str()}"
-            for count in range(self.input_count)
+            f"p_{count}_in : in {dt.type_str}" for count in range(self.input_count)
         ]
         if self.operation_type == Input:
             ports.extend(dt.get_input_port_declaration("p"))
 
         ports += [
-            f"p_{count}_out : out {dt.get_type_str()}"
-            for count in range(self.output_count)
+            f"p_{count}_out : out {dt.type_str}" for count in range(self.output_count)
         ]
         if self.operation_type == Output:
             ports.extend(dt.get_output_port_declaration("p"))
@@ -596,7 +594,7 @@ class ProcessingElement(Resource):
                 common.signal_declaration(
                     f,
                     name=f"{self.entity_name}_{port_number}_in",
-                    signal_type=f"{dt.get_type_str()}",
+                    signal_type=f"{dt.type_str}",
                     indent=indent,
                 )
         if self.operation_type != Output:
@@ -604,7 +602,7 @@ class ProcessingElement(Resource):
                 common.signal_declaration(
                     f,
                     name=f"{self.entity_name}_{port_number}_out",
-                    signal_type=f"{dt.get_type_str()}",
+                    signal_type=f"{dt.type_str}",
                     indent=indent,
                 )
         common.write(f, indent, "")
@@ -794,11 +792,11 @@ class Memory(Resource):
             f"schedule_cnt : in unsigned({self.schedule_time.bit_length() - 1} downto 0)",
         ]
         ports += [
-            f"p_{port_number}_in : in {dt.get_type_str()}"
+            f"p_{port_number}_in : in {dt.type_str}"
             for port_number in range(self.input_count)
         ]
         ports += [
-            f"p_{port_number}_out : out {dt.get_type_str()}"
+            f"p_{port_number}_out : out {dt.type_str}"
             for port_number in range(self.output_count)
         ]
         common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
@@ -812,14 +810,14 @@ class Memory(Resource):
             common.signal_declaration(
                 f,
                 name=f"{self.entity_name}_{port_number}_in",
-                signal_type=f"{dt.get_type_str()}",
+                signal_type=f"{dt.type_str}",
                 indent=indent,
             )
         for port_number in range(self.output_count):
             common.signal_declaration(
                 f,
                 name=f"{self.entity_name}_{port_number}_out",
-                signal_type=f"{dt.get_type_str()}",
+                signal_type=f"{dt.type_str}",
                 indent=indent,
             )
         common.write(f, indent, "")

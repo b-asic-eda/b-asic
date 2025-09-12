@@ -15,7 +15,7 @@ from b_asic.code_printer.vhdl import (
     top_level,
 )
 from b_asic.code_printer.vhdl.util import signed_type
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType, VhdlDataType
 
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture, Memory, ProcessingElement
@@ -26,11 +26,22 @@ class VhdlPrinter(Printer):
 
     CUSTOM_PRINTER_PREFIX = "_vhdl"
 
-    def __init__(self, dt: VhdlDataType) -> None:
+    def __init__(self, dt: DataType | VhdlDataType) -> None:
         super().__init__(dt=dt)
+
+    def set_data_type(self, dt: DataType | VhdlDataType) -> None:
+        if isinstance(dt, DataType):
+            dt = VhdlDataType.from_DataType(dt)
         self._dt = dt
 
-    def print(self, path: str | Path, arch: "Architecture", **kwargs) -> None:
+    def print(
+        self,
+        arch: "Architecture",
+        *,
+        path: str | Path = Path(),
+        tb: bool = False,
+        **kwargs,
+    ) -> None:
         path = Path(path)
         counter = 0
         dir_path = path / f"{arch.entity_name}_{counter}"
@@ -54,8 +65,7 @@ class VhdlPrinter(Printer):
         with (dir_path / f"{arch.entity_name}.vhd").open("w") as f:
             common.write(f, 0, self.print_Architecture(arch))
 
-        vhdl_tb = kwargs.get("vhdl_tb", False)
-        if vhdl_tb:
+        if tb:
             with (dir_path / f"{arch.entity_name}_tb.vhd").open("w") as f:
                 common.write(f, 0, self.print_vhdl_tb(arch))
 
@@ -66,8 +76,8 @@ class VhdlPrinter(Printer):
 
         common.write(f, 0, "package types is")
         common.write(f, 1, "type complex is record")
-        common.write(f, 2, f"re : {self._dt.get_scalar_type_str()};")
-        common.write(f, 2, f"im : {self._dt.get_scalar_type_str()};")
+        common.write(f, 2, f"re : {self._dt.scalar_type_str};")
+        common.write(f, 2, f"im : {self._dt.scalar_type_str};")
         common.write(f, 1, "end record;")
         common.write(f, 0, "end package types;")
 
@@ -141,12 +151,12 @@ class VhdlPrinter(Printer):
 
     def print_Output_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
-        common.signal_declaration(declarations, "res_0", self._dt.get_output_type_str())
+        common.signal_declaration(declarations, "res_0", self._dt.output_type_str)
         common.write(code, 1, "p_0_out <= res_0;")
         common.write(
             code,
             1,
-            f"res_0 <= std_logic_vector(resize(signed(p_0_in), {self._dt.output_length}));\n",
+            f"res_0 <= std_logic_vector(resize(signed(p_0_in), {self._dt.output_bits}));\n",
         )
         return declarations.getvalue(), code.getvalue()
 
@@ -157,18 +167,18 @@ class VhdlPrinter(Printer):
         common.write(
             code,
             1,
-            f"p_0_out_re <= std_logic_vector(resize(signed(p_0_in.re), {self._dt.output_length}));",
+            f"p_0_out_re <= std_logic_vector(resize(signed(p_0_in.re), {self._dt.output_bits}));",
         )
         common.write(
             code,
             1,
-            f"p_0_out_im <= std_logic_vector(resize(signed(p_0_in.im), {self._dt.output_length}));",
+            f"p_0_out_im <= std_logic_vector(resize(signed(p_0_in.im), {self._dt.output_bits}));",
         )
         return "", code.getvalue()
 
     def print_DontCare(self, pe: "ProcessingElement") -> tuple[str, str]:
         code = io.StringIO()
-        common.write(code, 1, f"res_0 <= {self._dt.get_dontcare_str()};")
+        common.write(code, 1, f"res_0 <= {self._dt.dontcare_str};")
         return "", code.getvalue()
 
     def print_Addition_fixed_point_real(
@@ -266,9 +276,9 @@ class VhdlPrinter(Printer):
         bits = real_entry.bits
         frac_bits = real_entry.frac_bits
 
-        common.signal_declaration(declarations, "a, b", self._dt.get_scalar_type_str())
+        common.signal_declaration(declarations, "a, b", self._dt.scalar_type_str)
         common.signal_declaration(
-            declarations, "res_0_re, res_0_im", self._dt.get_scalar_type_str()
+            declarations, "res_0_re, res_0_im", self._dt.scalar_type_str
         )
 
         if pe._latency > 2 and not is_complex and is_real and is_imag:

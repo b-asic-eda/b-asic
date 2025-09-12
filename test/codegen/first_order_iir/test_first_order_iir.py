@@ -12,7 +12,7 @@ def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
     pytest.importorskip("cocotb_tools")
     dt = VhdlDataType(3)
     printer = VhdlPrinter(dt)
-    printer.print(tmp_path, arch_first_order_iir, vhdl_tb=True)
+    printer.print(arch_first_order_iir, path=tmp_path, tb=True)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
@@ -32,7 +32,7 @@ def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
     pytest.importorskip("cocotb_tools")
     dt = VhdlDataType(17)
     printer = VhdlPrinter(dt)
-    printer.print(tmp_path, arch_first_order_iir)
+    printer.print(arch_first_order_iir, path=tmp_path)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):

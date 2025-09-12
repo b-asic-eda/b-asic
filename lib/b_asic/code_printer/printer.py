@@ -4,6 +4,7 @@ Module for generating code for described architectures.
 
 import warnings
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from b_asic.data_type import DataType, NumRepresentation
@@ -19,7 +20,7 @@ class Printer(ABC):
         self.set_data_type(dt)
 
     @abstractmethod
-    def print(self, path: str, arch: "Architecture", **kwargs) -> None:
+    def print(self, arch: "Architecture", path: str | Path = Path(), **kwargs) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -73,32 +74,32 @@ class Printer(ABC):
 
     @property
     def type_str(self):
-        return self._dt.get_type_str()
+        return self._dt.type_str
 
     @property
     def int_bits(self) -> int:
         if self._dt.num_repr == NumRepresentation.FIXED_POINT:
-            return self._dt.internal_wl[0]
+            return self._dt.wl[0]
         raise TypeError("Only fixed-point data types has integer bits")
 
     @property
     def frac_bits(self) -> int:
         if self._dt.num_repr == NumRepresentation.FIXED_POINT:
-            return self._dt.internal_wl[1]
+            return self._dt.wl[1]
         raise TypeError("Only fixed-point data types has fractional bits")
 
     @property
     def exp_bits(self) -> int:
         if self._dt.num_repr == NumRepresentation.FLOATING_POINT:
-            return self._dt.internal_wl[0]
+            return self._dt.wl[0]
         raise TypeError("Only floating-point data types has exponent bits")
 
     @property
     def man_bits(self) -> int:
         if self._dt.num_repr == NumRepresentation.FLOATING_POINT:
-            return self._dt.internal_wl[1]
+            return self._dt.wl[1]
         raise TypeError("Only floating-point data types has mantissa bits")
 
     @property
     def bits(self) -> int:
-        return self._dt.internal_length
+        return self._dt.bits

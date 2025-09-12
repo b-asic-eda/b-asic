@@ -1,6 +1,5 @@
 import math
 
-import numpy as np
 import pytest
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
@@ -20,8 +19,8 @@ from b_asic.special_operations import Input, Output
 
 @pytest.fixture
 def arch_first_order_iir():
-    b = np.array([0.29289322, 0.29289322])
-    a = np.array([1.0, -0.41421356])
+    b = [0.29289322, 0.29289322]
+    a = [1.0, -0.41421356]
     sfg = direct_form_2_iir(b, a)
     sfg.set_latency_of_type(Addition, 1)
     sfg.set_latency_of_type(ConstantMultiplication, 2)

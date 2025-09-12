@@ -12,7 +12,7 @@ def test_r2bf_compile(tmp_path, arch_r2bf):
     pytest.importorskip("cocotb_tools")
     dt = VhdlDataType(16)
     printer = VhdlPrinter(dt)
-    printer.print(tmp_path, arch_r2bf, vhdl_tb=True)
+    printer.print(arch_r2bf, path=tmp_path, tb=True)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
@@ -32,7 +32,7 @@ def test_r2bf_simulate(tmp_path, arch_r2bf):
     pytest.importorskip("cocotb_tools")
     dt = VhdlDataType(16)
     printer = VhdlPrinter(dt)
-    printer.print(tmp_path, arch_r2bf)
+    printer.print(arch_r2bf, path=tmp_path)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):

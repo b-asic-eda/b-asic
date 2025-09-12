@@ -12,7 +12,7 @@ def test_simple_compile(tmp_path, arch_simple):
     pytest.importorskip("cocotb_tools")
     dt = VhdlDataType(7)
     printer = VhdlPrinter(dt)
-    printer.print(tmp_path, arch_simple, vhdl_tb=True)
+    printer.print(arch_simple, path=tmp_path, tb=True)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
@@ -32,7 +32,7 @@ def test_simple_simulate(tmp_path, arch_simple):
     pytest.importorskip("cocotb_tools")
     dt = VhdlDataType(8, 4, 7)
     printer = VhdlPrinter(dt)
-    printer.print(tmp_path, arch_simple)
+    printer.print(arch_simple, path=tmp_path)
 
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):

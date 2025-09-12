@@ -11,8 +11,8 @@ Printer
    :members:
    :undoc-members:
 
-Code Printer
-============
+Code Printers
+=============
 .. toctree::
     :maxdepth: 1
 
