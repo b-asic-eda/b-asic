@@ -342,12 +342,12 @@ def architecture(
             common.synchronous_process_epilogue(
                 f, clk="clk", name=f"mem_write_address_proc_{0}_{rom}"
             )
-            common.write(f, 1, "")
+            common.blank(f)
         else:
             common.process_epilogue(
                 f, sensitivity_list="clk", name="mem_write_address_proc"
             )
-            common.write(f, 1, "")
+            common.blank(f)
 
     # Write address multiplexing layers
     for layer in range(adr_pipe_depth):
@@ -407,7 +407,7 @@ def architecture(
             common.synchronous_process_epilogue(
                 f, clk="clk", name=f"mem_write_address_proc{layer + 1}_{mux_idx}"
             )
-            common.write(f, 1, "")
+            common.blank(f)
 
     #
     # ROM read address generation
@@ -468,12 +468,12 @@ def architecture(
             common.synchronous_process_epilogue(
                 f, clk="clk", name=f"mem_read_address_proc_{0}_{rom}"
             )
-            common.write(f, 1, "")
+            common.blank(f)
         else:
             common.process_epilogue(
                 f, sensitivity_list="clk", name="mem_read_address_proc"
             )
-            common.write(f, 1, "")
+            common.blank(f)
 
     # Read address multiplexing layers
     for layer in range(adr_pipe_depth):
@@ -525,6 +525,6 @@ def architecture(
             common.synchronous_process_epilogue(
                 f, clk="clk", name=f"mem_read_address_proc{layer + 1}_{mux_idx}"
             )
-            common.write(f, 1, "")
+            common.blank(f)
 
     common.write(f, 0, "end architecture rtl;")

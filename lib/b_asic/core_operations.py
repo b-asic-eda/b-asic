@@ -306,7 +306,7 @@ class AddSub(AbstractOperation):
 
     See Also
     --------
-    Addition, Subtraction
+    Addition, Subtraction, ShiftAddSub
     """
 
     __slots__ = (
@@ -381,6 +381,131 @@ class AddSub(AbstractOperation):
     @property
     def is_swappable(self) -> bool:
         return self.is_add
+
+
+class ShiftAddSub(AbstractOperation):
+    r"""
+    Two-input addition or subtraction operation with right-shift for the second operand.
+
+    .. math::
+        y = \begin{cases}
+        x_0 + x_1 \gg \text{shift},& \text{is_add} = \text{True}\\
+        x_0 - x_1 \gg \text{shift},& \text{is_add} = \text{False}
+        \end{cases}
+
+    This is used to map additions and subtractions to the same
+    operator.
+
+    Parameters
+    ----------
+    src0, src1 : SignalSourceProvider, optional
+        The two signals to add or subtract.
+    is_add : bool, default: True
+        If True, the operation is an addition, if False, a subtraction.
+    shift : int, default: 0
+        The right-shift amount.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times, e.g.,
+        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
+        time unit later than *src0*. If not provided and *latency* is
+        provided, set to zero if not explicitly provided. So the previous
+        example can be written as ``{"in1": 1}`` only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be
+        reused).
+
+    See Also
+    --------
+    Addition, Subtraction, AddSub
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_is_add",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+        "_shift",
+        "_src0",
+        "_src1",
+    )
+    _is_add: bool
+    _src0: SignalSourceProvider | None
+    _src1: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    is_linear = True
+
+    def __init__(
+        self,
+        src0: SignalSourceProvider | None = None,
+        src1: SignalSourceProvider | None = None,
+        is_add: bool = True,
+        shift: int = 0,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """
+        Construct an Addition/Subtraction operation.
+        """
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0, src1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self.set_param("is_add", is_add)
+        self.set_param("shift", shift)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("shiftaddsub")
+
+    def evaluate(self, a, b) -> Num:
+        return a + b / 2**self.shift if self.is_add else a - b / 2**self.shift
+
+    @property
+    def is_add(self) -> bool:
+        """
+        Get if operation is an addition.
+        """
+        return self.param("is_add")
+
+    @property
+    def shift(self) -> int:
+        return self.param("shift")
+
+    @is_add.setter
+    def is_add(self, is_add: bool) -> None:
+        """
+        Set if operation is an addition.
+
+        Parameters
+        ----------
+        is_add : bool
+            If True, operation is an addition. If False, operation is a subtraction.
+        """
+        self.set_param("is_add", is_add)
+
+    @shift.setter
+    def shift(self, shift: int) -> None:
+        self.set_param("shift", shift)
+
+    @property
+    def is_swappable(self) -> bool:
+        return self.is_add and self.shift == 0
 
 
 class Multiplication(AbstractOperation):

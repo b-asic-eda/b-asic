@@ -147,4 +147,4 @@ def _write_schedule_counter(f: TextIO, arch: "Architecture") -> None:
         ],
     )
     common.synchronous_process_epilogue(f, name="schedule_cnt_proc", clk="clk")
-    common.write(f, 1, "")
+    common.blank(f)

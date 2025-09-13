@@ -625,7 +625,7 @@ class ProcessingElement(Resource):
             ports.extend(dt.get_output_port_declaration("p"))
 
         common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
-        common.write(f, 1, "")
+        common.blank(f)
 
     def write_signal_declarations(
         self, f: TextIO, dt: VhdlDataType, indent: int = 1
@@ -647,7 +647,7 @@ class ProcessingElement(Resource):
                     signal_type=f"{dt.type_str}",
                     indent=indent,
                 )
-        common.write(f, indent, "")
+        common.blank(f)
 
     def write_component_instantiation(
         self, f: TextIO, dt: VhdlDataType, indent: int = 1
@@ -674,7 +674,7 @@ class ProcessingElement(Resource):
             port_mappings=port_mappings,
             indent=indent,
         )
-        common.write(f, indent, "")
+        common.blank(f)
 
     @property
     def operation_type(self) -> type[Operation]:
@@ -850,7 +850,7 @@ class Memory(Resource):
             for port_number in range(self.output_count)
         ]
         common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
-        common.write(f, indent, "")
+        common.blank(f)
 
     def write_signal_declarations(
         self, f: TextIO, dt: DataType, indent: int = 1
@@ -870,7 +870,7 @@ class Memory(Resource):
                 signal_type=f"{dt.type_str}",
                 indent=indent,
             )
-        common.write(f, indent, "")
+        common.blank(f)
 
     def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
         port_mappings = ["clk => clk", "schedule_cnt => schedule_cnt"]
@@ -890,7 +890,7 @@ class Memory(Resource):
             port_mappings=port_mappings,
             indent=indent,
         )
-        common.write(f, 1, "")
+        common.blank(f)
 
     @property
     def operation_type(self) -> type[MemoryProcess]:

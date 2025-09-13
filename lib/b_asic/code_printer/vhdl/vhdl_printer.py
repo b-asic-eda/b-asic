@@ -51,33 +51,33 @@ class VhdlPrinter(Printer):
         dir_path.mkdir(parents=True)
 
         if self.is_complex:
-            with (dir_path / "types.vhd").open("w") as f:
+            with (dir_path / "types.vhdl").open("w") as f:
                 common.write(f, 0, self.print_types(), end="")
 
         for pe in arch.processing_elements:
-            with (dir_path / f"{pe.entity_name}.vhd").open("w") as f:
+            with (dir_path / f"{pe.entity_name}.vhdl").open("w") as f:
                 common.write(f, 0, self.print_ProcessingElement(pe))
 
         for mem in arch.memories:
-            with (dir_path / f"{mem.entity_name}.vhd").open("w") as f:
+            with (dir_path / f"{mem.entity_name}.vhdl").open("w") as f:
                 common.write(f, 0, self.print_Memory(mem))
 
-        with (dir_path / f"{arch.entity_name}.vhd").open("w") as f:
+        with (dir_path / f"{arch.entity_name}.vhdl").open("w") as f:
             common.write(f, 0, self.print_Architecture(arch))
 
         if tb:
-            with (dir_path / f"{arch.entity_name}_tb.vhd").open("w") as f:
+            with (dir_path / f"{arch.entity_name}_tb.vhdl").open("w") as f:
                 common.write(f, 0, self.print_vhdl_tb(arch))
 
     def print_types(self) -> str:
         f = io.StringIO()
         common.b_asic_preamble(f)
-        common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+        common.ieee_header(f, fixed_pkg=self.vhdl_2008)
 
         common.write(f, 0, "package types is")
         common.write(f, 1, "type complex is record")
-        common.write(f, 2, f"re : {self._dt.scalar_type_str};")
-        common.write(f, 2, f"im : {self._dt.scalar_type_str};")
+        common.write(f, 2, f"re : {self.scalar_type_str};")
+        common.write(f, 2, f"im : {self.scalar_type_str};")
         common.write(f, 1, "end record;")
         common.write(f, 0, "end package types;")
 
@@ -86,7 +86,7 @@ class VhdlPrinter(Printer):
     def print_Architecture(self, arch: "Architecture", **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
-        common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+        common.ieee_header(f, fixed_pkg=self.vhdl_2008)
         if self.is_complex:
             common.package_header(f, "types")
 
@@ -97,7 +97,7 @@ class VhdlPrinter(Printer):
     def print_Memory(self, mem: "Memory", **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
-        common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+        common.ieee_header(f, fixed_pkg=self.vhdl_2008)
         if self.is_complex:
             common.package_header(f, "types")
 
@@ -110,7 +110,7 @@ class VhdlPrinter(Printer):
     def print_ProcessingElement(self, pe: "ProcessingElement", **kwargs) -> str | None:
         f = io.StringIO()
         common.b_asic_preamble(f)
-        common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+        common.ieee_header(f, fixed_pkg=self.vhdl_2008)
         if self.is_complex:
             common.package_header(f, "types")
 
@@ -124,7 +124,7 @@ class VhdlPrinter(Printer):
     def print_vhdl_tb(self, arch: "Architecture") -> str:
         f = io.StringIO()
         common.b_asic_preamble(f)
-        common.ieee_header(f, fixed_pkg=self._dt.vhdl_2008)
+        common.ieee_header(f, fixed_pkg=self.vhdl_2008)
         if self.is_complex:
             common.package_header(f, "types")
 
@@ -156,7 +156,7 @@ class VhdlPrinter(Printer):
         common.write(
             code,
             1,
-            f"res_0 <= std_logic_vector(resize(signed(p_0_in), {self._dt.output_bits}));\n",
+            f"res_0 <= std_logic_vector(resize(signed(p_0_in), {self.output_bits}));\n",
         )
         return declarations.getvalue(), code.getvalue()
 
@@ -167,12 +167,12 @@ class VhdlPrinter(Printer):
         common.write(
             code,
             1,
-            f"p_0_out_re <= std_logic_vector(resize(signed(p_0_in.re), {self._dt.output_bits}));",
+            f"p_0_out_re <= std_logic_vector(resize(signed(p_0_in.re), {self.output_bits}));",
         )
         common.write(
             code,
             1,
-            f"p_0_out_im <= std_logic_vector(resize(signed(p_0_in.im), {self._dt.output_bits}));",
+            f"p_0_out_im <= std_logic_vector(resize(signed(p_0_in.im), {self.output_bits}));",
         )
         return "", code.getvalue()
 
@@ -276,9 +276,9 @@ class VhdlPrinter(Printer):
         bits = real_entry.bits
         frac_bits = real_entry.frac_bits
 
-        common.signal_declaration(declarations, "a, b", self._dt.scalar_type_str)
+        common.signal_declaration(declarations, "a, b", self.scalar_type_str)
         common.signal_declaration(
-            declarations, "res_0_re, res_0_im", self._dt.scalar_type_str
+            declarations, "res_0_re, res_0_im", self.scalar_type_str
         )
 
         if pe._latency > 2 and not is_complex and is_real and is_imag:
@@ -456,3 +456,15 @@ class VhdlPrinter(Printer):
 
     def print_default(self) -> tuple[str, str]:
         return "", ""
+
+    @property
+    def scalar_type_str(self) -> str:
+        return self._dt.scalar_type_str
+
+    @property
+    def vhdl_2008(self) -> str:
+        return self._dt.vhdl_2008
+
+    @property
+    def output_bits(self) -> int:
+        return self._dt.output_bits

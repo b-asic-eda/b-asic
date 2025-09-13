@@ -17,7 +17,7 @@ def test_mat_inv_compile(tmp_path, arch_mat_inv):
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
         pytest.skip(f"Simulator {sim} not available in PATH")
-    sources = list((tmp_path / "mat_inv_0").glob("*.vhd"))
+    sources = list((tmp_path / "mat_inv_0").glob("*.vhdl"))
     from cocotb_tools.runner import get_runner
 
     runner = get_runner(sim)
@@ -37,7 +37,7 @@ def test_mat_inv_simulate(tmp_path, arch_mat_inv):
     sim = os.getenv("SIM", "ghdl")
     if not shutil.which(sim):
         pytest.skip(f"Simulator {sim} not available in PATH")
-    sources = list((tmp_path / "mat_inv_0").glob("*.vhd"))
+    sources = list((tmp_path / "mat_inv_0").glob("*.vhdl"))
     from cocotb_tools.runner import get_runner
 
     runner = get_runner(sim)
