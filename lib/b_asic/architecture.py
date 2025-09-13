@@ -89,15 +89,45 @@ class WordLengths:
 
 
 @dataclass
-class ControlTableEntry:
-    name: int
-    int_bits: int
-    frac_bits: int
+class ControlTable:
+    """
+    Control table for PEs.
+
+    One control table per PR parameter is generated as part of the code generation.
+
+    Parameters
+    ----------
+    name : str
+       The parameter name.
+    wl : (int, int)
+       Word length specification.
+    values : dict(int, int)
+        Dictionary with clock cycle and bit pattern
+    """
+
+    name: str
+    wl: tuple[int, int]
     values: dict[int, int]
 
     @property
     def bits(self) -> int:
-        return self.int_bits + self.frac_bits
+        return sum(self.wl)
+
+    @property
+    def int_bits(self) -> int:
+        return self.wl[0]
+
+    @property
+    def frac_bits(self) -> int:
+        return self.wl[1]
+
+    @property
+    def all_identical(self) -> bool:
+        return self.number_of_different_values <= 1
+
+    @property
+    def number_of_different_values(self) -> int:
+        return len(set(self.values.values()))
 
 
 class HardwareBlock(ABC):
@@ -495,7 +525,7 @@ class ProcessingElement(Resource):
         return [cast(OperatorProcess, p) for p in self._collection]
 
     @property
-    def control_table(self) -> dict[str, ControlTableEntry]:
+    def control_table(self) -> dict[str, ControlTable]:
         # Loop through all params and set these values
         control_table = {}
         params = cast(OperatorProcess, self.collection.collection[0]).operation.params
@@ -519,6 +549,7 @@ class ProcessingElement(Resource):
                     tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val.imag)
                     int_bits = max(int_bits, tmp_int_bits)
                     frac_bits = max(frac_bits, tmp_frac_bits)
+            wl = (int_bits, frac_bits)
 
             # Calculate values: dict[time, val]
             values = {}
@@ -527,37 +558,48 @@ class ProcessingElement(Resource):
 
             if is_complex:
                 real_values = {time: val.real for time, val in values.items()}
-                entry = ControlTableEntry(
-                    param_name + "_real", int_bits, frac_bits, real_values
-                )
+                entry = ControlTable(param_name + "_real", wl, real_values)
                 control_table[param_name + "_real"] = entry
 
                 imag_values = {time: val.imag for time, val in values.items()}
-                entry = ControlTableEntry(
-                    param_name + "_imag", int_bits, frac_bits, imag_values
-                )
+                entry = ControlTable(param_name + "_imag", wl, imag_values)
                 control_table[param_name + "_imag"] = entry
             else:
-                entry = ControlTableEntry(param_name, int_bits, frac_bits, values)
+                entry = ControlTable(param_name, wl, values)
                 control_table[param_name] = entry
         return control_table
 
     def assign(
-        self, strategy: Literal["left_edge", "graph_color"] = "left_edge"
+        self,
+        strategy: Literal[
+            "left_edge",
+            "greedy_graph_color",
+            "ilp_graph_color",
+        ] = "left_edge",
+        **kwargs,
     ) -> None:
         """
         Perform assignment of the processes.
 
         Parameters
         ----------
-        strategy : {'left_edge', 'graph_color'}, default: 'left_edge'
+        strategy : {'left_edge', 'greedy_graph_color', 'ilp_graph_color'}, default: 'left_edge'
             The assignment algorithm.
 
             * 'left_edge': Left-edge algorithm.
-            * 'graph_color': Graph-coloring based on exclusion graph.
+            * 'greedy_graph_color': Greedy graph-coloring based on exclusion graph.
+            * 'ilp_graph_color': Optimal graph-coloring based on exclusion graph.
+
+        **kwargs : dict
+            Additional keyword arguments are passed to `~ProcessCollection.split_on_execution_time`.
+
+        See Also
+        --------
+        ProcessCollection.split_on_execution_time
+
         """
         self._assignment = list(
-            self._collection.split_on_execution_time(strategy=strategy)
+            self._collection.split_on_execution_time(strategy, **kwargs)
         )
         if len(self._assignment) > 1:
             self._assignment = None
@@ -760,6 +802,7 @@ class Memory(Resource):
         strategy: Literal[
             "left_edge", "greedy_graph_color", "ilp_graph_color"
         ] = "left_edge",
+        **kwargs,
     ) -> None:
         """
         Perform assignment of the memory variables.
@@ -776,10 +819,17 @@ class Memory(Resource):
                 * 'ilp_graph_color': Optimal graph-coloring based on exclusion graph.
             * 'register'
                 * ...
+
+        **kwargs : dict
+            Additional keyword arguments are passed to `~ProcessCollection.split_on_execution_time`.
+
+        See Also
+        --------
+        ProcessCollection.split_on_execution_time
         """
         if self._memory_type == "RAM":
             self._assignment = self._collection.split_on_execution_time(
-                strategy=strategy
+                strategy, **kwargs
             )
         else:  # "register"
             raise NotImplementedError()
