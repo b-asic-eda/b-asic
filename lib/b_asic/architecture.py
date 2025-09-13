@@ -57,10 +57,12 @@ def _fixed_point_bits(num: float) -> int:
     frac_part = abs(num) - abs(int(num))
     if frac_part == 0:
         return int_bits, 0
-    man, _ = math.frexp(frac_part)
-    man_int = int(man * (2**53))  # 53 bits of precision for Python float
-    man_without_trailing_zeros = int(bin(man_int).rstrip("0"), 2)
-    frac_bits = man_without_trailing_zeros.bit_length()
+
+    max_bits = 53
+    frac_bits = 0
+    while frac_part != int(frac_part) and frac_bits < max_bits:
+        frac_part *= 2
+        frac_bits += 1
 
     return int_bits, frac_bits
 

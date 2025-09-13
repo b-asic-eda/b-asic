@@ -1,15 +1,42 @@
+import math
 import re
 from itertools import chain
 
 import pytest
 
-from b_asic.architecture import Architecture, Memory, ProcessingElement
+from b_asic.architecture import (
+    Architecture,
+    Memory,
+    ProcessingElement,
+    _fixed_point_bits,
+)
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.process import MemoryProcess, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
 from b_asic.special_operations import Input, Output
+
+
+@pytest.mark.parametrize(
+    ("input_val", "expected"),
+    [
+        (0.0, (1, 0)),
+        (1.0, (2, 0)),
+        (1.125, (2, 3)),
+        (2.5, (3, 1)),
+        (3.75, (3, 2)),
+        (0.1, (1, 53)),
+        (-4.625, (4, 3)),
+        (1023.0, (11, 0)),
+        (0.0009765625, (1, 10)),
+        (0.3333333333333333, (1, 53)),
+        (math.sqrt(3) / 2, (1, 52)),
+        (math.pi, (3, 48)),
+    ],
+)
+def test_fixed_point_bits(input_val, expected):
+    assert _fixed_point_bits(input_val) == expected
 
 
 def test_processing_element_exceptions(schedule_direct_form_iir_lp_filter: Schedule):
@@ -195,7 +222,7 @@ def test_architecture_not_unique_entity_names():
         entity_name="foo",
     )
     with pytest.raises(
-        ValueError, match="Entity names of processing elements needs to be unique."
+        ValueError, match=r"Entity names of processing elements needs to be unique."
     ):
         Architecture([pe_1, pe_2], [])
 
@@ -210,7 +237,7 @@ def test_architecture_not_unique_entity_names():
         entity_name="bar",
     )
     with pytest.raises(
-        ValueError, match="Entity names of memories needs to be unique."
+        ValueError, match=r"Entity names of memories needs to be unique."
     ):
         Architecture([], [mem_1, mem_2])
 
@@ -275,7 +302,7 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
         processing_elements[0].collection.from_name("add0")
 
     # Processes can only be moved when the source and destination process-types match
-    with pytest.raises(TypeError, match="cmul3.0 not of type"):
+    with pytest.raises(TypeError, match=r"cmul3.0 not of type"):
         architecture.move_process("cmul3.0", memories[0], processing_elements[0])
     with pytest.raises(KeyError, match="invalid_name not in"):
         architecture.move_process("invalid_name", memories[0], processing_elements[1])
@@ -303,7 +330,7 @@ def test_resource_errors(precedence_sfg_delays):
     with pytest.raises(
         ValueError,
         match=(
-            "If total_ports is unset, both read_ports and write_ports must be provided."
+            r"If total_ports is unset, both read_ports and write_ports must be provided."
         ),
     ):
         Memory(mv, read_ports=1)
