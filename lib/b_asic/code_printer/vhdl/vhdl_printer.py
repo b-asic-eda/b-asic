@@ -235,6 +235,59 @@ class VhdlPrinter(Printer):
         )
         return declarations.getvalue(), code.getvalue()
 
+    def print_ShiftAddSub_fixed_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[str, str]:
+        declarations, code = io.StringIO(), io.StringIO()
+
+        common.signal_declaration(declarations, "tmp_res", signed_type(self.bits + 1))
+        common.signal_declaration(declarations, "op_b", self.type_str)
+
+        common.write(code, 1, "op_b <= op_1 when is_add = '1' else not op_1;")
+
+        common.write(
+            code,
+            1,
+            "tmp_res <= (op_0 & '1') + (shift_right(op_b, to_integer(unsigned(shift))) & not is_add);",
+        )
+        common.write(
+            code,
+            1,
+            f"res_0 <= resize(shift_right(tmp_res, 1), {self.bits});",
+        )
+
+        return declarations.getvalue(), code.getvalue()
+
+    def print_ShiftAddSub_fixed_point_complex(
+        self, pe: "ProcessingElement"
+    ) -> tuple[str, str]:
+        declarations, code = io.StringIO(), io.StringIO()
+
+        for part in "re", "im":
+            common.signal_declaration(
+                declarations, f"{part}_op_a, {part}_op_b", signed_type(self.bits)
+            )
+            common.signal_declaration(
+                declarations, f"{part}_res", signed_type(self.bits + 1)
+            )
+            common.write(code, 1, f"{part}_op_a <= op_0.{part};")
+            common.write(
+                code,
+                1,
+                f"{part}_op_b <= op_1.{part} when is_add = '1' else not op_1.{part};",
+            )
+            common.write(
+                code,
+                1,
+                f"{part}_res <= ({part}_op_a & '1') + (shift_right({part}_op_b, to_integer(unsigned(shift))){part} & not is_add);",
+            )
+        common.write(
+            code,
+            1,
+            f"res_0 <= (re => resize(shift_right(re_res, 1), {self.bits}), im => resize(shift_right(im_res, 1), {self.bits}));",
+        )
+        return declarations.getvalue(), code.getvalue()
+
     def print_ConstantMultiplication_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
