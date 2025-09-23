@@ -3,13 +3,6 @@ import math
 import pytest
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
-from b_asic.core_operations import (
-    MADS,
-    Addition,
-    AddSub,
-    ConstantMultiplication,
-    Reciprocal,
-)
 from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
 from b_asic.sfg_generators import direct_form_2_iir, ldlt_matrix_inverse
@@ -22,10 +15,11 @@ def arch_first_order_iir():
     b = [0.29289322, 0.29289322]
     a = [1.0, -0.41421356]
     sfg = direct_form_2_iir(b, a)
-    sfg.set_latency_of_type(Addition, 1)
-    sfg.set_latency_of_type(ConstantMultiplication, 2)
-    sfg.set_execution_time_of_type(Addition, 1)
-    sfg.set_execution_time_of_type(ConstantMultiplication, 1)
+
+    sfg.set_latency_of_type_name("add", 1)
+    sfg.set_latency_of_type_name("cmul", 2)
+    sfg.set_execution_time_of_type_name("add", 1)
+    sfg.set_execution_time_of_type_name("cmul", 1)
 
     schedule = Schedule(sfg, cyclic=True)
     schedule.move_operation("cmul2", 1)
@@ -80,12 +74,17 @@ def arch_first_order_iir():
 def arch_r2bf():
     x0 = Input("x0")
     x1 = Input("x1")
-    s0 = AddSub(True, x0, x1, latency=1, execution_time=1)
-    s1 = AddSub(False, x0, x1, latency=1, execution_time=1)
+    s0 = x0 + x1
+    s1 = x0 - x1
     y0 = Output(s0)
     y1 = Output(s1)
 
     sfg = SFG([x0, x1], [y0, y1])
+
+    sfg = sfg.rewrite_addsub()
+
+    sfg.set_latency_of_type_name("addsub", 1)
+    sfg.set_execution_time_of_type_name("addsub", 1)
 
     schedule = Schedule(sfg, cyclic=True)
     schedule.set_schedule_time(2)
@@ -125,16 +124,16 @@ def arch_r3bf():
     in1 = Input("x1")
     in2 = Input("x2")
 
-    a0 = AddSub(True, in1, in2)
-    a1 = AddSub(False, in1, in2)
-    a2 = AddSub(True, a0, in0)
+    a0 = in1 + in2
+    a1 = in1 - in2
+    a2 = in0 + a0
 
     m0 = c30 * a0
     m1 = c31 * a1
 
-    a3 = AddSub(True, a2, m0)
-    a4 = AddSub(True, a3, m1)
-    a5 = AddSub(False, a3, m1)
+    a3 = a2 + m0
+    a4 = a3 + m1
+    a5 = a3 - m1
 
     out0 = Output(a2, "X0")
     out1 = Output(a4, "X1")
@@ -145,6 +144,8 @@ def arch_r3bf():
         outputs=[out0, out1, out2],
         name="3-point Winograd DFT",
     )
+
+    sfg = sfg.rewrite_addsub()
 
     sfg.set_latency_of_type_name("addsub", 1)
     sfg.set_execution_time_of_type_name("addsub", 1)
@@ -218,16 +219,17 @@ def arch_r4bf():
     x2 = Input()
     x3 = Input()
 
-    s0 = AddSub(True, x0, x2)
-    s1 = AddSub(True, x1, x3)
-    s2 = AddSub(False, x0, x2)
-    s3 = AddSub(False, x3, x1)
-    m0 = ConstantMultiplication(1j, s3)
+    s0 = x0 + x2
+    s1 = x1 + x3
+    s2 = x0 - x2
+    s3 = x3 - x1
 
-    s4 = AddSub(True, s0, s1)
-    s5 = AddSub(True, s2, m0)
-    s6 = AddSub(False, s0, s1)
-    s7 = AddSub(False, s2, m0)
+    m0 = 1j * s3
+
+    s4 = s0 + s1
+    s5 = s2 + m0
+    s6 = s0 - s1
+    s7 = s2 - m0
 
     y0 = Output(s4)
     y1 = Output(s5)
@@ -236,10 +238,12 @@ def arch_r4bf():
 
     sfg = SFG([x0, x1, x2, x3], [y0, y1, y2, y3])
 
-    sfg.set_latency_of_type(AddSub, 1)
-    sfg.set_execution_time_of_type(AddSub, 1)
-    sfg.set_latency_of_type(ConstantMultiplication, 1)
-    sfg.set_execution_time_of_type(ConstantMultiplication, 1)
+    sfg = sfg.rewrite_addsub()
+
+    sfg.set_latency_of_type_name("addsub", 1)
+    sfg.set_execution_time_of_type_name("addsub", 1)
+    sfg.set_latency_of_type_name("cmul", 1)
+    sfg.set_execution_time_of_type_name("cmul", 1)
 
     schedule = Schedule(sfg, cyclic=True)
 
@@ -312,18 +316,20 @@ def arch_r4bf():
 def arch_simple():
     in0 = Input()
     in1 = Input()
-    add0 = Addition(in0, in1)
-    cmul0 = ConstantMultiplication(3, add0)
-    add1 = Addition(add0, cmul0)
+
+    add0 = in0 + in1
+    cmul0 = 3 * add0
+    add1 = add0 + cmul0
+
     out0 = Output(add1)
 
     sfg = SFG([in0, in1], [out0])
 
-    sfg.set_execution_time_of_type(Addition, 1)
-    sfg.set_latency_of_type(Addition, 1)
+    sfg.set_execution_time_of_type_name("add", 1)
+    sfg.set_latency_of_type_name("add", 1)
 
-    sfg.set_execution_time_of_type(ConstantMultiplication, 1)
-    sfg.set_latency_of_type(ConstantMultiplication, 2)
+    sfg.set_execution_time_of_type_name("cmul", 1)
+    sfg.set_latency_of_type_name("cmul", 2)
 
     schedule = Schedule(sfg)
     schedule.set_schedule_time(5)
@@ -367,11 +373,11 @@ def arch_mat_inv():
     N = 4
     sfg = ldlt_matrix_inverse(N)
 
-    sfg.set_execution_time_of_type(MADS, 1)
-    sfg.set_latency_of_type(MADS, 2)
+    sfg.set_execution_time_of_type_name("mads", 1)
+    sfg.set_latency_of_type_name("mads", 2)
 
-    sfg.set_execution_time_of_type(Reciprocal, 1)
-    sfg.set_latency_of_type(Reciprocal, 2)
+    sfg.set_execution_time_of_type_name("rec", 1)
+    sfg.set_latency_of_type_name("rec", 2)
 
     input_times = {f"in{i}": i for i in range(N * (N + 1) // 2)}
     output_delta_times = {

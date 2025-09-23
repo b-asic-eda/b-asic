@@ -14,6 +14,7 @@ from b_asic import FastSimulation, Input, Output, Signal
 from b_asic.core_operations import (
     Absolute,
     Addition,
+    AddSub,
     ComplexConjugate,
     Constant,
     ConstantMultiplication,
@@ -1725,6 +1726,97 @@ class TestUnfold:
             sfg.unfold(0)
 
 
+class TestReplaceAddAndSubWithAddSub:
+    def test_simple_accumulator(self, sfg_simple_accumulator: SFG):
+        sfg = sfg_simple_accumulator
+
+        NUM_TESTS = 10
+        input_list = [[random.random() for _ in range(NUM_TESTS)] for _ in sfg.inputs]
+        sim_ref = Simulation(sfg, input_list)
+        sim_ref.run()
+
+        assert len(sfg.find_by_type(Addition)) == 1
+        assert len(sfg.find_by_type(AddSub)) == 0
+
+        sfg = sfg.rewrite_addsub()
+
+        assert len(sfg.find_by_type(Addition)) == 0
+        assert len(sfg.find_by_type(AddSub)) == 1
+
+        sim_addsub = Simulation(sfg, input_list)
+        sim_addsub.run()
+        for n, _ in enumerate(sfg.outputs):
+            ref_values = list(sim_ref.results[ResultKey(f"{n}")])
+            addsub_values = list(sim_addsub.results[ResultKey(f"{n}")])
+            assert ref_values == addsub_values
+
+    def test_target_ids_provided(self, sfg_two_inputs_two_outputs: SFG):
+        sfg = sfg_two_inputs_two_outputs
+
+        NUM_TESTS = 10
+        input_list = [[random.random() for _ in range(NUM_TESTS)] for _ in sfg.inputs]
+        sim_ref = Simulation(sfg, input_list)
+        sim_ref.run()
+
+        assert len(sfg.find_by_type(Addition)) == 2
+        assert len(sfg.find_by_type(AddSub)) == 0
+
+        sfg = sfg.rewrite_addsub(target_ids=[sfg.find_by_id("add0").graph_id])
+
+        assert len(sfg.find_by_type(Addition)) == 1
+        assert len(sfg.find_by_type(AddSub)) == 1
+
+        sfg = sfg.rewrite_addsub(target_ids=[sfg.find_by_id("add1").graph_id])
+
+        assert len(sfg.find_by_type(Addition)) == 0
+        assert len(sfg.find_by_type(AddSub)) == 2
+
+        sim_addsub = Simulation(sfg, input_list)
+        sim_addsub.run()
+        for n, _ in enumerate(sfg.outputs):
+            ref_values = list(sim_ref.results[ResultKey(f"{n}")])
+            addsub_values = list(sim_addsub.results[ResultKey(f"{n}")])
+            assert ref_values == addsub_values
+
+    def test_no_add_or_sub(self, sfg_delay: SFG):
+        sfg = sfg_delay
+
+        NUM_TESTS = 10
+        input_list = [[random.random() for _ in range(NUM_TESTS)] for _ in sfg.inputs]
+        sim_ref = Simulation(sfg, input_list)
+        sim_ref.run()
+
+        assert len(sfg.find_by_type(Addition)) == 0
+        assert len(sfg.find_by_type(Subtraction)) == 0
+        assert len(sfg.find_by_type(AddSub)) == 0
+
+        sfg = sfg.rewrite_addsub()
+
+        assert len(sfg.find_by_type(Addition)) == 0
+        assert len(sfg.find_by_type(Subtraction)) == 0
+        assert len(sfg.find_by_type(AddSub)) == 0
+
+        sim_addsub = Simulation(sfg, input_list)
+        sim_addsub.run()
+        for n, _ in enumerate(sfg.outputs):
+            ref_values = list(sim_ref.results[ResultKey(f"{n}")])
+            addsub_values = list(sim_addsub.results[ResultKey(f"{n}")])
+            assert ref_values == addsub_values
+
+    def test_target_id_not_found(self, sfg_two_inputs_two_outputs: SFG):
+        with pytest.raises(
+            ValueError, match="Graph ID foo not found in SFG and cannot be replaced"
+        ):
+            sfg_two_inputs_two_outputs.rewrite_addsub(target_ids=["foo"])
+
+    def test_target_id_not_add_or_sub(self, sfg_two_inputs_two_outputs: SFG):
+        with pytest.raises(
+            ValueError,
+            match="Operation with graph ID in0 is not an Addition or Subtraction and cannot be replaced",
+        ):
+            sfg_two_inputs_two_outputs.rewrite_addsub(target_ids=["in0"])
+
+
 class TestIsLinear:
     def test_single_accumulator(self, sfg_simple_accumulator: SFG):
         assert sfg_simple_accumulator.is_linear
@@ -1956,13 +2048,13 @@ class TestResourceLowerBound:
 
         with pytest.raises(
             ValueError,
-            match="Schedule time must be positive, current schedule time is: 0.",
+            match=r"Schedule time must be positive, current schedule time is: 0.",
         ):
             precedence_sfg_delays.resource_lower_bound("add", 0)
 
         with pytest.raises(
             ValueError,
-            match="Schedule time must be positive, current schedule time is: -1.",
+            match=r"Schedule time must be positive, current schedule time is: -1.",
         ):
             precedence_sfg_delays.resource_lower_bound("cmul", -1)
 
@@ -1971,7 +2063,7 @@ class TestResourceLowerBound:
 
         with pytest.raises(
             ValueError,
-            match="Execution times not set for all operations of type add.",
+            match=r"Execution times not set for all operations of type add.",
         ):
             sfg_simple_accumulator.resource_lower_bound("add", 2)
 

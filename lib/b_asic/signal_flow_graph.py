@@ -645,6 +645,8 @@ class SFG(AbstractOperation):
         sfg_copy = self()  # Copy to not mess with this SFG.
         component_copy = sfg_copy.find_by_id(graph_id)
 
+        if component is None:
+            raise ValueError("Given component is None")
         if component_copy is None or not isinstance(component_copy, Operation):
             raise ValueError("No operation matching the criteria found")
         if component_copy.output_count != component.output_count:
@@ -658,7 +660,7 @@ class SFG(AbstractOperation):
                 signal.set_destination(component.input(index_in))
 
         for index_out, output in enumerate(component_copy.outputs):
-            for signal in output.signals:
+            for signal in output.signals[:]:
                 signal.remove_source()
                 signal.set_source(component.output(index_out))
 
@@ -2251,6 +2253,53 @@ class SFG(AbstractOperation):
             sfg = sfg()
 
         return sfg
+
+    def rewrite_addsub(self, target_ids: list[GraphID] | None = None) -> "SFG":
+        """
+        Return a new SFG where all Addition and Subtraction operations are replaced by AddSub.
+
+        Parameters
+        ----------
+        target_ids : list[GraphID] | None, optional
+            If provided, only the operations with the given graph IDs are replaced.
+            Otherwise, all Addition and Subtraction operations are replaced.
+        """
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Subtraction,
+        )
+
+        sfg_copy = self()
+
+        if target_ids:
+            for gid in target_ids:
+                op = sfg_copy.find_by_id(gid)
+                if op is None:
+                    raise ValueError(
+                        f"Graph ID {gid} not found in SFG and cannot be replaced"
+                    )
+                if not isinstance(op, (Addition, Subtraction)):
+                    raise ValueError(
+                        f"Operation with graph ID {gid} is not an Addition or Subtraction and cannot be replaced"
+                    )
+        else:
+            add_ids = [op.graph_id for op in sfg_copy.find_by_type(Addition)]
+            sub_ids = [op.graph_id for op in sfg_copy.find_by_type(Subtraction)]
+            target_ids = add_ids + sub_ids
+
+        for gid in target_ids:
+            target = sfg_copy.find_by_id(gid)
+            is_add = isinstance(target, Addition)
+            new_op = AddSub(
+                is_add,
+                name=target.name,
+                latency_offsets=target.latency_offsets,
+                execution_time=target.execution_time,
+            )
+            sfg_copy = sfg_copy.replace_operation(new_op, gid)
+
+        return sfg_copy
 
     @property
     def is_linear(self) -> bool:
