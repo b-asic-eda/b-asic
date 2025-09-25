@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         Division,
         LeftShift,
         Multiplication,
+        Negation,
         Reciprocal,
         RightShift,
         Shift,
@@ -181,6 +182,15 @@ class SignalSourceProvider(ABC):
     def source(self) -> "OutputPort":
         """Get the main source port provided by this object."""
         raise NotImplementedError
+
+    def __pos__(self) -> "SignalSourceProvider":
+        return self
+
+    def __neg__(self) -> "Negation":
+        # Import here to avoid circular imports.
+        from b_asic.core_operations import Negation  # noqa: PLC0415
+
+        return Negation(self)
 
     def __add__(self, src: Union["SignalSourceProvider", Num]) -> "Addition":
         # Import here to avoid circular imports.

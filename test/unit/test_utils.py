@@ -2,7 +2,14 @@
 B-ASIC test suite for the utils module.
 """
 
-from b_asic.utils import decompose, downsample, interleave, upsample
+from b_asic.utils import (
+    decompose,
+    downsample,
+    float_to_csd,
+    int_to_csd,
+    interleave,
+    upsample,
+)
 
 
 def test_interleave():
@@ -35,3 +42,85 @@ def test_decompose():
     a = list(range(6))
     assert decompose(a, 2) == [[0, 2, 4], [1, 3, 5]]
     assert decompose(a, 3) == [[0, 3], [1, 4], [2, 5]]
+
+
+def test_int_to_csd():
+    assert int_to_csd(0) == []
+
+    assert int_to_csd(1) == [1]
+    assert int_to_csd(2) == [1, 0]
+    assert int_to_csd(3) == [1, 0, -1]
+    assert int_to_csd(4) == [1, 0, 0]
+    assert int_to_csd(5) == [1, 0, 1]
+    assert int_to_csd(6) == [1, 0, -1, 0]
+    assert int_to_csd(7) == [1, 0, 0, -1]
+    assert int_to_csd(8) == [1, 0, 0, 0]
+    assert int_to_csd(9) == [1, 0, 0, 1]
+    assert int_to_csd(10) == [1, 0, 1, 0]
+    assert int_to_csd(11) == [1, 0, -1, 0, -1]
+    assert int_to_csd(12) == [1, 0, -1, 0, 0]
+    assert int_to_csd(13) == [1, 0, -1, 0, 1]
+    assert int_to_csd(14) == [1, 0, 0, -1, 0]
+    assert int_to_csd(15) == [1, 0, 0, 0, -1]
+    assert int_to_csd(16) == [1, 0, 0, 0, 0]
+
+    assert int_to_csd(-1) == [-1]
+    assert int_to_csd(-2) == [-1, 0]
+    assert int_to_csd(-3) == [-1, 0, 1]
+    assert int_to_csd(-4) == [-1, 0, 0]
+    assert int_to_csd(-5) == [-1, 0, -1]
+    assert int_to_csd(-6) == [-1, 0, 1, 0]
+    assert int_to_csd(-7) == [-1, 0, 0, 1]
+    assert int_to_csd(-8) == [-1, 0, 0, 0]
+    assert int_to_csd(-9) == [-1, 0, 0, -1]
+    assert int_to_csd(-10) == [-1, 0, -1, 0]
+    assert int_to_csd(-11) == [-1, 0, 1, 0, 1]
+    assert int_to_csd(-12) == [-1, 0, 1, 0, 0]
+    assert int_to_csd(-13) == [-1, 0, 1, 0, -1]
+    assert int_to_csd(-14) == [-1, 0, 0, 1, 0]
+    assert int_to_csd(-15) == [-1, 0, 0, 0, 1]
+    assert int_to_csd(-16) == [-1, 0, 0, 0, 0]
+
+
+def test_float_to_csd():
+    assert float_to_csd(0) == ([], 0)
+
+    assert float_to_csd(1) == ([1], 0)
+    assert float_to_csd(2) == ([1], -1)
+    assert float_to_csd(3) == ([1, 0, -1], 0)
+    assert float_to_csd(4) == ([1], -2)
+    assert float_to_csd(5) == ([1, 0, 1], 0)
+    assert float_to_csd(6) == ([1, 0, -1], -1)
+    assert float_to_csd(7) == ([1, 0, 0, -1], 0)
+    assert float_to_csd(8) == ([1], -3)
+    assert float_to_csd(9) == ([1, 0, 0, 1], 0)
+    assert float_to_csd(10) == ([1, 0, 1], -1)
+    assert float_to_csd(11) == ([1, 0, -1, 0, -1], 0)
+    assert float_to_csd(12) == ([1, 0, -1], -2)
+    assert float_to_csd(13) == ([1, 0, -1, 0, 1], 0)
+    assert float_to_csd(14) == ([1, 0, 0, -1], -1)
+    assert float_to_csd(15) == ([1, 0, 0, 0, -1], 0)
+    assert float_to_csd(16) == ([1], -4)
+
+    assert float_to_csd(2044) == ([1, 0, 0, 0, 0, 0, 0, 0, 0, -1], -2)
+
+    assert float_to_csd(-1) == ([-1], 0)
+    assert float_to_csd(-2) == ([-1], -1)
+    assert float_to_csd(-3) == ([-1, 0, 1], 0)
+    assert float_to_csd(-4) == ([-1], -2)
+    assert float_to_csd(-5) == ([-1, 0, -1], 0)
+    assert float_to_csd(-6) == ([-1, 0, 1], -1)
+    assert float_to_csd(-7) == ([-1, 0, 0, 1], 0)
+    assert float_to_csd(-8) == ([-1], -3)
+    assert float_to_csd(-9) == ([-1, 0, 0, -1], 0)
+    assert float_to_csd(-10) == ([-1, 0, -1], -1)
+
+    assert float_to_csd(0.5) == ([1], 1)
+    assert float_to_csd(0.25) == ([1], 2)
+    assert float_to_csd(0.75) == ([1, 0, -1], 2)
+
+    assert float_to_csd(-0.5) == ([-1], 1)
+    assert float_to_csd(-0.25) == ([-1], 2)
+    assert float_to_csd(-0.75) == ([-1, 0, 1], 2)
+    assert float_to_csd(-0.71875) == ([-1, 0, 1, 0, 0, 1], 5)
+    assert float_to_csd(0.71875) == ([1, 0, -1, 0, 0, -1], 5)

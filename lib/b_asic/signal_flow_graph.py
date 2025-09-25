@@ -19,7 +19,14 @@ import numpy as np
 import numpy.typing as npt
 from graphviz import Digraph
 
-from b_asic.core_operations import Constant, ConstantMultiplication
+from b_asic.core_operations import (
+    Addition,
+    Constant,
+    ConstantMultiplication,
+    Negation,
+    Shift,
+    Subtraction,
+)
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
     AbstractOperation,
@@ -32,6 +39,7 @@ from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
+from b_asic.utils import float_to_csd
 
 DelayQueue = list[tuple[str, ResultKey, OutputPort]]
 
@@ -451,8 +459,10 @@ class SFG(AbstractOperation):
             src = output_operation.input(0).signals[0].source
             if src is None:
                 raise ValueError("Missing source in signal.")
-            src.remove_signal(output_operation.input(0).signals[0])
-            output_port.signals[0].set_source(src)
+            for sig in output_operation.input(0).signals[:]:
+                src.remove_signal(sig)
+                for signal in output_port.signals[:]:
+                    signal.set_source(src)
         return True
 
     @property
@@ -671,6 +681,51 @@ class SFG(AbstractOperation):
             )
         if isinstance(component, Output):
             sfg_copy._output_operations.append(component)
+
+        return sfg_copy()  # Copy again to update IDs.
+
+    def replace_operation_with_sfg(self, graph_id: GraphID, new_sfg: "SFG") -> "SFG":
+        """
+        Find and replace an operation based on GraphID with a new SFG.
+
+        Then return a new deepcopy of the SFG with the replaced operation.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The GraphID to match the operation to replace.
+        new_sfg : SFG
+            The new SFG to replace the old operation.
+        """
+        sfg_copy = self()  # Copy to not mess with this SFG.
+        component_copy = sfg_copy.find_by_id(graph_id)
+
+        if new_sfg is None:
+            raise ValueError("Given new_sfg is None")
+        if component_copy is None or not isinstance(component_copy, Operation):
+            raise ValueError("No operation matching the criteria found")
+        if component_copy.output_count != new_sfg.output_count:
+            raise TypeError("The output count may not differ between the operations")
+        if component_copy.input_count != new_sfg.input_count:
+            raise TypeError("The input count may not differ between the operations")
+
+        for index_in, input_ in enumerate(component_copy.inputs):
+            for signal in input_.signals:
+                signal.remove_destination()
+                signal.set_destination(new_sfg.input(index_in))
+
+        for index_out, output in enumerate(component_copy.outputs):
+            for signal in output.signals[:]:
+                signal.remove_source()
+                signal.set_source(new_sfg.output(index_out))
+
+        if isinstance(component_copy, Output):
+            sfg_copy._output_operations.remove(component_copy)
+            warnings.warn(
+                f"Output port {component_copy.graph_id} has been removed", stacklevel=2
+            )
+        if isinstance(new_sfg, Output):
+            sfg_copy._output_operations.append(new_sfg)
 
         return sfg_copy()  # Copy again to update IDs.
 
@@ -2300,6 +2355,95 @@ class SFG(AbstractOperation):
             sfg_copy = sfg_copy.replace_operation(new_op, gid)
 
         return sfg_copy
+
+    def rewrite_shift_and_add(self, target_ids: list[GraphID] | None = None) -> "SFG":
+        """
+        Return a new SFG where the target ConstantMultiplication operations are replaced
+        with shift-and-add chains.
+
+        The shift-and-add chains are created using the Canonical Signed Digit (CSD)
+        representation of the constant multiplication value.
+
+        Parameters
+        ----------
+        target_ids : list[GraphID] | None, optional
+            If provided, only the operations with the given graph IDs are replaced.
+            Otherwise, all ConstantMultiplication operations are replaced.
+        """
+        from b_asic.core_operations import (  # noqa: PLC0415
+            ConstantMultiplication,
+        )
+
+        sfg_copy = self()
+
+        if target_ids:
+            for gid in target_ids:
+                op = sfg_copy.find_by_id(gid)
+                if op is None:
+                    raise ValueError(
+                        f"Graph ID {gid} not found in SFG and cannot be replaced"
+                    )
+                if not isinstance(op, ConstantMultiplication):
+                    raise ValueError(
+                        f"Operation with graph ID {gid} is not a ConstantMultiplication and cannot be replaced"
+                    )
+        else:
+            target_ids = [
+                op.graph_id for op in sfg_copy.find_by_type(ConstantMultiplication)
+            ]
+
+        for gid in target_ids:
+            target = sfg_copy.find_by_id(gid)
+            if target.value is complex:
+                raise ValueError(
+                    "Cannot rewrite ConstantMultiplication with complex value"
+                )
+
+            csd = float_to_csd(target.value)
+
+            new_chain = self._get_shift_and_add_sfg(csd, target.value < 0)
+            sfg_copy = sfg_copy.replace_operation_with_sfg(gid, new_chain)
+
+        # Flatten all the copies of the original SFG
+        for i in range(len(target_ids)):
+            sfg_copy.find_by_id(f"sfg{i}").connect_external_signals_to_components()
+        return sfg_copy()
+
+    def _get_shift_and_add_sfg(
+        self, csd: tuple[list[int], int], negative: bool
+    ) -> "SFG":
+        in0 = Input()
+        out0 = Output()
+        prev_op = in0
+
+        if negative:
+            prev_op = Negation(prev_op)
+
+        bits = len(csd[0])
+        frac_bits = csd[1]
+        max_exp = bits - 1 - frac_bits
+
+        if len(csd[0]) == 1:
+            prev_op = Shift(-frac_bits, in0)
+        else:
+            for i, digit in enumerate(csd[0]):
+                if digit not in (-1, 0, 1):
+                    raise ValueError("CSD representation can only contain -1, 0, and 1")
+                if digit == 0:
+                    continue
+
+                exp = max_exp - i
+                if exp == 0:
+                    continue
+
+                shift = Shift(exp, in0)
+                if digit == 1:
+                    prev_op = Addition(prev_op, shift)
+                elif digit == -1:
+                    prev_op = Subtraction(prev_op, shift)
+        out0 <<= prev_op
+
+        return SFG([in0], [out0])
 
     @property
     def is_linear(self) -> bool:

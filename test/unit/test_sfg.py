@@ -357,6 +357,58 @@ class TestReplaceOperation:
             )
 
 
+class TestRewriteShiftAndAdd:
+    def test_simple_filter(self, sfg_simple_filter: SFG):
+        new_sfg = sfg_simple_filter.rewrite_shift_and_add()
+        assert not any(
+            isinstance(op, ConstantMultiplication) for op in new_sfg.operations
+        )
+
+        assert len(sfg_simple_filter.operations) == 5
+        assert len(new_sfg.operations) == 5
+
+        shift = new_sfg.find_by_id("shift0")
+        assert shift is not None
+        assert shift.value == -1
+        assert shift.input(0).signals[0].source.operation == new_sfg.find_by_id("t0")
+        assert shift.output(0).signals[0].destination_operation == new_sfg.find_by_id(
+            "add0"
+        )
+
+        sim1 = Simulation(sfg_simple_filter, [[1, 0, 0, 0, 0]])
+        sim1.run_for(5)
+        sim2 = Simulation(new_sfg, [[1, 0, 0, 0, 0]])
+        sim2.run_for(5)
+        assert list(sim1.results["0"]) == list(sim2.results["0"])
+
+    def test_sfg_two_inputs_two_outputs_independent_with_cmul(
+        self, sfg_two_inputs_two_outputs_independent_with_cmul: SFG
+    ):
+        assert len(sfg_two_inputs_two_outputs_independent_with_cmul.operations) == 9
+        new_sfg = (
+            sfg_two_inputs_two_outputs_independent_with_cmul.rewrite_shift_and_add(
+                ["cmul0"]
+            )
+        )
+        assert len(new_sfg.operations) == 10
+        new_sfg = new_sfg.rewrite_shift_and_add(["cmul1"])
+        assert len(new_sfg.operations) == 10
+        new_sfg = new_sfg.rewrite_shift_and_add(["cmul2"])
+        assert len(new_sfg.operations) == 10
+
+        assert not any(
+            isinstance(op, ConstantMultiplication) for op in new_sfg.operations
+        )
+
+        sim1 = Simulation(sfg_two_inputs_two_outputs_independent_with_cmul, [[1], [2]])
+        sim1.run()
+        sim2 = Simulation(new_sfg, [[1], [2]])
+        sim2.run()
+        assert [sim1.results[str(i)] for i in range(2)] == [
+            sim2.results[str(i)] for i in range(2)
+        ]
+
+
 class TestConstructSFG:
     def test_1k_additions(self):
         prev_op = Addition(Constant(1), Constant(1))
@@ -1659,6 +1711,9 @@ class TestUnfold:
 
     def test_delay(self, sfg_delay: SFG):
         self.do_tests(sfg_delay)
+
+    def test_iir(self, precedence_sfg_delays: SFG):
+        self.do_tests(precedence_sfg_delays)
 
     def test_sfg_two_inputs_two_outputs_independent(
         self, sfg_two_inputs_two_outputs_independent: SFG

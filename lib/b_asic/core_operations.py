@@ -112,6 +112,70 @@ class Constant(AbstractOperation):
         return ((0, 0.5),)
 
 
+class Negation(AbstractOperation):
+    """
+    Negation operation.
+
+    Gives the result of negating its input.
+
+    .. math:: y = -x
+
+    Parameters
+    ----------
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to negate.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be
+        reused).
+    """
+
+    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
+    _src0: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    is_linear = True
+    is_swappable = True
+
+    def __init__(
+        self,
+        src0: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """
+        Construct a Negation operation.
+        """
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("neg")
+
+    def evaluate(self, a) -> Num:
+        return -a
+
+
 class Addition(AbstractOperation):
     """
     Binary addition operation.

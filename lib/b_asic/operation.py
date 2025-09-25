@@ -668,7 +668,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         if isinstance(values, collections.abc.Sequence):
             if len(values) != self.output_count:
                 raise RuntimeError(
-                    "Operation evaluated to incorrect number of outputs"
+                    f"Operation {self.graph_id} evaluated to incorrect number of outputs"
                     f" (expected {self.output_count}, got {len(values)})"
                 )
         elif isinstance(values, Number):
