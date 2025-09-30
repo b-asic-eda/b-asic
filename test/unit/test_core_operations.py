@@ -12,6 +12,7 @@ from b_asic import (
     Constant,
     ConstantMultiplication,
     Division,
+    ImaginaryMultiplication,
     Input,
     LeftShift,
     Max,
@@ -267,6 +268,22 @@ class TestAbsolute:
             ValueError, match=r"core_operations.Max does not support complex numbers."
         ):
             test_operation.evaluate_output(0, [-1 - 1j, 2 + 2j])
+
+
+class TestImaginaryMultiplication:
+    """Tests for ImaginaryMultiplication class."""
+
+    def test_imaginarymultiplication_positive(self):
+        test_operation = ImaginaryMultiplication()
+        assert test_operation.evaluate_output(0, [3]) == 3j
+
+    def test_imaginarymultiplication_negative(self):
+        test_operation = ImaginaryMultiplication()
+        assert test_operation.evaluate_output(0, [-3]) == -3j
+
+    def test_imaginarymultiplication_complex(self):
+        test_operation = ImaginaryMultiplication()
+        assert test_operation.evaluate_output(0, [3 + 4j]) == -4 + 3j
 
 
 class TestConstantMultiplication:

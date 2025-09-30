@@ -1068,6 +1068,72 @@ class Absolute(AbstractOperation):
         return np_abs(a)
 
 
+class ImaginaryMultiplication(AbstractOperation):
+    r"""
+    Imaginary multiplication operation.
+
+    Gives the result of multiplying its input by the imaginary unit.
+
+    .. math:: y = x_0 \times j
+
+    Parameters
+    ----------
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to multiply with the imaginary unit.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+        "_src0",
+    )
+    _src0: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    is_linear = True
+
+    def __init__(
+        self,
+        src0: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """Construct an ImaginaryMultiplication operation."""
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("imul")
+
+    def evaluate(self, a) -> Num:
+        return a * 1j
+
+
 class ConstantMultiplication(AbstractOperation):
     r"""
     Constant multiplication operation.
