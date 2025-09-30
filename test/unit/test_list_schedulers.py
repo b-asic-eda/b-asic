@@ -19,13 +19,13 @@ from b_asic.list_schedulers import (
 )
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ListScheduler, RecursiveListScheduler
+from b_asic.sfg import SFG
 from b_asic.sfg_generators import (
     direct_form_1_iir,
     direct_form_2_iir,
     ldlt_matrix_inverse,
     radix_2_dif_fft,
 )
-from b_asic.signal_flow_graph import SFG
 from b_asic.signal_generator import Constant, Impulse
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay, Input, Output

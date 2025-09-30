@@ -22,7 +22,7 @@ from qtpy.QtWidgets import (
 from b_asic.sfg_gui.signal_generator_input import _GENERATOR_MAPPING
 
 if TYPE_CHECKING:
-    from b_asic.signal_flow_graph import SFG
+    from b_asic.sfg import SFG
 
 
 class SimulateSFGWindow(QDialog):

@@ -23,7 +23,7 @@ from b_asic.signal import Signal
 from b_asic.types import Num, ShapeCoordinates
 
 if TYPE_CHECKING:
-    from b_asic.signal_flow_graph import SFG
+    from b_asic.sfg import SFG
 
 
 ResultKey = NewType("ResultKey", str)
@@ -731,7 +731,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     def to_sfg(self) -> "SFG":
         # Import here to avoid circular imports.
-        from b_asic.signal_flow_graph import SFG  # noqa: PLC0415
+        from b_asic.sfg import SFG  # noqa: PLC0415
         from b_asic.special_operations import Input, Output  # noqa: PLC0415
 
         inputs = [Input() for _ in range(self.input_count)]

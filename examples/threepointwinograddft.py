@@ -13,7 +13,7 @@ import networkx as nx
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import AddSub, ConstantMultiplication
 from b_asic.schedule import Schedule
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 from b_asic.special_operations import Input, Output
 
 c30 = -1/2

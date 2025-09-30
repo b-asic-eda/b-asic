@@ -37,7 +37,7 @@ from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryVariable, OperatorProcess
 from b_asic.resources import ProcessCollection
 from b_asic.scheduler import ASAPScheduler, Scheduler
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import TypeName
 from b_asic.utility_operations import DontCare, Sink
@@ -74,7 +74,7 @@ class Schedule:
 
     Parameters
     ----------
-    sfg : :class:`~b_asic.signal_flow_graph.SFG`
+    sfg : :class:`~b_asic.sfg.SFG`
         The signal flow graph to schedule.
     scheduler : Scheduler, default: None
         The automatic scheduler to be used.

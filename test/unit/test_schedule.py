@@ -12,8 +12,8 @@ from b_asic.fft_operations import R2Butterfly
 from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
+from b_asic.sfg import SFG
 from b_asic.sfg_generators import direct_form_1_iir, direct_form_fir
-from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
 
 

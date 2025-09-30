@@ -9,13 +9,13 @@ One reason is using the SFG generators.
 Although connecting several SFGs is rather straightforward, it is also of
 interest to "flatten" the SFGs, i.e., get a resulting SFG not containing other
 SFGs but the operations of these. To do this, one will have to use the
-method :func:`~b_asic.signal_flow_graph.SFG.connect_external_signals_to_components`.
+method :func:`~b_asic.sfg.SFG.connect_external_signals_to_components`.
 
 This example illustrates how it can be done.
 """
 
 from b_asic.sfg_generators import wdf_allpass
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 from b_asic.special_operations import Input, Output
 
 # Generate allpass branches for fifth-ordet LWDF filter

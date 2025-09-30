@@ -5,8 +5,8 @@ import pytest
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
+from b_asic.sfg import SFG
 from b_asic.sfg_generators import direct_form_2_iir, ldlt_matrix_inverse
-from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Input, Output
 
 

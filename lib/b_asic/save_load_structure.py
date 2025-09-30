@@ -13,7 +13,7 @@ from typing import cast
 from b_asic.graph_component import GraphComponent
 from b_asic.port import InputPort
 from b_asic.schedule import Schedule
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 
 
 def sfg_to_python(
@@ -24,7 +24,7 @@ def sfg_to_python(
 
     Parameters
     ----------
-    sfg : :class:`~b_asic.signal_flow_graph.SFG`
+    sfg : :class:`~b_asic.sfg.SFG`
         The SFG to serialize.
     counter : int, default: 0
         Number used for naming the SFG. Enables SFGs in SFGs.

@@ -19,8 +19,8 @@ from b_asic.core_operations import (
     SymmetricTwoportAdaptor,
 )
 from b_asic.fft_operations import R2Butterfly
+from b_asic.sfg import SFG
 from b_asic.signal import Signal
-from b_asic.signal_flow_graph import SFG
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.utility_operations import DontCare
 

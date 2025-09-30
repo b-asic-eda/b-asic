@@ -54,7 +54,7 @@ output = Output(b1 + first_addition)
 # Now, we should create a signal flow graph, but first it must be imported (normally,
 # this should go at the top of the file).
 
-from b_asic.signal_flow_graph import SFG  # noqa: E402
+from b_asic.sfg import SFG  # noqa: E402
 
 # %%
 # The signal flow graph is defined by its inputs and outputs, so these must be

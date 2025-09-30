@@ -11,7 +11,7 @@ from mplsignal.freq_plots import freqz_fir
 
 from b_asic.core_operations import Addition, SymmetricTwoportAdaptor
 from b_asic.schedule import Schedule
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 from b_asic.signal_generator import Impulse
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay, Input, Output

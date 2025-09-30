@@ -15,7 +15,7 @@ Node numbering from the original SFG used with the Matlab toolbox::
     sfg=addoperand(sfg,'out',1,7);
 """
 
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 from b_asic.special_operations import Delay, Input, Output
 
 node1 = Input()

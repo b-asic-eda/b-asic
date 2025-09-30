@@ -3,7 +3,7 @@ import pytest
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 
 
 @pytest.fixture

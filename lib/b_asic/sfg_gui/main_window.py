@@ -43,6 +43,7 @@ from b_asic.gui_utils.plot_window import PlotWindow
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.sfg import SFG
 from b_asic.sfg_gui._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
 from b_asic.sfg_gui.arrow import Arrow
 from b_asic.sfg_gui.drag_button import DragButton
@@ -54,7 +55,6 @@ from b_asic.sfg_gui.simulate_sfg_window import SimulateSFGWindow
 from b_asic.sfg_gui.simulation_worker import SimulationWorker
 from b_asic.sfg_gui.util_dialogs import FaqWindow, KeybindingsWindow
 from b_asic.signal import Signal
-from b_asic.signal_flow_graph import SFG
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Input, Output
 

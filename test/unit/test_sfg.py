@@ -29,8 +29,8 @@ from b_asic.core_operations import (
 from b_asic.fft_operations import R2Butterfly
 from b_asic.operation import ResultKey
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
+from b_asic.sfg import SFG, GraphID
 from b_asic.sfg_generators import wdf_allpass
-from b_asic.signal_flow_graph import SFG, GraphID
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
 

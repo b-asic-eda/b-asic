@@ -29,9 +29,9 @@ from b_asic.resources import *
 from b_asic.save_load_structure import *
 from b_asic.schedule import *
 from b_asic.scheduler import *
+from b_asic.sfg import *
 from b_asic.sfg_generators import *
 from b_asic.signal import *
-from b_asic.signal_flow_graph import *
 from b_asic.simulation import *
 from b_asic.special_operations import *
 from b_asic.utility_operations import *

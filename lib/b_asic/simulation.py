@@ -11,7 +11,7 @@ from numbers import Number
 import numpy as np
 
 from b_asic.operation import MutableDelayMap, ResultKey
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 from b_asic.types import Num
 
 ResultArrayMap = Mapping[ResultKey, Sequence[Num]]

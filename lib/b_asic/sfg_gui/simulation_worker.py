@@ -6,7 +6,7 @@ Contains a class for simulation workers.
 
 from qtpy.QtCore import QObject, Signal
 
-from b_asic.signal_flow_graph import SFG
+from b_asic.sfg import SFG
 from b_asic.simulation import Simulation
 
 
