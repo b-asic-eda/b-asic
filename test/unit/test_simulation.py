@@ -148,7 +148,7 @@ class TestRunFor:
 
     def test_two_inputs_single_array(self, sfg_two_inputs_two_outputs):
         input_data = [5, 7, 9]
-        with pytest.raises(ValueError, match="Wrong number of inputs supplied"):
+        with pytest.raises(ValueError, match=r"Wrong number of inputs supplied"):
             Simulation(sfg_two_inputs_two_outputs, input_data)
 
     def test_find_result_key(self, precedence_sfg_delays):

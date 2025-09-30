@@ -42,7 +42,7 @@ class TestSink:
         bfly = R2Butterfly()
         sfg = bfly.to_sfg()
         s = Sink()
-        with pytest.warns(UserWarning, match="Output port out0 has been removed"):
+        with pytest.warns(UserWarning, match=r"Output port out0 has been removed"):
             sfg1 = sfg.replace_operation(s, "out0")
 
         assert sfg1.output_count == 1

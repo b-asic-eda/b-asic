@@ -27,7 +27,9 @@ def test_connect_then_disconnect(input_port, output_port):
 def test_connect_used_port_to_new_port(input_port, output_port, output_port2):
     """Multiple connections to an input port should throw an error."""
     input_port.connect(output_port)
-    with pytest.raises(ValueError, match="Cannot connect already connected input port"):
+    with pytest.raises(
+        ValueError, match=r"Cannot connect already connected input port"
+    ):
         input_port.connect(output_port2)
 
 

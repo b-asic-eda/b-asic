@@ -281,10 +281,10 @@ def test_fromfile(datadir):
     assert g(1) == 1
     assert g(2) == 0
 
-    with pytest.raises(FileNotFoundError, match="tset.py not found"):
+    with pytest.raises(FileNotFoundError, match=r"tset.py not found"):
         g = FromFile(datadir.join("tset.py"))
 
-    with pytest.raises(ValueError, match="could not convert string"):
+    with pytest.raises(ValueError, match=r"could not convert string"):
         g = FromFile(datadir.join("bad.csv"))
 
 

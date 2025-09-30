@@ -10,7 +10,7 @@ from b_asic.sfg_generators import direct_form_1_iir, radix_2_dif_fft
 class TestASAPScheduler:
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
-            ValueError, match="Empty signal flow graph cannot be scheduled."
+            ValueError, match=r"Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=ASAPScheduler())
 
@@ -140,7 +140,7 @@ class TestASAPScheduler:
 class TestALAPScheduler:
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
-            ValueError, match="Empty signal flow graph cannot be scheduled."
+            ValueError, match=r"Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=ALAPScheduler())
 
@@ -270,7 +270,7 @@ class TestALAPScheduler:
 class TestILPScheduler:
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
-            ValueError, match="Empty signal flow graph cannot be scheduled."
+            ValueError, match=r"Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=ALAPScheduler())
 

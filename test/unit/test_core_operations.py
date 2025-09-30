@@ -241,7 +241,7 @@ class TestMin:
     def test_min_complex(self):
         test_operation = Min()
         with pytest.raises(
-            ValueError, match="core_operations.Min does not support complex numbers."
+            ValueError, match=r"core_operations.Min does not support complex numbers."
         ):
             test_operation.evaluate_output(0, [-1 - 1j, 2 + 2j])
 
@@ -264,7 +264,7 @@ class TestAbsolute:
     def test_max_complex(self):
         test_operation = Max()
         with pytest.raises(
-            ValueError, match="core_operations.Max does not support complex numbers."
+            ValueError, match=r"core_operations.Max does not support complex numbers."
         ):
             test_operation.evaluate_output(0, [-1 - 1j, 2 + 2j])
 
@@ -433,16 +433,16 @@ class TestRightShift:
         assert test_operation.evaluate_output(0, [2 + 1j]) == 0.5 + 0.25j
 
     def test_rightshift_errors(self):
-        with pytest.raises(TypeError, match="value must be an int"):
+        with pytest.raises(TypeError, match=r"value must be an int"):
             _ = RightShift(0.5)
         test_operation = RightShift(0)
-        with pytest.raises(TypeError, match="value must be an int"):
+        with pytest.raises(TypeError, match=r"value must be an int"):
             test_operation.value = 0.5
 
-        with pytest.raises(ValueError, match="value must be non-negative"):
+        with pytest.raises(ValueError, match=r"value must be non-negative"):
             _ = RightShift(-1)
         test_operation = RightShift(0)
-        with pytest.raises(ValueError, match="value must be non-negative"):
+        with pytest.raises(ValueError, match=r"value must be non-negative"):
             test_operation.value = -1
 
 
@@ -463,16 +463,16 @@ class TestLeftShift:
         assert test_operation.evaluate_output(0, [0.5 + 0.25j]) == 2 + 1j
 
     def test_leftshift_errors(self):
-        with pytest.raises(TypeError, match="value must be an int"):
+        with pytest.raises(TypeError, match=r"value must be an int"):
             _ = LeftShift(0.5)
         test_operation = LeftShift(0)
-        with pytest.raises(TypeError, match="value must be an int"):
+        with pytest.raises(TypeError, match=r"value must be an int"):
             test_operation.value = 0.5
 
-        with pytest.raises(ValueError, match="value must be non-negative"):
+        with pytest.raises(ValueError, match=r"value must be non-negative"):
             _ = LeftShift(-1)
         test_operation = LeftShift(0)
-        with pytest.raises(ValueError, match="value must be non-negative"):
+        with pytest.raises(ValueError, match=r"value must be non-negative"):
             test_operation.value = -1
 
 
@@ -504,10 +504,10 @@ class TestShift:
 
     @pytest.mark.parametrize("val", [-0.5, 0.5])
     def test_leftshift_errors(self, val):
-        with pytest.raises(TypeError, match="value must be an int"):
+        with pytest.raises(TypeError, match=r"value must be an int"):
             _ = Shift(val)
         test_operation = Shift(0)
-        with pytest.raises(TypeError, match="value must be an int"):
+        with pytest.raises(TypeError, match=r"value must be an int"):
             test_operation.value = val
 
 
@@ -537,10 +537,10 @@ class TestSymmetricTwoportAdaptor:
         assert test_operation.value == -0.5
 
     def test_symmetrictwoportadaptor_error(self):
-        with pytest.raises(ValueError, match="value must be between -1 and 1"):
+        with pytest.raises(ValueError, match=r"value must be between -1 and 1"):
             _ = SymmetricTwoportAdaptor(-2)
         test_operation = SymmetricTwoportAdaptor(0)
-        with pytest.raises(ValueError, match="value must be between -1 and 1"):
+        with pytest.raises(ValueError, match=r"value must be between -1 and 1"):
             test_operation.value = 2
 
 

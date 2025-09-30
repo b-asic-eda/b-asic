@@ -327,16 +327,16 @@ def test_symmetric_fir():
     impulse_response.append(0.0)
     assert np.allclose(sim.results["0"], impulse_response)
 
-    with pytest.raises(ValueError, match="Coefficients must be of even length"):
+    with pytest.raises(ValueError, match=r"Coefficients must be of even length"):
         symmetric_fir([0.1, 0.2, 0.1])
 
 
 def test_sfg_generator_errors():
     sfg_gens = [wdf_allpass, transposed_direct_form_fir, direct_form_fir, symmetric_fir]
     for gen in sfg_gens:
-        with pytest.raises(ValueError, match="Coefficients cannot be empty"):
+        with pytest.raises(ValueError, match=r"Coefficients cannot be empty"):
             gen([])
-        with pytest.raises(TypeError, match="coefficients must be a 1D-array"):
+        with pytest.raises(TypeError, match=r"coefficients must be a 1D-array"):
             gen([[1, 2], [1, 3]])
 
 
@@ -400,30 +400,30 @@ class TestDirectFormIIRType1:
     def test_b_single_coeff(self):
         with pytest.raises(
             ValueError,
-            match="Size of coefficient lists a and b needs to contain at least 2 element.",
+            match=r"Size of coefficient lists a and b needs to contain at least 2 element.",
         ):
             direct_form_1_iir([1], [2, 3])
 
     def test_a_single_coeff(self):
         with pytest.raises(
             ValueError,
-            match="Size of coefficient lists a and b needs to contain at least 2 element.",
+            match=r"Size of coefficient lists a and b needs to contain at least 2 element.",
         ):
             direct_form_1_iir([1, 2], [3])
 
     def test_coeffs_not_same_size(self):
         with pytest.raises(
-            ValueError, match="Size of coefficient lists a and b are not the same."
+            ValueError, match=r"Size of coefficient lists a and b are not the same."
         ):
             direct_form_1_iir([1, 2, 3], [1, 2])
 
         with pytest.raises(
-            ValueError, match="Size of coefficient lists a and b are not the same."
+            ValueError, match=r"Size of coefficient lists a and b are not the same."
         ):
             direct_form_1_iir(list(range(10)), list(range(11)))
 
         with pytest.raises(
-            ValueError, match="Size of coefficient lists a and b are not the same."
+            ValueError, match=r"Size of coefficient lists a and b are not the same."
         ):
             direct_form_1_iir(list(range(10)), list(range(11)))
 
@@ -607,14 +607,14 @@ class TestDirectFormIIRType2:
     def test_b_single_coeff(self):
         with pytest.raises(
             ValueError,
-            match="Size of coefficient lists a and b needs to contain at least 2 element.",
+            match=r"Size of coefficient lists a and b needs to contain at least 2 element.",
         ):
             direct_form_2_iir([1], [2, 3])
 
     def test_a_single_coeff(self):
         with pytest.raises(
             ValueError,
-            match="Size of coefficient lists a and b needs to contain at least 2 element.",
+            match=r"Size of coefficient lists a and b needs to contain at least 2 element.",
         ):
             direct_form_2_iir([1, 2], [3])
 
@@ -624,7 +624,7 @@ class TestDirectFormIIRType2:
 
     def test_coeffs_not_same_size(self):
         with pytest.raises(
-            ValueError, match="Size of coefficient lists a and b are not the same."
+            ValueError, match=r"Size of coefficient lists a and b are not the same."
         ):
             direct_form_2_iir([1, 2, 3], [1, 2])
 
@@ -841,12 +841,12 @@ class TestRadix2FFT:
 
     def test_negative_number_of_points(self):
         POINTS = -8
-        with pytest.raises(ValueError, match="Points must be positive number."):
+        with pytest.raises(ValueError, match=r"Points must be positive number."):
             radix_2_dif_fft(points=POINTS)
 
     def test_number_of_points_not_power_of_2(self):
         POINTS = 5
-        with pytest.raises(ValueError, match="Points must be a power of two."):
+        with pytest.raises(ValueError, match=r"Points must be a power of two."):
             radix_2_dif_fft(points=POINTS)
 
 

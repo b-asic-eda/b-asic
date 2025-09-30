@@ -31,26 +31,26 @@ def test_pe_constrained_schedule():
 
     schedule = Schedule(sfg, scheduler=HybridScheduler(resources))
 
-    direct, mem_vars = schedule.get_memory_variables().split_on_length()
+    _, mem_vars = schedule.get_memory_variables().split_on_length()
     assert mem_vars.read_ports_bound() <= 7
     assert mem_vars.write_ports_bound() <= 4
 
     operations = schedule.get_operations()
 
     with pytest.raises(
-        TypeError, match="Different Operation types in ProcessCollection"
+        TypeError, match=r"Different Operation types in ProcessCollection"
     ):
         ProcessingElement(operations)
 
     mads = operations.get_by_type_name(MADS.type_name())
     with pytest.raises(
-        ValueError, match="Cannot map ProcessCollection to single ProcessingElement"
+        ValueError, match=r"Cannot map ProcessCollection to single ProcessingElement"
     ):
         ProcessingElement(mads, entity_name="mad")
     mads = mads.split_on_execution_time("ilp_graph_color")
     with pytest.raises(
         TypeError,
-        match="Argument process_collection must be ProcessCollection, not <class 'list'>",
+        match=r"Argument process_collection must be ProcessCollection, not <class 'list'>",
     ):
         ProcessingElement(mads, entity_name="mad")
 

@@ -80,7 +80,7 @@ class TestBits:
         assert signal.bits == 0
 
     def test_bits_neg_int(self, signal):
-        with pytest.raises(ValueError, match="Bits cannot be negative"):
+        with pytest.raises(ValueError, match=r"Bits cannot be negative"):
             signal.bits = -10
 
     def test_bits_complex(self, signal):
@@ -164,5 +164,5 @@ def test_signal_errors():
         signal.set_source(bf)
 
     signal = Signal()
-    with pytest.raises(ValueError, match="Signal source not set"):
+    with pytest.raises(ValueError, match=r"Signal source not set"):
         _ = signal.is_constant

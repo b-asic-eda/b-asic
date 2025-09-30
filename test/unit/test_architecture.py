@@ -43,12 +43,12 @@ def test_processing_element_exceptions(schedule_direct_form_iir_lp_filter: Sched
     mvs = schedule_direct_form_iir_lp_filter.get_memory_variables()
     with pytest.raises(
         TypeError,
-        match="Can only have OperatorProcesses in ProcessCollection when creating",
+        match=r"Can only have OperatorProcesses in ProcessCollection when creating",
     ):
         ProcessingElement(mvs)
     empty_collection = ProcessCollection(collection=set(), schedule_time=5)
     with pytest.raises(
-        ValueError, match="Do not create Resource with empty ProcessCollection"
+        ValueError, match=r"Do not create Resource with empty ProcessCollection"
     ):
         ProcessingElement(empty_collection)
 
@@ -67,7 +67,7 @@ def test_add_remove_process_from_resource(schedule_direct_form_iir_lp_filter: Sc
         with pytest.raises(TypeError, match=f"{process} not of type"):
             pe.add_process(process)
 
-    with pytest.raises(TypeError, match="PlainMV not of type"):
+    with pytest.raises(TypeError, match=r"PlainMV not of type"):
         memory.add_process(PlainMemoryVariable(0, 0, {0: 2}, "PlainMV"))
 
 
@@ -76,10 +76,10 @@ def test_memory_exceptions(schedule_direct_form_iir_lp_filter: Schedule):
     operations = schedule_direct_form_iir_lp_filter.get_operations()
     empty_collection = ProcessCollection(collection=set(), schedule_time=5)
     with pytest.raises(
-        ValueError, match="Do not create Resource with empty ProcessCollection"
+        ValueError, match=r"Do not create Resource with empty ProcessCollection"
     ):
         Memory(empty_collection)
-    with pytest.raises(TypeError, match="Can only have MemoryProcess"):
+    with pytest.raises(TypeError, match=r"Can only have MemoryProcess"):
         Memory(operations)
     # No exception
     Memory(mvs)
@@ -91,7 +91,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     operations = schedule_direct_form_iir_lp_filter.get_operations()
 
     with pytest.raises(
-        TypeError, match="Different Operation types in ProcessCollection"
+        TypeError, match=r"Different Operation types in ProcessCollection"
     ):
         ProcessingElement(operations)
 
@@ -167,7 +167,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         memory.show_content()
 
     # Set invalid name
-    with pytest.raises(ValueError, match="32 is not a valid VHDL identifier"):
+    with pytest.raises(ValueError, match=r"32 is not a valid VHDL identifier"):
         adder.set_entity_name("32")
     assert adder.entity_name == "adder"
     assert repr(adder) == "adder"
@@ -304,7 +304,7 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
     # Processes can only be moved when the source and destination process-types match
     with pytest.raises(TypeError, match=r"cmul3.0 not of type"):
         architecture.move_process("cmul3.0", memories[0], processing_elements[0])
-    with pytest.raises(KeyError, match="invalid_name not in"):
+    with pytest.raises(KeyError, match=r"invalid_name not in"):
         architecture.move_process("invalid_name", memories[0], processing_elements[1])
 
 
@@ -322,7 +322,7 @@ def test_resource_errors(precedence_sfg_delays):
     operations = schedule.get_operations()
     additions = operations.get_by_type_name(Addition.type_name())
     with pytest.raises(
-        ValueError, match="Cannot map ProcessCollection to single ProcessingElement"
+        ValueError, match=r"Cannot map ProcessCollection to single ProcessingElement"
     ):
         ProcessingElement(additions)
 
@@ -342,13 +342,13 @@ def test_resource_errors(precedence_sfg_delays):
         ValueError, match=re.escape("Total ports (6) less then write ports (7)")
     ):
         Memory(mv, read_ports=6, write_ports=7, total_ports=6)
-    with pytest.raises(ValueError, match="At least 4 read ports required"):
+    with pytest.raises(ValueError, match=r"At least 4 read ports required"):
         Memory(mv, read_ports=1, write_ports=1)
-    with pytest.raises(ValueError, match="At least 5 write ports required"):
+    with pytest.raises(ValueError, match=r"At least 5 write ports required"):
         Memory(mv, read_ports=6, write_ports=1)
-    with pytest.raises(ValueError, match="At least 9 total ports required"):
+    with pytest.raises(ValueError, match=r"At least 9 total ports required"):
         Memory(mv, read_ports=6, write_ports=5, total_ports=6)
     with pytest.raises(
-        ValueError, match="memory_type must be 'RAM' or 'register', not 'foo'"
+        ValueError, match=r"memory_type must be 'RAM' or 'register', not 'foo'"
     ):
         Memory(mv, read_ports=6, write_ports=5, total_ports=6, memory_type="foo")

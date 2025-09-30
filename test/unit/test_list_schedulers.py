@@ -34,7 +34,7 @@ from b_asic.special_operations import Delay, Input, Output
 class TestEarliestDeadlineScheduler:
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
-            ValueError, match="Empty signal flow graph cannot be scheduled."
+            ValueError, match=r"Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=EarliestDeadlineScheduler())
 
@@ -212,7 +212,7 @@ class TestEarliestDeadlineScheduler:
 class TestLeastSlackTimeScheduler:
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
-            ValueError, match="Empty signal flow graph cannot be scheduled."
+            ValueError, match=r"Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=LeastSlackTimeScheduler())
 
@@ -390,7 +390,7 @@ class TestLeastSlackTimeScheduler:
 class TestMaxFanOutScheduler:
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
-            ValueError, match="Empty signal flow graph cannot be scheduled."
+            ValueError, match=r"Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=MaxFanOutScheduler())
 
@@ -477,7 +477,7 @@ class TestMaxFanOutScheduler:
 class TestHybridScheduler:
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
-            ValueError, match="Empty signal flow graph cannot be scheduled."
+            ValueError, match=r"Empty signal flow graph cannot be scheduled."
         ):
             Schedule(sfg_empty, scheduler=HybridScheduler())
 
@@ -906,31 +906,31 @@ class TestHybridScheduler:
 
         resources = 2
         with pytest.raises(
-            ValueError, match="Provided max_resources must be a dictionary."
+            ValueError, match=r"Provided max_resources must be a dictionary."
         ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
         resources = "test"
         with pytest.raises(
-            ValueError, match="Provided max_resources must be a dictionary."
+            ValueError, match=r"Provided max_resources must be a dictionary."
         ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
         resources = []
         with pytest.raises(
-            ValueError, match="Provided max_resources must be a dictionary."
+            ValueError, match=r"Provided max_resources must be a dictionary."
         ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
         resources = {1: 1}
         with pytest.raises(
-            ValueError, match="Provided max_resources keys must be strings."
+            ValueError, match=r"Provided max_resources keys must be strings."
         ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
         resources = {MADS.type_name(): "test"}
         with pytest.raises(
-            ValueError, match="Provided max_resources values must be integers."
+            ValueError, match=r"Provided max_resources values must be integers."
         ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
@@ -944,7 +944,7 @@ class TestHybridScheduler:
 
         max_concurrent_writes = "5"
         with pytest.raises(
-            ValueError, match="Provided max_concurrent_writes must be an integer."
+            ValueError, match=r"Provided max_concurrent_writes must be an integer."
         ):
             Schedule(
                 sfg,
@@ -953,7 +953,7 @@ class TestHybridScheduler:
 
         max_concurrent_writes = 0
         with pytest.raises(
-            ValueError, match="Provided max_concurrent_writes must be larger than 0."
+            ValueError, match=r"Provided max_concurrent_writes must be larger than 0."
         ):
             Schedule(
                 sfg,
@@ -962,7 +962,7 @@ class TestHybridScheduler:
 
         max_concurrent_writes = -1
         with pytest.raises(
-            ValueError, match="Provided max_concurrent_writes must be larger than 0."
+            ValueError, match=r"Provided max_concurrent_writes must be larger than 0."
         ):
             Schedule(
                 sfg,
@@ -979,7 +979,7 @@ class TestHybridScheduler:
 
         max_concurrent_reads = "5"
         with pytest.raises(
-            ValueError, match="Provided max_concurrent_reads must be an integer."
+            ValueError, match=r"Provided max_concurrent_reads must be an integer."
         ):
             Schedule(
                 sfg,
@@ -988,7 +988,7 @@ class TestHybridScheduler:
 
         max_concurrent_reads = 0
         with pytest.raises(
-            ValueError, match="Provided max_concurrent_reads must be larger than 0."
+            ValueError, match=r"Provided max_concurrent_reads must be larger than 0."
         ):
             Schedule(
                 sfg,
@@ -997,7 +997,7 @@ class TestHybridScheduler:
 
         max_concurrent_reads = -1
         with pytest.raises(
-            ValueError, match="Provided max_concurrent_reads must be larger than 0."
+            ValueError, match=r"Provided max_concurrent_reads must be larger than 0."
         ):
             Schedule(
                 sfg,
@@ -1014,37 +1014,37 @@ class TestHybridScheduler:
 
         input_times = 5
         with pytest.raises(
-            ValueError, match="Provided input_times must be a dictionary."
+            ValueError, match=r"Provided input_times must be a dictionary."
         ):
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
         input_times = "test1"
         with pytest.raises(
-            ValueError, match="Provided input_times must be a dictionary."
+            ValueError, match=r"Provided input_times must be a dictionary."
         ):
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
         input_times = []
         with pytest.raises(
-            ValueError, match="Provided input_times must be a dictionary."
+            ValueError, match=r"Provided input_times must be a dictionary."
         ):
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
         input_times = {3: 3}
         with pytest.raises(
-            ValueError, match="Provided input_times keys must be strings."
+            ValueError, match=r"Provided input_times keys must be strings."
         ):
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
         input_times = {"in0": "foo"}
         with pytest.raises(
-            ValueError, match="Provided input_times values must be integers."
+            ValueError, match=r"Provided input_times values must be integers."
         ):
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
         input_times = {"in0": -1}
         with pytest.raises(
-            ValueError, match="Provided input_times values must be non-negative."
+            ValueError, match=r"Provided input_times values must be non-negative."
         ):
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
@@ -1058,7 +1058,7 @@ class TestHybridScheduler:
 
         output_delta_times = 10
         with pytest.raises(
-            ValueError, match="Provided output_delta_times must be a dictionary."
+            ValueError, match=r"Provided output_delta_times must be a dictionary."
         ):
             Schedule(
                 sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
@@ -1066,7 +1066,7 @@ class TestHybridScheduler:
 
         output_delta_times = "test2"
         with pytest.raises(
-            ValueError, match="Provided output_delta_times must be a dictionary."
+            ValueError, match=r"Provided output_delta_times must be a dictionary."
         ):
             Schedule(
                 sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
@@ -1074,7 +1074,7 @@ class TestHybridScheduler:
 
         output_delta_times = []
         with pytest.raises(
-            ValueError, match="Provided output_delta_times must be a dictionary."
+            ValueError, match=r"Provided output_delta_times must be a dictionary."
         ):
             Schedule(
                 sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
@@ -1082,7 +1082,7 @@ class TestHybridScheduler:
 
         output_delta_times = {4: 4}
         with pytest.raises(
-            ValueError, match="Provided output_delta_times keys must be strings."
+            ValueError, match=r"Provided output_delta_times keys must be strings."
         ):
             Schedule(
                 sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
@@ -1090,7 +1090,7 @@ class TestHybridScheduler:
 
         output_delta_times = {"out0": "foo"}
         with pytest.raises(
-            ValueError, match="Provided output_delta_times values must be integers."
+            ValueError, match=r"Provided output_delta_times values must be integers."
         ):
             Schedule(
                 sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
@@ -1098,7 +1098,8 @@ class TestHybridScheduler:
 
         output_delta_times = {"out0": -1}
         with pytest.raises(
-            ValueError, match="Provided output_delta_times values must be non-negative."
+            ValueError,
+            match=r"Provided output_delta_times values must be non-negative.",
         ):
             Schedule(
                 sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
@@ -1119,7 +1120,7 @@ class TestHybridScheduler:
         }
         with pytest.raises(
             ValueError,
-            match="Provided max resource of type add cannot be found in the provided SFG.",
+            match=r"Provided max resource of type add cannot be found in the provided SFG.",
         ):
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
@@ -1134,7 +1135,7 @@ class TestHybridScheduler:
         input_times = {"in100": 4}
         with pytest.raises(
             ValueError,
-            match="Provided input time with GraphID in100 cannot be found in the provided SFG.",
+            match=r"Provided input time with GraphID in100 cannot be found in the provided SFG.",
         ):
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
@@ -1149,7 +1150,7 @@ class TestHybridScheduler:
         output_delta_times = {"out90": 2}
         with pytest.raises(
             ValueError,
-            match="Provided output delta time with GraphID out90 cannot be found in the provided SFG.",
+            match=r"Provided output delta time with GraphID out90 cannot be found in the provided SFG.",
         ):
             Schedule(
                 sfg, scheduler=HybridScheduler(output_delta_times=output_delta_times)
@@ -1174,7 +1175,7 @@ class TestHybridScheduler:
             ),
         )
 
-        direct, mem_vars = schedule.get_memory_variables().split_on_length()
+        _, mem_vars = schedule.get_memory_variables().split_on_length()
         assert mem_vars.read_ports_bound() == 3
         assert mem_vars.write_ports_bound() == 1
         _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 3)
@@ -1423,7 +1424,7 @@ class TestHybridScheduler:
         resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
         with pytest.raises(
             ValueError,
-            match="Amount of resource: mads is not enough to realize schedule for scheduling time: 5.",
+            match=r"Amount of resource: mads is not enough to realize schedule for scheduling time: 5.",
         ):
             Schedule(
                 sfg,
@@ -1446,7 +1447,7 @@ class TestHybridScheduler:
         }
         with pytest.raises(
             ValueError,
-            match="Amount of resource: r2bfly is not enough to realize schedule for scheduling time: 6.",
+            match=r"Amount of resource: r2bfly is not enough to realize schedule for scheduling time: 6.",
         ):
             Schedule(
                 sfg,
@@ -1473,7 +1474,7 @@ class TestHybridScheduler:
         }
         with pytest.raises(
             ValueError,
-            match="Provided scheduling time 5 cannot be reached, try to enable the cyclic property or increase the time to at least 30.",
+            match=r"Provided scheduling time 5 cannot be reached, try to enable the cyclic property or increase the time to at least 30.",
         ):
             Schedule(
                 sfg,
@@ -1581,7 +1582,7 @@ class TestHybridScheduler:
 
         with pytest.raises(
             ValueError,
-            match="Provided scheduling time 5 cannot be reached, try to enable the cyclic property or increase the time to at least 7.",
+            match=r"Provided scheduling time 5 cannot be reached, try to enable the cyclic property or increase the time to at least 7.",
         ):
             Schedule(
                 sfg,
@@ -1606,7 +1607,7 @@ class TestHybridScheduler:
 
         with pytest.raises(
             ValueError,
-            match="Provided scheduling time 5 must be larger or equal to the iteration period bound: 8.",
+            match=r"Provided scheduling time 5 must be larger or equal to the iteration period bound: 8.",
         ):
             Schedule(
                 sfg,
@@ -1728,7 +1729,7 @@ class TestListScheduler:
 
         with pytest.raises(
             ValueError,
-            match="Input port 0 of operation add4 has no latency-offset.",
+            match=r"Input port 0 of operation add4 has no latency-offset.",
         ):
             Schedule(
                 sfg,
@@ -1741,7 +1742,7 @@ class TestListScheduler:
         sfg.set_latency_offsets_of_type_name(Addition.type_name(), {"in0": 0, "in1": 0})
         with pytest.raises(
             ValueError,
-            match="Output port 0 of operation add4 has no latency-offset.",
+            match=r"Output port 0 of operation add4 has no latency-offset.",
         ):
             Schedule(
                 sfg,
@@ -1757,7 +1758,7 @@ class TestListScheduler:
 
         with pytest.raises(
             ValueError,
-            match="All operations in the SFG must have a specified execution time. Missing operation: cmul0.",
+            match=r"All operations in the SFG must have a specified execution time. Missing operation: cmul0.",
         ):
             Schedule(
                 sfg,
@@ -1771,7 +1772,7 @@ class TestListScheduler:
 
         with pytest.raises(
             ValueError,
-            match="All operations in the SFG must have a specified execution time. Missing operation: add0.",
+            match=r"All operations in the SFG must have a specified execution time. Missing operation: add0.",
         ):
             Schedule(
                 sfg,
@@ -1956,7 +1957,7 @@ class TestListScheduler:
 class TestRecursiveListScheduler:
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
-            ValueError, match="Empty signal flow graph cannot be scheduled."
+            ValueError, match=r"Empty signal flow graph cannot be scheduled."
         ):
             Schedule(
                 sfg_empty,

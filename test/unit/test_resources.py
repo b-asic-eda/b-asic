@@ -48,7 +48,7 @@ class TestProcessCollectionPlainMemoryVariable:
         assert m1 not in collection
 
     def test_split_sequence_raises(self, simple_collection: ProcessCollection):
-        with pytest.raises(KeyError, match="processes in `sequence` must be"):
+        with pytest.raises(KeyError, match=r"processes in `sequence` must be"):
             simple_collection.split_ports_sequentially(
                 read_ports=1, write_ports=1, total_ports=2, sequence=[]
             )
@@ -74,7 +74,7 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_split_memory_variable_raises(self, simple_collection: ProcessCollection):
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if strategy = 'ilp_min_input_mux'",
+            match=r"processing_elements must be provided if strategy = 'ilp_min_input_mux'",
         ):
             simple_collection.split_on_ports(
                 strategy="ilp_min_input_mux", total_ports=1
@@ -82,7 +82,7 @@ class TestProcessCollectionPlainMemoryVariable:
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if strategy = 'ilp_min_output_mux'",
+            match=r"processing_elements must be provided if strategy = 'ilp_min_output_mux'",
         ):
             simple_collection.split_on_ports(
                 strategy="ilp_min_output_mux", total_ports=1
@@ -90,7 +90,7 @@ class TestProcessCollectionPlainMemoryVariable:
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if strategy = 'ilp_min_total_mux'",
+            match=r"processing_elements must be provided if strategy = 'ilp_min_total_mux'",
         ):
             simple_collection.split_on_ports(
                 strategy="ilp_min_total_mux", total_ports=1
@@ -98,7 +98,7 @@ class TestProcessCollectionPlainMemoryVariable:
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if strategy = 'left_edge_min_pe_to_mem'",
+            match=r"processing_elements must be provided if strategy = 'left_edge_min_pe_to_mem'",
         ):
             simple_collection.split_on_ports(
                 strategy="left_edge_min_pe_to_mem", total_ports=1
@@ -106,13 +106,13 @@ class TestProcessCollectionPlainMemoryVariable:
 
         with pytest.raises(
             ValueError,
-            match="processing_elements must be provided if strategy = 'left_edge_min_mem_to_pe'",
+            match=r"processing_elements must be provided if strategy = 'left_edge_min_mem_to_pe'",
         ):
             simple_collection.split_on_ports(
                 strategy="left_edge_min_mem_to_pe", total_ports=1
             )
 
-        with pytest.raises(ValueError, match="Invalid strategy provided."):
+        with pytest.raises(ValueError, match=r"Invalid strategy provided."):
             simple_collection.split_on_ports(strategy="foo", total_ports=1)
 
     @matplotlib.testing.decorators.image_comparison(
@@ -340,7 +340,7 @@ class TestProcessCollectionPlainMemoryVariable:
         for strategy in ("greedy_graph_color", "left_edge", "ilp_graph_color"):
             with pytest.raises(
                 ValueError,
-                match="MV0 has execution time greater than the schedule time",
+                match=r"MV0 has execution time greater than the schedule time",
             ):
                 collection.split_on_execution_time(strategy)
 
@@ -377,6 +377,6 @@ class TestProcessCollectionPlainMemoryVariable:
     def test_from_name(self):
         a = PlainMemoryVariable(0, 0, {0: 2}, name="cool name 1337")
         collection = ProcessCollection([a], schedule_time=5, cyclic=True)
-        with pytest.raises(KeyError, match="epic_name not in ..."):
+        with pytest.raises(KeyError, match=r"epic_name not in ..."):
             collection.from_name("epic_name")
         assert a == collection.from_name("cool name 1337")

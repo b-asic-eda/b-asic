@@ -19,7 +19,7 @@ class TestConnect:
         """Check error handing."""
         input_port.connect(output_port)
         with pytest.raises(
-            ValueError, match="Cannot connect already connected input port"
+            ValueError, match=r"Cannot connect already connected input port"
         ):
             input_port.connect(output_port)
 

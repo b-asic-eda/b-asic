@@ -266,7 +266,7 @@ class TestEvaluateOutput:
 
     def test_evaluate_output_cycle(self, operation_graph_with_cycle):
         sfg = SFG(outputs=[Output(operation_graph_with_cycle)])
-        with pytest.raises(RuntimeError, match="Direct feedback loop detected"):
+        with pytest.raises(RuntimeError, match=r"Direct feedback loop detected"):
             sfg.evaluate_output(0, [])
 
 
@@ -338,7 +338,7 @@ class TestReplaceOperation:
         component_id = "addd0"
 
         with pytest.raises(
-            ValueError, match="No operation matching the criteria found"
+            ValueError, match=r"No operation matching the criteria found"
         ):
             sfg = sfg.replace_operation(
                 Multiplication(name="Multi"), graph_id=component_id
@@ -350,7 +350,7 @@ class TestReplaceOperation:
 
         with pytest.raises(
             TypeError,
-            match="The input count may not differ between the operations",
+            match=r"The input count may not differ between the operations",
         ):
             sfg = sfg.replace_operation(
                 Multiplication(name="Multi"), graph_id=component_id
@@ -553,7 +553,7 @@ class TestInsertComponent:
 
         # Should raise an exception for not matching input count to output count.
         add4 = Addition()
-        with pytest.raises(TypeError, match="Source operation output count"):
+        with pytest.raises(TypeError, match=r"Source operation output count"):
             sfg.insert_operation(add4, "c0")
 
     def test_insert_at_output(self, large_operation_tree):
@@ -561,7 +561,7 @@ class TestInsertComponent:
 
         # Should raise an exception for trying to insert an operation after an output.
         sqrt = SquareRoot()
-        with pytest.raises(TypeError, match="Source operation cannot be an"):
+        with pytest.raises(TypeError, match=r"Source operation cannot be an"):
             _ = sfg.insert_operation(sqrt, "out0")
 
     def test_insert_multiple_output_ports(self, butterfly_operation_tree):
@@ -1249,7 +1249,7 @@ class TestRemove:
         assert "r2bfly2" not in {op.name for op in new_sfg.operations}
 
     def remove_different_number_inputs_outputs(self, sfg_simple_filter):
-        with pytest.raises(ValueError, match="foo"):
+        with pytest.raises(ValueError, match=r"foo"):
             sfg_simple_filter.remove_operation("add1")
 
 
@@ -1505,11 +1505,11 @@ class TestSFGGraph:
         )
 
     def test_show_sfg_invalid_format(self, sfg_simple_filter):
-        with pytest.raises(ValueError, match="unknown format: 'ppddff'"):
+        with pytest.raises(ValueError, match=r"unknown format: 'ppddff'"):
             sfg_simple_filter.show(fmt="ppddff")
 
     def test_show_sfg_invalid_engine(self, sfg_simple_filter):
-        with pytest.raises(ValueError, match="unknown engine: 'ppddff'"):
+        with pytest.raises(ValueError, match=r"unknown engine: 'ppddff'"):
             sfg_simple_filter.show(engine="ppddff")
 
 
@@ -1526,7 +1526,7 @@ class TestSFGErrors:
         in1 = Input()
         adaptor = SymmetricTwoportAdaptor(0.5, in1)
         out1 = Output(adaptor.output(0))
-        with pytest.raises(ValueError, match="Unconnected input port in SFG"):
+        with pytest.raises(ValueError, match=r"Unconnected input port in SFG"):
             SFG([in1], [out1])
 
     def test_unconnected_output(self):
@@ -1537,7 +1537,7 @@ class TestSFGErrors:
         out2 = Output()
         with pytest.raises(
             ValueError,
-            match="At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal",
+            match=r"At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal",
         ):
             SFG([in1, in2], [out1, out2])
 
@@ -1548,7 +1548,7 @@ class TestSFGErrors:
         out1 = Output(adaptor.output(0))
         out2 = Output(adaptor.output(1))
         # Correct error?
-        with pytest.raises(ValueError, match="Unconnected input port in SFG"):
+        with pytest.raises(ValueError, match=r"Unconnected input port in SFG"):
             SFG([in1, in2], [out1, out2])
 
     def test_duplicate_input(self):
@@ -1557,7 +1557,7 @@ class TestSFGErrors:
         adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
         out1 = Output(adaptor.output(0))
         out2 = Output(adaptor.output(1))
-        with pytest.raises(ValueError, match="Duplicate input operation"):
+        with pytest.raises(ValueError, match=r"Duplicate input operation"):
             SFG([in1, in1], [out1, out2])
 
     def test_duplicate_output(self):
@@ -1566,7 +1566,7 @@ class TestSFGErrors:
         adaptor = SymmetricTwoportAdaptor(0.5, in1, in2)
         out1 = Output(adaptor.output(0))
         Output(adaptor.output(1))
-        with pytest.raises(ValueError, match="Duplicate output operation"):
+        with pytest.raises(ValueError, match=r"Duplicate output operation"):
             SFG([in1, in2], [out1, out1])
 
     def test_unconnected_input_signal(self):
@@ -1577,7 +1577,7 @@ class TestSFGErrors:
         out2 = Output(adaptor.output(1))
         signal = Signal()
         with pytest.raises(
-            ValueError, match="Input signal #0 is missing destination in SFG"
+            ValueError, match=r"Input signal #0 is missing destination in SFG"
         ):
             SFG([in1, in2], [out1, out2], [signal])
 
@@ -1589,7 +1589,7 @@ class TestSFGErrors:
         out2 = Output(adaptor.output(1))
         signal = Signal()
         with pytest.raises(
-            ValueError, match="Output signal #0 is missing source in SFG"
+            ValueError, match=r"Output signal #0 is missing source in SFG"
         ):
             SFG([in1, in2], [out1, out2], output_signals=[signal])
 
@@ -1599,7 +1599,7 @@ class TestSFGErrors:
         adaptor = SymmetricTwoportAdaptor(0.5, in1, signal)
         out1 = Output(adaptor.output(0))
         out2 = Output(adaptor.output(1))
-        with pytest.raises(ValueError, match="Duplicate input signal"):
+        with pytest.raises(ValueError, match=r"Duplicate input signal"):
             SFG([in1], [out1, out2], [signal, signal])
 
     def test_duplicate_output_signal(self):
@@ -1610,7 +1610,7 @@ class TestSFGErrors:
         signal = Signal(adaptor.output(1))
         with pytest.raises(
             ValueError,
-            match="At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal",
+            match=r"At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal",
         ):
             SFG([in1, in2], [out1], output_signals=[signal, signal])
 
@@ -1620,7 +1620,7 @@ class TestSFGErrors:
         adaptor = SymmetricTwoportAdaptor(0.5, in1, signal)
         out1 = Output(adaptor.output(0))
         out2 = Output(adaptor.output(1))
-        with pytest.raises(ValueError, match="Dangling signal without source in SFG"):
+        with pytest.raises(ValueError, match=r"Dangling signal without source in SFG"):
             SFG([in1], [out1, out2])
 
     def test_remove_signal_with_different_number_of_inputs_and_outputs(self):
@@ -1634,7 +1634,7 @@ class TestSFGErrors:
         assert sfg1 is None
         with pytest.raises(
             ValueError,
-            match="Different number of input and output ports of operation with",
+            match=r"Different number of input and output ports of operation with",
         ):
             sfg.remove_operation("add0")
 
@@ -1777,7 +1777,7 @@ class TestUnfold:
 
     def test_value_error(self, sfg_two_inputs_two_outputs: SFG):
         sfg = sfg_two_inputs_two_outputs
-        with pytest.raises(ValueError, match="Unfolding 0 times removes the SFG"):
+        with pytest.raises(ValueError, match=r"Unfolding 0 times removes the SFG"):
             sfg.unfold(0)
 
 
@@ -1860,14 +1860,14 @@ class TestReplaceAddAndSubWithAddSub:
 
     def test_target_id_not_found(self, sfg_two_inputs_two_outputs: SFG):
         with pytest.raises(
-            ValueError, match="Graph ID foo not found in SFG and cannot be replaced"
+            ValueError, match=r"Graph ID foo not found in SFG and cannot be replaced"
         ):
             sfg_two_inputs_two_outputs.rewrite_addsub(target_ids=["foo"])
 
     def test_target_id_not_add_or_sub(self, sfg_two_inputs_two_outputs: SFG):
         with pytest.raises(
             ValueError,
-            match="Operation with graph ID in0 is not an Addition or Subtraction and cannot be replaced",
+            match=r"Operation with graph ID in0 is not an Addition or Subtraction and cannot be replaced",
         ):
             sfg_two_inputs_two_outputs.rewrite_addsub(target_ids=["in0"])
 
@@ -1950,7 +1950,7 @@ class TestInsertComponentAfter:
     ):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
         with pytest.raises(
-            TypeError, match="Only operations with one input and one output"
+            TypeError, match=r"Only operations with one input and one output"
         ):
             sfg.insert_operation_after("constant4", SymmetricTwoportAdaptor(0.5))
 
@@ -1958,7 +1958,7 @@ class TestInsertComponentAfter:
         self, large_operation_tree_names
     ):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
-        with pytest.raises(ValueError, match="Unknown component:"):
+        with pytest.raises(ValueError, match=r"Unknown component:"):
             sfg.insert_operation_after("foo", SquareRoot())
 
 
@@ -2002,7 +2002,7 @@ class TestInsertComponentBefore:
     ):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
         with pytest.raises(
-            TypeError, match="Only operations with one input and one output"
+            TypeError, match=r"Only operations with one input and one output"
         ):
             sfg.insert_operation_before("add0", SymmetricTwoportAdaptor(0.5), port=0)
 
@@ -2010,7 +2010,7 @@ class TestInsertComponentBefore:
         self, large_operation_tree_names
     ):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
-        with pytest.raises(ValueError, match="Unknown component:"):
+        with pytest.raises(ValueError, match=r"Unknown component:"):
             sfg.insert_operation_before("foo", SquareRoot())
 
 
@@ -2150,7 +2150,7 @@ class TestIterationPeriodBound:
     def test_no_latency(self, sfg_simple_accumulator):
         with pytest.raises(
             ValueError,
-            match="All native offsets have to set to a non-negative value to",
+            match=r"All native offsets have to set to a non-negative value to",
         ):
             sfg_simple_accumulator.iteration_period_bound()
 

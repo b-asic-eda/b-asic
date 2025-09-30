@@ -35,7 +35,7 @@ class TestInit:
         assert schedule.schedule_time == 9
 
         with pytest.raises(
-            ValueError, match="No operation with graph_id 'foo' in schedule"
+            ValueError, match=r"No operation with graph_id 'foo' in schedule"
         ):
             schedule.start_time_of_operation("foo")
 
@@ -142,7 +142,9 @@ class TestInit:
         precedence_sfg_delays.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 3
         )
-        with pytest.raises(ValueError, match="Too short schedule time. Minimum is 21."):
+        with pytest.raises(
+            ValueError, match=r"Too short schedule time. Minimum is 21."
+        ):
             Schedule(precedence_sfg_delays, schedule_time=19, scheduler=ALAPScheduler())
 
     def test_complicated_single_outputs_normal_latency_from_fixture(
@@ -435,15 +437,15 @@ class TestSlacks:
 
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         with pytest.raises(
-            ValueError, match="No operation with graph_id 'foo' in schedule"
+            ValueError, match=r"No operation with graph_id 'foo' in schedule"
         ):
             schedule.forward_slack("foo")
         with pytest.raises(
-            ValueError, match="No operation with graph_id 'foo' in schedule"
+            ValueError, match=r"No operation with graph_id 'foo' in schedule"
         ):
             schedule.backward_slack("foo")
         with pytest.raises(
-            ValueError, match="No operation with graph_id 'foo' in schedule"
+            ValueError, match=r"No operation with graph_id 'foo' in schedule"
         ):
             schedule.slacks("foo")
 
@@ -484,7 +486,7 @@ class TestRescheduling:
         }
 
         with pytest.raises(
-            ValueError, match="No operation with graph_id 'foo' in schedule"
+            ValueError, match=r"No operation with graph_id 'foo' in schedule"
         ):
             schedule.move_operation("foo", 0)
 
@@ -521,7 +523,7 @@ class TestRescheduling:
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         with pytest.raises(
             ValueError,
-            match="Operation 'add3' got incorrect move: -4. Must be between 0 and 7.",
+            match=r"Operation 'add3' got incorrect move: -4. Must be between 0 and 7.",
         ):
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, -4
@@ -536,7 +538,7 @@ class TestRescheduling:
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
         with pytest.raises(
             ValueError,
-            match="Operation 'add3' got incorrect move: 10. Must be between 0 and 7.",
+            match=r"Operation 'add3' got incorrect move: 10. Must be between 0 and 7.",
         ):
             schedule.move_operation(
                 precedence_sfg_delays.find_by_name("ADD3")[0].graph_id, 10
@@ -784,9 +786,9 @@ class TestRescheduling:
         )
 
         schedule = Schedule(precedence_sfg_delays)
-        with pytest.raises(ValueError, match="Cannot rotate non-cyclic schedule."):
+        with pytest.raises(ValueError, match=r"Cannot rotate non-cyclic schedule."):
             schedule.rotate_forward()
-        with pytest.raises(ValueError, match="Cannot rotate non-cyclic schedule."):
+        with pytest.raises(ValueError, match=r"Cannot rotate non-cyclic schedule."):
             schedule.rotate_backward()
 
 
@@ -891,7 +893,7 @@ class TestTimeResolution:
             "OUT2": (60, 0, 1),
         }
 
-        with pytest.raises(ValueError, match="Not possible to decrease resolution"):
+        with pytest.raises(ValueError, match=r"Not possible to decrease resolution"):
             schedule.decrease_time_resolution(4)
 
         schedule.decrease_time_resolution(3)
@@ -941,7 +943,7 @@ class TestErrors:
     def test_no_latency(self, sfg_simple_filter):
         with pytest.raises(
             ValueError,
-            match="Input port 0 of operation cmul0 has no latency-offset.",
+            match=r"Input port 0 of operation cmul0 has no latency-offset.",
         ):
             Schedule(sfg_simple_filter, scheduler=ASAPScheduler())
 
@@ -954,7 +956,7 @@ class TestErrors:
         sfg = SFG([in1, in2], [out1, out2])
         with pytest.raises(
             ValueError,
-            match="Output port 1 of operation r2bfly0 has no latency-offset.",
+            match=r"Output port 1 of operation r2bfly0 has no latency-offset.",
         ):
             Schedule(sfg, scheduler=ASAPScheduler())
         in1 = Input()
@@ -970,7 +972,7 @@ class TestErrors:
         sfg = SFG([in1, in2], [out1, out2])
         with pytest.raises(
             ValueError,
-            match="Output port 0 of operation r2bfly0 has no latency-offset.",
+            match=r"Output port 0 of operation r2bfly0 has no latency-offset.",
         ):
             Schedule(sfg, scheduler=ASAPScheduler())
 
@@ -979,7 +981,7 @@ class TestErrors:
         sfg_simple_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 4
         )
-        with pytest.raises(ValueError, match="Too short schedule time. Minimum is 9."):
+        with pytest.raises(ValueError, match=r"Too short schedule time. Minimum is 9."):
             Schedule(sfg_simple_filter, scheduler=ASAPScheduler(), schedule_time=3)
 
         schedule = Schedule(sfg_simple_filter, scheduler=ASAPScheduler())
@@ -993,12 +995,12 @@ class TestErrors:
     #     sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)
     #     sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 2)
     #     with pytest.raises(
-    #         NotImplementedError, match="No algorithm with name: foo defined."
+    #         NotImplementedError, match=r"No algorithm with name: foo defined."
     #     ):
     #         Schedule(sfg_simple_filter, algorithm="foo")
 
     def test_no_sfg(self):
-        with pytest.raises(TypeError, match="An SFG must be provided"):
+        with pytest.raises(TypeError, match=r"An SFG must be provided"):
             Schedule(1)
 
     def test_provided_no_start_times(self, sfg_simple_filter):
@@ -1007,7 +1009,7 @@ class TestErrors:
             ConstantMultiplication.type_name(), 2
         )
         with pytest.raises(
-            ValueError, match="Must provide start_times when using 'provided'"
+            ValueError, match=r"Must provide start_times when using 'provided'"
         ):
             Schedule(sfg_simple_filter, laps={"test": 0})
 
@@ -1016,7 +1018,9 @@ class TestErrors:
         sfg_simple_filter.set_latency_of_type_name(
             ConstantMultiplication.type_name(), 2
         )
-        with pytest.raises(ValueError, match="Must provide laps when using 'provided'"):
+        with pytest.raises(
+            ValueError, match=r"Must provide laps when using 'provided'"
+        ):
             Schedule(sfg_simple_filter, start_times={"in0": 0})
 
     def test_alap_default(self, sfg_direct_form_iir_lp_filter):

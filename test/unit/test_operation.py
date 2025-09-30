@@ -241,7 +241,7 @@ class TestLatency:
         }
 
     def test_set_latency_negative(self):
-        with pytest.raises(ValueError, match="Latency cannot be negative"):
+        with pytest.raises(ValueError, match=r"Latency cannot be negative"):
             R2Butterfly(latency=-1)
 
 
@@ -257,7 +257,7 @@ class TestExecutionTime:
 
     def test_set_execution_time_negative(self):
         bfly = R2Butterfly()
-        with pytest.raises(ValueError, match="Execution time cannot be negative"):
+        with pytest.raises(ValueError, match=r"Execution time cannot be negative"):
             bfly.execution_time = -1
 
 
@@ -400,5 +400,5 @@ class TestIsSwappable:
     def test_butterfly_is_swappable(self):
         bfly = R2Butterfly()
         assert not bfly.is_swappable
-        with pytest.raises(TypeError, match="operation io cannot be swapped"):
+        with pytest.raises(TypeError, match=r"operation io cannot be swapped"):
             bfly.swap_io()
