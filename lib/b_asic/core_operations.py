@@ -4,6 +4,8 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
+from typing import TYPE_CHECKING
+
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
 
@@ -11,6 +13,10 @@ from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Num, ShapeCoordinates
+from b_asic.utils import float_to_csd
+
+if TYPE_CHECKING:
+    from b_asic.sfg import SFG
 
 
 class Constant(AbstractOperation):
@@ -254,6 +260,24 @@ class Addition(AbstractOperation):
     def evaluate(self, a, b) -> Num:
         return a + b
 
+    def rewrite_AddSub(self) -> "SFG":
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        in0 = Input()
+        in1 = Input()
+        out0 = Output()
+        addsub = AddSub(
+            is_add=True,
+            src0=in0,
+            src1=in1,
+            name=self.name,
+            latency_offsets=self.latency_offsets,
+            execution_time=self.execution_time,
+        )
+        out0 <<= addsub
+        return SFG([in0, in1], [out0])
+
 
 class Subtraction(AbstractOperation):
     """
@@ -331,6 +355,24 @@ class Subtraction(AbstractOperation):
 
     def evaluate(self, a, b) -> Num:
         return a - b
+
+    def rewrite_AddSub(self) -> "SFG":
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        in0 = Input()
+        in1 = Input()
+        out0 = Output()
+        addsub = AddSub(
+            is_add=False,
+            src0=in0,
+            src1=in1,
+            name=self.name,
+            latency_offsets=self.latency_offsets,
+            execution_time=self.execution_time,
+        )
+        out0 <<= addsub
+        return SFG([in0, in1], [out0])
 
 
 class AddSub(AbstractOperation):
@@ -1218,6 +1260,46 @@ class ConstantMultiplication(AbstractOperation):
     def value(self, value: Num) -> None:
         """Set the constant value of this operation."""
         self.set_param("value", value)
+
+    def rewrite_ShiftAddSub(self) -> "SFG":
+        """Return a ShiftAddSub chain that implements the multiplication."""
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        csd = float_to_csd(self.value)
+
+        in0 = Input()
+        out0 = Output()
+        prev_op = in0
+
+        if self.value < 0:
+            prev_op = Negation(prev_op)
+
+        bits = len(csd[0])
+        frac_bits = csd[1]
+        max_exp = bits - 1 - frac_bits
+
+        if len(csd[0]) == 1:
+            prev_op = Shift(-frac_bits, prev_op)
+        else:
+            for i, digit in enumerate(csd[0]):
+                if digit not in (-1, 0, 1):
+                    raise ValueError("CSD representation can only contain -1, 0, and 1")
+                if digit == 0:
+                    continue
+
+                exp = max_exp - i
+                if exp == 0:
+                    continue
+
+                shift = Shift(exp, in0)
+                if digit == 1:
+                    prev_op = Addition(prev_op, shift)
+                elif digit == -1:
+                    prev_op = Subtraction(prev_op, shift)
+        out0 <<= prev_op
+
+        return SFG([in0], [out0])
 
 
 class MAD(AbstractOperation):

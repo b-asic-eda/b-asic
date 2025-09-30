@@ -20,12 +20,8 @@ import numpy.typing as npt
 from graphviz import Digraph
 
 from b_asic.core_operations import (
-    Addition,
     Constant,
     ConstantMultiplication,
-    Negation,
-    Shift,
-    Subtraction,
 )
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
@@ -39,9 +35,9 @@ from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
-from b_asic.utils import float_to_csd
 
 DelayQueue = list[tuple[str, ResultKey, OutputPort]]
+OpSpecifier = GraphID | type[Operation] | Operation
 
 
 _OPERATION_SHAPE: defaultdict[TypeName, str] = defaultdict(lambda: "ellipse")
@@ -2309,141 +2305,51 @@ class SFG(AbstractOperation):
 
         return sfg
 
-    def rewrite_addsub(self, target_ids: list[GraphID] | None = None) -> "SFG":
+    def rewrite(
+        self,
+        source: type[Operation],
+        target: OpSpecifier | Iterable[OpSpecifier],
+    ) -> None:
         """
-        Return a new SFG where all Addition and Subtraction operations are replaced by AddSub.
+        Return a new SFG with the specified operations rewritten.
+
+        The operations specified by *target* are replaced by the operations specified by *substitute*.
 
         Parameters
         ----------
-        target_ids : list[GraphID] | None, optional
-            If provided, only the operations with the given graph IDs are replaced.
-            Otherwise, all Addition and Subtraction operations are replaced.
+        source : Type[Operation]
+            The type of operation to replace the target(s) with.
+        target : OpSpecifier | Iterable[OpSpecifier]
+            The operation(s) to be replaced.
         """
-        from b_asic.core_operations import (  # noqa: PLC0415
-            Addition,
-            AddSub,
-            Subtraction,
-        )
+        if isinstance(target, type) and issubclass(target, Operation):
+            target = self.find_by_type(target)
+        elif not isinstance(target, Iterable):
+            target = [target]
 
-        sfg_copy = self()
+        new_sfg = self()
+        for t in target:
+            if isinstance(t, str):
+                op = self.find_by_id(t)
+            elif isinstance(t, Operation):
+                op = t
+            elif isinstance(t, type) and issubclass(t, Operation):
+                op = self.find_by_type(t)
+            else:
+                raise TypeError("Target must be a GraphID or an Operation type")
 
-        if target_ids:
-            for gid in target_ids:
-                op = sfg_copy.find_by_id(gid)
-                if op is None:
-                    raise ValueError(
-                        f"Graph ID {gid} not found in SFG and cannot be replaced"
-                    )
-                if not isinstance(op, (Addition, Subtraction)):
-                    raise ValueError(
-                        f"Operation with graph ID {gid} is not an Addition or Subtraction and cannot be replaced"
-                    )
-        else:
-            add_ids = [op.graph_id for op in sfg_copy.find_by_type(Addition)]
-            sub_ids = [op.graph_id for op in sfg_copy.find_by_type(Subtraction)]
-            target_ids = add_ids + sub_ids
-
-        for gid in target_ids:
-            target = sfg_copy.find_by_id(gid)
-            is_add = isinstance(target, Addition)
-            new_op = AddSub(
-                is_add,
-                name=target.name,
-                latency_offsets=target.latency_offsets,
-                execution_time=target.execution_time,
-            )
-            sfg_copy = sfg_copy.replace_operation(new_op, gid)
-
-        return sfg_copy
-
-    def rewrite_shift_and_add(self, target_ids: list[GraphID] | None = None) -> "SFG":
-        """
-        Return a new SFG where the target ConstantMultiplication operations are replaced
-        with shift-and-add chains.
-
-        The shift-and-add chains are created using the Canonical Signed Digit (CSD)
-        representation of the constant multiplication value.
-
-        Parameters
-        ----------
-        target_ids : list[GraphID] | None, optional
-            If provided, only the operations with the given graph IDs are replaced.
-            Otherwise, all ConstantMultiplication operations are replaced.
-        """
-        from b_asic.core_operations import (  # noqa: PLC0415
-            ConstantMultiplication,
-        )
-
-        sfg_copy = self()
-
-        if target_ids:
-            for gid in target_ids:
-                op = sfg_copy.find_by_id(gid)
-                if op is None:
-                    raise ValueError(
-                        f"Graph ID {gid} not found in SFG and cannot be replaced"
-                    )
-                if not isinstance(op, ConstantMultiplication):
-                    raise ValueError(
-                        f"Operation with graph ID {gid} is not a ConstantMultiplication and cannot be replaced"
-                    )
-        else:
-            target_ids = [
-                op.graph_id for op in sfg_copy.find_by_type(ConstantMultiplication)
-            ]
-
-        for gid in target_ids:
-            target = sfg_copy.find_by_id(gid)
-            if target.value is complex:
-                raise ValueError(
-                    "Cannot rewrite ConstantMultiplication with complex value"
+            if hasattr(op, f"rewrite_{source.__name__}"):
+                sub_sfg = getattr(op, f"rewrite_{source.__name__}")()
+                new_sfg = new_sfg.replace_operation_with_sfg(op.graph_id, sub_sfg)
+            else:
+                warnings.warn(
+                    f"No rewrite method found for target operation type {type(op)}",
+                    stacklevel=2,
                 )
+            new_sfg.find_by_id("sfg0").connect_external_signals_to_components()
+            new_sfg = new_sfg()
 
-            csd = float_to_csd(target.value)
-
-            new_chain = self._get_shift_and_add_sfg(csd, target.value < 0)
-            sfg_copy = sfg_copy.replace_operation_with_sfg(gid, new_chain)
-
-        # Flatten all the copies of the original SFG
-        for i in range(len(target_ids)):
-            sfg_copy.find_by_id(f"sfg{i}").connect_external_signals_to_components()
-        return sfg_copy()
-
-    def _get_shift_and_add_sfg(
-        self, csd: tuple[list[int], int], negative: bool
-    ) -> "SFG":
-        in0 = Input()
-        out0 = Output()
-        prev_op = in0
-
-        if negative:
-            prev_op = Negation(prev_op)
-
-        bits = len(csd[0])
-        frac_bits = csd[1]
-        max_exp = bits - 1 - frac_bits
-
-        if len(csd[0]) == 1:
-            prev_op = Shift(-frac_bits, in0)
-        else:
-            for i, digit in enumerate(csd[0]):
-                if digit not in (-1, 0, 1):
-                    raise ValueError("CSD representation can only contain -1, 0, and 1")
-                if digit == 0:
-                    continue
-
-                exp = max_exp - i
-                if exp == 0:
-                    continue
-
-                shift = Shift(exp, in0)
-                if digit == 1:
-                    prev_op = Addition(prev_op, shift)
-                elif digit == -1:
-                    prev_op = Subtraction(prev_op, shift)
-        out0 <<= prev_op
-
-        return SFG([in0], [out0])
+        return new_sfg()
 
     @property
     def is_linear(self) -> bool:
