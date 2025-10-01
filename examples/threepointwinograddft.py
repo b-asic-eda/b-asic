@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
-from b_asic.core_operations import AddSub, ConstantMultiplication
+from b_asic.core_operations import AddSub, Addition, ConstantMultiplication, Subtraction
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
 from b_asic.special_operations import Input, Output
@@ -50,7 +50,8 @@ sfg
 
 # %%
 # Replace Addition and Subtraction with AddSub operations
-sfg = sfg.rewrite_addsub()
+targets = [op for op in sfg.operations if isinstance(op, (Addition, Subtraction))]
+sfg = sfg.rewrite(AddSub, targets)
 
 # %%
 # The new SFG looks like

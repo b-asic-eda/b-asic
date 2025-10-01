@@ -43,7 +43,7 @@ class TestSink:
         sfg = bfly.to_sfg()
         s = Sink()
         with pytest.warns(UserWarning, match=r"Output port out0 has been removed"):
-            sfg1 = sfg.replace_operation(s, "out0")
+            sfg1 = sfg.replace("out0", s)
 
         assert sfg1.output_count == 1
         assert sfg1.input_count == 2

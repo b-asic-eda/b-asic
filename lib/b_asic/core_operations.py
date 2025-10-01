@@ -4,7 +4,7 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
@@ -207,6 +207,8 @@ class Addition(AbstractOperation):
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
+    mul_j : bool, default: False
+        If True, *src1* is multiplied by j before the addition.
 
     See Also
     --------
@@ -217,6 +219,7 @@ class Addition(AbstractOperation):
         "_execution_time",
         "_latency",
         "_latency_offsets",
+        "_mul_j",
         "_name",
         "_src0",
         "_src1",
@@ -227,6 +230,7 @@ class Addition(AbstractOperation):
     _latency: int | None
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
+    _mul_j: bool
 
     is_linear = True
     is_swappable = True
@@ -239,6 +243,7 @@ class Addition(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        mul_j: bool = False,
     ) -> None:
         """
         Construct an Addition operation.
@@ -252,15 +257,37 @@ class Addition(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
+        self.set_param("mul_j", mul_j)
 
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("add")
 
+    @property
+    def mul_j(self) -> bool:
+        """
+        Get if *src1* is multiplied by j before the addition.
+        """
+        return self.param("mul_j")
+
+    @mul_j.setter
+    def mul_j(self, mul_j: bool) -> None:
+        """
+        Set if *src1* is multiplied by j before the addition.
+
+        Parameters
+        ----------
+        mul_j : bool
+            Whether *src1* is multiplied by j before the addition.
+        """
+        self.set_param("mul_j", mul_j)
+
     def evaluate(self, a, b) -> Num:
+        if self.mul_j:
+            b *= 1j
         return a + b
 
-    def rewrite_AddSub(self) -> "SFG":
+    def _rewrite_AddSub(self) -> "SFG":
         from b_asic.sfg import SFG  # noqa: PLC0415
         from b_asic.special_operations import Input, Output  # noqa: PLC0415
 
@@ -274,6 +301,27 @@ class Addition(AbstractOperation):
             name=self.name,
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
+            mul_j=self.mul_j,
+        )
+        out0 <<= addsub
+        return SFG([in0, in1], [out0])
+
+    def _rewrite_ShiftAddSub(self) -> "SFG":
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        in0 = Input()
+        in1 = Input()
+        out0 = Output()
+        addsub = ShiftAddSub(
+            is_add=True,
+            shift=0,
+            src0=in0,
+            src1=in1,
+            name=self.name,
+            latency_offsets=self.latency_offsets,
+            execution_time=self.execution_time,
+            mul_j=self.mul_j,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
@@ -304,6 +352,8 @@ class Subtraction(AbstractOperation):
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
+    mul_j : bool, default: False
+        If True, *src1* is multiplied by j before the subtraction.
 
     See Also
     --------
@@ -316,6 +366,7 @@ class Subtraction(AbstractOperation):
         "_execution_time",
         "_latency",
         "_latency_offsets",
+        "_mul_j",
         "_name",
         "_src0",
         "_src1",
@@ -326,6 +377,7 @@ class Subtraction(AbstractOperation):
     _latency: int | None
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
+    _mul_j: bool
 
     def __init__(
         self,
@@ -335,6 +387,7 @@ class Subtraction(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        mul_j: bool = False,
     ) -> None:
         """
         Construct a Subtraction operation.
@@ -348,15 +401,37 @@ class Subtraction(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
+        self.set_param("mul_j", mul_j)
 
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("sub")
 
+    @property
+    def mul_j(self) -> bool:
+        """
+        Get if *src1* is multiplied by j before the subtraction.
+        """
+        return self.param("mul_j")
+
+    @mul_j.setter
+    def mul_j(self, mul_j: bool) -> None:
+        """
+        Set if *src1* is multiplied by j before the subtraction.
+
+        Parameters
+        ----------
+        mul_j : bool
+            Whether *src1* is multiplied by j before the subtraction.
+        """
+        self.set_param("mul_j", mul_j)
+
     def evaluate(self, a, b) -> Num:
+        if self.mul_j:
+            b *= 1j
         return a - b
 
-    def rewrite_AddSub(self) -> "SFG":
+    def _rewrite_AddSub(self) -> "SFG":
         from b_asic.sfg import SFG  # noqa: PLC0415
         from b_asic.special_operations import Input, Output  # noqa: PLC0415
 
@@ -370,6 +445,27 @@ class Subtraction(AbstractOperation):
             name=self.name,
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
+            mul_j=self.mul_j,
+        )
+        out0 <<= addsub
+        return SFG([in0, in1], [out0])
+
+    def _rewrite_ShiftAddSub(self) -> "SFG":
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        in0 = Input()
+        in1 = Input()
+        out0 = Output()
+        addsub = ShiftAddSub(
+            is_add=False,
+            shift=0,
+            src0=in0,
+            src1=in1,
+            name=self.name,
+            latency_offsets=self.latency_offsets,
+            execution_time=self.execution_time,
+            mul_j=self.mul_j,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
@@ -409,6 +505,8 @@ class AddSub(AbstractOperation):
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
+    mul_j : bool, default: False
+        If True, *src1* is multiplied by j before the addition/subtraction.
 
     See Also
     --------
@@ -420,6 +518,7 @@ class AddSub(AbstractOperation):
         "_is_add",
         "_latency",
         "_latency_offsets",
+        "_mul_j",
         "_name",
         "_src0",
         "_src1",
@@ -431,6 +530,7 @@ class AddSub(AbstractOperation):
     _latency: int | None
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
+    _mul_j: bool
 
     is_linear = True
 
@@ -443,6 +543,7 @@ class AddSub(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        mul_j: bool = False,
     ) -> None:
         """
         Construct an Addition/Subtraction operation.
@@ -457,6 +558,7 @@ class AddSub(AbstractOperation):
             execution_time=execution_time,
         )
         self.set_param("is_add", is_add)
+        self.set_param("mul_j", mul_j)
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -485,8 +587,46 @@ class AddSub(AbstractOperation):
         self.set_param("is_add", is_add)
 
     @property
+    def mul_j(self) -> bool:
+        """
+        Get if *src1* is multiplied by j before the addition/subtraction.
+        """
+        return self.param("mul_j")
+
+    @mul_j.setter
+    def mul_j(self, mul_j: bool) -> None:
+        """
+        Set if *src1* is multiplied by j before the addition/subtraction.
+
+        Parameters
+        ----------
+        mul_j : bool
+            Whether *src1* is multiplied by j before the addition/subtraction.
+        """
+        self.set_param("mul_j", mul_j)
+
+    @property
     def is_swappable(self) -> bool:
         return self.is_add
+
+    def _rewrite_ShiftAddSub(self) -> "SFG":
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        in0 = Input()
+        in1 = Input()
+        out0 = Output()
+        addsub = ShiftAddSub(
+            is_add=self.is_add,
+            shift=0,
+            src0=in0,
+            src1=in1,
+            name=self.name,
+            latency_offsets=self.latency_offsets,
+            execution_time=self.execution_time,
+        )
+        out0 <<= addsub
+        return SFG([in0, in1], [out0])
 
 
 class ShiftAddSub(AbstractOperation):
@@ -523,6 +663,8 @@ class ShiftAddSub(AbstractOperation):
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
+    mul_j : bool, default: False
+        If True, *src1* is multiplied by j before the addition/subtraction.
 
     See Also
     --------
@@ -534,6 +676,7 @@ class ShiftAddSub(AbstractOperation):
         "_is_add",
         "_latency",
         "_latency_offsets",
+        "_mul_j",
         "_name",
         "_shift",
         "_src0",
@@ -546,6 +689,8 @@ class ShiftAddSub(AbstractOperation):
     _latency: int | None
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
+    _shift: int
+    _mul_j: bool
 
     is_linear = True
 
@@ -559,6 +704,7 @@ class ShiftAddSub(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        mul_j: bool = False,
     ) -> None:
         """
         Construct an Addition/Subtraction operation.
@@ -574,13 +720,17 @@ class ShiftAddSub(AbstractOperation):
         )
         self.set_param("is_add", is_add)
         self.set_param("shift", shift)
+        self.set_param("mul_j", mul_j)
 
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("shiftaddsub")
 
     def evaluate(self, a, b) -> Num:
-        return a + b / 2**self.shift if self.is_add else a - b / 2**self.shift
+        if self.mul_j:
+            b *= 1j
+        b *= 2**self.shift
+        return a + b if self.is_add else a - b
 
     @property
     def is_add(self) -> bool:
@@ -592,6 +742,13 @@ class ShiftAddSub(AbstractOperation):
     @property
     def shift(self) -> int:
         return self.param("shift")
+
+    @property
+    def mul_j(self) -> bool:
+        """
+        Get if *src1* is multiplied by j before the shift and addition/subtraction.
+        """
+        return self.param("mul_j")
 
     @is_add.setter
     def is_add(self, is_add: bool) -> None:
@@ -607,7 +764,27 @@ class ShiftAddSub(AbstractOperation):
 
     @shift.setter
     def shift(self, shift: int) -> None:
+        """
+        Set the number of steps to shift *src1*.
+
+        Parameters
+        ----------
+        shift : int
+            The number of steps to shift *src1*.
+        """
         self.set_param("shift", shift)
+
+    @mul_j.setter
+    def mul_j(self, mul_j: bool) -> None:
+        """
+        Set if *src1* is multiplied by j before the shift and addition/subtraction.
+
+        Parameters
+        ----------
+        mul_j : bool
+            Whether *src1* is multiplied by j before the shift and addition/subtraction.
+        """
+        self.set_param("mul_j", mul_j)
 
     @property
     def is_swappable(self) -> bool:
@@ -1175,6 +1352,61 @@ class ImaginaryMultiplication(AbstractOperation):
     def evaluate(self, a) -> Num:
         return a * 1j
 
+    def _join(self, other: "AbstractOperation") -> Union["SFG", None]:
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        if not isinstance(other, (Addition, Subtraction, AddSub, ShiftAddSub)):
+            return None
+
+        in0 = Input()
+        in1 = Input()
+        out0 = Output()
+        if other.mul_j:
+            in1 = -in1
+
+        if isinstance(other, Addition):
+            op = Addition(
+                src0=in0,
+                src1=in1,
+                name=self.name,
+                latency_offsets=self.latency_offsets,
+                execution_time=self.execution_time,
+                mul_j=not other.mul_j,
+            )
+        elif isinstance(other, Subtraction):
+            op = Subtraction(
+                src0=in0,
+                src1=in1,
+                name=self.name,
+                latency_offsets=self.latency_offsets,
+                execution_time=self.execution_time,
+                mul_j=not other.mul_j,
+            )
+        elif isinstance(other, AddSub):
+            op = AddSub(
+                src0=in0,
+                src1=in1,
+                is_add=other.is_add,
+                name=self.name,
+                latency_offsets=self.latency_offsets,
+                execution_time=self.execution_time,
+                mul_j=not other.mul_j,
+            )
+        elif isinstance(other, ShiftAddSub):
+            op = ShiftAddSub(
+                src0=in0,
+                src1=in1,
+                is_add=other.is_add,
+                shift=other.shift,
+                name=self.name,
+                latency_offsets=self.latency_offsets,
+                execution_time=self.execution_time,
+                mul_j=not other.mul_j,
+            )
+        out0 <<= op
+        return SFG([in0, in1], [out0])
+
 
 class ConstantMultiplication(AbstractOperation):
     r"""
@@ -1261,8 +1493,48 @@ class ConstantMultiplication(AbstractOperation):
         """Set the constant value of this operation."""
         self.set_param("value", value)
 
-    def rewrite_ShiftAddSub(self) -> "SFG":
-        """Return a ShiftAddSub chain that implements the multiplication."""
+    def _rewrite_ShiftAddSub(self) -> "SFG":
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        csd = float_to_csd(self.value)
+
+        in0 = Input()
+        out0 = Output()
+        prev_op = in0
+
+        if self.value < 0:
+            prev_op = Negation(prev_op)
+
+        bits = len(csd[0])
+        frac_bits = csd[1]
+        max_exp = bits - 1 - frac_bits
+
+        if len(csd[0]) == 1:
+            prev_op = Shift(-frac_bits, prev_op)
+        else:
+            for i, digit in enumerate(csd[0]):
+                if digit not in (-1, 0, 1):
+                    raise ValueError("CSD representation can only contain -1, 0, and 1")
+                if digit == 0:
+                    continue
+
+                exp = max_exp - i
+                if exp == 0:
+                    continue
+                prev_op = ShiftAddSub(
+                    is_add=digit == 1,
+                    shift=exp,
+                    src0=prev_op,
+                    src1=in0,
+                )
+
+        out0 <<= prev_op
+
+        return SFG([in0], [out0])
+
+    def _rewrite_Shift(self) -> "SFG":
+        """Return a Shift and Add/Sub chain that implements the multiplication."""
         from b_asic.sfg import SFG  # noqa: PLC0415
         from b_asic.special_operations import Input, Output  # noqa: PLC0415
 
@@ -1935,3 +2207,71 @@ class Shift(AbstractOperation):
         if not isinstance(value, int):
             raise TypeError("value must be an int")
         self.set_param("value", value)
+
+    def _combine_Addition(self) -> "ShiftAddSub":
+        from b_asic.core_operations import ShiftAddSub  # noqa: PLC0415
+
+        if len(self.output(0).signals) != 1:
+            raise ValueError("Output of Shift must only connect to one operation")
+        dest_port = self.output(0).signals[0].destination
+        add_op = dest_port.operation
+
+        if not isinstance(add_op, Addition):
+            raise TypeError("Output of Shift must connect to an Addition operation")
+
+        if not dest_port.index == 1:
+            raise ValueError(
+                "Shift can only be combined with the second input of Addition"
+            )
+
+        return ShiftAddSub(
+            shift=self.value,
+            src0=self.input(0).connected_source,
+            src1=add_op.input(1).connected_source,
+        )
+
+    def _combine_Subtraction(self) -> "ShiftAddSub":
+        from b_asic.core_operations import ShiftAddSub  # noqa: PLC0415
+
+        if len(self.output(0).signals) != 1:
+            raise ValueError("Output of Shift must only connect to one operation")
+        dest_port = self.output(0).signals[0].destination
+        sub_op = dest_port.operation
+
+        if not isinstance(sub_op, Subtraction):
+            raise TypeError("Output of Shift must connect to a Subtraction operation")
+
+        if not dest_port.index == 1:
+            raise ValueError(
+                "Shift can only be combined with the second input of Subtraction"
+            )
+
+        return ShiftAddSub(
+            is_add=False,
+            shift=self.value,
+            src0=self.input(0).connected_source,
+            src1=sub_op.input(1).connected_source,
+        )
+
+    def _combine_AddSub(self) -> "ShiftAddSub":
+        from b_asic.core_operations import ShiftAddSub  # noqa: PLC0415
+
+        if len(self.output(0).signals) != 1:
+            raise ValueError("Output of Shift must only connect to one operation")
+        dest_port = self.output(0).signals[0].destination
+        addsub_op = dest_port.operation
+
+        if not isinstance(addsub_op, ShiftAddSub):
+            raise TypeError("Output of Shift must connect to a ShiftAddSub operation")
+
+        if not dest_port.index == 1:
+            raise ValueError(
+                "Shift can only be combined with the second input of ShiftAddSub"
+            )
+
+        return ShiftAddSub(
+            is_add=addsub_op.is_add,
+            shift=self.value + addsub_op.shift,
+            src0=self.input(0).connected_source,
+            src1=addsub_op.input(1).connected_source,
+        )

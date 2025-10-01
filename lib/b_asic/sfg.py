@@ -38,6 +38,7 @@ from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
 
 DelayQueue = list[tuple[str, ResultKey, OutputPort]]
 OpSpecifier = GraphID | type[Operation] | Operation
+OpInstanceSpecifier = GraphID | Operation
 
 
 _OPERATION_SHAPE: defaultdict[TypeName, str] = defaultdict(lambda: "ellipse")
@@ -635,95 +636,116 @@ class SFG(AbstractOperation):
             if isinstance(comp, Operation)
         ]
 
-    def replace_operation(self, component: Operation, graph_id: GraphID) -> "SFG":
-        """
-        Find and replace an operation based on GraphID.
+    def extract(self, targets: Iterable[GraphID]) -> "SFG":
+        sfg_copy = self()
 
-        Then return a new deepcopy of the SFG with the replaced operation.
+        for target in targets:
+            target_op = sfg_copy.find_by_id(target)
+            if target_op is None:
+                raise ValueError(
+                    f"No target operation with ID {target} found in the SFG"
+                )
 
-        Parameters
-        ----------
-        component : Operation
-            The new operation(s), e.g. Multiplication.
-        graph_id : GraphID
-            The GraphID to match the operation to replace.
-        """
-        sfg_copy = self()  # Copy to not mess with this SFG.
-        component_copy = sfg_copy.find_by_id(graph_id)
+        # Perform the extraction
+        inputs = []
+        outputs = []
+        for target_gid in targets:
+            op = sfg_copy.find_by_id(target_gid)
+            # Find all input ports to the subgraph
+            for input_port in op.inputs:
+                sig = input_port.signals[0]
+                if sig.source_operation.graph_id not in targets:
+                    input_op = Input()
+                    sig.remove_destination()
+                    input_port.connect(input_op)
+                    inputs.append((sig.graph_id, input_op))
 
+            # Find all output ports from the subgraph
+            for output_port in op.outputs:
+                for sig in output_port.signals[:]:
+                    if sig.destination_operation.graph_id not in targets:
+                        output_op = Output()
+                        output_op.input(0).connect(output_port)
+                        sig.remove_source()
+                        outputs.append((sig.graph_id, output_op))
+
+        sub_sfg = SFG(
+            inputs=[inp[1] for inp in inputs],
+            outputs=[out[1] for out in outputs],
+        )
+
+        # Map the external signals (from the original sfg_copy) to the corresponding
+        # input/output operations created inside sub_sfg (which now have graph_ids).
+        sub_inputs = list(sub_sfg.input_operations)
+        sub_outputs = list(sub_sfg.output_operations)
+        if len(inputs) != len(sub_inputs) or len(outputs) != len(sub_outputs):
+            raise RuntimeError(
+                "Mismatch between extracted boundary ports and sub-SFG ports"
+            )
+
+        for idx, ((in_sig_id, _), (out_sig_id, _)) in enumerate(
+            zip(inputs, outputs, strict=False)
+        ):
+            in_sig = sfg_copy.find_by_id(in_sig_id)
+            in_sig.remove_destination()
+            in_sig.set_destination(sub_sfg.input(idx))
+
+            out_sig = sfg_copy.find_by_id(out_sig_id)
+            out_sig.remove_source()
+            out_sig.set_source(sub_sfg.output(idx))
+
+        return sfg_copy()
+
+    def replace(self, target: GraphID, component: Operation) -> "SFG":
+        sfg_copy = self()
+
+        # Check that the target is valid
+        if target is None:
+            raise ValueError("Given target cannot be None")
+        if not isinstance(target, str):
+            raise TypeError("Given target is not a GraphID")
+        target_op = sfg_copy.find_by_id(target)
+        if target_op is None:
+            raise ValueError(
+                f"No target operation with Graph ID {target} found in the SFG"
+            )
+
+        # Check that the component is valid
         if component is None:
-            raise ValueError("Given component is None")
-        if component_copy is None or not isinstance(component_copy, Operation):
-            raise ValueError("No operation matching the criteria found")
-        if component_copy.output_count != component.output_count:
-            raise TypeError("The output count may not differ between the operations")
-        if component_copy.input_count != component.input_count:
-            raise TypeError("The input count may not differ between the operations")
+            raise ValueError("Given component cannot be None")
+        if not isinstance(component, Operation):
+            raise TypeError("Given component is not an Operation")
 
-        for index_in, input_ in enumerate(component_copy.inputs):
+        # Check that component and target are compatible
+        if component.input_count != target_op.input_count:
+            raise TypeError(
+                "The input count may not differ between the provided component and target"
+            )
+        if component.output_count != target_op.output_count:
+            raise TypeError(
+                "The output count may not differ between the provided component and target"
+            )
+
+        # Perform the replacement
+        for index_in, input_ in enumerate(target_op.inputs):
             for signal in input_.signals:
                 signal.remove_destination()
                 signal.set_destination(component.input(index_in))
 
-        for index_out, output in enumerate(component_copy.outputs):
+        for index_out, output in enumerate(target_op.outputs):
             for signal in output.signals[:]:
                 signal.remove_source()
                 signal.set_source(component.output(index_out))
 
-        if isinstance(component_copy, Output):
-            sfg_copy._output_operations.remove(component_copy)
+        if isinstance(target_op, Output):
+            sfg_copy._output_operations.remove(target_op)
             warnings.warn(
-                f"Output port {component_copy.graph_id} has been removed", stacklevel=2
+                f"Output port {target_op.graph_id} has been removed", stacklevel=2
             )
         if isinstance(component, Output):
             sfg_copy._output_operations.append(component)
 
-        return sfg_copy()  # Copy again to update IDs.
-
-    def replace_operation_with_sfg(self, graph_id: GraphID, new_sfg: "SFG") -> "SFG":
-        """
-        Find and replace an operation based on GraphID with a new SFG.
-
-        Then return a new deepcopy of the SFG with the replaced operation.
-
-        Parameters
-        ----------
-        graph_id : GraphID
-            The GraphID to match the operation to replace.
-        new_sfg : SFG
-            The new SFG to replace the old operation.
-        """
-        sfg_copy = self()  # Copy to not mess with this SFG.
-        component_copy = sfg_copy.find_by_id(graph_id)
-
-        if new_sfg is None:
-            raise ValueError("Given new_sfg is None")
-        if component_copy is None or not isinstance(component_copy, Operation):
-            raise ValueError("No operation matching the criteria found")
-        if component_copy.output_count != new_sfg.output_count:
-            raise TypeError("The output count may not differ between the operations")
-        if component_copy.input_count != new_sfg.input_count:
-            raise TypeError("The input count may not differ between the operations")
-
-        for index_in, input_ in enumerate(component_copy.inputs):
-            for signal in input_.signals:
-                signal.remove_destination()
-                signal.set_destination(new_sfg.input(index_in))
-
-        for index_out, output in enumerate(component_copy.outputs):
-            for signal in output.signals[:]:
-                signal.remove_source()
-                signal.set_source(new_sfg.output(index_out))
-
-        if isinstance(component_copy, Output):
-            sfg_copy._output_operations.remove(component_copy)
-            warnings.warn(
-                f"Output port {component_copy.graph_id} has been removed", stacklevel=2
-            )
-        if isinstance(new_sfg, Output):
-            sfg_copy._output_operations.append(new_sfg)
-
-        return sfg_copy()  # Copy again to update IDs.
+        return sfg_copy()
 
     def insert_operation(self, component: Operation, output_comp_id: GraphID) -> "SFG":
         """
@@ -2324,13 +2346,21 @@ class SFG(AbstractOperation):
         """
         if isinstance(target, type) and issubclass(target, Operation):
             target = self.find_by_type(target)
-        elif not isinstance(target, Iterable):
+        elif not isinstance(target, (list, tuple, set)):
             target = [target]
+
+        # Validate that the source is an Operation
+        if not isinstance(source, type) or not issubclass(source, Operation):
+            raise TypeError("Source must be an Operation type")
 
         new_sfg = self()
         for t in target:
             if isinstance(t, str):
                 op = self.find_by_id(t)
+                if op is None:
+                    raise ValueError(
+                        f"Graph ID {t} not found in SFG and cannot be replaced"
+                    )
             elif isinstance(t, Operation):
                 op = t
             elif isinstance(t, type) and issubclass(t, Operation):
@@ -2338,18 +2368,151 @@ class SFG(AbstractOperation):
             else:
                 raise TypeError("Target must be a GraphID or an Operation type")
 
-            if hasattr(op, f"rewrite_{source.__name__}"):
-                sub_sfg = getattr(op, f"rewrite_{source.__name__}")()
-                new_sfg = new_sfg.replace_operation_with_sfg(op.graph_id, sub_sfg)
+            func_name = f"_rewrite_{source.__name__}"
+            if hasattr(op, func_name):
+                sub_sfg = getattr(op, func_name)()
+                new_sfg = new_sfg.replace(op.graph_id, sub_sfg)
             else:
                 warnings.warn(
-                    f"No rewrite method found for target operation type {type(op)}",
+                    f"No rewrite method found for target operation type {type(op).__name__} to source operation type {source.__name__}",
                     stacklevel=2,
                 )
+                return new_sfg()
             new_sfg.find_by_id("sfg0").connect_external_signals_to_components()
             new_sfg = new_sfg()
 
         return new_sfg()
+
+    def _rewrite_ShiftAddSub(self) -> "SFG":
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Shift,
+            ShiftAddSub,
+            Subtraction,
+        )
+
+        if len(self.inputs) != 2:
+            raise ValueError("SFG to ShiftAddSub rewrite requires exactly 2 inputs")
+
+        ops = [op for op in self.operations if not isinstance(op, (Input, Output))]
+        if len(ops) != 2:
+            raise ValueError("SFG to ShiftAddSub rewrite requires exactly 2 operations")
+
+        # check that one operation is a shift and one is an addsub-like operation
+        if not (
+            isinstance(ops[0], Shift)
+            and isinstance(ops[1], (Addition, Subtraction, AddSub))
+        ) or (
+            isinstance(ops[1], Shift)
+            and isinstance(ops[0], (Addition, Subtraction, AddSub))
+        ):
+            raise ValueError(
+                "SFG to ShiftAddSub rewrite requires one Shift and one of (Addition, Subtraction, AddSub)"
+            )
+
+        # determine the modes of the ShiftAddSub operation
+        for op in ops:
+            if isinstance(op, Addition):
+                is_add = True
+            elif isinstance(op, Subtraction):
+                is_add = False
+            elif isinstance(op, AddSub):
+                is_add = op.is_add
+            else:
+                shift = op.value
+
+        # Construct and return the new SFG
+        in0 = Input()
+        in1 = Input()
+        op = ShiftAddSub(in0, in1, is_add=is_add, shift=shift)
+        outs = []
+        for out in self.outputs:
+            out = Output()
+            out <<= op
+            outs.append(out)
+
+        op_after_in0 = self.find_by_id("in0").output(0).signals[0].destination_operation
+        if isinstance(op_after_in0, Shift):
+            sfg = SFG([in1, in0], outs)
+        else:
+            sfg = SFG([in0, in1], outs)
+        return sfg
+
+    def join(self, target: GraphID, direction: Literal["forward", "backward"]) -> "SFG":
+        """
+        Return a new SFG with the specified operation joined with its predecessor or successor.
+
+        Parameters
+        ----------
+        target : GraphID
+            The operation to be joined with its predecessor(s) or successor(s).
+        direction : {"forward", "backward"}
+            The direction to join. "forward" joins with the successor(s), "backward" with the predecessor(s).
+        """
+        new_sfg = self()
+        op = new_sfg.find_by_id(target)
+        if not isinstance(op, Operation):
+            raise ValueError(f"Operation {target} not found in SFG")
+
+        if direction not in ["forward", "backward"]:
+            raise ValueError("Direction must be 'forward' or 'backward'")
+
+        if direction == "forward":
+            if len(op.outputs) != 1:
+                raise ValueError(
+                    "Can only join forward if the operation has exactly one output"
+                )
+            for sig in op.output(0).signals:
+                dest_op = sig.destination_operation
+                if hasattr(op, "_join"):
+                    joined_op = op._join(dest_op)
+                    new_sfg = new_sfg.replace(dest_op.graph_id, joined_op)
+                    new_sfg.find_by_id("sfg0").connect_external_signals_to_components()
+                    new_sfg = new_sfg()
+            new_sfg = new_sfg.remove_operation(target)
+        elif direction == "backward":
+            raise NotImplementedError("Joining backward is not implemented yet")
+        return new_sfg
+
+    def combine(self, chains: Iterable[Iterable[OpInstanceSpecifier]]) -> "SFG":
+        """
+        Return a new SFG with the specified chains of operations combined into single operations.
+
+        Parameters
+        ----------
+        chains : Iterable[Iterable[OpInstanceSpecifier]]
+            The chains of operations to be combined.
+        """
+        new_sfg = self()
+        for chain in chains:
+            # Get the operations in the chain
+            ops: list[Operation] = []
+            for t in chain:
+                if isinstance(t, str):
+                    op = new_sfg.find_by_id(t)
+                elif isinstance(t, Operation):
+                    op = t
+                else:
+                    raise TypeError("Target must be a GraphID or an Operation object")
+                if not isinstance(op, Operation):
+                    raise ValueError(f"Operation {t} not found in SFG")
+                ops.append(op)
+            if len(ops) < 2:
+                raise ValueError("Chain must contain at least two operations")
+
+            # Combine the chains one by one
+            for _ in ops:
+                new_sfg = new_sfg._combine_operations(ops)
+        return new_sfg()
+
+    def _combine_operations(self, ops: list[Operation]) -> "SFG":
+        func_name = f"_combine_{ops[1].__class__.__name__}"
+        if hasattr(ops[0], func_name):
+            combined_op = getattr(ops[0], func_name)()
+            new_sfg = SFG([combined_op], [combined_op])
+            return self.replace(combined_op.graph_id, new_sfg)
+        return self
 
     @property
     def is_linear(self) -> bool:

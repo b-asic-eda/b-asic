@@ -225,14 +225,15 @@ class SignalSourceProvider(ABC):
         # Import here to avoid circular imports.
         from b_asic.core_operations import (  # noqa: PLC0415
             ConstantMultiplication,
+            ImaginaryMultiplication,
             Multiplication,
         )
 
-        return (
-            ConstantMultiplication(src, self)
-            if isinstance(src, Number)
-            else Multiplication(self, src)
-        )
+        if isinstance(src, Number):
+            if src == 1j:
+                return ImaginaryMultiplication(self)
+            return ConstantMultiplication(src, self)
+        return Multiplication(self, src)
 
     def __rmul__(
         self, src: Union["SignalSourceProvider", Num]
@@ -240,14 +241,15 @@ class SignalSourceProvider(ABC):
         # Import here to avoid circular imports.
         from b_asic.core_operations import (  # noqa: PLC0415
             ConstantMultiplication,
+            ImaginaryMultiplication,
             Multiplication,
         )
 
-        return (
-            ConstantMultiplication(src, self)
-            if isinstance(src, Number)
-            else Multiplication(src, self)
-        )
+        if isinstance(src, Number):
+            if src == 1j:
+                return ImaginaryMultiplication(self)
+            return ConstantMultiplication(src, self)
+        return Multiplication(src, self)
 
     def __truediv__(self, src: Union["SignalSourceProvider", Num]) -> "Division":
         # Import here to avoid circular imports.

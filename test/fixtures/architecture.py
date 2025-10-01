@@ -3,6 +3,7 @@ import math
 import pytest
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
+from b_asic.core_operations import Addition, AddSub, ConstantMultiplication, Subtraction
 from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
@@ -81,7 +82,8 @@ def arch_r2bf():
 
     sfg = SFG([x0, x1], [y0, y1])
 
-    sfg = sfg.rewrite_addsub()
+    sfg = sfg.rewrite(AddSub, Addition)
+    sfg = sfg.rewrite(AddSub, Subtraction)
 
     sfg.set_latency_of_type_name("addsub", 1)
     sfg.set_execution_time_of_type_name("addsub", 1)
@@ -145,7 +147,8 @@ def arch_r3bf():
         name="3-point Winograd DFT",
     )
 
-    sfg = sfg.rewrite_addsub()
+    sfg = sfg.rewrite(AddSub, Addition)
+    sfg = sfg.rewrite(AddSub, Subtraction)
 
     sfg.set_latency_of_type_name("addsub", 1)
     sfg.set_execution_time_of_type_name("addsub", 1)
@@ -224,7 +227,7 @@ def arch_r4bf():
     s2 = x0 - x2
     s3 = x3 - x1
 
-    m0 = 1j * s3
+    m0 = ConstantMultiplication(1j, s3)  # 1j * s3
 
     s4 = s0 + s1
     s5 = s2 + m0
@@ -238,7 +241,8 @@ def arch_r4bf():
 
     sfg = SFG([x0, x1, x2, x3], [y0, y1, y2, y3])
 
-    sfg = sfg.rewrite_addsub()
+    sfg = sfg.rewrite(AddSub, Addition)
+    sfg = sfg.rewrite(AddSub, Subtraction)
 
     sfg.set_latency_of_type_name("addsub", 1)
     sfg.set_execution_time_of_type_name("addsub", 1)

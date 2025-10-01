@@ -22,6 +22,8 @@ from b_asic.core_operations import (
     Max,
     Min,
     Multiplication,
+    Shift,
+    ShiftAddSub,
     SquareRoot,
     Subtraction,
     SymmetricTwoportAdaptor,
@@ -308,12 +310,12 @@ class TestComponents:
         }
 
 
-class TestReplaceOperation:
+class TestReplace:
     def test_replace_addition_by_id(self, operation_tree):
         sfg = SFG(outputs=[Output(operation_tree)])
         component_id = "add0"
 
-        sfg = sfg.replace_operation(Multiplication(name="Multi"), graph_id=component_id)
+        sfg = sfg.replace(component_id, Multiplication(name="Multi"))
         assert component_id not in sfg._components_by_id
         assert "Multi" in sfg._components_by_name
 
@@ -321,7 +323,7 @@ class TestReplaceOperation:
         sfg = SFG(outputs=[Output(large_operation_tree)])
         component_id = "add2"
 
-        sfg = sfg.replace_operation(Multiplication(name="Multi"), graph_id=component_id)
+        sfg = sfg.replace(component_id, Multiplication(name="Multi"))
         assert "Multi" in sfg._components_by_name
         assert component_id not in sfg._components_by_id
 
@@ -330,7 +332,7 @@ class TestReplaceOperation:
         component_id = "c0"
         const_ = sfg.find_by_id(component_id)
 
-        sfg = sfg.replace_operation(Constant(1), graph_id=component_id)
+        sfg = sfg.replace(component_id, Constant(1))
         assert const_ is not sfg.find_by_id(component_id)
 
     def test_no_match_on_replace(self, large_operation_tree):
@@ -338,11 +340,10 @@ class TestReplaceOperation:
         component_id = "addd0"
 
         with pytest.raises(
-            ValueError, match=r"No operation matching the criteria found"
+            ValueError,
+            match=r"No target operation with Graph ID addd0 found in the SFG",
         ):
-            sfg = sfg.replace_operation(
-                Multiplication(name="Multi"), graph_id=component_id
-            )
+            sfg = sfg.replace(component_id, Multiplication(name="Multi"))
 
     def test_not_equal_input(self, large_operation_tree):
         sfg = SFG(outputs=[Output(large_operation_tree)])
@@ -350,16 +351,19 @@ class TestReplaceOperation:
 
         with pytest.raises(
             TypeError,
-            match=r"The input count may not differ between the operations",
+            match=r"The input count may not differ between the provided component and target",
         ):
-            sfg = sfg.replace_operation(
-                Multiplication(name="Multi"), graph_id=component_id
-            )
+            sfg = sfg.replace(component_id, Multiplication(name="Multi"))
 
 
-class TestRewriteShiftAndAdd:
+class TestRewriteShiftAddSub:
     def test_simple_filter(self, sfg_simple_filter: SFG):
-        new_sfg = sfg_simple_filter.rewrite_shift_and_add()
+        targets = [
+            op
+            for op in sfg_simple_filter.operations
+            if isinstance(op, ConstantMultiplication)
+        ]
+        new_sfg = sfg_simple_filter.rewrite(ShiftAddSub, targets)
         assert not any(
             isinstance(op, ConstantMultiplication) for op in new_sfg.operations
         )
@@ -385,16 +389,24 @@ class TestRewriteShiftAndAdd:
         self, sfg_two_inputs_two_outputs_independent_with_cmul: SFG
     ):
         assert len(sfg_two_inputs_two_outputs_independent_with_cmul.operations) == 9
-        new_sfg = (
-            sfg_two_inputs_two_outputs_independent_with_cmul.rewrite_shift_and_add(
-                ["cmul0"]
-            )
+        new_sfg = sfg_two_inputs_two_outputs_independent_with_cmul.rewrite(
+            ShiftAddSub, ["cmul0"]
         )
-        assert len(new_sfg.operations) == 10
-        new_sfg = new_sfg.rewrite_shift_and_add(["cmul1"])
-        assert len(new_sfg.operations) == 10
-        new_sfg = new_sfg.rewrite_shift_and_add(["cmul2"])
-        assert len(new_sfg.operations) == 10
+        assert len(new_sfg.operations) == 9
+        assert len(new_sfg.find_by_type(ShiftAddSub)) == 1
+        assert len(new_sfg.find_by_type(ConstantMultiplication)) == 2
+
+        new_sfg = new_sfg.rewrite(ShiftAddSub, ["cmul1"])
+        assert len(new_sfg.operations) == 9
+        assert len(new_sfg.find_by_type(ShiftAddSub)) == 1
+        assert len(new_sfg.find_by_type(Shift)) == 1
+        assert len(new_sfg.find_by_type(ConstantMultiplication)) == 1
+
+        new_sfg = new_sfg.rewrite(ShiftAddSub, ["cmul2"])
+        assert len(new_sfg.operations) == 9
+        assert len(new_sfg.find_by_type(ShiftAddSub)) == 1
+        assert len(new_sfg.find_by_type(Shift)) == 2
+        assert len(new_sfg.find_by_type(ConstantMultiplication)) == 0
 
         assert not any(
             isinstance(op, ConstantMultiplication) for op in new_sfg.operations
@@ -988,7 +1000,7 @@ class TestConnectExternalSignalsToComponentsSoloComp:
         port goes to multiple operations.
         """
         sfg1 = wdf_allpass(0.5)
-        sfg2 = sfg1.replace_operation(sfg1.find_by_id("sym2p0").to_sfg(), "sym2p0")
+        sfg2 = sfg1.replace("sym2p0", sfg1.find_by_id("sym2p0").to_sfg())
         sfg2.find_by_id("sfg0").connect_external_signals_to_components()
         test_sfg = SFG(sfg2.input_operations, sfg2.output_operations)
         assert sfg1.evaluate(1) == -0.5
@@ -1793,7 +1805,10 @@ class TestReplaceAddAndSubWithAddSub:
         assert len(sfg.find_by_type(Addition)) == 1
         assert len(sfg.find_by_type(AddSub)) == 0
 
-        sfg = sfg.rewrite_addsub()
+        targets = [
+            op for op in sfg.operations if isinstance(op, (Addition, Subtraction))
+        ]
+        sfg = sfg.rewrite(AddSub, targets)
 
         assert len(sfg.find_by_type(Addition)) == 0
         assert len(sfg.find_by_type(AddSub)) == 1
@@ -1816,12 +1831,12 @@ class TestReplaceAddAndSubWithAddSub:
         assert len(sfg.find_by_type(Addition)) == 2
         assert len(sfg.find_by_type(AddSub)) == 0
 
-        sfg = sfg.rewrite_addsub(target_ids=[sfg.find_by_id("add0").graph_id])
+        sfg = sfg.rewrite(AddSub, [sfg.find_by_id("add0").graph_id])
 
         assert len(sfg.find_by_type(Addition)) == 1
         assert len(sfg.find_by_type(AddSub)) == 1
 
-        sfg = sfg.rewrite_addsub(target_ids=[sfg.find_by_id("add1").graph_id])
+        sfg = sfg.rewrite(AddSub, [sfg.find_by_id("add1").graph_id])
 
         assert len(sfg.find_by_type(Addition)) == 0
         assert len(sfg.find_by_type(AddSub)) == 2
@@ -1845,7 +1860,10 @@ class TestReplaceAddAndSubWithAddSub:
         assert len(sfg.find_by_type(Subtraction)) == 0
         assert len(sfg.find_by_type(AddSub)) == 0
 
-        sfg = sfg.rewrite_addsub()
+        targets = [
+            op for op in sfg.operations if isinstance(op, (Addition, Subtraction))
+        ]
+        sfg = sfg.rewrite(AddSub, targets)
 
         assert len(sfg.find_by_type(Addition)) == 0
         assert len(sfg.find_by_type(Subtraction)) == 0
@@ -1862,14 +1880,20 @@ class TestReplaceAddAndSubWithAddSub:
         with pytest.raises(
             ValueError, match=r"Graph ID foo not found in SFG and cannot be replaced"
         ):
-            sfg_two_inputs_two_outputs.rewrite_addsub(target_ids=["foo"])
+            sfg_two_inputs_two_outputs.rewrite(AddSub, ["foo"])
 
-    def test_target_id_not_add_or_sub(self, sfg_two_inputs_two_outputs: SFG):
-        with pytest.raises(
-            ValueError,
-            match=r"Operation with graph ID in0 is not an Addition or Subtraction and cannot be replaced",
+    def test_target_cannot_be_rewritten(self, sfg_two_inputs_two_outputs: SFG):
+        with pytest.warns(
+            UserWarning,
+            match=r"No rewrite method found for target operation type Input",
         ):
-            sfg_two_inputs_two_outputs.rewrite_addsub(target_ids=["in0"])
+            new_sfg = sfg_two_inputs_two_outputs.rewrite(AddSub, ["in0"])
+
+        assert len(sfg_two_inputs_two_outputs.operations) == len(new_sfg.operations)
+        assert len(new_sfg.find_by_type(AddSub)) == 0
+        assert len(new_sfg.find_by_type(Addition)) == 2
+        assert len(new_sfg.find_by_type(Input)) == 2
+        assert len(new_sfg.find_by_type(Output)) == 2
 
 
 class TestIsLinear:
