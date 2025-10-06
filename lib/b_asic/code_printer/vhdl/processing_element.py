@@ -80,10 +80,12 @@ def _declarative_region_common(
 
     # Define control signals
     for name, entry in pe.control_table.items():
-        if entry.int_bits == 1 and entry.frac_bits == 0:
+        if isinstance(next(iter(entry.values.values())), bool):
             vhdl_type = "std_logic"
-        else:
+        elif entry.is_signed:
             vhdl_type = f"signed({entry.bits - 1} downto 0)"
+        else:
+            vhdl_type = f"unsigned({entry.bits - 1} downto 0)"
         common.signal_declaration(f, name, vhdl_type)
 
     # Define integer bits for control signals
@@ -129,6 +131,17 @@ def _statement_region_common(
 
     # Generate control signals
     for name, entry in pe.control_table.items():
+        if entry.is_static:
+            val = entry.get_static_value()
+            if isinstance(val, bool):
+                val_str = f"'{int(val)}'"
+            elif isinstance(val, (int, np.integer, float, np.floating)):
+                int_val = int(val * 2**entry.frac_bits)
+                val_str = f'b"{bin_str(int_val, entry.bits)}"'
+            else:
+                raise NotImplementedError
+            common.write(f, 1, f"{name} <= {val_str};\n")
+            continue
         common.write(f, 1, "with schedule_cnt select")
         common.write(f, 2, f"{name} <=")
         for time, val in entry.values.items():

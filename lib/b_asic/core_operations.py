@@ -718,9 +718,9 @@ class ShiftAddSub(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
-        self.set_param("is_add", is_add)
-        self.set_param("shift", shift)
-        self.set_param("mul_j", mul_j)
+        self.is_add = is_add
+        self.shift = shift
+        self.mul_j = mul_j
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -729,7 +729,7 @@ class ShiftAddSub(AbstractOperation):
     def evaluate(self, a, b) -> Num:
         if self.mul_j:
             b *= 1j
-        b *= 2**self.shift
+        b /= 2**self.shift
         return a + b if self.is_add else a - b
 
     @property
@@ -760,6 +760,8 @@ class ShiftAddSub(AbstractOperation):
         is_add : bool
             If True, operation is an addition. If False, operation is a subtraction.
         """
+        if not isinstance(is_add, bool):
+            raise TypeError("is_add must be a bool")
         self.set_param("is_add", is_add)
 
     @shift.setter
@@ -772,6 +774,10 @@ class ShiftAddSub(AbstractOperation):
         shift : int
             The number of steps to shift *src1*.
         """
+        if not isinstance(shift, int):
+            raise TypeError("shift must be an int")
+        if shift < 0:
+            raise ValueError("shift must be non-negative")
         self.set_param("shift", shift)
 
     @mul_j.setter
@@ -784,6 +790,8 @@ class ShiftAddSub(AbstractOperation):
         mul_j : bool
             Whether *src1* is multiplied by j before the shift and addition/subtraction.
         """
+        if not isinstance(mul_j, bool):
+            raise TypeError("mul_j must be a bool")
         self.set_param("mul_j", mul_j)
 
     @property
@@ -1511,7 +1519,7 @@ class ConstantMultiplication(AbstractOperation):
         max_exp = bits - 1 - frac_bits
 
         if len(csd[0]) == 1:
-            prev_op = Shift(-frac_bits, prev_op)
+            prev_op = Shift(frac_bits, prev_op)
         else:
             for i, digit in enumerate(csd[0]):
                 if digit not in (-1, 0, 1):
@@ -1524,7 +1532,7 @@ class ConstantMultiplication(AbstractOperation):
                     continue
                 prev_op = ShiftAddSub(
                     is_add=digit == 1,
-                    shift=exp,
+                    shift=-exp,
                     src0=prev_op,
                     src1=in0,
                 )
@@ -1552,7 +1560,7 @@ class ConstantMultiplication(AbstractOperation):
         max_exp = bits - 1 - frac_bits
 
         if len(csd[0]) == 1:
-            prev_op = Shift(-frac_bits, prev_op)
+            prev_op = Shift(frac_bits, prev_op)
         else:
             for i, digit in enumerate(csd[0]):
                 if digit not in (-1, 0, 1):
@@ -1564,7 +1572,7 @@ class ConstantMultiplication(AbstractOperation):
                 if exp == 0:
                     continue
 
-                shift = Shift(exp, in0)
+                shift = Shift(-exp, in0)
                 if digit == 1:
                     prev_op = Addition(prev_op, shift)
                 elif digit == -1:
@@ -2193,7 +2201,7 @@ class Shift(AbstractOperation):
         return TypeName("shift")
 
     def evaluate(self, a) -> Num:
-        return a * 2 ** (self.param("value"))
+        return a / 2 ** (self.param("value"))
 
     @property
     def value(self) -> int:

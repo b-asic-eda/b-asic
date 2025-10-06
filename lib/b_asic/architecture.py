@@ -48,12 +48,12 @@ def _signed_bit_length(num: int) -> int:
     return magnitude.bit_length() + 1
 
 
-def _fixed_point_bits(num: float) -> int:
+def _fixed_point_bits(num: float, is_signed: bool) -> int:
     if num == 0 or isinstance(num, bool):
         return 1, 0
 
     int_part = math.floor(num)
-    int_bits = _signed_bit_length(int_part)
+    int_bits = _signed_bit_length(int_part) if is_signed else int_part.bit_length()
 
     frac_part = abs(num) - abs(int(num))
     if frac_part == 0:
@@ -69,34 +69,11 @@ def _fixed_point_bits(num: float) -> int:
 
 
 @dataclass
-class WordLengths:
-    """
-    Data class for word lengths in architectures.
-
-    Parameters
-    ----------
-    internal : tuple[int, int]
-        The internal word length [INT_BITS, FRAC_BITS].
-    input : tuple[int, int]
-        The input word length [INT_BITS, FRAC_BITS].
-    output : tuple[int, int]
-        The output word length [INT_BITS, FRAC_BITS].
-    state : int
-        The word length of the state counter.
-    """
-
-    internal: tuple[int, int]
-    input: tuple[int, int]
-    output: tuple[int, int]
-    state: int
-
-
-@dataclass
 class ControlTable:
     """
     Control table for PEs.
 
-    One control table per PR parameter is generated as part of the code generation.
+    One control table per PE parameter is generated as part of the code generation.
 
     Parameters
     ----------
@@ -105,12 +82,15 @@ class ControlTable:
     wl : (int, int)
        Word length specification.
     values : dict(int, int)
-        Dictionary with clock cycle and bit pattern
+        Dictionary with clock cycle and bit pattern.
+    is_signed: bool
+        Whether the parameter is signed or unsigned.
     """
 
     name: str
     wl: tuple[int, int]
     values: dict[int, int]
+    is_signed: bool
 
     @property
     def bits(self) -> int:
@@ -125,8 +105,13 @@ class ControlTable:
         return self.wl[1]
 
     @property
-    def all_identical(self) -> bool:
+    def is_static(self) -> bool:
         return self.number_of_different_values <= 1
+
+    def get_static_value(self) -> int:
+        if not self.is_static:
+            raise ValueError("ControlTable is not static")
+        return next(iter(self.values.values()))
 
     @property
     def number_of_different_values(self) -> int:
@@ -536,6 +521,15 @@ class ProcessingElement(Resource):
             int_bits = 0
             frac_bits = 0
             is_complex = False
+            is_signed = False
+
+            # check if all entries are unsigned
+            for pro in self.collection:
+                val = pro.operation.params[param_name]
+                if isinstance(val, (int, np.integer)) and val < 0:
+                    is_signed = True
+                    break
+
             for pro in self.collection:
                 val = pro.operation.params[param_name]
                 if isinstance(val, (complex, np.complexfloating)):
@@ -545,11 +539,11 @@ class ProcessingElement(Resource):
                     int_bits = 1
                 else:
                     # real part
-                    tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val.real)
+                    tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val.real, is_signed)
                     int_bits = max(int_bits, tmp_int_bits)
                     frac_bits = max(frac_bits, tmp_frac_bits)
                     # imag part
-                    tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val.imag)
+                    tmp_int_bits, tmp_frac_bits = _fixed_point_bits(val.imag, is_signed)
                     int_bits = max(int_bits, tmp_int_bits)
                     frac_bits = max(frac_bits, tmp_frac_bits)
             wl = (int_bits, frac_bits)
@@ -561,14 +555,14 @@ class ProcessingElement(Resource):
 
             if is_complex:
                 real_values = {time: val.real for time, val in values.items()}
-                entry = ControlTable(param_name + "_real", wl, real_values)
+                entry = ControlTable(param_name + "_real", wl, real_values, is_signed)
                 control_table[param_name + "_real"] = entry
 
                 imag_values = {time: val.imag for time, val in values.items()}
-                entry = ControlTable(param_name + "_imag", wl, imag_values)
+                entry = ControlTable(param_name + "_imag", wl, imag_values, is_signed)
                 control_table[param_name + "_imag"] = entry
             else:
-                entry = ControlTable(param_name, wl, values)
+                entry = ControlTable(param_name, wl, values, is_signed)
                 control_table[param_name] = entry
         return control_table
 

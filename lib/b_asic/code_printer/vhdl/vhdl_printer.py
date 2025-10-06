@@ -248,7 +248,7 @@ class VhdlPrinter(Printer):
         common.write(
             code,
             1,
-            "tmp_res <= (op_0 & '1') + (shift_right(op_b, to_integer(unsigned(shift))) & not is_add);",
+            "tmp_res <= (op_0 & '1') + (shift_right(op_b, to_integer(shift)) & not is_add);",
         )
         common.write(
             code,
@@ -263,6 +263,7 @@ class VhdlPrinter(Printer):
     ) -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
 
+        # declare the operands and results
         for part in "re", "im":
             common.signal_declaration(
                 declarations, f"{part}_op_a, {part}_op_b", signed_type(self.bits)
@@ -270,21 +271,68 @@ class VhdlPrinter(Printer):
             common.signal_declaration(
                 declarations, f"{part}_res", signed_type(self.bits + 1)
             )
-            common.write(code, 1, f"{part}_op_a <= op_0.{part};")
+            common.signal_declaration(declarations, f"{part}_cin", "std_logic")
+
+        # declare a select signal
+        common.signal_declaration(declarations, "sel", "std_logic_vector(1 downto 0)")
+
+        # assign the select signal
+        common.write(code, 1, "sel <= mul_j & is_add;")
+
+        # re_op_a and im_op_a
+        common.write(code, 1, "re_op_a <= op_0.re;", start="\n")
+        common.write(code, 1, "im_op_a <= op_0.im;", end="\n\n")
+
+        # re_op_b
+        common.write(code, 1, "with sel select")
+        common.write(code, 2, "re_op_b <=")
+        common.write(code, 2, 'not op_1.re when "00",')
+        common.write(code, 2, 'op_1.re when "01",')
+        common.write(code, 2, 'op_1.im when "10",')
+        common.write(code, 2, 'not op_1.im when "11",')
+        common.write(code, 2, "(others => '-') when others;", end="\n\n")
+
+        # im_op_b
+        common.write(code, 1, "with sel select")
+        common.write(code, 2, "im_op_b <=")
+        common.write(code, 2, 'not op_1.im when "00",')
+        common.write(code, 2, 'op_1.im when "01",')
+        common.write(code, 2, 'not op_1.re when "10",')
+        common.write(code, 2, 'op_1.re when "11",')
+        common.write(code, 2, "(others => '-') when others;", end="\n\n")
+
+        # re_cin
+        common.write(code, 1, "with sel select")
+        common.write(code, 2, "re_cin <=")
+        common.write(code, 2, "'1' when \"00\",")
+        common.write(code, 2, "'0' when \"01\",")
+        common.write(code, 2, "'0' when \"10\",")
+        common.write(code, 2, "'1' when \"11\",")
+        common.write(code, 2, "'-' when others;", end="\n\n")
+
+        # im_cin
+        common.write(code, 1, "with sel select")
+        common.write(code, 2, "im_cin <=")
+        common.write(code, 2, "'1' when \"00\",")
+        common.write(code, 2, "'0' when \"01\",")
+        common.write(code, 2, "'1' when \"10\",")
+        common.write(code, 2, "'0' when \"11\",")
+        common.write(code, 2, "'-' when others;", end="\n\n")
+
+        # calculate re_res and im_res
+        for part in "re", "im":
             common.write(
                 code,
                 1,
-                f"{part}_op_b <= op_1.{part} when is_add = '1' else not op_1.{part};",
+                f"{part}_res <= ({part}_op_a & '1') + (shift_right({part}_op_b, to_integer(shift)) & {part}_cin);",
             )
-            common.write(
-                code,
-                1,
-                f"{part}_res <= ({part}_op_a & '1') + (shift_right({part}_op_b, to_integer(unsigned(shift))){part} & not is_add);",
-            )
+
+        # truncate and assign the parts to res_0
         common.write(
             code,
             1,
             f"res_0 <= (re => resize(shift_right(re_res, 1), {self.bits}), im => resize(shift_right(im_res, 1), {self.bits}));",
+            start="\n",
         )
         return declarations.getvalue(), code.getvalue()
 
