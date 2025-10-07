@@ -20,7 +20,9 @@ class Printer(ABC):
         self.set_data_type(dt)
 
     @abstractmethod
-    def print(self, arch: "Architecture", path: str | Path = Path(), **kwargs) -> None:
+    def print(
+        self, arch: "Architecture", *, path: str | Path = Path(), **kwargs
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -11,7 +11,6 @@ from b_asic.code_printer.vhdl import (
     common,
     memory_storage,
     processing_element,
-    test_bench,
     top_level,
 )
 from b_asic.code_printer.vhdl.util import signed_type
@@ -39,16 +38,9 @@ class VhdlPrinter(Printer):
         arch: "Architecture",
         *,
         path: str | Path = Path(),
-        tb: bool = False,
         **kwargs,
     ) -> None:
-        path = Path(path)
-        counter = 0
-        dir_path = path / f"{arch.entity_name}_{counter}"
-        while dir_path.exists():
-            counter += 1
-            dir_path = path / f"{arch.entity_name}_{counter}"
-        dir_path.mkdir(parents=True)
+        dir_path = Path(path)
 
         if self.is_complex:
             with (dir_path / "types.vhdl").open("w") as f:
@@ -64,10 +56,6 @@ class VhdlPrinter(Printer):
 
         with (dir_path / f"{arch.entity_name}.vhdl").open("w") as f:
             common.write(f, 0, self.print_Architecture(arch))
-
-        if tb:
-            with (dir_path / f"{arch.entity_name}_tb.vhdl").open("w") as f:
-                common.write(f, 0, self.print_vhdl_tb(arch))
 
     def print_types(self) -> str:
         f = io.StringIO()
@@ -119,17 +107,6 @@ class VhdlPrinter(Printer):
         core_code = self.print_operation(pe)
         processing_element.architecture(f, pe, self._dt, core_code)
 
-        return f.getvalue()
-
-    def print_vhdl_tb(self, arch: "Architecture") -> str:
-        f = io.StringIO()
-        common.b_asic_preamble(f)
-        common.ieee_header(f, fixed_pkg=self.vhdl_2008)
-        if self.is_complex:
-            common.package_header(f, "types")
-
-        test_bench.entity(f, arch)
-        test_bench.architecture(f, arch, self._dt)
         return f.getvalue()
 
     def print_Input_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
@@ -339,19 +316,34 @@ class VhdlPrinter(Printer):
     def print_ConstantMultiplication_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
-        coeff_bits = pe.control_table["value"].bits
+        value = pe.control_table["value"]
+        coeff_bits = value.bits + (
+            1 if self._dt.is_signed and not value.is_signed else 0
+        )
         declarations, code = io.StringIO(), io.StringIO()
+
         common.signal_declaration(
             declarations,
             "mul_res",
             signed_type(self.bits + coeff_bits),
         )
 
-        common.write(code, 1, "mul_res <= op_0 * value;")
+        def mul_statement(
+            res: str, op: str, value: str, op_signed: bool, value_signed: bool
+        ) -> None:
+            if op_signed and not value_signed:
+                common.write(code, 1, f"{res} <= {op} * signed('0' & {value});")
+            else:
+                common.write(code, 1, f"{res} <= {op} * {value};")
+
+        mul_statement("mul_res", "op_0", "value", self._dt.is_signed, value.is_signed)
+
+        offset = " - 1" if self._dt.is_signed and not value.is_signed else ""
+
         common.write(
             code,
             1,
-            "res_0 <= mul_res(mul_res'high - WL_VALUE_INT downto mul_res'high - WL_VALUE_INT - res_0'high);",
+            f"res_0 <= mul_res(mul_res'high - WL_VALUE_INT{offset} downto mul_res'high - WL_VALUE_INT - res_0'high{offset});",
         )
         return declarations.getvalue(), code.getvalue()
 
@@ -374,7 +366,10 @@ class VhdlPrinter(Printer):
         )
 
         real_entry = pe.control_table["value_real"]
-        bits = real_entry.bits
+        imag_entry = pe.control_table["value_imag"]
+        bits = real_entry.bits + (
+            1 if self._dt.is_signed and not real_entry.is_signed else 0
+        )
         frac_bits = real_entry.frac_bits
 
         common.signal_declaration(declarations, "a, b", self.scalar_type_str)
@@ -394,6 +389,14 @@ class VhdlPrinter(Printer):
             common.signal_declaration(declarations, "res_re", signed_type(bits))
             common.signal_declaration(declarations, "res_im", signed_type(bits))
 
+        def mul_statement(
+            res: str, op: str, value: str, op_signed: bool, value_signed: bool
+        ) -> None:
+            if op_signed and not value_signed:
+                common.write(code, 1, f"{res} <= {op} * signed('0' & {value});")
+            else:
+                common.write(code, 1, f"{res} <= {op} * {value};")
+
         # Multiplication logic
         if is_complex:
             result_declarations(self.bits + bits)
@@ -403,10 +406,19 @@ class VhdlPrinter(Printer):
             common.signal_declaration(declarations, "ad", muL_type)
             common.signal_declaration(declarations, "bd", muL_type)
 
-            common.write(code, 1, "ac <= a * value_real;")
-            common.write(code, 1, "bc <= b * value_real;")
-            common.write(code, 1, "ad <= a * value_imag;")
-            common.write(code, 1, "bd <= b * value_imag;")
+            mul_statement(
+                "ac", "a", "value_real", self._dt.is_signed, real_entry.is_signed
+            )
+            mul_statement(
+                "bc", "b", "value_real", self._dt.is_signed, real_entry.is_signed
+            )
+            mul_statement(
+                "ad", "a", "value_imag", self._dt.is_signed, imag_entry.is_signed
+            )
+            mul_statement(
+                "bd", "b", "value_imag", self._dt.is_signed, imag_entry.is_signed
+            )
+
             common.write(code, 1, "res_re <= ac - bd;")
             common.write(code, 1, "res_im <= ad + bc;")
             common.write(
@@ -423,8 +435,20 @@ class VhdlPrinter(Printer):
             if is_real and not is_imag:
                 result_declarations(self.bits + bits)
 
-                common.write(code, 1, "res_re <= a * value_real;")
-                common.write(code, 1, "res_im <= b * value_real;")
+                mul_statement(
+                    "res_re",
+                    "a",
+                    "value_real",
+                    self._dt.is_signed,
+                    real_entry.is_signed,
+                )
+                mul_statement(
+                    "res_im",
+                    "b",
+                    "value_real",
+                    self._dt.is_signed,
+                    real_entry.is_signed,
+                )
                 for part in "re", "im":
                     common.write(
                         code,
@@ -435,8 +459,20 @@ class VhdlPrinter(Printer):
             elif is_imag and not is_real:
                 result_declarations(self.bits + bits)
 
-                common.write(code, 1, "res_re <= a * value_imag;")
-                common.write(code, 1, "res_im <= b * value_imag;")
+                mul_statement(
+                    "res_re",
+                    "a",
+                    "value_imag",
+                    self._dt.is_signed,
+                    imag_entry.is_signed,
+                )
+                mul_statement(
+                    "res_im",
+                    "b",
+                    "value_imag",
+                    self._dt.is_signed,
+                    imag_entry.is_signed,
+                )
                 for part in "re", "im":
                     common.write(
                         code,
@@ -446,6 +482,13 @@ class VhdlPrinter(Printer):
 
             elif is_real and is_imag:
                 result_declarations(bits + bits)
+
+                value_real_str = (
+                    "signed(value_real)" if not real_entry.is_signed else "value_real"
+                )
+                value_imag_str = (
+                    "signed(value_imag)" if not imag_entry.is_signed else "value_imag"
+                )
 
                 common.signal_declaration(
                     declarations,
@@ -463,7 +506,7 @@ class VhdlPrinter(Printer):
                 common.write(
                     code,
                     1,
-                    "op_b_re <= resize(value_real, op_b_re'length) when is_real = '1' else resize(value_imag, op_b_re'length);",
+                    f"op_b_re <= resize({value_real_str}, op_b_re'length) when is_real = '1' else resize({value_imag_str}, op_b_re'length);",
                 )
                 common.write(
                     code,
@@ -473,7 +516,7 @@ class VhdlPrinter(Printer):
                 common.write(
                     code,
                     1,
-                    "op_b_im <= resize(value_real, op_b_im'length) when is_real = '1' else resize(value_imag, op_b_im'length);",
+                    f"op_b_im <= resize({value_real_str}, op_b_im'length) when is_real = '1' else resize({value_imag_str}, op_b_im'length);",
                 )
 
                 if pe._latency > 2:

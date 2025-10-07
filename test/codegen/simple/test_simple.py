@@ -7,13 +7,13 @@ def test_simple_compile(tmp_path, arch_simple):
     runner = get_runner()
     dt = VhdlDataType(7)
     printer = VhdlPrinter(dt)
-    printer.print(arch_simple, path=tmp_path, tb=True)
+    printer.print(arch_simple, path=tmp_path)
 
-    sources = list((tmp_path / "simple_0").glob("*.vhdl"))
+    sources = list((tmp_path).glob("*.vhdl"))
 
     runner.build(
         sources=sources,
-        hdl_toplevel="simple_tb",
+        hdl_toplevel="simple",
         build_dir=tmp_path,
     )
 
@@ -24,7 +24,7 @@ def test_simple_simulate(tmp_path, arch_simple):
     printer = VhdlPrinter(dt)
     printer.print(arch_simple, path=tmp_path)
 
-    sources = list((tmp_path / "simple_0").glob("*.vhdl"))
+    sources = list((tmp_path).glob("*.vhdl"))
 
     runner.build(
         sources=sources,

@@ -497,26 +497,26 @@ class TestShift:
     """Tests for Shift class."""
 
     def test_shift_positive(self):
-        test_operation = Shift(2)
-        assert test_operation.evaluate_output(0, [5]) == 20
-        assert test_operation.value == 2
-
         test_operation = Shift(-2)
-        assert test_operation.evaluate_output(0, [5]) == 1.25
+        assert test_operation.evaluate_output(0, [5]) == 20
         assert test_operation.value == -2
 
-    def test_shift_negative(self):
         test_operation = Shift(2)
+        assert test_operation.evaluate_output(0, [5]) == 1.25
+        assert test_operation.value == 2
+
+    def test_shift_negative(self):
+        test_operation = Shift(-2)
         assert test_operation.evaluate_output(0, [-5]) == -20
 
-        test_operation = Shift(-2)
+        test_operation = Shift(2)
         assert test_operation.evaluate_output(0, [-5]) == -1.25
 
     def test_shift_complex(self):
-        test_operation = Shift(2)
+        test_operation = Shift(-2)
         assert test_operation.evaluate_output(0, [0.5 + 0.25j]) == 2 + 1j
 
-        test_operation = Shift(-2)
+        test_operation = Shift(2)
         assert test_operation.evaluate_output(0, [2 + 1j]) == 0.5 + 0.25j
 
     @pytest.mark.parametrize("val", [-0.5, 0.5])

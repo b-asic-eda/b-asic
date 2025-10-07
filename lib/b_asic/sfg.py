@@ -2475,45 +2475,6 @@ class SFG(AbstractOperation):
             raise NotImplementedError("Joining backward is not implemented yet")
         return new_sfg
 
-    def combine(self, chains: Iterable[Iterable[OpInstanceSpecifier]]) -> "SFG":
-        """
-        Return a new SFG with the specified chains of operations combined into single operations.
-
-        Parameters
-        ----------
-        chains : Iterable[Iterable[OpInstanceSpecifier]]
-            The chains of operations to be combined.
-        """
-        new_sfg = self()
-        for chain in chains:
-            # Get the operations in the chain
-            ops: list[Operation] = []
-            for t in chain:
-                if isinstance(t, str):
-                    op = new_sfg.find_by_id(t)
-                elif isinstance(t, Operation):
-                    op = t
-                else:
-                    raise TypeError("Target must be a GraphID or an Operation object")
-                if not isinstance(op, Operation):
-                    raise ValueError(f"Operation {t} not found in SFG")
-                ops.append(op)
-            if len(ops) < 2:
-                raise ValueError("Chain must contain at least two operations")
-
-            # Combine the chains one by one
-            for _ in ops:
-                new_sfg = new_sfg._combine_operations(ops)
-        return new_sfg()
-
-    def _combine_operations(self, ops: list[Operation]) -> "SFG":
-        func_name = f"_combine_{ops[1].__class__.__name__}"
-        if hasattr(ops[0], func_name):
-            combined_op = getattr(ops[0], func_name)()
-            new_sfg = SFG([combined_op], [combined_op])
-            return self.replace(combined_op.graph_id, new_sfg)
-        return self
-
     @property
     def is_linear(self) -> bool:
         return all(op.is_linear for op in self.split())

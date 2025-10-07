@@ -7,13 +7,13 @@ def test_r4bf_compile(tmp_path, arch_r4bf):
     runner = get_runner()
     dt = VhdlDataType(32, is_complex=True)
     printer = VhdlPrinter(dt)
-    printer.print(arch_r4bf, tb=True, path=tmp_path)
+    printer.print(arch_r4bf, path=tmp_path)
 
-    sources = list((tmp_path / "r4bf_0").glob("*.vhdl"))
+    sources = list((tmp_path).glob("*.vhdl"))
 
     runner.build(
         sources=sources,
-        hdl_toplevel="r4bf_tb",
+        hdl_toplevel="r4bf",
         build_dir=tmp_path,
     )
 
@@ -25,7 +25,7 @@ def test_r4bf_simulate(tmp_path, arch_r4bf):
     printer = VhdlPrinter(dt)
     printer.print(arch_r4bf, path=tmp_path)
 
-    sources = list((tmp_path / "r4bf_0").glob("*.vhdl"))
+    sources = list((tmp_path).glob("*.vhdl"))
 
     runner.build(
         sources=sources,

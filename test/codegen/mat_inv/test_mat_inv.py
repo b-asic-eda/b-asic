@@ -7,13 +7,13 @@ def test_mat_inv_compile(tmp_path, arch_mat_inv):
     runner = get_runner()
     dt = VhdlDataType(7)
     printer = VhdlPrinter(dt)
-    printer.print(arch_mat_inv, path=tmp_path, tb=True)
+    printer.print(arch_mat_inv, path=tmp_path)
 
-    sources = list((tmp_path / "mat_inv_0").glob("*.vhdl"))
+    sources = list((tmp_path).glob("*.vhdl"))
 
     runner.build(
         sources=sources,
-        hdl_toplevel="mat_inv_tb",
+        hdl_toplevel="mat_inv",
         build_dir=tmp_path,
     )
 
@@ -24,7 +24,7 @@ def test_mat_inv_simulate(tmp_path, arch_mat_inv):
     printer = VhdlPrinter(dt)
     printer.print(arch_mat_inv, path=tmp_path)
 
-    sources = list((tmp_path / "mat_inv_0").glob("*.vhdl"))
+    sources = list((tmp_path).glob("*.vhdl"))
 
     runner.build(
         sources=sources,

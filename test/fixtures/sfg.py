@@ -109,6 +109,36 @@ def sfg_two_inputs_two_outputs_independent_with_cmul():
 
 
 @pytest.fixture
+def sfg_two_inputs_two_outputs_independent_with_cmul_scaled():
+    """
+    Valid SFG with two inputs and two outputs but with scaled constants.
+
+    The first output only depends on the first input
+    and the second output only depends on the second input.
+
+        .                 .
+    in1--->cmul1--->cmul2--->out1
+        .                 .
+        .                 .
+        .  c1             .
+        .   |             .
+        .   v             .
+    in2--->add1---->cmul3--->out2
+        .                 .
+    """
+    in1 = Input("IN1")
+    in2 = Input("IN2")
+    c1 = Constant(3, "C1")
+    add1 = Addition(in2, c1, "ADD1", 7, execution_time=2)
+    cmul3 = ConstantMultiplication(1 / 2, add1, "CMUL3", 3, execution_time=1)
+    cmul1 = ConstantMultiplication(1 / 4, in1, "CMUL1", 5, execution_time=3)
+    cmul2 = ConstantMultiplication(1 / 4, cmul1, "CMUL2", 4, execution_time=1)
+    out1 = Output(cmul2, "OUT1")
+    out2 = Output(cmul3, "OUT2")
+    return SFG(inputs=[in1, in2], outputs=[out1, out2])
+
+
+@pytest.fixture
 def sfg_nested():
     """
     Valid SFG with two inputs and one output.

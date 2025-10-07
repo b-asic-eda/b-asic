@@ -7,13 +7,13 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
     runner = get_runner()
     dt = VhdlDataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
-    printer.print(arch_r3bf, path=tmp_path, tb=True)
+    printer.print(arch_r3bf, path=tmp_path)
 
-    sources = list((tmp_path / "r3bf_0").glob("*.vhdl"))
+    sources = list((tmp_path).glob("*.vhdl"))
 
     runner.build(
         sources=sources,
-        hdl_toplevel="r3bf_tb",
+        hdl_toplevel="r3bf",
         build_dir=tmp_path,
     )
 
@@ -24,7 +24,7 @@ def test_r3bf_simulate(tmp_path, arch_r3bf):
     printer = VhdlPrinter(dt)
     printer.print(arch_r3bf, path=tmp_path)
 
-    sources = list((tmp_path / "r3bf_0").glob("*.vhdl"))
+    sources = list((tmp_path).glob("*.vhdl"))
 
     runner.build(
         sources=sources,

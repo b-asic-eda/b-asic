@@ -35,8 +35,29 @@ from b_asic.special_operations import Input, Output
         (math.pi, (3, 48)),
     ],
 )
-def test_fixed_point_bits(input_val, expected):
-    assert _fixed_point_bits(input_val) == expected
+def test_fixed_point_bits_signed(input_val, expected):
+    assert _fixed_point_bits(input_val, is_signed=True) == expected
+
+
+@pytest.mark.parametrize(
+    ("input_val", "expected"),
+    [
+        (0.0, (1, 0)),
+        (1.0, (1, 0)),
+        (1.125, (1, 3)),
+        (2.5, (2, 1)),
+        (3.75, (2, 2)),
+        (0.1, (0, 53)),
+        (-4.625, (3, 3)),
+        (1023.0, (10, 0)),
+        (0.0009765625, (0, 10)),
+        (0.3333333333333333, (0, 53)),
+        (math.sqrt(3) / 2, (0, 52)),
+        (math.pi, (2, 48)),
+    ],
+)
+def test_fixed_point_bits_unsigned(input_val, expected):
+    assert _fixed_point_bits(input_val, is_signed=False) == expected
 
 
 def test_processing_element_exceptions(schedule_direct_form_iir_lp_filter: Schedule):

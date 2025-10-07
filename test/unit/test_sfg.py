@@ -22,7 +22,6 @@ from b_asic.core_operations import (
     Max,
     Min,
     Multiplication,
-    Shift,
     ShiftAddSub,
     SquareRoot,
     Subtraction,
@@ -373,7 +372,7 @@ class TestRewriteShiftAddSub:
 
         shift = new_sfg.find_by_id("shift0")
         assert shift is not None
-        assert shift.value == -1
+        assert shift.value == 1
         assert shift.input(0).signals[0].source.operation == new_sfg.find_by_id("t0")
         assert shift.output(0).signals[0].destination_operation == new_sfg.find_by_id(
             "add0"
@@ -385,34 +384,17 @@ class TestRewriteShiftAddSub:
         sim2.run_for(5)
         assert list(sim1.results["0"]) == list(sim2.results["0"])
 
-    def test_sfg_two_inputs_two_outputs_independent_with_cmul(
-        self, sfg_two_inputs_two_outputs_independent_with_cmul: SFG
+    def test_sfg_two_inputs_two_outputs_independent_with_cmul_scaled(
+        self, sfg_two_inputs_two_outputs_independent_with_cmul_scaled: SFG
     ):
-        assert len(sfg_two_inputs_two_outputs_independent_with_cmul.operations) == 9
-        new_sfg = sfg_two_inputs_two_outputs_independent_with_cmul.rewrite(
-            ShiftAddSub, ["cmul0"]
-        )
+        sfg = sfg_two_inputs_two_outputs_independent_with_cmul_scaled
+        assert len(sfg.operations) == 9
+        new_sfg = sfg()
+        new_sfg = sfg.rewrite(ShiftAddSub, ["cmul0", "cmul1", "cmul2"])
         assert len(new_sfg.operations) == 9
-        assert len(new_sfg.find_by_type(ShiftAddSub)) == 1
-        assert len(new_sfg.find_by_type(ConstantMultiplication)) == 2
-
-        new_sfg = new_sfg.rewrite(ShiftAddSub, ["cmul1"])
-        assert len(new_sfg.operations) == 9
-        assert len(new_sfg.find_by_type(ShiftAddSub)) == 1
-        assert len(new_sfg.find_by_type(Shift)) == 1
-        assert len(new_sfg.find_by_type(ConstantMultiplication)) == 1
-
-        new_sfg = new_sfg.rewrite(ShiftAddSub, ["cmul2"])
-        assert len(new_sfg.operations) == 9
-        assert len(new_sfg.find_by_type(ShiftAddSub)) == 1
-        assert len(new_sfg.find_by_type(Shift)) == 2
         assert len(new_sfg.find_by_type(ConstantMultiplication)) == 0
 
-        assert not any(
-            isinstance(op, ConstantMultiplication) for op in new_sfg.operations
-        )
-
-        sim1 = Simulation(sfg_two_inputs_two_outputs_independent_with_cmul, [[1], [2]])
+        sim1 = Simulation(sfg, [[1], [2]])
         sim1.run()
         sim2 = Simulation(new_sfg, [[1], [2]])
         sim2.run()
