@@ -10,9 +10,10 @@ workflow:
 
 .run-test:
   before_script:
+    - set -e
     - apt-get update -yy
     # - apt-get install -yy build-essential cmake graphviz python3-pyqt6 xvfb xdg-utils lcov
-    - apt-get install -yy graphviz python3-pyqt6 xvfb xdg-utils libxcb-cursor-dev ghdl
+    - apt-get install -yy graphviz python3-pyqt6 xvfb xdg-utils libxcb-cursor-dev cmake
     - python -m pip install --upgrade pip
     - python --version
     - git fetch --tags
@@ -37,18 +38,6 @@ workflow:
         path: cov.xml
   coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
   interruptible: true
-
-run-test-3.10-pyqt6:
-  variables:
-    QT_API: pyqt6
-  image: python:3.10
-  extends: ".run-test"
-
-run-test-3.10-pyside6:
-  variables:
-    QT_API: pyside6
-  image: python:3.10
-  extends: ".run-test"
 
 run-test-3.11-pyqt6:
   variables:
@@ -100,18 +89,36 @@ run-test-3.14-pyqt6:
 #   extends: ".run-test"
 
 run-vhdl-tests:
-  image: python:3.10
+  image: python:3.11
   stage: test
   script:
+    - set -e
     - apt-get update -yy
-    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev
+    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev ghdl cmake
     - python -m pip install --upgrade pip
     - python --version
     - git fetch --tags
     - pip install -v .[test,test_optional]
     - pip uninstall -y pytest_qt
     - pip install vunit_hdl
-    - apt-get install -yy ghdl
+    - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --cov-branch --color=yes test --timeout=40 --durations=10
+    # Run matrix transposer test, currently not working
+    # - cd lib/b_asic/codegen/testbench
+    # - python test.py
+
+run-vhdl-tests-no-simulator-installed:
+  image: python:3.11
+  stage: test
+  script:
+    - set -e
+    - apt-get update -yy
+    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev cmake
+    - python -m pip install --upgrade pip
+    - python --version
+    - git fetch --tags
+    - pip install -v .[test,test_optional]
+    - pip uninstall -y pytest_qt
+    - pip install vunit_hdl
     - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --cov-branch --color=yes test --timeout=40 --durations=10
     # Run matrix transposer test, currently not working
     # - cd lib/b_asic/codegen/testbench
@@ -120,22 +127,19 @@ run-vhdl-tests:
 run-doc-test:
   variables:
     QT_API: pyside6
-  image: python:3.10
+  image: python:3.11
   stage: test
   script:
+    - set -e
     - apt-get update -yy
-    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev
-    - python -m pip install --upgrade pip
+    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev cmake
+    - python -m pip install --upgrade pip ruff
     - python --version
     - git fetch --tags
     - export QT_API=$QT_API
     - export PYTEST_QT_API=$QT_API
     - pip install -v .[$QT_API,doc]
     - sphinx-build -b html docs_sphinx public
-    # Run linting on doc-strings
-    - pip install black velin
-    - velin lib/b_asic --check --black
-    - pip install ruff
     - ruff check lib/b_asic --output-format=gitlab > ruff.json
   artifacts:
     name: "${CI_PROJECT_NAME}_code_quality"
@@ -147,13 +151,16 @@ pages:
   variables:
     QT_API: pyqt6
   stage: deploy
-  image: python:3.10
+  image: python:3.11
   script:
+    - set -e
     - apt-get update -yy
-    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev optipng
+    - apt-get install -yy graphviz python3-pyqt6 xdg-utils libxcb-cursor-dev optipng cmake
     - python --version
     - git fetch --tags
-    - pip install .[doc]
+    - export QT_API=$QT_API
+    - export PYTEST_QT_API=$QT_API
+    - pip install -v .[$QT_API,doc]
     - sphinx-build -b html docs_sphinx public
   artifacts:
     paths:

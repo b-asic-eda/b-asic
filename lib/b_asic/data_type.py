@@ -5,12 +5,14 @@ B-ASIC Data Type Module.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Self
 
 
 class NumRepresentation(Enum):
     """
     Type of number representation.
     """
+
     FIXED_POINT = auto()
     FLOATING_POINT = auto()
 
@@ -46,6 +48,7 @@ class DataType(ABC):
     is_complex : bool, default: False
         If number representations are complex-valued.
     """
+
     wl: tuple[int, int]
     input_wl: tuple[int, int] | None = None
     output_wl: tuple[int, int] | None = None
@@ -56,15 +59,21 @@ class DataType(ABC):
     def __post_init__(self):
         if isinstance(self.wl, int):
             if self.num_repr == NumRepresentation.FLOATING_POINT:
-                raise TypeError("Both exponent and mantissa word lengths must be provided for floating-point.")
+                raise TypeError(
+                    "Both exponent and mantissa word lengths must be provided for floating-point."
+                )
             self.wl = (1, self.wl - 1)
         if isinstance(self.input_wl, int):
             if self.num_repr == NumRepresentation.FLOATING_POINT:
-                raise TypeError("Both exponent and mantissa word lengths must be provided for floating-point.")
+                raise TypeError(
+                    "Both exponent and mantissa word lengths must be provided for floating-point."
+                )
             self.input_wl = (1, self.input_wl - 1)
         if isinstance(self.output_wl, int):
             if self.num_repr == NumRepresentation.FLOATING_POINT:
-                raise TypeError("Both exponent and mantissa word lengths must be provided for floating-point.")
+                raise TypeError(
+                    "Both exponent and mantissa word lengths must be provided for floating-point."
+                )
             self.output_wl = (1, self.output_wl - 1)
 
         if self.input_wl is None:
@@ -98,8 +107,7 @@ class DataType(ABC):
         """
         if self.is_complex:
             raise NotImplementedError
-        else:
-            return self.type_str()
+        return self.type_str()
 
     @property
     @abstractmethod
@@ -203,13 +211,14 @@ class DataType(ABC):
         return self.output_bits - 1
 
     @classmethod
-    def from_DataType(cls, other: "DataType") -> "DataType":
+    def from_DataType(cls, other: "DataType") -> Self:
         """
         Create DataType subclass from other subclass.
 
         Parameters
         ----------
         other : DataType
+            The DataType to base new object on.
         """
         return cls(**other.__dict__)
 
@@ -247,6 +256,7 @@ class VhdlDataType(DataType):
     vhdl_2008 : bool, default: False
         If True, use ``fixed_pkg`` for fixed-point values and ``float_pkg`` for floating-point values.
     """
+
     vhdl_2008: bool = False
 
     @property

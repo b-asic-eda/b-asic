@@ -22,11 +22,11 @@ authors = [
 maintainers = [{ name = "Oscar Gustafsson", email = "oscar.gustafsson@liu.se" }]
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-  "numpy",
-  "qtpy",
-  "graphviz>=0.19",
+  "numpy>=2",
+  "qtpy>=2",
+  "graphviz>=0.21",
   "matplotlib>=3.7",
   "networkx>=3",
   "pulp",
@@ -38,7 +38,6 @@ classifiers = [
   "Intended Audience :: Education",
   "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -50,8 +49,8 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-pyqt6 = ["pyqt6"]
-pyside6 = ["pyside6"]
+pyqt6 = ["PyQt6"]
+pyside6 = ["PySide6>=6.10"]
 test = [
   "pytest",
   "pytest-cov",
@@ -60,7 +59,7 @@ test = [
   "pytest-xvfb",
   "pytest-xdist",
 ]
-test_optional = ["scipy", "cocotb>=2"]
+test_optional = ["scipy>=1.9", "cocotb>=2"]
 hdl = ["cocotb>=2"]
 doc = [
   "sphinx",

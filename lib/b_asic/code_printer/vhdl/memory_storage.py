@@ -147,15 +147,11 @@ def architecture(
     common.write(f, 1, "-- Memory address generation", start="\n")
     for i in range(memory.input_count):
         common.signal_declaration(f, f"read_port_{i}", dt.type_str)
-        common.signal_declaration(
-            f, f"read_adr_{i}", unsigned_type(mem_adress_bits)
-        )
+        common.signal_declaration(f, f"read_adr_{i}", unsigned_type(mem_adress_bits))
         common.signal_declaration(f, f"read_en_{i}", "std_logic")
     for i in range(memory.output_count):
         common.signal_declaration(f, f"write_port_{i}", dt.type_str)
-        common.signal_declaration(
-            f, f"write_adr_{i}", unsigned_type(mem_adress_bits)
-        )
+        common.signal_declaration(f, f"write_adr_{i}", unsigned_type(mem_adress_bits))
         common.signal_declaration(f, f"write_en_{i}", "std_logic")
 
     # Address generation mutltiplexing signals
