@@ -1792,10 +1792,9 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     Wave digital filter symmetric twoport-adaptor operation.
 
     .. math::
-        \begin{eqnarray}
-        y_0 & = & x_1 + \text{value}\times\left(x_1 - x_0\right)\\
-        y_1 & = & x_0 + \text{value}\times\left(x_1 - x_0\right)
-        \end{eqnarray}
+
+        y_0 & = x_1 + \text{value}\times\left(x_1 - x_0\right)\\
+        y_1 & = x_0 + \text{value}\times\left(x_1 - x_0\right)
     """
 
     __slots__ = (

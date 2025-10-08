@@ -20,10 +20,9 @@ class R2Butterfly(AbstractOperation):
     second input from the first one. This corresponds to a 2-point DFT.
 
     .. math::
-        \begin{eqnarray}
-        y_0 & = & x_0 + x_1\\
-        y_1 & = & x_0 - x_1
-        \end{eqnarray}
+
+        y_0 & = x_0 + x_1\\
+        y_1 & = x_0 - x_1
 
     Parameters
     ----------
@@ -98,14 +97,13 @@ class R2DIFButterfly(AbstractOperation):
     The second output is multiplied with the provided twiddle factor (TF).
 
     .. math::
-        \begin{eqnarray}
-        y_0 & = & x_0 + x_1\\
-        y_1 & = & w(x_0 - x_1)
-        \end{eqnarray}
+
+        y_0 & = x_0 + x_1\\
+        y_1 & = w(x_0 - x_1)
 
     Parameters
     ----------
-    w: complex
+    w : complex
         Twiddle factor to multiply the second output with.
     src0, src1 : SignalSourceProvider, optional
         The two signals to compute the 2-point DFT of.
@@ -192,14 +190,13 @@ class R2DITButterfly(AbstractOperation):
     The second input is multiplied with the provided twiddle factor (TF).
 
     .. math::
-        \begin{eqnarray}
-        y_0 & = & x_0 + w*x_1\\
-        y_1 & = & x_0 - w*x_1
-        \end{eqnarray}
+
+        y_0 & = x_0 + w*x_1\\
+        y_1 & = x_0 - w*x_1
 
     Parameters
     ----------
-    w: complex
+    w : complex
         Twiddle factor to multiply the second input with.
     src0, src1 : SignalSourceProvider, optional
         The two signals to compute the 2-point DFT of.
@@ -287,16 +284,15 @@ class R2TFButterfly(AbstractOperation):
     Both outputs are multiplied with the provided TFs.
 
     .. math::
-        \begin{eqnarray}
-        y_0 & = & w_0(x_0 + x_1)\\
-        y_1 & = & w_1(x_0 - x_1)
-        \end{eqnarray}
+
+        y_0 & = w_0(x_0 + x_1)\\
+        y_1 & = w_1(x_0 - x_1)
 
     Parameters
     ----------
-    w0: complex
+    w0 : complex
         Twiddle factor to multiply the first output with.
-    w1: complex
+    w1 : complex
         Twiddle factor to multiply the second output with.
     src0, src1 : SignalSourceProvider, optional
         The two signals to compute the 2-point DFT of.
@@ -395,16 +391,15 @@ class R4Butterfly(AbstractOperation):
     This corresponds to a 4-point DFT.
 
     .. math::
-        \begin{eqnarray}
-            s0 & = & x_0 + x_2\\
-            s1 & = & x_1 + x_3\\
-            s2 & = & x_0 - x_2\\
-            s3 & = & -j*x_1 + j*x_3\\
-            y0 & = & s0 + s1\\
-            y1 & = & s2 + s3\\
-            y2 & = & s0 - s1\\
-            y3 & = & s2 - s3
-        \end{eqnarray}
+
+            s0 & = x_0 + x_2\\
+            s1 & = x_1 + x_3\\
+            s2 & = x_0 - x_2\\
+            s3 & = -jx_1 + jx_3\\
+            y0 & = s0 + s1\\
+            y1 & = s2 + s3\\
+            y2 & = s0 - s1\\
+            y3 & = s2 - s3
 
     Parameters
     ----------
@@ -490,22 +485,21 @@ class R3Winograd(AbstractOperation):
     Three-point Winograd DFT.
 
     .. math::
-        \begin{eqnarray}
-            u = -2 * pi / 3
-            c_{30} = cos(u) - 1
-            c_{31} = j * sin(u)
-            s_0 = x_1 + x_2
-            s_1 = x_1 - x_2
-            s_2 = s_0 + x_0
-            m_0 = c_{30} * s_0
-            m_1 = c_{31} * s_1
-            s_3 = s_2 + m_0
-            s_4 = s_3 + m_1
-            s_5 = s_3 - m_1
-            y_0 = s_2
-            y_1 = s_4
-            y_2 = s_5
-        \end{eqnarray}
+
+            u & = -\frac{2 \pi}{3} \\
+            c_{30} & = \cos(u) - 1 \\
+            c_{31} & = j \sin(u) \\
+            s_0 & = x_1 + x_2 \\
+            s_1 & = x_1 - x_2 \\
+            s_2 & = s_0 + x_0 \\
+            m_0 & = c_{30} s_0 \\
+            m_1 & = c_{31} s_1 \\
+            s_3 & = s_2 + m_0 \\
+            s_4 & = s_3 + m_1 \\
+            s_5 & = s_3 - m_1 \\
+            y_0 & = s_2 \\
+            y_1 & = s_4 \\
+            y_2 & = s_5
 
     Parameters
     ----------
@@ -594,10 +588,6 @@ class R3Winograd(AbstractOperation):
 class R5Winograd(AbstractOperation):
     r"""
     Five-point Winograd DFT.
-
-    .. math::
-        \begin{eqnarray}
-        \end{eqnarray}
 
     Parameters
     ----------
@@ -729,9 +719,6 @@ class R7Winograd(AbstractOperation):
     r"""
     Seven-point Winograd DFT.
 
-    .. math::
-        \begin{eqnarray}
-        \end{eqnarray}
 
     Parameters
     ----------

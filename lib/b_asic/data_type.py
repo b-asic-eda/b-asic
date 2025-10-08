@@ -26,10 +26,15 @@ class DataType(ABC):
 
     The number of bits can be specified in two few different ways.
 
+    +------------+-----+------------+
     | *num_repr* | int | (int, int) |
-    | -----------| --- | ---------- |
+    +============+=====+============+
     | :attr:`~NumRepresentation.FIXED_POINT` | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
-    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A | (exponent bits, mantissa bits)
+    +------------+-----+------------+
+    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A | (exponent bits, mantissa bits) |
+    +------------+-----+------------+
+
+
 
     If *input_wl* or *output_wl* are not provided, they are assumed to be the same as *wl*.
 
@@ -44,9 +49,9 @@ class DataType(ABC):
     num_repr : :class:`NumRepresentation`, default: :attr:`NumRepresentation.FIXED_POINT`
         Type of number representation to use.
     is_signed : bool, default: True
-        If number representations are signed.
+        If number representation is signed.
     is_complex : bool, default: False
-        If number representations are complex-valued.
+        If number representation is complex-valued.
     """
 
     wl: tuple[int, int]
@@ -232,10 +237,13 @@ class VhdlDataType(DataType):
 
     The number of bits can be specified in two few different ways.
 
+    +------------+-----+------------+
     | *num_repr* | int | (int, int) |
-    | -----------| --- | ---------- |
+    +============+=====+============+
     | :attr:`~NumRepresentation.FIXED_POINT` | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
-    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A | (exponent bits, mantissa bits)
+    +------------+-----+------------+
+    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A | (exponent bits, mantissa bits) |
+    +------------+-----+------------+
 
     If *input_wl* or *output_wl* are not provided, they are assumed to be the same as *wl*.
 
@@ -250,9 +258,9 @@ class VhdlDataType(DataType):
     num_repr : :class:`NumRepresentation`, default: :attr:`NumRepresentation.FIXED_POINT`
         Type of number representation to use.
     is_signed : bool, default: True
-        If number representations are signed.
+        If number representation is signed.
     is_complex : bool, default: False
-        If number representations are complex-valued.
+        If number representation is complex-valued.
     vhdl_2008 : bool, default: False
         If True, use ``fixed_pkg`` for fixed-point values and ``float_pkg`` for floating-point values.
     """
