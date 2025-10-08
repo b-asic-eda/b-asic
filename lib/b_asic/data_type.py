@@ -26,13 +26,13 @@ class DataType(ABC):
 
     The number of bits can be specified in two few different ways.
 
-    +------------+-----+------------+
-    | *num_repr* | int | (int, int) |
-    +============+=====+============+
-    | :attr:`~NumRepresentation.FIXED_POINT` | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
-    +------------+-----+------------+
-    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A | (exponent bits, mantissa bits) |
-    +------------+-----+------------+
+    +-------------------------------------------+----------------------------------------------------+---------------------------------+
+    | *num_repr*                                | int                                                | (int, int)                      |
+    +===========================================+====================================================+=================================+
+    | :attr:`~NumRepresentation.FIXED_POINT`    | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
+    +-------------------------------------------+----------------------------------------------------+---------------------------------+
+    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A                                                | (exponent bits, mantissa bits)  |
+    +-------------------------------------------+----------------------------------------------------+---------------------------------+
 
 
 
@@ -237,13 +237,13 @@ class VhdlDataType(DataType):
 
     The number of bits can be specified in two few different ways.
 
-    +------------+-----+------------+
-    | *num_repr* | int | (int, int) |
-    +============+=====+============+
-    | :attr:`~NumRepresentation.FIXED_POINT` | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
-    +------------+-----+------------+
-    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A | (exponent bits, mantissa bits) |
-    +------------+-----+------------+
+    +-------------------------------------------+----------------------------------------------------+---------------------------------+
+    | *num_repr*                                | int                                                | (int, int)                      |
+    +===========================================+====================================================+=================================+
+    | :attr:`~NumRepresentation.FIXED_POINT`    | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
+    +-------------------------------------------+----------------------------------------------------+---------------------------------+
+    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A                                                | (exponent bits, mantissa bits)  |
+    +-------------------------------------------+----------------------------------------------------+---------------------------------+
 
     If *input_wl* or *output_wl* are not provided, they are assumed to be the same as *wl*.
 
