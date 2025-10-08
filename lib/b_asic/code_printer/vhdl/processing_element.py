@@ -8,6 +8,7 @@ import numpy as np
 
 from b_asic.code_printer.util import bin_str, time_bin_str
 from b_asic.code_printer.vhdl import common
+from b_asic.code_printer.vhdl.util import schedule_time_type
 from b_asic.data_type import VhdlDataType
 from b_asic.process import OperatorProcess
 from b_asic.special_operations import Input, Output
@@ -24,7 +25,7 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
 
     ports = [
         "clk : in std_logic",
-        f"schedule_cnt : in unsigned({pe.schedule_time.bit_length() - 1} downto 0)",
+        f"schedule_cnt : in {schedule_time_type(pe.schedule_time)}",
     ]
     ports += [f"p_{count}_in : in {dt.type_str}" for count in range(pe.input_count)]
     if pe.operation_type == Input:

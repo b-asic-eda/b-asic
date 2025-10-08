@@ -29,6 +29,7 @@ from b_asic._preferences import (
     PE_COLOR,
 )
 from b_asic.code_printer.vhdl import common
+from b_asic.code_printer.vhdl.util import schedule_time_type
 from b_asic.data_type import DataType, VhdlDataType
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -612,7 +613,7 @@ class ProcessingElement(Resource):
     ) -> None:
         ports = [
             "clk : in std_logic",
-            f"schedule_cnt : in unsigned({self.schedule_time.bit_length() - 1} downto 0)",
+            f"schedule_cnt : in {schedule_time_type(self.schedule_time)}",
         ]
         ports += [
             f"p_{count}_in : in {dt.type_str}" for count in range(self.input_count)
@@ -841,7 +842,7 @@ class Memory(Resource):
     ) -> None:
         ports = [
             "clk : in std_logic",
-            f"schedule_cnt : in unsigned({self.schedule_time.bit_length() - 1} downto 0)",
+            f"schedule_cnt : in {schedule_time_type(self.schedule_time)}",
         ]
         ports += [
             f"p_{port_number}_in : in {dt.type_str}"
@@ -1070,7 +1071,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         common.signal_declaration(
             f,
             "schedule_cnt",
-            f"unsigned({self.schedule_time.bit_length() - 1} downto 0)",
+            schedule_time_type(self.schedule_time),
             "(others => '0')",
         )
 

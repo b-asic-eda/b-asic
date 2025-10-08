@@ -20,9 +20,9 @@ API
     save_load_structure.rst
     schedule.rst
     scheduler.rst
+    sfg.rst
     sfg_generators.rst
     signal.rst
-    signal_flow_graph.rst
     signal_generator.rst
     simulation.rst
     special_operations.rst

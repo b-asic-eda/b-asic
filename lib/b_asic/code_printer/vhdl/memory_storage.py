@@ -6,6 +6,7 @@ import math
 from typing import TYPE_CHECKING, Literal, TextIO, cast
 
 from b_asic.code_printer.vhdl import common
+from b_asic.code_printer.vhdl.util import schedule_time_type, unsigned_type
 from b_asic.data_type import VhdlDataType
 from b_asic.process import MemoryVariable, PlainMemoryVariable
 
@@ -27,7 +28,7 @@ def entity(f: TextIO, mem: "Memory", dt: VhdlDataType) -> None:
 
     ports = [
         "clk : in std_logic",
-        f"schedule_cnt : in unsigned({mem.schedule_time.bit_length() - 1} downto 0)",
+        f"schedule_cnt : in {schedule_time_type(mem.schedule_time)}",
     ]
     ports += [f"p_{count}_in : in {dt.type_str}" for count in range(mem.input_count)]
     ports += [f"p_{count}_out : out {dt.type_str}" for count in range(mem.output_count)]
@@ -128,7 +129,7 @@ def architecture(
         common.signal_declaration(
             f,
             name=f"schedule_cnt{i + 1}",
-            signal_type=f"unsigned({memory.schedule_time.bit_length() - 1} downto 0)",
+            signal_type=schedule_time_type(memory.schedule_time),
         )
     ADR_LEN = (
         memory.schedule_time.bit_length()
@@ -138,7 +139,7 @@ def architecture(
     common.alias_declaration(
         f,
         name="schedule_cnt_adr",
-        signal_type=f"unsigned({ADR_LEN - 1} downto 0)",
+        signal_type=unsigned_type(ADR_LEN),
         value=f"schedule_cnt({ADR_LEN - 1} downto 0)",
     )
 
@@ -147,13 +148,13 @@ def architecture(
     for i in range(memory.input_count):
         common.signal_declaration(f, f"read_port_{i}", dt.type_str)
         common.signal_declaration(
-            f, f"read_adr_{i}", f"unsigned({mem_adress_bits - 1} downto 0)"
+            f, f"read_adr_{i}", unsigned_type(mem_adress_bits)
         )
         common.signal_declaration(f, f"read_en_{i}", "std_logic")
     for i in range(memory.output_count):
         common.signal_declaration(f, f"write_port_{i}", dt.type_str)
         common.signal_declaration(
-            f, f"write_adr_{i}", f"unsigned({mem_adress_bits - 1} downto 0)"
+            f, f"write_adr_{i}", unsigned_type(mem_adress_bits)
         )
         common.signal_declaration(f, f"write_en_{i}", "std_logic")
 
@@ -165,7 +166,7 @@ def architecture(
                 common.signal_declaration(
                     f,
                     f"write_adr_{write_port_idx}_{depth}_{rom}",
-                    f"unsigned({mem_adress_bits - 1} downto 0)",
+                    unsigned_type(mem_adress_bits),
                 )
     for write_port_idx in range(memory.output_count):
         for depth in range(adr_pipe_depth + 1):
@@ -181,7 +182,7 @@ def architecture(
                 common.signal_declaration(
                     f,
                     f"read_adr_{read_port_idx}_{depth}_{rom}",
-                    f"unsigned({mem_adress_bits - 1} downto 0)",
+                    unsigned_type(mem_adress_bits),
                 )
 
     # Input sync signals

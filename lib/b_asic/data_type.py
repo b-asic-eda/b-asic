@@ -8,12 +8,44 @@ from enum import Enum, auto
 
 
 class NumRepresentation(Enum):
+    """
+    Type of number representation.
+    """
     FIXED_POINT = auto()
     FLOATING_POINT = auto()
 
 
 @dataclass
 class DataType(ABC):
+    """
+    Data type specification.
+
+    All arguments are keyword only.
+
+    The number of bits can be specified in two few different ways.
+
+    | *num_repr* | int | (int, int) |
+    | -----------| --- | ---------- |
+    | :attr:`~NumRepresentation.FIXED_POINT` | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
+    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A | (exponent bits, mantissa bits)
+
+    If *input_wl* or *output_wl* are not provided, they are assumed to be the same as *wl*.
+
+    Parameters
+    ----------
+    wl : int or (int, int)
+        Number of bits for data type used in computations.
+    input_wl : int or (int, int), optional
+        Number of bits for input data type.
+    output_wl : int or (int, int), optional
+        Number of bits for output data type.
+    num_repr : :class:`NumRepresentation`, default: :attr:`NumRepresentation.FIXED_POINT`
+        Type of number representation to use.
+    is_signed : bool, default: True
+        If number representations are signed.
+    is_complex : bool, default: False
+        If number representations are complex-valued.
+    """
     wl: tuple[int, int]
     input_wl: tuple[int, int] | None = None
     output_wl: tuple[int, int] | None = None
@@ -23,10 +55,16 @@ class DataType(ABC):
 
     def __post_init__(self):
         if isinstance(self.wl, int):
+            if self.num_repr == NumRepresentation.FLOATING_POINT:
+                raise TypeError("Both exponent and mantissa word lengths must be provided for floating-point.")
             self.wl = (1, self.wl - 1)
         if isinstance(self.input_wl, int):
+            if self.num_repr == NumRepresentation.FLOATING_POINT:
+                raise TypeError("Both exponent and mantissa word lengths must be provided for floating-point.")
             self.input_wl = (1, self.input_wl - 1)
         if isinstance(self.output_wl, int):
+            if self.num_repr == NumRepresentation.FLOATING_POINT:
+                raise TypeError("Both exponent and mantissa word lengths must be provided for floating-point.")
             self.output_wl = (1, self.output_wl - 1)
 
         if self.input_wl is None:
@@ -37,57 +75,183 @@ class DataType(ABC):
     @property
     @abstractmethod
     def type_str(self) -> str:
+        """
+        Type used for computations.
+
+        Returns
+        -------
+        str
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
+    def scalar_type_str(self) -> str:
+        """
+        Scalar type used for computations.
+
+        Same as :meth:`type_str` when using a real type. The inner type when using a complex type.
+
+        Returns
+        -------
+        str
+        """
+        if self.is_complex:
+            raise NotImplementedError
+        else:
+            return self.type_str()
+
+    @property
+    @abstractmethod
     def input_type_str(self) -> str:
+        """
+        Type used for input.
+
+        Returns
+        -------
+        str
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def output_type_str(self) -> str:
+        """
+        Type used for output.
+
+        Returns
+        -------
+        str
+        """
         raise NotImplementedError
 
     @property
     def bits(self) -> int:
+        """
+        Number of bits used for computations.
+
+        Returns
+        -------
+        int
+        """
         return sum(self.wl)
 
     @property
-    def internal_high(self) -> int:
+    def high(self) -> int:
+        """
+        Index of most significant bit.
+
+        Returns
+        -------
+        int
+        """
         return self.bits - 1
 
     @property
-    def internal_low(self) -> int:
+    def low(self) -> int:
+        """
+        Index of least significant bit.
+
+        Returns
+        -------
+        int
+        """
         return 0
 
     @property
     def input_bits(self) -> int:
+        """
+        Number of bits used for input.
+
+        Returns
+        -------
+        int
+        """
         return sum(self.input_wl)
 
     @property
     def input_high(self) -> int:
+        """
+        Index of most significant bit for input.
+
+        Returns
+        -------
+        int
+        """
         return self.input_bits - 1
 
     @property
     def output_bits(self) -> int:
+        """
+        Number of bits used for output.
+
+        Returns
+        -------
+        int
+        """
         return sum(self.output_wl)
 
     @property
     def output_high(self) -> int:
+        """
+        Index of most significant bit for output.
+
+        Returns
+        -------
+        int
+        """
         return self.output_bits - 1
 
     @classmethod
-    def from_DataType(cls, other):
+    def from_DataType(cls, other: "DataType") -> "DataType":
+        """
+        Create DataType subclass from other subclass.
+
+        Parameters
+        ----------
+        other : DataType
+        """
         return cls(**other.__dict__)
 
 
 @dataclass
 class VhdlDataType(DataType):
+    """
+    Data type specification for VHDL.
+
+    All arguments are keyword only.
+
+    The number of bits can be specified in two few different ways.
+
+    | *num_repr* | int | (int, int) |
+    | -----------| --- | ---------- |
+    | :attr:`~NumRepresentation.FIXED_POINT` | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
+    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A | (exponent bits, mantissa bits)
+
+    If *input_wl* or *output_wl* are not provided, they are assumed to be the same as *wl*.
+
+    Parameters
+    ----------
+    wl : int or (int, int)
+        Number of bits for data type used in computations.
+    input_wl : int or (int, int), optional
+        Number of bits for input data type.
+    output_wl : int or (int, int), optional
+        Number of bits for output data type.
+    num_repr : :class:`NumRepresentation`, default: :attr:`NumRepresentation.FIXED_POINT`
+        Type of number representation to use.
+    is_signed : bool, default: True
+        If number representations are signed.
+    is_complex : bool, default: False
+        If number representations are complex-valued.
+    vhdl_2008 : bool, default: False
+        If True, use ``fixed_pkg`` for fixed-point values and ``float_pkg`` for floating-point values.
+    """
     vhdl_2008: bool = False
 
     @property
-    def internal_low(self) -> int:
+    def low(self) -> int:
+        # Doc-string inherited
         _LOW_LUT = {
             (0, 0): 0,
             (0, 1): 0,
@@ -98,6 +262,7 @@ class VhdlDataType(DataType):
 
     @property
     def type_str(self) -> str:
+        # Doc-string inherited
         _TYPE_LUT = {
             # Pre VHDL-2008
             (0, 0, 0): self._match_unsigned_real,
@@ -119,7 +284,7 @@ class VhdlDataType(DataType):
                 vhdl_type = "sfixed" if self.is_signed else "ufixed"
             else:
                 vhdl_type = "signed" if self.is_signed else "unsigned"
-            return f"{vhdl_type}({self.internal_high} downto {self.internal_low})"
+            return f"{vhdl_type}({self.high} downto {self.low})"
         else:
             return self.type_str()
 
@@ -184,7 +349,7 @@ class VhdlDataType(DataType):
     def _match_unsigned_real(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return f"unsigned({self.internal_high} downto {self.internal_low})"
+                return f"unsigned({self.high} downto {self.low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -202,7 +367,7 @@ class VhdlDataType(DataType):
     def _match_signed_real(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return f"signed({self.internal_high} downto {self.internal_low})"
+                return f"signed({self.high} downto {self.low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -220,7 +385,7 @@ class VhdlDataType(DataType):
     def _match_unsigned_real_2008(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return f"ufixed({self.internal_high} downto {self.internal_low})"
+                return f"ufixed({self.high} downto {self.low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
@@ -238,7 +403,7 @@ class VhdlDataType(DataType):
     def _match_signed_real_2008(self):
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return f"sfixed({self.internal_high} downto {self.internal_low})"
+                return f"sfixed({self.high} downto {self.low})"
             case NumRepresentation.FLOATING_POINT:
                 raise NotImplementedError
             case _:
