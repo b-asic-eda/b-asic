@@ -60,8 +60,8 @@ test = [
   "pytest-xvfb",
   "pytest-xdist",
 ]
-test_optional = ["scipy", "cocotb"]
-hdl = ["cocotb"]
+test_optional = ["scipy", "cocotb>=2"]
+hdl = ["cocotb>=2"]
 doc = [
   "sphinx",
   "furo",

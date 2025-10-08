@@ -1,26 +1,16 @@
-import os
-import shutil
-
-import pytest
-
 from b_asic.code_printer import VhdlPrinter
-from b_asic.code_printer.test import cocotb_test
+from b_asic.code_printer.test import cocotb_test, get_runner
 from b_asic.data_type import VhdlDataType
 
 
 def test_r3bf_compile(tmp_path, arch_r3bf):
-    pytest.importorskip("cocotb_tools")
+    runner = get_runner()
     dt = VhdlDataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
     printer.print(arch_r3bf, path=tmp_path, tb=True)
 
-    sim = os.getenv("SIM", "ghdl")
-    if not shutil.which(sim):
-        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "r3bf_0").glob("*.vhdl"))
-    from cocotb_tools.runner import get_runner
 
-    runner = get_runner(sim)
     runner.build(
         sources=sources,
         hdl_toplevel="r3bf_tb",
@@ -29,18 +19,13 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
 
 
 def test_r3bf_simulate(tmp_path, arch_r3bf):
-    pytest.importorskip("cocotb_tools")
+    runner = get_runner()
     dt = VhdlDataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
     printer.print(arch_r3bf, path=tmp_path)
 
-    sim = os.getenv("SIM", "ghdl")
-    if not shutil.which(sim):
-        pytest.skip(f"Simulator {sim} not available in PATH")
     sources = list((tmp_path / "r3bf_0").glob("*.vhdl"))
-    from cocotb_tools.runner import get_runner
 
-    runner = get_runner(sim)
     runner.build(
         sources=sources,
         hdl_toplevel="r3bf",
