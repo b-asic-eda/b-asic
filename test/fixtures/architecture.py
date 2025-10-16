@@ -376,7 +376,7 @@ def arch_simple():
 @pytest.fixture
 def arch_mat_inv():
     N = 4
-    sfg = ldlt_matrix_inverse(N)
+    sfg = ldlt_matrix_inverse(N, use_mads=True)
 
     sfg.set_execution_time_of_type_name("mads", 1)
     sfg.set_latency_of_type_name("mads", 2)
@@ -488,5 +488,42 @@ def arch_two_inputs_two_outputs_independent_with_cmul_scaled(
         {add, cmul, const, input_pe_0, input_pe_1, output_pe},
         memories,
         entity_name="two_inputs_two_outputs_independent_with_cmul_scaled",
+        direct_interconnects=direct,
+    )
+
+
+@pytest.fixture
+def arch_sym2p():
+    from b_asic.core_operations import SymmetricTwoportAdaptor
+
+    in0 = Input()
+    in1 = Input()
+    op = SymmetricTwoportAdaptor(0.375, in0, in1, latency=1, execution_time=1)
+    out0 = Output(op.output(0))
+    out1 = Output(op.output(1))
+    sfg = SFG([in0, in1], [out0, out1])
+
+    schedule = Schedule(sfg)
+
+    operations = schedule.get_operations()
+    sym2p_ops = operations.get_by_type_name("sym2p")
+    in_ops = operations.get_by_type_name("in")
+    in_ops = in_ops.split_on_execution_time()
+    out_ops = operations.get_by_type_name("out")
+    out_ops = out_ops.split_on_execution_time()
+
+    sym2p = ProcessingElement(sym2p_ops, entity_name="sym2p")
+    input_pe_0 = ProcessingElement(in_ops[0], entity_name="in0")
+    input_pe_1 = ProcessingElement(in_ops[1], entity_name="in1")
+    output_pe_0 = ProcessingElement(out_ops[0], entity_name="out0")
+    output_pe_1 = ProcessingElement(out_ops[1], entity_name="out1")
+
+    mem_vars = schedule.get_memory_variables()
+    direct, _ = mem_vars.split_on_length()
+
+    return Architecture(
+        {sym2p, input_pe_0, input_pe_1, output_pe_0, output_pe_1},
+        [],
+        entity_name="top",
         direct_interconnects=direct,
     )
