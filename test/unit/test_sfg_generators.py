@@ -125,7 +125,7 @@ def test_direct_form_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(4)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results["0"], impulse_response)
+    assert np.allclose(sim.results["out0"], impulse_response)
 
     impulse_response = [0.3, 0.4, 0.5, 0.6, 0.3]
     sfg = direct_form_fir(
@@ -138,7 +138,7 @@ def test_direct_form_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(6)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results["0"], impulse_response)
+    assert np.allclose(sim.results["out0"], impulse_response)
 
     impulse_response = [0.3]
     sfg = direct_form_fir(impulse_response)
@@ -190,7 +190,7 @@ def test_transposed_direct_form_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(4)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results["0"], impulse_response)
+    assert np.allclose(sim.results["out0"], impulse_response)
 
     impulse_response = [0.3, 0.4, 0.5, 0.6, 0.3]
     sfg = transposed_direct_form_fir(
@@ -203,7 +203,7 @@ def test_transposed_direct_form_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(6)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results["0"], impulse_response)
+    assert np.allclose(sim.results["out0"], impulse_response)
 
     impulse_response = [0.3]
     sfg = transposed_direct_form_fir(impulse_response)
@@ -255,7 +255,7 @@ def test_symmetric_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(5)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results["0"], impulse_response)
+    assert np.allclose(sim.results["out0"], impulse_response)
 
     impulse_response = [0.1, 0.2, 0.3, 0.4, 0.4, 0.3, 0.2, 0.1]
     sfg = symmetric_fir(
@@ -268,7 +268,7 @@ def test_symmetric_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(9)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results["0"], impulse_response)
+    assert np.allclose(sim.results["out0"], impulse_response)
 
     impulse_response = [0.3]
     sfg = symmetric_fir(impulse_response)
@@ -304,7 +304,7 @@ def test_symmetric_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(17)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results["0"], impulse_response)
+    assert np.allclose(sim.results["out0"], impulse_response)
 
     impulse_response = [0.1 + i for i in range(50)]
     impulse_response += reversed(impulse_response)
@@ -325,7 +325,7 @@ def test_symmetric_fir():
     sim = Simulation(sfg, [Impulse()])
     sim.run_for(101)
     impulse_response.append(0.0)
-    assert np.allclose(sim.results["0"], impulse_response)
+    assert np.allclose(sim.results["out0"], impulse_response)
 
     with pytest.raises(ValueError, match=r"Coefficients must be of even length"):
         symmetric_fir([0.1, 0.2, 0.1])
@@ -446,7 +446,7 @@ class TestDirectFormIIRType1:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results["0"], reference_filter_output)
+        assert np.allclose(sim.results["out0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_butterworth_filter(self):
         # Tenth-order Butterworth
@@ -490,7 +490,7 @@ class TestDirectFormIIRType1:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results["0"], reference_filter_output)
+        assert np.allclose(sim.results["out0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_elliptic_filter(self):
         N = 2
@@ -509,7 +509,7 @@ class TestDirectFormIIRType1:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results["0"], reference_filter_output)
+        assert np.allclose(sim.results["out0"], reference_filter_output)
 
     def test_add_and_mult_properties(self):
         N = 17
@@ -641,7 +641,7 @@ class TestDirectFormIIRType2:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results["0"], reference_filter_output)
+        assert np.allclose(sim.results["out0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_butterworth_filter(self):
         N = 10
@@ -658,7 +658,7 @@ class TestDirectFormIIRType2:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results["0"], reference_filter_output)
+        assert np.allclose(sim.results["out0"], reference_filter_output)
 
     def test_random_input_compare_with_scipy_elliptic_filter(self):
         N = 2
@@ -676,7 +676,7 @@ class TestDirectFormIIRType2:
         sim = Simulation(sfg, [ZeroPad(input_signal)])
         sim.run_for(100)
 
-        assert np.allclose(sim.results["0"], reference_filter_output)
+        assert np.allclose(sim.results["out0"], reference_filter_output)
 
     def test_add_and_mult_properties(self):
         N = 17
@@ -724,7 +724,7 @@ class TestRadix2FFT:
         res = sim.results
         for i in range(4):
             exp_res = 4 if i == 0 else 0
-            assert np.allclose(res[str(i)], exp_res)
+            assert np.allclose(res[f"out{i}"], exp_res)
 
     def test_8_points_impulse_input(self):
         sfg = radix_2_dif_fft(points=8)
@@ -746,7 +746,7 @@ class TestRadix2FFT:
         # ensure that the result is a constant 1
         res = sim.results
         for i in range(8):
-            assert np.allclose(res[str(i)], 1)
+            assert np.allclose(res[f"out{i}"], 1)
 
     def test_8_points_sinus_input(self):
         POINTS = 8
@@ -766,7 +766,7 @@ class TestRadix2FFT:
 
         res = sim.results
         for i in range(POINTS):
-            a = abs(res[str(i)])
+            a = abs(res[f"out{i}"])
             b = exp_res[i]
             assert np.isclose(a, b)
 
@@ -793,7 +793,7 @@ class TestRadix2FFT:
         exp_res = np.fft.fft(waveform)
         res = sim.results
         for i in range(POINTS):
-            a = res[str(i)]
+            a = res[f"out{i}"]
             b = exp_res[i]
             assert np.isclose(a, b)
 
@@ -814,7 +814,7 @@ class TestRadix2FFT:
         exp_res = np.fft.fft(waveform)
         res = sim.results
         for i in range(POINTS):
-            a = res[str(i)]
+            a = res[f"out{i}"]
             b = exp_res[i]
             assert np.isclose(a, b)
 
@@ -835,7 +835,7 @@ class TestRadix2FFT:
         exp_res = np.fft.fft(waveform)
         res = sim.results
         for i in range(POINTS):
-            a = res[str(i)]
+            a = res[f"out{i}"]
             b = exp_res[i]
             assert np.isclose(a, b)
 
@@ -866,7 +866,7 @@ class TestLdltMatrixInverse:
         sim.run_for(1)
 
         res = sim.results
-        assert np.isclose(res["0"], 0.2)
+        assert np.isclose(res["out0"], 0.2)
 
     def test_2x2_simple_spd(self):
         sfg = ldlt_matrix_inverse(N=2)
@@ -886,9 +886,9 @@ class TestLdltMatrixInverse:
         sim.run_for(1)
 
         res = sim.results
-        assert np.isclose(res["0"], A_inv[0, 0])
-        assert np.isclose(res["1"], A_inv[0, 1])
-        assert np.isclose(res["2"], A_inv[1, 1])
+        assert np.isclose(res["out0"], A_inv[0, 0])
+        assert np.isclose(res["out1"], A_inv[0, 1])
+        assert np.isclose(res["out2"], A_inv[1, 1])
 
     def test_3x3_simple_spd(self):
         sfg = ldlt_matrix_inverse(N=3)
@@ -915,12 +915,12 @@ class TestLdltMatrixInverse:
         sim.run_for(1)
 
         res = sim.results
-        assert np.isclose(res["0"], A_inv[0, 0])
-        assert np.isclose(res["1"], A_inv[0, 1])
-        assert np.isclose(res["2"], A_inv[0, 2])
-        assert np.isclose(res["3"], A_inv[1, 1])
-        assert np.isclose(res["4"], A_inv[1, 2])
-        assert np.isclose(res["5"], A_inv[2, 2])
+        assert np.isclose(res["out0"], A_inv[0, 0])
+        assert np.isclose(res["out1"], A_inv[0, 1])
+        assert np.isclose(res["out2"], A_inv[0, 2])
+        assert np.isclose(res["out3"], A_inv[1, 1])
+        assert np.isclose(res["out4"], A_inv[1, 2])
+        assert np.isclose(res["out5"], A_inv[2, 2])
 
     def test_5x5_random_spd(self):
         N = 5
@@ -946,7 +946,7 @@ class TestLdltMatrixInverse:
 
         row_indices, col_indices = np.triu_indices(N)
         expected_values = A_inv[row_indices, col_indices]
-        actual_values = [res[str(i)] for i in range(len(expected_values))]
+        actual_values = [res[f"out{i}"] for i in range(len(expected_values))]
 
         for i in range(len(expected_values)):
             assert np.isclose(actual_values[i], expected_values[i])
@@ -974,7 +974,7 @@ class TestLdltMatrixInverse:
 
         row_indices, col_indices = np.triu_indices(N)
         expected_values = A_inv[row_indices, col_indices]
-        actual_values = [res[str(i)] for i in range(len(expected_values))]
+        actual_values = [res[f"out{i}"] for i in range(len(expected_values))]
 
         for i in range(len(expected_values)):
             assert np.isclose(actual_values[i], expected_values[i])
@@ -1003,7 +1003,7 @@ class TestLdltMatrixInverse:
 
     #     row_indices, col_indices = np.triu_indices(N)
     #     expected_values = A_inv[row_indices, col_indices]
-    #     actual_values = [res[str(i)] for i in range(len(expected_values))]
+    #     actual_values = [res[f"out{i}"] for i in range(len(expected_values))]
 
     #     for i in range(len(expected_values)):
     #         assert np.isclose(actual_values[i], expected_values[i])
@@ -1036,7 +1036,7 @@ class TestMatrixMultiplication:
         sim = Simulation(sfg, [Constant(2), Constant(3)])
 
         sim.run_for(1)
-        assert np.isclose(sim.results["0"], 6)
+        assert np.isclose(sim.results["out0"], 6)
 
     def test_2x1_1x1(self):
         sfg = matrix_multiplication(2, 1, 1)
@@ -1050,8 +1050,8 @@ class TestMatrixMultiplication:
         sim = Simulation(sfg, [Constant(2), Constant(3), Constant(5)])
 
         sim.run_for(1)
-        assert np.isclose(sim.results["0"], 10)
-        assert np.isclose(sim.results["1"], 15)
+        assert np.isclose(sim.results["out0"], 10)
+        assert np.isclose(sim.results["out1"], 15)
 
     def test_2x2_2x2(self):
         sfg = matrix_multiplication(2, 2, 2)
@@ -1077,10 +1077,10 @@ class TestMatrixMultiplication:
         )
 
         sim.run_for(1)
-        assert np.isclose(sim.results["0"], 51)
-        assert np.isclose(sim.results["1"], 77)
-        assert np.isclose(sim.results["2"], 113)
-        assert np.isclose(sim.results["3"], 171)
+        assert np.isclose(sim.results["out0"], 51)
+        assert np.isclose(sim.results["out1"], 77)
+        assert np.isclose(sim.results["out2"], 113)
+        assert np.isclose(sim.results["out3"], 171)
 
     def test_2x3_3x2(self):
         sfg = matrix_multiplication(2, 3, 2)
@@ -1110,7 +1110,7 @@ class TestMatrixMultiplication:
         )
 
         sim.run_for(1)
-        assert np.isclose(sim.results["0"], 58)
-        assert np.isclose(sim.results["1"], 64)
-        assert np.isclose(sim.results["2"], 139)
-        assert np.isclose(sim.results["3"], 154)
+        assert np.isclose(sim.results["out0"], 58)
+        assert np.isclose(sim.results["out1"], 64)
+        assert np.isclose(sim.results["out2"], 139)
+        assert np.isclose(sim.results["out3"], 154)

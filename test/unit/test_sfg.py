@@ -382,7 +382,7 @@ class TestRewriteShiftAddSub:
         sim1.run_for(5)
         sim2 = Simulation(new_sfg, [[1, 0, 0, 0, 0]])
         sim2.run_for(5)
-        assert list(sim1.results["0"]) == list(sim2.results["0"])
+        assert list(sim1.results["out0"]) == list(sim2.results["out0"])
 
     def test_sfg_two_inputs_two_outputs_independent_with_cmul_scaled(
         self, sfg_two_inputs_two_outputs_independent_with_cmul_scaled: SFG
@@ -398,8 +398,8 @@ class TestRewriteShiftAddSub:
         sim1.run()
         sim2 = Simulation(new_sfg, [[1], [2]])
         sim2.run()
-        assert [sim1.results[str(i)] for i in range(2)] == [
-            sim2.results[str(i)] for i in range(2)
+        assert [sim1.results[f"out{i}"] for i in range(2)] == [
+            sim2.results[f"out{i}"] for i in range(2)
         ]
 
 
@@ -411,7 +411,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 2000
+        assert sim.results["out0"][0].real == 2000
 
     def test_1k_subtractions(self):
         prev_op = Subtraction(Constant(0), Constant(2))
@@ -420,7 +420,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == -2000
+        assert sim.results["out0"][0].real == -2000
 
     def test_1k_butterfly(self):
         prev_op_add = Addition(Constant(1), Constant(1))
@@ -433,8 +433,8 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(butterfly.output(0)), Output(butterfly.output(1))])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 0
-        assert sim.results["1"][0].real == 2000
+        assert sim.results["out0"][0].real == 0
+        assert sim.results["out1"][0].real == 2000
 
     def test_1k_multiplications(self):
         prev_op = Multiplication(Constant(3), Constant(0.5))
@@ -443,7 +443,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 31127.458868040336
+        assert sim.results["out0"][0].real == 31127.458868040336
 
     def test_1k_divisions(self):
         prev_op = Division(Constant(3), Constant(0.5))
@@ -452,7 +452,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 0.00028913378500165966
+        assert sim.results["out0"][0].real == 0.00028913378500165966
 
     def test_1k_mins(self):
         prev_op = Min(Constant(3.14159), Constant(43.14123843))
@@ -461,7 +461,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 3.14159
+        assert sim.results["out0"][0].real == 3.14159
 
     def test_1k_maxs(self):
         prev_op = Max(Constant(3.14159), Constant(43.14123843))
@@ -470,7 +470,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 43.14123843
+        assert sim.results["out0"][0].real == 43.14123843
 
     def test_1k_square_roots(self):
         prev_op = SquareRoot(Constant(1000000))
@@ -479,7 +479,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 1.539926526059492
+        assert sim.results["out0"][0].real == 1.539926526059492
 
     def test_1k_complex_conjugates(self):
         prev_op = ComplexConjugate(Constant(10 + 5j))
@@ -488,7 +488,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"] == [10 + 5j]
+        assert sim.results["out0"] == [10 + 5j]
 
     def test_1k_absolutes(self):
         prev_op = Absolute(Constant(-3.14159))
@@ -497,7 +497,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 3.14159
+        assert sim.results["out0"][0].real == 3.14159
 
     def test_1k_constant_multiplications(self):
         prev_op = ConstantMultiplication(1.02, Constant(3.14159))
@@ -506,7 +506,7 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["0"][0].real == 1251184247.0026844
+        assert sim.results["out0"][0].real == 1251184247.0026844
 
 
 class TestInsertComponent:
@@ -1755,13 +1755,13 @@ class TestUnfold:
 
             for n, _ in enumerate(sfg.outputs):
                 # Outputs for an original output
-                ref_values = list(ref[ResultKey(f"{n}")])
+                ref_values = list(ref[ResultKey(f"out{n}")])
 
                 # Output n will be split into `factor` output ports, compute the
                 # indices where we find the outputs
                 out_indices = [n + k * len(sfg.outputs) for k in range(factor)]
                 u_values = [
-                    [unfolded_results[ResultKey(f"{idx}")][k] for idx in out_indices]
+                    [unfolded_results[ResultKey(f"out{idx}")][k] for idx in out_indices]
                     for k in range(int(NUM_TESTS))
                 ]
 
@@ -1798,8 +1798,8 @@ class TestReplaceAddAndSubWithAddSub:
         sim_addsub = Simulation(sfg, input_list)
         sim_addsub.run()
         for n, _ in enumerate(sfg.outputs):
-            ref_values = list(sim_ref.results[ResultKey(f"{n}")])
-            addsub_values = list(sim_addsub.results[ResultKey(f"{n}")])
+            ref_values = list(sim_ref.results[ResultKey(f"out{n}")])
+            addsub_values = list(sim_addsub.results[ResultKey(f"out{n}")])
             assert ref_values == addsub_values
 
     def test_target_ids_provided(self, sfg_two_inputs_two_outputs: SFG):
@@ -1826,8 +1826,8 @@ class TestReplaceAddAndSubWithAddSub:
         sim_addsub = Simulation(sfg, input_list)
         sim_addsub.run()
         for n, _ in enumerate(sfg.outputs):
-            ref_values = list(sim_ref.results[ResultKey(f"{n}")])
-            addsub_values = list(sim_addsub.results[ResultKey(f"{n}")])
+            ref_values = list(sim_ref.results[ResultKey(f"out{n}")])
+            addsub_values = list(sim_addsub.results[ResultKey(f"out{n}")])
             assert ref_values == addsub_values
 
     def test_no_add_or_sub(self, sfg_delay: SFG):
@@ -1854,8 +1854,8 @@ class TestReplaceAddAndSubWithAddSub:
         sim_addsub = Simulation(sfg, input_list)
         sim_addsub.run()
         for n, _ in enumerate(sfg.outputs):
-            ref_values = list(sim_ref.results[ResultKey(f"{n}")])
-            addsub_values = list(sim_addsub.results[ResultKey(f"{n}")])
+            ref_values = list(sim_ref.results[ResultKey(f"out{n}")])
+            addsub_values = list(sim_addsub.results[ResultKey(f"out{n}")])
             assert ref_values == addsub_values
 
     def test_target_id_not_found(self, sfg_two_inputs_two_outputs: SFG):
@@ -1908,8 +1908,8 @@ class TestSwapIOOfOperation:
         sim_swap = Simulation(sfg, input_list)
         sim_swap.run()
         for n, _ in enumerate(sfg.outputs):
-            ref_values = list(sim_ref.results[ResultKey(f"{n}")])
-            swap_values = list(sim_swap.results[ResultKey(f"{n}")])
+            ref_values = list(sim_ref.results[ResultKey(f"out{n}")])
+            swap_values = list(sim_swap.results[ResultKey(f"out{n}")])
             assert ref_values == swap_values
 
     def test_single_accumulator(self, sfg_simple_accumulator: SFG):

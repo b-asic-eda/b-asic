@@ -12,6 +12,7 @@ import numpy as np
 
 from b_asic.operation import MutableDelayMap, ResultKey
 from b_asic.sfg import SFG
+from b_asic.special_operations import Delay
 from b_asic.types import Num
 
 ResultArrayMap = Mapping[ResultKey, Sequence[Num]]
@@ -175,26 +176,90 @@ class Simulation:
         -------
         The result of the simulation.
         """
-        result: Sequence[Num] = []
+
+        def get_input_values_for_op(op) -> list[Num]:
+            input_vals = []
+            for in_port in op.inputs:
+                # Find the source port
+                sig = in_port.signals[0]
+                src_port = sig.source
+                src_op = src_port.operation
+
+                if src_op in self._sfg.input_operations:
+                    val = src_op.evaluate()
+                    input_vals.append(val)
+                else:
+                    src_key = src_op.key(src_port.index, src_op.graph_id)
+                    if src_key in results:
+                        input_vals.append(results[src_key])
+                    else:
+                        val = src_op.current_output(
+                            src_port.index, self._delays, src_op.graph_id
+                        )
+                        input_vals.append(val)
+            return input_vals
+
+        results: dict[ResultKey, Num] = {}
         while self._iteration < iteration:
+            # Fetch the input values for this iteration
             input_values = [
                 self._input_functions[i](self._iteration)
                 for i in range(self._sfg.input_count)
             ]
-            results = {}
-            result = self._sfg.evaluate_outputs(
-                input_values,
-                results,
-                self._delays,
-                "",
-                bits_override,
-                quantize,
-            )
+
+            # Set the input operation outputs to the fetched input values
+            for i, input_op in enumerate(self._sfg.input_operations):
+                input_op.value = input_values[i]
+
+            # Evaluate the SFG for this iteration level-per-level using the precedence list
+            prec_list = self._sfg.get_precedence_list()
+            for level in prec_list:
+                for out_port in level:
+                    # If the operation is a Delay, handle it specially
+                    if isinstance(out_port.operation, Delay):
+                        val = out_port.operation.current_output(
+                            0, self._delays, out_port.operation.graph_id
+                        )
+                        results[
+                            out_port.operation.key(0, out_port.operation.graph_id)
+                        ] = val
+                        continue
+
+                    # Build input values for the operation feeding this source
+                    input_vals = get_input_values_for_op(out_port.operation)
+
+                    # Evaluate the output port
+                    val = out_port.operation.evaluate_output(
+                        out_port.index,
+                        input_vals,
+                        results,
+                        self._delays,
+                        out_port.operation.graph_id,
+                        bits_override,
+                        quantize,
+                    )
+                    results[
+                        out_port.operation.key(
+                            out_port.index, out_port.operation.graph_id
+                        )
+                    ] = val
+
+            # Update the value of the delay elements
+            for delay_op in self._sfg.find_by_type(Delay):
+                input_val = get_input_values_for_op(delay_op)[0]
+                self._delays[delay_op.key(0, delay_op.graph_id)] = input_val
+
+            # Update the output values
+            for output_op in self._sfg.output_operations:
+                val = get_input_values_for_op(output_op)[0]
+                results[output_op.graph_id] = val
+
             if save_results:
                 for key, value in results.items():
                     self._results[key].append(value)
             self._iteration += 1
-        return result
+
+        return [results[op.graph_id] for op in self._sfg.output_operations]
 
     def run_for(
         self,
@@ -278,7 +343,7 @@ class Simulation:
 
         Example result after 3 iterations::
             {"c1": [3, 6, 7], "c2": [4, 5, 5], "bfly1.0": [7, 0, 0], "bfly1.1":\
- [-1, 0, 2], "0": [7, -2, -1]}
+ [-1, 0, 2], "out0": [7, -2, -1]}
         """
         return {key: np.array(value) for key, value in self._results.items()}
 

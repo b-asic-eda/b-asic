@@ -16,36 +16,36 @@ class TestRunFor:
         assert output[0] == 304
         assert output[1] == 505
 
-        assert simulation.results["0"][100] == 304
-        assert simulation.results["1"][100] == 505
+        assert simulation.results["out0"][100] == 304
+        assert simulation.results["out1"][100] == 505
 
         assert simulation.results["in0"][0] == 3
         assert simulation.results["in1"][0] == 1
         assert simulation.results["add0"][0] == 4
         assert simulation.results["add1"][0] == 5
-        assert simulation.results["0"][0] == 4
-        assert simulation.results["1"][0] == 5
+        assert simulation.results["out0"][0] == 4
+        assert simulation.results["out1"][0] == 5
 
         assert simulation.results["in0"][1] == 4
         assert simulation.results["in1"][1] == 3
         assert simulation.results["add0"][1] == 7
         assert simulation.results["add1"][1] == 10
-        assert simulation.results["0"][1] == 7
-        assert simulation.results["1"][1] == 10
+        assert simulation.results["out0"][1] == 7
+        assert simulation.results["out1"][1] == 10
 
         assert simulation.results["in0"][2] == 5
         assert simulation.results["in1"][2] == 5
         assert simulation.results["add0"][2] == 10
         assert simulation.results["add1"][2] == 15
-        assert simulation.results["0"][2] == 10
-        assert simulation.results["1"][2] == 15
+        assert simulation.results["out0"][2] == 10
+        assert simulation.results["out1"][2] == 15
 
         assert simulation.results["in0"][3] == 6
         assert simulation.results["in1"][3] == 7
         assert simulation.results["add0"][3] == 13
         assert simulation.results["add1"][3] == 20
-        assert simulation.results["0"][3] == 13
-        assert simulation.results["1"][3] == 20
+        assert simulation.results["out0"][3] == 13
+        assert simulation.results["out1"][3] == 20
 
         assert simulation.iteration == 101
 
@@ -63,39 +63,39 @@ class TestRunFor:
         assert isinstance(simulation.results["in1"], np.ndarray)
         assert isinstance(simulation.results["add0"], np.ndarray)
         assert isinstance(simulation.results["add1"], np.ndarray)
-        assert isinstance(simulation.results["0"], np.ndarray)
-        assert isinstance(simulation.results["1"], np.ndarray)
+        assert isinstance(simulation.results["out0"], np.ndarray)
+        assert isinstance(simulation.results["out1"], np.ndarray)
 
         assert simulation.results["in0"][0] == 5
         assert simulation.results["in1"][0] == 7
         assert simulation.results["add0"][0] == 12
         assert simulation.results["add1"][0] == 19
-        assert simulation.results["0"][0] == 12
-        assert simulation.results["1"][0] == 19
+        assert simulation.results["out0"][0] == 12
+        assert simulation.results["out1"][0] == 19
 
         assert simulation.results["in0"][1] == 9
         assert simulation.results["in1"][1] == 3
         assert simulation.results["add0"][1] == 12
         assert simulation.results["add1"][1] == 15
-        assert simulation.results["0"][1] == 12
-        assert simulation.results["1"][1] == 15
+        assert simulation.results["out0"][1] == 12
+        assert simulation.results["out1"][1] == 15
 
         assert simulation.results["in0"][2] == 25
         assert simulation.results["in1"][2] == 3
         assert simulation.results["add0"][2] == 28
         assert simulation.results["add1"][2] == 31
-        assert simulation.results["0"][2] == 28
-        assert simulation.results["1"][2] == 31
+        assert simulation.results["out0"][2] == 28
+        assert simulation.results["out1"][2] == 31
 
         assert simulation.results["in0"][3] == -5
         assert simulation.results["in1"][3] == 54
         assert simulation.results["add0"][3] == 49
         assert simulation.results["add1"][3] == 103
-        assert simulation.results["0"][3] == 49
-        assert simulation.results["1"][3] == 103
+        assert simulation.results["out0"][3] == 49
+        assert simulation.results["out1"][3] == 103
 
-        assert simulation.results["0"][4] == 9
-        assert simulation.results["1"][4] == 11
+        assert simulation.results["out0"][4] == 9
+        assert simulation.results["out1"][4] == 11
 
     def test_with_numpy_array_overflow(self, sfg_two_inputs_two_outputs):
         input0 = np.array([5, 9, 25, -5, 7])
@@ -110,8 +110,8 @@ class TestRunFor:
         input1 = np.array([7, 3, 3, 54, 2])
         simulation = Simulation(sfg_two_inputs_two_outputs, [input0, input1])
         simulation.run()
-        assert len(simulation.results["0"]) == 5
-        assert len(simulation.results["1"]) == 5
+        assert len(simulation.results["out0"]) == 5
+        assert len(simulation.results["out1"]) == 5
         with pytest.raises(IndexError):
             simulation.step()
 
@@ -120,31 +120,31 @@ class TestRunFor:
         simulation.set_input(0, [5, -2, 25, -6, 7, 0])
         simulation.run_for(6, save_results=True)
 
-        assert simulation.results["0"][0] == 0
-        assert simulation.results["0"][1] == 5
-        assert simulation.results["0"][2] == -2
-        assert simulation.results["0"][3] == 25
-        assert simulation.results["0"][4] == -6
-        assert simulation.results["0"][5] == 7
+        assert simulation.results["out0"][0] == 0
+        assert simulation.results["out0"][1] == 5
+        assert simulation.results["out0"][2] == -2
+        assert simulation.results["out0"][3] == 25
+        assert simulation.results["out0"][4] == -6
+        assert simulation.results["out0"][5] == 7
 
     def test_delay_single_input_sequence(self, sfg_delay):
         simulation = Simulation(sfg_delay, [[5, -2, 25, -6, 7, 0]])
         simulation.run_for(6, save_results=True)
 
-        assert simulation.results["0"][0] == 0
-        assert simulation.results["0"][1] == 5
-        assert simulation.results["0"][2] == -2
-        assert simulation.results["0"][3] == 25
-        assert simulation.results["0"][4] == -6
-        assert simulation.results["0"][5] == 7
+        assert simulation.results["out0"][0] == 0
+        assert simulation.results["out0"][1] == 5
+        assert simulation.results["out0"][2] == -2
+        assert simulation.results["out0"][3] == 25
+        assert simulation.results["out0"][4] == -6
+        assert simulation.results["out0"][5] == 7
 
     def test_delay_single_input_generator(self, sfg_delay):
         simulation = Simulation(sfg_delay, [Impulse()])
         simulation.run_for(3, save_results=True)
 
-        assert simulation.results["0"][0] == 0
-        assert simulation.results["0"][1] == 1
-        assert simulation.results["0"][2] == 0
+        assert simulation.results["out0"][0] == 0
+        assert simulation.results["out0"][1] == 1
+        assert simulation.results["out0"][2] == 0
 
     def test_two_inputs_single_array(self, sfg_two_inputs_two_outputs):
         input_data = [5, 7, 9]
@@ -166,6 +166,18 @@ class TestRunFor:
             == 80
         )
 
+    def test_fir_filter(self):
+        from b_asic.sfg_generators import direct_form_fir
+
+        h = list(range(300))
+        sfg = direct_form_fir(h)
+
+        input_data = [1] + [0 for _ in range(299)]
+        simulation = Simulation(sfg, input_data)
+        res = simulation.run_for(len(input_data), save_results=True)
+        assert res[0] == h[-1]
+        assert np.allclose(simulation.results["out0"], h)
+
 
 class TestRun:
     def test_save_results(self, sfg_two_inputs_two_outputs):
@@ -174,23 +186,23 @@ class TestRun:
         simulation.run_for(10, save_results=False)
         assert not simulation.results
         simulation.run_for(10)
-        assert len(simulation.results["0"]) == 10
-        assert len(simulation.results["1"]) == 10
+        assert len(simulation.results["out0"]) == 10
+        assert len(simulation.results["out1"]) == 10
         simulation.run_for(10, save_results=True)
-        assert len(simulation.results["0"]) == 20
-        assert len(simulation.results["1"]) == 20
+        assert len(simulation.results["out0"]) == 20
+        assert len(simulation.results["out1"]) == 20
         simulation.run_for(10, save_results=False)
-        assert len(simulation.results["0"]) == 20
-        assert len(simulation.results["1"]) == 20
+        assert len(simulation.results["out0"]) == 20
+        assert len(simulation.results["out1"]) == 20
         simulation.run_for(13, save_results=True)
-        assert len(simulation.results["0"]) == 33
-        assert len(simulation.results["1"]) == 33
+        assert len(simulation.results["out0"]) == 33
+        assert len(simulation.results["out1"]) == 33
         simulation.step(save_results=False)
-        assert len(simulation.results["0"]) == 33
-        assert len(simulation.results["1"]) == 33
+        assert len(simulation.results["out0"]) == 33
+        assert len(simulation.results["out1"]) == 33
         simulation.step()
-        assert len(simulation.results["0"]) == 34
-        assert len(simulation.results["1"]) == 34
+        assert len(simulation.results["out0"]) == 34
+        assert len(simulation.results["out1"]) == 34
         simulation.clear_results()
         assert not simulation.results
 
@@ -226,7 +238,7 @@ class TestRun:
         data_in = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         simulation = Simulation(sfg_simple_accumulator, [data_in])
         simulation.run()
-        assert list(simulation.results["0"]) == [
+        assert list(simulation.results["out0"]) == [
             0,
             1,
             3,
@@ -243,10 +255,10 @@ class TestRun:
         input0 = np.array([1, 2, 3, 4, 5])
         simulation = Simulation(sfg_simple_filter, [input0])
         simulation.run_for(len(input0), save_results=True)
-        assert all(simulation.results["0"] == np.array([0, 1.0, 2.5, 4.25, 6.125]))
+        assert all(simulation.results["out0"] == np.array([0, 1.0, 2.5, 4.25, 6.125]))
 
     def test_custom_operation(self, sfg_custom_operation):
         simulation = Simulation(sfg_custom_operation, [lambda n: n + 1])
         simulation.run_for(5)
-        assert all(simulation.results["0"] == np.array([2, 4, 6, 8, 10]))
-        assert all(simulation.results["1"] == np.array([2, 4, 8, 16, 32]))
+        assert all(simulation.results["out0"] == np.array([2, 4, 6, 8, 10]))
+        assert all(simulation.results["out1"] == np.array([2, 4, 8, 16, 32]))

@@ -91,7 +91,7 @@ plt.grid(True)
 plt.show()
 
 # Plot 2: Simulated SFG
-spectrum_1 = 20 * np.log10(np.abs(signal.freqz(sim1.results['0'])[1]))
+spectrum_1 = 20 * np.log10(np.abs(signal.freqz(sim1.results["out0"])[1]))
 plt.figure()
 plt.plot(w / np.pi, spectrum_1)
 plt.title("Simulated SFG")
@@ -101,7 +101,7 @@ plt.grid(True)
 plt.show()
 
 # Plot 3: Recreated SFG
-spectrum_2 = 20 * np.log10(np.abs(signal.freqz(sim2.results['0'])[1]))
+spectrum_2 = 20 * np.log10(np.abs(signal.freqz(sim2.results["out0"])[1]))
 plt.figure()
 plt.plot(w / np.pi, spectrum_2)
 plt.title("Pipelined/retimed SFG")

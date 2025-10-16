@@ -701,26 +701,26 @@ class TestHybridScheduler:
         # impulse input -> constant output
         sim = Simulation(schedule.sfg, [Impulse()] + [0 for i in range(7)])
         sim.run_for(2)
-        assert np.allclose(sim.results["0"], [1, 0])
-        assert np.allclose(sim.results["1"], [1, 0])
-        assert np.allclose(sim.results["2"], [1, 0])
-        assert np.allclose(sim.results["3"], [1, 0])
-        assert np.allclose(sim.results["4"], [0, 1])
-        assert np.allclose(sim.results["5"], [0, 1])
-        assert np.allclose(sim.results["6"], [0, 1])
-        assert np.allclose(sim.results["7"], [0, 1])
+        assert np.allclose(sim.results["out0"], [1, 0])
+        assert np.allclose(sim.results["out1"], [1, 0])
+        assert np.allclose(sim.results["out2"], [1, 0])
+        assert np.allclose(sim.results["out3"], [1, 0])
+        assert np.allclose(sim.results["out4"], [0, 1])
+        assert np.allclose(sim.results["out5"], [0, 1])
+        assert np.allclose(sim.results["out6"], [0, 1])
+        assert np.allclose(sim.results["out7"], [0, 1])
 
         # constant input -> impulse (with weight=points) output
         sim = Simulation(schedule.sfg, [Impulse() for i in range(8)])
         sim.run_for(2)
-        assert np.allclose(sim.results["0"], [8, 0])
-        assert np.allclose(sim.results["1"], [0, 0])
-        assert np.allclose(sim.results["2"], [0, 0])
-        assert np.allclose(sim.results["3"], [0, 0])
-        assert np.allclose(sim.results["4"], [0, 0])
-        assert np.allclose(sim.results["5"], [0, 0])
-        assert np.allclose(sim.results["6"], [0, 0])
-        assert np.allclose(sim.results["7"], [0, 0])
+        assert np.allclose(sim.results["out0"], [8, 0])
+        assert np.allclose(sim.results["out1"], [0, 0])
+        assert np.allclose(sim.results["out2"], [0, 0])
+        assert np.allclose(sim.results["out3"], [0, 0])
+        assert np.allclose(sim.results["out4"], [0, 0])
+        assert np.allclose(sim.results["out5"], [0, 0])
+        assert np.allclose(sim.results["out6"], [0, 0])
+        assert np.allclose(sim.results["out7"], [0, 0])
 
     def test_radix_2_fft_8_points_specified_IO_times_non_cyclic(self):
         sfg = radix_2_dif_fft(points=8)
@@ -892,9 +892,9 @@ class TestHybridScheduler:
 
         sim = Simulation(schedule.sfg, input_signals)
         sim.run_for(2)
-        assert np.allclose(sim.results["0"], [A_inv[0, 0], A_inv[0, 0]])
-        assert np.allclose(sim.results["1"], [0, A_inv[0, 1]])
-        assert np.allclose(sim.results["2"], [0, A_inv[1, 1]])
+        assert np.allclose(sim.results["out0"], [A_inv[0, 0], A_inv[0, 0]])
+        assert np.allclose(sim.results["out1"], [0, A_inv[0, 1]])
+        assert np.allclose(sim.results["out2"], [0, A_inv[1, 1]])
 
     def test_invalid_max_resources(self):
         sfg = ldlt_matrix_inverse(N=2)
@@ -2272,8 +2272,8 @@ def _validate_recreated_sfg_filter(sfg: SFG, schedule: Schedule) -> None:
     sim2 = Simulation(schedule.sfg, [Impulse()])
     sim2.run_for(1024)
 
-    spectrum_1 = abs(np.fft.fft(sim1.results["0"]))
-    spectrum_2 = abs(np.fft.fft(sim2.results["0"]))
+    spectrum_1 = abs(np.fft.fft(sim1.results["out0"]))
+    spectrum_2 = abs(np.fft.fft(sim2.results["out0"]))
     assert np.allclose(spectrum_1, spectrum_2)
 
 
@@ -2286,14 +2286,14 @@ def _validate_recreated_sfg_fft(
     sim = Simulation(schedule.sfg, [Constant()] + [0 for i in range(points - 1)])
     sim.run_for(128)
     for i in range(points):
-        assert np.all(np.isclose(sim.results[str(i)][delays[i] :], 1))
+        assert np.all(np.isclose(sim.results[f"out{i}"][delays[i] :], 1))
 
     # constant input -> impulse (with weight=points) output
     sim = Simulation(schedule.sfg, [Constant() for i in range(points)])
     sim.run_for(128)
-    assert np.allclose(sim.results["0"][delays[0] :], points)
+    assert np.allclose(sim.results["out0"][delays[0] :], points)
     for i in range(1, points):
-        assert np.all(np.isclose(sim.results[str(i)][delays[i] :], 0))
+        assert np.all(np.isclose(sim.results[f"out{i}"][delays[i] :], 0))
 
     # sine input -> compare with numpy fft
     n = np.linspace(0, 2 * np.pi, points)
@@ -2304,7 +2304,7 @@ def _validate_recreated_sfg_fft(
     exp_res = np.fft.fft(waveform)
     res = sim.results
     for i in range(points):
-        a = res[str(i)][delays[i] :]
+        a = res[f"out{i}"][delays[i] :]
         b = exp_res[i]
         assert np.all(np.isclose(a, b))
 
@@ -2323,7 +2323,7 @@ def _validate_recreated_sfg_fft(
     exp_res = np.fft.fft(waveform)
     res = sim.results
     for i in range(points):
-        a = res[str(i)][delays[i] :]
+        a = res[f"out{i}"][delays[i] :]
         b = exp_res[i]
         assert np.all(np.isclose(a, b))
 
@@ -2354,6 +2354,6 @@ def _validate_recreated_sfg_ldlt_matrix_inverse(
     for i in range(N):
         for j in range(i, N):
             assert np.all(
-                np.isclose(sim.results[str(count)][delays[count] :], A_inv[i, j])
+                np.isclose(sim.results[f"out{count}"][delays[count] :], A_inv[i, j])
             )
             count += 1

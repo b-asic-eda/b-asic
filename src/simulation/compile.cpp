@@ -27,7 +27,7 @@ namespace asic {
 [[nodiscard]] static result_key key_of_output(py::handle op, std::size_t output_index, std::string_view prefix) {
 	auto base = key_base(op, prefix);
 	if (base.empty()) {
-		return fmt::to_string(output_index);
+		return fmt::format("out{}", output_index);
 	}
 	if (op.attr("output_count").cast<std::size_t>() == 1) {
 		return base;

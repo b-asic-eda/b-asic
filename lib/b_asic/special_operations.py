@@ -192,7 +192,7 @@ class Delay(AbstractOperation):
             input_sources=[src0],
             latency=0,
         )
-        self.set_param("initial_value", initial_value)
+        self.initial_value = initial_value
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -222,7 +222,7 @@ class Delay(AbstractOperation):
             raise IndexError(f"Output index out of range (expected 0-0, got {index})")
         if len(input_values) != 1:
             raise ValueError(
-                "Wrong number of inputs supplied to SFG for evaluation"
+                "Wrong number of inputs supplied to Delay for evaluation"
                 f" (expected 1, got {len(input_values)})"
             )
 

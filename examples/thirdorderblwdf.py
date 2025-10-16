@@ -45,7 +45,7 @@ sim.run_for(1000)
 
 # %%
 # Display output
-freqz_fir(np.array(sim.results['0']) / 2)
+freqz_fir(np.array(sim.results["out0"]) / 2)
 
 # %%
 # Create and display schedule

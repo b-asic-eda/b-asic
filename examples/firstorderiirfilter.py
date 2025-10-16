@@ -131,7 +131,7 @@ firstorderiir.print_precedence_graph()
 #
 # As seen, each operation has an id, in addition to the optional name.
 # This can be used to access the operation. For example,
-firstorderiir.find_by_id('cmul0')
+firstorderiir.find_by_id("cmul0")
 
 # %%
 # Note that this operation differs from ``a1`` defined above as the operations are
@@ -170,8 +170,8 @@ sim.results
 
 import matplotlib.pyplot as plt  # noqa: E402
 
-plt.plot(sim.results['0'], label="Output")
-plt.plot(sim.results['add0'], label="After first addition")
+plt.plot(sim.results["out0"], label="Output")
+plt.plot(sim.results["add0"], label="After first addition")
 plt.legend()
 plt.show()
 
@@ -181,7 +181,7 @@ plt.show()
 
 from mplsignal.freq_plots import freqz_fir  # noqa: E402
 
-freqz_fir(sim.results["0"])
+freqz_fir(sim.results["out0"])
 plt.show()
 
 
@@ -207,11 +207,11 @@ sim.run_for(30)
 # %%
 # Now, plotting the impulse results gives:
 
-plt.plot(sim.results['0'])
+plt.plot(sim.results["out0"])
 plt.show()
 
 # %%
 # And the frequency-response:
 
-freqz_fir(sim.results["0"])
+freqz_fir(sim.results["out0"])
 plt.show()
