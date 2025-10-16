@@ -591,6 +591,60 @@ class VhdlPrinter(Printer):
 
         return declarations.getvalue(), code.getvalue()
 
+    def print_SymmetricTwoportAdaptor_fixed_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[str, str]:
+        declarations, code = io.StringIO(), io.StringIO()
+
+        value = pe.control_table["value"]
+        value_int_bits = value.wl[0]
+        value_frac_bits = value.wl[1]
+
+        # declare signals
+        common.signal_declaration(declarations, "u0", f"signed({self.bits} downto 0)")
+        common.signal_declaration(
+            declarations,
+            "mul_res",
+            "signed(u0'high + value'length downto 0)",
+        )
+        common.signal_declaration(declarations, "b0", "signed(mul_res'high + 1 downto 0)")
+        common.signal_declaration(declarations, "b1", "signed(mul_res'high + 1 downto 0)")
+
+        def mul_statement(
+            res: str, op: str, value: str, op_signed: bool, value_signed: bool
+        ) -> None:
+            common.write(code, 1, f"{res} <= {op} * signed({value});")
+
+        # u0 = op_1 - op_0
+        common.write(
+            code,
+            1,
+            f"u0 <= resize(op_1, {self._dt.bits + 1}) - resize(op_0, {self._dt.bits + 1});",
+        )
+        
+        # mul_res = u0 * value
+        mul_statement("mul_res", "u0", "value", self._dt.is_signed, value.is_signed)
+
+        # b0 = in0 + mul_res
+        zero = "0"
+        common.write(code, 1, f"b0 <= (resize(op_0, op_0'length + 1 + {value_int_bits+1}) & \"{zero * value_frac_bits}\") + resize(mul_res, b0'length);")
+        # b1 = in0 + mul_res
+        common.write(code, 1, f"b1 <= (resize(op_1, op_1'length + 1 + {value_int_bits+1}) & \"{zero * value_frac_bits}\") + resize(mul_res, b1'length);")
+
+        # truncate outputs
+        common.write(
+            code,
+            1,
+            "res_0 <= b1(b1'high - WL_VALUE_INT - 1 - 1 downto b1'high - WL_VALUE_INT - 1 - 1 - res_0'high);",
+        )
+        common.write(
+            code,
+            1,
+            "res_1 <= b0(b0'high - WL_VALUE_INT - 1 - 1 downto b0'high - WL_VALUE_INT - 1 - 1 - res_1'high);",
+        )
+
+        return declarations.getvalue(), code.getvalue()
+
     def print_Reciprocal_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
