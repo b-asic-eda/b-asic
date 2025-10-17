@@ -1,42 +1,42 @@
 """B-ASIC quantization module."""
 
 import math
-from enum import Enum
+from enum import Enum, auto
 
 from b_asic.types import Num
 
 
-class Quantization(Enum):
+class QuantizationMode(Enum):
     """Quantization types."""
 
-    ROUNDING = 1
+    ROUNDING = auto()
     """Standard two's complement rounding, i.e, tie rounds towards infinity."""
 
-    TRUNCATION = 2
+    TRUNCATION = auto()
     """Two's complement truncation, i.e., round towards negative infinity."""
 
-    MAGNITUDE_TRUNCATION = 3
+    MAGNITUDE_TRUNCATION = auto()
     """Magnitude truncation, i.e., round towards zero."""
 
-    JAMMING = 4
+    JAMMING = auto()
     """Jamming/von Neumann rounding, i.e., set the LSB to one."""
 
-    UNBIASED_ROUNDING = 5
+    UNBIASED_ROUNDING = auto()
     """Unbiased rounding, i.e., tie rounds towards even."""
 
-    UNBIASED_JAMMING = 6
+    UNBIASED_JAMMING = auto()
     """Unbiased jamming/von Neumann rounding."""
 
 
-class Overflow(Enum):
+class OverflowMode(Enum):
     """Overflow types."""
 
-    TWOS_COMPLEMENT = 1
+    WRAPPING = auto()
     """
     Two's complement overflow, i.e., remove the more significant bits.
     """
 
-    SATURATION = 2
+    SATURATION = auto()
     """
     Two's complement saturation.
 
@@ -48,8 +48,8 @@ def quantize(
     value: Num,
     fractional_bits: int,
     integer_bits: int = 1,
-    quantization: Quantization = Quantization.TRUNCATION,
-    overflow: Overflow = Overflow.TWOS_COMPLEMENT,
+    quantization_mode: QuantizationMode = QuantizationMode.TRUNCATION,
+    overflow_mode: OverflowMode = OverflowMode.WRAPPING,
 ) -> Num:
     r"""
     Quantize *value* assuming two's complement representation.
@@ -73,10 +73,10 @@ def quantize(
         Number of fractional bits, can be negative.
     integer_bits : int, default: 1
         Number of integer bits, can be negative.
-    quantization : :class:`Quantization`, default: :class:`Quantization.TRUNCATION`
-        Type of quantization.
-    overflow : :class:`Overflow`, default: :class:`Overflow.TWOS_COMPLEMENT`
-        Type of overflow.
+    quantization_mode : :class:`QuantizationMode`, default: :class:`QuantizationMode.TRUNCATION`
+        Type of quantization to use.
+    overflow_mode : :class:`OverflowMode`, default: :class:`OverflowMode.WRAPPING`
+        Type of overflow to use.
 
     Returns
     -------
@@ -85,17 +85,17 @@ def quantize(
 
     Examples
     --------
-    >>> from b_asic.quantization import quantize, Quantization, Overflow
+    >>> from b_asic.quantization import quantize, QuantizationMode, OverflowMode
     ...
     ... quantize(0.3, 4)  # Truncate 0.3 using four fractional bits and one integer bit
     0.25
-    >>> quantize(0.3, 4, quantization=Quantization.ROUNDING)  # As above, but round
+    >>> quantize(0.3, 4, quantization_mode=QuantizationMode.ROUNDING)  # As above, but round
     0.3125
     >>> quantize(1.3, 4)  # Will overflow
     -0.75
     >>> quantize(1.3, 4, 2)  # Use two integer bits
     1.25
-    >>> quantize(1.3, 4, overflow=Overflow.SATURATION)  # use saturation
+    >>> quantize(1.3, 4, overflow_mode=OverflowMode.SATURATION)  # use saturation
     0.9375
     >>> quantize(0.3, 4, -1)  # Three bits in total, will overflow
     -0.25
@@ -106,30 +106,30 @@ def quantize(
                 value.real,
                 fractional_bits=fractional_bits,
                 integer_bits=integer_bits,
-                quantization=quantization,
-                overflow=overflow,
+                quantization_mode=quantization_mode,
+                overflow_mode=overflow_mode,
             ),
             quantize(
                 value.imag,
                 fractional_bits=fractional_bits,
                 integer_bits=integer_bits,
-                quantization=quantization,
-                overflow=overflow,
+                quantization_mode=quantization_mode,
+                overflow_mode=overflow_mode,
             ),
         )
     b = 2**fractional_bits
     v = b * value
-    if quantization is Quantization.TRUNCATION:
+    if quantization_mode is QuantizationMode.TRUNCATION:
         v = math.floor(v)
-    elif quantization is Quantization.ROUNDING:
+    elif quantization_mode is QuantizationMode.ROUNDING:
         v = math.floor(v + 0.5)
-    elif quantization is Quantization.MAGNITUDE_TRUNCATION:
+    elif quantization_mode is QuantizationMode.MAGNITUDE_TRUNCATION:
         v = math.floor(v) if v >= 0 else math.ceil(v)
-    elif quantization is Quantization.JAMMING:
+    elif quantization_mode is QuantizationMode.JAMMING:
         v = math.floor(v) | 1
-    elif quantization is Quantization.UNBIASED_ROUNDING:
+    elif quantization_mode is QuantizationMode.UNBIASED_ROUNDING:
         v = round(v)
-    elif quantization is Quantization.UNBIASED_JAMMING:
+    elif quantization_mode is QuantizationMode.UNBIASED_JAMMING:
         f = math.floor(v)
         v = f if v - f == 0 else f | 1
     else:
@@ -137,11 +137,11 @@ def quantize(
 
     v = v / b
     i = 2 ** (integer_bits - 1)
-    if overflow is Overflow.SATURATION:
+    if overflow_mode is OverflowMode.SATURATION:
         pos_val = i - 1 / b
         neg_val = -i
         v = max(neg_val, min(v, pos_val))
-    else:  # Overflow.TWOS_COMPLEMENT
+    else:  # OverflowMode.WRAPPING
         v = (v + i) % (2 * i) - i
 
     return v
