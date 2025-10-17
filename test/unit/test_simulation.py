@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from b_asic.data_type import OverflowMode, VhdlDataType
+from b_asic.quantization import QuantizationMode
 from b_asic.signal_generator import Impulse
 from b_asic.simulation import Simulation
 
@@ -262,3 +264,126 @@ class TestRun:
         simulation.run_for(5)
         assert all(simulation.results["out0"] == np.array([2, 4, 6, 8, 10]))
         assert all(simulation.results["out1"] == np.array([2, 4, 8, 16, 32]))
+
+
+class TestFiniteWordLength:
+    def test_accumulator_overflow(self):
+        from b_asic import SFG, Delay, Input, Output
+
+        in0 = Input()
+        d = Delay()
+        d <<= in0 + d
+        out0 = Output(d)
+        sfg = SFG([in0], [out0])
+
+        sim1 = Simulation(sfg, [lambda n: n / 16])
+        sim1.run_for(10)
+
+        sim2 = Simulation(sfg, [lambda n: n / 16], VhdlDataType(wl=8))
+        sim2.run_for(10)
+
+        unsigned_err = sim2.results["out0"] - sim1.results["out0"]
+        assert all(unsigned_err == 0)  # no error unless cast to float is done
+
+        err = [float(e) for e in sim2.results["out0"]] - sim1.results["out0"]
+        assert all(
+            err[:7] == 0
+        )  # no error in first 7 iterations due to sufficient word length
+        assert all(err[7:] != 0)  # overflow occurs at iteration 8
+
+    def test_accumulator_saturation(self):
+        from b_asic import SFG, Delay, Input, Output
+
+        in0 = Input()
+        d = Delay()
+        d <<= in0 + d
+        out0 = Output(d)
+        sfg = SFG([in0], [out0])
+
+        sim1 = Simulation(sfg, [lambda n: n / 16])
+        sim1.run_for(10)
+
+        sim2 = Simulation(
+            sfg,
+            [lambda n: n / 16],
+            VhdlDataType(
+                wl=8,
+                overflow_mode=OverflowMode.SATURATION,
+            ),
+        )
+        sim2.run_for(10)
+
+        unsigned_err = sim2.results["out0"] - sim1.results["out0"]
+        assert all(unsigned_err[:7] == 0)
+        assert all(unsigned_err[7:] != 0)  # saturation occurs after iteration 8
+
+        err = [float(e) for e in sim2.results["out0"]] - sim1.results["out0"]
+        assert all(
+            err[:7] == 0
+        )  # no error in first 7 iterations due to sufficient word length
+        assert all(err[7:] != 0)  # saturation occurs after iteration 8
+
+        assert all(
+            float(sim2.results["out0"][i]) == 1 - 2**-7 for i in range(8, 10)
+        )  # saturated value
+
+        sim3 = Simulation(sfg, [lambda n: n / 16])
+        sim3.run_for(20)
+
+        sim4 = Simulation(
+            sfg,
+            [lambda n: n / 16],
+            VhdlDataType(
+                wl=(2, 6),
+                overflow_mode=OverflowMode.SATURATION,
+            ),
+        )
+        sim4.run_for(20)
+
+        err = [float(e) for e in sim4.results["out0"]] - sim3.results["out0"]
+        assert all(
+            err[:9] == 0
+        )  # no error in first 9 iterations due to sufficient word length
+        assert all(err[9:] != 0)  # saturation occurs after iteration 9
+        assert all(
+            float(sim4.results["out0"][i]) == 2 - 2**-6 for i in range(9, 20)
+        )  # saturated value
+
+    def test_iir_impulse_response(self, sfg_direct_form_iir_lp_filter):
+        sim1 = Simulation(sfg_direct_form_iir_lp_filter, [[1.0] + [0.0] * 19])
+        sim1.run()
+
+        dt = VhdlDataType(wl=(2, 4))
+        sim2 = Simulation(sfg_direct_form_iir_lp_filter, [[1.0] + [0.0] * 19], dt)
+        sim2.run()
+
+        err = [float(e) for e in sim2.results["out0"]] - sim1.results["out0"]
+
+        assert all(err != 0)
+        assert all(abs(err) > 10e-6)
+
+    def test_iir_impulse_response_magnitude_truncation(
+        self, sfg_direct_form_iir_lp_filter
+    ):
+        dt = VhdlDataType(
+            wl=(3, 7),
+            quantization_mode=QuantizationMode.TRUNCATION,
+        )
+        sim1 = Simulation(sfg_direct_form_iir_lp_filter, [[1.0] + [0.0] * 19], dt)
+        sim1.run()
+
+        dt = VhdlDataType(
+            wl=(3, 7),
+            quantization_mode=QuantizationMode.MAGNITUDE_TRUNCATION,
+        )
+        sim2 = Simulation(sfg_direct_form_iir_lp_filter, [[1.0] + [0.0] * 19], dt)
+        sim2.run()
+
+        err = np.array([float(e) for e in sim2.results["out0"]]) - np.array(
+            [float(e) for e in sim1.results["out0"]]
+        )
+
+        assert any(err != 0)
+        assert all(
+            err >= 0
+        )  # no negative errors with magnitude truncation compared to truncation

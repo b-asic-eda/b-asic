@@ -23,6 +23,7 @@ from b_asic.core_operations import (
     Constant,
     ConstantMultiplication,
 )
+from b_asic.data_type import DataType
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
     AbstractOperation,
@@ -337,10 +338,11 @@ class SFG(AbstractOperation):
         # doc-string inherited.
         return TypeName("sfg")
 
-    def evaluate(self, *args) -> Num | list[Num] | None:
+    def evaluate(self, *args, data_type=None) -> Num | list[Num] | None:
         result = self.evaluate_outputs(args)
         n = len(result)
-        return None if n == 0 else result[0] if n == 1 else result
+        res = None if n == 0 else result[0] if n == 1 else result
+        return self._cast_to_data_type(res, data_type)
 
     def evaluate_output(
         self,
@@ -349,8 +351,7 @@ class SFG(AbstractOperation):
         results: MutableResultMap | None = None,
         delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: int | None = None,
-        quantize: bool = True,
+        data_type: DataType | None = None,
     ) -> Num:
         # doc-string inherited
         if index < 0 or index >= self.output_count:
@@ -371,11 +372,7 @@ class SFG(AbstractOperation):
         # Set the values of our input operations to the given input values.
         for op, arg in zip(
             self._input_operations,
-            (
-                self.quantize_inputs(input_values, bits_override)
-                if quantize
-                else input_values
-            ),
+            input_values,
             strict=True,
         ):
             op.value = arg
@@ -386,8 +383,6 @@ class SFG(AbstractOperation):
             results,
             delays,
             prefix,
-            bits_override,
-            quantize,
             deferred_delays,
         )
         while deferred_delays:
@@ -400,8 +395,6 @@ class SFG(AbstractOperation):
                     results,
                     delays,
                     prefix,
-                    bits_override,
-                    quantize,
                     new_deferred_delays,
                 )
             deferred_delays = new_deferred_delays
@@ -1612,8 +1605,6 @@ class SFG(AbstractOperation):
         results: MutableResultMap,
         delays: MutableDelayMap,
         prefix: str,
-        bits_override: int | None,
-        quantize: bool,
         deferred_delays: DelayQueue,
     ) -> Num:
         key_base = (
@@ -1640,8 +1631,6 @@ class SFG(AbstractOperation):
                 results,
                 delays,
                 prefix,
-                bits_override,
-                quantize,
                 deferred_delays,
             )
         else:
@@ -1657,8 +1646,6 @@ class SFG(AbstractOperation):
         results: MutableResultMap,
         delays: MutableDelayMap,
         prefix: str,
-        bits_override: int | None,
-        quantize: bool,
         deferred_delays: DelayQueue,
     ) -> Num:
         input_values = [
@@ -1667,8 +1654,6 @@ class SFG(AbstractOperation):
                 results,
                 delays,
                 prefix,
-                bits_override,
-                quantize,
                 deferred_delays,
             )
             for input_port in src.operation.inputs
@@ -1679,8 +1664,6 @@ class SFG(AbstractOperation):
             results,
             delays,
             key_base,
-            bits_override,
-            quantize,
         )
         results[key] = value
         return value

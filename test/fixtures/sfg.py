@@ -244,7 +244,7 @@ def sfg_custom_operation():
         def type_name(cls) -> TypeName:
             return "custom"
 
-        def evaluate(self, a):
+        def evaluate(self, a, data_type=None):
             return a * 2, 2**a
 
     in1 = Input()

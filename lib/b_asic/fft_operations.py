@@ -84,8 +84,12 @@ class R2Butterfly(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r2bfly")
 
-    def evaluate(self, a, b) -> Num:
-        return a + b, a - b
+    def evaluate(self, a, b, data_type=None) -> Num:
+        res = a + b, a - b
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+        )
 
 
 class R2DIFButterfly(AbstractOperation):
@@ -167,8 +171,12 @@ class R2DIFButterfly(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r2difbfly")
 
-    def evaluate(self, a, b) -> Num:
-        return a + b, self.w * (a - b)
+    def evaluate(self, a, b, data_type=None) -> Num:
+        res = a + b, self.w * (a - b)
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+        )
 
     @property
     def w(self) -> complex:
@@ -260,9 +268,13 @@ class R2DITButterfly(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r2ditbfly")
 
-    def evaluate(self, a, b) -> Num:
+    def evaluate(self, a, b, data_type=None) -> Num:
         tmp_b = self.w * b
-        return a + tmp_b, a - tmp_b
+        res = a + tmp_b, a - tmp_b
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+        )
 
     @property
     def w(self) -> complex:
@@ -360,8 +372,12 @@ class R2TFButterfly(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r2tfbfly")
 
-    def evaluate(self, a, b) -> Num:
-        return self.w0 * (a + b), self.w1 * (a - b)
+    def evaluate(self, a, b, data_type=None) -> Num:
+        res = self.w0 * (a + b), self.w1 * (a - b)
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+        )
 
     @property
     def w0(self) -> complex:
@@ -467,7 +483,7 @@ class R4Butterfly(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r4bfly")
 
-    def evaluate(self, a, b, c, d) -> Num:
+    def evaluate(self, a, b, c, d, data_type=None) -> Num:
         s0 = a + c
         s1 = b + d
         s2 = a - c
@@ -477,7 +493,13 @@ class R4Butterfly(AbstractOperation):
         y1 = s2 + s3  # y1 = a -1j*b - c + 1j*d
         y2 = s0 - s1  # y2 = a - b + c - d
         y3 = s2 - s3  # y3 = a + 1j*b - c - 1j*d
-        return y0, y1, y2, y3
+        res = y0, y1, y2, y3
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+            self._cast_to_data_type(res[2], data_type),
+            self._cast_to_data_type(res[3], data_type),
+        )
 
 
 class R3Winograd(AbstractOperation):
@@ -564,7 +586,7 @@ class R3Winograd(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r3win")
 
-    def evaluate(self, a, b, c) -> Num:
+    def evaluate(self, a, b, c, data_type=None) -> Num:
         u = -2 * math.pi / 3
         c30 = -1.5  # cos(u) - 1
         c31 = 1j * math.sin(u)
@@ -582,7 +604,12 @@ class R3Winograd(AbstractOperation):
         y1 = s4
         y2 = s5
 
-        return y0, y1, y2
+        res = y0, y1, y2
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+            self._cast_to_data_type(res[2], data_type),
+        )
 
 
 class R5Winograd(AbstractOperation):
@@ -659,7 +686,7 @@ class R5Winograd(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r5win")
 
-    def evaluate(self, a, b, c, d, e) -> Num:
+    def evaluate(self, a, b, c, d, e, data_type=None) -> Num:
         # Fast Fourier Transform and Convolution Algorithms-Springer-Verlag
         # Berlin Heidelberg (1982). Page 146
 
@@ -712,7 +739,14 @@ class R5Winograd(AbstractOperation):
         a16 = a11 + a13
         a17 = a11 - a13
 
-        return a7, a14, a16, a17, a15
+        res = a7, a14, a16, a17, a15
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+            self._cast_to_data_type(res[2], data_type),
+            self._cast_to_data_type(res[3], data_type),
+            self._cast_to_data_type(res[4], data_type),
+        )
 
 
 class R7Winograd(AbstractOperation):
@@ -796,7 +830,7 @@ class R7Winograd(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r7win")
 
-    def evaluate(self, a, b, c, d, e, f, g) -> Num:
+    def evaluate(self, a, b, c, d, e, f, g, data_type=None) -> Num:
         # Constants
         u = -2 * math.pi / 7
         C70 = -((math.cos(u) + math.cos(2 * u) + math.cos(3 * u)) / 3 - 1)
@@ -901,4 +935,13 @@ class R7Winograd(AbstractOperation):
         s36 = s24 + s30  # (m0+m1)-m3+m4-m5+m7-m8
         s35 = s24 - s30  # (m0+m1)-m3+m4+m5-m7+m8
 
-        return s9, s31, s33, s36, s35, s34, s32
+        res = s9, s31, s33, s36, s35, s34, s32
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+            self._cast_to_data_type(res[2], data_type),
+            self._cast_to_data_type(res[3], data_type),
+            self._cast_to_data_type(res[4], data_type),
+            self._cast_to_data_type(res[5], data_type),
+            self._cast_to_data_type(res[6], data_type),
+        )

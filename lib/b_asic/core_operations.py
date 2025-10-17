@@ -6,6 +6,7 @@ Contains some of the most commonly used mathematical operations.
 
 from typing import TYPE_CHECKING, Union
 
+import apytypes as apy
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
 
@@ -59,7 +60,9 @@ class Constant(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("c")
 
-    def evaluate(self) -> Num:
+    def evaluate(self, data_type=None) -> Num:
+        if data_type is not None:
+            return apy.fx(self.param("value"), data_type.wl[0], data_type.wl[1])
         return self.param("value")
 
     @property
@@ -178,7 +181,9 @@ class Negation(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("neg")
 
-    def evaluate(self, a) -> Num:
+    def evaluate(self, a, data_type=None) -> Num:
+        if data_type is not None:
+            return apy.fx(-a, data_type.wl[0], data_type.wl[1])
         return -a
 
 
@@ -282,10 +287,11 @@ class Addition(AbstractOperation):
         """
         self.set_param("mul_j", mul_j)
 
-    def evaluate(self, a, b) -> Num:
+    def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
             b *= 1j
-        return a + b
+        res = a + b
+        return self._cast_to_data_type(res, data_type)
 
     def _rewrite_AddSub(self) -> "SFG":
         from b_asic.sfg import SFG  # noqa: PLC0415
@@ -426,10 +432,11 @@ class Subtraction(AbstractOperation):
         """
         self.set_param("mul_j", mul_j)
 
-    def evaluate(self, a, b) -> Num:
+    def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
             b *= 1j
-        return a - b
+        res = a - b
+        return self._cast_to_data_type(res, data_type)
 
     def _rewrite_AddSub(self) -> "SFG":
         from b_asic.sfg import SFG  # noqa: PLC0415
@@ -564,8 +571,11 @@ class AddSub(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("addsub")
 
-    def evaluate(self, a, b) -> Num:
-        return a + b if self.is_add else a - b
+    def evaluate(self, a, b, data_type=None) -> Num:
+        if self.mul_j:
+            b *= 1j
+        res = a + b if self.is_add else a - b
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def is_add(self) -> bool:
@@ -726,11 +736,12 @@ class ShiftAddSub(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("shiftaddsub")
 
-    def evaluate(self, a, b) -> Num:
+    def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
             b *= 1j
         b /= 2**self.shift
-        return a + b if self.is_add else a - b
+        res = a + b if self.is_add else a - b
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def is_add(self) -> bool:
@@ -871,8 +882,9 @@ class Multiplication(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mul")
 
-    def evaluate(self, a, b) -> Num:
-        return a * b
+    def evaluate(self, a, b, data_type=None) -> Num:
+        res = a * b
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def is_linear(self) -> bool:
@@ -951,10 +963,9 @@ class Division(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("div")
 
-    def evaluate(self, a, b) -> Num:
-        if b == 0:
-            return float("inf")
-        return a / b
+    def evaluate(self, a, b, data_type=None) -> Num:
+        res = float("inf") if b == 0 else a / b
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def is_linear(self) -> bool:
@@ -1035,10 +1046,11 @@ class Min(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("min")
 
-    def evaluate(self, a, b) -> Num:
+    def evaluate(self, a, b, data_type=None) -> Num:
         if isinstance(a, complex) or isinstance(b, complex):
             raise ValueError("core_operations.Min does not support complex numbers.")
-        return min(a, b)
+        res = min(a, b)
+        return self._cast_to_data_type(res, data_type)
 
 
 class Max(AbstractOperation):
@@ -1115,10 +1127,11 @@ class Max(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("max")
 
-    def evaluate(self, a, b) -> Num:
+    def evaluate(self, a, b, data_type=None) -> Num:
         if isinstance(a, complex) or isinstance(b, complex):
             raise ValueError("core_operations.Max does not support complex numbers.")
-        return max(a, b)
+        res = max(a, b)
+        return self._cast_to_data_type(res, data_type)
 
 
 class SquareRoot(AbstractOperation):
@@ -1175,8 +1188,9 @@ class SquareRoot(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("sqrt")
 
-    def evaluate(self, a) -> Num:
-        return sqrt(complex(a))
+    def evaluate(self, a, data_type=None) -> Num:
+        res = sqrt(complex(a))
+        return self._cast_to_data_type(res, data_type)
 
 
 class ComplexConjugate(AbstractOperation):
@@ -1233,8 +1247,9 @@ class ComplexConjugate(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("conj")
 
-    def evaluate(self, a) -> Num:
-        return conjugate(a)
+    def evaluate(self, a, data_type=None) -> Num:
+        res = conjugate(a)
+        return self._cast_to_data_type(res, data_type)
 
 
 class Absolute(AbstractOperation):
@@ -1291,8 +1306,8 @@ class Absolute(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("abs")
 
-    def evaluate(self, a) -> Num:
-        return np_abs(a)
+    def evaluate(self, a, data_type=None) -> Num:
+        return self._cast_to_data_type(np_abs(a), data_type)
 
 
 class ImaginaryMultiplication(AbstractOperation):
@@ -1357,8 +1372,9 @@ class ImaginaryMultiplication(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("imul")
 
-    def evaluate(self, a) -> Num:
-        return a * 1j
+    def evaluate(self, a, data_type=None) -> Num:
+        res = a * 1j
+        return self._cast_to_data_type(res, data_type)
 
     def _join(self, other: "AbstractOperation") -> Union["SFG", None]:
         from b_asic.sfg import SFG  # noqa: PLC0415
@@ -1488,8 +1504,9 @@ class ConstantMultiplication(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("cmul")
 
-    def evaluate(self, a) -> Num:
-        return a * self.param("value")
+    def evaluate(self, a, data_type=None) -> Num:
+        res = a * self.param("value")
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def value(self) -> Num:
@@ -1663,8 +1680,9 @@ class MAD(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mad")
 
-    def evaluate(self, a, b, c) -> Num:
-        return a * b + c if self.do_add else a * b
+    def evaluate(self, a, b, c, data_type=None) -> Num:
+        res = a * b + c if self.do_add else a * b
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def is_linear(self) -> bool:
@@ -1746,17 +1764,12 @@ class MADS(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mads")
 
-    def evaluate(self, a, b, c) -> Num:
+    def evaluate(self, a, b, c, data_type=None) -> Num:
         if self.is_add:
-            if self.do_addsub:
-                return a + b * c
-            else:
-                return b * c
+            res = a + b * c if self.do_addsub else b * c
         else:
-            if self.do_addsub:
-                return a - b * c
-            else:
-                return -b * c
+            res = a - b * c if self.do_addsub else -b * c
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def is_add(self) -> bool:
@@ -1849,9 +1862,13 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("sym2p")
 
-    def evaluate(self, a, b) -> Num:
+    def evaluate(self, a, b, data_type=None) -> Num:
         tmp = self.value * (b - a)
-        return b + tmp, a + tmp
+        res = b + tmp, a + tmp
+        return (
+            self._cast_to_data_type(res[0], data_type),
+            self._cast_to_data_type(res[1], data_type),
+        )
 
     @property
     def value(self) -> Num:
@@ -1935,10 +1952,9 @@ class Reciprocal(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("rec")
 
-    def evaluate(self, a) -> Num:
-        if a == 0:
-            return float("inf")
-        return 1 / a
+    def evaluate(self, a, data_type=None) -> Num:
+        res = float("inf") if a == 0 else 1 / a
+        return self._cast_to_data_type(res, data_type)
 
 
 class RightShift(AbstractOperation):
@@ -2015,8 +2031,9 @@ class RightShift(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("rshift")
 
-    def evaluate(self, a) -> Num:
-        return a * 2 ** (-self.param("value"))
+    def evaluate(self, a, data_type=None) -> Num:
+        res = a * 2 ** (-self.param("value"))
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def value(self) -> int:
@@ -2107,8 +2124,9 @@ class LeftShift(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("lshift")
 
-    def evaluate(self, a) -> Num:
-        return a * 2 ** (self.param("value"))
+    def evaluate(self, a, data_type=None) -> Num:
+        res = a * 2 ** (self.param("value"))
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def value(self) -> int:
@@ -2200,8 +2218,9 @@ class Shift(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("shift")
 
-    def evaluate(self, a) -> Num:
-        return a / 2 ** (self.param("value"))
+    def evaluate(self, a, data_type=None) -> Num:
+        res = a / 2 ** (self.param("value"))
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def value(self) -> int:

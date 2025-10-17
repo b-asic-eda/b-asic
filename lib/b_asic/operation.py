@@ -17,6 +17,10 @@ from typing import (
     overload,
 )
 
+import apytypes as apy
+from apytypes import APyCFixed, APyCFloat, APyFixed, APyFloat
+
+from b_asic.data_type import DataType, NumRepresentation
 from b_asic.graph_component import AbstractGraphComponent, GraphComponent, GraphID, Name
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
@@ -150,8 +154,7 @@ class Operation(GraphComponent, SignalSourceProvider):
         results: MutableResultMap | None = None,
         delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: int | None = None,
-        quantize: bool = True,
+        data_type: DataType | None = None,
     ) -> Num:
         """
         Evaluate the output at the given index with the given input values.
@@ -170,13 +173,8 @@ class Operation(GraphComponent, SignalSourceProvider):
             that are encountered, and be updated with their new values.
         prefix : str, optional
             Used as a prefix for the key string when storing results/delays.
-        bits_override : int, optional
-            Specifies a word length override when truncating inputs
-            which ignores the word length specified by the input signal.
-        quantize : bool, default: True
-            Specifies whether input truncation should be enabled in the first
-            place. If set to False, input values will be used directly without any
-            bit truncation.
+        data_type : DataType, optional
+            Data type to use for quantization during evaluation.
 
         See Also
         --------
@@ -204,8 +202,6 @@ class Operation(GraphComponent, SignalSourceProvider):
         results: MutableResultMap | None = None,
         delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: int | None = None,
-        quantize: bool = True,
     ) -> Sequence[Num]:
         """
         Evaluate all outputs of this operation given the input values.
@@ -517,16 +513,18 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @overload
     @abstractmethod
-    def evaluate(self, *inputs: Operation) -> list[Operation]:  # pylint: disable=arguments-differ
+    def evaluate(
+        self, *inputs: Operation, data_type: DataType | None = None
+    ) -> list[Operation]:  # pylint: disable=arguments-differ
         ...
 
     @overload
     @abstractmethod
-    def evaluate(self, *inputs: Num) -> list[Num]:  # pylint: disable=arguments-differ
+    def evaluate(self, *inputs: Num, data_type: DataType | None = None) -> list[Num]:  # pylint: disable=arguments-differ
         ...
 
     @abstractmethod
-    def evaluate(self, *inputs):  # pylint: disable=arguments-differ
+    def evaluate(self, *inputs, data_type: DataType | None = None):  # pylint: disable=arguments-differ
         """
         Evaluate the operation and generate a list of output values.
 
@@ -534,8 +532,27 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         ----------
         *inputs
             List of input values.
+        data_type : DataType, optional
+            Data type to use for quantization during evaluation.
         """
         raise NotImplementedError
+
+    def _cast_to_data_type(self, value: Number, data_type: DataType) -> Number:
+        if data_type is None:
+            return value
+
+        if not isinstance(value, (APyFixed, APyFloat, APyCFixed, APyCFloat)):
+            if data_type.num_repr == NumRepresentation.FLOATING_POINT:
+                value = apy.fp(value, data_type.wl[0], data_type.wl[1])
+            elif data_type.num_repr == NumRepresentation.FIXED_POINT:
+                value = apy.fx(value, data_type.wl[0], data_type.wl[1])
+
+        return value.cast(
+            data_type.wl[0],
+            data_type.wl[1],
+            data_type.quantization_mode.to_apytypes(),
+            data_type.overflow_mode.to_apytypes(),
+        )
 
     def __ilshift__(self, src: SignalSourceProvider) -> "Operation":
         if self.input_count != 1:
@@ -644,8 +661,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         results: MutableResultMap | None = None,
         delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: int | None = None,
-        quantize: bool = True,
+        data_type: DataType | None = None,
     ) -> Num:
         if index < 0 or index >= self.output_count:
             raise IndexError(
@@ -658,20 +674,15 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 f" {self.input_count}, got {len(input_values)})"
             )
 
-        values = self.evaluate(
-            *(
-                self.quantize_inputs(input_values, bits_override)
-                if quantize
-                else input_values
-            )
-        )
+        values = self.evaluate(*input_values, data_type=data_type)
         if isinstance(values, collections.abc.Sequence):
             if len(values) != self.output_count:
                 raise RuntimeError(
                     f"Operation {self.graph_id} evaluated to incorrect number of outputs"
                     f" (expected {self.output_count}, got {len(values)})"
                 )
-        elif isinstance(values, Number):
+
+        elif isinstance(values, (Number, APyFixed, APyFloat, APyCFixed, APyCFloat)):
             if self.output_count != 1:
                 raise RuntimeError(
                     "Operation evaluated to incorrect number of outputs"
@@ -702,8 +713,6 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         results: MutableResultMap | None = None,
         delays: MutableDelayMap | None = None,
         prefix: str = "",
-        bits_override: int | None = None,
-        quantize: bool = True,
     ) -> Sequence[Num]:
         return [
             self.evaluate_output(
@@ -712,8 +721,6 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 results,
                 delays,
                 prefix,
-                bits_override,
-                quantize,
             )
             for i in range(self.output_count)
         ]
@@ -823,32 +830,6 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             return round((value + 1) * b % (2 * b) - b) / b
         else:
             raise TypeError
-
-    def quantize_inputs(
-        self,
-        input_values: Sequence[Num],
-        bits_override: int | None = None,
-    ) -> Sequence[Num]:
-        """
-        Quantize the values to be used as inputs.
-
-        The bit lengths are specified
-        by the respective signals connected to each input.
-        """
-        args = []
-        for i, input_port in enumerate(self.inputs):
-            value = input_values[i]
-            if bits_override is None and input_port.signal_count >= 1:
-                bits_override = input_port.signals[0].bits
-            if bits_override is not None:
-                if isinstance(value, complex):
-                    raise TypeError(
-                        "Complex value cannot be quantized to {bits} bits as"
-                        " requested by the signal connected to input #{i}"
-                    )
-                value = self.quantize_input(i, value, bits_override)
-            args.append(value)
-        return args
 
     @property
     def latency(self) -> int:

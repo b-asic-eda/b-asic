@@ -42,9 +42,10 @@ class DontCare(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("dontcare")
 
-    def evaluate(self) -> float:
+    def evaluate(self, data_type=None) -> float:
         # Evaluate to random to flush out errors
-        return random.random()
+        res = random.random()
+        return self._cast_to_data_type(res, data_type)
 
     @property
     def latency(self) -> int:

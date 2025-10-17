@@ -5,13 +5,12 @@ Contains operations with special purposes that may be treated differently from
 normal operations in an SFG.
 """
 
-from collections.abc import Sequence
+import apytypes as apy
 
+from b_asic.data_type import NumRepresentation
 from b_asic.operation import (
     AbstractOperation,
     DelayMap,
-    MutableDelayMap,
-    MutableResultMap,
 )
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Name, Num, ShapeCoordinates, TypeName
@@ -48,8 +47,12 @@ class Input(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("in")
 
-    def evaluate(self) -> Num:
-        return self._value
+    def evaluate(self, data_type=None) -> Num:
+        if data_type is None:
+            return self._value
+        if data_type.num_repr == NumRepresentation.FIXED_POINT:
+            return apy.fx(self._value, data_type.wl[0], data_type.wl[1])
+        return apy.fp(self._value, data_type.wl[0], data_type.wl[1])
 
     @property
     def latency(self) -> int:
@@ -134,7 +137,7 @@ class Output(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("out")
 
-    def evaluate(self, _) -> None:
+    def evaluate(self, _, data_type) -> None:
         return None
 
     def get_plot_coordinates(
@@ -198,8 +201,12 @@ class Delay(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("t")
 
-    def evaluate(self, a) -> Num:
-        return self.param("initial_value")
+    def evaluate(self, a, data_type, delays=None) -> Num:
+        if delays is not None:
+            res = delays.get(self.graph_id, self.param("initial_value"))
+        else:
+            res = self.param("initial_value")
+        return self._cast_to_data_type(res, data_type)
 
     def current_output(
         self, index: int, delays: DelayMap | None = None, prefix: str = ""
@@ -207,37 +214,6 @@ class Delay(AbstractOperation):
         if delays is not None:
             return delays.get(self.key(index, prefix), self.param("initial_value"))
         return self.param("initial_value")
-
-    def evaluate_output(
-        self,
-        index: int,
-        input_values: Sequence[Num],
-        results: MutableResultMap | None = None,
-        delays: MutableDelayMap | None = None,
-        prefix: str = "",
-        bits_override: int | None = None,
-        quantize: bool = True,
-    ) -> Num:
-        if index != 0:
-            raise IndexError(f"Output index out of range (expected 0-0, got {index})")
-        if len(input_values) != 1:
-            raise ValueError(
-                "Wrong number of inputs supplied to Delay for evaluation"
-                f" (expected 1, got {len(input_values)})"
-            )
-
-        key = self.key(index, prefix)
-        value = self.param("initial_value")
-        if delays is not None:
-            value = delays.get(key, value)
-            delays[key] = (
-                self.quantize_inputs(input_values, bits_override)[0]
-                if quantize
-                else input_values[0]
-            )
-        if results is not None:
-            results[key] = value
-        return value
 
     @property
     def initial_value(self) -> Num:

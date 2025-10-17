@@ -3,6 +3,9 @@
 import math
 from enum import Enum, auto
 
+from apytypes import OverflowMode as ApyOverflowMode
+from apytypes import QuantizationMode as ApyQuantizationMode
+
 from b_asic.types import Num
 
 
@@ -27,6 +30,34 @@ class QuantizationMode(Enum):
     UNBIASED_JAMMING = auto()
     """Unbiased jamming/von Neumann rounding."""
 
+    def to_apytypes(self) -> ApyQuantizationMode:
+        """
+        Convert to APyTypes QuantizationMode.
+
+        Returns
+        -------
+        ApyQuantizationMode
+            The corresponding APyTypes quantization mode.
+
+        Raises
+        ------
+        ValueError
+            If the mode has no APyTypes equivalent.
+        """
+        mapping = {
+            QuantizationMode.ROUNDING: ApyQuantizationMode.RND,
+            QuantizationMode.TRUNCATION: ApyQuantizationMode.TRN,
+            QuantizationMode.MAGNITUDE_TRUNCATION: ApyQuantizationMode.TRN_ZERO,
+            QuantizationMode.JAMMING: ApyQuantizationMode.JAM,
+            QuantizationMode.UNBIASED_ROUNDING: ApyQuantizationMode.RND_CONV,
+            QuantizationMode.UNBIASED_JAMMING: ApyQuantizationMode.JAM_UNBIASED,
+        }
+
+        if self not in mapping:
+            raise ValueError(f"No APyTypes equivalent for {self}")
+
+        return mapping[self]
+
 
 class OverflowMode(Enum):
     """Overflow types."""
@@ -42,6 +73,21 @@ class OverflowMode(Enum):
 
     Overflow return the most positive/negative number.
     """
+
+    def to_apytypes(self) -> ApyOverflowMode:
+        """
+        Convert to APyTypes OverflowMode.
+
+        Returns
+        -------
+        ApyOverflowMode
+            The corresponding APyTypes overflow mode.
+        """
+        mapping = {
+            OverflowMode.WRAPPING: ApyOverflowMode.WRAP,
+            OverflowMode.SATURATION: ApyOverflowMode.SAT,
+        }
+        return mapping[self]
 
 
 def quantize(

@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Self
 
+from b_asic.quantization import OverflowMode, QuantizationMode
+
 
 class NumRepresentation(Enum):
     """
@@ -49,9 +51,13 @@ class DataType(ABC):
     num_repr : :class:`NumRepresentation`, default: :attr:`NumRepresentation.FIXED_POINT`
         Type of number representation to use.
     is_signed : bool, default: True
-        If number representation is signed.
+        If the number representation is signed.
     is_complex : bool, default: False
-        If number representation is complex-valued.
+        If the number representation is complex-valued.
+    quantization_mode : :class:`QuantizationMode`, default: :attr:`QuantizationMode.TRUNCATION`
+        Type of quantization to use.
+    overflow_mode : :class:`OverflowMode`, default: :attr:`OverflowMode.WRAPPING`
+        Type of overflow to use.
     """
 
     wl: tuple[int, int]
@@ -60,6 +66,8 @@ class DataType(ABC):
     num_repr: NumRepresentation = NumRepresentation.FIXED_POINT
     is_signed: bool = True
     is_complex: bool = False
+    quantization_mode: QuantizationMode = QuantizationMode.TRUNCATION
+    overflow_mode: OverflowMode = OverflowMode.WRAPPING
 
     def __post_init__(self):
         if isinstance(self.wl, int):

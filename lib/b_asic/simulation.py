@@ -10,6 +10,7 @@ from numbers import Number
 
 import numpy as np
 
+from b_asic.data_type import DataType
 from b_asic.operation import MutableDelayMap, ResultKey
 from b_asic.sfg import SFG
 from b_asic.special_operations import Delay
@@ -36,6 +37,8 @@ class Simulation:
         Input values, one list item per input. Each list item can be an array of values,
         a callable taking a time index and returning the value, or a
         number (constant input). If a value is not provided for an input, it will be 0.
+    data_type : DataType, optional
+        If provided, this finite arithmetic data type will be used for all operations.
     """
 
     _sfg: SFG
@@ -44,11 +47,13 @@ class Simulation:
     _iteration: int
     _input_functions: list[InputFunction]
     _input_length: int | None
+    _data_type: DataType | None
 
     def __init__(
         self,
         sfg: SFG,
         input_providers: Sequence[InputProvider | None] | None = None,
+        data_type: DataType | None = None,
     ) -> None:
         """Construct a Simulation of an SFG."""
         if not isinstance(sfg, SFG):
@@ -63,6 +68,7 @@ class Simulation:
         self._input_length = None
         if input_providers is not None:
             self.set_inputs(input_providers)
+        self._data_type = data_type
 
     def set_input(self, index: int, input_provider: InputProvider) -> None:
         """
@@ -117,12 +123,7 @@ class Simulation:
             if input_provider is not None:
                 self.set_input(index, input_provider)
 
-    def step(
-        self,
-        save_results: bool = True,
-        bits_override: int | None = None,
-        quantize: bool = True,
-    ) -> Sequence[Num]:
+    def step(self, save_results: bool = True) -> Sequence[Num]:
         """
         Run one iteration of the simulation and return the resulting output values.
 
@@ -130,27 +131,14 @@ class Simulation:
         ----------
         save_results : bool, default: True
             Whether the results should be saved.
-        bits_override : int, optional
-            Specifies a word length override when truncating inputs
-            which ignores the word length specified by the input signal.
-        quantize : bool, default: True
-            Specifies whether input truncation should be enabled in the first
-            place. If set to False, input values will be used directly without any
-            bit truncation.
 
         Returns
         -------
         The result of the simulation.
         """
-        return self.run_for(1, save_results, bits_override, quantize)
+        return self.run_for(1, save_results)
 
-    def run_until(
-        self,
-        iteration: int,
-        save_results: bool = True,
-        bits_override: int | None = None,
-        quantize: bool = True,
-    ) -> Sequence[Num]:
+    def run_until(self, iteration: int, save_results: bool = True) -> Sequence[Num]:
         """
         Run the simulation until the iteration number.
 
@@ -164,13 +152,6 @@ class Simulation:
             Iteration number to stop the simulation at.
         save_results : bool, default: True
             Whether the results should be saved.
-        bits_override : int, optional
-            Specifies a word length override when truncating inputs
-            which ignores the word length specified by the input signal.
-        quantize : bool, default: True
-            Specifies whether input truncation should be enabled in the first
-            place. If set to False, input values will be used directly without any
-            bit truncation.
 
         Returns
         -------
@@ -186,7 +167,7 @@ class Simulation:
                 src_op = src_port.operation
 
                 if src_op in self._sfg.input_operations:
-                    val = src_op.evaluate()
+                    val = src_op.evaluate(self._data_type)
                     input_vals.append(val)
                 else:
                     src_key = src_op.key(src_port.index, src_op.graph_id)
@@ -217,8 +198,8 @@ class Simulation:
                 for out_port in level:
                     # If the operation is a Delay, handle it specially
                     if isinstance(out_port.operation, Delay):
-                        val = out_port.operation.current_output(
-                            0, self._delays, out_port.operation.graph_id
+                        val = out_port.operation.evaluate(
+                            None, self._data_type, self._delays
                         )
                         results[
                             out_port.operation.key(0, out_port.operation.graph_id)
@@ -235,8 +216,7 @@ class Simulation:
                         results,
                         self._delays,
                         out_port.operation.graph_id,
-                        bits_override,
-                        quantize,
+                        data_type=self._data_type,
                     )
                     results[
                         out_port.operation.key(
@@ -261,13 +241,7 @@ class Simulation:
 
         return [results[op.graph_id] for op in self._sfg.output_operations]
 
-    def run_for(
-        self,
-        iterations: int,
-        save_results: bool = True,
-        bits_override: int | None = None,
-        quantize: bool = True,
-    ) -> Sequence[Num]:
+    def run_for(self, iterations: int, save_results: bool = True) -> Sequence[Num]:
         """
         Run a given number of iterations of the simulation.
 
@@ -279,28 +253,14 @@ class Simulation:
             Number of iterations to simulate.
         save_results : bool, default: True
             Whether the results should be saved.
-        bits_override : int, optional
-            Specifies a word length override when truncating inputs
-            which ignores the word length specified by the input signal.
-        quantize : bool, default: True
-            Specifies whether input truncation should be enabled in the first
-            place. If set to False, input values will be used directly without any
-            bit truncation.
 
         Returns
         -------
         The result of the simulation.
         """
-        return self.run_until(
-            self._iteration + iterations, save_results, bits_override, quantize
-        )
+        return self.run_until(self._iteration + iterations, save_results)
 
-    def run(
-        self,
-        save_results: bool = True,
-        bits_override: int | None = None,
-        quantize: bool = True,
-    ) -> Sequence[Num]:
+    def run(self, save_results: bool = True) -> Sequence[Num]:
         """
         Run the simulation until the end of its input arrays.
 
@@ -310,13 +270,6 @@ class Simulation:
         ----------
         save_results : bool, default: True
             Whether the results should be saved.
-        bits_override : int, optional
-            Specifies a word length override when truncating inputs
-            which ignores the word length specified by the input signal.
-        quantize : bool, default: True
-            Specifies whether input truncation should be enabled in the first
-            place. If set to False, input values will be used directly without any
-            bit truncation.
 
         Returns
         -------
@@ -324,7 +277,7 @@ class Simulation:
         """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")
-        return self.run_until(self._input_length, save_results, bits_override, quantize)
+        return self.run_until(self._input_length, save_results)
 
     @property
     def iteration(self) -> int:

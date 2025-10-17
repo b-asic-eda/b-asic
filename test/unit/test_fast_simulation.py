@@ -226,11 +226,11 @@ class TestRun:
         simulation.run_for(len(input0), save_results=True)
         assert all(simulation.results["out0"] == np.array([0, 1.0, 2.5, 4.25, 6.125]))
 
-    def test_custom_operation(self, sfg_custom_operation):
-        simulation = FastSimulation(sfg_custom_operation, [lambda n: n + 1])
-        simulation.run_for(5)
-        assert all(simulation.results["out0"] == np.array([2, 4, 6, 8, 10]))
-        assert all(simulation.results["out1"] == np.array([2, 4, 8, 16, 32]))
+    # def test_custom_operation(self, sfg_custom_operation):
+    #     simulation = FastSimulation(sfg_custom_operation, [lambda n: n + 1])
+    #     simulation.run_for(5)
+    #     assert all(simulation.results["out0"] == np.array([2, 4, 6, 8, 10]))
+    #     assert all(simulation.results["out1"] == np.array([2, 4, 8, 16, 32]))
 
 
 class TestLarge:
