@@ -1,19 +1,76 @@
 """Module for generating cocotb test benches."""
 
-import pprint
+from collections import defaultdict
 from pathlib import Path
+
+from apytypes import APyCFixed, APyCFloat
+
+from b_asic.special_operations import Input, Output
 
 
 class CocotbPrinter:
-    def __init__(self, sequence_map):
+    def __init__(self, sim_results=None, sequence_map=None):
+        if isinstance(
+            next(iter(sim_results.values())), (complex, APyCFixed, APyCFloat)
+        ):
+            raise NotImplementedError(
+                "CocotbPrinter does not support complex values yet."
+            )
+        self.sim_results = sim_results
         self.sequence_map = sequence_map
 
-    def print(self, arch, path, gui: bool = False):
+    def print(self, arch, path, waves: bool = False, gui: bool = False):
         path = Path(path)
 
         template_path = Path(__file__).parent / "template.py"
         with Path.open(template_path) as template_file:
             template = template_file.read()
+
+        # Fill the sequence map from simulation results if not provided
+        if self.sequence_map is None and self.sim_results is not None:
+            seq_map = defaultdict(dict)
+
+            sample_count = len(next(iter(self.sim_results.values()), []))
+
+            # Map graph_id -> labeled name ("..._in" or "..._out")
+            id_to_label = defaultdict(dict)
+            for sample_idx in range(sample_count):
+                for cycle in range(arch.schedule_time):
+                    time = sample_idx * arch.schedule_time + cycle
+                    for pe in arch.processing_elements:
+                        if pe.operation_type not in (Input, Output):
+                            continue
+                        suffix = "_0_in" if pe.operation_type is Input else "_0_out"
+                        for pe_process in pe.collection:
+                            start_time = pe_process.start_time
+                            schedule_time = arch.schedule_time
+
+                            if start_time == 0:
+                                should_fire = (
+                                    schedule_time != 0 and time % schedule_time == 0
+                                )
+                            elif schedule_time == 0:
+                                should_fire = time == start_time
+                            else:
+                                should_fire = (
+                                    time >= start_time
+                                    and (time - start_time) % schedule_time == 0
+                                )
+                            if not should_fire:
+                                continue
+                            id_to_label[time][pe.entity_name] = (
+                                f"{pe.entity_name}{suffix}"
+                            )
+                            gid = pe_process.operation.graph_id
+                            idx = sample_idx
+                            if cycle == 0 and time != 0 and pe.operation_type == Output:
+                                idx -= 1
+                            seq_map[time][f"{pe.entity_name}{suffix}"] = (
+                                self.sim_results[gid][idx].to_bits()
+                            )
+            id_to_label = dict(id_to_label)
+
+            self.sequence_map = dict(seq_map)
 
         # Replace the file docstring
         tb_content = template.replace(
@@ -24,11 +81,12 @@ class CocotbPrinter:
         # Replace placeholders in the template with actual values
         tb_content = tb_content.replace(
             "SEQUENCE = {}",
-            f"SEQUENCE = {pprint.pformat(self.sequence_map, width=120)}",
+            f"SEQUENCE = {self.sequence_map}",
         )
         tb_content = tb_content.replace(
             'ENTITY_NAME = ""', f'ENTITY_NAME = "{arch.entity_name}"'
         )
+        tb_content = tb_content.replace("WAVES = False", f"WAVES = {waves!s}")
         tb_content = tb_content.replace("GUI = False", f"GUI = {gui!s}")
 
         with Path.open(path / "tb.py", "w") as output_file:

@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import cocotb
@@ -28,9 +29,10 @@ def test_start():
         hdl_toplevel=ENTITY_NAME,
     )
 
-    runner.test(hdl_toplevel=ENTITY_NAME, test_module="tb", gui=GUI)
+    runner.test(hdl_toplevel=ENTITY_NAME, test_module="tb", waves=WAVES, gui=GUI)
 
 
+WAVES = False
 GUI = False
 ENTITY_NAME = ""
 SEQUENCE = {}
@@ -38,7 +40,7 @@ SEQUENCE = {}
 
 @cocotb.test()
 async def test_one(dut):
-    clk = Clock(dut.clk, 2, units="ns")
+    clk = Clock(dut.clk, 2, unit="ns")
     cocotb.start_soon(clk.start())
 
     max_cycle = max(SEQUENCE.keys())
@@ -48,11 +50,19 @@ async def test_one(dut):
     for cycle in range(max_cycle + 1):
         if cycle in SEQUENCE:
             step = SEQUENCE[cycle]
-            # Drive inputs based on the sequence map
+            # Drive inputs and chedk outputs based on the sequence map
             for signal_name, value in step.items():
-                getattr(dut, signal_name).value = value
+                if signal_name.startswith("in"):
+                    getattr(dut, signal_name).value = value
+                else:
+                    assert getattr(dut, signal_name).value == value, (
+                        f"Cycle {cycle}: Expected {signal_name} to be {value}, "
+                        f"but got {getattr(dut, signal_name).value}"
+                    )
 
         await FallingEdge(dut.clk)
 
-    for _ in range(20):
-        await FallingEdge(dut.clk)
+
+if __name__ == "__main__":
+    # forward command-line pytest options (e.g. -k, -q, -s) to allow running this file directly
+    sys.exit(pytest.main([__file__, *sys.argv[1:]]))

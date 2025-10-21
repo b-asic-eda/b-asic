@@ -112,6 +112,7 @@ def architecture(
             f,
             name="memory",
             signal_type="mem_type",
+            default_value=f"(others => {dt.init_val})",
             vivado_ram_style=vivado_ram_style,
         )
     elif quartus_ram_style is not None:
@@ -119,10 +120,16 @@ def architecture(
             f,
             name="memory",
             signal_type="mem_type",
+            default_value=f"(others => {dt.init_val})",
             quartus_ram_style=quartus_ram_style,
         )
     else:
-        common.signal_declaration(f, name="memory", signal_type="mem_type")
+        common.signal_declaration(
+            f,
+            name="memory",
+            signal_type="mem_type",
+            default_value=f"(others => {dt.init_val})",
+        )
 
     # Schedule time counter pipelined signals
     for i in range(adr_pipe_depth):
@@ -130,6 +137,7 @@ def architecture(
             f,
             name=f"schedule_cnt{i + 1}",
             signal_type=schedule_time_type(memory.schedule_time),
+            default_value=f"(others => {dt.init_val})",
         )
     ADR_LEN = (
         memory.schedule_time.bit_length()

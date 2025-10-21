@@ -492,13 +492,16 @@ def _ilp_coloring_min_mux(
                                         )
 
     # speed
-    max_clique = next(nx.find_cliques(mem_exclusion_graph))
-    for color, node in enumerate(max_clique):
-        problem += mem_x[node][color] == mem_c[color] == 1
-    for color in mem_colors:
-        problem += mem_c[color] <= lpSum(mem_x[node][color] for node in mem_graph_nodes)
-    for color in mem_colors[:-1]:
-        problem += mem_c[color + 1] <= mem_c[color]
+    if mem_exclusion_graph.number_of_nodes() > 0:
+        max_clique = next(nx.find_cliques(mem_exclusion_graph))
+        for color, node in enumerate(max_clique):
+            problem += mem_x[node][color] == mem_c[color] == 1
+        for color in mem_colors:
+            problem += mem_c[color] <= lpSum(
+                mem_x[node][color] for node in mem_graph_nodes
+            )
+        for color in mem_colors[:-1]:
+            problem += mem_c[color + 1] <= mem_c[color]
 
     for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
         # coloring constraints for PE exclusion graphs

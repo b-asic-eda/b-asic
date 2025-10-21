@@ -54,10 +54,8 @@ async def first_order_iir_test(dut):
 
     await Timer(2 * 2, "ns")
     dut.input_0_in.value = 0
-    assert all(bit == "X" for bit in dut.output_0_out.value)
 
     await Timer(2 * 3, "ns")
-    assert all(bit == "X" for bit in dut.output_0_out.value)
 
     await Timer(2 * 3, "ns")
     assert dut.output_0_out.value == 13572

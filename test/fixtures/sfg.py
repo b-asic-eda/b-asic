@@ -128,7 +128,7 @@ def sfg_two_inputs_two_outputs_independent_with_cmul_scaled():
     """
     in1 = Input("IN1")
     in2 = Input("IN2")
-    c1 = Constant(3, "C1")
+    c1 = Constant(0.75, "C1")
     add1 = Addition(in2, c1, "ADD1", 7, execution_time=2)
     cmul3 = ConstantMultiplication(1 / 2, add1, "CMUL3", 3, execution_time=1)
     cmul1 = ConstantMultiplication(1 / 4, in1, "CMUL1", 5, execution_time=3)
@@ -378,3 +378,12 @@ def sfg_empty():
     in0 = Input()
     out0 = Output(in0)
     return SFG(inputs=[in0], outputs=[out0])
+
+
+@pytest.fixture
+def sfg_simple_loop():
+    in0 = Input()
+    d = Delay()
+    d <<= (in0 + d) * 0.5
+    out0 = Output(d)
+    return SFG([in0], [out0])

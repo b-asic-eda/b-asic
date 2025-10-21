@@ -5,6 +5,7 @@ import pytest
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import Addition, AddSub, ConstantMultiplication, Subtraction
 from b_asic.list_schedulers import HybridScheduler
+from b_asic.resource_assigner import assign_processing_elements_and_memories
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
 from b_asic.sfg_generators import direct_form_2_iir, ldlt_matrix_inverse
@@ -421,5 +422,71 @@ def arch_mat_inv():
         {mads, rec, dc, input_pe, output_pe},
         memories,
         entity_name="mat_inv",
+        direct_interconnects=direct,
+    )
+
+
+@pytest.fixture
+def arch_simple_loop(sfg_simple_loop):
+    sfg_simple_loop.set_execution_time_of_type_name("add", 1)
+    sfg_simple_loop.set_latency_of_type_name("add", 1)
+    sfg_simple_loop.set_execution_time_of_type_name("cmul", 1)
+    sfg_simple_loop.set_latency_of_type_name("cmul", 1)
+
+    sched = Schedule(sfg_simple_loop)
+    sched.set_schedule_time(2)
+    sched.move_operation("out0", 1)
+
+    pes, mems, direct = assign_processing_elements_and_memories(
+        sched.get_operations(),
+        sched.get_memory_variables(),
+        strategy="ilp_min_total_mux",
+        memory_read_ports=1,
+        memory_write_ports=1,
+        memory_total_ports=2,
+    )
+
+    return Architecture(pes, mems, "simple_loop", direct)
+
+
+@pytest.fixture
+def arch_two_inputs_two_outputs_independent_with_cmul_scaled(
+    sfg_two_inputs_two_outputs_independent_with_cmul_scaled,
+):
+    sfg = sfg_two_inputs_two_outputs_independent_with_cmul_scaled
+
+    sfg.set_latency_of_type_name("add", 7)
+    sfg.set_latency_of_type_name("cmul", 3)
+
+    schedule = Schedule(sfg)
+
+    operations = schedule.get_operations()
+    adds = operations.get_by_type_name("add")
+    cmuls = operations.get_by_type_name("cmul")
+    const = operations.get_by_type_name("c")
+    ins = operations.get_by_type_name("in")
+    ins = ins.split_on_execution_time()
+    outs = operations.get_by_type_name("out")
+
+    add = ProcessingElement(adds, entity_name="add")
+    cmul = ProcessingElement(cmuls, entity_name="cmul")
+    const = ProcessingElement(const, entity_name="const")
+    input_pe_0 = ProcessingElement(ins[0], entity_name="in0")
+    input_pe_1 = ProcessingElement(ins[1], entity_name="in1")
+    output_pe = ProcessingElement(outs, entity_name="output")
+
+    mem_vars = schedule.get_memory_variables()
+    direct, mem_vars = mem_vars.split_on_length()
+
+    memories = []
+    for i, mem in enumerate(mem_vars):
+        memory = Memory(mem, memory_type="RAM", entity_name=f"mem{i}")
+        memories.append(memory)
+        memory.assign("greedy_graph_color")
+
+    return Architecture(
+        {add, cmul, const, input_pe_0, input_pe_1, output_pe},
+        memories,
+        entity_name="two_inputs_two_outputs_independent_with_cmul_scaled",
         direct_interconnects=direct,
     )

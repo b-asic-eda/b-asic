@@ -60,7 +60,10 @@ def _declarative_region_common(
         if stage == 0:
             for output_port in range(pe.output_count):
                 common.signal_declaration(
-                    f, f"res_{output_port}_reg_{stage}", dt.type_str
+                    f,
+                    f"res_{output_port}_reg_{stage}",
+                    dt.type_str,
+                    dt.init_val,
                 )
         else:
             for input_port in range(pe.input_count):

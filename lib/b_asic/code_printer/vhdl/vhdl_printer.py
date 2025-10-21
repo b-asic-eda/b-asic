@@ -365,8 +365,14 @@ class VhdlPrinter(Printer):
             for p in pe.collection
         )
 
-        real_entry = pe.control_table["value_real"]
-        imag_entry = pe.control_table["value_imag"]
+        control_table = pe.control_table
+        if "value" in control_table:
+            real_entry = control_table["value"]
+            imag_entry = 0
+        else:
+            real_entry = pe.control_table["value_real"]
+            imag_entry = pe.control_table["value_imag"]
+
         bits = real_entry.bits + (
             1 if self._dt.is_signed and not real_entry.is_signed else 0
         )
@@ -438,14 +444,14 @@ class VhdlPrinter(Printer):
                 mul_statement(
                     "res_re",
                     "a",
-                    "value_real",
+                    "value",
                     self._dt.is_signed,
                     real_entry.is_signed,
                 )
                 mul_statement(
                     "res_im",
                     "b",
-                    "value_real",
+                    "value",
                     self._dt.is_signed,
                     real_entry.is_signed,
                 )

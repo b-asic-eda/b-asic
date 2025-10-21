@@ -108,6 +108,29 @@ class DataType(ABC):
 
     @property
     @abstractmethod
+    def init_val(self) -> str:
+        """
+        Initial value for signals of this data type.
+
+        Returns
+        -------
+        str
+        """
+        raise NotImplementedError
+
+    @property
+    def dontcare_str(self) -> str:
+        """
+        Don't care value for signals of this data type.
+
+        Returns
+        -------
+        str
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
     def scalar_type_str(self) -> str:
         """
         Scalar type used for computations.
@@ -304,6 +327,20 @@ class VhdlDataType(DataType):
         return _TYPE_LUT[(self.vhdl_2008, self.is_signed, self.is_complex)]()
 
     @property
+    def init_val(self) -> str:
+        if self.is_complex:
+            return "(re => (others => '0'), im => (others => '0'))"
+        else:
+            return "(others => '0')"
+
+    @property
+    def dontcare_str(self) -> str:
+        if self.is_complex:
+            return "(re => (others => '-'), im => (others => '-'))"
+        else:
+            return "(others => '-')"
+
+    @property
     def scalar_type_str(self) -> str:
         if self.is_complex:
             if self.vhdl_2008:
@@ -321,20 +358,6 @@ class VhdlDataType(DataType):
     @property
     def output_type_str(self) -> str:
         return f"std_logic_vector({self.output_bits - 1} downto 0)"
-
-    @property
-    def init_val(self) -> str:
-        if self.is_complex:
-            return "(re => (others => '0'), im => (others => '0'))"
-        else:
-            return "(others => '0')"
-
-    @property
-    def dontcare_str(self) -> str:
-        if self.is_complex:
-            return "(re => (others => '-'), im => (others => '-'))"
-        else:
-            return "(others => '-')"
 
     def get_input_port_declaration(self, entity_name: str) -> list[str]:
         if self.is_complex:
