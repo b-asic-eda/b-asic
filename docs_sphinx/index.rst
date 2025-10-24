@@ -3,30 +3,15 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-B-ASIC's documentation
-======================
+Welcome to the documentation of B-ASIC!
+=======================================
 
-B-ASIC is a toolbox for Python 3 that simplifies implementing application-specific
-circuits, primarily aimed at signal processing algorithms for both standard-cell and
-FPGA technology.
+B-ASIC is a Python library for the design and implementation of static algorithms that simplifies
+the writing of efficient RTL code targeting both standard-cell and FPGA technologies.
 
-It was initially developed by a group of students to replace an existing Matlab
-toolbox in a course commonly referred to as "the ASIC course" at
-`Division of Computer Engineering <https://liu.se/en/organisation/liu/isy/da>`_,
-`Linköping University <https://liu.se/>`_, Sweden.
-Hence, the name "Better ASIC toolbox" = B-ASIC.
-
-It was initiated and is currently maintained by
-`Oscar Gustafsson <https://liu.se/en/employee/oscgu95>`_.
-
-The development of B-ASIC happens at
-`https://gitlab.liu.se/da/B-ASIC <https://gitlab.liu.se/da/B-ASIC>`_.
-
-It is not yet fully functional, but several parts of the design flow works,
-while others are missing/buggy. The goal is to have a working design path from
-algorithm down to a HDL-description of a custom architecture. Once it becomes a
-bit more mature, we expect to make it available on pypi and conda-forge so
-that it will becomes easier to access.
+The goal is to have a working design path from algorithm down to an HDL-description of a custom architecture.
+Once it becomes a bit more mature, we expect to make it available on PyPI and conda-forge
+such that it will become easier to access.
 
 To install B-ASIC, the currently preferred way is::
 
@@ -64,7 +49,6 @@ Table of Contents
 .. toctree::
    :maxdepth: 1
 
-   self
    api/index
    sfg_gui
    scheduler_gui
@@ -72,3 +56,12 @@ Table of Contents
    codegen/index
    examples/index
    research
+
+Development
+===========
+
+B-ASIC is developed at the `Division of Electronics and Computer Engineering <https://liu.se/en/organisation/liu/isy/elda>`_,
+`Linköping University <https://liu.se/>`_, Sweden, where it was initiated by `Oscar Gustafsson <https://liu.se/en/employee/oscgu95>`_.
+
+The development of B-ASIC happens at
+`https://gitlab.liu.se/da/B-ASIC <https://gitlab.liu.se/da/B-ASIC>`_.
