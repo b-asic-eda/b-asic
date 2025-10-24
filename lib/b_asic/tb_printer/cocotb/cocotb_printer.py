@@ -19,7 +19,9 @@ class CocotbPrinter:
         self.sim_results = sim_results
         self.sequence_map = sequence_map
 
-    def print(self, arch, path, waves: bool = False, gui: bool = False):
+    def print(
+        self, arch, path, waves: bool = False, gui: bool = False, csv: bool = False
+    ) -> None:
         path = Path(path)
 
         template_path = Path(__file__).parent / "template.py"
@@ -88,6 +90,7 @@ class CocotbPrinter:
         )
         tb_content = tb_content.replace("WAVES = False", f"WAVES = {waves!s}")
         tb_content = tb_content.replace("GUI = False", f"GUI = {gui!s}")
+        tb_content = tb_content.replace("CSV = False", f"CSV = {csv!s}")
 
         with Path.open(path / "tb.py", "w") as output_file:
             output_file.write(tb_content)

@@ -1,8 +1,10 @@
 """Template for cocotb testbench."""
 
+import csv
 import os
 import shutil
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
 import cocotb
@@ -34,6 +36,7 @@ def test_start():
 
 WAVES = False
 GUI = False
+CSV = False
 ENTITY_NAME = ""
 SEQUENCE = {}
 
@@ -47,20 +50,30 @@ async def test_one(dut):
 
     await FallingEdge(dut.clk)
 
-    for cycle in range(max_cycle + 1):
-        if cycle in SEQUENCE:
-            step = SEQUENCE[cycle]
-            # Drive inputs and chedk outputs based on the sequence map
-            for signal_name, value in step.items():
-                if signal_name.startswith("in"):
-                    getattr(dut, signal_name).value = value
-                else:
-                    assert getattr(dut, signal_name).value == value, (
-                        f"Cycle {cycle}: Expected {signal_name} to be {value}, "
-                        f"but got {getattr(dut, signal_name).value}"
-                    )
+    # Context manager that does nothing if CSV is False
+    csv_context = Path("waveform.csv").open("w", newline="") if CSV else nullcontext()  # noqa: SIM115
 
-        await FallingEdge(dut.clk)
+    with csv_context as f:
+        writer = csv.writer(f) if CSV else None
+        if CSV:
+            writer.writerow(["port_name", "cycle", "value"])
+
+        for cycle in range(max_cycle + 1):
+            if cycle in SEQUENCE:
+                step = SEQUENCE[cycle]
+                # Drive inputs and check outputs based on the sequence map
+                for signal_name, value in step.items():
+                    if CSV:
+                        writer.writerow([signal_name, cycle, value])
+                    if signal_name.startswith("in"):
+                        getattr(dut, signal_name).value = value
+                    else:
+                        assert getattr(dut, signal_name).value == value, (
+                            f"Cycle {cycle}: Expected {signal_name} to be {value}, "
+                            f"but got {getattr(dut, signal_name).value}"
+                        )
+
+            await FallingEdge(dut.clk)
 
 
 if __name__ == "__main__":
