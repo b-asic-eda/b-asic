@@ -739,7 +739,13 @@ class ShiftAddSub(AbstractOperation):
     def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
             b *= 1j
-        b /= 2**self.shift
+        if isinstance(b, (apy.APyFixed, apy.APyCFixed)):
+            if data_type is not None:
+                b = self._cast_to_data_type(b >> self.shift, data_type)
+            else:
+                b = b >> self.shift
+        else:
+            b /= 2**self.shift
         res = a + b if self.is_add else a - b
         return self._cast_to_data_type(res, data_type)
 

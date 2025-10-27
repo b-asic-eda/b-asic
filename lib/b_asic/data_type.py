@@ -294,6 +294,10 @@ class VhdlDataType(DataType):
         If number representation is complex-valued.
     vhdl_2008 : bool, default: False
         If True, use ``fixed_pkg`` for fixed-point values and ``float_pkg`` for floating-point values.
+    quantization_mode : :class:`QuantizationMode`, default: :attr:`QuantizationMode.TRUNCATION`
+        Type of quantization to use.
+    overflow_mode : :class:`OverflowMode`, default: :attr:`OverflowMode.WRAPPING`
+        Type of overflow to use.
     """
 
     vhdl_2008: bool = False
