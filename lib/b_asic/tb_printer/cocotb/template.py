@@ -64,13 +64,16 @@ async def test_one(dut):
                 # Drive inputs and check outputs based on the sequence map
                 for signal_name, value in step.items():
                     if CSV:
-                        writer.writerow([signal_name, cycle, value])
+                        hw_val = getattr(dut, signal_name).value
                     if signal_name.startswith("in"):
+                        writer.writerow([signal_name, cycle, value]) if CSV else None
                         getattr(dut, signal_name).value = value
                     else:
+                        if CSV and hw_val.is_resolvable:
+                            writer.writerow([signal_name, cycle, int(hw_val)])
                         assert getattr(dut, signal_name).value == value, (
                             f"Cycle {cycle}: Expected {signal_name} to be {value}, "
-                            f"but got {getattr(dut, signal_name).value}"
+                            f"but got {int(getattr(dut, signal_name).value)}"
                         )
 
             await FallingEdge(dut.clk)

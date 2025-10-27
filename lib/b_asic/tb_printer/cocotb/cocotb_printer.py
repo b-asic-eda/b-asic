@@ -10,7 +10,7 @@ from b_asic.special_operations import Input, Output
 
 class CocotbPrinter:
     def __init__(self, sim_results=None, sequence_map=None):
-        if isinstance(
+        if sim_results is not None and isinstance(
             next(iter(sim_results.values())), (complex, APyCFixed, APyCFloat)
         ):
             raise NotImplementedError(
@@ -32,45 +32,57 @@ class CocotbPrinter:
         if self.sequence_map is None and self.sim_results is not None:
             seq_map = defaultdict(dict)
 
-            sample_count = len(next(iter(self.sim_results.values()), []))
+            is_complex = any(
+                isinstance(v[0], (complex, APyCFixed, APyCFloat))
+                for v in self.sim_results.values()
+            )
 
-            # Map graph_id -> labeled name ("..._in" or "..._out")
-            id_to_label = defaultdict(dict)
-            for sample_idx in range(sample_count):
-                for cycle in range(arch.schedule_time):
-                    time = sample_idx * arch.schedule_time + cycle
-                    for pe in arch.processing_elements:
-                        if pe.operation_type not in (Input, Output):
-                            continue
-                        suffix = "_0_in" if pe.operation_type is Input else "_0_out"
-                        for pe_process in pe.collection:
-                            start_time = pe_process.start_time
-                            schedule_time = arch.schedule_time
+            # Track which graph_ids have been marked as input/output and their schedule
+            io_marked = {}  # {gid: {'is_input': bool, 'pe_name': str, 'start_time': int}}
 
-                            if start_time == 0:
-                                should_fire = (
-                                    schedule_time != 0 and time % schedule_time == 0
-                                )
-                            elif schedule_time == 0:
-                                should_fire = time == start_time
-                            else:
-                                should_fire = (
-                                    time >= start_time
-                                    and (time - start_time) % schedule_time == 0
-                                )
-                            if not should_fire:
-                                continue
-                            id_to_label[time][pe.entity_name] = (
-                                f"{pe.entity_name}{suffix}"
-                            )
-                            gid = pe_process.operation.graph_id
-                            idx = sample_idx
-                            if cycle == 0 and time != 0 and pe.operation_type == Output:
-                                idx -= 1
-                            seq_map[time][f"{pe.entity_name}{suffix}"] = (
-                                self.sim_results[gid][idx].to_bits()
-                            )
-            id_to_label = dict(id_to_label)
+            # First, scan architecture to mark which gids are inputs vs outputs
+            for pe in arch.processing_elements:
+                if pe.operation_type not in (Input, Output):
+                    continue
+                for pe_process in pe.collection:
+                    gid = pe_process.operation.graph_id
+                    io_marked[gid] = {
+                        "is_input": pe.operation_type is Input,
+                        "pe_name": pe.entity_name,
+                        "start_time": pe_process.start_time,
+                    }
+
+            # Track which (gid, sample_idx) pairs have been processed
+            processed = set()
+
+            # Now populate sequence map
+            for gid in io_marked:
+                values = self.sim_results[gid]
+
+                for sample_idx in range(len(values)):
+                    value = values[sample_idx]
+                    pe_name = io_marked[gid]["pe_name"]
+                    is_input = io_marked[gid]["is_input"]
+                    start_time = io_marked[gid]["start_time"]
+                    schedule_time = arch.schedule_time
+
+                    # Calculate actual hardware cycle time
+                    time = start_time + sample_idx * schedule_time
+
+                    if is_complex:
+                        if is_input:
+                            seq_map[time][f"{pe_name}_0_in_re"] = value.to_bits()[0]
+                            seq_map[time][f"{pe_name}_0_in_im"] = value.to_bits()[1]
+                        else:
+                            seq_map[time][f"{pe_name}_0_out_re"] = value.to_bits()[0]
+                            seq_map[time][f"{pe_name}_0_out_im"] = value.to_bits()[1]
+                    else:
+                        if is_input:
+                            seq_map[time][f"{pe_name}_in"] = value.to_bits()[0]
+                        else:
+                            seq_map[time][f"{pe_name}_out"] = value.to_bits()[0]
+
+                    processed.add((gid, sample_idx))
 
             self.sequence_map = dict(seq_map)
 
