@@ -2,7 +2,7 @@
 
 # B-ASIC - Better ASIC Toolbox
 
-B-ASIC is an ASIC toolbox for Python 3 that simplifies circuit design and optimization.
+B-ASIC is a Python library for the design and implementation of static algorithms that simplifies the writing of efficient RTL code targeting both standard-cell and FPGA technologies.
 
 The latest documentation can be viewed at: https://da.gitlab-pages.liu.se/B-ASIC/index.html
 
@@ -17,15 +17,16 @@ The following packages are required in order to build the library:
 - [Python](https://python.org/) 3.10+
 - Python dependencies (install with `pip install .` or they will be installed as part of the
   installation process):
+  - [APyTypes](https://github.com/apytypes/apytypes)
   - [Graphviz](https://graphviz.org/)
   - [Matplotlib](https://matplotlib.org/)
+  - [natsort](https://github.com/SethMMorton/natsort)
+  - [NetworkX](https://networkx.org/)
   - [NumPy](https://numpy.org/)
+  - [PuLP](https://github.com/coin-or/pulp)
+  - [QtAwesome](https://github.com/spyder-ide/qtawesome/)
   - [QtPy](https://github.com/spyder-ide/qtpy)
   - [setuptools_scm](https://github.com/pypa/setuptools_scm/)
-  - [NetworkX](https://networkx.org/)
-  - [QtAwesome](https://github.com/spyder-ide/qtawesome/)
-  - [PuLP](https://github.com/coin-or/pulp)
-  - [natsort](https://github.com/SethMMorton/natsort)
 - Qt 6, with Python bindings, one of: (install with `pip install ."[$BINDING_NAME]"`)
   - pyqt6
   - pyside6
