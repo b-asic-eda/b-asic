@@ -1451,7 +1451,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 label = (
                     "Processing element"
                     if len(self._processing_elements) <= 1
-                    else "Processing elements"
+                    else "Processing Elements"
                 )
                 c.attr(label=label, bgcolor=pe_cluster_color, fontname=fontname)
             if io_cluster:
@@ -1465,7 +1465,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                                 fillcolor=io_color,
                                 fontname=fontname,
                             )
-                    c.attr(label="IO", bgcolor=io_cluster_color, fontname=fontname)
+                    c.attr(label="I/O", bgcolor=io_cluster_color, fontname=fontname)
             else:
                 for pe in self._processing_elements:
                     if pe._type_name in ("in", "out"):
