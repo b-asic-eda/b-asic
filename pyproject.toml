@@ -72,8 +72,10 @@ doc = [
 ]
 
 [project.urls]
-homepage = "https://gitlab.liu.se/da/B-ASIC"
-documentation = "https://da.gitlab-pages.liu.se/B-ASIC/"
+homepage = "https://github.com/b-asic-eda/b-asic"
+documentation = "https://b-asic-eda.github.io/b-asic/"
+repository = "https://github.com/b-asic-eda/b-asic"
+bugtracker = "https://github.com/b-asic-eda/b-asic/issues"
 
 [tool.setuptools]
 zip-safe = false

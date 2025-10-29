@@ -21,7 +21,7 @@ To install B-ASIC, the currently preferred way is::
 
 In addition to the dependencies that are automatically installed, you will also
 need a Qt-binding, but you are free to choose between PyQt6 and PySide6.
-See `https://gitlab.liu.se/da/B-ASIC <https://gitlab.liu.se/da/B-ASIC>`_ for more info.
+See `https://github.com/b-asic-eda/b-asic <https://github.com/b-asic-eda/b-asic>`_ for more info.
 
 If you use B-ASIC in a publication, please acknowledge it. Later on there will be a
 citation provided, but right now, please refer to this documentation or the repository.
