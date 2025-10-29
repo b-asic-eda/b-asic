@@ -1,0 +1,97 @@
+# This workflow will run the B-ASIC test suite including the cocotb, VHDL generation, and VUnit tests.
+#
+# For more information see:
+# https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+#
+
+name: VHDL tests
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number }}-${{ github.event.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  nvc:
+    strategy:
+      fail-fast: false
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      # - uses: nickg/setup-nvc@40dcbd31cf07b60479a31f94a5df70c0bfbb9ce5  # v1v1
+      - uses: nickg/setup-nvc@master # v1v1
+        with:
+          version: latest
+      - name: Check simulator installation
+        run: |
+          nvc --version # Make sure nvc was installed successfully
+      - name: Set up Python 3.11
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest numpy meson-python setuptools_scm cocotb pytest-cov ninja matplotlib networkx scipy pulp qtawesome natsort qtpy apytypes graphviz
+      - name: Install B-ASIC
+        run: |
+          git fetch --tags
+          python -m pip install --no-deps --no-build-isolation -v --editable .
+      - name: Test with pytest
+        run: |
+          SIM=nvc pytest --color=yes --cov=lib --log-level=DEBUG test
+      - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled()}}
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  ghdl:
+    strategy:
+      fail-fast: false
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Run VHDL Simulation
+        uses: ghdl/setup-ghdl@v1
+        with:
+          version: nightly
+          backend: mcode
+          investigate: true
+      - name: Set up Python 3.11
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest numpy meson-python setuptools_scm cocotb pytest-cov ninja matplotlib networkx scipy pulp qtawesome natsort qtpy apytypes graphviz
+      - name: Install B-ASIC
+        run: |
+          git fetch --tags
+          python -m pip install --no-deps --no-build-isolation -v --editable .
+      - name: Test with pytest
+        run: |
+          SIM=ghdl pytest --color=yes --cov=lib --log-level=DEBUG test
+      - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled()}}
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
