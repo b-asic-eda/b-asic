@@ -253,7 +253,7 @@ class DataType(ABC):
 
         Parameters
         ----------
-        other : DataType
+        other : :class:`DataType`
             The DataType to base new object on.
         """
         return cls(**other.__dict__)

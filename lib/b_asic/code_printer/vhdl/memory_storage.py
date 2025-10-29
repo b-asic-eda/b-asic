@@ -61,9 +61,9 @@ def architecture(
     ----------
     f : TextIO
         File object (or other TextIO object) to write the architecture onto.
-    memory : Memory
+    memory : :class:`Memory`
         Memory object to generate code for.
-    dt : DataType
+    dt : :class:`DataType`
         Meta information of data signals.
     input_sync : bool, default: True
         Add registers to the input signals (enable signal and data input signals).

@@ -76,7 +76,7 @@ class Schedule:
     ----------
     sfg : :class:`~b_asic.sfg.SFG`
         The signal flow graph to schedule.
-    scheduler : Scheduler, default: None
+    scheduler : :class:`Scheduler`, optional
         The automatic scheduler to be used.
     schedule_time : int, optional
         The schedule time. If not provided, it will be determined by the scheduling
