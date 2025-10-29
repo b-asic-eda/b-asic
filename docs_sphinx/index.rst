@@ -15,13 +15,9 @@ such that it will become easier to access.
 
 To install B-ASIC, the currently preferred way is::
 
-    git clone https://gitlab.liu.se/da/B-ASIC.git
+    git clone https://github.com/b-asic-eda/b-asic.git
     cd B-ASIC
-    python -m pip install -e .
-
-This will install in editable mode, which is beneficial since you then easily
-can pull new changes without having to reinstall it. It also makes it easy to contribute
-any improvements.
+    python -m pip install .
 
 In addition to the dependencies that are automatically installed, you will also
 need a Qt-binding, but you are free to choose between PyQt6 and PySide6.
@@ -60,8 +56,8 @@ Table of Contents
 Development
 ===========
 
-B-ASIC is developed at the `Division of Electronics and Computer Engineering <https://liu.se/en/organisation/liu/isy/elda>`_,
-`Linköping University <https://liu.se/>`_, Sweden, where it was initiated by `Oscar Gustafsson <https://liu.se/en/employee/oscgu95>`_.
+B-ASIC is developed at the `Division of Electronics and Computer Engineering <https://liu.se/en/organisation/liu/isy/elda>`__,
+`Linköping University <https://liu.se/>`__, Sweden, where it was initiated by `Oscar Gustafsson <https://liu.se/en/employee/oscgu95>`__.
 
 The development of B-ASIC happens at
-`https://gitlab.liu.se/da/B-ASIC <https://gitlab.liu.se/da/B-ASIC>`_.
+`https://github.com/b-asic-eda/b-asic <https://github.com/b-asic-eda/b-asic>`__.

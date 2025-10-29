@@ -4,7 +4,7 @@
 
 B-ASIC is a Python library for the design and implementation of static algorithms that simplifies the writing of efficient RTL code targeting both standard-cell and FPGA technologies.
 
-The latest documentation can be viewed at: https://da.gitlab-pages.liu.se/B-ASIC/index.html
+The latest documentation can be viewed at: https://b-asic-eda.github.io/b-asic/
 
 ## Development
 
@@ -15,7 +15,7 @@ How to build and debug the library during development.
 The following packages are required in order to build the library:
 
 - [Python](https://python.org/) 3.10+
-- Python dependencies (install with `pip install .` or they will be installed as part of the
+- Python dependencies (will be installed as part of the
   installation process):
   - [APyTypes](https://github.com/apytypes/apytypes)
   - [Graphviz](https://graphviz.org/)
@@ -40,7 +40,7 @@ To build a binary distribution, the following additional packages are required:
 
 To run the test suite, the following additional packages are required:
 
-- Python (install with `pip install ."[test]"`):
+- Python (installed with `pip install ."[test]"`):
   - [pytest](https://pytest.org/)
   - [pytest-qt](https://pytest-qt.readthedocs.io/)
   - [pytest-mpl](https://github.com/matplotlib/pytest-mpl/)
@@ -51,7 +51,7 @@ To run the test suite, the following additional packages are required:
 
 To generate the documentation, the following additional packages are required:
 
-- Python (install with `pip install ."[doc]"`):
+- Python (installed with `pip install ."[doc]"`):
   - [Sphinx](https://www.sphinx-doc.org/)
   - [Furo](https://pradyunsg.me/furo/)
   - [numpydoc](https://numpydoc.readthedocs.io/)
@@ -134,8 +134,8 @@ pip install ."[pyside6]"
 
 ```bash
 python3
->>> import b_asic as asic
->>> help(asic)
+>>> import b_asic
+>>> help(b_asic)
 ```
 
 ## License
