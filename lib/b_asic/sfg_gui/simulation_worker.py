@@ -16,7 +16,7 @@ class SimulationWorker(QObject):
 
     Parameters
     ----------
-    sfg : SFG
+    sfg : :class:`SFG`
         The signal flow graph to simulate.
     properties : dict
         Dictionary containing information about the simulation.

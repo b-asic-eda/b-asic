@@ -37,7 +37,7 @@ class Simulation:
         Input values, one list item per input. Each list item can be an array of values,
         a callable taking a time index and returning the value, or a
         number (constant input). If a value is not provided for an input, it will be 0.
-    data_type : DataType, optional
+    data_type : :class:`DataType`, optional
         If provided, this finite arithmetic data type will be used for all operations.
     """
 

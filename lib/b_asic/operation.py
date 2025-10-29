@@ -173,7 +173,7 @@ class Operation(GraphComponent, SignalSourceProvider):
             that are encountered, and be updated with their new values.
         prefix : str, optional
             Used as a prefix for the key string when storing results/delays.
-        data_type : DataType, optional
+        data_type : :class:`DataType`, optional
             Data type to use for quantization during evaluation.
 
         See Also
@@ -532,7 +532,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         ----------
         *inputs
             List of input values.
-        data_type : DataType, optional
+        data_type : :class:`DataType`, optional
             Data type to use for quantization during evaluation.
         """
         raise NotImplementedError
