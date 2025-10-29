@@ -1,3 +1,5 @@
+![tests](https://github.com/b-asic-eda/b-asic/actions/workflows/tests.yml/badge.svg) [![codecov](https://codecov.io/gh/b-asic-eda/b-asic/graph/badge.svg?token=4OETEUSUCM)](https://codecov.io/gh/b-asic-eda/b-asic) ![GitHub License](https://img.shields.io/github/license/b-asic-eda/b-asic) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/b-asic-eda/b-asic/documentation.yml?label=documentation)](https://b-asic-eda.github.io/b-asic)
+
 <img src="logos/logo.png" width="278" height="100">
 
 # B-ASIC - Better ASIC Toolbox
