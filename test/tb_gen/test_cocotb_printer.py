@@ -18,7 +18,7 @@ def test_simple_loop(tmp_path, arch_simple_loop, sfg_simple_loop):
     sim.run_for(20)
 
     tb_printer = CocotbPrinter(sim.results)
-    tb_printer.print(arch_simple_loop, tmp_path)
+    tb_printer.print(arch_simple_loop, path=tmp_path)
 
     # find python testbench file(s)
     py_files = [p for p in list(tmp_path.rglob("*")) if p.suffix == ".py"]
@@ -113,7 +113,9 @@ def test_multiple_io(
     sim.run_for(20)
 
     tb_printer = CocotbPrinter(sim.results)
-    tb_printer.print(arch_two_inputs_two_outputs_independent_with_cmul_scaled, tmp_path)
+    tb_printer.print(
+        arch_two_inputs_two_outputs_independent_with_cmul_scaled, path=tmp_path
+    )
 
     # find python testbench file(s)
     py_files = [p for p in list(tmp_path.rglob("*")) if p.suffix == ".py"]
@@ -145,7 +147,7 @@ def test_multiple_io(
     assert sequence is not None, "Generated file does not define SEQUENCE"
 
     assert sequence == {
-        0: {"in1_0_in": 0, "in0_0_in": 0},
+        0: {"in0_0_in": 0, "in1_0_in": 0},
         6: {"output_0_out": 0},
         10: {"output_0_out": 48, "in1_0_in": 4, "in0_0_in": 8},
         16: {"output_0_out": 0},
@@ -185,6 +187,7 @@ def test_multiple_io(
         186: {"output_0_out": 249},
         190: {"output_0_out": 212, "in1_0_in": 76, "in0_0_in": 152},
         196: {"output_0_out": 249},
+        200: {"output_0_out": 214},
     }
 
     a = [sequence[10 * k + 6]["output_0_out"] for k in range(20)]

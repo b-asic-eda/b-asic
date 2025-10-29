@@ -5,86 +5,116 @@ from pathlib import Path
 
 from apytypes import APyCFixed, APyCFloat
 
+from b_asic.architecture import Architecture
+from b_asic.simulation import ResultArrayMap
 from b_asic.special_operations import Input, Output
 
 
 class CocotbPrinter:
-    def __init__(self, sim_results=None, sequence_map=None):
-        if sim_results is not None and isinstance(
-            next(iter(sim_results.values())), (complex, APyCFixed, APyCFloat)
-        ):
-            raise NotImplementedError(
-                "CocotbPrinter does not support complex values yet."
-            )
-        self.sim_results = sim_results
-        self.sequence_map = sequence_map
+    """
+    Class for generating cocotb test benches.
+
+    Parameters
+    ----------
+    sim_results : ResultArrayMap
+        Simulation results mapping graph IDs to their output values over iterations.
+    """
+
+    _sim_results: ResultArrayMap
+
+    def __init__(self, sim_results: ResultArrayMap):
+        self._sim_results = sim_results
 
     def print(
-        self, arch, path, waves: bool = False, gui: bool = False, csv: bool = False
+        self,
+        arch: Architecture,
+        *,
+        path: str | Path = Path(),
+        simulator: str = "ghdl",
+        waves: bool = False,
+        gui: bool = False,
+        csv: bool = False,
     ) -> None:
+        """
+        Generate the cocotb test bench files.
+
+        Parameters
+        ----------
+        arch : Architecture
+            The architecture to generate the testbench for.
+        path : str or Path, default Path()
+            The output directory path, defaults to the current directory.
+        simulator : str, default "ghdl"
+            The simulator to use (e.g., "ghdl", "nvc").
+        waves : bool, default False
+            Whether to dump waveforms when running the testbench.
+        gui : bool, default False
+            Whether to launch the simulator GUI when running the testbench.
+            If the simulator lacks a GUI, a waveform viewer will be launched, if possible.
+        csv : bool, default False
+            Whether to dump input and output values to a CSV file during simulation.
+        """
         path = Path(path)
 
         template_path = Path(__file__).parent / "template.py"
         with Path.open(template_path) as template_file:
             template = template_file.read()
 
-        # Fill the sequence map from simulation results if not provided
-        if self.sequence_map is None and self.sim_results is not None:
-            seq_map = defaultdict(dict)
+        is_complex = any(
+            isinstance(v[0], (complex, APyCFixed, APyCFloat))
+            for v in self._sim_results.values()
+        )
 
-            is_complex = any(
-                isinstance(v[0], (complex, APyCFixed, APyCFloat))
-                for v in self.sim_results.values()
-            )
+        # Track which graph_ids have been marked as input/output and their schedule
+        io_marked = {}
 
-            # Track which graph_ids have been marked as input/output and their schedule
-            io_marked = {}  # {gid: {'is_input': bool, 'pe_name': str, 'start_time': int}}
+        # First, scan architecture to mark which gids are inputs vs outputs
+        for pe in arch.processing_elements:
+            if pe.operation_type not in (Input, Output):
+                continue
+            for pe_process in pe.collection:
+                gid = pe_process.operation.graph_id
+                io_marked[gid] = {
+                    "is_input": pe.operation_type is Input,
+                    "pe_name": pe.entity_name,
+                    "start_time": pe_process.start_time,
+                }
 
-            # First, scan architecture to mark which gids are inputs vs outputs
-            for pe in arch.processing_elements:
-                if pe.operation_type not in (Input, Output):
-                    continue
-                for pe_process in pe.collection:
-                    gid = pe_process.operation.graph_id
-                    io_marked[gid] = {
-                        "is_input": pe.operation_type is Input,
-                        "pe_name": pe.entity_name,
-                        "start_time": pe_process.start_time,
-                    }
+        seq_map = defaultdict(dict)
 
-            # Track which (gid, sample_idx) pairs have been processed
-            processed = set()
+        # Track which (gid, sample_idx) pairs have been processed
+        processed = set()
 
-            # Now populate sequence map
-            for gid in io_marked:
-                values = self.sim_results[gid]
+        # Now populate sequence map
+        for gid in io_marked:
+            values = self._sim_results[gid]
 
-                for sample_idx in range(len(values)):
-                    value = values[sample_idx]
-                    pe_name = io_marked[gid]["pe_name"]
-                    is_input = io_marked[gid]["is_input"]
-                    start_time = io_marked[gid]["start_time"]
-                    schedule_time = arch.schedule_time
+            for sample_idx in range(len(values)):
+                value = values[sample_idx]
+                pe_name = io_marked[gid]["pe_name"]
+                is_input = io_marked[gid]["is_input"]
+                start_time = io_marked[gid]["start_time"]
+                schedule_time = arch.schedule_time
 
-                    # Calculate actual hardware cycle time
-                    time = start_time + sample_idx * schedule_time
+                # Calculate actual hardware cycle time
+                time = start_time + sample_idx * schedule_time
 
-                    if is_complex:
-                        if is_input:
-                            seq_map[time][f"{pe_name}_0_in_re"] = value.to_bits()[0]
-                            seq_map[time][f"{pe_name}_0_in_im"] = value.to_bits()[1]
-                        else:
-                            seq_map[time][f"{pe_name}_0_out_re"] = value.to_bits()[0]
-                            seq_map[time][f"{pe_name}_0_out_im"] = value.to_bits()[1]
+                if is_complex:
+                    if is_input:
+                        seq_map[time][f"{pe_name}_0_in_re"] = value.to_bits()[0]
+                        seq_map[time][f"{pe_name}_0_in_im"] = value.to_bits()[1]
                     else:
-                        if is_input:
-                            seq_map[time][f"{pe_name}_in"] = value.to_bits()[0]
-                        else:
-                            seq_map[time][f"{pe_name}_out"] = value.to_bits()[0]
+                        seq_map[time][f"{pe_name}_0_out_re"] = value.to_bits()[0]
+                        seq_map[time][f"{pe_name}_0_out_im"] = value.to_bits()[1]
+                else:
+                    if is_input:
+                        seq_map[time][f"{pe_name}_0_in"] = value.to_bits()
+                    else:
+                        seq_map[time][f"{pe_name}_0_out"] = value.to_bits()
 
-                    processed.add((gid, sample_idx))
+                processed.add((gid, sample_idx))
 
-            self.sequence_map = dict(seq_map)
+        seq_map = dict(seq_map)
 
         # Replace the file docstring
         tb_content = template.replace(
@@ -94,8 +124,12 @@ class CocotbPrinter:
 
         # Replace placeholders in the template with actual values
         tb_content = tb_content.replace(
+            'SIMULATOR = ""',
+            f'SIMULATOR = "{simulator}"',
+        )
+        tb_content = tb_content.replace(
             "SEQUENCE = {}",
-            f"SEQUENCE = {self.sequence_map}",
+            f"SEQUENCE = {seq_map}",
         )
         tb_content = tb_content.replace(
             'ENTITY_NAME = ""', f'ENTITY_NAME = "{arch.entity_name}"'
