@@ -25,7 +25,13 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"]
-        os: [ubuntu-latest, ubuntu-24.04-arm] # windows-latest, macos-13, macos-14, macos-15] # windows-11-arm,
+        os: [
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            macos-14,
+            macos-15,
+            windows-latest,
+          ] # windows-11-arm,
         qt-version: ["pyqt6", "pyside6"]
         exclude:
           - python-version: "3.13"
@@ -52,19 +58,29 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+      - name: Install Linux dependencies
+        if: contains(matrix.os, 'ubuntu')
+        run: |
           sudo apt-get update -yy
           sudo apt-get install -yy graphviz python3-pyqt6 xvfb xdg-utils libxcb-cursor-dev cmake
+      - name: Install macOS dependencies
+        if: contains(matrix.os, 'macos')
+        run: |
+          brew update
+          brew install graphviz cmake
       - name: Install B-ASIC
         run: |
           git fetch --tags
           python -m pip install .[test,${{ matrix.qt-version }}] -v
+      - name: Set environment variables for QT
+        if: contains(matrix.os, 'macos') || contains(matrix.os, 'ubuntu')
+        run: |
           export QT_API=${{ matrix.qt-version }}
           export PYTEST_QT_API=${{ matrix.qt-version }}
-      - name: Test with pytest (free-threaded)
-        if: contains(matrix.python-version, 't')
+      - name: Unset global interpreter lock for free-threaded
+        if: ((contains(matrix.os, 'macos') || contains(matrix.os, 'ubuntu')) && contains(matrix.python-version, 't'))
         run: |
           export PYTHON_GIL=0
-          pytest --color=yes test
       - name: Test with pytest
         run: |
           pytest --color=yes test

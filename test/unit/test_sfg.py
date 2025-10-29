@@ -452,7 +452,11 @@ class TestConstructSFG:
         sfg = SFG(outputs=[Output(prev_op)])
         sim = FastSimulation(sfg)
         sim.step()
-        assert sim.results["out0"][0].real == 0.00028913378500165966
+        # Different results on x86 and macOS ARM
+        assert sim.results["out0"][0].real in (
+            0.0002891337850016637,
+            0.00028913378500165966,
+        )
 
     def test_1k_mins(self):
         prev_op = Min(Constant(3.14159), Constant(43.14123843))
