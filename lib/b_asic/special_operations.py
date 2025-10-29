@@ -202,7 +202,7 @@ class Delay(AbstractOperation):
         return TypeName("t")
 
     def evaluate(self, a, data_type, delays=None) -> Num:
-        if data_type.is_complex:
+        if data_type and data_type.is_complex:
             self.initial_value = complex(self.initial_value)
         if delays is not None:
             res = delays.get(self.graph_id, self.param("initial_value"))
