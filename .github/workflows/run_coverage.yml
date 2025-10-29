@@ -1,0 +1,66 @@
+name: Coverage
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number }}-${{ github.event.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+        os: ["ubuntu-latest"]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -yy lcov graphviz python3-pyqt6 xvfb xdg-utils libxcb-cursor-dev cmake
+          python -m pip install --upgrade pip
+          python -m pip install pytest-cov gcovr ninja meson-python numpy setuptools_scm matplotlib graphviz numpy qtpy networkx scipy pandas scipy networkx pulp qtawesome natsort apytypes
+      - name: Install B-ASIC
+        run: |
+          git fetch --tags
+          export CPPFLAGS='-O0 --coverage -fprofile-abs-path'
+          python -m pip install --no-deps --no-build-isolation -v --editable .
+          unset CPPFLAGS
+      - name: Test with pytest
+        run: |
+          pytest test --cov-report=xml --cov=lib --log-level=DEBUG --color=yes
+      - name: Format coverage data
+        if: ${{ !cancelled()}}
+        run: |
+          lcov --rc branch_coverage=1 --rc geninfo_unexecuted_blocks=1 \
+            --ignore-errors mismatch,mismatch --ignore-errors unused \
+            --ignore-errors mismatch --capture --directory . \
+            --output-file coverage.info
+          lcov --rc branch_coverage=1 --rc geninfo_unexecuted_blocks=1 \
+            --ignore-errors mismatch,mismatch --ignore-errors unused \
+            --ignore-errors mismatch --extract coverage.info $PWD/src/'*'
+          lcov --rc branch_coverage=1 --rc geninfo_unexecuted_blocks=1 \
+            --ignore-errors mismatch,mismatch --ignore-errors unused \
+            --ignore-errors mismatch --list coverage.info
+          find . -name '*.gc*' -delete
+          # gcovr --xml-pretty --exclude-unreachable-branches --print-summary -o cobertura.xml --root $PWD
+      - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled()}}
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
