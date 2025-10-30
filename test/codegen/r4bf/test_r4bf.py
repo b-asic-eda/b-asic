@@ -9,7 +9,7 @@ def test_r4bf_compile(tmp_path, arch_r4bf):
     printer = VhdlPrinter(dt)
     printer.print(arch_r4bf, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [tmp_path / filename for filename in printer.get_compile_order(arch_r4bf)]
 
     runner.build(
         sources=sources,
@@ -25,7 +25,7 @@ def test_r4bf_simulate(tmp_path, arch_r4bf):
     printer = VhdlPrinter(dt)
     printer.print(arch_r4bf, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [tmp_path / filename for filename in printer.get_compile_order(arch_r4bf)]
 
     runner.build(
         sources=sources,

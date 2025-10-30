@@ -57,6 +57,14 @@ class VhdlPrinter(Printer):
         with (dir_path / f"{arch.entity_name}.vhdl").open("w") as f:
             common.write(f, 0, self.print_Architecture(arch))
 
+    def get_compile_order(self, arch: "Architecture") -> list[str]:
+        order = []
+        order.extend(["types.vhdl"] if self.is_complex else [])
+        order.extend(f"{mem.entity_name}.vhdl" for mem in arch.memories)
+        order.extend(f"{pe.entity_name}.vhdl" for pe in arch.processing_elements)
+        order.append(f"{arch.entity_name}.vhdl")
+        return order
+
     def print_types(self) -> str:
         f = io.StringIO()
         common.b_asic_preamble(f)

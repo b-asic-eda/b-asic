@@ -9,7 +9,8 @@ def test_r2bf_compile(tmp_path, arch_r2bf):
     printer = VhdlPrinter(dt)
     printer.print(arch_r2bf, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [tmp_path / filename for filename in printer.get_compile_order(arch_r2bf)]
+
     runner.build(
         sources=sources,
         hdl_toplevel="r2bf",
@@ -23,7 +24,8 @@ def test_r2bf_simulate(tmp_path, arch_r2bf):
     printer = VhdlPrinter(dt)
     printer.print(arch_r2bf, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [tmp_path / filename for filename in printer.get_compile_order(arch_r2bf)]
+
     runner.build(
         sources=sources,
         hdl_toplevel="r2bf",
