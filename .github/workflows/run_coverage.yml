@@ -19,6 +19,7 @@ jobs:
       matrix:
         python-version: ["3.11"]
         os: ["ubuntu-latest"]
+        optional-dependencies: [true, false]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -34,7 +35,11 @@ jobs:
         run: |
           sudo apt-get install -yy lcov graphviz python3-pyqt6 xvfb xdg-utils libxcb-cursor-dev cmake
           python -m pip install --upgrade pip
-          python -m pip install pytest-cov gcovr ninja meson-python numpy setuptools_scm matplotlib graphviz numpy qtpy networkx scipy pandas scipy networkx pulp qtawesome natsort apytypes pyqt6 pytest-qt pytest-cov pytest-qt pytest-timeout pytest-xvfb pytest-xdist
+          python -m pip install pytest-cov gcovr ninja meson-python numpy setuptools_scm matplotlib graphviz numpy qtpy networkx pulp qtawesome natsort apytypes pyqt6 pytest-qt pytest-cov pytest-qt pytest-timeout pytest-xvfb pytest-xdist
+      - name: Install optional dependencies
+        if: matrix.optional-dependencies
+        run: |
+          python -m pip install scipy cocotb
       - name: Install B-ASIC
         run: |
           git fetch --tags
