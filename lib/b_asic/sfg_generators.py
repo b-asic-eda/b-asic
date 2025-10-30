@@ -16,13 +16,13 @@ from b_asic.core_operations import (
     ConstantMultiplication,
     Name,
     Reciprocal,
-    SymmetricTwoportAdaptor,
 )
 from b_asic.fft_operations import R2Butterfly
 from b_asic.sfg import SFG
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.utility_operations import DontCare
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 if TYPE_CHECKING:
     from b_asic.port import OutputPort
