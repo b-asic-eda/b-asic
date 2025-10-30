@@ -9,7 +9,10 @@ def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
     printer = VhdlPrinter(dt)
     printer.print(arch_first_order_iir, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [
+        tmp_path / filename
+        for filename in printer.get_compile_order(arch_first_order_iir)
+    ]
 
     runner.build(
         sources=sources,
@@ -24,7 +27,10 @@ def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
     printer = VhdlPrinter(dt)
     printer.print(arch_first_order_iir, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [
+        tmp_path / filename
+        for filename in printer.get_compile_order(arch_first_order_iir)
+    ]
 
     runner.build(
         sources=sources,

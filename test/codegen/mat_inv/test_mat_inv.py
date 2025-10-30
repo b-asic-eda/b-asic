@@ -9,7 +9,9 @@ def test_mat_inv_compile(tmp_path, arch_mat_inv):
     printer = VhdlPrinter(dt)
     printer.print(arch_mat_inv, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [
+        tmp_path / filename for filename in printer.get_compile_order(arch_mat_inv)
+    ]
 
     runner.build(
         sources=sources,
@@ -24,7 +26,9 @@ def test_mat_inv_simulate(tmp_path, arch_mat_inv):
     printer = VhdlPrinter(dt)
     printer.print(arch_mat_inv, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [
+        tmp_path / filename for filename in printer.get_compile_order(arch_mat_inv)
+    ]
 
     runner.build(
         sources=sources,

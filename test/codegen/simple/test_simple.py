@@ -9,7 +9,9 @@ def test_simple_compile(tmp_path, arch_simple):
     printer = VhdlPrinter(dt)
     printer.print(arch_simple, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [
+        tmp_path / filename for filename in printer.get_compile_order(arch_simple)
+    ]
 
     runner.build(
         sources=sources,
@@ -24,7 +26,9 @@ def test_simple_simulate(tmp_path, arch_simple):
     printer = VhdlPrinter(dt)
     printer.print(arch_simple, path=tmp_path)
 
-    sources = list((tmp_path).glob("*.vhdl"))
+    sources = [
+        tmp_path / filename for filename in printer.get_compile_order(arch_simple)
+    ]
 
     runner.build(
         sources=sources,
