@@ -9,12 +9,13 @@ Small bireciprocal lattice wave digital filter.
 import numpy as np
 from mplsignal.freq_plots import freqz_fir
 
-from b_asic.core_operations import Addition, SymmetricTwoportAdaptor
+from b_asic.core_operations import Addition
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
 from b_asic.signal_generator import Impulse
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 in0 = Input("x")
 D0 = Delay(in0)

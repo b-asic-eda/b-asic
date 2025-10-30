@@ -24,7 +24,6 @@ from b_asic import (
     Shift,
     SquareRoot,
     Subtraction,
-    SymmetricTwoportAdaptor,
 )
 
 
@@ -526,39 +525,6 @@ class TestShift:
         test_operation = Shift(0)
         with pytest.raises(TypeError, match=r"value must be an int"):
             test_operation.value = val
-
-
-class TestSymmetricTwoportAdaptor:
-    """Tests for SymmetricTwoportAdaptor class."""
-
-    def test_symmetrictwoportadaptor_positive(self):
-        test_operation = SymmetricTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [2, 3]) == 3.5
-        assert test_operation.evaluate_output(1, [2, 3]) == 2.5
-        assert test_operation.value == 0.5
-
-    def test_symmetrictwoportadaptor_negative(self):
-        test_operation = SymmetricTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [-2, -3]) == -3.5
-        assert test_operation.evaluate_output(1, [-2, -3]) == -2.5
-
-    def test_symmetrictwoportadaptor_complex(self):
-        test_operation = SymmetricTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == 3.5 - 3.5j
-        assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == 2.5 - 0.5j
-
-    def test_symmetrictwoportadaptor_swap_io(self):
-        test_operation = SymmetricTwoportAdaptor(0.5)
-        assert test_operation.value == 0.5
-        test_operation.swap_io()
-        assert test_operation.value == -0.5
-
-    def test_symmetrictwoportadaptor_error(self):
-        with pytest.raises(ValueError, match=r"value must be between -1 and 1"):
-            _ = SymmetricTwoportAdaptor(-2)
-        test_operation = SymmetricTwoportAdaptor(0)
-        with pytest.raises(ValueError, match=r"value must be between -1 and 1"):
-            test_operation.value = 2
 
 
 class TestReciprocal:

@@ -29,3 +29,4 @@ API
     state_space.rst
     utility_operations.rst
     utils.rst
+    wdf_operations.rst

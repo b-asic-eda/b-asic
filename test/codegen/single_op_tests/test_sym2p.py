@@ -7,12 +7,12 @@ import pytest
 from b_asic.architecture import Architecture, ProcessingElement, _fixed_point_bits
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
-from b_asic.core_operations import SymmetricTwoportAdaptor
 from b_asic.data_type import VhdlDataType
 from b_asic.quantization import OverflowMode, QuantizationMode
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
 from b_asic.special_operations import Input, Output
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 # Test parameters: (data_type, latency, coefficient, test_cases)
 # test_cases: list of (input0, input1) tuples

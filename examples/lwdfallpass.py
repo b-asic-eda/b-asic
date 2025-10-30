@@ -7,7 +7,7 @@ LWDF first-order allpass section
 This has different latency offsets for the different inputs/outputs.
 """
 
-from b_asic.core_operations import SymmetricTwoportAdaptor
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
 from b_asic.special_operations import Delay, Input, Output
