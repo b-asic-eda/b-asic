@@ -591,6 +591,52 @@ class VhdlPrinter(Printer):
 
         return declarations.getvalue(), code.getvalue()
 
+    def print_SymmetricTwoportAdaptor_fixed_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[str, str]:
+        declarations, code = io.StringIO(), io.StringIO()
+
+        value = pe.control_table["value"]
+
+        # Assume signed inputs for now
+        common.signal_declaration(declarations, "u0", f"signed({self.bits} downto 0)")
+        offset = 1 if self._dt.is_signed and not value.is_signed else 0
+        common.signal_declaration(
+            declarations,
+            "mul_res_tmp",
+            f"signed(u0'high + value'length + {offset} downto 0)",
+        )
+        common.signal_declaration(declarations, "mul_res", "signed(u0'high downto 0)")
+        common.signal_declaration(declarations, "b1", "signed(mul_res'high downto 0)")
+        common.signal_declaration(declarations, "b2", "signed(mul_res'high downto 0)")
+
+        def mul_statement(
+            res: str, op: str, value: str, op_signed: bool, value_signed: bool
+        ) -> None:
+            if op_signed and not value_signed:
+                common.write(code, 1, f"{res} <= {op} * signed('0' & {value});")
+            else:
+                common.write(code, 1, f"{res} <= {op} * {value};")
+
+        common.write(
+            code,
+            1,
+            f"u0 <= resize(op_1, {self._dt.bits + 1}) - resize(op_0, {self._dt.bits + 1});",
+        )
+        mul_statement("mul_res_tmp", "u0", "value", self._dt.is_signed, value.is_signed)
+        common.write(
+            code,
+            1,
+            "mul_res <= mul_res_tmp(mul_res_tmp'high - WL_VALUE_INT - 1 downto mul_res_tmp'high - WL_VALUE_INT - 1 - b1'high);",
+        )
+        common.write(code, 1, "b1 <= resize(op_1, b1'length) + mul_res;")
+        common.write(code, 1, "b2 <= resize(op_0, b1'length) + mul_res;")
+
+        common.write(code, 1, "res_0 <= resize(b1, res_0'length);")
+        common.write(code, 1, "res_1 <= resize(b2, res_1'length);")
+
+        return declarations.getvalue(), code.getvalue()
+
     def print_Reciprocal_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:

@@ -2332,7 +2332,7 @@ class SFG(AbstractOperation):
         elif not isinstance(target, (list, tuple, set)):
             target = [target]
 
-        # Validate that the source is an Operation
+        # Validate that the source is an Operation type
         if not isinstance(source, type) or not issubclass(source, Operation):
             raise TypeError("Source must be an Operation type")
 
@@ -2360,7 +2360,21 @@ class SFG(AbstractOperation):
                     f"No rewrite method found for target operation type {type(op).__name__} to source operation type {source.__name__}",
                     stacklevel=2,
                 )
-                return new_sfg()
+                # Try the other way around
+                func_name = f"_from_{type(op).__name__}"
+                if hasattr(source, func_name):
+                    sub_sfg = getattr(source, func_name)(op)
+                    new_sfg = new_sfg.replace(op.graph_id, sub_sfg)
+                else:
+                    warnings.warn(
+                        f"No rewrite method found for target operation type {type(op).__name__} to source operation type {source.__name__}",
+                        stacklevel=2,
+                    )
+                    return new_sfg()
+
+            if not isinstance(sub_sfg, SFG):
+                continue
+
             new_sfg.find_by_id("sfg0").connect_external_signals_to_components()
             new_sfg = new_sfg()
 

@@ -869,7 +869,7 @@ class TestLdltMatrixInverse:
         assert np.isclose(res["out0"], 0.2)
 
     def test_2x2_simple_spd(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, use_mads=True)
 
         assert len(sfg.inputs) == 3
         assert len(sfg.outputs) == 3
@@ -891,7 +891,7 @@ class TestLdltMatrixInverse:
         assert np.isclose(res["out2"], A_inv[1, 1])
 
     def test_3x3_simple_spd(self):
-        sfg = ldlt_matrix_inverse(N=3)
+        sfg = ldlt_matrix_inverse(N=3, use_mads=True)
 
         assert len(sfg.inputs) == 6
         assert len(sfg.outputs) == 6
@@ -925,7 +925,7 @@ class TestLdltMatrixInverse:
     def test_5x5_random_spd(self):
         N = 5
 
-        sfg = ldlt_matrix_inverse(N=N)
+        sfg = ldlt_matrix_inverse(N=N, use_mads=True)
 
         assert len(sfg.inputs) == 15
         assert len(sfg.outputs) == 15
@@ -951,10 +951,10 @@ class TestLdltMatrixInverse:
         for i in range(len(expected_values)):
             assert np.isclose(actual_values[i], expected_values[i])
 
-    def test_20x20_random_spd(self):
+    def test_20x20_random_spd_no_mads(self):
         N = 20
 
-        sfg = ldlt_matrix_inverse(N=N)
+        sfg = ldlt_matrix_inverse(N=N, use_mads=False)
 
         A = self._generate_random_spd_matrix(N)
 
