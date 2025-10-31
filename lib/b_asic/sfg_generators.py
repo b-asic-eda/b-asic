@@ -602,7 +602,6 @@ def ldlt_matrix_inverse(
                 )
             else:
                 D[i] = D[i] - M[k][i] * R[k][i]
-            
 
         D_inv[i] = Reciprocal(D[i], **reciprocal_properties, name=f"D_inv[{i}]")
 
@@ -659,7 +658,7 @@ def ldlt_matrix_inverse(
                         A_inv[j][i] = -(R[j][k] * A_inv[i][k])
                 else:
                     if A_inv[i][k]:
-                        if use_mads:    
+                        if use_mads:
                             A_inv[j][i] = MADS(
                                 is_add=False,
                                 src0=A_inv[j][i],

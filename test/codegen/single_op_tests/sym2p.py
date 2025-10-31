@@ -1,4 +1,3 @@
-import pytest
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
 from b_asic.data_type import VhdlDataType
@@ -17,13 +16,16 @@ def test_sym2p_compile(tmp_path, arch_sym2p):
         build_dir=tmp_path,
     )
 
+
 def test_sym2p_simulate(tmp_path, arch_sym2p):
     runner = get_runner()
     dt = VhdlDataType(16)
     printer = VhdlPrinter(dt)
     printer.print(arch_sym2p, path=tmp_path)
 
-    sources = [tmp_path / filename for filename in printer.get_compile_order(arch_sym2p)]
+    sources = [
+        tmp_path / filename for filename in printer.get_compile_order(arch_sym2p)
+    ]
 
     runner.build(
         sources=sources,

@@ -2371,10 +2371,10 @@ class SFG(AbstractOperation):
                         stacklevel=2,
                     )
                     return new_sfg()
-            
+
             if not isinstance(sub_sfg, SFG):
                 continue
-            
+
             new_sfg.find_by_id("sfg0").connect_external_signals_to_components()
             new_sfg = new_sfg()
 
