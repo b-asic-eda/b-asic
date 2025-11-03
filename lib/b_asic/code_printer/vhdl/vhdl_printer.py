@@ -607,8 +607,12 @@ class VhdlPrinter(Printer):
             "mul_res",
             "signed(u0'high + value'length downto 0)",
         )
-        common.signal_declaration(declarations, "b0", "signed(mul_res'high + 1 downto 0)")
-        common.signal_declaration(declarations, "b1", "signed(mul_res'high + 1 downto 0)")
+        common.signal_declaration(
+            declarations, "b0", "signed(mul_res'high + 1 downto 0)"
+        )
+        common.signal_declaration(
+            declarations, "b1", "signed(mul_res'high + 1 downto 0)"
+        )
 
         def mul_statement(
             res: str, op: str, value: str, op_signed: bool, value_signed: bool
@@ -621,15 +625,23 @@ class VhdlPrinter(Printer):
             1,
             f"u0 <= resize(op_1, {self._dt.bits + 1}) - resize(op_0, {self._dt.bits + 1});",
         )
-        
+
         # mul_res = u0 * value
         mul_statement("mul_res", "u0", "value", self._dt.is_signed, value.is_signed)
 
         # b0 = in0 + mul_res
         zero = "0"
-        common.write(code, 1, f"b0 <= (resize(op_0, op_0'length + 1 + {value_int_bits+1}) & \"{zero * value_frac_bits}\") + resize(mul_res, b0'length);")
+        common.write(
+            code,
+            1,
+            f"b0 <= (resize(op_0, op_0'length + 1 + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize(mul_res, b0'length);",
+        )
         # b1 = in0 + mul_res
-        common.write(code, 1, f"b1 <= (resize(op_1, op_1'length + 1 + {value_int_bits+1}) & \"{zero * value_frac_bits}\") + resize(mul_res, b1'length);")
+        common.write(
+            code,
+            1,
+            f"b1 <= (resize(op_1, op_1'length + 1 + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize(mul_res, b1'length);",
+        )
 
         # truncate outputs
         common.write(

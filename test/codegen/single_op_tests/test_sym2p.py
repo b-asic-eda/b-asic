@@ -71,7 +71,7 @@ async def sym2p_test(dut):
     assert dut.out0_0_out.value == 0
     assert dut.out1_0_out.value == 0
 
-    await Timer(2*10, "ns")
+    await Timer(2 * 10, "ns")
 
 
 async def _generate_clk(dut):
