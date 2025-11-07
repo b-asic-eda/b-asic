@@ -148,6 +148,6 @@ class CocotbPrinter:
             makefile.write(
                 "VHDL_SOURCES := $(shell find \"$(PWD)\" -type f \\( -name '*.vhd' -o -name '*.vhdl' \\) 2>/dev/null)\n\n"
             )
-            makefile.write("COCOTB_TOPLEVEL ?= r3\n")
+            makefile.write(f"COCOTB_TOPLEVEL ?= {arch.entity_name}\n")
             makefile.write("COCOTB_TEST_MODULES ?= tb\n\n")
             makefile.write("include $(shell cocotb-config --makefiles)/Makefile.sim\n")
