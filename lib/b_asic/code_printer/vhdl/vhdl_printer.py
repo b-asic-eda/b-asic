@@ -113,6 +113,8 @@ class VhdlPrinter(Printer):
         processing_element.entity(f, pe, self._dt)
 
         core_code = self.print_operation(pe)
+        # quant_code = self.print_quantization(pe)
+        # sat_code = self.print_saturation(pe)
         processing_element.architecture(f, pe, self._dt, core_code)
 
         return f.getvalue()
@@ -169,8 +171,24 @@ class VhdlPrinter(Printer):
     def print_Addition_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
-        code = io.StringIO()
+        # core
+        declarations, code = io.StringIO(), io.StringIO()
+        common.signal_declaration(declarations, "res_0", signed_type(self.bits + 1))
         common.write(code, 1, "res_0 <= op_0 + op_1;")
+
+        port_number = 0
+        wls = [(self.int_bits + 1, self.frac_bits)]
+
+        # quantization
+        quant_declarations, quant_code = self.print_quantization(wls, port_number)
+        common.write(quant_declarations, 0, declarations.getvalue())
+        common.write(quant_code, 0, code.getvalue())
+
+        # overflow handling
+        overflow_declarations, overflow_code = self.print_overflow(wls, port_number)
+        common.write(overflow_declarations, 0, declarations.getvalue())
+        common.write(overflow_code, 0, code.getvalue())
+
         return "", code.getvalue()
 
     def print_AddSub_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
@@ -680,6 +698,29 @@ class VhdlPrinter(Printer):
 
     def print_default(self) -> tuple[str, str]:
         return "", ""
+
+    def print_TRUNCATION_fixed_point_real(
+        self, wls: tuple[int, int]
+    ) -> tuple[str, str]:
+        declarations, code = io.StringIO(), io.StringIO()
+
+        for wl in wls:
+            bits_in = wl[0] + wl[1]
+            int_diff = wl[0] - self._dt.wl[0]
+            frac_diff = wl[1] - self._dt.wl[1]
+
+            # convert the output_count from Qm_ext,n_ext back to Qm,n
+            # by discarding extra integer and fractional bits
+            new_high = bits_in - int_diff
+            new_low = frac_diff
+            common.write(
+                code[1],
+                1,
+                f"res_0_quant <= res_0({new_high} downto {new_low});",
+            )
+
+        print("TRUNCATION:", declarations.getvalue(), code.getvalue())
+        return declarations.getvalue(), code.getvalue()
 
     @property
     def scalar_type_str(self) -> str:

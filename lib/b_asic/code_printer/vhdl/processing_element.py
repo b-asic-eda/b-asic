@@ -39,7 +39,10 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
 
 
 def architecture(
-    f: TextIO, pe: "ProcessingElement", dt: VhdlDataType, core_code: tuple[str, str]
+    f: TextIO,
+    pe: "ProcessingElement",
+    dt: VhdlDataType,
+    core_code: tuple[str, str],
 ) -> None:
     common.write(f, 0, f"architecture rtl of {pe.entity_name} is")
 
@@ -48,7 +51,6 @@ def architecture(
     common.write(f, 0, "begin")
     _statement_region_common(f, pe, dt)
     common.write(f, 0, core_code[1])
-
     common.write(f, 0, "end architecture rtl;")
 
 
@@ -69,7 +71,7 @@ def _declarative_region_common(
             for input_port in range(pe.input_count):
                 common.signal_declaration(
                     f,
-                    f"p_{input_port}_in_reg_{stage - 1}",
+                    f"in{input_port}_reg_{stage - 1}",
                     dt.type_str,
                     dt.init_val,
                 )
@@ -111,13 +113,13 @@ def _statement_region_common(
                     common.write(f, 3, f"res_{count}_reg_0 <= res_{count};")
             elif stage == 1:
                 for count in range(pe.input_count):
-                    common.write(f, 3, f"p_{count}_in_reg_{stage - 1} <= p_{count}_in;")
+                    common.write(f, 3, f"in{count}_reg_{stage - 1} <= in{count};")
             elif stage >= 2:
                 for count in range(pe.input_count):
                     common.write(
                         f,
                         3,
-                        f"p_{count}_in_reg_{stage - 1} <= p_{count}_in_reg_{stage - 2};",
+                        f"in{count}_reg_{stage - 1} <= in{count}_reg_{stage - 2};",
                     )
 
         common.synchronous_process_epilogue(f)
@@ -166,7 +168,7 @@ def _statement_region_common(
     # Connect results to outputs
     if pe._latency == 0:
         for count in range(pe.output_count):
-            common.write(f, 1, f"p_{count}_out <= res_{count};")
+            common.write(f, 1, f"out{count} <= res_{count};")
     else:
         for count in range(pe.output_count):
-            common.write(f, 1, f"p_{count}_out <= res_{count}_reg_0;")
+            common.write(f, 1, f"out{count} <= res_{count}_reg_0;")

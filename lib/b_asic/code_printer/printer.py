@@ -60,6 +60,19 @@ class Printer(ABC):
         )
         return self.print_default()
 
+    def print_quantization(self, wls: list[tuple[int, int]]) -> tuple[str, ...]:
+        type_suffix = f"_{self.num_repr()}_{'complex' if self.is_complex else 'real'}"
+        fname = f"print_{self._dt.quantization_mode.name}{type_suffix}"
+        if hasattr(self, fname):
+            return getattr(self, fname)(wls)
+        return ("", "")
+
+    def print_overflow(self, wls: list[tuple[int, int]]) -> tuple[str, ...]:
+        fname = f"print_{self._dt.overflow_mode.name}"
+        if hasattr(self, fname):
+            return getattr(self, fname)(wls)
+        return ("", "")
+
     def num_repr(self) -> str:
         return self._dt.num_repr.name.lower()
 
