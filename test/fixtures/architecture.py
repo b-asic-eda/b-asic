@@ -493,6 +493,38 @@ def arch_two_inputs_two_outputs_independent_with_cmul_scaled(
 
 
 @pytest.fixture
+def arch_add():
+    in0 = Input()
+    in1 = Input()
+    op = Addition(in0, in1, latency=1, execution_time=1)
+    out0 = Output(op)
+    sfg = SFG(inputs=[in0, in1], outputs=[out0])
+
+    schedule = Schedule(sfg)
+
+    operations = schedule.get_operations()
+    adds = operations.get_by_type_name("add")
+    in_ops = operations.get_by_type_name("in")
+    in_ops = in_ops.split_on_execution_time()
+    out_ops = operations.get_by_type_name("out")
+
+    adder = ProcessingElement(adds, entity_name="adder")
+    input_pe_0 = ProcessingElement(in_ops[0], entity_name="in0")
+    input_pe_1 = ProcessingElement(in_ops[1], entity_name="in1")
+    output_pe = ProcessingElement(out_ops, entity_name="output")
+
+    mem_vars = schedule.get_memory_variables()
+    direct, _ = mem_vars.split_on_length()
+
+    return Architecture(
+        {adder, input_pe_0, input_pe_1, output_pe},
+        [],
+        entity_name="top",
+        direct_interconnects=direct,
+    )
+
+
+@pytest.fixture
 def arch_sym2p():
     from b_asic.core_operations import SymmetricTwoportAdaptor
 
