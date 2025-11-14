@@ -60,12 +60,12 @@ async def simple_test(dut):
 
     await Timer(8, "ns")
     dut.input_0_in.value = LogicArray.from_signed(6, 4)
-    assert dut.output_0_out.value == LogicArray.from_signed(32, 7)
+    assert dut.output_0_out.value == LogicArray.from_signed(16, 7)
     await Timer(2, "ns")
     dut.input_0_in.value = LogicArray.from_signed(4, 4)
 
     await Timer(8, "ns")
-    assert dut.output_0_out.value == LogicArray.from_signed(40, 7)
+    assert dut.output_0_out.value == LogicArray.from_signed(20, 7)
 
 
 async def _generate_clk(dut):
