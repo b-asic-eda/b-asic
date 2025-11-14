@@ -12,6 +12,9 @@ from b_asic.data_type import DataType, NumRepresentation
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture, Memory, ProcessingElement
 
+WLS = list[tuple[int, int]]
+CODE = tuple[str, ...]
+
 
 class Printer(ABC):
     CUSTOM_PRINTER_PREFIX = "generic"
@@ -38,10 +41,23 @@ class Printer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def print_default(self, **kwargs) -> tuple[str, ...] | None:
+    def print_default_arith(self, **kwargs) -> tuple[WLS, tuple[str, ...]]:
         raise NotImplementedError
 
-    def print_operation(self, pe: "ProcessingElement") -> tuple[str, ...]:
+    # # quantization
+    # quant_declarations, quant_code = self.print_quantization(wl, 0)
+    # common.write(declarations, 0, quant_declarations)
+    # common.write(code, 0, quant_code)
+
+    # # overflow handling
+    # overflow_declarations, overflow_code = self.print_overflow(wl, 0)
+    # common.write(declarations, 0, overflow_declarations)
+    # common.write(code, 0, overflow_code)
+
+    def print_operation(self, pe: "ProcessingElement") -> CODE:
+        raise NotImplementedError
+
+    def print_arith(self, pe: "ProcessingElement") -> tuple[WLS, CODE]:
         type_suffix = f"_{self.num_repr()}_{'complex' if self.is_complex else 'real'}"
         fname = f"print_{pe.operation_type.__name__}{type_suffix}"
         if hasattr(self, fname):
@@ -58,20 +74,24 @@ class Printer(ABC):
             f"No printing function found for {pe.operation_type.__name__} and the provided data type.\nThe resulting files are not complete.",
             stacklevel=2,
         )
-        return self.print_default()
+        print("DEFAULT")
+        return self.print_default_arith()
 
-    def print_quantization(self, wls: list[tuple[int, int]]) -> tuple[str, ...]:
+    def print_quantization(self, wls: WLS) -> tuple[WLS, CODE]:
         type_suffix = f"_{self.num_repr()}_{'complex' if self.is_complex else 'real'}"
         fname = f"print_{self._dt.quantization_mode.name}{type_suffix}"
         if hasattr(self, fname):
+            print("fname:", fname, wls)
             return getattr(self, fname)(wls)
-        return ("", "")
+        raise NotImplementedError
 
-    def print_overflow(self, wls: list[tuple[int, int]]) -> tuple[str, ...]:
-        fname = f"print_{self._dt.overflow_mode.name}"
+    def print_overflow(self, wls: WLS) -> CODE:
+        type_suffix = f"_{self.num_repr()}_{'complex' if self.is_complex else 'real'}"
+        fname = f"print_{self._dt.overflow_mode.name}{type_suffix}"
+        print("fname:", fname)
         if hasattr(self, fname):
             return getattr(self, fname)(wls)
-        return ("", "")
+        raise NotImplementedError
 
     def num_repr(self) -> str:
         return self._dt.num_repr.name.lower()
@@ -90,6 +110,10 @@ class Printer(ABC):
     @property
     def type_str(self):
         return self._dt.type_str
+
+    @property
+    def type_name(self):
+        return self._dt.type_str.split("(")[0]
 
     @property
     def int_bits(self) -> int:

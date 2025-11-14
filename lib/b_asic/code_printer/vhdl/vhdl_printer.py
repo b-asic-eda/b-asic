@@ -6,7 +6,7 @@ import io
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from b_asic.code_printer.printer import Printer
+from b_asic.code_printer.printer import WLS, Printer
 from b_asic.code_printer.vhdl import (
     common,
     memory_storage,
@@ -113,16 +113,23 @@ class VhdlPrinter(Printer):
         processing_element.entity(f, pe, self._dt)
 
         core_code = self.print_operation(pe)
-        # quant_code = self.print_quantization(pe)
-        # sat_code = self.print_saturation(pe)
         processing_element.architecture(f, pe, self._dt, core_code)
 
         return f.getvalue()
 
+    def print_operation(self, pe: "ProcessingElement") -> tuple[str, str]:
+        wls, core_code = self.print_arith(pe)
+        print("WLs before quantization:", wls, pe.entity_name)
+        wls, quant_code = self.print_quantization(wls)
+        print("WLs after quantization:", wls, pe.entity_name)
+        core_code = tuple(x + y for x, y in zip(core_code, quant_code))
+        core_code = tuple(x + y for x, y in zip(core_code, self.print_overflow(wls)))
+        return core_code
+
     def print_Input_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
         common.write(code, 1, f"res_0 <= resize(signed(p_0_in), {self.bits});")
-        return declarations.getvalue(), code.getvalue()
+        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
     def print_Input_fixed_point_complex(
         self, pe: "ProcessingElement"
@@ -134,18 +141,19 @@ class VhdlPrinter(Printer):
             f"res_0 <= (re => resize(signed(p_0_in_re), {self.bits}), "
             f"im => resize(signed(p_0_in_im), {self.bits}));",
         )
-        return "", code.getvalue()
+        return [self._dt.wl], (code.getvalue(),)
 
-    def print_Output_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
-        declarations, code = io.StringIO(), io.StringIO()
-        common.signal_declaration(declarations, "res_0", self._dt.output_type_str)
-        common.write(code, 1, "p_0_out <= res_0;")
-        common.write(
-            code,
-            1,
-            f"res_0 <= std_logic_vector(resize(signed(p_0_in), {self.output_bits}));\n",
-        )
-        return declarations.getvalue(), code.getvalue()
+    # def print_Output_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
+    #     declarations, code = io.StringIO(), io.StringIO()
+    #     common.signal_declaration(declarations, "res_0", self._dt.output_type_str)
+    #     common.write(code, 1, "p_0_out <= res_0;")
+    #     common.write(
+    #         code,
+    #         1,
+    #         f"res_0 <= std_logic_vector(resize(signed(p_0_in), {self.output_bits}));\n",
+    #     )
+    #     wls = [(self._dt.output[0], self._dt.output[1])]
+    #     return wls, (declarations.getvalue(), code.getvalue())
 
     def print_Output_fixed_point_complex(
         self, pe: "ProcessingElement"
@@ -173,23 +181,24 @@ class VhdlPrinter(Printer):
     ) -> tuple[str, str]:
         # core
         declarations, code = io.StringIO(), io.StringIO()
-        common.signal_declaration(declarations, "res_0", signed_type(self.bits + 1))
-        common.write(code, 1, "res_0 <= op_0 + op_1;")
+        common.signal_declaration(
+            declarations, "res_arith_0", signed_type(self.bits + 1)
+        )
+        common.write(code, 1, "res_arith_0 <= op_0 + op_1;")
 
-        port_number = 0
         wls = [(self.int_bits + 1, self.frac_bits)]
 
-        # quantization
-        quant_declarations, quant_code = self.print_quantization(wls, port_number)
-        common.write(quant_declarations, 0, declarations.getvalue())
-        common.write(quant_code, 0, code.getvalue())
+        # # quantization
+        # quant_declarations, quant_code = self.print_quantization(wl, 0)
+        # common.write(declarations, 0, quant_declarations)
+        # common.write(code, 0, quant_code)
 
-        # overflow handling
-        overflow_declarations, overflow_code = self.print_overflow(wls, port_number)
-        common.write(overflow_declarations, 0, declarations.getvalue())
-        common.write(overflow_code, 0, code.getvalue())
+        # # overflow handling
+        # overflow_declarations, overflow_code = self.print_overflow(wl, 0)
+        # common.write(declarations, 0, overflow_declarations)
+        # common.write(code, 0, overflow_code)
 
-        return "", code.getvalue()
+        return wls, (declarations.getvalue(), code.getvalue())
 
     def print_AddSub_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
@@ -696,30 +705,51 @@ class VhdlPrinter(Printer):
 
         return declarations.getvalue(), code.getvalue()
 
-    def print_default(self) -> tuple[str, str]:
-        return "", ""
+    def print_default_arith(self) -> tuple[str, str]:
+        return [self._dt.wl], ("", "")
 
-    def print_TRUNCATION_fixed_point_real(
-        self, wls: tuple[int, int]
-    ) -> tuple[str, str]:
+    def print_TRUNCATION_fixed_point_real(self, wls: WLS) -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
 
-        for wl in wls:
+        wls = []
+        print("WLs in TRUNCATION   1121321:", wls)
+        for wl, port_number in zip(wls, range(len(wls))):
+            print("WL in TRUNCATION:", wl)
+            # throw away excess LSBs
             bits_in = wl[0] + wl[1]
-            int_diff = wl[0] - self._dt.wl[0]
             frac_diff = wl[1] - self._dt.wl[1]
 
-            # convert the output_count from Qm_ext,n_ext back to Qm,n
-            # by discarding extra integer and fractional bits
-            new_high = bits_in - int_diff
+            new_high = bits_in - 1
             new_low = frac_diff
+            common.signal_declaration(
+                declarations,
+                f"res_quant_{port_number}",
+                f"{self.type_name}({new_high} downto 0)",
+            )
             common.write(
-                code[1],
+                code,
                 1,
-                f"res_0_quant <= res_0({new_high} downto {new_low});",
+                f"res_quant_{port_number} <= res_arith_{port_number}({new_high} downto {new_low});",
+            )
+            wls.append((self._dt.wl[0], self._dt.wl[1] - frac_diff))
+
+        return wls, (declarations.getvalue(), code.getvalue())
+
+    def print_WRAPPING_fixed_point_real(self, wls: WLS) -> tuple[str, str]:
+        declarations, code = io.StringIO(), io.StringIO()
+
+        print("WLs in WRAPPING:", wls)
+        for wl, port_number in zip(wls, range(len(wls))):
+            # throw away excess MSBs
+            common.signal_declaration(
+                declarations, f"res_overflow_{port_number}", self.type_str
+            )
+            common.write(
+                code,
+                1,
+                f"res_overflow_{port_number} <= res_quant_{port_number}({self._dt.bits - 1} downto 0);",
             )
 
-        print("TRUNCATION:", declarations.getvalue(), code.getvalue())
         return declarations.getvalue(), code.getvalue()
 
     @property
