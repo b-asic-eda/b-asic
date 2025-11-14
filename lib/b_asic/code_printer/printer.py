@@ -12,6 +12,9 @@ from b_asic.data_type import DataType, NumRepresentation
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture, Memory, ProcessingElement
 
+WLS = list[tuple[int, int]]
+CODE = tuple[str, ...]
+
 
 class Printer(ABC):
     CUSTOM_PRINTER_PREFIX = "generic"
@@ -38,10 +41,14 @@ class Printer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def print_default(self, **kwargs) -> tuple[str, ...] | None:
+    def print_default(self, **kwargs) -> tuple[WLS, CODE]:
         raise NotImplementedError
 
-    def print_operation(self, pe: "ProcessingElement") -> tuple[str, ...]:
+    @abstractmethod
+    def print_operation(self, pe: "ProcessingElement") -> CODE:
+        raise NotImplementedError
+
+    def print_arith(self, pe: "ProcessingElement") -> tuple[WLS, CODE]:
         type_suffix = f"_{self.num_repr()}_{'complex' if self.is_complex else 'real'}"
         fname = f"print_{pe.operation_type.__name__}{type_suffix}"
         if hasattr(self, fname):
@@ -59,19 +66,6 @@ class Printer(ABC):
             stacklevel=2,
         )
         return self.print_default()
-
-    def print_quantization(self, wls: list[tuple[int, int]]) -> tuple[str, ...]:
-        type_suffix = f"_{self.num_repr()}_{'complex' if self.is_complex else 'real'}"
-        fname = f"print_{self._dt.quantization_mode.name}{type_suffix}"
-        if hasattr(self, fname):
-            return getattr(self, fname)(wls)
-        return ("", "")
-
-    def print_overflow(self, wls: list[tuple[int, int]]) -> tuple[str, ...]:
-        fname = f"print_{self._dt.overflow_mode.name}"
-        if hasattr(self, fname):
-            return getattr(self, fname)(wls)
-        return ("", "")
 
     def num_repr(self) -> str:
         return self._dt.num_repr.name.lower()
