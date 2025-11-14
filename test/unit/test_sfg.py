@@ -25,7 +25,6 @@ from b_asic.core_operations import (
     ShiftAddSub,
     SquareRoot,
     Subtraction,
-    SymmetricTwoportAdaptor,
 )
 from b_asic.fft_operations import R2Butterfly
 from b_asic.operation import ResultKey
@@ -34,6 +33,7 @@ from b_asic.sfg import SFG, GraphID
 from b_asic.sfg_generators import wdf_allpass
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
 class TestInit:

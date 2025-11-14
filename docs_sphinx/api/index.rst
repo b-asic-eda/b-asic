@@ -28,3 +28,4 @@ API
     special_operations.rst
     utility_operations.rst
     utils.rst
+    wdf_operations.rst
