@@ -39,7 +39,10 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
 
 
 def architecture(
-    f: TextIO, pe: "ProcessingElement", dt: VhdlDataType, core_code: tuple[str, str]
+    f: TextIO,
+    pe: "ProcessingElement",
+    dt: VhdlDataType,
+    core_code: tuple[str, str],
 ) -> None:
     common.write(f, 0, f"architecture rtl of {pe.entity_name} is")
 
@@ -48,7 +51,6 @@ def architecture(
     common.write(f, 0, "begin")
     _statement_region_common(f, pe, dt)
     common.write(f, 0, core_code[1])
-
     common.write(f, 0, "end architecture rtl;")
 
 
@@ -61,7 +63,7 @@ def _declarative_region_common(
             for output_port in range(pe.output_count):
                 common.signal_declaration(
                     f,
-                    f"res_{output_port}_reg_{stage}",
+                    f"res_overflow_{output_port}_reg_{stage}",
                     dt.type_str,
                     dt.init_val,
                 )
@@ -74,16 +76,13 @@ def _declarative_region_common(
                     dt.init_val,
                 )
 
+    # Define inputs to arithmetic blocks (can be pipelined)
     for input_port in range(pe.input_count):
         common.signal_declaration(f, f"op_{input_port}", dt.type_str)
 
-    # Define results
-    for count in range(pe.output_count):
-        common.signal_declaration(f, f"res_{count}", dt.type_str)
-
     # Define control signals
     for name, entry in pe.control_table.items():
-        if isinstance(next(iter(entry.values.values())), bool):
+        if isinstance(next(iter(entry.values.values())), bool) or entry.bits == 1:
             vhdl_type = "std_logic"
         elif entry.is_signed:
             vhdl_type = f"signed({entry.bits - 1} downto 0)"
@@ -108,7 +107,9 @@ def _statement_region_common(
         for stage in range(pe._latency):
             if stage == 0:
                 for count in range(pe.output_count):
-                    common.write(f, 3, f"res_{count}_reg_0 <= res_{count};")
+                    common.write(
+                        f, 3, f"res_overflow_{count}_reg_0 <= res_overflow_{count};"
+                    )
             elif stage == 1:
                 for count in range(pe.input_count):
                     common.write(f, 3, f"p_{count}_in_reg_{stage - 1} <= p_{count}_in;")
@@ -136,7 +137,7 @@ def _statement_region_common(
     for name, entry in pe.control_table.items():
         if entry.is_static:
             val = entry.get_static_value()
-            if isinstance(val, bool):
+            if isinstance(val, bool) or entry.bits == 1:
                 val_str = f"'{int(val)}'"
             elif isinstance(val, (int, np.integer, float, np.floating)):
                 int_val = int(val * 2**entry.frac_bits)
@@ -166,7 +167,7 @@ def _statement_region_common(
     # Connect results to outputs
     if pe._latency == 0:
         for count in range(pe.output_count):
-            common.write(f, 1, f"p_{count}_out <= res_{count};")
+            common.write(f, 1, f"p_{count}_out <= res_overflow_{count};")
     else:
         for count in range(pe.output_count):
-            common.write(f, 1, f"p_{count}_out <= res_{count}_reg_0;")
+            common.write(f, 1, f"p_{count}_out <= res_overflow_{count}_reg_0;")
