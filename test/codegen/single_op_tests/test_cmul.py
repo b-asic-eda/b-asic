@@ -95,16 +95,18 @@ def test_cmul(tmp_path, data_type, latency, value, test_cases):
         # For complex values, find the maximum bits needed for real and imaginary parts
         real_val = value.real if isinstance(value, complex) else float(value)
         imag_val = value.imag if isinstance(value, complex) else 0.0
-        
+
         real_int_bits, real_frac_bits = _fixed_point_bits(real_val, data_type.is_signed)
         imag_int_bits, imag_frac_bits = _fixed_point_bits(imag_val, data_type.is_signed)
-        
+
         val_int_bits = max(real_int_bits, imag_int_bits)
         val_frac_bits = max(real_frac_bits, imag_frac_bits)
     else:
         # For real values
-        val_int_bits, val_frac_bits = _fixed_point_bits(float(value), data_type.is_signed)
-    
+        val_int_bits, val_frac_bits = _fixed_point_bits(
+            float(value), data_type.is_signed
+        )
+
     tcs = []
     for tc in test_cases:
         if data_type.is_complex:

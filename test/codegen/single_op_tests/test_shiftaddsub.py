@@ -97,7 +97,7 @@ TEST_PARAMS = [
         ],
     ),
     pytest.param(
-        VhdlDataType(wl=(2,6), is_complex=True),
+        VhdlDataType(wl=(2, 6), is_complex=True),
         1,
         True,
         1,
@@ -193,7 +193,6 @@ def test_shiftaddsub(tmp_path, data_type, latency, is_add, shift, mul_j, test_ca
                 data_type.quantization_mode.to_apytypes(),
                 data_type.overflow_mode.to_apytypes(),
             )
-
 
         tcs.append((a.to_bits(), b.to_bits(), is_add, shift, mul_j, res.to_bits()))
 
