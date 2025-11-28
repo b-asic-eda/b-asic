@@ -692,11 +692,6 @@ class VhdlPrinter(Printer):
             f"{self.type_name}({self.bits + value_bits + 1} downto 0)",
         )
 
-        def mul_statement(
-            res: str, op: str, value: str, op_signed: bool, value_signed: bool
-        ) -> None:
-            common.write(code, 1, f"{res} <= {op} * signed({value});")
-
         # u0 = op_1 - op_0
         common.write(
             code,
@@ -704,8 +699,7 @@ class VhdlPrinter(Printer):
             f"u0 <= resize(op_1, {self._dt.bits + 1}) - resize(op_0, {self._dt.bits + 1});",
         )
 
-        # mul_res = u0 * value
-        mul_statement("mul_res", "u0", "value", self._dt.is_signed, value.is_signed)
+        common.write(code, 1, "mul_res <= u0 * value;")
 
         # res_arith_1 = in0 + mul_res
         zero = "0"
@@ -807,7 +801,7 @@ class VhdlPrinter(Printer):
                             1,
                             f"res_quant_{port_number}{part} <= res_arith_{port_number}{part}({new_high} downto {new_low});",
                         )
-                    wls_out.append((target_wl[0], target_wl[1] - frac_diff))
+                    wls_out.append((wl[0], wl[1] - frac_diff))
                 elif (
                     self._dt.quantization_mode == QuantizationMode.MAGNITUDE_TRUNCATION
                 ):
@@ -840,7 +834,7 @@ class VhdlPrinter(Printer):
                             1,
                             f"res_quant_{port_number}{part} <= mag_trunc_tmp_{port_number}{part}({new_high} downto {new_low});",
                         )
-                    wls_out.append((target_wl[0] + 1, target_wl[1] - frac_diff))
+                    wls_out.append((wl[0] + 1, wl[1] - frac_diff))
                 else:
                     raise NotImplementedError(
                         f"Quantization mode {self._dt.quantization_mode.name} not implemented for VHDL"
@@ -853,7 +847,7 @@ class VhdlPrinter(Printer):
                         1,
                         f"res_quant_{port_number}{part} <= res_arith_{port_number}{part}({new_high} downto {new_low});",
                     )
-                wls_out.append((target_wl[0], target_wl[1]))
+                wls_out.append((wl[0], wl[1]))
         return wls_out, (declarations.getvalue(), code.getvalue())
 
     def _print_overflow(self, wls: WLS, pe: "ProcessingElement") -> CODE:
@@ -894,6 +888,55 @@ class VhdlPrinter(Printer):
                         1,
                         f"res_overflow_{port_number}{part} <= res_quant_{port_number}{part}({target_bits - 1} downto 0);",
                     )
+            elif self._dt.overflow_mode == OverflowMode.SATURATION:
+                # Saturation: check guard bits for overflow
+                wl = wls[port_number]
+                quant_bits = wl[0] + wl[1]
+                guard_bits = quant_bits - target_bits
+
+                for part in parts:
+                    if guard_bits > 0:
+                        # Check if guard bits match the sign bit of target value
+                        # If all is fine, throw away guard bits
+                        # Otherwise, set to max or min value based on sign
+                        sign_bit_pos = target_bits - 1
+                        guard_high = quant_bits - 1
+                        guard_low = target_bits
+
+                        if self._dt.is_signed:
+                            # For signed: overflow if guard bits != sign bit (MSB of target)
+                            max_val = 2 ** (target_bits - 1) - 1
+                            min_val = -(2 ** (target_bits - 1))
+                            common.write(
+                                code,
+                                1,
+                                f"res_overflow_{port_number}{part} <= "
+                                f"to_signed({max_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
+                                f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos})) and "
+                                f"res_quant_{port_number}{part}({guard_high}) = '0' else "
+                                f"to_signed({min_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
+                                f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos})) else "
+                                f"res_quant_{port_number}{part}({target_bits - 1} downto 0);",
+                            )
+                        else:
+                            # For unsigned: overflow if any guard bit is 1
+                            zeros = "0" * guard_bits
+                            max_val = 2**target_bits - 1
+                            common.write(
+                                code,
+                                1,
+                                f"res_overflow_{port_number}{part} <= "
+                                f"to_unsigned({max_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
+                                f'"{zeros}" else '
+                                f"res_quant_{port_number}{part}({target_bits - 1} downto 0);",
+                            )
+                    else:
+                        # No guard bits, just pass through
+                        common.write(
+                            code,
+                            1,
+                            f"res_overflow_{port_number}{part} <= res_quant_{port_number}{part}({target_bits - 1} downto 0);",
+                        )
                 if self.is_complex:
                     # Combine real and imaginary parts into output signal with type complex
                     common.write(
@@ -904,6 +947,13 @@ class VhdlPrinter(Printer):
             else:
                 raise NotImplementedError(
                     f"Overflow mode {self._dt.overflow_mode.name} not implemented for VHDL"
+                )
+            if self.is_complex:
+                # Combine real and imaginary parts into output signal with type complex
+                common.write(
+                    code,
+                    1,
+                    f"res_overflow_{port_number} <= (re => res_overflow_{port_number}_re, im => res_overflow_{port_number}_im);",
                 )
         return declarations.getvalue(), code.getvalue()
 
