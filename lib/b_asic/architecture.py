@@ -521,14 +521,7 @@ class ProcessingElement(Resource):
             int_bits = 0
             frac_bits = 0
             is_complex = False
-            is_signed = False
-
-            # check if all entries are unsigned
-            for pro in self.collection:
-                val = pro.operation.params[param_name]
-                if isinstance(val, (int, np.integer)) and val < 0:
-                    is_signed = True
-                    break
+            is_signed = True
 
             for pro in self.collection:
                 val = pro.operation.params[param_name]

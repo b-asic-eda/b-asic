@@ -92,6 +92,16 @@ TEST_PARAMS = [
         3,
         [56, 40, -80],
     ),
+    pytest.param(
+        VhdlDataType(
+            wl=(4, 4),
+            quantization_mode=QuantizationMode.TRUNCATION,
+            overflow_mode=OverflowMode.SATURATION,
+        ),
+        4,
+        1.5,
+        [56, 40, -80, 127, -128, 84, 85, -85, -84, -86, 0],
+    ),
 ]
 
 
