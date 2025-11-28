@@ -82,7 +82,7 @@ def _declarative_region_common(
 
     # Define control signals
     for name, entry in pe.control_table.items():
-        if isinstance(next(iter(entry.values.values())), bool) or entry.bits == 1:
+        if isinstance(next(iter(entry.values.values())), bool):
             vhdl_type = "std_logic"
         elif entry.is_signed:
             vhdl_type = f"signed({entry.bits - 1} downto 0)"
@@ -137,7 +137,7 @@ def _statement_region_common(
     for name, entry in pe.control_table.items():
         if entry.is_static:
             val = entry.get_static_value()
-            if isinstance(val, bool) or entry.bits == 1:
+            if isinstance(val, bool):
                 val_str = f"'{int(val)}'"
             elif isinstance(val, (int, np.integer, float, np.floating)):
                 int_val = int(val * 2**entry.frac_bits)
