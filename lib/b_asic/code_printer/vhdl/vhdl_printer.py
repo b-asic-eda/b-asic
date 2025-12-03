@@ -189,19 +189,29 @@ class VhdlPrinter(Printer):
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
+
+        common.signal_declaration(declarations, "tmp_res", signed_type(self.bits + 1))
         common.signal_declaration(
             declarations, "res_arith_0", signed_type(self.bits + 1)
+        )
+
+        common.write(
+            code,
+            1,
+            "tmp_res <= resize(op_0, op_0'length + 1) + resize(op_1, op_1'length + 1);",
         )
         common.write(
             code,
             1,
-            "res_arith_0 <= resize(op_0, op_0'length + 1) + resize(op_1, op_1'length + 1);",
+            "res_arith_0 <= shift_right(tmp_res, to_integer(shift_output));",
         )
+
         wls = [(self.int_bits + 1, self.frac_bits)]
         return wls, (declarations.getvalue(), code.getvalue())
 
     def print_AddSub_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
+
         common.signal_declaration(
             declarations, "op_b", f"{self.type_name}({self.bits} downto 0)"
         )
@@ -209,15 +219,25 @@ class VhdlPrinter(Printer):
             declarations, "tmp_res", f"{self.type_name}({self.bits + 1} downto 0)"
         )
         common.signal_declaration(
+            declarations, "tmp_res_shifted", f"{self.type_name}({self.bits} downto 0)"
+        )
+        common.signal_declaration(
             declarations, "res_arith_0", f"{self.type_name}({self.bits} downto 0)"
         )
+
         common.write(
             code,
             1,
             f"op_b <= resize(op_1, {self.bits + 1}) when is_add = '1' else not resize(op_1, {self.bits + 1});",
         )
         common.write(code, 1, "tmp_res <= (op_0 & '1') + (op_b & not is_add);")
-        common.write(code, 1, f"res_arith_0 <= tmp_res({self.bits + 1} downto 1);")
+        common.write(code, 1, f"tmp_res_shifted <= tmp_res({self.bits + 1} downto 1);")
+        common.write(
+            code,
+            1,
+            "res_arith_0 <= shift_right(tmp_res_shifted, to_integer(shift_output));",
+        )
+
         wls = [(self.int_bits + 1, self.frac_bits)]
         return wls, (declarations.getvalue(), code.getvalue())
 
@@ -239,9 +259,15 @@ class VhdlPrinter(Printer):
             )
             common.signal_declaration(
                 declarations,
+                f"{part}_tmp_res_shifted",
+                f"{self.scalar_type_name}({self.bits} downto 0)",
+            )
+            common.signal_declaration(
+                declarations,
                 f"res_arith_0_{part}",
                 f"{self.scalar_type_name}({self.bits} downto 0)",
             )
+
             common.write(
                 code,
                 1,
@@ -255,7 +281,12 @@ class VhdlPrinter(Printer):
             common.write(
                 code,
                 1,
-                f"res_arith_0_{part} <= {part}_tmp_res({self.bits + 1} downto 1);",
+                f"{part}_tmp_res_shifted <= {part}_tmp_res({self.bits + 1} downto 1);",
+            )
+            common.write(
+                code,
+                1,
+                f"res_arith_0_{part} <= shift_right({part}_tmp_res_shifted, to_integer(shift_output));",
             )
         wls = [(self.int_bits + 1, self.frac_bits)]
         return wls, (declarations.getvalue(), code.getvalue())
@@ -299,11 +330,21 @@ class VhdlPrinter(Printer):
             1,
             f"tmp_res <= (op_a & '1') + (shift_right(op_b, {shift_expr}) & not is_add);",
         )
+
+        common.signal_declaration(
+            declarations, "tmp_res_shifted", f"{self.type_name}({self.bits} downto 0)"
+        )
         common.write(
             code,
             1,
-            f"res_arith_0 <= tmp_res({self.bits + 1} downto 1);",
+            f"tmp_res_shifted <= tmp_res({self.bits + 1} downto 1);",
         )
+        common.write(
+            code,
+            1,
+            "res_arith_0 <= shift_right(tmp_res_shifted, to_integer(shift_output));",
+        )
+
         wls = [(self.int_bits + 1, self.frac_bits)]
         return wls, (declarations.getvalue(), code.getvalue())
 
@@ -390,13 +431,27 @@ class VhdlPrinter(Printer):
                 1,
                 f"tmp_res_{part} <= (op_a_{part} & '1') + (shift_right(op_b_{part}, {shift_expr}) & cin_{part});",
             )
-        # slice and assign the parts to res_arith_0
+
+        # Declare tmp_res_shifted signals and slice/assign to res_arith_0
+        for part in "re", "im":
+            common.signal_declaration(
+                declarations,
+                f"{part}_tmp_res_shifted",
+                f"{self.scalar_type_name}({self.bits} downto 0)",
+            )
         for part in "re", "im":
             common.write(
                 code,
                 1,
-                f"res_arith_0_{part} <= tmp_res_{part}({self.bits + 1} downto 1);",
+                f"{part}_tmp_res_shifted <= tmp_res_{part}({self.bits + 1} downto 1);",
             )
+        for part in "re", "im":
+            common.write(
+                code,
+                1,
+                f"res_arith_0_{part} <= shift_right({part}_tmp_res_shifted, to_integer(shift_output));",
+            )
+
         wls = [(self.int_bits + 1, self.frac_bits)]
         return wls, (declarations.getvalue(), code.getvalue())
 
@@ -807,7 +862,6 @@ class VhdlPrinter(Printer):
                 ):
                     # Magnitude Truncation: round towards zero
                     # Add sign bit to position $W + 1$
-
                     type_name = (
                         self.scalar_type_name if self.is_complex else self.type_name
                     )

@@ -214,6 +214,8 @@ class Addition(AbstractOperation):
         reused).
     mul_j : bool, default: False
         If True, *src1* is multiplied by j before the addition.
+    shift_output : int, default: 0
+        Right-shift amount applied to the output result.
 
     See Also
     --------
@@ -226,6 +228,7 @@ class Addition(AbstractOperation):
         "_latency_offsets",
         "_mul_j",
         "_name",
+        "_shift_output",
         "_src0",
         "_src1",
     )
@@ -236,6 +239,7 @@ class Addition(AbstractOperation):
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
     _mul_j: bool
+    _shift_output: int
 
     is_linear = True
     is_swappable = True
@@ -249,6 +253,7 @@ class Addition(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         mul_j: bool = False,
+        shift_output: int = 0,
     ) -> None:
         """
         Construct an Addition operation.
@@ -263,6 +268,7 @@ class Addition(AbstractOperation):
             execution_time=execution_time,
         )
         self.set_param("mul_j", mul_j)
+        self.set_param("shift_output", shift_output)
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -287,10 +293,38 @@ class Addition(AbstractOperation):
         """
         self.set_param("mul_j", mul_j)
 
+    @property
+    def shift_output(self) -> int:
+        """
+        Get the right-shift amount applied to the output.
+        """
+        return self.param("shift_output")
+
+    @shift_output.setter
+    def shift_output(self, shift_output: int) -> None:
+        """
+        Set the right-shift amount applied to the output.
+
+        Parameters
+        ----------
+        shift_output : int
+            Right-shift amount for the output result.
+        """
+        if not isinstance(shift_output, int):
+            raise TypeError("shift_output must be an int")
+        if shift_output < 0:
+            raise ValueError("shift_output must be non-negative")
+        self.set_param("shift_output", shift_output)
+
     def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
             b *= 1j
         res = a + b
+        if self.shift_output != 0:
+            if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
+                res = res >> self.shift_output
+            else:
+                res = res / (2**self.shift_output)
         return self._cast_to_data_type(res, data_type)
 
     def _rewrite_AddSub(self) -> "SFG":
@@ -360,6 +394,8 @@ class Subtraction(AbstractOperation):
         reused).
     mul_j : bool, default: False
         If True, *src1* is multiplied by j before the subtraction.
+    shift_output : int, default: 0
+        Right-shift amount applied to the output result.
 
     See Also
     --------
@@ -374,6 +410,7 @@ class Subtraction(AbstractOperation):
         "_latency_offsets",
         "_mul_j",
         "_name",
+        "_shift_output",
         "_src0",
         "_src1",
     )
@@ -384,6 +421,7 @@ class Subtraction(AbstractOperation):
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
     _mul_j: bool
+    _shift_output: int
 
     def __init__(
         self,
@@ -394,6 +432,7 @@ class Subtraction(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         mul_j: bool = False,
+        shift_output: int = 0,
     ) -> None:
         """
         Construct a Subtraction operation.
@@ -408,6 +447,7 @@ class Subtraction(AbstractOperation):
             execution_time=execution_time,
         )
         self.set_param("mul_j", mul_j)
+        self.set_param("shift_output", shift_output)
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -432,10 +472,38 @@ class Subtraction(AbstractOperation):
         """
         self.set_param("mul_j", mul_j)
 
+    @property
+    def shift_output(self) -> int:
+        """
+        Get the right-shift amount applied to the output.
+        """
+        return self.param("shift_output")
+
+    @shift_output.setter
+    def shift_output(self, shift_output: int) -> None:
+        """
+        Set the right-shift amount applied to the output.
+
+        Parameters
+        ----------
+        shift_output : int
+            Right-shift amount for the output result.
+        """
+        if not isinstance(shift_output, int):
+            raise TypeError("shift_output must be an int")
+        if shift_output < 0:
+            raise ValueError("shift_output must be non-negative")
+        self.set_param("shift_output", shift_output)
+
     def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
             b *= 1j
         res = a - b
+        if self.shift_output != 0:
+            if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
+                res = res >> self.shift_output
+            else:
+                res = res / (2**self.shift_output)
         return self._cast_to_data_type(res, data_type)
 
     def _rewrite_AddSub(self) -> "SFG":
@@ -514,6 +582,8 @@ class AddSub(AbstractOperation):
         reused).
     mul_j : bool, default: False
         If True, *src1* is multiplied by j before the addition/subtraction.
+    shift_output : int, default: 0
+        Right-shift amount applied to the output result.
 
     See Also
     --------
@@ -527,6 +597,7 @@ class AddSub(AbstractOperation):
         "_latency_offsets",
         "_mul_j",
         "_name",
+        "_shift_output",
         "_src0",
         "_src1",
     )
@@ -538,6 +609,7 @@ class AddSub(AbstractOperation):
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
     _mul_j: bool
+    _shift_output: int
 
     is_linear = True
 
@@ -551,6 +623,7 @@ class AddSub(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         mul_j: bool = False,
+        shift_output: int = 0,
     ) -> None:
         """
         Construct an Addition/Subtraction operation.
@@ -566,6 +639,7 @@ class AddSub(AbstractOperation):
         )
         self.set_param("is_add", is_add)
         self.set_param("mul_j", mul_j)
+        self.set_param("shift_output", shift_output)
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -575,6 +649,11 @@ class AddSub(AbstractOperation):
         if self.mul_j:
             b *= 1j
         res = a + b if self.is_add else a - b
+        if self.shift_output != 0:
+            if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
+                res = res >> self.shift_output
+            else:
+                res = res / (2**self.shift_output)
         return self._cast_to_data_type(res, data_type)
 
     @property
@@ -614,6 +693,29 @@ class AddSub(AbstractOperation):
             Whether *src1* is multiplied by j before the addition/subtraction.
         """
         self.set_param("mul_j", mul_j)
+
+    @property
+    def shift_output(self) -> int:
+        """
+        Get the right-shift amount applied to the output.
+        """
+        return self.param("shift_output")
+
+    @shift_output.setter
+    def shift_output(self, shift_output: int) -> None:
+        """
+        Set the right-shift amount applied to the output.
+
+        Parameters
+        ----------
+        shift_output : int
+            Right-shift amount for the output result.
+        """
+        if not isinstance(shift_output, int):
+            raise TypeError("shift_output must be an int")
+        if shift_output < 0:
+            raise ValueError("shift_output must be non-negative")
+        self.set_param("shift_output", shift_output)
 
     @property
     def is_swappable(self) -> bool:
@@ -675,6 +777,8 @@ class ShiftAddSub(AbstractOperation):
         reused).
     mul_j : bool, default: False
         If True, *src1* is multiplied by j before the addition/subtraction.
+    shift_output : int, default: 0
+        Right-shift amount applied to the output result.
 
     See Also
     --------
@@ -689,6 +793,7 @@ class ShiftAddSub(AbstractOperation):
         "_mul_j",
         "_name",
         "_shift",
+        "_shift_output",
         "_src0",
         "_src1",
     )
@@ -701,6 +806,7 @@ class ShiftAddSub(AbstractOperation):
     _execution_time: int | None
     _shift: int
     _mul_j: bool
+    _shift_output: int
 
     is_linear = True
 
@@ -715,6 +821,7 @@ class ShiftAddSub(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         mul_j: bool = False,
+        shift_output: int = 0,
     ) -> None:
         """
         Construct an Addition/Subtraction operation.
@@ -731,6 +838,7 @@ class ShiftAddSub(AbstractOperation):
         self.is_add = is_add
         self.shift = shift
         self.mul_j = mul_j
+        self.shift_output = shift_output
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -747,6 +855,11 @@ class ShiftAddSub(AbstractOperation):
         else:
             b /= 2**self.shift
         res = a + b if self.is_add else a - b
+        if self.shift_output != 0:
+            if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
+                res = res >> self.shift_output
+            else:
+                res = res / (2**self.shift_output)
         return self._cast_to_data_type(res, data_type)
 
     @property
@@ -766,6 +879,13 @@ class ShiftAddSub(AbstractOperation):
         Get if *src1* is multiplied by j before the shift and addition/subtraction.
         """
         return self.param("mul_j")
+
+    @property
+    def shift_output(self) -> int:
+        """
+        Get the right-shift amount applied to the output.
+        """
+        return self.param("shift_output")
 
     @is_add.setter
     def is_add(self, is_add: bool) -> None:
@@ -810,6 +930,22 @@ class ShiftAddSub(AbstractOperation):
         if not isinstance(mul_j, bool):
             raise TypeError("mul_j must be a bool")
         self.set_param("mul_j", mul_j)
+
+    @shift_output.setter
+    def shift_output(self, shift_output: int) -> None:
+        """
+        Set the right-shift amount applied to the output.
+
+        Parameters
+        ----------
+        shift_output : int
+            Right-shift amount for the output result.
+        """
+        if not isinstance(shift_output, int):
+            raise TypeError("shift_output must be an int")
+        if shift_output < 0:
+            raise ValueError("shift_output must be non-negative")
+        self.set_param("shift_output", shift_output)
 
     @property
     def is_swappable(self) -> bool:

@@ -14,43 +14,48 @@ from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
 from b_asic.special_operations import Input, Output
 
-# Test parameters: (data_type, test_cases)
-# test_cases: list of (input0, input1, is_add, expected_output)
+# Test parameters: (data_type, latency, is_add, shift_output, test_cases)
 TEST_PARAMS = [
     pytest.param(
         VhdlDataType(wl=4),
         1,
         True,
+        0,
         [(3, 2), (7, 5), (-1, -2), (5, 3)],
     ),
     pytest.param(
         VhdlDataType(wl=4, is_complex=True),
         1,
         True,
+        0,
         [(3, 2), (7, 5), (-1, -2), (5, 3), (5 + 1j, 2 - 1j), (3 + 2j, 4 - 3j)],
     ),
     pytest.param(
         VhdlDataType(wl=4),
         4,
         True,
+        0,
         [(3, 2), (7, 5), (-1, -2), (5, 3)],
     ),
     pytest.param(
         VhdlDataType(wl=8),
         1,
         False,
+        0,
         [(10, 20), (127, 50), (100, 27), (50, 25)],
     ),
     pytest.param(
         VhdlDataType(wl=8, is_complex=True),
         2,
         False,
+        0,
         [(10, 20), (127, 50), (100, 27), (50, 25), (127j, 32j), (64 + 64j, -65 + 67j)],
     ),
     pytest.param(
         VhdlDataType(wl=16),
         1,
         True,
+        0,
         [(1000, 2000), (32767, 1000), (5000, 3000)],
     ),
     pytest.param(
@@ -61,6 +66,7 @@ TEST_PARAMS = [
         ),
         1,
         True,
+        0,
         [
             (56, 40),
             (120, 16),
@@ -76,6 +82,7 @@ TEST_PARAMS = [
         ),
         10,
         True,
+        0,
         [
             (56, 40),
             (120, 16),
@@ -91,17 +98,35 @@ TEST_PARAMS = [
         ),
         3,
         True,
+        0,
         [
             (3, 2),
             (7, 1),
             (0, -1),
         ],
     ),
+    # Tests with shift_output
+    pytest.param(
+        VhdlDataType(wl=8),
+        1,
+        True,
+        1,
+        [(16, 8), (32, 16), (-8, -4), (20, 10)],
+    ),
+    pytest.param(
+        VhdlDataType(wl=8),
+        1,
+        True,
+        2,
+        [(32, 16), (64, 32), (-16, -8), (40, 20)],
+    ),
 ]
 
 
-@pytest.mark.parametrize(("data_type", "latency", "is_add", "test_cases"), TEST_PARAMS)
-def test_addsub(tmp_path, data_type, latency, is_add, test_cases):
+@pytest.mark.parametrize(
+    ("data_type", "latency", "is_add", "shift_output", "test_cases"), TEST_PARAMS
+)
+def test_addsub(tmp_path, data_type, latency, is_add, shift_output, test_cases):
     tcs = []
     for tc in test_cases:
         if data_type.is_complex:
@@ -119,26 +144,31 @@ def test_addsub(tmp_path, data_type, latency, is_add, test_cases):
             a = apy.APyFixed(tc[0], int_bits=data_type.wl[0], frac_bits=data_type.wl[1])
             b = apy.APyFixed(tc[1], int_bits=data_type.wl[0], frac_bits=data_type.wl[1])
 
-        if is_add:
-            res = (a + b).cast(
+        res = a + b if is_add else a - b
+
+        # Apply shift_output
+        if shift_output > 0:
+            res = (res >> shift_output).cast(
                 data_type.wl[0],
                 data_type.wl[1],
                 data_type.quantization_mode.to_apytypes(),
                 data_type.overflow_mode.to_apytypes(),
             )
         else:
-            res = (a - b).cast(
+            res = res.cast(
                 data_type.wl[0],
                 data_type.wl[1],
                 data_type.quantization_mode.to_apytypes(),
                 data_type.overflow_mode.to_apytypes(),
             )
 
-        tcs.append((a.to_bits(), b.to_bits(), is_add, res.to_bits()))
+        tcs.append((a.to_bits(), b.to_bits(), is_add, shift_output, res.to_bits()))
 
     in0 = Input()
     in1 = Input()
-    op0 = AddSub(is_add, in0, in1, latency=latency, execution_time=1)
+    op0 = AddSub(
+        is_add, in0, in1, latency=latency, execution_time=1, shift_output=shift_output
+    )
     out0 = Output(op0)
     sfg = SFG(inputs=[in0, in1], outputs=[out0])
 
@@ -203,7 +233,7 @@ async def addsub_test(dut):
 
     cocotb.log.info(f"Running {len(test_cases)} test cases with latency={latency}")
 
-    for i, (in0, in1, is_add, expected) in enumerate(test_cases, 1):
+    for i, (in0, in1, is_add, shift_output, expected) in enumerate(test_cases, 1):
         is_complex = False
         if isinstance(in0, list) and (in0[0] != 0 or in0[1] != 0):  # Complex case
             is_complex = True
@@ -229,13 +259,15 @@ async def addsub_test(dut):
             assert actual_re == expected_re
             assert actual_im == expected_im
             cocotb.log.info(
-                f"✓ Test {i}: ({in0[0]}{op_str}{in1[0]}) +j({in0[1]}{op_str}{in1[1]}) = "
+                f"✓ Test {i}: (({in0[0]}{op_str}{in1[0]}) >> {shift_output}) +j(({in0[1]}{op_str}{in1[1]}) >> {shift_output}) = "
                 f"({actual_re} + j{actual_im})"
             )
         else:
             actual = dut.output_0_out.value.to_unsigned()
             op_str = "+" if is_add else "-"
             assert actual == expected
-            cocotb.log.info(f"✓ Test {i}: {in0} {op_str} {in1} = {actual}")
+            cocotb.log.info(
+                f"✓ Test {i}: ({in0} {op_str} {in1}) >> {shift_output} = {actual}"
+            )
 
     await Timer(2 * 10, "ns")

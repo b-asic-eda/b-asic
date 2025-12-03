@@ -14,7 +14,7 @@ from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
 from b_asic.special_operations import Input, Output
 
-# Test parameters: (data_type, latency, is_add, shift, mul_j, test_cases)
+# Test parameters: (data_type, latency, is_add, shift, mul_j, shift_output, test_cases)
 # test_cases: list of (input0, input1) tuples
 TEST_PARAMS = [
     pytest.param(
@@ -23,6 +23,7 @@ TEST_PARAMS = [
         True,
         0,
         False,
+        0,
         [(16, 8), (32, 16), (-8, -4), (20, 10)],
     ),
     pytest.param(
@@ -31,6 +32,7 @@ TEST_PARAMS = [
         True,
         1,
         False,
+        0,
         [(16, 8), (32, 16), (-8, -4), (20, 10)],
     ),
     pytest.param(
@@ -39,6 +41,7 @@ TEST_PARAMS = [
         True,
         2,
         False,
+        0,
         [(32, 16), (64, 32), (-16, -8), (40, 20)],
     ),
     pytest.param(
@@ -47,6 +50,7 @@ TEST_PARAMS = [
         True,
         1,
         False,
+        0,
         [(16, 8), (32, 16), (-8, -4), (20, 10)],
     ),
     pytest.param(
@@ -55,6 +59,7 @@ TEST_PARAMS = [
         False,
         0,
         False,
+        0,
         [(20, 10), (127, 50), (100, 27), (50, 25)],
     ),
     pytest.param(
@@ -63,6 +68,7 @@ TEST_PARAMS = [
         False,
         1,
         False,
+        0,
         [(20, 10), (100, 8), (-10, -10), (127, 50), (100, 27), (50, 25)],
     ),
     pytest.param(
@@ -71,6 +77,7 @@ TEST_PARAMS = [
         False,
         2,
         False,
+        0,
         [(40, 20), (127, 100), (100, 80), (60, 50)],
     ),
     pytest.param(
@@ -79,6 +86,7 @@ TEST_PARAMS = [
         True,
         1,
         False,
+        0,
         [(16, 8), (32, 16), (-8, -4), (20, 10), (16 + 8j, 8 + 4j), (32 - 16j, 16 - 8j)],
     ),
     pytest.param(
@@ -87,6 +95,7 @@ TEST_PARAMS = [
         False,
         2,
         False,
+        0,
         [
             (40, 20),
             (127, 100),
@@ -102,6 +111,7 @@ TEST_PARAMS = [
         True,
         1,
         True,
+        0,
         [(16, 8), (32, 16), (-8, -4), (20, 10), (16 + 8j, 8 + 4j), (32 - 16j, 16 - 8j)],
     ),
     pytest.param(
@@ -110,6 +120,7 @@ TEST_PARAMS = [
         True,
         3,
         False,
+        0,
         [(1000, 2000), (32767, 1000), (5000, 3000)],
     ),
     pytest.param(
@@ -122,6 +133,7 @@ TEST_PARAMS = [
         True,
         1,
         False,
+        0,
         [
             (56, 40),
             (120, 16),
@@ -139,6 +151,7 @@ TEST_PARAMS = [
         True,
         2,
         False,
+        0,
         [
             (56, 40),
             (120, 16),
@@ -146,13 +159,35 @@ TEST_PARAMS = [
             (-120, -9),
         ],
     ),
+    # Tests with shift_output
+    pytest.param(
+        VhdlDataType(wl=8),
+        1,
+        True,
+        1,
+        False,
+        1,
+        [(1, 77), (-34, 15), (-8, -4), (21, 12)],
+    ),
+    pytest.param(
+        VhdlDataType(wl=8),
+        4,
+        True,
+        2,
+        False,
+        2,
+        [(32, 16), (64, 32), (-16, -8), (40, 20)],
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    ("data_type", "latency", "is_add", "shift", "mul_j", "test_cases"), TEST_PARAMS
+    ("data_type", "latency", "is_add", "shift", "mul_j", "shift_output", "test_cases"),
+    TEST_PARAMS,
 )
-def test_shiftaddsub(tmp_path, data_type, latency, is_add, shift, mul_j, test_cases):
+def test_shiftaddsub(
+    tmp_path, data_type, latency, is_add, shift, mul_j, shift_output, test_cases
+):
     tcs = []
     for tc in test_cases:
         if data_type.is_complex:
@@ -181,22 +216,35 @@ def test_shiftaddsub(tmp_path, data_type, latency, is_add, shift, mul_j, test_ca
         if mul_j:
             b_shifted *= 1j
 
-        if is_add:
-            res = (a + b_shifted).cast(
+        res = a + b_shifted if is_add else a - b_shifted
+
+        # Apply shift_output
+        if shift_output > 0:
+            res = (res >> shift_output).cast(
                 data_type.wl[0],
                 data_type.wl[1],
                 data_type.quantization_mode.to_apytypes(),
                 data_type.overflow_mode.to_apytypes(),
             )
         else:
-            res = (a - b_shifted).cast(
+            res = res.cast(
                 data_type.wl[0],
                 data_type.wl[1],
                 data_type.quantization_mode.to_apytypes(),
                 data_type.overflow_mode.to_apytypes(),
             )
 
-        tcs.append((a.to_bits(), b.to_bits(), is_add, shift, mul_j, res.to_bits()))
+        tcs.append(
+            (
+                a.to_bits(),
+                b.to_bits(),
+                is_add,
+                shift,
+                mul_j,
+                shift_output,
+                res.to_bits(),
+            )
+        )
 
     in0 = Input()
     in1 = Input()
@@ -208,6 +256,7 @@ def test_shiftaddsub(tmp_path, data_type, latency, is_add, shift, mul_j, test_ca
         latency=latency,
         execution_time=1,
         mul_j=mul_j,
+        shift_output=shift_output,
     )
     out0 = Output(op0)
     sfg = SFG(inputs=[in0, in1], outputs=[out0])
@@ -273,7 +322,9 @@ async def shiftaddsub_test(dut):
 
     cocotb.log.info(f"Running {len(test_cases)} test cases with latency={latency}")
 
-    for i, (in0, in1, is_add, shift, mul_j, expected) in enumerate(test_cases, 1):
+    for i, (in0, in1, is_add, shift, mul_j, shift_output, expected) in enumerate(
+        test_cases, 1
+    ):
         is_complex = isinstance(in0, list) and len(in0) == 2
 
         if is_complex:
@@ -301,13 +352,15 @@ async def shiftaddsub_test(dut):
             assert actual_re == expected_re
             assert actual_im == expected_im
             cocotb.log.info(
-                f"✓ Test {i}: ({in0[0]}{op_str}(({in1[0]}{mul_j_str})>>{shift})) +j({in0[1]}{op_str}(({in1[1]}{mul_j_str})>>{shift})) = "
+                f"✓ Test {i}: (({in0[0]}{op_str}(({in1[0]}{mul_j_str})>>{shift}))>>{shift_output}) +j(({in0[1]}{op_str}(({in1[1]}{mul_j_str})>>{shift}))>>{shift_output}) = "
                 f"({actual_re} + j{actual_im})"
             )
         else:
             actual = dut.output_0_out.value.to_unsigned()
             op_str = "+" if is_add else "-"
             assert actual == expected
-            cocotb.log.info(f"✓ Test {i}: {in0} {op_str} ({in1} >> {shift}) = {actual}")
+            cocotb.log.info(
+                f"✓ Test {i}: ({in0} {op_str} ({in1} >> {shift})) >> {shift_output} = {actual}"
+            )
 
     await Timer(2 * 10, "ns")
