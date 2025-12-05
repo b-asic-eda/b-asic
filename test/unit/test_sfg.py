@@ -2259,3 +2259,261 @@ class TestStateSpace:
         assert ss[0] == ["out0", "out1"]
         assert (ss[1] == np.array([[20.0, 0.0], [0.0, 8.0]])).all()
         assert ss[2] == ["in0", "in1"]
+
+
+class TestGetImpulseResponses:
+    def test_add_all_nodes(self):
+        in1 = Input()
+        in2 = Input()
+        add1 = in1 + in2
+        out1 = Output(add1)
+        sfg = SFG(inputs=[in1, in2], outputs=[out1])
+
+        impulse_responses = sfg.get_impulse_responses(all_nodes=True)
+
+        assert len(impulse_responses) == 2
+
+        assert "add0" in impulse_responses
+        assert len(impulse_responses["add0"]) == 2
+        assert np.array_equal(impulse_responses["add0"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["add0"][1], np.array([1.0]))
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 2
+        assert np.array_equal(impulse_responses["out0"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["out0"][1], np.array([1.0]))
+
+    def test_cmul_all_nodes(self):
+        in1 = Input()
+        mul1 = in1 * 0.5
+        out1 = Output(mul1)
+        sfg = SFG(inputs=[in1], outputs=[out1])
+
+        impulse_responses = sfg.get_impulse_responses(all_nodes=True)
+
+        assert len(impulse_responses) == 2
+
+        assert "cmul0" in impulse_responses
+        assert len(impulse_responses["cmul0"]) == 1
+        assert np.array_equal(impulse_responses["cmul0"][0], np.array([0.5]))
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 1
+        assert np.array_equal(impulse_responses["out0"][0], np.array([0.5]))
+
+    def test_sfg_two_inputs_two_outputs_all_nodes(self, sfg_two_inputs_two_outputs):
+        impulse_responses = sfg_two_inputs_two_outputs.get_impulse_responses(
+            all_nodes=True
+        )
+
+        assert len(impulse_responses) == 4
+
+        assert "add0" in impulse_responses
+        assert len(impulse_responses["add0"]) == 2
+        assert np.array_equal(impulse_responses["add0"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["add0"][1], np.array([1.0]))
+
+        assert "add1" in impulse_responses
+        assert len(impulse_responses["add1"]) == 2
+        assert np.array_equal(impulse_responses["add1"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["add1"][1], np.array([2.0]))
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 2
+        assert np.array_equal(impulse_responses["out0"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["out0"][1], np.array([1.0]))
+
+        assert "out1" in impulse_responses
+        assert len(impulse_responses["out1"]) == 2
+        assert np.array_equal(impulse_responses["out1"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["out1"][1], np.array([2.0]))
+
+    def test_add(self):
+        in1 = Input()
+        in2 = Input()
+        add1 = in1 + in2
+        out1 = Output(add1)
+        sfg = SFG(inputs=[in1, in2], outputs=[out1])
+
+        impulse_responses = sfg.get_impulse_responses(all_nodes=False)
+
+        assert len(impulse_responses) == 1
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 2
+        assert np.array_equal(impulse_responses["out0"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["out0"][1], np.array([1.0]))
+
+    def test_cmul(self):
+        in1 = Input()
+        mul1 = in1 * 0.5
+        out1 = Output(mul1)
+        sfg = SFG(inputs=[in1], outputs=[out1])
+
+        impulse_responses = sfg.get_impulse_responses(all_nodes=False)
+
+        assert len(impulse_responses) == 1
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 1
+        assert np.array_equal(impulse_responses["out0"][0], np.array([0.5]))
+
+    def test_sfg_two_inputs_two_outputs(self, sfg_two_inputs_two_outputs):
+        impulse_responses = sfg_two_inputs_two_outputs.get_impulse_responses(
+            all_nodes=False
+        )
+
+        assert len(impulse_responses) == 2
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 2
+        assert np.array_equal(impulse_responses["out0"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["out0"][1], np.array([1.0]))
+
+        assert "out1" in impulse_responses
+        assert len(impulse_responses["out1"]) == 2
+        assert np.array_equal(impulse_responses["out1"][0], np.array([1.0]))
+        assert np.array_equal(impulse_responses["out1"][1], np.array([2.0]))
+
+    def test_sfg_simple_accumulator(self, sfg_simple_accumulator):
+        impulse_responses = sfg_simple_accumulator.get_impulse_responses(
+            all_nodes=True, max_iters=4
+        )
+
+        assert len(impulse_responses) == 3
+
+        assert "add0" in impulse_responses
+        assert len(impulse_responses["add0"]) == 1
+        assert np.array_equal(impulse_responses["add0"][0], np.array([1, 1, 1, 1]))
+
+        assert "t0" in impulse_responses
+        assert len(impulse_responses["t0"]) == 1
+        assert np.array_equal(impulse_responses["t0"][0], np.array([0, 1, 1, 1]))
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 1
+        assert np.array_equal(impulse_responses["out0"][0], np.array([1, 1, 1, 1]))
+
+    def test_sfg_two_tap_fir(self, sfg_two_tap_fir):
+        impulse_responses = sfg_two_tap_fir.get_impulse_responses(all_nodes=True)
+
+        assert len(impulse_responses) == 5
+
+        assert "t0" in impulse_responses
+        assert len(impulse_responses["t0"]) == 1
+        assert np.array_equal(impulse_responses["t0"][0], np.array([0, 1]))
+
+        assert "cmul0" in impulse_responses
+        assert len(impulse_responses["cmul0"]) == 1
+        assert np.array_equal(impulse_responses["cmul0"][0], np.array([0, 0.5]))
+
+        assert "cmul1" in impulse_responses
+        assert len(impulse_responses["cmul1"]) == 1
+        assert np.array_equal(impulse_responses["cmul1"][0], np.array([0.5]))
+
+        assert "add0" in impulse_responses
+        assert len(impulse_responses["add0"]) == 1
+        assert np.array_equal(impulse_responses["add0"][0], np.array([0.5, 0.5]))
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 1
+        assert np.array_equal(impulse_responses["out0"][0], np.array([0.5, 0.5]))
+
+    def test_sfg_two_tap_fir_with_delay(self, sfg_two_tap_fir):
+        sfg = sfg_two_tap_fir.insert_operation_after("in0", Delay())
+        sfg = sfg.insert_operation_after("in0", Delay())
+        sfg = sfg.insert_operation_after("in0", Delay())
+        sfg = sfg.insert_operation_after("in0", Delay())
+        sfg = sfg.insert_operation_after("in0", Delay())
+
+        impulse_responses = sfg.get_impulse_responses(all_nodes=True)
+
+        assert len(impulse_responses) == 10
+
+        assert "t5" in impulse_responses
+        assert len(impulse_responses["t5"]) == 1
+        assert np.array_equal(impulse_responses["t5"][0], np.array([0, 1]))
+
+        assert "t4" in impulse_responses
+        assert len(impulse_responses["t4"]) == 1
+        assert np.array_equal(impulse_responses["t4"][0], np.array([0, 0, 1]))
+
+        assert "t3" in impulse_responses
+        assert len(impulse_responses["t3"]) == 1
+        assert np.array_equal(impulse_responses["t3"][0], np.array([0, 0, 0, 1]))
+
+        assert "t2" in impulse_responses
+        assert len(impulse_responses["t2"]) == 1
+        assert np.array_equal(impulse_responses["t2"][0], np.array([0, 0, 0, 0, 1]))
+
+        assert "t1" in impulse_responses
+        assert len(impulse_responses["t1"]) == 1
+        assert np.array_equal(impulse_responses["t1"][0], np.array([0, 0, 0, 0, 0, 1]))
+        assert "t0" in impulse_responses
+        assert len(impulse_responses["t0"]) == 1
+        assert np.array_equal(
+            impulse_responses["t0"][0], np.array([0, 0, 0, 0, 0, 0, 1])
+        )
+
+        assert "cmul0" in impulse_responses
+        assert len(impulse_responses["cmul0"]) == 1
+        assert np.array_equal(
+            impulse_responses["cmul0"][0], np.array([0, 0, 0, 0, 0, 0, 0.5])
+        )
+
+        assert "cmul1" in impulse_responses
+        assert len(impulse_responses["cmul1"]) == 1
+        assert np.array_equal(
+            impulse_responses["cmul1"][0], np.array([0, 0, 0, 0, 0, 0.5])
+        )
+        assert "add0" in impulse_responses
+        assert len(impulse_responses["add0"]) == 1
+        assert np.array_equal(
+            impulse_responses["add0"][0], np.array([0, 0, 0, 0, 0, 0.5, 0.5])
+        )
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 1
+        assert np.array_equal(
+            impulse_responses["out0"][0], np.array([0, 0, 0, 0, 0, 0.5, 0.5])
+        )
+
+    def test_two_port_adaptor(self):
+        in0 = Input()
+        in1 = Input()
+        sym2p = SymmetricTwoportAdaptor(0.2, in0, in1)
+        out0 = Output(sym2p.output(0))
+        out1 = Output(sym2p.output(1))
+        sfg = SFG(inputs=[in0, in1], outputs=[out0, out1])
+
+        impulse_responses = sfg.get_impulse_responses(all_nodes=True)
+
+        assert len(impulse_responses) == 4
+
+        assert "sym2p0.0" in impulse_responses
+        assert len(impulse_responses["sym2p0.0"]) == 2
+        assert np.array_equal(
+            impulse_responses["sym2p0.0"],
+            [np.array([-0.2]), np.array([1.2])],
+        )
+
+        assert "sym2p0.1" in impulse_responses
+        assert len(impulse_responses["sym2p0.1"]) == 2
+        assert np.array_equal(
+            impulse_responses["sym2p0.1"],
+            [np.array([0.8]), np.array([0.2])],
+        )
+
+        assert "out0" in impulse_responses
+        assert len(impulse_responses["out0"]) == 2
+        assert np.array_equal(
+            impulse_responses["out0"],
+            [np.array([-0.2]), np.array([1.2])],
+        )
+
+        assert "out1" in impulse_responses
+        assert len(impulse_responses["out1"]) == 2
+        assert np.array_equal(
+            impulse_responses["out1"],
+            [np.array([0.8]), np.array([0.2])],
+        )
