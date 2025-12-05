@@ -740,48 +740,48 @@ class SFG(AbstractOperation):
 
         return sfg_copy()
 
-    def insert_operation(self, component: Operation, output_comp_id: GraphID) -> "SFG":
-        """
-        Insert an operation in the SFG after a given source operation.
+    # def insert_operation(self, component: Operation, output_comp_id: GraphID) -> "SFG":
+    #     """
+    #     Insert an operation in the SFG after a given source operation.
 
-        The source operation output count must match the input count of the operation
-        as well as the output.
-        Then return a new deepcopy of the sfg with the inserted component.
+    #     The source operation output count must match the input count of the operation
+    #     as well as the output.
+    #     Then return a new deepcopy of the sfg with the inserted component.
 
-        Parameters
-        ----------
-        component : Operation
-            The new component, e.g. Multiplication.
-        output_comp_id : GraphID
-            The source operation GraphID to connect from.
-        """
-        # Preserve the original SFG by creating a copy.
-        sfg_copy = self()
-        comp = sfg_copy._add_component_unconnected_copy(component)
-        output_comp = cast(Operation, sfg_copy.find_by_id(output_comp_id))
-        if output_comp is None:
-            return None
+    #     Parameters
+    #     ----------
+    #     component : Operation
+    #         The new component, e.g. Multiplication.
+    #     output_comp_id : GraphID
+    #         The source operation GraphID to connect from.
+    #     """
+    #     # Preserve the original SFG by creating a copy.
+    #     sfg_copy = self()
+    #     comp = sfg_copy._add_component_unconnected_copy(component)
+    #     output_comp = cast(Operation, sfg_copy.find_by_id(output_comp_id))
+    #     if output_comp is None:
+    #         return None
 
-        if isinstance(output_comp, Output):
-            raise TypeError("Source operation cannot be an output operation.")
-        if len(output_comp.output_signals) != comp.input_count:
-            raise TypeError(
-                "Source operation output count"
-                f" ({len(output_comp.output_signals)}) does not match input"
-                f" count for component ({comp.input_count})."
-            )
-        if len(output_comp.output_signals) != comp.output_count:
-            raise TypeError(
-                "Destination operation input count does not match output for component."
-            )
+    #     if isinstance(output_comp, Output):
+    #         raise TypeError("Source operation cannot be an output operation.")
+    #     if len(output_comp.output_signals) != comp.input_count:
+    #         raise TypeError(
+    #             "Source operation output count"
+    #             f" ({len(output_comp.output_signals)}) does not match input"
+    #             f" count for component ({comp.input_count})."
+    #         )
+    #     if len(output_comp.output_signals) != comp.output_count:
+    #         raise TypeError(
+    #             "Destination operation input count does not match output for component."
+    #         )
 
-        for index, signal_in in enumerate(output_comp.output_signals):
-            destination = cast(InputPort, signal_in.destination)
-            signal_in.set_destination(comp.input(index))
-            destination.connect(comp.output(index))
+    #     for index, signal_in in enumerate(output_comp.output_signals):
+    #         destination = cast(InputPort, signal_in.destination)
+    #         signal_in.set_destination(comp.input(index))
+    #         destination.connect(comp.output(index))
 
-        # Recreate the newly coupled SFG so that all attributes are correct.
-        return sfg_copy()
+    #     # Recreate the newly coupled SFG so that all attributes are correct.
+    #     return sfg_copy()
 
     def insert_operation_after(
         self,
@@ -2497,3 +2497,154 @@ class SFG(AbstractOperation):
         ret = set({op.graph_id for op in self.operations})
         sorted(ret)
         return ret
+
+    def get_impulse_response_for_output_ports(
+        self, threshold: float = 1e-12
+    ) -> dict[str, list[list[float]]]:
+        """
+        Return the impulse response for all output ports of all operations in the SFG.
+
+        The simulation runs until all output values decay below the threshold.
+        One impulse response is computed for each input operation.
+
+        Parameters
+        ----------
+        threshold : float, default: 1e-12
+            The threshold below which output values are considered to have decayed to zero.
+
+        Returns
+        -------
+        dict[str, list[list[float]]]
+            Dictionary mapping each operation's output port key (e.g., "add1.0", "mul2.0")
+            to a list of impulse responses, one for each input operation in the SFG.
+        """
+        from b_asic.signal_generator import Impulse  # noqa: PLC0415
+        from b_asic.simulation import Simulation  # noqa: PLC0415
+
+        # Collect impulse responses for all operation output ports
+        impulse_responses = {}
+
+        # Run a separate simulation for each input
+        for input_idx in range(self.input_count):
+            # Create impulse on one input, zero on others
+            impulse_inputs = [
+                Impulse() if i == input_idx else None for i in range(self.input_count)
+            ]
+            sim = Simulation(self, impulse_inputs)
+
+            # Simulate until outputs decay below threshold
+            time_step = 0
+            while True:
+                time_step += 1
+                sim.run_for(1)
+
+                # Check if all outputs have decayed below threshold
+                if time_step > 1:  # Ensure at least 2 steps for propagation
+                    all_decayed = True
+                    for op in self._output_operations:
+                        for idx in range(op.output_count):
+                            key = op.key(idx, op.graph_id)
+                            if key not in sim.results or not sim.results[key]:
+                                continue
+                            last_value = sim.results[key][-1]
+                            if last_value is not None and abs(last_value) > threshold:
+                                all_decayed = False
+                                break
+                        if not all_decayed:
+                            break
+
+                    if all_decayed:
+                        break
+
+            # Store results for this input
+            for op in self.operations:
+                if isinstance(op, (Input, Output)):
+                    continue
+                for output_idx in range(op.output_count):
+                    key = op.key(output_idx, op.graph_id)
+                    if key not in impulse_responses:
+                        impulse_responses[key] = []
+                    if key in sim.results and len(sim.results[key]) > 0:
+                        # Convert numpy array to Python list
+                        response = sim.results[key][:-1]
+                        impulse_responses[key].append(
+                            [val if val is not None else 0 for val in response]
+                        )
+                    else:
+                        impulse_responses[key].append([])
+
+        return impulse_responses
+
+    def get_critical_nodes(
+        self, threshold: float = 1e-10, max_iterations: int = 10000
+    ) -> dict[GraphID, float]:
+        """
+        Return the critical nodes in the SFG.
+
+        Critical nodes are operations whose maximum value (defined as the sum of
+        absolute values of the impulse response) is greater than 1 when the SFG
+        is simulated with unit impulse inputs on all inputs.
+
+        The simulation runs until all output values decay below the threshold or
+        the maximum number of iterations is reached.
+
+        Parameters
+        ----------
+        threshold : float, default: 1e-10
+            The threshold below which output values are considered to have decayed to zero.
+        max_iterations : int, default: 10000
+            Maximum number of simulation time steps to prevent infinite loops.
+
+        Returns
+        -------
+        dict[GraphID, float]
+            Dictionary mapping each critical node GraphID to the sum of absolute
+            values of its impulse response.
+        """
+        from b_asic.signal_generator import Impulse  # noqa: PLC0415
+        from b_asic.simulation import Simulation  # noqa: PLC0415
+
+        # Run simulation with impulse inputs
+        impulse_inputs = [Impulse() for _ in range(self.input_count)]
+        sim = Simulation(self, impulse_inputs)
+
+        # Simulate until outputs decay below threshold
+        for time_step in range(1, max_iterations + 1):
+            sim.run_for(1)
+
+            # Check if all outputs have decayed below threshold
+            if time_step > 1:  # Ensure at least 2 steps for propagation
+                all_decayed = True
+                for op in self.operations:
+                    for idx in range(op.output_count):
+                        key = op.key(idx, op.graph_id)
+                        if key not in sim.results or sim.results[key] is None:
+                            continue
+                        last_value = sim.results[key][-1]
+                        if last_value is not None and abs(last_value) > threshold:
+                            all_decayed = False
+                            break
+                    if not all_decayed:
+                        break
+
+                if all_decayed:
+                    break
+
+        # Find operations with sum of absolute values > 1
+        critical_values = {}
+        for op in self.operations:
+            if isinstance(op, (Input, Output)):
+                continue
+
+            for output_idx in range(op.output_count):
+                key = op.key(output_idx, op.graph_id)
+                if key in sim.results and len(sim.results[key]) > 0:
+                    # Sum of absolute values of impulse response
+                    sum_abs_values = sum(
+                        abs(v) for v in sim.results[key] if v is not None
+                    )
+                    if sum_abs_values > 1:
+                        critical_values[op.graph_id] = sum_abs_values
+                        break
+
+        return critical_values
