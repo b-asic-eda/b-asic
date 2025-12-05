@@ -13,7 +13,7 @@ from collections.abc import Iterable, MutableSet, Sequence
 from fractions import Fraction
 from io import StringIO
 from queue import PriorityQueue
-from typing import Literal, Union, cast
+from typing import TYPE_CHECKING, Literal, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -36,6 +36,9 @@ from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
+
+if TYPE_CHECKING:
+    from b_asic.simulation import Simulation
 
 DelayQueue = list[tuple[str, ResultKey, OutputPort]]
 OpSpecifier = GraphID | type[Operation] | Operation
@@ -2497,3 +2500,124 @@ class SFG(AbstractOperation):
         ret = set({op.graph_id for op in self.operations})
         sorted(ret)
         return ret
+
+    def _output_ports_decayed(
+        self, op: Operation, sim: "Simulation", threshold: float
+    ) -> bool:
+        if isinstance(op, Output):
+            key = op.graph_id
+            last_value = sim.results[key][-1]
+            return last_value is None or abs(last_value) <= threshold
+        for idx in range(op.output_count):
+            key = op.key(idx, op.graph_id)
+            last_value = sim.results[key][-1]
+            return last_value is None or abs(last_value) <= threshold
+        return True
+
+    def get_impulse_responses(
+        self, threshold: float = 1e-12, max_iters: int = -1, all_nodes: bool = False
+    ) -> dict[str, list[npt.NDArray]]:
+        """
+        Return the impulse response for all output ports of all operations in the SFG.
+
+        The simulation runs until all output and delay values decay below the threshold.
+        One impulse response is computed for each SFG input.
+
+        Parameters
+        ----------
+        threshold : float, default: 1e-12
+            The threshold below which output values are considered to have decayed to zero.
+
+        all_nodes : bool, default: False
+            If True, impulse responses are collected for all operations.
+            If False, only output operations of the SFG are collected.
+
+        max_iters : int, default: -1
+            Maximum number of simulation time steps to prevent infinite loops.
+            If -1, there is no limit.
+
+        Returns
+        -------
+        dict[str, list[npt.NDArray]]
+            Dictionary mapping each operation's output port key (e.g., "add1.0", "mul2.0")
+            to a list of impulse responses (as numpy arrays), one for each SFG input.
+
+        Raises
+        ------
+        ValueError
+            If the SFG is not linear.
+        """
+        from b_asic.signal_generator import Impulse  # noqa: PLC0415
+        from b_asic.simulation import Simulation  # noqa: PLC0415
+
+        # Check if SFG is linear
+        if not self.is_linear:
+            raise ValueError("SFG must be linear to compute impulse responses")
+
+        # Collect impulse responses for all SFG inputs
+        impulse_responses = {}
+        for input_idx in range(self.input_count):
+            # Create impulse on one input, zero on others
+            impulse_inputs = [
+                Impulse() if i == input_idx else None for i in range(self.input_count)
+            ]
+            sim = Simulation(self, impulse_inputs)
+
+            # Simulate until all outputs and delays decay below threshold
+            time_step = 0
+            while True:
+                time_step += 1
+                if max_iters == 0:
+                    break
+                sim.run_for(1)
+                max_iters -= 1
+                # Check if all outputs and delays have decayed below threshold
+                if time_step > 1:
+                    all_decayed = True
+                    # Check SFG outputs
+                    for op in self._output_operations:
+                        if not self._output_ports_decayed(op, sim, threshold):
+                            all_decayed = False
+                            break
+                    # Check delay elements
+                    if all_decayed:
+                        for op in self.find_by_type(Delay):
+                            if not self._output_ports_decayed(op, sim, threshold):
+                                all_decayed = False
+                                break
+                    if all_decayed:
+                        break
+
+            # Store results for this input
+            ops_to_collect = self.operations if all_nodes else self._output_operations
+            for op in ops_to_collect:
+                if isinstance(op, Input):
+                    continue
+                if isinstance(op, Output):
+                    # Output operations have no output ports, collect from their input instead
+                    key = op.graph_id
+                    if key not in impulse_responses:
+                        impulse_responses[key] = []
+                    if key in sim.results and len(sim.results[key]) > 0:
+                        response = sim.results[key]
+                        # Exclude trailing zeros
+                        while len(response) > 0 and abs(response[-1]) <= threshold:
+                            response = response[:-1]
+                        impulse_responses[key].append(response)
+                    else:
+                        impulse_responses[key].append([])
+                else:
+                    for output_idx in range(op.output_count):
+                        key = op.key(output_idx, op.graph_id)
+                        if key not in impulse_responses:
+                            impulse_responses[key] = []
+                        if key in sim.results and len(sim.results[key]) > 0:
+                            response = sim.results[key]
+                            # Exclude trailing zeros
+                            while len(response) > 0 and abs(response[-1]) <= threshold:
+                                response = response[:-1]
+                            impulse_responses[key].append(response)
+                        else:
+                            impulse_responses[key].append([])
+
+        return impulse_responses

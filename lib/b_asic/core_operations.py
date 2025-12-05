@@ -342,6 +342,7 @@ class Addition(AbstractOperation):
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
             mul_j=self.mul_j,
+            shift_output=self.shift_output,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
@@ -362,6 +363,7 @@ class Addition(AbstractOperation):
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
             mul_j=self.mul_j,
+            shift_output=self.shift_output,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
@@ -521,6 +523,7 @@ class Subtraction(AbstractOperation):
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
             mul_j=self.mul_j,
+            shift_output=self.shift_output,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
@@ -541,6 +544,7 @@ class Subtraction(AbstractOperation):
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
             mul_j=self.mul_j,
+            shift_output=self.shift_output,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
@@ -736,6 +740,8 @@ class AddSub(AbstractOperation):
             name=self.name,
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
+            mul_j=self.mul_j,
+            shift_output=self.shift_output,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
