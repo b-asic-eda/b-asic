@@ -19,10 +19,6 @@ import numpy as np
 import numpy.typing as npt
 from graphviz import Digraph
 
-from b_asic.core_operations import (
-    Constant,
-    ConstantMultiplication,
-)
 from b_asic.data_type import DataType
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
@@ -35,6 +31,7 @@ from b_asic.operation import (
 from b_asic.port import InputPort, OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.state_space import StateSpace
 from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
 
 if TYPE_CHECKING:
@@ -1970,194 +1967,15 @@ class SFG(AbstractOperation):
                 seen_cycles.add(operation_set)
         return unique_lists
 
-    def state_space_representation(
-        self,
-    ) -> tuple[list[GraphID], npt.NDArray[np.float64], list[GraphID]]:
+    def to_ss(self) -> StateSpace:
         """
-        Find the state-space representation of the SFG.
+        Return the state-space representation of the SFG.
 
         Returns
         -------
         The state-space representation.
         """
-        delay_element_used = [
-            graph_id
-            for graph_id, comp in self._components_by_id.items()
-            if isinstance(comp, Delay)
-        ]
-        delay_element_used.sort()
-        input_index_used = []
-        inputs_used = []
-        output_index_used = []
-        outputs_used = []
-        for graph_id, comp in self._components_by_id.items():
-            if isinstance(comp, Input):
-                inputs_used.append(graph_id)
-                input_index_used.append(int(graph_id.replace("in", "")))
-            elif isinstance(comp, Output):
-                outputs_used.append(graph_id)
-                output_index_used.append(int(graph_id.replace("out", "")))
-        if not self._input_operations:
-            raise ValueError("No input(s) to sfg")
-        if not self._output_operations:
-            raise ValueError("No output(s) to sfg")
-        dict_of_sfg: dict[GraphID, list[GraphID]] = {}
-        queue: deque[Operation] = deque(self._output_operations)
-        visited: set[Operation] = set(self._output_operations)
-        while queue:
-            op = queue.popleft()
-            for input_port in op.inputs:
-                for signal in input_port.signals:
-                    if signal.source is not None:
-                        new_op = signal.source.operation
-                        dict_of_sfg[new_op.graph_id] = [op.graph_id]
-                        if new_op not in visited:
-                            queue.append(new_op)
-                            visited.add(new_op)
-                    else:
-                        raise ValueError("Source does not exist")
-        queue: deque[Operation] = deque(self._input_operations)
-        visited: set[Operation] = set(self._input_operations)
-        while queue:
-            op = queue.popleft()
-            if isinstance(op, Output):
-                dict_of_sfg[op.graph_id] = []
-            for output_port in op.outputs:
-                dict_of_sfg[op.graph_id] = []
-                for signal in output_port.signals:
-                    if signal.destination is not None:
-                        new_op = signal.destination.operation
-                        dict_of_sfg[op.graph_id] += [new_op.graph_id]
-                        if new_op not in visited:
-                            queue.append(new_op)
-                            visited.add(new_op)
-                    else:
-                        raise ValueError("Destination does not exist")
-        if not dict_of_sfg:
-            raise ValueError("Empty SFG")
-        addition_with_constant = {}
-        for key, item in dict_of_sfg.items():
-            op = cast(Operation, self.find_by_id(key))
-            if isinstance(op, Constant):
-                addition_with_constant[item[0]] = op.value
-        cycles = [
-            [node, *path]
-            for node in dict_of_sfg
-            if isinstance(self.find_by_id(node), Delay)
-            for path in self._dfs(dict_of_sfg, node, node)
-        ]
-        delay_loop_list = []
-        for lista in cycles:
-            if not len(lista) < 2:
-                temp_list = []
-                for element in lista:
-                    temp_list.append(element)
-                    if (
-                        isinstance(self.find_by_id(element), Delay)
-                        and len(temp_list) >= 2
-                    ):
-                        delay_loop_list.append(temp_list)
-                        temp_list = [element]
-        state_space_lista = []
-        [
-            state_space_lista.append(x)
-            for x in delay_loop_list
-            if x not in state_space_lista
-        ]
-        mat_row = len(delay_element_used) + len(output_index_used)
-        mat_col = len(delay_element_used) + len(input_index_used)
-        mat_content = np.zeros((mat_row, mat_col))
-        matrix_in = [0] * mat_col
-        matrix_answer = [0] * mat_row
-        for in_signal in inputs_used:
-            matrix_in[len(delay_element_used) + int(in_signal.replace("in", ""))] = (
-                in_signal
-            )
-            for delay_element in delay_element_used:
-                matrix_answer[delay_element_used.index(delay_element)] = delay_element
-                matrix_in[delay_element_used.index(delay_element)] = delay_element
-                paths = self.find_all_paths(dict_of_sfg, in_signal, delay_element)
-                for lista in paths:
-                    temp_list = []
-                    for element in lista:
-                        temp_list.append(element)
-                        if isinstance(self.find_by_id(element), Delay):
-                            state_space_lista.append(temp_list)
-                            temp_list = [element]
-            for out_signal in outputs_used:
-                paths = self.find_all_paths(dict_of_sfg, in_signal, out_signal)
-                matrix_answer[
-                    len(delay_element_used) + int(out_signal.replace("out", ""))
-                ] = out_signal
-                for lista in paths:
-                    temp_list1 = []
-                    for element in lista:
-                        temp_list1.append(element)
-                        op = cast(Operation, self.find_by_id(element))
-                        if isinstance(op, Delay):
-                            state_space_lista.append(temp_list1)
-                            temp_list1 = [element]
-                        elif isinstance(op, Output):
-                            state_space_lista.append(temp_list1)
-                            temp_list1 = []
-        state_space_list_no_dup = []
-        [
-            state_space_list_no_dup.append(x)
-            for x in state_space_lista
-            if x not in state_space_list_no_dup
-        ]
-        for lista in state_space_list_no_dup:
-            source_op = self.find_by_id(lista[0])
-            dest_op = self.find_by_id(lista[-1])
-            if isinstance(source_op, Input) and isinstance(dest_op, Delay):
-                row = int(lista[-1].replace("t", ""))
-                column = len(delay_element_used) + int(lista[0].replace("in", ""))
-                temp_value = 1
-                for element in lista:
-                    op = cast(Operation, self.find_by_id(element))
-                    if isinstance(op, ConstantMultiplication):
-                        temp_value *= op.value
-                    for key, value in addition_with_constant.items():
-                        if key == element:
-                            temp_value += int(value)
-                mat_content[row, column] += temp_value
-            elif isinstance(source_op, Input) and isinstance(dest_op, Output):
-                row = len(delay_element_used) + int(lista[-1].replace("out", ""))
-                column = len(delay_element_used) + int(lista[0].replace("in", ""))
-                temp_value = 1
-                for element in lista:
-                    op = cast(Operation, self.find_by_id(element))
-                    if isinstance(op, ConstantMultiplication):
-                        temp_value *= op.value
-                    for key, value in addition_with_constant.items():
-                        if key == element:
-                            temp_value += int(value)
-                mat_content[row, column] += temp_value
-            elif isinstance(source_op, Delay) and isinstance(dest_op, Delay):
-                row = int(lista[-1].replace("t", ""))
-                column = int(lista[0].replace("t", ""))
-                temp_value = 1
-                for element in lista:
-                    op = cast(Operation, self.find_by_id(element))
-                    if isinstance(op, ConstantMultiplication):
-                        temp_value *= op.value
-                    for key, value in addition_with_constant.items():
-                        if key == element:
-                            temp_value += int(value)
-                mat_content[row, column] += temp_value
-            elif isinstance(source_op, Delay) and isinstance(dest_op, Output):
-                row = len(delay_element_used) + int(lista[-1].replace("out", ""))
-                column = int(lista[0].replace("t", ""))
-                temp_value = 1
-                for element in lista:
-                    op = cast(Operation, self.find_by_id(element))
-                    if isinstance(op, ConstantMultiplication):
-                        temp_value *= op.value
-                    for key, value in addition_with_constant.items():
-                        if key == element:
-                            temp_value += int(value)
-                mat_content[row, column] += temp_value
-        return matrix_answer, mat_content, matrix_in
+        return StateSpace.from_sfg(self)
 
     def find_all_paths(
         self, graph: dict, start: str, end: str, path: list | None = None
@@ -2506,12 +2324,11 @@ class SFG(AbstractOperation):
     ) -> bool:
         if isinstance(op, Output):
             key = op.graph_id
-            last_value = sim.results[key][-1]
-            return last_value is None or abs(last_value) <= threshold
+            return abs(sim.results[key][-1]) <= threshold
         for idx in range(op.output_count):
             key = op.key(idx, op.graph_id)
-            last_value = sim.results[key][-1]
-            return last_value is None or abs(last_value) <= threshold
+            if abs(sim.results[key][-1]) > threshold:
+                return False
         return True
 
     def get_impulse_responses(
@@ -2541,83 +2358,108 @@ class SFG(AbstractOperation):
         dict[str, list[npt.NDArray]]
             Dictionary mapping each operation's output port key (e.g., "add1.0", "mul2.0")
             to a list of impulse responses (as numpy arrays), one for each SFG input.
-
-        Raises
-        ------
-        ValueError
-            If the SFG is not linear.
         """
+        # Determine target nodes based on all_nodes flag
+        if all_nodes:
+            target_nodes = [op for op in self.operations if not isinstance(op, Input)]
+        else:
+            target_nodes = list(self._output_operations)
+
+        responses_dict = self._get_impulse_responses_between_nodes(
+            list(self.input_operations), target_nodes, threshold, max_iters
+        )
+
+        # Construct the impulse responses dictionary
+        impulse_responses = {}
+        for target_op in target_nodes:
+            if isinstance(target_op, Output):
+                target_keys = [target_op.graph_id]
+            else:
+                # Collect all output ports for multi-output operations
+                target_keys = [
+                    target_op.key(idx, target_op.graph_id)
+                    for idx in range(target_op.output_count)
+                ]
+            for target_key in target_keys:
+                impulse_responses[target_key] = []
+                for input_op in self.input_operations:
+                    source_key = input_op.graph_id
+                    response_key = (source_key, target_key)
+                    if response_key in responses_dict:
+                        impulse_responses[target_key].append(
+                            responses_dict[response_key]
+                        )
+                    else:
+                        impulse_responses[target_key].append(np.array([]))
+
+        return impulse_responses
+
+    def _get_impulse_responses_between_nodes(
+        self,
+        source_nodes: list[Operation],
+        target_nodes: list[Operation],
+        threshold: float = 1e-12,
+        max_iters: int = -1,
+    ) -> dict[tuple[str, str], npt.NDArray]:
         from b_asic.signal_generator import Impulse  # noqa: PLC0415
         from b_asic.simulation import Simulation  # noqa: PLC0415
 
-        # Check if SFG is linear
         if not self.is_linear:
             raise ValueError("SFG must be linear to compute impulse responses")
 
-        # Collect impulse responses for all SFG inputs
+        # For each source node, apply impulse and record responses at target nodes
         impulse_responses = {}
-        for input_idx in range(self.input_count):
-            # Create impulse on one input, zero on others
+        ops_to_check = self._output_operations + self.find_by_type(Delay)
+        for source_op in source_nodes:
+            # Create impulse inputs -- impulse on this source, zero on others
             impulse_inputs = [
-                Impulse() if i == input_idx else None for i in range(self.input_count)
+                Impulse() if inp_op == source_op else None
+                for inp_op in self.input_operations
             ]
             sim = Simulation(self, impulse_inputs)
+            # If the source is a delay, initialize its state to 1
+            if isinstance(source_op, Delay):
+                sim._delays[source_op.graph_id] = 1
 
-            # Simulate until all outputs and delays decay below threshold
-            time_step = 0
-            while True:
-                time_step += 1
-                if max_iters == 0:
-                    break
+            # Simulate until outputs and delay elements are below threshold or max_iters reached
+            iteration = 0
+            while max_iters < 0 or iteration < max_iters:
                 sim.run_for(1)
-                max_iters -= 1
-                # Check if all outputs and delays have decayed below threshold
-                if time_step > 1:
-                    all_decayed = True
-                    # Check SFG outputs
-                    for op in self._output_operations:
-                        if not self._output_ports_decayed(op, sim, threshold):
-                            all_decayed = False
-                            break
-                    # Check delay elements
-                    if all_decayed:
-                        for op in self.find_by_type(Delay):
-                            if not self._output_ports_decayed(op, sim, threshold):
-                                all_decayed = False
-                                break
+                iteration += 1
+
+                # Check for convergence after one full iteration
+                if iteration > 1:
+                    all_decayed = all(
+                        self._output_ports_decayed(op, sim, threshold)
+                        for op in ops_to_check
+                    )
                     if all_decayed:
                         break
 
-            # Store results for this input
-            ops_to_collect = self.operations if all_nodes else self._output_operations
-            for op in ops_to_collect:
-                if isinstance(op, Input):
-                    continue
-                if isinstance(op, Output):
-                    # Output operations have no output ports, collect from their input instead
-                    key = op.graph_id
-                    if key not in impulse_responses:
-                        impulse_responses[key] = []
-                    if key in sim.results and len(sim.results[key]) > 0:
-                        response = sim.results[key]
-                        # Exclude trailing zeros
-                        while len(response) > 0 and abs(response[-1]) <= threshold:
-                            response = response[:-1]
-                        impulse_responses[key].append(response)
-                    else:
-                        impulse_responses[key].append([])
+            # Collect responses at target nodes
+            for target_op in target_nodes:
+                source_key = source_op.graph_id
+
+                if isinstance(target_op, Output):
+                    target_keys = [target_op.graph_id]
                 else:
-                    for output_idx in range(op.output_count):
-                        key = op.key(output_idx, op.graph_id)
-                        if key not in impulse_responses:
-                            impulse_responses[key] = []
-                        if key in sim.results and len(sim.results[key]) > 0:
-                            response = sim.results[key]
-                            # Exclude trailing zeros
-                            while len(response) > 0 and abs(response[-1]) <= threshold:
-                                response = response[:-1]
-                            impulse_responses[key].append(response)
-                        else:
-                            impulse_responses[key].append([])
+                    # Collect all output ports for multi-output operations
+                    target_keys = [
+                        target_op.key(idx, target_op.graph_id)
+                        for idx in range(target_op.output_count)
+                    ]
+
+                for target_key in target_keys:
+                    response_key = (source_key, target_key)
+
+                    if target_key in sim.results and len(sim.results[target_key]) > 0:
+                        response = sim.results[target_key]
+                        # Find the last non-zero element to avoid multiple array copies
+                        cutoff = len(response)
+                        while cutoff > 0 and abs(response[cutoff - 1]) <= threshold:
+                            cutoff -= 1
+                        impulse_responses[response_key] = response[:cutoff]
+                    else:
+                        impulse_responses[response_key] = np.array([])
 
         return impulse_responses

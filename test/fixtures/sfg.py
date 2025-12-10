@@ -191,7 +191,7 @@ def sfg_accumulator():
 @pytest.fixture
 def sfg_simple_accumulator():
     """
-    Valid SFG with two inputs and one output.
+    Valid SFG with one input and one output.
 
          .                .
     in1----->add1-----+----->out1
