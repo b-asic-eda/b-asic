@@ -2218,49 +2218,6 @@ class TestLoops:
         assert loops == []
 
 
-class TestStateSpace:
-    def test_accumulator(self, sfg_simple_accumulator):
-        ss = sfg_simple_accumulator.state_space_representation()
-        assert ss[0] == ["t0", "out0"]
-        assert (ss[1] == np.array([[1.0, 1.0], [0.0, 1.0]])).all()
-        assert ss[2] == ["t0", "in0"]
-
-    def test_secondorder_iir(self, precedence_sfg_delays):
-        ss = precedence_sfg_delays.state_space_representation()
-        assert ss[0] == ["t0", "t1", "out0"]
-
-        mat = np.array([[3.0, 2.0, 5.0], [1.0, 0.0, 0.0], [4.0, 6.0, 35.0]])
-        assert (ss[1] == mat).all()
-        assert ss[2] == ["t0", "t1", "in0"]
-
-    # @pytest.mark.xfail()
-    def test_sfg_two_inputs_two_outputs(self, sfg_two_inputs_two_outputs):
-        ss = sfg_two_inputs_two_outputs.state_space_representation()
-
-        assert ss[0] == ["out0", "out1"]
-        assert (ss[1] == np.array([[1.0, 1.0], [1.0, 2.0]])).all()
-        assert ss[2] == ["in0", "in1"]
-
-    def test_sfg_two_inputs_two_outputs_independent(
-        self, sfg_two_inputs_two_outputs_independent
-    ):
-        # assert sfg_two_inputs_two_outputs_independent.state_space_representation() == 1
-        ss = sfg_two_inputs_two_outputs_independent.state_space_representation()
-
-        assert ss[0] == ["out0", "out1"]
-        assert (ss[1] == np.array([[1.0, 0.0], [0.0, 4.0]])).all()
-        assert ss[2] == ["in0", "in1"]
-
-    def test_sfg_two_inputs_two_outputs_independent_with_cmul(
-        self, sfg_two_inputs_two_outputs_independent_with_cmul
-    ):
-        ss = sfg_two_inputs_two_outputs_independent_with_cmul.state_space_representation()
-
-        assert ss[0] == ["out0", "out1"]
-        assert (ss[1] == np.array([[20.0, 0.0], [0.0, 8.0]])).all()
-        assert ss[2] == ["in0", "in1"]
-
-
 class TestGetImpulseResponses:
     def test_add_all_nodes(self):
         in1 = Input()
@@ -2516,4 +2473,101 @@ class TestGetImpulseResponses:
         assert np.array_equal(
             impulse_responses["out1"],
             [np.array([0.8]), np.array([0.2])],
+        )
+
+
+class TestToSS:
+    def test_accumulator(self, sfg_simple_accumulator):
+        ss = sfg_simple_accumulator.to_ss()
+
+        assert ss.A.shape == (1, 1)
+        assert ss.B.shape == (1, 1)
+        assert ss.C.shape == (1, 1)
+        assert ss.D.shape == (1, 1)
+
+        np.testing.assert_array_equal(ss.A, np.array([[1.0]]))
+        np.testing.assert_array_equal(ss.B, np.array([[1.0]]))
+        np.testing.assert_array_equal(ss.C, np.array([[1.0]]))
+        np.testing.assert_array_equal(ss.D, np.array([[1.0]]))
+
+    def test_secondorder_iir(self, precedence_sfg_delays):
+        ss = precedence_sfg_delays.to_ss()
+
+        assert ss.A.shape == (2, 2)
+        assert ss.B.shape == (2, 1)
+        assert ss.C.shape == (1, 2)
+        assert ss.D.shape == (1, 1)
+
+        np.testing.assert_array_equal(ss.A, np.array([[3 * 1, 2 * 1], [1, 0]]))
+        np.testing.assert_array_equal(ss.B, np.array([[5 * 1], [0]]))
+        np.testing.assert_array_equal(ss.C, np.array([[3 * 1 * 7 + 4, 2 * 1 * 7 + 6]]))
+        np.testing.assert_array_equal(ss.D, np.array([[5 * 1 * 7]]))
+
+    def test_sfg_two_tap_fir(self, sfg_two_tap_fir):
+        ss = sfg_two_tap_fir.to_ss()
+
+        assert ss.A.shape == (1, 1)
+        assert ss.B.shape == (1, 1)
+        assert ss.C.shape == (1, 1)
+        assert ss.D.shape == (1, 1)
+
+        np.testing.assert_array_equal(ss.A, np.array([[0.0]]))
+        np.testing.assert_array_equal(ss.B, np.array([[1.0]]))
+        np.testing.assert_array_equal(ss.C, np.array([[0.5]]))
+        np.testing.assert_array_equal(ss.D, np.array([[0.5]]))
+
+    def test_non_linear_sfg(self):
+        in0 = Input()
+        in1 = Input()
+        out0 = Output(in0 * in1)
+        sfg = SFG(inputs=[in0, in1], outputs=[out0])
+        with pytest.raises(
+            ValueError,
+            match=r"SFG must be linear to generate state-space representation",
+        ):
+            sfg.to_ss()
+
+    def test_sfg_with_multiple_outputs(self):
+        in0 = Input()
+        in1 = Input()
+        in2 = Input()
+        c0 = in0 * 0.5
+        d0 = Delay(c0)
+        a0 = d0 + in1
+        d1 = Delay(a0)
+        a1 = d1 + in2
+        y0 = Output(a0)
+        y1 = Output(a1)
+        sfg = SFG([in0, in1, in2], [y0, y1])
+
+        ss = sfg.to_ss()
+
+        assert ss.A.shape == (2, 2)
+        assert ss.B.shape == (2, 3)
+        assert ss.C.shape == (2, 2)
+        assert ss.D.shape == (2, 3)
+
+        np.testing.assert_array_equal(ss.A, np.array([[0, 0], [1, 0]]))
+        np.testing.assert_array_equal(ss.B, np.array([[0.5, 0, 0], [0, 1, 0]]))
+        np.testing.assert_array_equal(ss.C, np.array([[1, 0], [0, 1]]))
+        np.testing.assert_array_equal(ss.D, np.array([[0, 1, 0], [0, 0, 1]]))
+
+    def test_two_port_adaptor(self):
+        in0 = Input()
+        in1 = Input()
+        sym2p = SymmetricTwoportAdaptor(0.2, in0, in1)
+        out0 = Output(sym2p.output(0))
+        out1 = Output(sym2p.output(1))
+        sfg = SFG(inputs=[in0, in1], outputs=[out0, out1])
+
+        ss = sfg.to_ss()
+
+        assert ss.A.shape == (0, 0)
+        assert ss.B.shape == (0, 2)
+        assert ss.C.shape == (2, 0)
+        assert ss.D.shape == (2, 2)
+
+        np.testing.assert_array_equal(
+            ss.D,
+            np.array([[-0.2, 1.2], [0.8, 0.2]]),
         )
