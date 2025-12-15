@@ -2571,3 +2571,128 @@ class TestToSS:
             ss.D,
             np.array([[-0.2, 1.2], [0.8, 0.2]]),
         )
+
+
+class TestGetRoundoffNoiseImpulseResponses:
+    def test_accumulator(self, sfg_simple_accumulator):
+        noise_responses = sfg_simple_accumulator.get_roundoff_noise_impulse_responses(
+            max_iters=6
+        )
+
+        assert len(noise_responses) == 1
+
+        assert len(noise_responses["out0"]) == 1
+        assert np.array_equal(
+            noise_responses["out0"]["add0"], np.array([1, 1, 1, 1, 1, 1])
+        )
+
+    def test_secondorder_iir(self, precedence_sfg_delays):
+        noise_responses = precedence_sfg_delays.get_roundoff_noise_impulse_responses(
+            max_iters=6
+        )
+
+        assert len(noise_responses) == 1
+
+        assert len(noise_responses["out0"]) == 11
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["add2"],
+            np.array([1]),
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["add3"],
+            np.array([1]),
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["cmul2"],
+            np.array([1]),
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["cmul3"],
+            np.array([1]),
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["cmul4"],
+            np.array([1]),
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["add0"], np.array([7, 25, 95, 335, 1195, 4255])
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["add1"], np.array([7, 25, 95, 335, 1195, 4255])
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["cmul0"], np.array([7, 25, 95, 335, 1195, 4255])
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["cmul1"], np.array([7, 25, 95, 335, 1195, 4255])
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["cmul5"], np.array([7, 25, 95, 335, 1195, 4255])
+        )
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["cmul6"], np.array([7, 25, 95, 335, 1195, 4255])
+        )
+
+    def test_modified_iir(self):
+        from b_asic.core_operations import Subtraction
+        from b_asic.sfg_generators import direct_form_2_iir
+
+        sfg = direct_form_2_iir([0.75, 0.5], [1, 0.3])
+        sfg = sfg.replace("add0", Subtraction())
+        noise_responses = sfg.get_roundoff_noise_impulse_responses(max_iters=10)
+
+        assert len(noise_responses) == 1
+        assert len(noise_responses["out0"]) == 5
+
+        np.testing.assert_allclose(
+            noise_responses["out0"]["sub0"],
+            np.array(
+                [
+                    7.500000e-01,
+                    7.250000e-01,
+                    2.175000e-01,
+                    6.525000e-02,
+                    1.957500e-02,
+                    5.872500e-03,
+                    1.761750e-03,
+                    5.285250e-04,
+                    1.585575e-04,
+                    4.756725e-05,
+                ]
+            ),
+        )
+        np.testing.assert_allclose(
+            noise_responses["out0"]["cmul0"],
+            np.array(
+                [
+                    -7.500000e-01,
+                    -7.250000e-01,
+                    -2.175000e-01,
+                    -6.525000e-02,
+                    -1.957500e-02,
+                    -5.872500e-03,
+                    -1.761750e-03,
+                    -5.285250e-04,
+                    -1.585575e-04,
+                    -4.756725e-05,
+                ]
+            ),
+        )
+        np.testing.assert_equal(noise_responses["out0"]["cmul1"], np.array([1]))
+        np.testing.assert_equal(noise_responses["out0"]["add1"], np.array([1]))
+        np.testing.assert_equal(noise_responses["out0"]["cmul2"], np.array([1]))
+
+    def test_fir(self):
+        from b_asic.sfg_generators import fir
+
+        sfg = fir([0.5, 0.3, 0.7])
+        noise_responses = sfg.get_roundoff_noise_impulse_responses()
+
+        assert len(noise_responses) == 1
+        assert len(noise_responses["out0"]) == 5
+
+        assert noise_responses["out0"]["cmul0"] == np.array([1])
+        assert noise_responses["out0"]["add0"] == np.array([1])
+        assert noise_responses["out0"]["cmul1"] == np.array([1])
+        assert noise_responses["out0"]["add1"] == np.array([1])
+        assert noise_responses["out0"]["cmul2"] == np.array([1])

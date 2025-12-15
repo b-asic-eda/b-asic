@@ -2451,15 +2451,102 @@ class SFG(AbstractOperation):
 
                 for target_key in target_keys:
                     response_key = (source_key, target_key)
-
-                    if target_key in sim.results and len(sim.results[target_key]) > 0:
-                        response = sim.results[target_key]
-                        # Find the last non-zero element to avoid multiple array copies
-                        cutoff = len(response)
-                        while cutoff > 0 and abs(response[cutoff - 1]) <= threshold:
-                            cutoff -= 1
-                        impulse_responses[response_key] = response[:cutoff]
-                    else:
-                        impulse_responses[response_key] = np.array([])
-
+                    response = sim.results[target_key]
+                    # Find the last non-zero element to avoid multiple array copies
+                    cutoff = len(response)
+                    while cutoff > 0 and abs(response[cutoff - 1]) <= threshold:
+                        cutoff -= 1
+                    impulse_responses[response_key] = response[:cutoff]
         return impulse_responses
+
+    def get_roundoff_noise_impulse_responses(
+        self, threshold: float = 1e-12, max_iters: int = -1
+    ) -> dict[str, dict[str, npt.NDArray]]:
+        """
+        Return the roundoff noise impulse responses for all SFG outputs.
+
+        Here, roundoff noise sources are injected at the output of each operation
+        that performs quantization.
+        The impulse responses from these noise sources to each SFG output are computed.
+
+        The simulation runs until all output and delay values decay below the threshold.
+        Alternatively, a maximum number of iterations can be set to prevent infinite loops.
+
+        Parameters
+        ----------
+        threshold : float, default: 1e-12
+            The threshold below which output values are considered to have decayed to zero.
+
+        max_iters : int, default: -1
+            Maximum number of simulation time steps to prevent infinite loops.
+            If -1, there is no limit.
+
+        Returns
+        -------
+        dict[str, dict[str, npt.NDArray]]
+            Dictionary mapping each SFG output GraphID (e.g., "out0", "out1")
+            to a dictionary that maps operation GraphIDs to their corresponding
+            roundoff noise impulse responses.
+        """
+        from b_asic.core_operations import Addition  # noqa: PLC0415
+        from b_asic.utility_operations import DontCare, Sink  # noqa: PLC0415
+
+        if not self.is_linear:
+            raise ValueError("SFG must be linear to compute roundoff noise responses")
+
+        sfg_copy = self()
+        operations_to_inject = [
+            op
+            for op in sfg_copy.operations
+            if not isinstance(op, (Input, Output, DontCare, Sink, Delay))
+        ]
+
+        # For each operation that performs quantization, create noise sources
+        # and adders to inject noise into its outputs
+        noise_inputs = []
+        for op in operations_to_inject:
+            for output_idx in range(op.output_count):
+                noise_input = Input(name=f"noise_{op.graph_id}_out{output_idx}")
+                noise_inputs.append(noise_input)
+                noise_adder = Addition(
+                    src0=op.output(output_idx),
+                    src1=noise_input,
+                    name=f"noise_add_{op.graph_id}_out{output_idx}",
+                )
+                output_port = op.output(output_idx)
+                for signal in output_port.signals[:-1]:
+                    signal.set_source(noise_adder.output(0))
+
+        # Create new SFG with all inputs (original + noise) and original outputs
+        all_inputs = list(sfg_copy.input_operations) + noise_inputs
+        noise_sfg = SFG(inputs=all_inputs, outputs=list(sfg_copy.output_operations))
+
+        # Get noise source operations in the new SFG
+        num_original_inputs = sfg_copy.input_count
+        noise_sfg_inputs = list(noise_sfg.input_operations)
+
+        # Compute impulse responses from noise sources to outputs
+        responses_dict = noise_sfg._get_impulse_responses_between_nodes(
+            noise_sfg_inputs[num_original_inputs:],  # Only noise source inputs
+            list(noise_sfg._output_operations),
+            threshold,
+            max_iters,
+        )
+
+        # Construct the noise gain dictionary with operation IDs
+        noise_gains = {}
+        for output_idx in range(len(noise_sfg._output_operations)):
+            output_key = f"out{output_idx}"
+            noise_gains[output_key] = {}
+
+        # Map noise sources back to their original operations
+        for noise_source_op in noise_sfg_inputs[num_original_inputs:]:
+            noise_name = noise_source_op.name
+            op_graph_id = noise_name.replace("noise_", "").rsplit("_out", 1)[0]
+
+            for out_idx, output_op in enumerate(noise_sfg._output_operations):
+                output_key = f"out{out_idx}"
+                response_key = (noise_source_op.graph_id, output_op.graph_id)
+                noise_gains[output_key][op_graph_id] = responses_dict[response_key]
+
+        return noise_gains
