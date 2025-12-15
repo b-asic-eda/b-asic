@@ -11,12 +11,10 @@ from b_asic.fft_operations import R2Butterfly
 from b_asic.sfg_generators import (
     direct_form_1_iir,
     direct_form_2_iir,
-    direct_form_fir,
+    fir,
     ldlt_matrix_inverse,
     matrix_multiplication,
     radix_2_dif_fft,
-    symmetric_fir,
-    transposed_direct_form_fir,
     wdf_allpass,
 )
 from b_asic.signal_generator import Constant, Impulse, ZeroPad
@@ -106,238 +104,271 @@ def test_wdf_allpass():
     assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
 
 
-def test_direct_form_fir():
-    impulse_response = [0.3, 0.5, 0.7]
-    sfg = direct_form_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+class TestFIR:
+    def test_direct_form(self):
+        impulse_response = [0.3, 0.5, 0.7]
+        sfg = fir(impulse_response)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 3
         )
-        == 3
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 2
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
+        assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 2
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
 
-    sim = Simulation(sfg, [Impulse()])
-    sim.run_for(4)
-    impulse_response.append(0.0)
-    assert np.allclose(sim.results["out0"], impulse_response)
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(4)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
 
-    impulse_response = [0.3, 0.4, 0.5, 0.6, 0.3]
-    sfg = direct_form_fir(
-        (0.3, 0.4, 0.5, 0.6, 0.3),
-        mult_properties={"latency": 2, "execution_time": 1},
-        add_properties={"latency": 1, "execution_time": 1},
-    )
-    assert sfg.critical_path_time() == 6
-
-    sim = Simulation(sfg, [Impulse()])
-    sim.run_for(6)
-    impulse_response.append(0.0)
-    assert np.allclose(sim.results["out0"], impulse_response)
-
-    impulse_response = [0.3]
-    sfg = direct_form_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+        impulse_response = [0.3, 0.4, 0.5, 0.6, 0.3]
+        sfg = fir(
+            (0.3, 0.4, 0.5, 0.6, 0.3),
+            mult_properties={"latency": 2, "execution_time": 1},
+            add_properties={"latency": 1, "execution_time": 1},
         )
-        == 1
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+        assert sfg.critical_path_time() == 6
 
-    impulse_response = 0.3
-    sfg = direct_form_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(6)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
+
+        impulse_response = [0.3]
+        sfg = fir(impulse_response)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 1
         )
-        == 1
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+        assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
 
-
-def test_transposed_direct_form_fir():
-    impulse_response = [0.3, 0.5, 0.7]
-    sfg = transposed_direct_form_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+        impulse_response = 0.3
+        sfg = fir(impulse_response)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 1
         )
-        == 3
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 2
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
+        assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
 
-    sim = Simulation(sfg, [Impulse()])
-    sim.run_for(4)
-    impulse_response.append(0.0)
-    assert np.allclose(sim.results["out0"], impulse_response)
-
-    impulse_response = [0.3, 0.4, 0.5, 0.6, 0.3]
-    sfg = transposed_direct_form_fir(
-        (0.3, 0.4, 0.5, 0.6, 0.3),
-        mult_properties={"latency": 2, "execution_time": 1},
-        add_properties={"latency": 1, "execution_time": 1},
-    )
-    assert sfg.critical_path_time() == 3
-
-    sim = Simulation(sfg, [Impulse()])
-    sim.run_for(6)
-    impulse_response.append(0.0)
-    assert np.allclose(sim.results["out0"], impulse_response)
-
-    impulse_response = [0.3]
-    sfg = transposed_direct_form_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+    def test_transposed(self):
+        impulse_response = [0.3, 0.5, 0.7]
+        sfg = fir(impulse_response, transposed=True)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 3
         )
-        == 1
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+        assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 2
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
 
-    impulse_response = 0.3
-    sfg = transposed_direct_form_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(4)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
+
+        impulse_response = [0.3, 0.4, 0.5, 0.6, 0.3]
+        sfg = fir(
+            (0.3, 0.4, 0.5, 0.6, 0.3),
+            transposed=True,
+            mult_properties={"latency": 2, "execution_time": 1},
+            add_properties={"latency": 1, "execution_time": 1},
         )
-        == 1
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+        assert sfg.critical_path_time() == 3
 
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(6)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
 
-def test_symmetric_fir():
-    impulse_response = [0.3, 0.5, 0.5, 0.3]
-    sfg = symmetric_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+        impulse_response = [0.3]
+        sfg = fir(impulse_response, transposed=True)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 1
         )
-        == 2
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 3
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 3
+        assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
 
-    sim = Simulation(sfg, [Impulse()])
-    sim.run_for(5)
-    impulse_response.append(0.0)
-    assert np.allclose(sim.results["out0"], impulse_response)
-
-    impulse_response = [0.1, 0.2, 0.3, 0.4, 0.4, 0.3, 0.2, 0.1]
-    sfg = symmetric_fir(
-        impulse_response,
-        mult_properties={"latency": 2, "execution_time": 1},
-        add_properties={"latency": 1, "execution_time": 1},
-    )
-    assert sfg.critical_path_time() == 6
-
-    sim = Simulation(sfg, [Impulse()])
-    sim.run_for(9)
-    impulse_response.append(0.0)
-    assert np.allclose(sim.results["out0"], impulse_response)
-
-    impulse_response = [0.3]
-    sfg = symmetric_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+        impulse_response = 0.3
+        sfg = fir(impulse_response, transposed=True)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 1
         )
-        == 1
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
+        assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
 
-    impulse_response = [0.1 + i for i in range(8)]
-    impulse_response += reversed(impulse_response)
-    sfg = symmetric_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+    def test_symmetric(self):
+        impulse_response = [0.3, 0.5, 0.5, 0.3]
+        sfg = fir(impulse_response, symmetric=True)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 2
         )
-        == 8
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 15
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 15
+        assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 3
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 3
 
-    sim = Simulation(sfg, [Impulse()])
-    sim.run_for(17)
-    impulse_response.append(0.0)
-    assert np.allclose(sim.results["out0"], impulse_response)
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(5)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
 
-    impulse_response = [0.1 + i for i in range(50)]
-    impulse_response += reversed(impulse_response)
-    sfg = symmetric_fir(impulse_response)
-    assert (
-        len(
-            [
-                comp
-                for comp in sfg.components
-                if isinstance(comp, ConstantMultiplication)
-            ]
+        impulse_response = [0.1, 0.2, 0.3, 0.4, 0.4, 0.3, 0.2, 0.1]
+        sfg = fir(
+            impulse_response,
+            symmetric=True,
+            mult_properties={"latency": 2, "execution_time": 1},
+            add_properties={"latency": 1, "execution_time": 1},
         )
-        == 50
-    )
-    assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 99
-    assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 99
+        assert sfg.critical_path_time() == 6
 
-    sim = Simulation(sfg, [Impulse()])
-    sim.run_for(101)
-    impulse_response.append(0.0)
-    assert np.allclose(sim.results["out0"], impulse_response)
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(9)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
 
-    with pytest.raises(ValueError, match=r"Coefficients must be of even length"):
-        symmetric_fir([0.1, 0.2, 0.1])
+        impulse_response = [0.3]
+        sfg = fir(impulse_response, symmetric=True)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 1
+        )
+        assert len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 0
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 0
 
+        impulse_response = [0.1 + i for i in range(8)]
+        impulse_response += reversed(impulse_response)
+        sfg = fir(impulse_response, symmetric=True)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 8
+        )
+        assert (
+            len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 15
+        )
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 15
 
-def test_sfg_generator_errors():
-    sfg_gens = [wdf_allpass, transposed_direct_form_fir, direct_form_fir, symmetric_fir]
-    for gen in sfg_gens:
-        with pytest.raises(ValueError, match=r"Coefficients cannot be empty"):
-            gen([])
-        with pytest.raises(TypeError, match=r"coefficients must be a 1D-array"):
-            gen([[1, 2], [1, 3]])
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(17)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
+
+        impulse_response = [0.1 + i for i in range(50)]
+        impulse_response += reversed(impulse_response)
+        sfg = fir(impulse_response, symmetric=True)
+        assert (
+            len(
+                [
+                    comp
+                    for comp in sfg.components
+                    if isinstance(comp, ConstantMultiplication)
+                ]
+            )
+            == 50
+        )
+        assert (
+            len([comp for comp in sfg.components if isinstance(comp, Addition)]) == 99
+        )
+        assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 99
+
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(101)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
+
+    def test_symmetric_transposed(self):
+        impulse_response = [0.3, 0.5, 0.5, 0.3]
+        sfg = fir(impulse_response, symmetric=True, transposed=True)
+        assert sfg.operation_counter()[ConstantMultiplication.type_name()] == 2
+        assert sfg.operation_counter()[Addition.type_name()] == 3
+        assert sfg.operation_counter()[Delay.type_name()] == 3
+
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(4)
+        assert np.allclose(sim.results["out0"], impulse_response)
+
+        impulse_response = [0.1, 0.2, 0.3, 0.4, 0.4, 0.3, 0.2, 0.1]
+        sfg = fir(
+            impulse_response,
+            symmetric=True,
+            transposed=True,
+            mult_properties={"latency": 2, "execution_time": 1},
+            add_properties={"latency": 1, "execution_time": 1},
+        )
+        assert sfg.critical_path_time() == 3
+        assert sfg.operation_counter()[ConstantMultiplication.type_name()] == 4
+        assert sfg.operation_counter()[Addition.type_name()] == 7
+        assert sfg.operation_counter()[Delay.type_name()] == 7
+
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(9)
+        impulse_response.append(0.0)
+        assert np.allclose(sim.results["out0"], impulse_response)
+
+        impulse_response = [0.1 + i for i in range(50)]
+        impulse_response += reversed(impulse_response)
+        sfg = fir(impulse_response, transposed=True, symmetric=True)
+        assert sfg.operation_counter()[ConstantMultiplication.type_name()] == 50
+        assert sfg.operation_counter()[Addition.type_name()] == 99
+        assert sfg.operation_counter()[Delay.type_name()] == 99
+
+        sim = Simulation(sfg, [Impulse()])
+        sim.run_for(100)
+        assert np.allclose(sim.results["out0"], impulse_response)
 
 
 class TestDirectFormIIRType1:

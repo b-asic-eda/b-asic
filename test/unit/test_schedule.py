@@ -13,7 +13,7 @@ from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg import SFG
-from b_asic.sfg_generators import direct_form_1_iir, direct_form_fir
+from b_asic.sfg_generators import direct_form_1_iir, fir
 from b_asic.special_operations import Delay, Input, Output
 
 
@@ -648,7 +648,7 @@ class TestRescheduling:
         sfg = schedule.sfg
         assert sfg_direct_form_iir_lp_filter.evaluate(5) == sfg.evaluate(5)
 
-        fir_sfg = direct_form_fir(
+        fir_sfg = fir(
             list(range(1, 10)),
             mult_properties={"latency": 2, "execution_time": 1},
             add_properties={"latency": 2, "execution_time": 1},
