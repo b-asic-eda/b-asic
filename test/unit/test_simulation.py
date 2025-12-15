@@ -169,10 +169,10 @@ class TestRunFor:
         )
 
     def test_fir_filter(self):
-        from b_asic.sfg_generators import direct_form_fir
+        from b_asic.sfg_generators import fir
 
         h = list(range(300))
-        sfg = direct_form_fir(h)
+        sfg = fir(h)
 
         input_data = [1] + [0 for _ in range(299)]
         simulation = Simulation(sfg, input_data)
