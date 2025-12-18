@@ -35,6 +35,7 @@ from b_asic.signal import *
 from b_asic.simulation import *
 from b_asic.special_operations import *
 from b_asic.state_space import *
+from b_asic.transfer_function import *
 from b_asic.utility_operations import *
 from b_asic.utils import *
 from b_asic.wdf_operations import *

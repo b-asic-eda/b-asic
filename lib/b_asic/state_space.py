@@ -35,15 +35,30 @@ class StateSpace:
 
     def __init__(
         self,
-        A: npt.NDArray | list[list[float]],
-        B: npt.NDArray | list[list[float]],
-        C: npt.NDArray | list[list[float]],
-        D: npt.NDArray | list[list[float]],
+        A: npt.NDArray | list[list[complex]],
+        B: npt.NDArray | list[list[complex]],
+        C: npt.NDArray | list[list[complex]],
+        D: npt.NDArray | list[list[complex]],
     ) -> None:
-        self.A = np.atleast_2d(np.asarray(A, dtype=float))
-        self.B = np.atleast_2d(np.asarray(B, dtype=float))
-        self.C = np.atleast_2d(np.asarray(C, dtype=float))
-        self.D = np.atleast_2d(np.asarray(D, dtype=float))
+        self.A = np.atleast_2d(np.asarray(A, dtype=complex))
+        self.B = np.atleast_2d(np.asarray(B, dtype=complex))
+        self.C = np.atleast_2d(np.asarray(C, dtype=complex))
+        self.D = np.atleast_2d(np.asarray(D, dtype=complex))
+
+        # Convert to float if no complex values present
+        has_complex = (
+            np.any(np.iscomplex(self.A))
+            or np.any(np.iscomplex(self.B))
+            or np.any(np.iscomplex(self.C))
+            or np.any(np.iscomplex(self.D))
+        )
+
+        if not has_complex:
+            self.A = self.A.real.astype(float)
+            self.B = self.B.real.astype(float)
+            self.C = self.C.real.astype(float)
+            self.D = self.D.real.astype(float)
+
         self._n_states = self.A.shape[0]
         self._n_inputs = self.B.shape[1]
         self._n_outputs = self.C.shape[0]
@@ -77,10 +92,10 @@ class StateSpace:
         n_inputs = len(inputs)
         n_outputs = len(outputs)
 
-        A = np.zeros((n_states, n_states), dtype=float)
-        B = np.zeros((n_states, n_inputs), dtype=float)
-        C = np.zeros((n_outputs, n_states), dtype=float)
-        D = np.zeros((n_outputs, n_inputs), dtype=float)
+        A = np.zeros((n_states, n_states), dtype=complex)
+        B = np.zeros((n_states, n_inputs), dtype=complex)
+        C = np.zeros((n_outputs, n_states), dtype=complex)
+        D = np.zeros((n_outputs, n_inputs), dtype=complex)
 
         if n_states > 0:
             responses_dd = sfg._get_impulse_responses_between_nodes(
@@ -125,7 +140,7 @@ class StateSpace:
             for row_idx, row_op in enumerate(row_ops):
                 response = responses[(col_op.graph_id, row_op.graph_id)]
                 if len(response) > time_index:
-                    matrix[row_idx, col_idx] = float(response[time_index])
+                    matrix[row_idx, col_idx] = response[time_index]
 
     @property
     def equations(self) -> tuple:
@@ -176,3 +191,72 @@ class StateSpace:
             f"  D = {np.array2string(self.D, separator=', ')}",
         ]
         return "\n".join(lines)
+
+    def _calc_tfs(self) -> dict[str, tuple[npt.NDArray, npt.NDArray]]:
+        # inspired by the scipy.signal.ss2tf implementation
+        n_out, n_in = self.D.shape
+        transfer_functions = {}
+
+        for input_idx in range(n_in):
+            # make SIMO from possibly MIMO system for this input
+            B_col = self.B[:, input_idx : input_idx + 1]
+            D_col = self.D[:, input_idx : input_idx + 1]
+
+            try:
+                den = np.poly(self.A)
+            except ValueError:
+                den = 1
+
+            if (B_col.size == 0) and (self.C.size == 0):
+                num = np.ravel(D_col)
+                if (D_col.size == 0) and (self.A.size == 0):
+                    den = []
+            else:
+                num_states = self.A.shape[0]
+                type_test = self.A[:, 0] + B_col[:, 0] + self.C[0, :] + D_col + 0.0
+                num = np.empty((n_out, num_states + 1), type_test.dtype)
+                for k in range(n_out):
+                    Ck = np.atleast_2d(self.C[k, :])
+                    num[k] = np.poly(self.A - np.dot(B_col, Ck)) + (D_col[k] - 1) * den
+
+            # Clean up numerical errors: set near-zero values to exactly zero
+            # if they are trailing, remove them
+            tolerance = 1e-14
+            if isinstance(den, np.ndarray):
+                den = np.where(np.abs(den) < tolerance, 0, den)
+                # Remove trailing zeros
+                den = np.trim_zeros(den, "b")
+            if isinstance(num, np.ndarray):
+                num = np.where(np.abs(num) < tolerance, 0, num)
+                # Remove trailing zeros for each output
+                if num.ndim == 2:
+                    trimmed_rows = [
+                        np.trim_zeros(num[k], "b") for k in range(num.shape[0])
+                    ]
+                    # Find max length to ensure all rows have same length
+                    max_len = (
+                        max(len(row) for row in trimmed_rows) if trimmed_rows else 0
+                    )
+                    # Pad shorter rows with zeros at the end
+                    num = np.array(
+                        [np.pad(row, (0, max_len - len(row))) for row in trimmed_rows]
+                    )
+                else:
+                    num = np.trim_zeros(num, "b")
+
+            transfer_functions[f"in{input_idx}"] = (num, den)
+
+        return transfer_functions
+
+    def to_tf(self):
+        """
+        Convert the state-space representation to a transfer function.
+
+        Returns
+        -------
+        :class:`~b_asic.transfer_function.TransferFunction`
+            The transfer function representation.
+        """
+        from b_asic.transfer_function import TransferFunction  # noqa: PLC0415
+
+        return TransferFunction.from_state_space(self)
