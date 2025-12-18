@@ -2573,9 +2573,9 @@ class TestToSS:
         )
 
 
-class TestGetRoundoffNoiseImpulseResponses:
+class TestGetImpulseResponsesFromNodes:
     def test_accumulator(self, sfg_simple_accumulator):
-        noise_responses = sfg_simple_accumulator.get_roundoff_noise_impulse_responses(
+        noise_responses = sfg_simple_accumulator.get_impulse_responses_from_nodes(
             max_iters=6
         )
 
@@ -2587,7 +2587,7 @@ class TestGetRoundoffNoiseImpulseResponses:
         )
 
     def test_secondorder_iir(self, precedence_sfg_delays):
-        noise_responses = precedence_sfg_delays.get_roundoff_noise_impulse_responses(
+        noise_responses = precedence_sfg_delays.get_impulse_responses_from_nodes(
             max_iters=6
         )
 
@@ -2639,7 +2639,7 @@ class TestGetRoundoffNoiseImpulseResponses:
 
         sfg = direct_form_2_iir([0.75, 0.5], [1, 0.3])
         sfg = sfg.replace("add0", Subtraction())
-        noise_responses = sfg.get_roundoff_noise_impulse_responses(max_iters=10)
+        noise_responses = sfg.get_impulse_responses_from_nodes(max_iters=10)
 
         assert len(noise_responses) == 1
         assert len(noise_responses["out0"]) == 5
@@ -2686,7 +2686,7 @@ class TestGetRoundoffNoiseImpulseResponses:
         from b_asic.sfg_generators import fir
 
         sfg = fir([0.5, 0.3, 0.7])
-        noise_responses = sfg.get_roundoff_noise_impulse_responses()
+        noise_responses = sfg.get_impulse_responses_from_nodes()
 
         assert len(noise_responses) == 1
         assert len(noise_responses["out0"]) == 5
@@ -2696,3 +2696,16 @@ class TestGetRoundoffNoiseImpulseResponses:
         assert noise_responses["out0"]["cmul1"] == np.array([1])
         assert noise_responses["out0"]["add1"] == np.array([1])
         assert noise_responses["out0"]["cmul2"] == np.array([1])
+
+    def test_nodes_specified(self, precedence_sfg_delays):
+        noise_responses = precedence_sfg_delays.get_impulse_responses_from_nodes(
+            nodes=["add0"], max_iters=5
+        )
+
+        assert len(noise_responses) == 1
+
+        assert len(noise_responses["out0"]) == 1
+
+        np.testing.assert_array_equal(
+            noise_responses["out0"]["add0"], np.array([7, 25, 95, 335, 1195])
+        )
