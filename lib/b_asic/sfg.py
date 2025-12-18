@@ -2459,21 +2459,25 @@ class SFG(AbstractOperation):
                     impulse_responses[response_key] = response[:cutoff]
         return impulse_responses
 
-    def get_roundoff_noise_impulse_responses(
-        self, threshold: float = 1e-12, max_iters: int = -1
+    def get_impulse_responses_from_nodes(
+        self,
+        nodes: list[GraphID] | None = None,
+        threshold: float = 1e-12,
+        max_iters: int = -1,
     ) -> dict[str, dict[str, npt.NDArray]]:
         """
-        Return the roundoff noise impulse responses for all SFG outputs.
+        Return the impulse responses for the specified nodes to the SFG outputs.
 
-        Here, roundoff noise sources are injected at the output of each operation
-        that performs quantization.
-        The impulse responses from these noise sources to each SFG output are computed.
+        Can e.g. be used to compute roundoff noise gains.
 
         The simulation runs until all output and delay values decay below the threshold.
         Alternatively, a maximum number of iterations can be set to prevent infinite loops.
 
         Parameters
         ----------
+        nodes : list[GraphID], optional
+            List of operation GraphIDs where impulses should be injected.
+
         threshold : float, default: 1e-12
             The threshold below which output values are considered to have decayed to zero.
 
@@ -2486,7 +2490,7 @@ class SFG(AbstractOperation):
         dict[str, dict[str, npt.NDArray]]
             Dictionary mapping each SFG output GraphID (e.g., "out0", "out1")
             to a dictionary that maps operation GraphIDs to their corresponding
-            roundoff noise impulse responses.
+            impulse responses.
         """
         from b_asic.core_operations import Addition  # noqa: PLC0415
         from b_asic.utility_operations import DontCare, Sink  # noqa: PLC0415
@@ -2495,16 +2499,23 @@ class SFG(AbstractOperation):
             raise ValueError("SFG must be linear to compute roundoff noise responses")
 
         sfg_copy = self()
-        operations_to_inject = [
-            op
-            for op in sfg_copy.operations
-            if not isinstance(op, (Input, Output, DontCare, Sink, Delay))
-        ]
+        if nodes is None:
+            nodes = [
+                op
+                for op in sfg_copy.operations
+                if not isinstance(op, (Input, Output, DontCare, Sink, Delay))
+            ]
+        else:
+            nodes = [
+                sfg_copy.find_by_id(node_id)
+                for node_id in nodes
+                if sfg_copy.find_by_id(node_id) is not None
+            ]
 
         # For each operation that performs quantization, create noise sources
         # and adders to inject noise into its outputs
         noise_inputs = []
-        for op in operations_to_inject:
+        for op in nodes:
             for output_idx in range(op.output_count):
                 noise_input = Input(name=f"noise_{op.graph_id}_out{output_idx}")
                 noise_inputs.append(noise_input)
