@@ -27,6 +27,7 @@ API
     simulation.rst
     special_operations.rst
     state_space.rst
+    transfer_function.rst
     utility_operations.rst
     utils.rst
     wdf_operations.rst

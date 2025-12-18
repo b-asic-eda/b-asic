@@ -1977,6 +1977,18 @@ class SFG(AbstractOperation):
         """
         return StateSpace.from_sfg(self)
 
+    def to_tf(self):
+        """
+        Return the transfer function representation of the SFG.
+
+        Returns
+        -------
+        The transfer function representation.
+        """
+        from b_asic.transfer_function import TransferFunction  # noqa: PLC0415
+
+        return TransferFunction.from_sfg(self)
+
     def find_all_paths(
         self, graph: dict, start: str, end: str, path: list | None = None
     ) -> list:

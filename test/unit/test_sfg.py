@@ -2573,6 +2573,53 @@ class TestToSS:
         )
 
 
+class TestToTF:
+    def test_fir(self):
+        from b_asic.sfg_generators import fir
+
+        sfg = fir([0.1, 0.2, 0.3, 0.4, 0.5])
+        tf = sfg.to_tf()
+
+        assert tf.numerator.keys() == {"in0"}
+
+        np.testing.assert_allclose(tf.numerator["in0"], [0.1, 0.2, 0.3, 0.4, 0.5])
+        np.testing.assert_array_equal(tf.denominator, np.array([1.0]))
+
+    def test_direct_form_1_iir(self):
+        from b_asic.sfg_generators import direct_form_1_iir
+
+        sfg = direct_form_1_iir([0.5, 0.25, 0.30], [1.0, -0.3, 0.12])
+        tf = sfg.to_tf()
+
+        assert tf.numerator.keys() == {"in0"}
+
+        np.testing.assert_allclose(tf.numerator["in0"], [0.5, 0.25, 0.30])
+        np.testing.assert_allclose(tf.denominator, [1.0, -0.3, 0.12])
+
+    def test_direct_form_2_iir(self):
+        from b_asic.sfg_generators import direct_form_2_iir
+
+        sfg = direct_form_2_iir([0.75, -0.5, 0.2, 0.1], [1.0, 0.3, -0.9, 0.8])
+        tf = sfg.to_tf()
+
+        assert tf.numerator.keys() == {"in0"}
+
+        np.testing.assert_allclose(tf.numerator["in0"], [0.75, -0.5, 0.2, 0.1])
+        np.testing.assert_allclose(tf.denominator, [1.0, 0.3, -0.9, 0.8])
+
+    def test_passthrough(self):
+        in0 = Input()
+        out0 = Output(in0)
+        sfg = SFG(inputs=[in0], outputs=[out0])
+
+        tf = sfg.to_tf()
+
+        assert tf.numerator.keys() == {"in0"}
+
+        np.testing.assert_array_equal(tf.numerator["in0"], [1.0])
+        np.testing.assert_array_equal(tf.denominator, [1.0])
+
+
 class TestGetImpulseResponsesFromNodes:
     def test_accumulator(self, sfg_simple_accumulator):
         noise_responses = sfg_simple_accumulator.get_impulse_responses_from_nodes(
