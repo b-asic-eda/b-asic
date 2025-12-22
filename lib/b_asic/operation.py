@@ -564,8 +564,22 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         self.input(0).connect(src)
         return self
 
+    def __repr__(self) -> str:
+        """Get a detailed representation of this operation."""
+        params = []
+        if self.name:
+            params.append(f"name={self.name!r}")
+        for key, value in self.params.items():
+            params.append(f"{key}={value!r}")
+        params_str = ", ".join(params) if params else ""
+        return f"{self.__class__.__name__}({params_str})"
+
     def __str__(self) -> str:
         """Get a string representation of this operation."""
+        return super().__str__()
+
+    def graph_str(self) -> str:
+        """Get a string representation including graph connections."""
         inputs_dict: dict[int, list[GraphID] | str] = {}
         for i, current_input in enumerate(self.inputs):
             if current_input.signal_count == 0:

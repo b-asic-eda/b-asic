@@ -313,7 +313,7 @@ class SFG(AbstractOperation):
         string_io.write(line)
 
         for operation in self.get_operations_topological_order():
-            string_io.write(f"{operation}\n")
+            string_io.write(f"{operation.graph_str()}\n")
 
         string_io.write(line)
 
@@ -1149,7 +1149,7 @@ class SFG(AbstractOperation):
                     out_str.write(".")
                     out_str.write(str(outport_num))
                     out_str.write(" \t")
-                    out_str.write(str(outport.operation))
+                    out_str.write(outport.operation.graph_str())
                     printed_ops.add(outport)
 
             out_str.write("\n")

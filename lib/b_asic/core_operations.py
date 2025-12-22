@@ -83,12 +83,6 @@ class Constant(AbstractOperation):
     def latency(self) -> int:
         return 0
 
-    def __repr__(self) -> str:
-        return f"Constant({self.value})"
-
-    def __str__(self) -> str:
-        return f"{self.value}"
-
     def get_plot_coordinates(
         self,
     ) -> tuple[ShapeCoordinates, ShapeCoordinates]:
