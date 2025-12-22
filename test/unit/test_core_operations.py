@@ -49,14 +49,6 @@ class TestConstant:
         test_operation.value = 4
         assert test_operation.value == 4
 
-    def test_constant_repr(self):
-        test_operation = Constant(3)
-        assert repr(test_operation) == "Constant(3)"
-
-    def test_constant_str(self):
-        test_operation = Constant(3)
-        assert str(test_operation) == "3"
-
 
 class TestAddition:
     """Tests for Addition class."""

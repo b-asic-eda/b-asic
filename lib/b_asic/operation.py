@@ -564,6 +564,10 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         self.input(0).connect(src)
         return self
 
+    def __repr__(self) -> str:
+        """Get a detailed representation of this operation including all parameters."""
+        return self.__str__()
+
     def __str__(self) -> str:
         """Get a string representation of this operation."""
         inputs_dict: dict[int, list[GraphID] | str] = {}
