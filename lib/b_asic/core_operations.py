@@ -175,6 +175,10 @@ class Negation(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("neg")
 
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        return f"-{inputs[0]}"
+
     def evaluate(self, a, data_type=None) -> Num:
         if data_type is not None:
             return apy.fx(-a, data_type.wl[0], data_type.wl[1])
@@ -267,6 +271,16 @@ class Addition(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("add")
+
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        in1 = inputs[1]
+        if self.mul_j:
+            in1 = f"j * {in1}"
+        expr = f"{inputs[0]} + {in1}"
+        if self.shift_output != 0:
+            return f"({expr}) >> {self.shift_output}"
+        return expr
 
     @property
     def mul_j(self) -> bool:
@@ -448,6 +462,16 @@ class Subtraction(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("sub")
+
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        in1 = inputs[1]
+        if self.mul_j:
+            in1 = f"j * {in1}"
+        expr = f"{inputs[0]} - {in1}"
+        if self.shift_output != 0:
+            return f"({expr}) >> {self.shift_output}"
+        return expr
 
     @property
     def mul_j(self) -> bool:
@@ -642,6 +666,17 @@ class AddSub(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("addsub")
+
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        op = "+" if self.is_add else "-"
+        in1 = inputs[1]
+        if self.mul_j:
+            in1 = f"j * {in1}"
+        expr = f"{inputs[0]} {op} {in1}"
+        if self.shift_output != 0:
+            return f"({expr}) >> {self.shift_output}"
+        return expr
 
     def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
@@ -844,6 +879,19 @@ class ShiftAddSub(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("shiftaddsub")
 
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        op = "+" if self.is_add else "-"
+        in1 = inputs[1]
+        if self.shift != 0:
+            in1 = f"({in1} >> {self.shift})"
+        if self.mul_j:
+            in1 = f"j * {in1}"
+        expr = f"{inputs[0]} {op} {in1}"
+        if self.shift_output != 0:
+            return f"({expr}) >> {self.shift_output}"
+        return expr
+
     def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
             b *= 1j
@@ -1024,6 +1072,10 @@ class Multiplication(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mul")
 
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        return f"{inputs[0]} * {inputs[1]}"
+
     def evaluate(self, a, b, data_type=None) -> Num:
         res = a * b
         return self._cast_to_data_type(res, data_type)
@@ -1104,6 +1156,10 @@ class Division(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("div")
+
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        return f"{inputs[0]} / {inputs[1]}"
 
     def evaluate(self, a, b, data_type=None) -> Num:
         res = float("inf") if b == 0 else a / b
@@ -1514,6 +1570,10 @@ class ImaginaryMultiplication(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("imul")
 
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        return f"{inputs[0]} * j"
+
     def evaluate(self, a, data_type=None) -> Num:
         res = a * 1j
         return self._cast_to_data_type(res, data_type)
@@ -1645,6 +1705,10 @@ class ConstantMultiplication(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("cmul")
+
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        return f"{inputs[0]} * {self.value}"
 
     def evaluate(self, a, data_type=None) -> Num:
         res = a * self.param("value")
@@ -1822,6 +1886,12 @@ class MAD(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mad")
 
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        if self.do_add:
+            return f"{inputs[0]} * {inputs[1]} + {inputs[2]}"
+        return f"{inputs[0]} * {inputs[1]}"
+
     def evaluate(self, a, b, c, data_type=None) -> Num:
         res = a * b + c if self.do_add else a * b
         return self._cast_to_data_type(res, data_type)
@@ -1905,6 +1975,13 @@ class MADS(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("mads")
+
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        op = "+" if self.is_add else "-"
+        if self.do_addsub:
+            return f"{inputs[0]} {op} {inputs[1]} * {inputs[2]}"
+        return f"{inputs[0]} * {inputs[1]}"
 
     def evaluate(self, a, b, c, data_type=None) -> Num:
         if self.is_add:
@@ -2008,6 +2085,9 @@ class Reciprocal(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("rec")
 
+    def _operation_str(self, input_ids: list[str]) -> str:
+        return f"{self.graph_id} = 1 / {input_ids[0]}"
+
     def evaluate(self, a, data_type=None) -> Num:
         res = float("inf") if a == 0 else 1 / a
         return self._cast_to_data_type(res, data_type)
@@ -2086,6 +2166,10 @@ class RightShift(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("rshift")
+
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        return f"{inputs[0]} >> {self.value}"
 
     def evaluate(self, a, data_type=None) -> Num:
         res = a * 2 ** (-self.param("value"))
@@ -2180,6 +2264,10 @@ class LeftShift(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("lshift")
 
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive)
+        return f"{inputs[0]} << {self.value}"
+
     def evaluate(self, a, data_type=None) -> Num:
         res = a * 2 ** (self.param("value"))
         return self._cast_to_data_type(res, data_type)
@@ -2273,6 +2361,11 @@ class Shift(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("shift")
+
+    def _operation_str(self, input_ids: list[str]) -> str:
+        if self.value >= 0:
+            return f"{self.graph_id} = {input_ids[0]} << {self.value}"
+        return f"{self.graph_id} = {input_ids[0]} >> {-self.value}"
 
     def evaluate(self, a, data_type=None) -> Num:
         if isinstance(a, (apy.APyFixed, apy.APyCFixed)):
