@@ -304,16 +304,25 @@ class SFG(AbstractOperation):
                 "At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal"
             )
 
+    @property
+    def expression(self) -> str:
+        """Get the full (recursively evaluated) expressions defining the SFG."""
+        expressions = [output_op.expression for output_op in self._output_operations]
+        expressions.extend(
+            [delay_op.expression for delay_op in self.find_by_type(Delay)]
+        )
+        return "\n".join(expressions)
+
     def __str__(self) -> str:
         """Return a string representation of this SFG."""
         string_io = StringIO()
-        string_io.write(super().__str__() + "\n")
+        string_io.write(super()._graph_str() + "\n")
         string_io.write("Internal Operations:\n")
         line = "-" * 100 + "\n"
         string_io.write(line)
 
         for operation in self.get_operations_topological_order():
-            string_io.write(f"{operation}\n")
+            string_io.write(f"{operation._graph_str()}\n")
 
         string_io.write(line)
 
@@ -1149,7 +1158,7 @@ class SFG(AbstractOperation):
                     out_str.write(".")
                     out_str.write(str(outport_num))
                     out_str.write(" \t")
-                    out_str.write(str(outport.operation))
+                    out_str.write(outport.operation._graph_str())
                     printed_ops.add(outport)
 
             out_str.write("\n")

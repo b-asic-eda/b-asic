@@ -94,13 +94,13 @@ class TestPrintSfg:
             + "Internal Operations:\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
-            + str(sfg.find_by_name("INP1")[0])
+            + sfg.find_by_name("INP1")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("INP2")[0])
+            + sfg.find_by_name("INP2")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("ADD1")[0])
+            + sfg.find_by_name("ADD1")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("OUT1")[0])
+            + sfg.find_by_name("OUT1")[0]._graph_str()
             + "\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
@@ -121,17 +121,17 @@ class TestPrintSfg:
             + "Internal Operations:\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
-            + str(sfg.find_by_name("INP1")[0])
+            + sfg.find_by_name("INP1")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("INP2")[0])
+            + sfg.find_by_name("INP2")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("ADD1")[0])
+            + sfg.find_by_name("ADD1")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("INP3")[0])
+            + sfg.find_by_name("INP3")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("MUL1")[0])
+            + sfg.find_by_name("MUL1")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("OUT1")[0])
+            + sfg.find_by_name("OUT1")[0]._graph_str()
             + "\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
@@ -151,13 +151,13 @@ class TestPrintSfg:
             + "Internal Operations:\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
-            + str(sfg.find_by_name("CONST")[0])
+            + sfg.find_by_name("CONST")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("INP1")[0])
+            + sfg.find_by_name("INP1")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("ADD1")[0])
+            + sfg.find_by_name("ADD1")[0]._graph_str()
             + "\n"
-            + str(sfg.find_by_name("OUT1")[0])
+            + sfg.find_by_name("OUT1")[0]._graph_str()
             + "\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
@@ -171,18 +171,78 @@ class TestPrintSfg:
             + "Internal Operations:\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
-            + str(sfg_simple_filter.find_by_name("IN")[0])
+            + sfg_simple_filter.find_by_name("IN")[0]._graph_str()
             + "\n"
-            + str(sfg_simple_filter.find_by_name("ADD")[0])
+            + sfg_simple_filter.find_by_name("ADD")[0]._graph_str()
             + "\n"
-            + str(sfg_simple_filter.find_by_name("T")[0])
+            + sfg_simple_filter.find_by_name("T")[0]._graph_str()
             + "\n"
-            + str(sfg_simple_filter.find_by_name("CMUL")[0])
+            + sfg_simple_filter.find_by_name("CMUL")[0]._graph_str()
             + "\n"
-            + str(sfg_simple_filter.find_by_name("OUT")[0])
+            + sfg_simple_filter.find_by_name("OUT")[0]._graph_str()
             + "\n"
             + "--------------------------------------------------------------------"
             + "--------------------------------\n"
+        )
+
+
+class TestPrintExpression:
+    def test_one_addition(self):
+        a = Input()
+        b = Input()
+        add1 = a + b
+        y = Output(add1)
+        sfg = SFG([a, b], [y])
+        assert sfg.expression == "out0 = in0 + in1"
+
+    def test_add_mul(self):
+        a = Input()
+        b = Input()
+        c = Input()
+        add1 = a + b
+        mul1 = add1 * c
+        y = Output(mul1)
+        sfg = SFG([a, b, c], [y])
+        assert sfg.expression == "out0 = (in0 + in1) * in2"
+
+    def test_add_mul_delay(self):
+        a = Input()
+        b = Input()
+        c = Input()
+        add1 = a + b
+        add1 = Delay(add1)
+        mul1 = add1 * c
+        y = Output(mul1)
+        sfg = SFG([a, b, c], [y])
+        assert sfg.expression == ("out0 = t0 * in2\nt0+ = in0 + in1")
+
+    def test_several_delays(self):
+        a = Input()
+        b = Input()
+        c = Input()
+        d = Input()
+        s0 = a + b
+        s1 = b + c
+        s1 = Delay(s1)
+        s3 = d + c
+        s4 = s1 + s3
+        s4 = Delay(s4)
+        s2 = s0 * s1
+        y0 = Output(s2, "y0")
+        y1 = Output(s4, "y1")
+        y2 = Output(s0, "y2")
+        sfg = SFG([a, b, c, d], [y0, y1, y2])
+        assert sfg.expression == (
+            "out0 = (in0 + in1) * t0\n"
+            "out1 = t1\n"
+            "out2 = in0 + in1\n"
+            "t0+ = in1 + in2\n"
+            "t1+ = t0 + (in3 + in2)"
+        )
+
+    def test_custom_operation(self, sfg_custom_operation):
+        assert sfg_custom_operation.expression == (
+            "out0 = CustomOperation(in0).0\nout1 = CustomOperation(in0).1"
         )
 
 
@@ -840,58 +900,58 @@ class TestPrintPrecedence:
             == "-" * 120
             + "\n"
             + "1.1 \t"
-            + str(sfg.find_by_name("IN1")[0])
+            + sfg.find_by_name("IN1")[0]._graph_str()
             + "\n"
             + "1.2 \t"
-            + str(sfg.find_by_name("T1")[0])
+            + sfg.find_by_name("T1")[0]._graph_str()
             + "\n"
             + "1.3 \t"
-            + str(sfg.find_by_name("T2")[0])
+            + sfg.find_by_name("T2")[0]._graph_str()
             + "\n"
             + "-" * 120
             + "\n"
             + "2.1 \t"
-            + str(sfg.find_by_name("C0")[0])
+            + sfg.find_by_name("C0")[0]._graph_str()
             + "\n"
             + "2.2 \t"
-            + str(sfg.find_by_name("A1")[0])
+            + sfg.find_by_name("A1")[0]._graph_str()
             + "\n"
             + "2.3 \t"
-            + str(sfg.find_by_name("B1")[0])
+            + sfg.find_by_name("B1")[0]._graph_str()
             + "\n"
             + "2.4 \t"
-            + str(sfg.find_by_name("A2")[0])
+            + sfg.find_by_name("A2")[0]._graph_str()
             + "\n"
             + "2.5 \t"
-            + str(sfg.find_by_name("B2")[0])
+            + sfg.find_by_name("B2")[0]._graph_str()
             + "\n"
             + "-" * 120
             + "\n"
             + "3.1 \t"
-            + str(sfg.find_by_name("ADD3")[0])
+            + sfg.find_by_name("ADD3")[0]._graph_str()
             + "\n"
             + "3.2 \t"
-            + str(sfg.find_by_name("ADD2")[0])
+            + sfg.find_by_name("ADD2")[0]._graph_str()
             + "\n"
             + "-" * 120
             + "\n"
             + "4.1 \t"
-            + str(sfg.find_by_name("ADD1")[0])
+            + sfg.find_by_name("ADD1")[0]._graph_str()
             + "\n"
             + "-" * 120
             + "\n"
             + "5.1 \t"
-            + str(sfg.find_by_name("Q1")[0])
+            + sfg.find_by_name("Q1")[0]._graph_str()
             + "\n"
             + "-" * 120
             + "\n"
             + "6.1 \t"
-            + str(sfg.find_by_name("A0")[0])
+            + sfg.find_by_name("A0")[0]._graph_str()
             + "\n"
             + "-" * 120
             + "\n"
             + "7.1 \t"
-            + str(sfg.find_by_name("ADD4")[0])
+            + sfg.find_by_name("ADD4")[0]._graph_str()
             + "\n"
             + "-" * 120
             + "\n"

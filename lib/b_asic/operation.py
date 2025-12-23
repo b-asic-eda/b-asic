@@ -565,11 +565,76 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         return self
 
     def __repr__(self) -> str:
-        """Get a detailed representation of this operation including all parameters."""
-        return self.__str__()
+        """Get a detailed representation of this operation."""
+        params = []
+        if self.name:
+            params.append(f"name={self.name!r}")
+        for key, value in self.params.items():
+            params.append(f"{key}={value!r}")
+        params_str = ", ".join(params)
+        return f"{self.__class__.__name__}({params_str})"
+
+    def _get_input_representations(
+        self, recursive: bool, wrap_expressions: bool = True
+    ) -> list[str]:
+        from b_asic.special_operations import Delay  # noqa: PLC0415
+
+        results = []
+        for inp in self.inputs:
+            if inp.signal_count > 0:
+                source = next(iter(inp.signals)).source
+                src_op = source.operation
+                if not recursive:
+                    results.append(src_op.graph_id)
+                else:
+                    if src_op.input_count == 0 or isinstance(src_op, Delay):
+                        # Include port index for multi-output operations
+                        if src_op.output_count > 1:
+                            results.append(f"{src_op.graph_id}.{source.index}")
+                        else:
+                            results.append(src_op.graph_id)
+                    else:
+                        expr = src_op._expr(recursive=True)
+                        # Include port index for multi-output operations
+                        if src_op.output_count > 1:
+                            if wrap_expressions:
+                                results.append(f"({expr}).{source.index}")
+                            else:
+                                results.append(f"{expr}.{source.index}")
+                        else:
+                            if wrap_expressions:
+                                results.append(f"({expr})")
+                            else:
+                                results.append(expr)
+            else:
+                results.append("-")
+        return results
+
+    @property
+    def expression(self) -> str:
+        """Get the full (recursively evaluated) expression of this operation."""
+        from b_asic.special_operations import Delay  # noqa: PLC0415
+
+        if self.input_count == 0:
+            return str(self.graph_id)
+        if isinstance(self, Delay):
+            return f"{self.graph_id}+ = {self._expr(recursive=True)}"
+        return f"{self.graph_id} = {self._expr(recursive=True)}"
+
+    def _expr(self, recursive: bool = False) -> str:
+        """Get the right hand side of the assignment. Override in subclasses."""
+        inputs = self._get_input_representations(recursive)
+        inputs_str = ", ".join(inputs)
+        return f"{self.__class__.__name__}({inputs_str})"
 
     def __str__(self) -> str:
         """Get a string representation of this operation."""
+        if self.input_count == 0:
+            return str(self.graph_id)
+        return f"{self.graph_id} = {self._expr()}"
+
+    def _graph_str(self) -> str:
+        """Get a string representation including graph connections."""
         inputs_dict: dict[int, list[GraphID] | str] = {}
         for i, current_input in enumerate(self.inputs):
             if current_input.signal_count == 0:

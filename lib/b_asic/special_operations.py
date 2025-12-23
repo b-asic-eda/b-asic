@@ -137,6 +137,10 @@ class Output(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("out")
 
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive, wrap_expressions=False)
+        return inputs[0]
+
     def evaluate(self, _, data_type) -> None:
         return None
 
@@ -200,6 +204,12 @@ class Delay(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("t")
+
+    def _expr(self, recursive: bool = False) -> str:
+        inputs = self._get_input_representations(recursive, wrap_expressions=False)
+        if self.initial_value != 0:
+            return f"{inputs[0]}, init={self.initial_value}"
+        return inputs[0]
 
     def evaluate(self, a, data_type, delays=None) -> Num:
         if data_type and data_type.is_complex:
