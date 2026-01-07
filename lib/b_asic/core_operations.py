@@ -1913,7 +1913,7 @@ class MAD(AbstractOperation):
         """Set whether the input to src2 is used when computing."""
         self.set_param("do_add", do_add)
 
-    def swap_io(self) -> None:
+    def swap_io(self, force: bool = False) -> None:
         self._input_ports = [
             self._input_ports[1],
             self._input_ports[0],
@@ -2017,7 +2017,7 @@ class MADS(AbstractOperation):
             or self.input(2).connected_source.operation.is_constant
         )
 
-    def swap_io(self) -> None:
+    def swap_io(self, force: bool = False) -> None:
         self._input_ports = [
             self._input_ports[0],
             self._input_ports[2],

@@ -432,9 +432,14 @@ class Operation(GraphComponent, SignalSourceProvider):
         raise NotImplementedError
 
     @abstractmethod
-    def swap_io(self) -> None:
+    def swap_io(self, force: bool = False) -> None:
         """
         Swap inputs (and outputs) of operation.
+
+        Parameters
+        ----------
+        force : bool, optional
+            If True, force the swapping even if :meth:`is_swappable` is False.
 
         Errors if :meth:`is_swappable` is False.
         """
@@ -1108,9 +1113,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         # doc-string inherited
         return False
 
-    def swap_io(self) -> None:
+    def swap_io(self, force: bool = False) -> None:
         # doc-string inherited
-        if not self.is_swappable:
+        if not force and not self.is_swappable:
             raise TypeError(f"operation io cannot be swapped for {type(self)}")
         if self.input_count == 2 and self.output_count == 1:
             self._input_ports.reverse()
