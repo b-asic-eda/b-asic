@@ -87,7 +87,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         else:
             raise ValueError("value must be between -1 and 1 (inclusive)")
 
-    def swap_io(self) -> None:
+    def swap_io(self, force: bool = False) -> None:
         # Swap inputs and outputs and change sign of coefficient
         self._input_ports.reverse()
         for i, ip in enumerate(self._input_ports):
@@ -163,7 +163,7 @@ class SeriesTwoportAdaptor(AbstractOperation):
         else:
             raise ValueError("value must be between 0 and 2 (inclusive)")
 
-    def swap_io(self) -> None:
+    def swap_io(self, force: bool = False) -> None:
         # Swap inputs and outputs and, hence, which port is dependent
         self._input_ports.reverse()
         for i, ip in enumerate(self._input_ports):
@@ -240,7 +240,7 @@ class ParallelTwoportAdaptor(AbstractOperation):
         else:
             raise ValueError("value must be between 0 and 2 (inclusive)")
 
-    def swap_io(self) -> None:
+    def swap_io(self, force: bool = False) -> None:
         # Swap inputs and outputs and, hence, which port is dependent
         self._input_ports.reverse()
         for i, ip in enumerate(self._input_ports):
