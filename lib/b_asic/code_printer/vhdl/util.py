@@ -6,7 +6,11 @@ def signed_type(bits: int) -> str:
 
 
 def schedule_time_type(time: int) -> str:
-    return unsigned_type(time.bit_length())
+    if time <= 0:
+        raise ValueError("Schedule time must be positive.")
+    if time == 1:
+        return unsigned_type(1)
+    return unsigned_type((time - 1).bit_length())
 
 
 def unsigned_type(bits: int) -> str:

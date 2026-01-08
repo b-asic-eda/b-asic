@@ -10,15 +10,14 @@ use ieee.numeric_std.all;
 
 entity streaming_matrix_transposition_tester is
     generic(
-        WL              : integer;
         ROWS            : integer;
         COLS            : integer;
         ENABLE_DEL_CC   : integer := 0  -- CCs after enable to start feeding the circuit
     );
     port(
         clk, rst, en : out std_logic;
-        input : out std_logic_vector(WL-1 downto 0);
-        output : in std_logic_vector(WL-1 downto 0);
+        input : out std_logic_vector(15 downto 0);
+        output : in std_logic_vector(15 downto 0);
         done : out boolean
     );
 end entity streaming_matrix_transposition_tester;
@@ -100,9 +99,8 @@ entity streaming_matrix_transposition_memory_2x2_tb is
 end entity streaming_matrix_transposition_memory_2x2_tb;
 
 architecture behav of streaming_matrix_transposition_memory_2x2_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -115,9 +113,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_memory_2x2
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>2, COLS=>2) port map(clk, rst, en, input, output, done);
+        generic map (ROWS=>2, COLS=>2) port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -137,9 +135,8 @@ entity streaming_matrix_transposition_memory_3x3_tb is
 end entity streaming_matrix_transposition_memory_3x3_tb;
 
 architecture behav of streaming_matrix_transposition_memory_3x3_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -152,9 +149,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_memory_3x3
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>3, COLS=>3) port map(clk, rst, en, input, output, done);
+        generic map (ROWS=>3, COLS=>3) port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -174,9 +171,8 @@ entity streaming_matrix_transposition_memory_4x4_tb is
 end entity streaming_matrix_transposition_memory_4x4_tb;
 
 architecture behav of streaming_matrix_transposition_memory_4x4_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -189,9 +185,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_memory_4x4
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>4, COLS=>4, ENABLE_DEL_CC=>1)
+        generic map (ROWS=>4, COLS=>4, ENABLE_DEL_CC=>1)
         port map(clk, rst, en, input, output, done);
 
 end architecture behav;
@@ -212,9 +208,8 @@ entity streaming_matrix_transposition_memory_5x5_tb is
 end entity streaming_matrix_transposition_memory_5x5_tb;
 
 architecture behav of streaming_matrix_transposition_memory_5x5_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -227,9 +222,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_memory_5x5
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>5, COLS=>5, ENABLE_DEL_CC=>2)
+        generic map (ROWS=>5, COLS=>5, ENABLE_DEL_CC=>2)
         port map(clk, rst, en, input, output, done);
 
 end architecture behav;
@@ -250,9 +245,8 @@ entity streaming_matrix_transposition_memory_7x7_tb is
 end entity streaming_matrix_transposition_memory_7x7_tb;
 
 architecture behav of streaming_matrix_transposition_memory_7x7_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -265,9 +259,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_memory_7x7
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>7, COLS=>7, ENABLE_DEL_CC=>3)
+        generic map (ROWS=>7, COLS=>7, ENABLE_DEL_CC=>3)
         port map(clk, rst, en, input, output, done);
 
 end architecture behav;
@@ -289,9 +283,9 @@ entity streaming_matrix_transposition_memory_4x8_tb is
 end entity streaming_matrix_transposition_memory_4x8_tb;
 
 architecture behav of streaming_matrix_transposition_memory_4x8_tb is
-    constant WL : integer := 16;
+
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -304,9 +298,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_memory_4x8
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>4, COLS=>8, ENABLE_DEL_CC=>2)
+        generic map (ROWS=>4, COLS=>8, ENABLE_DEL_CC=>2)
         port map(clk, rst, en, input, output, done);
 
 end architecture behav;
@@ -327,9 +321,8 @@ entity streaming_matrix_transposition_register_2x2_tb is
 end entity streaming_matrix_transposition_register_2x2_tb;
 
 architecture behav of streaming_matrix_transposition_register_2x2_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -342,9 +335,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_register_2x2
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>2, COLS=>2) port map(clk, rst, en, input, output, done);
+        generic map (ROWS=>2, COLS=>2) port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -364,9 +357,8 @@ entity streaming_matrix_transposition_register_3x3_tb is
 end entity streaming_matrix_transposition_register_3x3_tb;
 
 architecture behav of streaming_matrix_transposition_register_3x3_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -379,9 +371,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_register_3x3
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>3, COLS=>3) port map(clk, rst, en, input, output, done);
+        generic map (ROWS=>3, COLS=>3) port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -401,9 +393,9 @@ entity streaming_matrix_transposition_register_4x4_tb is
 end entity streaming_matrix_transposition_register_4x4_tb;
 
 architecture behav of streaming_matrix_transposition_register_4x4_tb is
-    constant WL : integer := 16;
+
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -416,9 +408,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_register_4x4
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>4, COLS=>4) port map(clk, rst, en, input, output, done);
+        generic map (ROWS=>4, COLS=>4) port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -438,9 +430,8 @@ entity streaming_matrix_transposition_register_5x5_tb is
 end entity streaming_matrix_transposition_register_5x5_tb;
 
 architecture behav of streaming_matrix_transposition_register_5x5_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -453,9 +444,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_register_5x5
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>5, COLS=>5) port map(clk, rst, en, input, output, done);
+        generic map (ROWS=>5, COLS=>5) port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -475,9 +466,8 @@ entity streaming_matrix_transposition_register_7x7_tb is
 end entity streaming_matrix_transposition_register_7x7_tb;
 
 architecture behav of streaming_matrix_transposition_register_7x7_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -490,9 +480,9 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_register_7x7
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>7, COLS=>7) port map(clk, rst, en, input, output, done);
+        generic map (ROWS=>7, COLS=>7) port map(clk, rst, en, input, output, done);
 
 end architecture behav;
 
@@ -512,9 +502,8 @@ entity streaming_matrix_transposition_register_4x8_tb is
 end entity streaming_matrix_transposition_register_4x8_tb;
 
 architecture behav of streaming_matrix_transposition_register_4x8_tb is
-    constant WL : integer := 16;
     signal done : boolean;
-    signal input, output : std_logic_vector(WL-1 downto 0);
+    signal input, output : std_logic_vector(15 downto 0);
     signal clk, rst, en : std_logic;
 begin
 
@@ -527,8 +516,8 @@ begin
 
     -- Run the test baby!
     dut : entity work.streaming_matrix_transposition_register_4x8
-        generic map(WL=>WL) port map(clk, rst, en, input, output);
+        port map(clk, rst, en, input, output);
     tb : entity work.streaming_matrix_transposition_tester
-        generic map (WL=>WL, ROWS=>4, COLS=>8) port map(clk, rst, en, input, output, done);
+        generic map (ROWS=>4, COLS=>8) port map(clk, rst, en, input, output, done);
 
 end architecture behav;

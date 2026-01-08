@@ -546,6 +546,7 @@ def asynchronous_read_memory(
     read_ports: set[tuple[str, str, str]],
     write_ports: set[tuple[str, str, str]],
     name: str | None = None,
+    enable: str | None = None,
 ) -> None:
     """
     Infer a VHDL memory with synchronous writes and asynchronous reads.
@@ -562,19 +563,28 @@ def asynchronous_read_memory(
         A set of strings used as identifiers for the write ports of the memory.
     name : str, optional
         An optional name for the memory process.
+    enable : str, optional
+        An optional enable signal to gate the memory writes.
     """
     assert len(read_ports) >= 1
     assert len(write_ports) >= 1
     synchronous_process_prologue(f, clk=clk, name=name)
+    if enable:
+        write(f, 3, f"if {enable} = '1' then")
+        indent_offset = 1
+    else:
+        indent_offset = 0
     for write_name, address, we in write_ports:
         write_lines(
             f,
             [
-                (3, f"if {we} = '1' then"),
-                (4, f"memory(to_integer({address})) <= {write_name};"),
-                (3, "end if;"),
+                (3 + indent_offset, f"if {we} = '1' then"),
+                (4 + indent_offset, f"memory(to_integer({address})) <= {write_name};"),
+                (3 + indent_offset, "end if;"),
             ],
         )
+    if enable:
+        write(f, 3, "end if;")
     synchronous_process_epilogue(f, clk=clk, name=name)
     for read_name, address, _ in read_ports:
         write(f, 1, f"{read_name} <= memory(to_integer({address}));")

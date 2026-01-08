@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 
 def time_bin_str(time: int, pe: "ProcessingElement"):
-    return f"{time:0{pe.schedule_time.bit_length()}b}"
+    return f"{time:0{(pe.schedule_time - 1).bit_length()}b}"
 
 
 def bin_str(num: int, bits: int) -> str:
