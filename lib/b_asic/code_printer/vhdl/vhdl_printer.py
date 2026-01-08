@@ -11,6 +11,7 @@ from b_asic.code_printer.vhdl import (
     common,
     memory_storage,
     processing_element,
+    register_storage,
     top_level,
 )
 from b_asic.code_printer.vhdl.util import signed_type
@@ -99,10 +100,61 @@ class VhdlPrinter(Printer):
         if self.is_complex:
             common.package_header(f, "types")
 
-        memory_storage.entity(f, mem, self._dt)
-        memory_storage.architecture(
-            f, mem, self._dt, input_sync=False, output_sync=False
-        )
+        if mem._memory_type == "RAM":
+            # Extract known kwargs for memory_storage, pass through others
+            memory_kwargs = {
+                "input_sync": kwargs.get("input_sync", False),
+                "output_sync": kwargs.get("output_sync", False),
+                "external_schedule_counter": kwargs.get(
+                    "external_schedule_counter", True
+                ),
+                "std_logic_vector": kwargs.get("std_logic_vector", False),
+            }
+            # Add optional parameters if provided
+            for key in [
+                "adr_mux_size",
+                "adr_pipe_depth",
+                "vivado_ram_style",
+                "quartus_ram_style",
+            ]:
+                if key in kwargs:
+                    memory_kwargs[key] = kwargs[key]
+
+            memory_storage.entity(
+                f,
+                mem,
+                self._dt,
+                external_schedule_counter=memory_kwargs["external_schedule_counter"],
+                std_logic_vector=memory_kwargs["std_logic_vector"],
+            )
+            memory_storage.architecture(f, mem, self._dt, **memory_kwargs)
+        elif mem._memory_type == "register":
+            if mem._forward_backward_table is None:
+                raise ValueError(
+                    "Memory assignment must be performed before generating register-based code. "
+                    "Call memory.assign() first."
+                )
+            register_kwargs = {
+                "sync_rst": kwargs.get("sync_rst", False),
+                "async_rst": kwargs.get("async_rst", False),
+                "external_schedule_counter": kwargs.get(
+                    "external_schedule_counter", False
+                ),
+                "std_logic_vector": kwargs.get("std_logic_vector", True),
+            }
+            register_storage.entity(
+                f,
+                mem,
+                self._dt,
+                external_schedule_counter=register_kwargs["external_schedule_counter"],
+                std_logic_vector=register_kwargs["std_logic_vector"],
+            )
+            register_storage.architecture(
+                f, mem._forward_backward_table, mem, self._dt, **register_kwargs
+            )
+        else:
+            raise ValueError(f"Unknown memory type: {mem._memory_type}")
+
         return f.getvalue()
 
     def print_ProcessingElement(self, pe: "ProcessingElement", **kwargs) -> str | None:

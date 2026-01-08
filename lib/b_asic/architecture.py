@@ -34,7 +34,11 @@ from b_asic.data_type import DataType, VhdlDataType
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
-from b_asic.resources import ProcessCollection, _sanitize_port_option
+from b_asic.resources import (
+    ProcessCollection,
+    _ForwardBackwardTable,
+    _sanitize_port_option,
+)
 from b_asic.special_operations import Input, Output
 
 
@@ -600,6 +604,7 @@ class ProcessingElement(Resource):
     ) -> None:
         ports = [
             "clk : in std_logic",
+            "en : in std_logic",
             f"schedule_cnt : in {schedule_time_type(self.schedule_time)}",
         ]
         ports += [
@@ -642,7 +647,7 @@ class ProcessingElement(Resource):
     def write_component_instantiation(
         self, f: TextIO, dt: VhdlDataType, indent: int = 1
     ) -> None:
-        port_mappings = ["clk => clk", "schedule_cnt => schedule_cnt"]
+        port_mappings = ["clk => clk", "en => '1'", "schedule_cnt => schedule_cnt"]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
@@ -702,6 +707,7 @@ class Memory(Resource):
         "_write_ports",
         "_total_ports",
         "_assign",
+        "_forward_backward_table",
     )
     _process_collection: ProcessCollection
     _memory_type: Literal["RAM", "register"]
@@ -710,6 +716,7 @@ class Memory(Resource):
     _write_ports: int | None
     _total_ports: int | None
     _assign: bool
+    _forward_backward_table: _ForwardBackwardTable | None
 
     def __init__(
         self,
@@ -741,6 +748,7 @@ class Memory(Resource):
         self._validate_ports_in_bounds(read_ports, write_ports, total_ports)
 
         self._memory_type = memory_type
+        self._forward_backward_table = None
         if assign:
             self.assign()
 
@@ -808,7 +816,7 @@ class Memory(Resource):
                 * 'greedy_graph_color': Greedy graph-coloring based on exclusion graph.
                 * 'ilp_graph_color': Optimal graph-coloring based on exclusion graph.
             * 'register'
-                * ...
+                * Forward-backward register allocation (automatic).
 
         **kwargs : dict
             Additional keyword arguments are passed to `~ProcessCollection.split_on_execution_time`.
@@ -822,13 +830,15 @@ class Memory(Resource):
                 strategy, **kwargs
             )
         else:  # "register"
-            raise NotImplementedError()
+            self._forward_backward_table = _ForwardBackwardTable(self._collection)
+            self._assignment = [self._collection]
 
     def write_component_declaration(
         self, f: TextIO, dt: DataType, indent: int = 1
     ) -> None:
         ports = [
             "clk : in std_logic",
+            "en : in std_logic",
             f"schedule_cnt : in {schedule_time_type(self.schedule_time)}",
         ]
         ports += [
@@ -863,7 +873,7 @@ class Memory(Resource):
         common.blank(f)
 
     def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
-        port_mappings = ["clk => clk", "schedule_cnt => schedule_cnt"]
+        port_mappings = ["clk => clk", "en => '1'", "schedule_cnt => schedule_cnt"]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)

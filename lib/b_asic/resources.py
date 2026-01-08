@@ -12,6 +12,7 @@ import sys
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator
 from functools import reduce
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypeVar, Union
 
 import matplotlib.pyplot as plt
@@ -30,6 +31,7 @@ from pulp import (
 )
 
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
+from b_asic.data_type import VhdlDataType
 from b_asic.process import (
     MemoryProcess,
     MemoryVariable,
@@ -2084,156 +2086,100 @@ class ProcessCollection:
                     )
         return assignment
 
-    # def generate_memory_based_storage_vhdl(
-    #     self,
-    #     filename: str,
-    #     entity_name: str,
-    #     word_length: int,
-    #     assignment: list["ProcessCollection"],
-    #     read_ports: int = 1,
-    #     write_ports: int = 1,
-    #     total_ports: int = 2,
-    #     *,
-    #     input_sync: bool = True,
-    #     adr_mux_size: int | None = None,
-    #     adr_pipe_depth: int | None = None,
-    # ) -> None:
-    #     """
-    #     Generate VHDL code for memory-based storage of processes (MemoryVariables).
+    def generate_memory_based_storage_vhdl(
+        self,
+        filename: str,
+        entity_name: str,
+        word_length: int,
+        assignment: list["ProcessCollection"] | None = None,
+        read_ports: int = 1,
+        write_ports: int = 1,
+        total_ports: int = 2,
+        *,
+        input_sync: bool = True,
+        output_sync: bool = False,
+        adr_mux_size: int | None = None,
+        adr_pipe_depth: int | None = None,
+        external_schedule_counter: bool = True,
+        std_logic_vector: bool = True,
+    ) -> None:
+        """
+        Generate VHDL code for memory-based storage of processes (MemoryVariables).
 
-    #     Parameters
-    #     ----------
-    #     filename : str
-    #         Filename of output file.
-    #     entity_name : str
-    #         Name used for the VHDL entity.
-    #     word_length : int
-    #         Word length of the memory variable objects.
-    #     assignment : list
-    #         A possible cell assignment to use when generating the memory based storage.
-    #         The cell assignment is a dictionary int to ProcessCollection where the
-    #         integer corresponds to the cell to assign all MemoryVariables in
-    #         corresponding process collection.
-    #         If unset, each MemoryVariable will be assigned to a unique single cell.
-    #     read_ports : int, default: 1
-    #         The number of read ports used when splitting process collection based on
-    #         memory variable access. If total ports in unset, this parameter has to be
-    #         set and total_ports is assumed to be read_ports + write_ports.
-    #     write_ports : int, default: 1
-    #         The number of write ports used when splitting process collection based on
-    #         memory variable access. If total ports is unset, this parameter has to be
-    #         set and total_ports is assumed to be read_ports + write_ports.
-    #     total_ports : int, default: 2
-    #         The total number of ports used when splitting process collection based on
-    #         memory variable access.
-    #     input_sync : bool, default: True
-    #         Add registers to the input signals (enable signal and data input signals).
-    #         Adding registers to the inputs allow pipelining of address generation
-    #         (which is added automatically). For large interleavers, this can improve
-    #         timing significantly.
-    #     adr_mux_size : int, optional
-    #         Size of multiplexer if using address generation pipelining. Set to `None`
-    #         for no multiplexer pipelining. If any other value than `None`, `input_sync`
-    #         must also be set.
-    #     adr_pipe_depth : int, optional
-    #         Depth of address generation pipelining. Set to `None` for no multiplexer
-    #         pipelining. If any other value than None, `input_sync` must also be set.
-    #     """
-    #     # Check that entity name is a valid VHDL identifier
-    #     if not common.is_valid_vhdl_identifier(entity_name):
-    #         raise KeyError(f"{entity_name} is not a valid identifier")
+        Parameters
+        ----------
+        filename : str
+            Filename of output file.
+        entity_name : str
+            Name used for the VHDL entity.
+        word_length : int
+            Word length of the memory variable objects (integer bits + fractional bits).
+        assignment : list of :class:`ProcessCollection`, optional
+            A possible cell assignment to use when generating the memory based storage.
+            If not provided, assignment will be performed automatically.
+        read_ports : int, default: 1
+            The number of read ports used when splitting process collection based on
+            memory variable access.
+        write_ports : int, default: 1
+            The number of write ports used when splitting process collection based on
+            memory variable access.
+        total_ports : int, default: 2
+            The total number of ports used when splitting process collection based on
+            memory variable access.
+        input_sync : bool, default: True
+            Add registers to the input signals (enable signal and data input signals).
+        output_sync : bool, default: False
+            Add registers to the output signals.
+        adr_mux_size : int, optional
+            Size of multiplexer if using address generation pipelining. Set to `None`
+            for no multiplexer pipelining.
+        adr_pipe_depth : int, optional
+            Depth of address generation pipelining. Set to `None` for no multiplexer
+            pipelining.
+        external_schedule_counter : bool, default: True
+            If True, the schedule counter is taken as an input port (schedule_cnt).
+            If False, the schedule counter is generated internally.
+        std_logic_vector : bool, default: True
+            If True, use std_logic_vector for data signals. If False, use dt.type_str.
 
-    #     # Check that this is a ProcessCollection of (Plain)MemoryVariables
-    #     is_memory_variable = all(
-    #         isinstance(process, MemoryVariable) for process in self._collection
-    #     )
-    #     is_plain_memory_variable = all(
-    #         isinstance(process, PlainMemoryVariable) for process in self._collection
-    #     )
-    #     if not (is_memory_variable or is_plain_memory_variable):
-    #         raise ValueError(
-    #             "HDL can only be generated for ProcessCollection of"
-    #             " (Plain)MemoryVariables"
-    #         )
+        See Also
+        --------
+        to_memory : Create a Memory object from this ProcessCollection.
+        """
+        from b_asic.architecture import Memory  # noqa: PLC0415
+        from b_asic.code_printer.vhdl.vhdl_printer import VhdlPrinter  # noqa: PLC0415
 
-    #     # Sanitize port settings
-    #     read_ports, write_ports, total_ports = _sanitize_port_option(
-    #         read_ports, write_ports, total_ports
-    #     )
+        # Create Memory object with RAM type
+        memory = Memory(
+            process_collection=self,
+            memory_type="RAM",
+            entity_name=entity_name,
+            read_ports=read_ports,
+            write_ports=write_ports,
+            total_ports=total_ports,
+            assign=assignment is None,
+        )
 
-    #     # Make sure the provided assignment (List[ProcessCollection]) only
-    #     # contains memory variables from this (self).
-    #     for collection in assignment:
-    #         for mv in collection:
-    #             if mv not in self:
-    #                 raise ValueError(f"{mv!r} is not part of {self!r}.")
+        # Use provided assignment if given
+        if assignment is not None:
+            memory._assignment = assignment
 
-    #     # Make sure that concurrent reads/writes do not surpass the port setting
-    #     needed_write_ports = self.read_ports_bound()
-    #     needed_read_ports = self.write_ports_bound()
-    #     if needed_write_ports > write_ports + 1:
-    #         raise ValueError(
-    #             f"More than {write_ports} write ports needed ({needed_write_ports})"
-    #             " to generate HDL for this ProcessCollection"
-    #         )
-    #     if needed_read_ports > read_ports + 1:
-    #         raise ValueError(
-    #             f"More than {read_ports} read ports needed ({needed_read_ports}) to"
-    #             " generate HDL for this ProcessCollection"
-    #         )
+        # Create printer and generate code
+        dt = VhdlDataType(word_length)
+        printer = VhdlPrinter(dt)
 
-    #     # Sanitize the address logic pipeline settings
-    #     if adr_mux_size is not None and adr_pipe_depth is not None:
-    #         if adr_mux_size < 1:
-    #             raise ValueError(
-    #                 f"adr_mux_size={adr_mux_size} need to be greater than zero"
-    #             )
-    #         if adr_pipe_depth < 0:
-    #             raise ValueError(
-    #                 f"adr_pipe_depth={adr_pipe_depth} needs to be non-negative"
-    #             )
-    #         if not input_sync:
-    #             raise ValueError("input_sync needs to be set to use address pipelining")
-    #         if not math.log2(adr_mux_size).is_integer():
-    #             raise ValueError(
-    #                 f"adr_mux_size={adr_mux_size} needs to be integer power of two"
-    #             )
-    #         if adr_mux_size**adr_pipe_depth > assignment[0].schedule_time:
-    #             raise ValueError(
-    #                 f"adr_mux_size={adr_mux_size}, adr_pipe_depth={adr_pipe_depth} => "
-    #                 "more multiplexer inputs than schedule_time="
-    #                 f"{assignment[0].schedule_time}"
-    #             )
-    #     else:
-    #         if adr_mux_size is not None or adr_pipe_depth is not None:
-    #             raise ValueError(
-    #                 "both or none of adr_mux_size and adr_pipe_depth needs to be set"
-    #             )
+        printer_kwargs = {
+            "input_sync": input_sync,
+            "output_sync": output_sync,
+            "adr_mux_size": 1 if adr_mux_size is None else adr_mux_size,
+            "adr_pipe_depth": 0 if adr_pipe_depth is None else adr_pipe_depth,
+            "external_schedule_counter": external_schedule_counter,
+            "std_logic_vector": std_logic_vector,
+        }
 
-    #     with Path(filename).open("w") as f:
-    #         common.b_asic_preamble(f)
-    #         common.ieee_header(f)
-    #         entity.memory_based_storage(
-    #             f,
-    #             entity_name=entity_name,
-    #             collection=self,
-    #             input_count=read_ports,
-    #             output_count=write_ports,
-    #             word_length=word_length,
-    #             schedule_time=self.schedule_time,
-    #         )
-    #         architecture.memory_based_storage(
-    #             f,
-    #             assignment=assignment,
-    #             entity_name=entity_name,
-    #             word_length=word_length,
-    #             read_ports=read_ports,
-    #             write_ports=write_ports,
-    #             total_ports=total_ports,
-    #             input_sync=input_sync,
-    #             adr_mux_size=1 if adr_mux_size is None else adr_mux_size,
-    #             adr_pipe_depth=0 if adr_pipe_depth is None else adr_pipe_depth,
-    #         )
+        code = printer.print_Memory(memory, **printer_kwargs)
+        if code is not None:
+            Path(filename).write_text(code)
 
     def split_on_length(
         self, length: int = 0
@@ -2274,75 +2220,74 @@ class ProcessCollection:
             ProcessCollection(long, self.schedule_time, self._cyclic),
         )
 
-    # def generate_register_based_storage_vhdl(
-    #     self,
-    #     filename: str,
-    #     word_length: int,
-    #     memory: "Memory",
-    #     read_ports: int = 1,
-    #     write_ports: int = 1,
-    #     total_ports: int = 2,
-    # ) -> None:
-    #     """
-    #     Generate VHDL code for register-based storage of processes (MemoryVariables).
+    def generate_register_based_storage_vhdl(
+        self,
+        filename: str,
+        entity_name: str,
+        word_length: int,
+        read_ports: int = 1,
+        write_ports: int = 1,
+        total_ports: int = 2,
+        *,
+        external_schedule_counter: bool = False,
+        std_logic_vector: bool = True,
+    ) -> None:
+        """
+        Generate VHDL code for register-based storage of processes (MemoryVariables).
 
-    #     This is based on Forward-Backward Register Allocation.
+        Parameters
+        ----------
+        filename : str
+            Filename of output file.
+        entity_name : str
+            Name used for the VHDL entity.
+        word_length : int
+            Word length of the memory variable objects (integer bits + fractional bits).
+        read_ports : int, default: 1
+            The number of read ports used when splitting process collection based on
+            memory variable access.
+        write_ports : int, default: 1
+            The number of write ports used when splitting process collection based on
+            memory variable access.
+        total_ports : int, default: 2
+            The total number of ports used when splitting process collection based on
+            memory variable access.
+        external_schedule_counter : bool, default: False
+            If True, the schedule counter is taken as an input port (schedule_cnt).
+            If False, the schedule counter is generated internally.
+        std_logic_vector : bool, default: True
+            If True, use std_logic_vector for data signals. If False, use dt.type_str.
 
-    #     Parameters
-    #     ----------
-    #     filename : str
-    #         Filename of output file.
-    #     word_length : int
-    #         Word length of the memory variable objects.
-    #     entity_name : str
-    #         Name used for the VHDL entity.
-    #     read_ports : int, default: 1
-    #         The number of read ports used when splitting process collection based on
-    #         memory variable access. If total ports in unset, this parameter has to be
-    #         set and total_ports is assumed to be read_ports + write_ports.
-    #     write_ports : int, default: 1
-    #         The number of write ports used when splitting process collection based on
-    #         memory variable access. If total ports is unset, this parameter has to be
-    #         set and total_ports is assumed to be read_ports + write_ports.
-    #     total_ports : int, default: 2
-    #         The total number of ports used when splitting process collection based on
-    #         memory variable access.
+        References
+        ----------
+        - K. Parhi: VLSI Digital Signal Processing Systems: Design and
+          Implementation, Ch. 6.3.2
+        """
+        from b_asic.architecture import Memory  # noqa: PLC0415
+        from b_asic.code_printer.vhdl.vhdl_printer import VhdlPrinter  # noqa: PLC0415
 
-    #     References
-    #     ----------
-    #     - K. Parhi: VLSI Digital Signal Processing Systems: Design and
-    #       Implementation, Ch. 6.3.2
-    #     """
-    #     # Check that entity name is a valid VHDL identifier
-    #     if not common.is_valid_vhdl_identifier(memory.entity_name):
-    #         raise KeyError(f"{memory.entity_name} is not a valid identifier")
+        # Create Memory object with register type
+        memory = Memory(
+            process_collection=self,
+            memory_type="register",
+            entity_name=entity_name,
+            read_ports=read_ports,
+            write_ports=write_ports,
+            total_ports=total_ports,
+            assign=True,
+        )
 
-    #     # Check that this is a ProcessCollection of (Plain)MemoryVariables
-    #     is_memory_variable = all(
-    #         isinstance(process, MemoryVariable) for process in self._collection
-    #     )
-    #     is_plain_memory_variable = all(
-    #         isinstance(process, PlainMemoryVariable) for process in self._collection
-    #     )
-    #     if not (is_memory_variable or is_plain_memory_variable):
-    #         raise ValueError(
-    #             "HDL can only be generated for ProcessCollection of"
-    #             " (Plain)MemoryVariables"
-    #         )
+        # Create printer and generate code
+        dt = VhdlDataType(word_length)
+        printer = VhdlPrinter(dt)
 
-    #     # Sanitize port settings
-    #     read_ports, write_ports, total_ports = _sanitize_port_option(
-    #         read_ports, write_ports, total_ports
-    #     )
-
-    #     # Create the forward-backward table
-    #     forward_backward_table = _ForwardBackwardTable(self)
-
-    #     with Path(filename).open("w") as f:
-    #         common.b_asic_preamble(f)
-    #         common.ieee_header(f)
-    #         entity.register_based_storage(f, memory, word_length)
-    #         architecture.register_based_storage(f, forward_backward_table, memory)
+        code = printer.print_Memory(
+            memory,
+            external_schedule_counter=external_schedule_counter,
+            std_logic_vector=std_logic_vector,
+        )
+        if code is not None:
+            Path(filename).write_text(code)
 
     def get_by_type_name(self, type_name: TypeName) -> "ProcessCollection":
         """

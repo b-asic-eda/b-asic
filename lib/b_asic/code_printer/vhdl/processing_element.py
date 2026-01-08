@@ -25,6 +25,7 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
 
     ports = [
         "clk : in std_logic",
+        "en : in std_logic",
         f"schedule_cnt : in {schedule_time_type(pe.schedule_time)}",
     ]
     ports += [f"p_{count}_in : in {dt.type_str}" for count in range(pe.input_count)]
@@ -103,24 +104,26 @@ def _statement_region_common(
     # Generate pipeline stages
     if pe._latency > 0:
         common.synchronous_process_prologue(f)
+        common.write(f, 3, "if en = '1' then")
 
         for stage in range(pe._latency):
             if stage == 0:
                 for count in range(pe.output_count):
                     common.write(
-                        f, 3, f"res_overflow_{count}_reg_0 <= res_overflow_{count};"
+                        f, 4, f"res_overflow_{count}_reg_0 <= res_overflow_{count};"
                     )
             elif stage == 1:
                 for count in range(pe.input_count):
-                    common.write(f, 3, f"p_{count}_in_reg_{stage - 1} <= p_{count}_in;")
+                    common.write(f, 4, f"p_{count}_in_reg_{stage - 1} <= p_{count}_in;")
             elif stage >= 2:
                 for count in range(pe.input_count):
                     common.write(
                         f,
-                        3,
+                        4,
                         f"p_{count}_in_reg_{stage - 1} <= p_{count}_in_reg_{stage - 2};",
                     )
 
+        common.write(f, 3, "end if;")
         common.synchronous_process_epilogue(f)
 
     for input_port in range(pe.input_count):
