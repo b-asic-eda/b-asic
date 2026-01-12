@@ -52,7 +52,7 @@ def _signed_bit_length(num: int) -> int:
     return magnitude.bit_length() + 1
 
 
-def _fixed_point_bits(num: float, is_signed: bool) -> int:
+def _fixed_point_bits(num: float, is_signed: bool) -> tuple[int, int]:
     if num == 0 or isinstance(num, bool):
         return 1, 0
 
@@ -767,19 +767,19 @@ class Memory(Resource):
     def _validate_ports_in_bounds(self, read_ports, write_ports, total_ports):
         read_ports_bound = self._collection.read_ports_bound()
         if read_ports is None:
-            self._input_count = read_ports_bound
+            self._output_count = read_ports_bound
         else:
             if read_ports < read_ports_bound:
                 raise ValueError(f"At least {read_ports_bound} read ports required")
-            self._input_count = read_ports
+            self._output_count = read_ports
 
         write_ports_bound = self._collection.write_ports_bound()
         if write_ports is None:
-            self._output_count = write_ports_bound
+            self._input_count = write_ports_bound
         else:
             if write_ports < write_ports_bound:
                 raise ValueError(f"At least {write_ports_bound} write ports required")
-            self._output_count = write_ports
+            self._input_count = write_ports
 
         total_ports_bound = self._collection.total_ports_bound()
         if total_ports is not None and total_ports < total_ports_bound:
@@ -981,14 +981,45 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     self._operation_outport_to_resource[output_port] = pe
 
         for memory in self.memories:
-            for mv in memory:
+            # Assign physical port indices based on concurrent accesses
+            # Group by time to determine which variables access simultaneously
+            read_accesses_by_time = defaultdict(list)
+            write_accesses_by_time = defaultdict(list)
+            for mv in memory.collection:
                 for read_port in mv.read_ports:
+                    for read_time in mv.read_times:
+                        read_accesses_by_time[read_time % memory.schedule_time].append(
+                            read_port
+                        )
+                write_accesses_by_time[mv.start_time % memory.schedule_time].append(
+                    mv.write_port
+                )
+
+            # Assign port indices to concurrent accesses
+            read_port_assignment: dict[InputPort, int] = {}
+            for ports in read_accesses_by_time.values():
+                for port_idx, port in enumerate(ports):
+                    if port not in read_port_assignment:
+                        read_port_assignment[port] = port_idx
+
+            write_port_assignment: dict[OutputPort, int] = {}
+            for ports in write_accesses_by_time.values():
+                for port_idx, port in enumerate(ports):
+                    if port not in write_port_assignment:
+                        write_port_assignment[port] = port_idx
+
+            # Build the resource mappings with proper port indices
+            for mv in memory.collection:
+                for read_port in mv.read_ports:
+                    port_idx = read_port_assignment.get(read_port, 0)
                     self._variable_input_port_to_resource[read_port].add(
-                        (memory, 0)
-                    )  # Fix
+                        (memory, port_idx)
+                    )
+                write_port_idx = write_port_assignment.get(mv.write_port, 0)
                 self._variable_outport_to_resource[mv.write_port].add(
-                    (memory, 0)
-                )  # Fix
+                    (memory, write_port_idx)
+                )
+
         if self._direct_interconnects:
             for di in self._direct_interconnects:
                 di = cast(MemoryVariable, di)
@@ -1127,8 +1158,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             A dictionary with the ProcessingElements that are connected to the read and
             write ports, respectively, with counts of the number of accesses.
         """
-        if isinstance(mem, str):
-            mem = cast(Memory, self.resource_from_name(mem))
+        mem = cast(Memory, self._resolve_resource(mem))
 
         d_in: defaultdict[Resource, int] = defaultdict(_interconnect_dict)
         d_out: defaultdict[Resource, int] = defaultdict(_interconnect_dict)
@@ -1163,8 +1193,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             List of dictionaries indicating the destinations for each output port and the
             frequency of accesses.
         """
-        if isinstance(pe, str):
-            pe = cast(ProcessingElement, self.resource_from_name(pe))
+        pe = cast(ProcessingElement, self._resolve_resource(pe))
 
         d_in: list[defaultdict[tuple[Resource, int], int]] = [
             defaultdict(_interconnect_dict) for _ in range(pe.input_count)
@@ -1197,6 +1226,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
         """
         re = {p.entity_name: p for p in chain(self.memories, self.processing_elements)}
         return re[name]
+
+    def _resolve_resource(self, resource: str | Resource) -> Resource:
+        return (
+            self.resource_from_name(resource) if isinstance(resource, str) else resource
+        )
 
     def add_resource(
         self,
@@ -1291,15 +1325,12 @@ of :class:`~b_asic.architecture.ProcessingElement`
             If *proc* is not present in resource *source*.
         """
         # Extract resources from name
-        if isinstance(source, str):
-            source = self.resource_from_name(source)
-        if isinstance(destination, str):
-            destination = self.resource_from_name(destination)
+        source = self._resolve_resource(source)
+        destination = self._resolve_resource(destination)
 
         # Extract process from name
         if isinstance(proc, str):
             proc = source.collection.from_name(proc)
-
         proc = cast(Process, proc)
         # Move the process
         if proc in source:
@@ -1308,6 +1339,212 @@ of :class:`~b_asic.architecture.ProcessingElement`
         else:
             raise KeyError(f"{proc} not in {source.entity_name}")
         self._build_dicts()
+
+    def _get_digraph_colors(self, colored: bool) -> dict[str, str]:
+        if not colored:
+            return {
+                "pe": "transparent",
+                "pe_cluster": "transparent",
+                "memory": "transparent",
+                "memory_cluster": "transparent",
+                "io": "transparent",
+                "io_cluster": "transparent",
+                "mux": "transparent",
+            }
+
+        return {
+            "pe": f"#{''.join(f'{v:0>2X}' for v in PE_COLOR)}",
+            "pe_cluster": f"#{''.join(f'{v:0>2X}' for v in PE_CLUSTER_COLOR)}",
+            "memory": f"#{''.join(f'{v:0>2X}' for v in MEMORY_COLOR)}",
+            "memory_cluster": f"#{''.join(f'{v:0>2X}' for v in MEMORY_CLUSTER_COLOR)}",
+            "io": f"#{''.join(f'{v:0>2X}' for v in IO_COLOR)}",
+            "io_cluster": f"#{''.join(f'{v:0>2X}' for v in IO_CLUSTER_COLOR)}",
+            "mux": f"#{''.join(f'{v:0>2X}' for v in MUX_COLOR)}",
+        }
+
+    def _add_memory_nodes(
+        self, dg: Digraph, colors: dict[str, str], fontname: str, cluster: bool
+    ) -> None:
+        if not self._memories:
+            return
+
+        if cluster:
+            with dg.subgraph(name="cluster_memories") as c:
+                for mem in self._memories:
+                    c.node(
+                        mem.entity_name,
+                        mem._struct_def(),
+                        style="filled",
+                        fillcolor=colors["memory"],
+                        fontname=fontname,
+                    )
+                label = "Memory" if len(self._memories) <= 1 else "Memories"
+                c.attr(label=label, bgcolor=colors["memory_cluster"], fontname=fontname)
+        else:
+            for mem in self._memories:
+                dg.node(
+                    mem.entity_name,
+                    mem._struct_def(),
+                    style="filled",
+                    fillcolor=colors["memory"],
+                    fontname=fontname,
+                )
+
+    def _add_pe_nodes(
+        self,
+        dg: Digraph,
+        colors: dict[str, str],
+        fontname: str,
+        cluster: bool,
+        io_cluster: bool,
+    ) -> None:
+        if cluster:
+            # Add non-IO processing elements
+            with dg.subgraph(name="cluster_pes") as c:
+                for pe in self._processing_elements:
+                    if pe._type_name not in ("in", "out"):
+                        c.node(
+                            pe.entity_name,
+                            pe._struct_def(),
+                            style="filled",
+                            fillcolor=colors["pe"],
+                            fontname=fontname,
+                        )
+                label = (
+                    "Processing element"
+                    if len(self._processing_elements) <= 1
+                    else "Processing Elements"
+                )
+                c.attr(label=label, bgcolor=colors["pe_cluster"], fontname=fontname)
+
+            # Add I/O processing elements
+            if io_cluster:
+                with dg.subgraph(name="cluster_io") as c:
+                    for pe in self._processing_elements:
+                        if pe._type_name in ("in", "out"):
+                            c.node(
+                                pe.entity_name,
+                                pe._struct_def(),
+                                style="filled",
+                                fillcolor=colors["io"],
+                                fontname=fontname,
+                            )
+                    c.attr(label="I/O", bgcolor=colors["io_cluster"], fontname=fontname)
+            else:
+                for pe in self._processing_elements:
+                    if pe._type_name in ("in", "out"):
+                        dg.node(
+                            pe.entity_name,
+                            pe._struct_def(),
+                            style="filled",
+                            fillcolor=colors["io"],
+                            fontname=fontname,
+                        )
+        else:
+            for pe in self._processing_elements:
+                dg.node(
+                    pe.entity_name,
+                    pe._struct_def(),
+                    style="filled",
+                    fillcolor=colors["pe"],
+                    fontname=fontname,
+                )
+
+    def _build_interconnect_edges(
+        self,
+    ) -> tuple[defaultdict[str, set[tuple[str, str]]], defaultdict[str, set[str]]]:
+        edges: defaultdict[str, set[tuple[str, str]]] = defaultdict(set)
+        destination_edges: defaultdict[str, set[str]] = defaultdict(set)
+
+        for pe in self._processing_elements:
+            inputs, outputs = self.get_interconnects_for_pe(pe)
+            for i, inp in enumerate(inputs):
+                for (source, port), cnt in inp.items():
+                    source_str = f"{source.entity_name}:out{port}"
+                    destination_str = f"{pe.entity_name}:in{i}"
+                    edges[source_str].add((destination_str, f"{cnt}"))
+                    destination_edges[destination_str].add(source_str)
+
+            for o, output in enumerate(outputs):
+                for (destination, port), cnt in output.items():
+                    source_str = f"{pe.entity_name}:out{o}"
+                    destination_str = f"{destination.entity_name}:in{port}"
+                    edges[source_str].add((destination_str, f"{cnt}"))
+                    destination_edges[destination_str].add(source_str)
+
+        return edges, destination_edges
+
+    def _create_multiplexer_node(
+        self,
+        dg: Digraph,
+        destination_str: str,
+        source_list: list[str],
+        mux_color: str,
+        fontname: str,
+    ) -> None:
+        input_strings = [f"in{i}" for i in range(len(source_list))]
+        ret = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
+        in_strs = [
+            f'<TD COLSPAN="1" PORT="{in_str}">{in_str}</TD>' for in_str in input_strings
+        ]
+        ret += f"<TR>{''.join(in_strs)}</TR>"
+
+        name = f"{destination_str.replace(':', '_')}_mux"
+        ret += (
+            f'<TR><TD COLSPAN="{len(input_strings)}" PORT="{name}">'
+            f"<B>{name}</B></TD></TR>"
+        )
+        ret += f'<TR><TD COLSPAN="{len(input_strings)}" PORT="out0">out0</TD></TR>'
+
+        dg.node(
+            name,
+            ret + "</TABLE>>",
+            style="filled",
+            fillcolor=mux_color,
+            fontname=fontname,
+        )
+        dg.edge(f"{name}:out0", destination_str)
+
+    def _add_multiplexers(
+        self,
+        dg: Digraph,
+        destination_list: dict[str, list[str]],
+        mux_color: str,
+        fontname: str,
+    ) -> None:
+        for destination_str, source_list in destination_list.items():
+            if len(source_list) > 1:
+                self._create_multiplexer_node(
+                    dg, destination_str, source_list, mux_color, fontname
+                )
+
+    def _add_digraph_edges(
+        self,
+        dg: Digraph,
+        edges: defaultdict[str, set[tuple[str, str]]],
+        destination_list: dict[str, list[str]],
+        branch_node: bool,
+        multiplexers: bool,
+        fontname: str,
+    ) -> None:
+        destination_indices = {
+            dest: {src: i for i, src in enumerate(sources)}
+            for dest, sources in destination_list.items()
+        }
+
+        for src_str, destination_counts in edges.items():
+            original_src_str = src_str
+            if len(destination_counts) > 1 and branch_node:
+                branch = f"{src_str}_branch".replace(":", "")
+                dg.node(branch, shape="point")
+                dg.edge(src_str, branch, arrowhead="none", fontname=fontname)
+                src_str = branch
+
+            for destination_str, cnt_str in destination_counts:
+                if multiplexers and len(destination_list[destination_str]) > 1:
+                    idx = destination_indices[destination_str][original_src_str]
+                    destination_str = f"{destination_str.replace(':', '_')}_mux:in{idx}"
+                dg.edge(src_str, destination_str, label=cnt_str, fontname=fontname)
 
     def show(
         self,
@@ -1395,180 +1632,25 @@ of :class:`~b_asic.architecture.ProcessingElement`
         """
         dg = Digraph(node_attr={"shape": "box"})
         dg.attr(splines=splines)
-        # Setup colors
-        pe_color = (
-            f"#{''.join(f'{v:0>2X}' for v in PE_COLOR)}" if colored else "transparent"
-        )
-        pe_cluster_color = (
-            f"#{''.join(f'{v:0>2X}' for v in PE_CLUSTER_COLOR)}"
-            if colored
-            else "transparent"
-        )
-        memory_color = (
-            f"#{''.join(f'{v:0>2X}' for v in MEMORY_COLOR)}"
-            if colored
-            else "transparent"
-        )
-        memory_cluster_color = (
-            f"#{''.join(f'{v:0>2X}' for v in MEMORY_CLUSTER_COLOR)}"
-            if colored
-            else "transparent"
-        )
-        io_color = (
-            f"#{''.join(f'{v:0>2X}' for v in IO_COLOR)}" if colored else "transparent"
-        )
-        io_cluster_color = (
-            f"#{''.join(f'{v:0>2X}' for v in IO_CLUSTER_COLOR)}"
-            if colored
-            else "transparent"
-        )
-        mux_color = (
-            f"#{''.join(f'{v:0>2X}' for v in MUX_COLOR)}" if colored else "transparent"
-        )
 
-        # Add nodes for memories and PEs to graph
-        if cluster:
-            # Add subgraphs
-            if len(self._memories):
-                with dg.subgraph(name="cluster_memories") as c:
-                    for mem in self._memories:
-                        c.node(
-                            mem.entity_name,
-                            mem._struct_def(),
-                            style="filled",
-                            fillcolor=memory_color,
-                            fontname=fontname,
-                        )
-                    label = "Memory" if len(self._memories) <= 1 else "Memories"
-                    c.attr(label=label, bgcolor=memory_cluster_color, fontname=fontname)
-            with dg.subgraph(name="cluster_pes") as c:
-                for pe in self._processing_elements:
-                    if pe._type_name not in ("in", "out"):
-                        c.node(
-                            pe.entity_name,
-                            pe._struct_def(),
-                            style="filled",
-                            fillcolor=pe_color,
-                            fontname=fontname,
-                        )
-                label = (
-                    "Processing element"
-                    if len(self._processing_elements) <= 1
-                    else "Processing Elements"
-                )
-                c.attr(label=label, bgcolor=pe_cluster_color, fontname=fontname)
-            if io_cluster:
-                with dg.subgraph(name="cluster_io") as c:
-                    for pe in self._processing_elements:
-                        if pe._type_name in ("in", "out"):
-                            c.node(
-                                pe.entity_name,
-                                pe._struct_def(),
-                                style="filled",
-                                fillcolor=io_color,
-                                fontname=fontname,
-                            )
-                    c.attr(label="I/O", bgcolor=io_cluster_color, fontname=fontname)
-            else:
-                for pe in self._processing_elements:
-                    if pe._type_name in ("in", "out"):
-                        dg.node(
-                            pe.entity_name,
-                            pe._struct_def(),
-                            style="filled",
-                            fillcolor=io_color,
-                            fontname=fontname,
-                        )
-        else:
-            for mem in self._memories:
-                dg.node(
-                    mem.entity_name,
-                    mem._struct_def(),
-                    style="filled",
-                    fillcolor=memory_color,
-                    fontname=fontname,
-                )
-            for pe in self._processing_elements:
-                dg.node(
-                    pe.entity_name,
-                    pe._struct_def(),
-                    style="filled",
-                    fillcolor=pe_color,
-                    fontname=fontname,
-                )
+        colors = self._get_digraph_colors(colored)
 
-        # Create list of interconnects
-        edges: defaultdict[str, set[tuple[str, str]]] = defaultdict(set)
-        destination_edges: defaultdict[str, set[str]] = defaultdict(set)
-        for pe in self._processing_elements:
-            inputs, outputs = self.get_interconnects_for_pe(pe)
-            for i, inp in enumerate(inputs):
-                for (source, port), cnt in inp.items():
-                    source_str = f"{source.entity_name}:out{port}"
-                    destination_str = f"{pe.entity_name}:in{i}"
-                    edges[source_str].add(
-                        (
-                            destination_str,
-                            f"{cnt}",
-                        )
-                    )
-                    destination_edges[destination_str].add(source_str)
-            for o, output in enumerate(outputs):
-                for (destination, port), cnt in output.items():
-                    source_str = f"{pe.entity_name}:out{o}"
-                    destination_str = f"{destination.entity_name}:in{port}"
-                    edges[source_str].add(
-                        (
-                            destination_str,
-                            f"{cnt}",
-                        )
-                    )
-                    destination_edges[destination_str].add(source_str)
+        # Add PE and memory nodes
+        self._add_memory_nodes(dg, colors, fontname, cluster)
+        self._add_pe_nodes(dg, colors, fontname, cluster, io_cluster)
 
+        # Build and add interconnect edges
+        edges, destination_edges = self._build_interconnect_edges()
         destination_list = {k: list(v) for k, v in destination_edges.items()}
-        if multiplexers:
-            for destination_str, source_list in destination_list.items():
-                if len(source_list) > 1:
-                    # Create GraphViz struct for multiplexer
-                    input_strings = [f"in{i}" for i in range(len(source_list))]
-                    ret = (
-                        '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"'
-                        ' CELLPADDING="4">'
-                    )
-                    in_strs = [
-                        f'<TD COLSPAN="1" PORT="{in_str}">{in_str}</TD>'
-                        for in_str in input_strings
-                    ]
-                    ret += f"<TR>{''.join(in_strs)}</TR>"
-                    name = f"{destination_str.replace(':', '_')}_mux"
-                    ret += (
-                        f'<TR><TD COLSPAN="{len(input_strings)}"'
-                        f' PORT="{name}"><B>{name}</B></TD></TR>'
-                    )
-                    ret += f'<TR><TD COLSPAN="{len(input_strings)}" PORT="out0">out0</TD></TR>'
-                    dg.node(
-                        name,
-                        ret + "</TABLE>>",
-                        style="filled",
-                        fillcolor=mux_color,
-                        fontname=fontname,
-                    )
-                    # Add edge from mux output to resource input
-                    dg.edge(f"{name}:out0", destination_str)
 
-        # Add edges to graph
-        for src_str, destination_counts in edges.items():
-            original_src_str = src_str
-            if len(destination_counts) > 1 and branch_node:
-                branch = f"{src_str}_branch".replace(":", "")
-                dg.node(branch, shape="point")
-                dg.edge(src_str, branch, arrowhead="none", fontname=fontname)
-                src_str = branch
-            for destination_str, cnt_str in destination_counts:
-                if multiplexers and len(destination_list[destination_str]) > 1:
-                    idx = destination_list[destination_str].index(original_src_str)
-                    destination_str = f"{destination_str.replace(':', '_')}_mux:in{idx}"
-                dg.edge(src_str, destination_str, label=cnt_str, fontname=fontname)
+        # Add muxes if needed and draw edges from mux to destinations
+        if multiplexers:
+            self._add_multiplexers(dg, destination_list, colors["mux"], fontname)
+
+        self._add_digraph_edges(
+            dg, edges, destination_list, branch_node, multiplexers, fontname
+        )
+
         return dg
 
     @property
