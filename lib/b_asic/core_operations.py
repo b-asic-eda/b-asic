@@ -1734,9 +1734,6 @@ class ConstantMultiplication(AbstractOperation):
         out0 = Output()
         prev_op = in0
 
-        if self.value < 0:
-            prev_op = Negation(prev_op)
-
         bits = len(csd[0])
         frac_bits = csd[1]
         max_exp = bits - 1 - frac_bits
@@ -1744,6 +1741,7 @@ class ConstantMultiplication(AbstractOperation):
         if len(csd[0]) == 1:
             prev_op = Shift(frac_bits, prev_op)
         else:
+            first_nonzero = True
             for i, digit in enumerate(csd[0]):
                 if digit not in (-1, 0, 1):
                     raise ValueError("CSD representation can only contain -1, 0, and 1")
@@ -1751,14 +1749,26 @@ class ConstantMultiplication(AbstractOperation):
                     continue
 
                 exp = max_exp - i
-                if exp == 0:
-                    continue
-                prev_op = ShiftAddSub(
-                    is_add=digit == 1,
-                    shift=-exp,
-                    src0=prev_op,
-                    src1=in0,
-                )
+
+                if first_nonzero:
+                    # First non-zero digit initializes prev_op
+                    first_nonzero = False
+                    if exp == 0:
+                        # No shift needed, just use in0 or negated in0
+                        prev_op = in0 if digit == 1 else Negation(in0)
+                    else:
+                        # Need to shift (and possibly negate) in0
+                        prev_op = Shift(-exp, in0)
+                        if digit == -1:
+                            prev_op = Negation(prev_op)
+                else:
+                    # Subsequent digits: add or subtract from accumulated result
+                    prev_op = ShiftAddSub(
+                        is_add=digit == 1,
+                        shift=-exp,
+                        src0=prev_op,
+                        src1=in0,
+                    )
 
         out0 <<= prev_op
 
