@@ -19,9 +19,12 @@ from b_asic.core_operations import (
     Constant,
     ConstantMultiplication,
     Division,
+    ImaginaryMultiplication,
     Max,
     Min,
     Multiplication,
+    Negation,
+    Shift,
     ShiftAddSub,
     SquareRoot,
     Subtraction,
@@ -461,6 +464,89 @@ class TestRewriteShiftAddSub:
         assert [sim1.results[f"out{i}"] for i in range(2)] == [
             sim2.results[f"out{i}"] for i in range(2)
         ]
+
+    def test_positive_cmul(self):
+        in0 = Input()
+        val = 4689375 / 2**23
+        cmul = ConstantMultiplication(val, in0)
+        out0 = Output(cmul)
+        sfg = SFG(inputs=[in0], outputs=[out0])
+        sfg = sfg.rewrite(ShiftAddSub, ["cmul0"])
+
+        assert len(sfg.find_by_type(ConstantMultiplication)) == 0
+        for op in sfg.operations:
+            assert isinstance(op, (Input, Output, ShiftAddSub, Shift))
+        assert sfg.get_impulse_responses()["out0"] == [val]
+
+    def test_negative_cmul(self):
+        in0 = Input()
+        val = -4689375 / 2**23
+        cmul = ConstantMultiplication(val, in0)
+        out0 = Output(cmul)
+        sfg = SFG(inputs=[in0], outputs=[out0])
+        sfg = sfg.rewrite(ShiftAddSub, ["cmul0"])
+
+        assert len(sfg.find_by_type(ConstantMultiplication)) == 0
+        for op in sfg.operations:
+            assert isinstance(op, (Input, Output, ShiftAddSub, Shift, Negation))
+        assert sfg.get_impulse_responses()["out0"] == [val]
+
+    def test_mag_larger_than_unity_pos(self):
+        in0 = Input()
+        val = 3.5
+        cmul = ConstantMultiplication(val, in0)
+        out0 = Output(cmul)
+        sfg = SFG(inputs=[in0], outputs=[out0])
+        sfg = sfg.rewrite(ShiftAddSub, ["cmul0"])
+
+        assert len(sfg.find_by_type(ConstantMultiplication)) == 0
+        for op in sfg.operations:
+            assert isinstance(op, (Input, Output, ShiftAddSub, Shift, Negation))
+        assert sfg.get_impulse_responses()["out0"] == [val]
+
+        # 3.5 = 4 - 0.5
+        assert sfg.find_by_id("shift0").value == -2  # left shift two steps (x4)
+        assert sfg.find_by_id("shiftaddsub0").shift == 1
+        assert not sfg.find_by_id("shiftaddsub0").is_add  # -0.5
+
+    def test_mag_larger_than_unity_neg(self):
+        in0 = Input()
+        val = -1.75
+        cmul = ConstantMultiplication(val, in0)
+        out0 = Output(cmul)
+        sfg = SFG(inputs=[in0], outputs=[out0])
+        sfg = sfg.rewrite(ShiftAddSub, ["cmul0"])
+
+        assert len(sfg.find_by_type(ConstantMultiplication)) == 0
+        for op in sfg.operations:
+            assert isinstance(op, (Input, Output, ShiftAddSub, Shift, Negation))
+        assert sfg.get_impulse_responses()["out0"] == [val]
+
+        # -1.75 = -2 + 0.25
+        assert sfg.find_by_id("shift0").value == -1  # left shift one step (x2)
+        assert sfg.find_by_id("shiftaddsub0").shift == 2
+        assert sfg.find_by_id("shiftaddsub0").is_add  # +0.25
+
+    def test_chained_complex_cmul(self):
+        c310 = 55 / 64
+        c311 = 129 / 128
+        c312 = 1j
+
+        in0 = Input()
+        out0 = Output(((in0 * c310) * c311) * c312)
+        sfg = SFG(inputs=[in0], outputs=[out0])
+
+        sfg = sfg.rewrite(ShiftAddSub, ConstantMultiplication)
+
+        assert len(sfg.find_by_type(ConstantMultiplication)) == 0
+        for op in sfg.operations:
+            assert isinstance(
+                op,
+                (Input, Output, ShiftAddSub, Shift, Negation, ImaginaryMultiplication),
+            )
+        assert len(sfg.find_by_type(ImaginaryMultiplication)) == 1
+        assert len(sfg.find_by_type(ShiftAddSub)) == 3
+        assert sfg.get_impulse_responses()["out0"] == [c310 * c311 * c312]
 
 
 class TestConstructSFG:
