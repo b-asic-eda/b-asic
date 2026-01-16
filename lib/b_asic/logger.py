@@ -84,6 +84,15 @@ def getLogger(
 
     logger.setLevel(console_log_level)
 
+    # Prevent adding duplicate handlers, but update log level if needed
+    if logger.hasHandlers():
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(
+                handler, logging.FileHandler
+            ):
+                handler.setLevel(console_log_level)
+        return logger
+
     # set up the console logger
     c_fmt_date = "%T"
     c_fmt = (
