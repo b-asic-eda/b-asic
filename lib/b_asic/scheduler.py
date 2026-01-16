@@ -162,7 +162,31 @@ class Scheduler(ABC):
 
     def _place_outputs_on_given_times(self) -> None:
         log.debug("Output placement starting")
-        end = self._schedule._schedule_time or self._schedule.get_max_end_time()
+
+        # Calculate the maximum end time of non-output operations
+        max_non_output_end = 0
+        for op_id, start_time in self._schedule.start_times.items():
+            op = self._schedule._sfg.find_by_id(op_id)
+            if not isinstance(op, Output):
+                op = cast(Operation, op)
+                for output_port in op.outputs:
+                    if output_port.latency_offset is not None:
+                        op_end = start_time + output_port.latency_offset
+                        if (
+                            self._schedule._cyclic
+                            and self._schedule._schedule_time is not None
+                        ):
+                            # Account for lap number in cyclic scheduling
+                            lap = self._op_laps.get(op_id, 0)
+                            op_end += lap * self._schedule._schedule_time
+                        max_non_output_end = max(max_non_output_end, op_end)
+
+        end = (
+            max_non_output_end
+            if max_non_output_end > 0
+            else (self._schedule._schedule_time or self._schedule.get_max_end_time())
+        )
+
         for output in self._schedule._sfg.find_by_type(Output):
             output = cast(Output, output)
             if output.graph_id in self._output_delta_times:
@@ -175,6 +199,9 @@ class Scheduler(ABC):
                     and self._schedule._schedule_time is not None
                     and isinstance(self, ListScheduler)
                 ):
+                    # Calculate lap number to maintain absolute time relationships
+                    lap_number = new_time // self._schedule._schedule_time
+                    self._op_laps[output.graph_id] = lap_number
                     self._schedule._place_operation(output, new_time, self._op_laps)
                 else:
                     self._schedule.start_times[output.graph_id] = new_time
@@ -191,39 +218,51 @@ class Scheduler(ABC):
                     if self._schedule._schedule_time
                     else new_time
                 )
-                log.debug("Output %s at time: %d", output.graph_id, modulo_time)
+                log.debug(
+                    "Output %s at time: %d (lap: %d)",
+                    output.graph_id,
+                    modulo_time,
+                    self._op_laps.get(output.graph_id, 0),
+                )
         log.debug("Output placement completed")
 
         log.debug("Output placement optimization starting")
-        min_slack = min(
-            self._schedule.backward_slack(op.graph_id)
-            for op in self._schedule._sfg.find_by_type(Output)
-        )
-        if min_slack != 0:
-            for output in self._schedule._sfg.find_by_type(Output):
-                if self._schedule._cyclic and self._schedule._schedule_time is not None:
-                    self._schedule.move_operation(output.graph_id, -min_slack)
-                else:
-                    self._schedule.start_times[output.graph_id] = (
-                        self._schedule.start_times[output.graph_id] - min_slack
+
+        # Calculate minimum slack across ALL outputs
+        all_outputs = list(self._schedule._sfg.find_by_type(Output))
+        if all_outputs:
+            min_slack = min(
+                self._schedule.backward_slack(op.graph_id) for op in all_outputs
+            )
+            if min_slack > 0:
+                # Move all outputs back by the minimum slack to reduce latency
+                for output in all_outputs:
+                    if (
+                        self._schedule._cyclic
+                        and self._schedule._schedule_time is not None
+                    ):
+                        self._schedule.move_operation(output.graph_id, -min_slack)
+                    else:
+                        self._schedule.start_times[output.graph_id] = (
+                            self._schedule.start_times[output.graph_id] - min_slack
+                        )
+                    new_time = self._schedule.start_times[output.graph_id]
+                    if (
+                        not self._schedule._cyclic
+                        and self._schedule._schedule_time is not None
+                        and new_time > self._schedule._schedule_time
+                    ):
+                        raise ValueError(
+                            f"Cannot place output {output.graph_id} at time {new_time} "
+                            f"for scheduling time {self._schedule._schedule_time}. "
+                            "Try to relax the scheduling time, change the output delta times or enable cyclic."
+                        )
+                    log.debug(
+                        "Output %s moved %d time steps backwards to new time %d",
+                        output.graph_id,
+                        min_slack,
+                        new_time,
                     )
-                new_time = self._schedule.start_times[output.graph_id]
-                if (
-                    not self._schedule._cyclic
-                    and self._schedule._schedule_time is not None
-                    and new_time > self._schedule._schedule_time
-                ):
-                    raise ValueError(
-                        f"Cannot place output {output.graph_id} at time {new_time} "
-                        f"for scheduling time {self._schedule._schedule_time}. "
-                        "Try to relax the scheduling time, change the output delta times or enable cyclic."
-                    )
-                log.debug(
-                    "Output %s moved %d time steps backwards to new time %d",
-                    output.graph_id,
-                    min_slack,
-                    new_time,
-                )
         log.debug("Output placement optimization completed")
 
     def _handle_utility_operations(self) -> None:
