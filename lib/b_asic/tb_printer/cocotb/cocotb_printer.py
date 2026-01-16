@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from pathlib import Path
+from pprint import pformat
 
 from apytypes import APyCFixed, APyCFloat
 
@@ -129,7 +130,7 @@ class CocotbPrinter:
         )
         tb_content = tb_content.replace(
             "SEQUENCE = {}",
-            f"SEQUENCE = {seq_map}",
+            f"SEQUENCE = {pformat(seq_map, indent=4)}",
         )
         tb_content = tb_content.replace(
             'ENTITY_NAME = ""', f'ENTITY_NAME = "{arch.entity_name}"'
