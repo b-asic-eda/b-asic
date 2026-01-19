@@ -55,7 +55,7 @@ def blank(f: TextIO) -> None:
     f : TextIO
         The file object to emit VHDL code to.
     """
-    f.write("")
+    write(f, 0, "", end="\n")
 
 
 def write_lines(f: TextIO, lines: list[tuple[int, str] | tuple[int, str, str]]) -> None:
