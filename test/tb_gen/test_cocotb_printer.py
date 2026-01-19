@@ -8,7 +8,7 @@ from b_asic.simulation import Simulation
 from b_asic.tb_printer import CocotbPrinter
 
 
-def test_simple_loop(tmp_path, arch_simple_loop, sfg_simple_loop):
+def test_simple_loop(tmp_path, schedule_simple_loop, arch_simple_loop, sfg_simple_loop):
     dt = VhdlDataType(
         wl=(3, 7),
         quantization_mode=QuantizationMode.TRUNCATION,
@@ -18,7 +18,7 @@ def test_simple_loop(tmp_path, arch_simple_loop, sfg_simple_loop):
     sim.run_for(20)
 
     tb_printer = CocotbPrinter(sim.results)
-    tb_printer.print(arch_simple_loop, path=tmp_path)
+    tb_printer.print(schedule_simple_loop, arch_simple_loop, path=tmp_path)
 
     # find python testbench file(s)
     py_files = [p for p in list(tmp_path.rglob("*")) if p.suffix == ".py"]
@@ -98,6 +98,7 @@ def test_simple_loop(tmp_path, arch_simple_loop, sfg_simple_loop):
 def test_multiple_io(
     tmp_path,
     sfg_two_inputs_two_outputs_independent_with_cmul_scaled,
+    schedule_two_inputs_two_outputs_independent_with_cmul_scaled,
     arch_two_inputs_two_outputs_independent_with_cmul_scaled,
 ):
     dt = VhdlDataType(
@@ -114,7 +115,9 @@ def test_multiple_io(
 
     tb_printer = CocotbPrinter(sim.results)
     tb_printer.print(
-        arch_two_inputs_two_outputs_independent_with_cmul_scaled, path=tmp_path
+        schedule_two_inputs_two_outputs_independent_with_cmul_scaled,
+        arch_two_inputs_two_outputs_independent_with_cmul_scaled,
+        path=tmp_path,
     )
 
     # find python testbench file(s)

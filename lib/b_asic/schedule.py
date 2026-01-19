@@ -6,7 +6,7 @@ Contains the schedule class for scheduling operations in an SFG.
 
 import io
 import sys
-from collections import defaultdict
+from collections import defaultdict, deque
 from collections.abc import Sequence
 from typing import cast
 
@@ -240,9 +240,81 @@ class Schedule:
             raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
         return self._start_times[graph_id]
 
+    def _get_delay_matrix(self) -> dict[tuple[GraphID, GraphID], int]:
+        """
+        Calculate delay elements between each input-output operation pair.
+
+        Returns a dictionary mapping (input_id, output_id) tuples to the number
+        of delay elements (laps) between them. This represents how many schedule
+        iterations ahead an input must be provided for a given output.
+
+        Returns
+        -------
+        dict[tuple[GraphID, GraphID], int]
+            Dictionary with (input_graph_id, output_graph_id) as keys and
+            the number of delays as values.
+        """
+        delay_matrix: dict[tuple[GraphID, GraphID], int] = {}
+
+        # Get all input and output operations
+        input_ops = self.sfg.find_by_type(Input)
+        output_ops = self.sfg.find_by_type(Output)
+
+        for input_op in input_ops:
+            input_op = cast(Input, input_op)
+
+            for output_op in output_ops:
+                output_op = cast(Output, output_op)
+
+                # Calculate delay count by traversing from input to output
+                delays = self._count_delays_between_operations(
+                    input_op.graph_id, output_op.graph_id
+                )
+
+                if delays is not None:
+                    delay_matrix[(input_op.graph_id, output_op.graph_id)] = delays
+
+        return delay_matrix
+
+    def _count_delays_between_operations(
+        self, source_id: GraphID, target_id: GraphID
+    ) -> int | None:
+        # BFS with (operation_id, accumulated_delays) tuples
+        queue: deque[tuple[GraphID, int]] = deque([(source_id, 0)])
+        visited: set[GraphID] = {source_id}
+
+        while queue:
+            current_id, current_delays = queue.popleft()
+
+            if current_id == target_id:
+                return current_delays
+
+            current_op = cast(Operation, self.sfg.find_by_id(current_id))
+
+            # Traverse through output signals
+            for output_port in current_op.outputs:
+                for signal in output_port.signals:
+                    if signal.destination is None:
+                        continue
+
+                    next_op = signal.destination.operation
+                    next_id = next_op.graph_id
+
+                    if next_id in visited:
+                        continue
+
+                    # Accumulate signal laps (delays)
+                    signal_delays = self._laps.get(signal.graph_id, 0)
+                    new_delays = current_delays + signal_delays
+
+                    visited.add(next_id)
+                    queue.append((next_id, new_delays))
+
+        return None  # No path found
+
     def lap_of_operation(self, graph_id: GraphID) -> int:
         """
-        Return the lap (iteration) an operation executes in (for cyclic schedules).
+        Return the lap (iteration) an operation starts (for cyclic schedules).
 
         Parameters
         ----------
@@ -264,7 +336,7 @@ class Schedule:
                 return 0
             visiting.add(op_id)
 
-            op = cast(Operation, self._sfg.find_by_id(op_id))
+            op = cast(Operation, self.sfg.find_by_id(op_id))
 
             # Calculate the lap by finding the maximum lap of all input dependencies
             result = 0

@@ -7,6 +7,7 @@ from pprint import pformat
 from apytypes import APyCFixed, APyCFloat
 
 from b_asic.architecture import Architecture
+from b_asic.schedule import Schedule
 from b_asic.simulation import ResultArrayMap
 from b_asic.special_operations import Input, Output
 
@@ -28,6 +29,7 @@ class CocotbPrinter:
 
     def print(
         self,
+        schedule: Schedule,
         arch: Architecture,
         *,
         path: str | Path = Path(),
@@ -43,6 +45,9 @@ class CocotbPrinter:
         ----------
         arch : Architecture
             The architecture to generate the testbench for.
+        schedule : Schedule
+            The schedule used to create the architecture.
+            Required for correct timing.
         path : str or Path, default Path()
             The output directory path, defaults to the current directory.
         simulator : str, default "ghdl"
@@ -94,11 +99,13 @@ class CocotbPrinter:
                 value = values[sample_idx]
                 pe_name = io_marked[gid]["pe_name"]
                 is_input = io_marked[gid]["is_input"]
-                start_time = io_marked[gid]["start_time"]
                 schedule_time = arch.schedule_time
 
+                # Get the absolute start time (accounting for laps in cyclic schedules)
+                absolute_start_time = schedule.absolute_start_time_of_operation(gid)
+
                 # Calculate actual hardware cycle time
-                time = start_time + sample_idx * schedule_time
+                time = absolute_start_time + sample_idx * schedule_time
 
                 if is_complex:
                     if is_input:

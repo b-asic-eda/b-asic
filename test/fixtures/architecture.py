@@ -427,39 +427,23 @@ def arch_mat_inv():
 
 
 @pytest.fixture
-def arch_simple_loop(sfg_simple_loop):
-    sfg_simple_loop.set_execution_time_of_type_name("add", 1)
-    sfg_simple_loop.set_latency_of_type_name("add", 1)
-    sfg_simple_loop.set_execution_time_of_type_name("cmul", 1)
-    sfg_simple_loop.set_latency_of_type_name("cmul", 1)
-
-    sched = Schedule(sfg_simple_loop)
-    sched.set_schedule_time(2)
-    sched.move_operation("out0", 1)
-
+def arch_simple_loop(schedule_simple_loop):
     pes, mems, direct = assign_processing_elements_and_memories(
-        sched.get_operations(),
-        sched.get_memory_variables(),
+        schedule_simple_loop.get_operations(),
+        schedule_simple_loop.get_memory_variables(),
         strategy="ilp_min_total_mux",
         memory_read_ports=1,
         memory_write_ports=1,
         memory_total_ports=2,
     )
-
     return Architecture(pes, mems, "simple_loop", direct)
 
 
 @pytest.fixture
 def arch_two_inputs_two_outputs_independent_with_cmul_scaled(
-    sfg_two_inputs_two_outputs_independent_with_cmul_scaled,
+    schedule_two_inputs_two_outputs_independent_with_cmul_scaled,
 ):
-    sfg = sfg_two_inputs_two_outputs_independent_with_cmul_scaled
-
-    sfg.set_latency_of_type_name("add", 7)
-    sfg.set_latency_of_type_name("cmul", 3)
-
-    schedule = Schedule(sfg)
-
+    schedule = schedule_two_inputs_two_outputs_independent_with_cmul_scaled
     operations = schedule.get_operations()
     adds = operations.get_by_type_name("add")
     cmuls = operations.get_by_type_name("cmul")

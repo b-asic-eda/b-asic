@@ -14,7 +14,9 @@ from b_asic.tb_printer import CocotbPrinter
 
 
 @pytest.mark.skipif(shutil.which("ghdl") is None, reason="GHDL simulator not available")
-def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, sfg_simple_loop):
+def test_cocotb_testbench_execution(
+    tmp_path, arch_simple_loop, sfg_simple_loop, schedule_simple_loop
+):
     # Generate VHDL code
     dt = VhdlDataType(
         wl=(3, 7),
@@ -29,7 +31,13 @@ def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, sfg_simple_loop)
 
     # Generate cocotb testbench
     tb_printer = CocotbPrinter(sim.results)
-    tb_printer.print(arch_simple_loop, path=tmp_path, simulator="ghdl", waves=False)
+    tb_printer.print(
+        schedule_simple_loop,
+        arch_simple_loop,
+        path=tmp_path,
+        simulator="ghdl",
+        waves=False,
+    )
 
     # Verify testbench was generated
     tb_file = tmp_path / "tb.py"
@@ -62,7 +70,9 @@ def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, sfg_simple_loop)
 
 
 @pytest.mark.skipif(shutil.which("ghdl") is None, reason="GHDL simulator not available")
-def test_cocotb_testbench_with_csv_output(tmp_path, arch_simple_loop, sfg_simple_loop):
+def test_cocotb_testbench_with_csv_output(
+    tmp_path, arch_simple_loop, sfg_simple_loop, schedule_simple_loop
+):
     # Generate VHDL code
     dt = VhdlDataType(
         wl=(3, 7),
@@ -78,7 +88,12 @@ def test_cocotb_testbench_with_csv_output(tmp_path, arch_simple_loop, sfg_simple
     # Generate cocotb testbench with CSV enabled
     tb_printer = CocotbPrinter(sim.results)
     tb_printer.print(
-        arch_simple_loop, path=tmp_path, simulator="ghdl", waves=False, csv=True
+        schedule_simple_loop,
+        arch_simple_loop,
+        path=tmp_path,
+        simulator="ghdl",
+        waves=False,
+        csv=True,
     )
 
     # Run the testbench
