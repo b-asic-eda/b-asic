@@ -240,6 +240,64 @@ class Schedule:
             raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
         return self._start_times[graph_id]
 
+    def lap_of_operation(self, graph_id: GraphID) -> int:
+        """
+        Return the lap (iteration) an operation executes in (for cyclic schedules).
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The graph id of the operation to get the lap for.
+        """
+        if graph_id not in self._start_times:
+            raise ValueError(f"No operation with graph_id {graph_id!r} in schedule")
+
+        mem: dict[GraphID, int] = {}
+        visiting: set[GraphID] = set()
+
+        def _calculate_lap(op_id: GraphID) -> int:
+            """Recursively calculate the lap for an operation."""
+            if op_id in mem:
+                return mem[op_id]
+
+            if op_id in visiting:
+                return 0
+            visiting.add(op_id)
+
+            op = cast(Operation, self._sfg.find_by_id(op_id))
+
+            # Calculate the lap by finding the maximum lap of all input dependencies
+            result = 0
+            for input_port in op.inputs:
+                for signal in input_port.signals:
+                    source_op = cast(OutputPort, signal.source).operation
+
+                    if isinstance(source_op, Delay):
+                        continue
+
+                    source_lap = _calculate_lap(source_op.graph_id)
+                    signal_lap = self._laps.get(signal.graph_id, 0)
+                    result = max(result, source_lap + signal_lap)
+
+            visiting.remove(op_id)
+            mem[op_id] = result
+            return result
+
+        return _calculate_lap(graph_id)
+
+    def absolute_start_time_of_operation(self, graph_id: GraphID) -> int:
+        """
+        Return the absolute (non-modulo) start time of an operation in a cyclic schedule.
+
+        Parameters
+        ----------
+        graph_id : GraphID
+            The graph id of the operation to get the absolute time for.
+        """
+        lap = self.lap_of_operation(graph_id)
+        start_time = self._start_times[graph_id]
+        return lap * self._schedule_time + start_time
+
     def get_max_end_time(self) -> int:
         """Return the current maximum end time among all operations."""
         max_end_time = 0

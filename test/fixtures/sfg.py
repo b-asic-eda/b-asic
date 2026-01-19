@@ -387,3 +387,14 @@ def sfg_simple_loop():
     d <<= (in0 + d) * 0.5
     out0 = Output(d)
     return SFG([in0], [out0])
+
+
+@pytest.fixture
+def sfg_r2bf():
+    in0 = Input("x0")
+    in1 = Input("x1")
+    a0 = in0 + in1
+    a1 = in0 - in1
+    out0 = Output(a0, "X0")
+    out1 = Output(a1, "X1")
+    return SFG([in0, in1], [out0, out1])
