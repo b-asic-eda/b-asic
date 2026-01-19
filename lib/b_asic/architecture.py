@@ -645,7 +645,7 @@ class ProcessingElement(Resource):
         common.blank(f)
 
     def write_component_instantiation(
-        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+        self, f: TextIO, dt: VhdlDataType, indent: int = 1, io_registers: bool = False
     ) -> None:
         port_mappings = ["clk => clk", "en => '1'", "schedule_cnt => schedule_cnt"]
         port_mappings += [
@@ -653,14 +653,20 @@ class ProcessingElement(Resource):
             for port_number in range(self.input_count)
         ]
         if self.operation_type == Input:
-            port_mappings.extend(dt.get_input_port_mapping(self.entity_name))
+            suffix = "_int" if io_registers else ""
+            port_mappings.extend(
+                dt.get_input_port_mapping(f"{self.entity_name}{suffix}")
+            )
 
         port_mappings += [
             f"p_{port_number}_out => {self.entity_name}_{port_number}_out"
             for port_number in range(self.output_count)
         ]
         if self.operation_type == Output:
-            port_mappings.extend(dt.get_output_port_mapping(self.entity_name))
+            suffix = "_int" if io_registers else ""
+            port_mappings.extend(
+                dt.get_output_port_mapping(f"{self.entity_name}{suffix}")
+            )
 
         common.component_instantiation(
             f,
@@ -1102,6 +1108,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             schedule_time_type(self.schedule_time),
             "(others => '0')",
         )
+        common.blank(f)
 
     def write_component_instantiation(
         self, f: TextIO, dt: VhdlDataType, indent: int = 1

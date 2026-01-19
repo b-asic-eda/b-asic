@@ -30,7 +30,9 @@ def entity(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
     common.entity_declaration(f, arch.entity_name, ports=ports)
 
 
-def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
+def architecture(
+    f: TextIO, arch: "Architecture", dt: VhdlDataType, io_registers: bool = False
+) -> None:
     common.write(f, 0, f"architecture rtl of {arch.entity_name} is")
 
     common.write(f, 1, "-- Component declaration")
@@ -40,15 +42,21 @@ def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
         mem.write_component_declaration(f, dt)
     arch.write_signal_declarations(f, dt)
 
-    common.write(f, 0, "begin", start="\n")
+    if io_registers:
+        _write_io_register_signal_declarations(f, arch, dt)
+
+    common.write(f, 0, "begin")
+
+    if io_registers:
+        _write_io_registers(f, arch, dt)
 
     common.write(f, 1, "-- Component instantiation")
     for pe in arch.processing_elements:
-        pe.write_component_instantiation(f, dt)
+        pe.write_component_instantiation(f, dt, io_registers=io_registers)
     for mem in arch.memories:
         mem.write_component_instantiation(f)
 
-    _write_schedule_counter(f, arch)
+    _write_schedule_counter(f, arch, io_registers)
     _write_interconnect(f, arch, dt)
     common.write(f, 0, "end architecture rtl;", start="", end="\n\n")
 
@@ -129,13 +137,16 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
         common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
 
 
-def _write_schedule_counter(f: TextIO, arch: "Architecture") -> None:
+def _write_schedule_counter(
+    f: TextIO, arch: "Architecture", io_registers: bool = False
+) -> None:
+    rst_signal = "rst_int" if io_registers else "rst"
     common.write(f, 1, "-- Schedule counter")
     common.synchronous_process_prologue(f, name="schedule_cnt_proc")
     common.write_lines(
         f,
         [
-            (3, "if rst = '1' then"),
+            (3, f"if {rst_signal} = '1' then"),
             (4, "schedule_cnt <= (others => '0');"),
             (3, "else"),
             (4, f"if schedule_cnt = {arch.schedule_time - 1} then"),
@@ -148,3 +159,81 @@ def _write_schedule_counter(f: TextIO, arch: "Architecture") -> None:
     )
     common.synchronous_process_epilogue(f, name="schedule_cnt_proc", clk="clk")
     common.blank(f)
+
+
+def _write_io_register_signal_declarations(
+    f: TextIO, arch: "Architecture", dt: VhdlDataType
+) -> None:
+    common.write(f, 1, "-- Internal signals for pipelined I/O")
+
+    # Pipelined reset
+    common.signal_declaration(f, "rst_int", "std_logic")
+
+    # Pipelined inputs
+    for pe in arch.processing_elements:
+        if pe.operation_type == Input:
+            for port in dt.get_input_port_declaration(f"{pe.entity_name}_int"):
+                port_parts = port.split(":")
+                signal_name = port_parts[0].strip()
+                signal_type = ":".join(port_parts[1:]).strip()
+                signal_type = signal_type.replace("in ", "").replace("out ", "")
+                common.signal_declaration(f, signal_name, signal_type)
+
+    # Pipelined outputs
+    for pe in arch.processing_elements:
+        if pe.operation_type == Output:
+            for port in dt.get_output_port_declaration(f"{pe.entity_name}_int"):
+                port_parts = port.split(":")
+                signal_name = port_parts[0].strip()
+                signal_type = ":".join(port_parts[1:]).strip()
+                signal_type = signal_type.replace("in ", "").replace("out ", "")
+                common.signal_declaration(f, signal_name, signal_type)
+    common.blank(f)
+
+
+def _write_io_registers(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
+    common.write(f, 1, "-- Pipelining of I/O")
+
+    # Pipelining of reset
+    common.synchronous_process_prologue(f, name="rst_pipeline_proc")
+    common.write(f, 3, "rst_int <= rst;")
+    common.synchronous_process_epilogue(f, name="rst_pipeline_proc", clk="clk")
+    common.blank(f)
+
+    # Pipelining of inputs
+    input_pes = [pe for pe in arch.processing_elements if pe.operation_type == Input]
+    if input_pes:
+        common.synchronous_process_prologue(f, name="input_reg_proc")
+        for pe in input_pes:
+            if dt.is_complex:
+                common.write(
+                    f, 3, f"{pe.entity_name}_int_0_in_re <= {pe.entity_name}_0_in_re;"
+                )
+                common.write(
+                    f, 3, f"{pe.entity_name}_int_0_in_im <= {pe.entity_name}_0_in_im;"
+                )
+            else:
+                common.write(
+                    f, 3, f"{pe.entity_name}_int_0_in <= {pe.entity_name}_0_in;"
+                )
+        common.synchronous_process_epilogue(f, name="input_reg_proc", clk="clk")
+        common.blank(f)
+
+    # Pipelining of outputs
+    output_pes = [pe for pe in arch.processing_elements if pe.operation_type == Output]
+    if output_pes:
+        common.synchronous_process_prologue(f, name="output_reg_proc")
+        for pe in output_pes:
+            if dt.is_complex:
+                common.write(
+                    f, 3, f"{pe.entity_name}_0_out_re <= {pe.entity_name}_int_0_out_re;"
+                )
+                common.write(
+                    f, 3, f"{pe.entity_name}_0_out_im <= {pe.entity_name}_int_0_out_im;"
+                )
+            else:
+                common.write(
+                    f, 3, f"{pe.entity_name}_0_out <= {pe.entity_name}_int_0_out;"
+                )
+        common.synchronous_process_epilogue(f, name="output_reg_proc", clk="clk")
+        common.blank(f)

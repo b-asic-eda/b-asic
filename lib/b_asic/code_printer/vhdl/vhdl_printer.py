@@ -51,14 +51,14 @@ class VhdlPrinter(Printer):
 
         for pe in arch.processing_elements:
             with (dir_path / f"{pe.entity_name}.vhdl").open("w") as f:
-                common.write(f, 0, self.print_ProcessingElement(pe))
+                common.write(f, 0, self.print_ProcessingElement(pe, **kwargs))
 
         for mem in arch.memories:
             with (dir_path / f"{mem.entity_name}.vhdl").open("w") as f:
-                common.write(f, 0, self.print_Memory(mem))
+                common.write(f, 0, self.print_Memory(mem, **kwargs))
 
         with (dir_path / f"{arch.entity_name}.vhdl").open("w") as f:
-            common.write(f, 0, self.print_Architecture(arch))
+            common.write(f, 0, self.print_Architecture(arch, **kwargs))
 
     def get_compile_order(self, arch: "Architecture") -> list[str]:
         order = []
@@ -83,6 +83,7 @@ class VhdlPrinter(Printer):
         return f.getvalue()
 
     def print_Architecture(self, arch: "Architecture", **kwargs) -> str | None:
+        io_registers = bool(kwargs.get("io_registers", False))
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self.vhdl_2008)
@@ -90,7 +91,7 @@ class VhdlPrinter(Printer):
             common.package_header(f, "types")
 
         top_level.entity(f, arch, self._dt)
-        top_level.architecture(f, arch, self._dt)
+        top_level.architecture(f, arch, self._dt, io_registers)
         return f.getvalue()
 
     def print_Memory(self, mem: "Memory", **kwargs) -> str | None:
