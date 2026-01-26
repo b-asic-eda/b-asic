@@ -1,7 +1,6 @@
 """Template for cocotb testbench."""
 
 import csv
-import shutil
 import sys
 from contextlib import nullcontext
 from pathlib import Path
@@ -14,23 +13,12 @@ from cocotb_tools.runner import get_runner
 
 
 def test_start():
-    proj_path = Path(__file__).resolve().parent
-
-    sources = [proj_path / "dff.vhdl"]
-
-    if not shutil.which(SIMULATOR):
-        pytest.skip(f"Simulator {SIMULATOR} not available in PATH")
-    sources = list(Path().glob("*.vhdl"))
-
     runner = get_runner(SIMULATOR)
-    runner.build(
-        sources=sources,
-        hdl_toplevel=ENTITY_NAME,
-    )
-
+    runner.build(sources=SOURCES, hdl_toplevel=ENTITY_NAME)
     runner.test(hdl_toplevel=ENTITY_NAME, test_module="tb", waves=WAVES, gui=GUI)
 
 
+SOURCES = []
 SIMULATOR = ""
 WAVES = False
 GUI = False
