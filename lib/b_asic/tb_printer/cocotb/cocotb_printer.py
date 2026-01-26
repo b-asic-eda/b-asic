@@ -117,6 +117,8 @@ class CocotbPrinter:
 
         seq_map = dict(seq_map)
 
+        compile_order = self._get_compile_order(arch, path)
+
         # Replace the file docstring
         tb_content = template.replace(
             '"""Template for cocotb testbench."""',
@@ -124,6 +126,8 @@ class CocotbPrinter:
         )
 
         # Replace placeholders in the template with actual values
+        sources_str = "[" + ", ".join(f'Path("{file}")' for file in compile_order) + "]"
+        tb_content = tb_content.replace("SOURCES = []", f"SOURCES = {sources_str}")
         tb_content = tb_content.replace(
             'SIMULATOR = ""',
             f'SIMULATOR = "{simulator}"',
@@ -146,9 +150,27 @@ class CocotbPrinter:
             makefile.write("SIM ?= ghdl\n")
             makefile.write("TOPLEVEL_LANG ?= vhdl\n\n")
             makefile.write("PWD := $(shell pwd)\n\n")
-            makefile.write(
-                "VHDL_SOURCES := $(shell find \"$(PWD)\" -type f \\( -name '*.vhd' -o -name '*.vhdl' \\) 2>/dev/null)\n\n"
-            )
+
+            vhdl_sources = " ".join(f'"$(PWD)/{file}"' for file in compile_order)
+            makefile.write(f"VHDL_SOURCES := {vhdl_sources}\n\n")
+
             makefile.write(f"COCOTB_TOPLEVEL ?= {arch.entity_name}\n")
             makefile.write("COCOTB_TEST_MODULES ?= tb\n\n")
             makefile.write("include $(shell cocotb-config --makefiles)/Makefile.sim\n")
+
+    def _get_compile_order(self, arch: Architecture, path: Path) -> list[str]:
+        order = []
+        if (path / "types.vhdl").exists():
+            order.append("types.vhdl")
+        for mem in arch.memories:
+            filename = f"{mem.entity_name}.vhdl"
+            if (path / filename).exists():
+                order.append(filename)
+        for pe in arch.processing_elements:
+            filename = f"{pe.entity_name}.vhdl"
+            if (path / filename).exists():
+                order.append(filename)
+        arch_file = f"{arch.entity_name}.vhdl"
+        if (path / arch_file).exists():
+            order.append(arch_file)
+        return order
