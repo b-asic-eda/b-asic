@@ -1057,6 +1057,33 @@ class TestGetUsedTypeNames:
         ]
 
 
+class TestLapOfOperation:
+    def test_simple_filter(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 2
+        )
+        schedule = Schedule(sfg_simple_filter, ASAPScheduler(), cyclic=True)
+
+        assert schedule.lap_of_operation("in0") == 0
+        assert schedule.lap_of_operation("add0") == 1
+        assert schedule.lap_of_operation("cmul0") == 1
+        assert schedule.lap_of_operation("out0") in (
+            1,
+            2,
+        )  # depending on where output is placed
+
+
+class TestAbsoluteStartTime:
+    def test_r2bf(self, schedule_r2bf):
+        assert schedule_r2bf.absolute_start_time_of_operation("in0") == 0
+        assert schedule_r2bf.absolute_start_time_of_operation("in1") == 1
+        assert schedule_r2bf.absolute_start_time_of_operation("add0") == 1
+        assert schedule_r2bf.absolute_start_time_of_operation("sub0") == 2
+        assert schedule_r2bf.absolute_start_time_of_operation("out0") == 2
+        assert schedule_r2bf.absolute_start_time_of_operation("out1") == 3
+
+
 class TestYLocations:
     def test_provided_no_laps(self, sfg_simple_filter):
         sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 1)

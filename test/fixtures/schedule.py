@@ -56,3 +56,41 @@ def schedule_direct_form_iir_lp_filter(sfg_direct_form_iir_lp_filter: SFG):
     schedule.move_operation("cmul1", 1)
     schedule.move_operation("cmul3", 2)
     return schedule
+
+
+@pytest.fixture
+def schedule_r2bf(sfg_r2bf: SFG):
+    sfg_r2bf.set_latency_of_type_name("add", 1)
+    sfg_r2bf.set_latency_of_type_name("sub", 1)
+    schedule = Schedule(sfg_r2bf, cyclic=True)
+    schedule.set_schedule_time(2)
+    schedule.move_operation("out1", 1)
+    schedule.move_operation("sub0", 1)
+    schedule.move_operation("out1", 1)
+    schedule.move_operation("sub0", 1)
+    schedule.move_operation("out0", 1)
+    schedule.move_operation("add0", 1)
+    schedule.move_operation("in1", 1)
+    return schedule
+
+
+@pytest.fixture
+def schedule_simple_loop(sfg_simple_loop: SFG):
+    sfg_simple_loop.set_execution_time_of_type_name("add", 1)
+    sfg_simple_loop.set_latency_of_type_name("add", 1)
+    sfg_simple_loop.set_execution_time_of_type_name("cmul", 1)
+    sfg_simple_loop.set_latency_of_type_name("cmul", 1)
+    sched = Schedule(sfg_simple_loop)
+    sched.set_schedule_time(2)
+    sched.move_operation("out0", 1)
+    return sched
+
+
+@pytest.fixture
+def schedule_two_inputs_two_outputs_independent_with_cmul_scaled(
+    sfg_two_inputs_two_outputs_independent_with_cmul_scaled: SFG,
+):
+    sfg = sfg_two_inputs_two_outputs_independent_with_cmul_scaled
+    sfg.set_latency_of_type_name("add", 7)
+    sfg.set_latency_of_type_name("cmul", 3)
+    return Schedule(sfg)
