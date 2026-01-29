@@ -987,45 +987,14 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     self._operation_outport_to_resource[output_port] = pe
 
         for memory in self.memories:
-            # Assign physical port indices based on concurrent accesses
-            # Group by time to determine which variables access simultaneously
-            read_accesses_by_time = defaultdict(list)
-            write_accesses_by_time = defaultdict(list)
-            for mv in memory.collection:
+            for mv in memory:
                 for read_port in mv.read_ports:
-                    for read_time in mv.read_times:
-                        read_accesses_by_time[read_time % memory.schedule_time].append(
-                            read_port
-                        )
-                write_accesses_by_time[mv.start_time % memory.schedule_time].append(
-                    mv.write_port
-                )
-
-            # Assign port indices to concurrent accesses
-            read_port_assignment: dict[InputPort, int] = {}
-            for ports in read_accesses_by_time.values():
-                for port_idx, port in enumerate(ports):
-                    if port not in read_port_assignment:
-                        read_port_assignment[port] = port_idx
-
-            write_port_assignment: dict[OutputPort, int] = {}
-            for ports in write_accesses_by_time.values():
-                for port_idx, port in enumerate(ports):
-                    if port not in write_port_assignment:
-                        write_port_assignment[port] = port_idx
-
-            # Build the resource mappings with proper port indices
-            for mv in memory.collection:
-                for read_port in mv.read_ports:
-                    port_idx = read_port_assignment.get(read_port, 0)
                     self._variable_input_port_to_resource[read_port].add(
-                        (memory, port_idx)
-                    )
-                write_port_idx = write_port_assignment.get(mv.write_port, 0)
+                        (memory, 0)
+                    )  # Fix
                 self._variable_outport_to_resource[mv.write_port].add(
-                    (memory, write_port_idx)
-                )
-
+                    (memory, 0)
+                )  # Fix
         if self._direct_interconnects:
             for di in self._direct_interconnects:
                 di = cast(MemoryVariable, di)

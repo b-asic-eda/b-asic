@@ -124,3 +124,4 @@ Digraph.gv.pdf
 *.pstat
 *.prof
 *.spyproject
+*.wraplock
