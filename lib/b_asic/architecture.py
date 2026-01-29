@@ -690,7 +690,7 @@ class Memory(Resource):
     ----------
     process_collection : :class:`~b_asic.resources.ProcessCollection`
         The ProcessCollection to create a Memory for.
-    memory_type : {'RAM', 'register'}
+    memory_type : {'RAM', 'register'}, default: 'RAM'
         The type of memory.
     entity_name : str, optional
         Name of memory entity.
