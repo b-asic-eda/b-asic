@@ -1201,6 +1201,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot(str)
     def _schedule_changed(self, type_name: str | None = None) -> None:
         self._update_execution_times_for_variables()
+        self._update_total_execution_times_for_variables()
         self._update_ports_accesses_for_storage()
         for key, dialog in self._execution_time_plot_dialogs.items():
             if dialog:
