@@ -1562,6 +1562,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         io_cluster: bool = True,
         multiplexers: bool = True,
         colored: bool = True,
+        engine: str = "dot",
     ) -> None:
         """
         Display a visual representation of the Architecture using the default system viewer.
@@ -1586,6 +1587,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether input multiplexers are included.
         colored : bool, default: True
             Whether to color the nodes.
+        engine : str, default: "dot"
+            Graphviz engine to use. See https://graphviz.org/docs/layouts/ for more info.
         """
         dg = self._digraph(
             branch_node=branch_node,
@@ -1594,6 +1597,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             io_cluster=io_cluster,
             multiplexers=multiplexers,
             colored=colored,
+            engine=engine,
         )
         if fmt is not None:
             dg.format = fmt
@@ -1608,6 +1612,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         multiplexers: bool = True,
         colored: bool = True,
         fontname: str = "Times New Roman",
+        engine: str = "dot",
     ) -> Digraph:
         """
         Return a Digraph of the architecture.
@@ -1631,13 +1636,15 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether to color the nodes.
         fontname : str, default: "Times New Roman"
             Font to use.
+        engine : str, default: "dot"
+            Graphviz engine to use. See https://graphviz.org/docs/layouts/ for more info.
 
         Returns
         -------
         Digraph
             Digraph of the rendered architecture.
         """
-        dg = Digraph(node_attr={"shape": "box"})
+        dg = Digraph(node_attr={"shape": "box"}, engine=engine)
         dg.attr(splines=splines)
 
         colors = self._get_digraph_colors(colored)
