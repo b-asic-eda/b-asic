@@ -161,7 +161,9 @@ def _statement_region_common(
                 raise NotImplementedError
             offset = pe._latency - 1 if pe._latency >= 2 else 0
             avail_time = (time + offset) % pe.schedule_time if pe._latency > 0 else time
-            common.write(f, 3, f'{val_str} when "{time_bin_str(avail_time, pe)}",')
+            common.write(
+                f, 3, f'{val_str} when "{time_bin_str(avail_time, pe.schedule_time)}",'
+            )
         if isinstance(val, bool):
             common.write(f, 3, "'-' when others;", end="\n\n")
         else:

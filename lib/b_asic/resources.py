@@ -638,14 +638,6 @@ class ProcessCollection:
 
         # Lifetime chart left and right padding
         PAD_L, PAD_R = 0.05, 0.05
-        max_execution_time = max(process.execution_time for process in self._collection)
-        if not allow_excessive_lifetimes and max_execution_time > self._schedule_time:
-            # Schedule time needs to be greater than or equal to the maximum process
-            # lifetime
-            raise ValueError(
-                f"Schedule time: {self._schedule_time} < Max execution"
-                f" time: {max_execution_time}"
-            )
 
         # Generate the life-time chart
         for i, process in enumerate(_sorted_nicely(self._collection)):

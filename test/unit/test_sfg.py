@@ -1907,11 +1907,13 @@ class TestUnfold:
                 # Outputs for an original output
                 ref_values = list(ref[ResultKey(f"out{n}")])
 
-                # Output n will be split into `factor` output ports, compute the
-                # indices where we find the outputs
-                out_indices = [n + k * len(sfg.outputs) for k in range(factor)]
+                # Output n will be split into `factor` output ports with naming out{n}_{iteration}
+                # where iteration ranges from 0 to factor-1
                 u_values = [
-                    [unfolded_results[ResultKey(f"out{idx}")][k] for idx in out_indices]
+                    [
+                        unfolded_results[ResultKey(f"out{n}_{idx}")][k]
+                        for idx in list(range(factor))
+                    ]
                     for k in range(int(NUM_TESTS))
                 ]
 

@@ -2107,9 +2107,10 @@ class SFG(AbstractOperation):
                 sfgs[i].inputs, sfgs[i].input_operations, strict=True
             ):
                 if not operation.name.startswith("input_t"):
-                    i = Input()
-                    new_inputs.append(i)
-                    port.connect(i)
+                    new_input = Input(name=operation.name)
+                    new_input.graph_id = operation.graph_id
+                    new_inputs.append(new_input)
+                    port.connect(new_input)
                 else:
                     # If the input was created earlier when removing the delays
                     # then just save the index
@@ -2126,7 +2127,9 @@ class SFG(AbstractOperation):
                 sfgs[i].outputs, sfgs[i].output_operations, strict=True
             ):
                 if not operation.name.startswith("output_t"):
-                    new_outputs.append(Output(port))
+                    new_output = Output(port, name=operation.name)
+                    new_output.graph_id = operation.graph_id
+                    new_outputs.append(new_output)
                 else:
                     index = operation.name[8:]  # Remove the "output_t" prefix
                     j = (i + 1) % factor

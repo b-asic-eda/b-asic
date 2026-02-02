@@ -326,7 +326,10 @@ class Addition(AbstractOperation):
 
     def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
-            b *= 1j
+            if isinstance(b, apy.APyCFixed):
+                b *= apy.fx(1j, 2, 0)
+            else:
+                b *= 1j
         res = a + b
         if self.shift_output != 0:
             if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
@@ -517,7 +520,10 @@ class Subtraction(AbstractOperation):
 
     def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
-            b *= 1j
+            if isinstance(b, apy.APyCFixed):
+                b *= apy.fx(1j, 2, 0)
+            else:
+                b *= 1j
         res = a - b
         if self.shift_output != 0:
             if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
@@ -680,7 +686,10 @@ class AddSub(AbstractOperation):
 
     def evaluate(self, a, b, data_type=None) -> Num:
         if self.mul_j:
-            b *= 1j
+            if isinstance(b, apy.APyCFixed):
+                b *= apy.fx(1j, 2, 0)
+            else:
+                b *= 1j
         res = a + b if self.is_add else a - b
         if self.shift_output != 0:
             if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
@@ -893,8 +902,6 @@ class ShiftAddSub(AbstractOperation):
         return expr
 
     def evaluate(self, a, b, data_type=None) -> Num:
-        if self.mul_j:
-            b *= 1j
         if isinstance(b, (apy.APyFixed, apy.APyCFixed)):
             if data_type is not None:
                 b = self._cast_to_data_type(b >> self.shift, data_type)
@@ -902,6 +909,11 @@ class ShiftAddSub(AbstractOperation):
                 b = b >> self.shift
         else:
             b /= 2**self.shift
+        if self.mul_j:
+            if isinstance(b, apy.APyCFixed):
+                b *= apy.fx(1j, 2, 0)
+            else:
+                b *= 1j
         res = a + b if self.is_add else a - b
         if self.shift_output != 0:
             if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
