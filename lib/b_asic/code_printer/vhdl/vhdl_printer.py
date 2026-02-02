@@ -139,9 +139,9 @@ class VhdlPrinter(Printer):
                 "sync_rst": kwargs.get("sync_rst", False),
                 "async_rst": kwargs.get("async_rst", False),
                 "external_schedule_counter": kwargs.get(
-                    "external_schedule_counter", False
+                    "external_schedule_counter", True
                 ),
-                "std_logic_vector": kwargs.get("std_logic_vector", True),
+                "std_logic_vector": kwargs.get("std_logic_vector", False),
             }
             register_storage.entity(
                 f,

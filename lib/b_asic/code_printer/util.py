@@ -1,20 +1,16 @@
 """Utility functions for the code printers."""
 
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from b_asic.architecture import ProcessingElement
-
-
-def time_bin_str(time: int, pe: "ProcessingElement"):
-    return f"{time:0{(pe.schedule_time - 1).bit_length()}b}"
+def time_bin_str(time: int, schedule_time: int) -> str:
+    """Return the binary string representation of time for the given schedule_time."""
+    return f"{time:0{(schedule_time - 1).bit_length()}b}"
 
 
 def bin_str(num: int, bits: int) -> str:
     """
     Return binary representation of integer.
 
-    If *int* is negatine, the two's complement representation it used.
+    If *num* is negative, the two's complement representation it used.
 
     .. note:: This does not check that *num* fits in *bits* bits.
 

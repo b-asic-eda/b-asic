@@ -107,7 +107,7 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
                 common.write(
                     f,
                     3,
-                    f'{source_resource.entity_name}_{source_port_index}_out when "{time_bin_str(time, pe)}",',
+                    f'{source_resource.entity_name}_{source_port_index}_out when "{time_bin_str(time, pe.schedule_time)}",',
                 )
             common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
 
@@ -132,7 +132,7 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
             common.write(
                 f,
                 3,
-                f'{source_pe.entity_name}_{source_port_index}_out when "{time_bin_str(time, pe)}",',
+                f'{source_pe.entity_name}_{source_port_index}_out when "{time_bin_str(time, pe.schedule_time)}",',
             )
         common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
 
