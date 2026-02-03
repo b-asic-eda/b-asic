@@ -8,6 +8,7 @@ from typing import Literal, cast
 
 import networkx as nx
 from pulp import (
+    PULP_CBC_CMD,
     LpBinary,
     LpProblem,
     LpSolver,
@@ -341,6 +342,13 @@ def _ilp_coloring(
         for color in pe_colors[i][:-1]:
             problem += pe_c[i][color + 1] <= pe_c[i][color]
 
+    # Default to a CBC solver if no solver is provided
+    # Suppress ILP solver output if logging not set to DEBUG
+    if solver is None:
+        msg = 1 if log.isEnabledFor(b_asic.logger.logging.DEBUG) else 0
+        solver = PULP_CBC_CMD(msg=msg)
+
+    # Solve the ILP problem
     status = problem.solve(solver)
 
     if status not in (LpStatusOptimal, LpStatusNotSolved):
@@ -616,6 +624,13 @@ def _ilp_coloring_min_mux(
         for color in pe_colors[i][:-1]:
             problem += pe_c[i][color + 1] <= pe_c[i][color]
 
+    # Default to a CBC solver if no solver is provided
+    # Suppress ILP solver output if logging not set to DEBUG
+    if solver is None:
+        msg = 1 if log.isEnabledFor(b_asic.logger.logging.DEBUG) else 0
+        solver = PULP_CBC_CMD(msg=msg)
+
+    # Solve the ILP problem
     status = problem.solve(solver)
 
     if status not in (LpStatusOptimal, LpStatusNotSolved):
