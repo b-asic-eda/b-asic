@@ -264,34 +264,13 @@ def _ilp_coloring(
     mem_graph_nodes = list(mem_exclusion_graph.nodes())
     mem_graph_edges = list(mem_exclusion_graph.edges())
 
-    # specify the ILP problem of minimizing the amount of resources
-
-    # binary variables:
-    #   mem_x[node, color] - whether node in memory exclusion graph is colored
-    #       in a certain color
-    #   mem_c[color] - whether color is used in the memory exclusion graph
-    #   pe_x[i, node, color] - whether node in the i:th PE exclusion graph is
-    #       colored in a certain color
-    #   pe_c[i, color] whether color is used in the i:th PE exclusion graph
-
-    mem_x = LpVariable.dicts("mem_x", (mem_graph_nodes, mem_colors), cat=LpBinary)
-    mem_c = LpVariable.dicts("mem_c", mem_colors, cat=LpBinary)
-
-    pe_x = {}
-    for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
-        pe_x[i] = {}
-        for node in pe_exclusion_graph.nodes():
-            pe_x[i][node] = {}
-            for color in pe_colors[i]:
-                pe_x[i][node][color] = LpVariable(
-                    f"pe_x_{i}_{node}_{color}", cat=LpBinary
-                )
-
-    pe_c = {}
-    for i in range(len(pe_exclusion_graphs)):
-        pe_c[i] = {}
-        for color in pe_colors[i]:
-            pe_c[i][color] = LpVariable(f"pe_c_{i}_{color}", cat=LpBinary)
+    # Create decision variables for graph coloring
+    # mem_x[node][color] - whether memory variable "node" is given "color"
+    # mem_c[color] - whether "color" is used
+    mem_x, mem_c = _create_memory_variables(mem_graph_nodes, mem_colors)
+    # pe_x[i][node][color] - whether PE node "node" in exclusion graph "i" is given "color"
+    # pe_c[i][color] - whether "color" is used in exclusion graph "i"
+    pe_x, pe_c = _create_pe_variables(pe_exclusion_graphs, pe_colors)
 
     problem = LpProblem()
     problem += lpSum(mem_c[color] for color in mem_colors) + lpSum(
@@ -342,17 +321,7 @@ def _ilp_coloring(
         for color in pe_colors[i][:-1]:
             problem += pe_c[i][color + 1] <= pe_c[i][color]
 
-    # Default to a CBC solver if no solver is provided
-    # Suppress ILP solver output if logging not set to DEBUG
-    if solver is None:
-        msg = 1 if log.isEnabledFor(b_asic.logger.logging.DEBUG) else 0
-        solver = PULP_CBC_CMD(msg=msg)
-
-    # Solve the ILP problem
-    status = problem.solve(solver)
-
-    if status not in (LpStatusOptimal, LpStatusNotSolved):
-        raise ValueError("Solution could not be found via ILP, use another method.")
+    _solve_ilp_problem(problem, solver)
 
     return pe_x, mem_x
 
@@ -375,36 +344,15 @@ def _ilp_coloring_min_mux(
     pe_in_port_indices = [range(op.input_count) for op in pe_operations]
     pe_out_port_indices = [range(op.output_count) for op in pe_operations]
 
-    # specify the ILP problem of minimizing the amount of resources
+    # Create decision variables for graph coloring
+    # mem_x[node][color] - whether memory variable "node" is given "color"
+    # mem_c[color] - whether "color" is used
+    mem_x, mem_c = _create_memory_variables(mem_graph_nodes, mem_colors)
+    # pe_x[i][node][color] - whether PE node "node" in exclusion graph "i" is given "color"
+    # pe_c[i][color] - whether "color" is used in exclusion graph "i"
+    pe_x, pe_c = _create_pe_variables(pe_exclusion_graphs, pe_colors)
 
-    # binary variables:
-    #   mem_x[node, color] - whether node in memory exclusion graph is colored
-    #       in a certain color
-    mem_x = LpVariable.dicts("mem_x", (mem_graph_nodes, mem_colors), cat=LpBinary)
-
-    #   mem_c[color] - whether color is used in the memory exclusion graph
-    mem_c = LpVariable.dicts("mem_c", mem_colors, cat=LpBinary)
-
-    #   pe_x[i, node, color] - whether node in the i:th PE exclusion graph is
-    #       colored in a certain color
-    pe_x = {}
-    for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
-        pe_x[i] = {}
-        for node in pe_exclusion_graph.nodes():
-            pe_x[i][node] = {}
-            for color in pe_colors[i]:
-                pe_x[i][node][color] = LpVariable(
-                    f"pe_x_{i}_{node}_{color}", cat=LpBinary
-                )
-
-    #   pe_c[i, color] whether color is used in the i:th PE exclusion graph
-    pe_c = {}
-    for i in range(len(pe_exclusion_graphs)):
-        pe_c[i] = {}
-        for color in pe_colors[i]:
-            pe_c[i][color] = LpVariable(f"pe_c_{i}_{color}", cat=LpBinary)
-
-    #   a[i, j, k, l] - whether the k:th output port of the j:th PE in the i:th graph
+    #   a[i][j][k][l] - whether the k:th output port of the j:th PE in the i:th graph
     #       writes to the the l:th memory
     a = {}
     if "pe_to_mem" in mux_targets:
@@ -417,7 +365,7 @@ def _ilp_coloring_min_mux(
                     for l in mem_colors:
                         a[i][j][k][l] = LpVariable(f"a_{i}_{j}_{k}_{l}", cat=LpBinary)
 
-    #   b[i, j, k, l] - whether the i:th memory
+    #   b[i][j][k][l] - whether the i:th memory
     #       writes to the l:th input port of the k:th PE in the j:th PE exclusion graph
     b = {}
     if "mem_to_pe" in mux_targets:
@@ -430,7 +378,7 @@ def _ilp_coloring_min_mux(
                     for l in pe_in_port_indices[j]:
                         b[i][j][k][l] = LpVariable(f"b_{i}_{j}_{k}_{l}", cat=LpBinary)
 
-    #   c[i, j, k, l, m, n] - whether the k:th output port of the j:th PE in the i:th PE exclusion graph
+    #   c[i][j][k][l][m][n] - whether the k:th output port of the j:th PE in the i:th PE exclusion graph
     #       writes to the n:th input port of the m:th PE in the l:th PE exclusion graph
     c = {}
     if "pe_to_pe" in mux_targets:
@@ -624,17 +572,7 @@ def _ilp_coloring_min_mux(
         for color in pe_colors[i][:-1]:
             problem += pe_c[i][color + 1] <= pe_c[i][color]
 
-    # Default to a CBC solver if no solver is provided
-    # Suppress ILP solver output if logging not set to DEBUG
-    if solver is None:
-        msg = 1 if log.isEnabledFor(b_asic.logger.logging.DEBUG) else 0
-        solver = PULP_CBC_CMD(msg=msg)
-
-    # Solve the ILP problem
-    status = problem.solve(solver)
-
-    if status not in (LpStatusOptimal, LpStatusNotSolved):
-        raise ValueError("Solution could not be found via ILP, use another method.")
+    _solve_ilp_problem(problem, solver)
 
     # Simple logging of active connections
     pe_type_names = [op.type_name() for op in pe_operations]
@@ -764,3 +702,47 @@ def _get_pe_to_pe_connection(
                                 if other_pe_node.operation.graph_id == op.graph_id
                             )
     return nodes
+
+
+def _create_memory_variables(
+    mem_graph_nodes: list, mem_colors: list[int]
+) -> tuple[dict, dict]:
+    mem_x = LpVariable.dicts("mem_x", (mem_graph_nodes, mem_colors), cat=LpBinary)
+    mem_c = LpVariable.dicts("mem_c", mem_colors, cat=LpBinary)
+    return mem_x, mem_c
+
+
+def _create_pe_variables(
+    pe_exclusion_graphs: list[nx.Graph], pe_colors: list[list[int]]
+) -> tuple[dict, dict]:
+    pe_x = {}
+    for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
+        pe_x[i] = {}
+        for node in pe_exclusion_graph.nodes():
+            pe_x[i][node] = {}
+            for color in pe_colors[i]:
+                pe_x[i][node][color] = LpVariable(
+                    f"pe_x_{i}_{node}_{color}", cat=LpBinary
+                )
+
+    pe_c = {}
+    for i in range(len(pe_exclusion_graphs)):
+        pe_c[i] = {}
+        for color in pe_colors[i]:
+            pe_c[i][color] = LpVariable(f"pe_c_{i}_{color}", cat=LpBinary)
+
+    return pe_x, pe_c
+
+
+def _solve_ilp_problem(problem: LpProblem, solver: LpSolver | None) -> None:
+    # Default to a CBC solver if no solver is provided
+    # Suppress ILP solver output if logging not set to DEBUG
+    if solver is None:
+        msg = 1 if log.isEnabledFor(b_asic.logger.logging.DEBUG) else 0
+        solver = PULP_CBC_CMD(msg=msg)
+
+    # Solve the ILP problem
+    status = problem.solve(solver)
+
+    if status not in (LpStatusOptimal, LpStatusNotSolved):
+        raise ValueError("Solution could not be found via ILP, use another method.")
