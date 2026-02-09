@@ -339,7 +339,7 @@ class SFG(AbstractOperation):
             outputs=self._output_operations,
             id_number_offset=self.id_number_offset,
             name=Name(name),
-            input_sources=src if src else None,
+            input_sources=src or None,
         )
 
     @classmethod
@@ -1402,14 +1402,8 @@ class SFG(AbstractOperation):
         self, original_component: GraphComponent
     ) -> GraphComponent:
         if original_component in self._original_components_to_new:
-            graph_id = (
-                original_component.name
-                if original_component.name
-                else (
-                    original_component.graph_id
-                    if original_component.graph_id
-                    else original_component.type_name()
-                )
+            graph_id = original_component.name or (
+                original_component.graph_id or original_component.type_name()
             )
             raise ValueError(f"Tried to add duplicate SFG component: {graph_id}")
         new_component = original_component.copy()
@@ -1442,14 +1436,8 @@ class SFG(AbstractOperation):
             # Connect input ports to new signals.
             for original_input_port in original_op.inputs:
                 if original_input_port.signal_count < 1:
-                    graph_id = (
-                        original_op.name
-                        if original_op.name
-                        else (
-                            original_op.graph_id
-                            if original_op.graph_id
-                            else original_op.type_name()
-                        )
+                    graph_id = original_op.name or (
+                        original_op.graph_id or original_op.type_name()
                     )
                     raise ValueError(
                         f"Unconnected input port in SFG. Operation: {graph_id}"
