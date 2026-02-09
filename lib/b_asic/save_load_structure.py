@@ -128,7 +128,7 @@ def sfg_to_python(
 
     inputs = "[" + ", ".join(op.graph_id for op in sfg.input_operations) + "]"
     outputs = "[" + ", ".join(op.graph_id for op in sfg.output_operations) + "]"
-    sfg_name = sfg.name if sfg.name else f"sfg{counter}" if counter > 0 else "sfg"
+    sfg_name = sfg.name or (f"sfg{counter}" if counter > 0 else "sfg")
     sfg_name_var = sfg_name.replace(" ", "_").replace("-", "_")
     result += "\n# Signal flow graph:\n"
     result += (
