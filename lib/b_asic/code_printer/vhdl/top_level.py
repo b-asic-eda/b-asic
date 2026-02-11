@@ -65,8 +65,8 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
     # Define PE input interconnect
     for pe in arch.processing_elements:
         for port_number in range(pe.input_count):
-            common.write(f, 1, "with schedule_cnt select")
-            common.write(f, 2, f"{pe.entity_name}_{port_number}_in <=")
+            # Collect all assignments first
+            assignments = []
             for process in sorted(pe.collection):
                 op = process.operation
                 if isinstance(op, Input):
@@ -104,17 +104,36 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
                 if not is_found:
                     raise ValueError("Source resource not found.")
                 time = process.start_time % arch.schedule_time
-                common.write(
-                    f,
-                    3,
-                    f'{source_resource.entity_name}_{source_port_index}_out when "{time_bin_str(time, pe.schedule_time)}",',
-                )
-            common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
+                source_signal = f"{source_resource.entity_name}_{source_port_index}_out"
+                assignments.append((time, source_signal))
+
+            # Check if all assignments are the same
+            if assignments:
+                unique_sources = {signal for _, signal in assignments}
+                if len(unique_sources) == 1:
+                    # All assignments point to the same source - use simple assignment
+                    common.write(
+                        f,
+                        1,
+                        f"{pe.entity_name}_{port_number}_in <= {assignments[0][1]};",
+                        end="\n\n",
+                    )
+                else:
+                    # Multiple sources - use with...select statement
+                    common.write(f, 1, "with schedule_cnt select")
+                    common.write(f, 2, f"{pe.entity_name}_{port_number}_in <=")
+                    for time, source_signal in assignments:
+                        common.write(
+                            f,
+                            3,
+                            f'{source_signal} when "{time_bin_str(time, pe.schedule_time)}",',
+                        )
+                    common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
 
     # Define memory input interconnect
     for mem in arch.memories:
-        common.write(f, 1, "with schedule_cnt select")
-        common.write(f, 2, f"{mem.entity_name}_0_in <=")
+        # Collect all assignments first
+        assignments = []
         for var in mem.collection:
             # an execution found -> write rows
             # TODO: Support multi-port memories here
@@ -129,12 +148,28 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
             if not is_found:
                 raise ValueError("Source resource not found.")
             time = var.start_time % arch.schedule_time
-            common.write(
-                f,
-                3,
-                f'{source_pe.entity_name}_{source_port_index}_out when "{time_bin_str(time, pe.schedule_time)}",',
-            )
-        common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
+            source_signal = f"{source_pe.entity_name}_{source_port_index}_out"
+            assignments.append((time, source_signal))
+
+        # Check if all assignments are the same
+        if assignments:
+            unique_sources = {signal for _, signal in assignments}
+            if len(unique_sources) == 1:
+                # All assignments point to the same source - use simple assignment
+                common.write(
+                    f, 1, f"{mem.entity_name}_0_in <= {assignments[0][1]};", end="\n\n"
+                )
+            else:
+                # Multiple sources - use with...select statement
+                common.write(f, 1, "with schedule_cnt select")
+                common.write(f, 2, f"{mem.entity_name}_0_in <=")
+                for time, source_signal in assignments:
+                    common.write(
+                        f,
+                        3,
+                        f'{source_signal} when "{time_bin_str(time, pe.schedule_time)}",',
+                    )
+                common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
 
 
 def _write_schedule_counter(
