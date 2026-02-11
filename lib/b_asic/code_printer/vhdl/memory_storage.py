@@ -5,6 +5,7 @@ Module for VHDL code generation of memory based storage.
 import math
 from typing import TYPE_CHECKING, Literal, TextIO, cast
 
+from b_asic.code_printer.util import bin_str, time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.code_printer.vhdl.util import schedule_time_type, unsigned_type
 from b_asic.data_type import VhdlDataType
@@ -347,24 +348,27 @@ def architecture(
         )
         common.synchronous_process_prologue(f, name="output_reg_proc")
         common.write(f, 3, "if en = '1' then")
-        common.write(f, 4, "case to_integer(schedule_cnt) is")
+        common.write(f, 4, "case schedule_cnt is")
         for p in p_zero_exec:
             if input_sync:
                 write_time = (p.start_time + 1) % schedule_time
                 if adr_pipe_depth:
+                    bin_time = time_bin_str(write_time + adr_pipe_depth, schedule_time)
                     common.write(
                         f,
                         5,
-                        f"when {write_time}+{adr_pipe_depth} => p_0_out_internal <= p_0_in_sync;",
+                        f'when "{bin_time}" => p_0_out_internal <= p_0_in_sync;',
                     )
                 else:
+                    bin_time = time_bin_str(write_time, schedule_time)
                     common.write(
-                        f, 5, f"when {write_time} => p_0_out_internal <= p_0_in_sync;"
+                        f, 5, f'when "{bin_time}" => p_0_out_internal <= p_0_in_sync;'
                     )
             else:
                 write_time = (p.start_time) % schedule_time
+                bin_time = time_bin_str(write_time, schedule_time)
                 common.write(
-                    f, 5, f"when {write_time} => p_0_out_internal <= p_0_in_internal;"
+                    f, 5, f'when "{bin_time}" => p_0_out_internal <= p_0_in_internal;'
                 )
         common.write_lines(
             f,
@@ -413,19 +417,20 @@ def architecture(
                 f, sensitivity_list="schedule_cnt_adr", name="mem_write_address_proc"
             )
             indent_offset = 0
-        common.write(f, 3 + indent_offset, "case to_integer(schedule_cnt_adr) is")
+        common.write(f, 3 + indent_offset, "case schedule_cnt_adr is")
         list_start_idx = rom * elements_per_rom
         list_stop_idx = list_start_idx + elements_per_rom
         for i, mv in filter(None, write_list[list_start_idx:list_stop_idx]):
+            bin_time = bin_str(
+                (mv.start_time % schedule_time) % elements_per_rom, ADR_LEN
+            )
             common.write_lines(
                 f,
                 [
                     (4 + indent_offset, f"-- {mv!r}"),
                     (
                         4 + indent_offset,
-                        (
-                            f"when {(mv.start_time % schedule_time) % elements_per_rom} =>"
-                        ),
+                        (f'when "{bin_time}" =>'),
                     ),
                     (
                         5 + indent_offset,
@@ -466,10 +471,10 @@ def architecture(
                 f,
                 4,
                 (
-                    f"case to_integer(schedule_cnt{layer + 1}("
+                    f"case schedule_cnt{layer + 1}("
                     f"{ADR_LEN + layer * bits_per_mux + bits_per_mux - 1} downto "
                     f"{ADR_LEN + layer * bits_per_mux}"
-                    ")) is"
+                    ") is"
                 ),
             )
             for in_idx in range(adr_mux_size):
@@ -485,7 +490,7 @@ def architecture(
                 common.write_lines(
                     f,
                     [
-                        (5, f"when {in_idx} =>"),
+                        (5, f'when "{bin_str(in_idx, bits_per_mux)}" =>'),
                         (
                             6,
                             (
@@ -546,7 +551,7 @@ def architecture(
                 f, sensitivity_list="schedule_cnt_adr", name="mem_read_address_proc"
             )
             indent_offset = 0
-        common.write(f, 3 + indent_offset, "case to_integer(schedule_cnt_adr) is")
+        common.write(f, 3 + indent_offset, "case schedule_cnt_adr is")
         list_start_idx = rom * elements_per_rom
         list_stop_idx = list_start_idx + elements_per_rom
         for idx in range(list_start_idx, list_stop_idx):
@@ -560,7 +565,10 @@ def architecture(
                     f,
                     [
                         (4 + indent_offset, f"-- {mv!r}"),
-                        (4 + indent_offset, f"when {idx % elements_per_rom} =>"),
+                        (
+                            4 + indent_offset,
+                            f'when "{bin_str(idx % elements_per_rom, ADR_LEN)}" =>',
+                        ),
                         (
                             5 + indent_offset,
                             f"read_adr_0_{0}_{rom} <= to_unsigned({i}, read_adr_0_{0}_{rom}'length);",
@@ -598,10 +606,10 @@ def architecture(
                 f,
                 4,
                 (
-                    f"case to_integer(schedule_cnt{layer + 1}("
+                    f"case schedule_cnt{layer + 1}("
                     f"{ADR_LEN + layer * bits_per_mux + bits_per_mux - 1} downto "
                     f"{ADR_LEN + layer * bits_per_mux}"
-                    ")) is"
+                    ") is"
                 ),
             )
             for in_idx in range(adr_mux_size):
@@ -617,7 +625,7 @@ def architecture(
                 common.write_lines(
                     f,
                     [
-                        (5, f"when {in_idx} =>"),
+                        (5, f'when "{bin_str(in_idx, bits_per_mux)}" =>'),
                         (
                             6,
                             (
