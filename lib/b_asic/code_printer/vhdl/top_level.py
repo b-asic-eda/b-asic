@@ -4,7 +4,7 @@ Module for VHDL code generation of top level designs.
 
 from typing import TYPE_CHECKING, TextIO
 
-from b_asic.code_printer.util import time_bin_str
+from b_asic.code_printer.util import selector_bits, time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.data_type import VhdlDataType
 from b_asic.special_operations import Input, Output
@@ -45,6 +45,10 @@ def architecture(
     if io_registers:
         _write_io_register_signal_declarations(f, arch, dt)
 
+    # Fetch information about multiplexers needed and declare control signals for them
+    pe_mux_info, mem_mux_info = _collect_mux_info(arch)
+    _write_mux_control_signal_declarations(f, pe_mux_info, mem_mux_info)
+
     common.write(f, 0, "begin")
 
     if io_registers:
@@ -57,30 +61,32 @@ def architecture(
         mem.write_component_instantiation(f)
 
     _write_schedule_counter(f, arch, io_registers)
-    _write_interconnect(f, arch, dt)
+
+    # Generate control signals for multiplexers and then connect the top-level
+    _write_mux_control_signals(f, arch.schedule_time, pe_mux_info, mem_mux_info)
+    _write_interconnect(f, dt, pe_mux_info, mem_mux_info)
+
     common.write(f, 0, "end architecture rtl;", start="", end="\n\n")
 
 
-def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
-    # Define PE input interconnect
+def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
+    # Collect PE input multiplexer info
+    pe_mux_info = []  # List of (pe, port_number, assignments)
     for pe in arch.processing_elements:
         for port_number in range(pe.input_count):
-            # Collect all assignments first
             assignments = []
             for process in sorted(pe.collection):
                 op = process.operation
                 if isinstance(op, Input):
                     continue
                 op_input_port = op.inputs[port_number]
-                # Find the source resource
                 source_port = op_input_port.signals[0].source
                 source_port_index = source_port.index
                 source_op = source_port.operation
                 is_found = False
-                # Check in memories
+
                 for mem in arch.memories:
                     for var in mem.collection:
-                        # Skip all variables written at the same clock cycle
                         read_times = [
                             time % arch.schedule_time for time in var.read_times
                         ]
@@ -95,48 +101,35 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
                             source_resource = mem
                             is_found = True
                             source_port_index = 0
+                            break
+                    if is_found:
+                        break
+
                 if not is_found:
                     for other_pe in arch.processing_elements:
                         for pro in other_pe.collection:
                             if pro.operation == source_op:
                                 source_resource = other_pe
                                 is_found = True
+                                break
+                        if is_found:
+                            break
+
                 if not is_found:
                     raise ValueError("Source resource not found.")
+
                 time = process.start_time % arch.schedule_time
                 source_signal = f"{source_resource.entity_name}_{source_port_index}_out"
                 assignments.append((time, source_signal))
 
-            # Check if all assignments are the same
             if assignments:
-                unique_sources = {signal for _, signal in assignments}
-                if len(unique_sources) == 1:
-                    # All assignments point to the same source - use simple assignment
-                    common.write(
-                        f,
-                        1,
-                        f"{pe.entity_name}_{port_number}_in <= {assignments[0][1]};",
-                        end="\n\n",
-                    )
-                else:
-                    # Multiple sources - use with...select statement
-                    common.write(f, 1, "with schedule_cnt select")
-                    common.write(f, 2, f"{pe.entity_name}_{port_number}_in <=")
-                    for time, source_signal in assignments:
-                        common.write(
-                            f,
-                            3,
-                            f'{source_signal} when "{time_bin_str(time, pe.schedule_time)}",',
-                        )
-                    common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
+                pe_mux_info.append((pe, port_number, assignments))
 
-    # Define memory input interconnect
+    # Collect memory input multiplexer info
+    mem_mux_info = []  # List of (mem, assignments)
     for mem in arch.memories:
-        # Collect all assignments first
         assignments = []
         for var in mem.collection:
-            # an execution found -> write rows
-            # TODO: Support multi-port memories here
             source_op_graph_id = var.name.split(".")[0]
             source_port_index = var.name.split(".")[1]
             is_found = False
@@ -145,31 +138,163 @@ def _write_interconnect(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> No
                     if pro.operation.graph_id == source_op_graph_id:
                         source_pe = other_pe
                         is_found = True
+                        break
+                if is_found:
+                    break
             if not is_found:
                 raise ValueError("Source resource not found.")
             time = var.start_time % arch.schedule_time
             source_signal = f"{source_pe.entity_name}_{source_port_index}_out"
             assignments.append((time, source_signal))
 
-        # Check if all assignments are the same
         if assignments:
-            unique_sources = {signal for _, signal in assignments}
-            if len(unique_sources) == 1:
-                # All assignments point to the same source - use simple assignment
+            mem_mux_info.append((mem, assignments))
+
+    return pe_mux_info, mem_mux_info
+
+
+def _write_mux_control_signal_declarations(
+    f: TextIO, pe_mux_info: list, mem_mux_info: list
+) -> None:
+    if not pe_mux_info and not mem_mux_info:
+        return
+
+    common.write(f, 1, "-- Multiplexer control signals")
+
+    # PE input mux control signals
+    for pe, port_number, assignments in pe_mux_info:
+        unique_sources = {signal for _, signal in assignments}
+        if len(unique_sources) > 1:
+            # Calculate number of bits needed for selector
+            sel_bits = selector_bits(len(unique_sources))
+            common.signal_declaration(
+                f,
+                f"{pe.entity_name}_{port_number}_sel",
+                f"std_logic_vector({sel_bits - 1} downto 0)",
+            )
+
+    # Memory input mux control signals
+    for mem, assignments in mem_mux_info:
+        unique_sources = {signal for _, signal in assignments}
+        if len(unique_sources) > 1:
+            sel_bits = selector_bits(len(unique_sources))
+            # TODO: Handle multi-input memories here
+            common.signal_declaration(
+                f,
+                f"{mem.entity_name}_0_sel",
+                f"std_logic_vector({sel_bits - 1} downto 0)",
+            )
+
+    common.blank(f)
+
+
+def _write_mux_control_signals(
+    f: TextIO, schedule_time: int, pe_mux_info: list, mem_mux_info: list
+) -> None:
+    if not pe_mux_info and not mem_mux_info:
+        return
+
+    common.write(f, 1, "-- Multiplexer control signal generation")
+
+    # PE input mux control signals
+    for pe, port_number, assignments in pe_mux_info:
+        unique_sources = {signal for _, signal in assignments}
+        if len(unique_sources) > 1:
+            # Build source to index mapping
+            source_to_idx = {src: idx for idx, src in enumerate(list(unique_sources))}
+
+            common.write(f, 1, "with schedule_cnt select")
+            common.write(f, 2, f"{pe.entity_name}_{port_number}_sel <=")
+            sel_bits = selector_bits(len(unique_sources))
+            for time, source_signal in assignments:
+                idx = source_to_idx[source_signal]
+                sel_value = format(idx, f"0{sel_bits}b")
                 common.write(
-                    f, 1, f"{mem.entity_name}_0_in <= {assignments[0][1]};", end="\n\n"
+                    f,
+                    3,
+                    f'"{sel_value}" when "{time_bin_str(time, schedule_time)}",',
                 )
-            else:
-                # Multiple sources - use with...select statement
-                common.write(f, 1, "with schedule_cnt select")
-                common.write(f, 2, f"{mem.entity_name}_0_in <=")
-                for time, source_signal in assignments:
-                    common.write(
-                        f,
-                        3,
-                        f'{source_signal} when "{time_bin_str(time, pe.schedule_time)}",',
-                    )
-                common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
+            common.write(
+                f, 3, f'"{"{}".format("-" * sel_bits)}" when others;', end="\n\n"
+            )
+
+    # Memory input mux control signals
+    for mem, assignments in mem_mux_info:
+        unique_sources = {signal for _, signal in assignments}
+        if len(unique_sources) > 1:
+            # Build source to index mapping
+            source_to_idx = {src: idx for idx, src in enumerate(list(unique_sources))}
+
+            common.write(f, 1, "with schedule_cnt select")
+            common.write(f, 2, f"{mem.entity_name}_0_sel <=")
+            sel_bits = selector_bits(len(unique_sources))
+            for time, source_signal in assignments:
+                idx = source_to_idx[source_signal]
+                sel_value = format(idx, f"0{sel_bits}b")
+                common.write(
+                    f,
+                    3,
+                    f'"{sel_value}" when "{time_bin_str(time, schedule_time)}",',
+                )
+            common.write(
+                f, 3, f'"{"{}".format("-" * sel_bits)}" when others;', end="\n\n"
+            )
+
+
+def _write_interconnect(
+    f: TextIO, dt: VhdlDataType, pe_mux_info: list, mem_mux_info: list
+) -> None:
+    common.write(f, 1, "-- Interconnect")
+
+    # Define PE input interconnect
+    for pe, port_number, assignments in pe_mux_info:
+        unique_sources = {signal for _, signal in assignments}
+
+        if len(unique_sources) == 1:
+            # Direct assignment
+            common.write(
+                f,
+                1,
+                f"{pe.entity_name}_{port_number}_in <= {assignments[0][1]};",
+                end="\n\n",
+            )
+        else:
+            # Multiplexer needed - use control signal
+            common.write(f, 1, f"with {pe.entity_name}_{port_number}_sel select")
+            common.write(f, 2, f"{pe.entity_name}_{port_number}_in <=")
+            sel_bits = selector_bits(len(unique_sources))
+            for idx, source_signal in enumerate(list(unique_sources)):
+                sel_value = format(idx, f"0{sel_bits}b")
+                common.write(
+                    f,
+                    3,
+                    f'{source_signal} when "{sel_value}",',
+                )
+            common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
+
+    # Define memory input interconnect
+    # TODO: Handle multi-input memories here
+    for mem, assignments in mem_mux_info:
+        unique_sources = {signal for _, signal in assignments}
+
+        if len(unique_sources) == 1:
+            # Direct assignment
+            common.write(
+                f, 1, f"{mem.entity_name}_0_in <= {assignments[0][1]};", end="\n\n"
+            )
+        else:
+            # Multiplexer needed - use control signal
+            common.write(f, 1, f"with {mem.entity_name}_0_sel select")
+            common.write(f, 2, f"{mem.entity_name}_0_in <=")
+            sel_bits = selector_bits(len(unique_sources))
+            for idx, source_signal in enumerate(list(unique_sources)):
+                sel_value = format(idx, f"0{sel_bits}b")
+                common.write(
+                    f,
+                    3,
+                    f'{source_signal} when "{sel_value}",',
+                )
+            common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
 
 
 def _write_schedule_counter(
