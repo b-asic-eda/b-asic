@@ -119,7 +119,7 @@ class PreferencesDialog(QWidget):
             else ColorButton(QColor("snow"))
         )
         self._italic_button.setIcon(icon)
-        self._italic_button.pressed.connect(lambda: self.italic_font_clicked())
+        self._italic_button.pressed.connect(self.italic_font_clicked)
         hlayout2.addWidget(self._italic_button)
 
         icon = QIcon.fromTheme("format-text-bold")
@@ -127,7 +127,7 @@ class PreferencesDialog(QWidget):
             QColor("silver") if FONT.bold else QColor("snow")
         )
         self._bold_button.setIcon(icon)
-        self._bold_button.pressed.connect(lambda: self.bold_font_clicked())
+        self._bold_button.pressed.connect(self.bold_font_clicked)
         hlayout2.addWidget(self._bold_button)
 
         groupbox2.setLayout(hlayout2)
@@ -136,14 +136,12 @@ class PreferencesDialog(QWidget):
         groupbox2 = QGroupBox()
         hlayout2 = QHBoxLayout()
         self._font_size_input = QLineEdit()
-        font_button.pressed.connect(lambda: self.font_clicked())
+        font_button.pressed.connect(self.font_clicked)
 
         icon = QIcon.fromTheme("list-add")
         increase_font_size_button = ColorButton(QColor("smoke"))
         increase_font_size_button.setIcon(icon)
-        increase_font_size_button.pressed.connect(
-            lambda: self.increase_font_size_clicked()
-        )
+        increase_font_size_button.pressed.connect(self.increase_font_size_clicked)
         increase_font_size_button.setShortcut(
             QCoreApplication.translate("MainWindow", "Ctrl++")
         )
@@ -153,15 +151,13 @@ class PreferencesDialog(QWidget):
         self._font_size_input.setText(f"Font Size: {FONT.size}")
         self._font_size_input.setValidator(QIntValidator(0, 99))
         self._font_size_input.setAlignment(Qt.AlignCenter)
-        self._font_size_input.textChanged.connect(lambda: self.set_font_size_clicked())
+        self._font_size_input.textChanged.connect(self.set_font_size_clicked)
         hlayout2.addWidget(self._font_size_input)
 
         icon = QIcon.fromTheme("list-remove")
         decrease_font_size_button = ColorButton(QColor("smoke"))
         decrease_font_size_button.setIcon(icon)
-        decrease_font_size_button.pressed.connect(
-            lambda: self.decrease_font_size_clicked()
-        )
+        decrease_font_size_button.pressed.connect(self.decrease_font_size_clicked)
         decrease_font_size_button.setShortcut(
             QCoreApplication.translate("MainWindow", "Ctrl+-")
         )
@@ -176,7 +172,7 @@ class PreferencesDialog(QWidget):
 
         reset_font_button = ColorButton(QColor("silver"))
         reset_font_button.setText("Reset all font Settings")
-        reset_font_button.pressed.connect(lambda: self.reset_font_clicked())
+        reset_font_button.pressed.connect(self.reset_font_clicked)
         layout.addWidget(reset_font_button)
 
         label = QLabel("")
@@ -184,7 +180,7 @@ class PreferencesDialog(QWidget):
 
         reset_all_button = ColorButton(QColor("salmon"))
         reset_all_button.setText("Reset all settings")
-        reset_all_button.pressed.connect(lambda: self.reset_all_clicked())
+        reset_all_button.pressed.connect(self.reset_all_clicked)
         layout.addWidget(reset_all_button)
 
         self.setLayout(layout)
@@ -376,14 +372,14 @@ class PreferencesDialog(QWidget):
         self._font_size_input.setText(str(FONT.size))
 
         if FONT.italic:
-            self._italicbutton.set_color(QColor("silver"))
+            self._italic_button.set_color(QColor("silver"))
         else:
-            self._italicbutton.set_color(QColor("snow"))
+            self._italic_button.set_color(QColor("snow"))
 
         if FONT.bold:
-            self._boldbutton.set_color(QColor("silver"))
+            self._bold_button.set_color(QColor("silver"))
         else:
-            self._boldbutton.set_color(QColor("snow"))
+            self._bold_button.set_color(QColor("snow"))
 
     def update_font(self) -> None:
         """Update font preferences based on current Font settings."""
