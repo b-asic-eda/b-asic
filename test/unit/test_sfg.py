@@ -1549,10 +1549,10 @@ class TestSFGGraph:
 	rankdir=LR splines=spline
 	in0 [label="IN
 (in0)" shape=cds]
-	in0 -> add0 [headlabel=0]
+	in0:e -> add0 [headlabel=0]
 	out0 [label="OUT
 (out0)" shape=cds]
-	"t0.0" -> out0
+	"t0.0" -> out0:w
 	"t0.0" [shape=point]
 	t0 -> "t0.0" [arrowhead=none]
 	add0 [label="ADD
@@ -1575,10 +1575,10 @@ class TestSFGGraph:
 	rankdir=LR splines=spline
 	in0 [label="IN
 (in0)" shape=cds]
-	in0 -> add0 [label=s0 headlabel=0]
+	in0:e -> add0 [label=s0 headlabel=0]
 	out0 [label="OUT
 (out0)" shape=cds]
-	"t0.0" -> out0 [label=s1]
+	"t0.0" -> out0:w [label=s1]
 	"t0.0" [shape=point]
 	t0 -> "t0.0" [arrowhead=none]
 	add0 [label="ADD
@@ -1592,7 +1592,7 @@ class TestSFGGraph:
 	"t0.0" -> cmul0 [label=s4]
 }"""
 
-        assert sfg_simple_filter.sfg_digraph(show_signal_id=True).source in (
+        assert sfg_simple_filter.sfg_digraph(signal_info="id").source in (
             res,
             res + "\n",
         )
@@ -1602,10 +1602,10 @@ class TestSFGGraph:
 	rankdir=LR splines=spline
 	in0 [label="IN
 (in0)" shape=cds]
-	in0 -> add0 [headlabel=0]
+	in0:e -> add0 [headlabel=0]
 	out0 [label="OUT
 (out0)" shape=cds]
-	t0 -> out0
+	t0 -> out0:w
 	add0 [label="ADD
 (add0)" shape=ellipse]
 	cmul0 -> add0 [headlabel=1]
@@ -1626,10 +1626,10 @@ class TestSFGGraph:
 	rankdir=LR splines=spline
 	in0 [label="IN
 (in0)" shape=cds]
-	in0 -> add0
+	in0:e -> add0
 	out0 [label="OUT
 (out0)" shape=cds]
-	"t0.0" -> out0
+	"t0.0" -> out0:w
 	"t0.0" [shape=point]
 	t0 -> "t0.0" [arrowhead=none]
 	add0 [label="ADD
