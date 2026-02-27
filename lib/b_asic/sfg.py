@@ -1665,13 +1665,29 @@ class SFG(AbstractOperation):
         results[key] = value
         return value
 
+    def _resolve_graph_id_or_name(self, identifier: "GraphID") -> "GraphID":
+        if identifier in self._components_by_id:
+            return identifier
+        matches = self._components_by_name.get(identifier, [])
+        if len(matches) == 1:
+            return matches[0].graph_id
+        if len(matches) > 1:
+            raise ValueError(
+                f"{identifier!r} matches multiple components; use a GraphID instead"
+            )
+        raise ValueError(
+            f"{identifier!r} is neither a valid GraphID nor a unique operation name"
+        )
+
     def sfg_digraph(
         self,
-        show_signal_id: bool = False,
+        signal_info: Literal["none", "id", "l1-norm"] = "none",
         engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
         splines: Literal["spline", "line", "ortho", "polyline", "curved"] = "spline",
+        input_order: list["GraphID"] | None = None,
+        output_order: list["GraphID"] | None = None,
     ) -> Digraph:
         """
         Return a Digraph of the SFG.
@@ -1680,8 +1696,11 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        show_signal_id : bool, default: False
-            If True, the graph_id:s of signals are shown.
+        signal_info : {"none", "id", "l1-norm"}, default: "none"
+            Information to show for each signal in the graph.
+                - "none": Do not show any signal information.
+                - "id": Show the graph_id of each signal.
+                - "l1-norm": Show the L1 norm of the impulse response (worst-case magnitude for inputs in [-1, 1]).
         engine : str, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
@@ -1692,17 +1711,21 @@ class SFG(AbstractOperation):
             more.
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
-
-        Returns
-        -------
-        Digraph
-            Digraph of the SFG.
+        input_order : list of GraphID or operation name, optional
+            Top-to-bottom ordering of input nodes.
+            Defaults to the SFG's natural input order.
+        output_order : list of GraphID or operation name, optional
+            Top-to-bottom ordering of output nodes.
+            Defaults to the SFG's natural output order.
         """
         dg = Digraph()
         dg.attr(rankdir="LR", splines=splines)
         branch_nodes = set()
         if engine is not None:
             dg.engine = engine
+        _l1_norms = (
+            self.get_l1_norms(all_nodes=True) if signal_info == "l1-norm" else None
+        )
         for op in self._components_by_id.values():
             if isinstance(op, Signal):
                 source = cast(OutputPort, op.source)
@@ -1712,7 +1735,24 @@ class SFG(AbstractOperation):
                     if branch_node and source.signal_count > 1
                     else source.operation.graph_id
                 )
-                label = op.graph_id if show_signal_id else None
+                label = None
+                match signal_info:
+                    case "none":
+                        pass
+                    case "id":
+                        label = op.graph_id
+                    case "l1-norm":
+                        if isinstance(source.operation, Input):
+                            val = 1.0
+                        else:
+                            port_key = source.operation.key(
+                                source.index, source.operation.graph_id
+                            )
+                            val = _l1_norms.get(port_key)
+                        label = f"{val:.4g}" if val is not None else None
+                    case _:
+                        raise ValueError(f"Invalid signal_info: {signal_info}")
+
                 taillabel = (
                     str(source.index)
                     if source.operation.output_count > 1
@@ -1726,8 +1766,12 @@ class SFG(AbstractOperation):
                     else None
                 )
                 dg.edge(
-                    source_name,
-                    destination.operation.graph_id,
+                    source_name + ":e"
+                    if isinstance(source.operation, Input) and source.signal_count == 1
+                    else source_name,
+                    destination.operation.graph_id + ":w"
+                    if isinstance(destination.operation, Output)
+                    else destination.operation.graph_id,
                     label=label,
                     taillabel=taillabel,
                     headlabel=headlabel,
@@ -1745,7 +1789,9 @@ class SFG(AbstractOperation):
                         else None
                     )
                     dg.edge(
-                        source.operation.graph_id,
+                        source.operation.graph_id + ":e"
+                        if isinstance(source.operation, Input)
+                        else source.operation.graph_id,
                         source_name,
                         arrowhead="none",
                         taillabel=taillabel,
@@ -1756,12 +1802,56 @@ class SFG(AbstractOperation):
                     shape=_OPERATION_SHAPE[op.type_name()],
                     label=f"{op.name}\n({op.graph_id})" if op.name else None,
                 )
+        _input_order = (
+            [self._resolve_graph_id_or_name(x) for x in input_order]
+            if input_order is not None
+            else [op.graph_id for op in self._input_operations]
+        )
+        _output_order = (
+            [self._resolve_graph_id_or_name(x) for x in output_order]
+            if output_order is not None
+            else [op.graph_id for op in self._output_operations]
+        )
+        for gid in _input_order:
+            if not isinstance(self.find_by_id(gid), Input):
+                raise ValueError(
+                    f"{gid!r} is not an Input operation; only Input operations are"
+                    " allowed in input_order."
+                )
+        for gid in _output_order:
+            if not isinstance(self.find_by_id(gid), Output):
+                raise ValueError(
+                    f"{gid!r} is not an Output operation; only Output operations are"
+                    " allowed in output_order."
+                )
+        if len(_input_order) > 1:
+            with dg.subgraph() as s:
+                s.attr(rank="source")
+                for node_id in _input_order:
+                    s.node(node_id)
+                for a, b in itertools.pairwise(_input_order):
+                    s.edge(a, b, style="invis")
+        if len(_output_order) > 1:
+            with dg.subgraph() as s:
+                s.attr(rank="sink")
+                for node_id in _output_order:
+                    s.node(node_id)
+                for a, b in itertools.pairwise(_output_order):
+                    s.edge(a, b, style="invis")
         return dg
 
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self.sfg_digraph()._repr_mimebundle_(include=include, exclude=exclude)
 
     def _repr_jpeg_(self):
+        import subprocess  # noqa: PLC0415
+
+        # Force Graphviz to output valid formats and check if jpeg or jpg is available
+        supported = subprocess.run(
+            ["dot", "-T?"], capture_output=True, check=False
+        ).stderr
+        if b"jpeg" not in supported and b"jpg" not in supported:
+            return None
         return self.sfg_digraph()._repr_mimebundle_(include=["image/jpeg"])[
             "image/jpeg"
         ]
@@ -1780,11 +1870,13 @@ class SFG(AbstractOperation):
     def show(
         self,
         fmt: str | None = None,
-        show_signal_id: bool = False,
+        signal_info: Literal["none", "id", "l1-norm"] = "none",
         engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
         splines: Literal["spline", "line", "ortho", "polyline", "curved"] = "spline",
+        input_order: list["GraphID"] | None = None,
+        output_order: list["GraphID"] | None = None,
     ) -> None:
         """
         Display a visual representation of the SFG using the default system viewer.
@@ -1796,8 +1888,6 @@ class SFG(AbstractOperation):
             https://www.graphviz.org/doc/info/output.html
             Most common are "pdf", "eps", "png", and "svg". Default is None which
             leads to PDF.
-        show_signal_id : bool, default: False
-            If True, the graph_id:s of signals are shown.
         engine : str, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
@@ -1808,13 +1898,28 @@ class SFG(AbstractOperation):
             more.
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
+        signal_info : {"none", "id", "l1-norm"}, default: "none"
+            Information to show for each signal in the graph.
+                - "none": Do not show any signal information.
+                - "id": Show the graph_id of each signal.
+                - "l1-norm": Show the L1 norm of the impulse response (worst-case magnitude for inputs bounded by 1).
+        input_order : list of GraphID or operation name, optional
+            Top-to-bottom ordering of input nodes.  Each entry may be a
+            GraphID, an operation name, or a mix of both.
+            See :meth:`sfg_digraph` for details.
+        output_order : list of GraphID or operation name, optional
+            Top-to-bottom ordering of output nodes.  Each entry may be a
+            GraphID, an operation name, or a mix of both.
+            See :meth:`sfg_digraph` for details.
         """
         dg = self.sfg_digraph(
-            show_signal_id=show_signal_id,
+            signal_info=signal_info,
             engine=engine,
             branch_node=branch_node,
             port_numbering=port_numbering,
             splines=splines,
+            input_order=input_order,
+            output_order=output_order,
         )
         if fmt is not None:
             dg.format = fmt
@@ -2405,6 +2510,20 @@ class SFG(AbstractOperation):
                         impulse_responses[target_key].append(np.array([]))
 
         return impulse_responses
+
+    def get_l1_norms(
+        self,
+        threshold: float = 1e-12,
+        max_iters: int = -1,
+        all_nodes: bool = False,
+    ) -> dict[str, float]:
+        impulse_responses = self.get_impulse_responses(
+            threshold=threshold, max_iters=max_iters, all_nodes=all_nodes
+        )
+        return {
+            key: float(sum(np.sum(np.abs(h)) for h in responses))
+            for key, responses in impulse_responses.items()
+        }
 
     def _get_impulse_responses_between_nodes(
         self,
