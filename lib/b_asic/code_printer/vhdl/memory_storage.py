@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal, TextIO, cast
 from b_asic.code_printer.util import bin_str, time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.code_printer.vhdl.util import schedule_time_type, unsigned_type
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import _VhdlDataType
 from b_asic.process import MemoryVariable, PlainMemoryVariable
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 def entity(
     f: TextIO,
     mem: "Memory",
-    dt: VhdlDataType,
+    dt: _VhdlDataType,
     external_schedule_counter: bool = True,
     std_logic_vector: bool = False,
 ) -> None:
@@ -31,7 +31,7 @@ def entity(
         File object to write to.
     mem : Memory
         Memory object to generate entity for.
-    dt : VhdlDataType
+    dt : _VhdlDataType
         Data type information.
     external_schedule_counter : bool, default: True
         If True, schedule counter is an input port. If False, it's generated internally.
@@ -68,7 +68,7 @@ def entity(
 def architecture(
     f: TextIO,
     memory: "Memory",
-    dt: VhdlDataType,
+    dt: _VhdlDataType,
     *,
     input_sync: bool = True,
     output_sync: bool = True,

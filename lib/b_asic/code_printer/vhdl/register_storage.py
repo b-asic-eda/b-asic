@@ -5,7 +5,7 @@ Module for VHDL code generation of register based storage.
 from typing import TYPE_CHECKING, TextIO
 
 from b_asic.code_printer.vhdl import common, memory_storage
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import _VhdlDataType
 from b_asic.resources import _ForwardBackwardTable
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 def entity(
     f: TextIO,
     memory: "Memory",
-    dt: VhdlDataType,
+    dt: _VhdlDataType,
     external_schedule_counter: bool = False,
     std_logic_vector: bool = True,
 ) -> None:
@@ -28,7 +28,7 @@ def entity(
         File object to write to.
     memory : Memory
         Memory object to generate entity for.
-    dt : VhdlDataType
+    dt : _VhdlDataType
         Data type information.
     external_schedule_counter : bool, default: False
         If True, schedule counter is an input port. If False, it's generated internally.
@@ -48,7 +48,7 @@ def architecture(
     f: TextIO,
     forward_backward_table: "_ForwardBackwardTable",
     memory: "Memory",
-    dt: VhdlDataType,
+    dt: _VhdlDataType,
     sync_rst: bool = False,
     async_rst: bool = False,
     external_schedule_counter: bool = False,
@@ -65,7 +65,7 @@ def architecture(
         Forward-backward allocation table.
     memory : Memory
         Memory object.
-    dt : VhdlDataType
+    dt : _VhdlDataType
         Data type information.
     sync_rst : bool, default: False
         Enable synchronous reset.

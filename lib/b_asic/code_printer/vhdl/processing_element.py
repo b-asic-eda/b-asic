@@ -9,7 +9,7 @@ import numpy as np
 from b_asic.code_printer.util import bin_str, time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.code_printer.vhdl.util import schedule_time_type
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import _VhdlDataType
 from b_asic.process import OperatorProcess
 from b_asic.special_operations import Input, Output
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from b_asic.architecture import ProcessingElement
 
 
-def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
+def entity(f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType) -> None:
     if not all(isinstance(process, OperatorProcess) for process in pe.collection):
         raise ValueError(
             "HDL can only be generated for ProcessCollection of OperatorProcesses"
@@ -42,7 +42,7 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: VhdlDataType) -> None:
 def architecture(
     f: TextIO,
     pe: "ProcessingElement",
-    dt: VhdlDataType,
+    dt: _VhdlDataType,
     core_code: tuple[str, str],
 ) -> None:
     common.write(f, 0, f"architecture rtl of {pe.entity_name} is")
@@ -56,7 +56,7 @@ def architecture(
 
 
 def _declarative_region_common(
-    f: TextIO, pe: "ProcessingElement", dt: VhdlDataType
+    f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType
 ) -> None:
     # Define pipeline stages
     for stage in range(pe._latency):
@@ -99,7 +99,7 @@ def _declarative_region_common(
 
 
 def _statement_region_common(
-    f: TextIO, pe: "ProcessingElement", dt: VhdlDataType
+    f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType
 ) -> None:
     # Generate pipeline stages
     if pe._latency > 0:

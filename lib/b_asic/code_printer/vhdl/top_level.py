@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING, TextIO
 
 from b_asic.code_printer.util import selector_bits, time_bin_str
 from b_asic.code_printer.vhdl import common
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import _VhdlDataType
 from b_asic.special_operations import Input, Output
 
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture
 
 
-def entity(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
+def entity(f: TextIO, arch: "Architecture", dt: _VhdlDataType) -> None:
     ports = ["clk : in std_logic", "rst : in std_logic"]
     ports += [
         port
@@ -31,7 +31,7 @@ def entity(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
 
 
 def architecture(
-    f: TextIO, arch: "Architecture", dt: VhdlDataType, io_registers: bool = False
+    f: TextIO, arch: "Architecture", dt: _VhdlDataType, io_registers: bool = False
 ) -> None:
     common.write(f, 0, f"architecture rtl of {arch.entity_name} is")
 
@@ -242,7 +242,7 @@ def _write_mux_control_signals(
 
 
 def _write_interconnect(
-    f: TextIO, dt: VhdlDataType, pe_mux_info: list, mem_mux_info: list
+    f: TextIO, dt: _VhdlDataType, pe_mux_info: list, mem_mux_info: list
 ) -> None:
     common.write(f, 1, "-- Interconnect")
 
@@ -322,7 +322,7 @@ def _write_schedule_counter(
 
 
 def _write_io_register_signal_declarations(
-    f: TextIO, arch: "Architecture", dt: VhdlDataType
+    f: TextIO, arch: "Architecture", dt: _VhdlDataType
 ) -> None:
     common.write(f, 1, "-- Internal signals for pipelined I/O")
 
@@ -351,7 +351,7 @@ def _write_io_register_signal_declarations(
     common.blank(f)
 
 
-def _write_io_registers(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
+def _write_io_registers(f: TextIO, arch: "Architecture", dt: _VhdlDataType) -> None:
     common.write(f, 1, "-- Pipelining of I/O")
 
     # Pipelining of reset

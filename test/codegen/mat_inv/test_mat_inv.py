@@ -1,11 +1,11 @@
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 
 
 def test_mat_inv_compile(tmp_path, arch_mat_inv):
     runner = get_runner()
-    dt = VhdlDataType(7)
+    dt = DataType(7)
     printer = VhdlPrinter(dt)
     printer.print(arch_mat_inv, path=tmp_path)
 
@@ -22,7 +22,7 @@ def test_mat_inv_compile(tmp_path, arch_mat_inv):
 
 def test_mat_inv_simulate(tmp_path, arch_mat_inv):
     runner = get_runner()
-    dt = VhdlDataType((3, 13))
+    dt = DataType((3, 13))
     printer = VhdlPrinter(dt)
     printer.print(arch_mat_inv, path=tmp_path)
 

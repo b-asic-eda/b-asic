@@ -15,7 +15,7 @@ from b_asic.code_printer.vhdl import (
     top_level,
 )
 from b_asic.code_printer.vhdl.util import signed_type
-from b_asic.data_type import DataType, VhdlDataType
+from b_asic.data_type import DataType, _VhdlDataType
 from b_asic.quantization import OverflowMode, QuantizationMode
 from b_asic.special_operations import Output
 
@@ -24,17 +24,17 @@ if TYPE_CHECKING:
 
 
 class VhdlPrinter(Printer):
-    _dt: VhdlDataType
+    _dt: _VhdlDataType
 
     CUSTOM_PRINTER_PREFIX = "_vhdl"
 
-    def __init__(self, dt: DataType | VhdlDataType) -> None:
+    def __init__(self, dt: DataType, vhdl_2008: bool = False) -> None:
+        self._vhdl_2008 = vhdl_2008
         super().__init__(dt=dt)
 
-    def set_data_type(self, dt: DataType | VhdlDataType) -> None:
-        if isinstance(dt, DataType):
-            dt = VhdlDataType.from_DataType(dt)
-        self._dt = dt
+    def set_data_type(self, dt: DataType) -> None:
+        base = {k: v for k, v in dt.__dict__.items() if k != "vhdl_2008"}
+        self._dt = _VhdlDataType(**base, vhdl_2008=self._vhdl_2008)
 
     def print(
         self,

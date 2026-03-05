@@ -9,7 +9,7 @@ from b_asic.architecture import Architecture, ProcessingElement, _fixed_point_bi
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
 from b_asic.core_operations import ConstantMultiplication
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 from b_asic.quantization import OverflowMode, QuantizationMode
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
@@ -19,61 +19,61 @@ from b_asic.special_operations import Input, Output
 # test_cases: list of input values
 TEST_PARAMS = [
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         0.5,
         [10, 20, 30, -5, 127],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         3,
         [10, 20, 30, -5, 42],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         -2,
         [10, 20, 30, -5, -20],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         4,
         5,
         [10, 20, 25, -5],
     ),
     pytest.param(
-        VhdlDataType(wl=16),
+        DataType(wl=16),
         1,
         7,
         [1000, 2000, -500, 4000],
     ),
     pytest.param(
-        VhdlDataType(wl=8, is_complex=True),
+        DataType(wl=8, is_complex=True),
         1,
         2,
         [10, 20, -5, 10 + 5j, 20 - 10j],
     ),
     pytest.param(
-        VhdlDataType(wl=8, is_complex=True),
+        DataType(wl=8, is_complex=True),
         1,
         3 + 2j,
         [10, 20, 10 + 5j, 20 - 10j],
     ),
     pytest.param(
-        VhdlDataType(wl=8, is_complex=True),
+        DataType(wl=8, is_complex=True),
         2,
         2j,
         [10, 20, -5, 10 + 5j, 20 - 10j],
     ),
     pytest.param(
-        VhdlDataType(wl=(4, 10), is_complex=True),
+        DataType(wl=(4, 10), is_complex=True),
         5,
         math.sqrt(3) * 1j / 2,
         [100, -200, 300, -400, 500, -600, 700, -800, 900],
     ),
     pytest.param(
-        VhdlDataType(
+        DataType(
             wl=(4, 4),
             quantization_mode=QuantizationMode.TRUNCATION,
             overflow_mode=OverflowMode.WRAPPING,
@@ -83,7 +83,7 @@ TEST_PARAMS = [
         [56, 120, -120],
     ),
     pytest.param(
-        VhdlDataType(
+        DataType(
             wl=(4, 4),
             quantization_mode=QuantizationMode.TRUNCATION,
             overflow_mode=OverflowMode.WRAPPING,
@@ -93,7 +93,7 @@ TEST_PARAMS = [
         [56, 40, -80],
     ),
     pytest.param(
-        VhdlDataType(
+        DataType(
             wl=(4, 4),
             quantization_mode=QuantizationMode.TRUNCATION,
             overflow_mode=OverflowMode.SATURATION,

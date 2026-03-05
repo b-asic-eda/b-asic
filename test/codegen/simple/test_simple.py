@@ -1,11 +1,11 @@
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 
 
 def test_simple_compile(tmp_path, arch_simple):
     runner = get_runner()
-    dt = VhdlDataType(7)
+    dt = DataType(7)
     printer = VhdlPrinter(dt)
     printer.print(arch_simple, path=tmp_path)
 
@@ -22,7 +22,7 @@ def test_simple_compile(tmp_path, arch_simple):
 
 def test_simple_simulate(tmp_path, arch_simple):
     runner = get_runner()
-    dt = VhdlDataType(8, 4, 7)
+    dt = DataType(8, 4, 7)
     printer = VhdlPrinter(dt)
     printer.print(arch_simple, path=tmp_path)
 
@@ -81,7 +81,7 @@ async def _generate_clk(dut):
 
 def test_simple_io_registers_compile(tmp_path, arch_simple):
     runner = get_runner()
-    dt = VhdlDataType(7)
+    dt = DataType(7)
     printer = VhdlPrinter(dt)
     printer.print(arch_simple, path=tmp_path, io_registers=True)
 
@@ -98,7 +98,7 @@ def test_simple_io_registers_compile(tmp_path, arch_simple):
 
 def test_simple_io_registers_simulate(tmp_path, arch_simple):
     runner = get_runner()
-    dt = VhdlDataType(8, 4, 7)
+    dt = DataType(8, 4, 7)
     printer = VhdlPrinter(dt)
     printer.print(arch_simple, path=tmp_path, io_registers=True)
 

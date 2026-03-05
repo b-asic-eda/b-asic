@@ -1,11 +1,11 @@
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 
 
 def test_r2bf_compile(tmp_path, arch_r2bf):
     runner = get_runner()
-    dt = VhdlDataType(16)
+    dt = DataType(16)
     printer = VhdlPrinter(dt)
     printer.print(arch_r2bf, path=tmp_path)
 
@@ -20,7 +20,7 @@ def test_r2bf_compile(tmp_path, arch_r2bf):
 
 def test_r2bf_simulate(tmp_path, arch_r2bf):
     runner = get_runner()
-    dt = VhdlDataType(16)
+    dt = DataType(16)
     printer = VhdlPrinter(dt)
     printer.print(arch_r2bf, path=tmp_path)
 
