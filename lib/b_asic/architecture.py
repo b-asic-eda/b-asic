@@ -30,7 +30,7 @@ from b_asic._preferences import (
 )
 from b_asic.code_printer.vhdl import common
 from b_asic.code_printer.vhdl.util import schedule_time_type
-from b_asic.data_type import DataType, VhdlDataType
+from b_asic.data_type import DataType, _VhdlDataType
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
@@ -600,7 +600,7 @@ class ProcessingElement(Resource):
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
     def write_component_declaration(
-        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+        self, f: TextIO, dt: _VhdlDataType, indent: int = 1
     ) -> None:
         ports = [
             "clk : in std_logic",
@@ -623,7 +623,7 @@ class ProcessingElement(Resource):
         common.blank(f)
 
     def write_signal_declarations(
-        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+        self, f: TextIO, dt: _VhdlDataType, indent: int = 1
     ) -> None:
         common.write(f, indent, f"-- {self.entity_name} signals")
         if self.operation_type != Input:
@@ -645,7 +645,7 @@ class ProcessingElement(Resource):
         common.blank(f)
 
     def write_component_instantiation(
-        self, f: TextIO, dt: VhdlDataType, indent: int = 1, io_registers: bool = False
+        self, f: TextIO, dt: _VhdlDataType, indent: int = 1, io_registers: bool = False
     ) -> None:
         port_mappings = ["clk => clk", "en => '1'", "schedule_cnt => schedule_cnt"]
         port_mappings += [
@@ -1050,7 +1050,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             )
 
     def write_component_declaration(
-        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+        self, f: TextIO, dt: _VhdlDataType, indent: int = 1
     ) -> None:
         ports = ["clk : in std_logic", "rst : in std_logic"]
 
@@ -1065,7 +1065,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
 
     def write_signal_declarations(
-        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+        self, f: TextIO, dt: _VhdlDataType, indent: int = 1
     ) -> None:
         for pe in self.processing_elements:
             pe.write_signal_declarations(f, dt, indent)
@@ -1080,7 +1080,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         common.blank(f)
 
     def write_component_instantiation(
-        self, f: TextIO, dt: VhdlDataType, indent: int = 1
+        self, f: TextIO, dt: _VhdlDataType, indent: int = 1
     ) -> None:
         port_mappings = ["clk => tb_clk", "rst => tb_rst"]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]

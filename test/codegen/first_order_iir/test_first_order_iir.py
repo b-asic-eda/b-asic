@@ -1,11 +1,11 @@
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 
 
 def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
     runner = get_runner()
-    dt = VhdlDataType(3)
+    dt = DataType(3)
     printer = VhdlPrinter(dt)
     printer.print(arch_first_order_iir, path=tmp_path)
 
@@ -23,7 +23,7 @@ def test_first_order_iir_compile(tmp_path, arch_first_order_iir):
 
 def test_first_order_iir_simulate(tmp_path, arch_first_order_iir):
     runner = get_runner()
-    dt = VhdlDataType(17)
+    dt = DataType(17)
     printer = VhdlPrinter(dt)
     printer.print(arch_first_order_iir, path=tmp_path)
 

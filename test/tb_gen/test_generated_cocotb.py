@@ -8,7 +8,7 @@ import pytest
 
 from b_asic import QuantizationMode
 from b_asic.code_printer import VhdlPrinter
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 from b_asic.simulation import Simulation
 from b_asic.tb_printer import CocotbPrinter
 
@@ -16,7 +16,7 @@ from b_asic.tb_printer import CocotbPrinter
 @pytest.mark.skipif(shutil.which("ghdl") is None, reason="GHDL simulator not available")
 def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, sfg_simple_loop):
     # Generate VHDL code
-    dt = VhdlDataType(
+    dt = DataType(
         wl=(3, 7),
         quantization_mode=QuantizationMode.TRUNCATION,
     )
@@ -64,7 +64,7 @@ def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, sfg_simple_loop)
 @pytest.mark.skipif(shutil.which("ghdl") is None, reason="GHDL simulator not available")
 def test_cocotb_testbench_with_csv_output(tmp_path, arch_simple_loop, sfg_simple_loop):
     # Generate VHDL code
-    dt = VhdlDataType(
+    dt = DataType(
         wl=(3, 7),
         quantization_mode=QuantizationMode.TRUNCATION,
     )

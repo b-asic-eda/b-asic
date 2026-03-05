@@ -1,11 +1,11 @@
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 
 
 def test_r3bf_compile(tmp_path, arch_r3bf):
     runner = get_runner()
-    dt = VhdlDataType(16, is_complex=True)
+    dt = DataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
     printer.print(arch_r3bf, path=tmp_path)
 
@@ -20,7 +20,7 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
 
 def test_r3bf_simulate(tmp_path, arch_r3bf):
     runner = get_runner()
-    dt = VhdlDataType(16, is_complex=True)
+    dt = DataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
     printer.print(arch_r3bf, path=tmp_path)
 
@@ -120,7 +120,7 @@ async def _generate_clk(dut):
 
 def test_r3bf_io_registers_compile(tmp_path, arch_r3bf):
     runner = get_runner()
-    dt = VhdlDataType(16, is_complex=True)
+    dt = DataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
     printer.print(arch_r3bf, path=tmp_path, io_registers=True)
 
@@ -135,7 +135,7 @@ def test_r3bf_io_registers_compile(tmp_path, arch_r3bf):
 
 def test_r3bf_io_registers_simulate(tmp_path, arch_r3bf):
     runner = get_runner()
-    dt = VhdlDataType(16, is_complex=True)
+    dt = DataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
     printer.print(arch_r3bf, path=tmp_path, io_registers=True)
 

@@ -8,7 +8,7 @@ from b_asic.architecture import Architecture, ProcessingElement
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
 from b_asic.core_operations import ShiftAddSub
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 from b_asic.quantization import OverflowMode, QuantizationMode
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
@@ -18,7 +18,7 @@ from b_asic.special_operations import Input, Output
 # test_cases: list of (input0, input1) tuples
 TEST_PARAMS = [
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         True,
         0,
@@ -27,7 +27,7 @@ TEST_PARAMS = [
         [(16, 8), (32, 16), (-8, -4), (20, 10)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         True,
         1,
@@ -36,7 +36,7 @@ TEST_PARAMS = [
         [(16, 8), (32, 16), (-8, -4), (20, 10)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         True,
         2,
@@ -45,7 +45,7 @@ TEST_PARAMS = [
         [(32, 16), (64, 32), (-16, -8), (40, 20)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         4,
         True,
         1,
@@ -54,7 +54,7 @@ TEST_PARAMS = [
         [(16, 8), (32, 16), (-8, -4), (20, 10)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         False,
         0,
@@ -63,7 +63,7 @@ TEST_PARAMS = [
         [(20, 10), (127, 50), (100, 27), (50, 25)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         False,
         1,
@@ -72,7 +72,7 @@ TEST_PARAMS = [
         [(20, 10), (100, 8), (-10, -10), (127, 50), (100, 27), (50, 25)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         False,
         2,
@@ -81,7 +81,7 @@ TEST_PARAMS = [
         [(40, 20), (127, 100), (100, 80), (60, 50)],
     ),
     pytest.param(
-        VhdlDataType(wl=8, is_complex=True),
+        DataType(wl=8, is_complex=True),
         1,
         True,
         1,
@@ -90,7 +90,7 @@ TEST_PARAMS = [
         [(16, 8), (32, 16), (-8, -4), (20, 10), (16 + 8j, 8 + 4j), (32 - 16j, 16 - 8j)],
     ),
     pytest.param(
-        VhdlDataType(wl=8, is_complex=True),
+        DataType(wl=8, is_complex=True),
         2,
         False,
         2,
@@ -106,7 +106,7 @@ TEST_PARAMS = [
         ],
     ),
     pytest.param(
-        VhdlDataType(wl=(2, 6), is_complex=True),
+        DataType(wl=(2, 6), is_complex=True),
         1,
         True,
         1,
@@ -115,7 +115,7 @@ TEST_PARAMS = [
         [(16, 8), (32, 16), (-8, -4), (20, 10), (16 + 8j, 8 + 4j), (32 - 16j, 16 - 8j)],
     ),
     pytest.param(
-        VhdlDataType(wl=16),
+        DataType(wl=16),
         1,
         True,
         3,
@@ -124,7 +124,7 @@ TEST_PARAMS = [
         [(1000, 2000), (32767, 1000), (5000, 3000)],
     ),
     pytest.param(
-        VhdlDataType(
+        DataType(
             wl=(4, 4),
             quantization_mode=QuantizationMode.TRUNCATION,
             overflow_mode=OverflowMode.WRAPPING,
@@ -142,7 +142,7 @@ TEST_PARAMS = [
         ],
     ),
     pytest.param(
-        VhdlDataType(
+        DataType(
             wl=(4, 4),
             quantization_mode=QuantizationMode.TRUNCATION,
             overflow_mode=OverflowMode.WRAPPING,
@@ -161,7 +161,7 @@ TEST_PARAMS = [
     ),
     # Tests with shift_output
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         True,
         1,
@@ -170,7 +170,7 @@ TEST_PARAMS = [
         [(1, 77), (-34, 15), (-8, -4), (21, 12)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         4,
         True,
         2,

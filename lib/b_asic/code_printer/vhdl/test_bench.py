@@ -5,7 +5,7 @@ Module for VHDL code generation of test benches.
 from typing import TYPE_CHECKING, TextIO
 
 from b_asic.code_printer.vhdl import common
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import _VhdlDataType
 from b_asic.special_operations import Input, Output
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ def entity(f: TextIO, arch: "Architecture") -> None:
     common.entity_declaration(f, f"{arch.entity_name}_tb")
 
 
-def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
+def architecture(f: TextIO, arch: "Architecture", dt: _VhdlDataType) -> None:
     common.write(f, 0, f"architecture tb of {arch.entity_name}_tb is")
 
     arch.write_component_declaration(f, dt)
@@ -30,7 +30,9 @@ def architecture(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
     common.write(f, 0, "end architecture tb;", start="", end="\n\n")
 
 
-def _write_signal_generation(f: TextIO, arch: "Architecture", dt: VhdlDataType) -> None:
+def _write_signal_generation(
+    f: TextIO, arch: "Architecture", dt: _VhdlDataType
+) -> None:
     common.signal_declaration(f, "tb_clk", "std_logic", "'0'")
     common.signal_declaration(f, "tb_rst", "std_logic", "'0'")
     inputs = [pe for pe in arch.processing_elements if pe.operation_type == Input]

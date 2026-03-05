@@ -3,13 +3,13 @@ import ast
 import pytest
 
 from b_asic import QuantizationMode
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 from b_asic.simulation import Simulation
 from b_asic.tb_printer import CocotbPrinter
 
 
 def test_simple_loop(tmp_path, arch_simple_loop, sfg_simple_loop):
-    dt = VhdlDataType(
+    dt = DataType(
         wl=(3, 7),
         quantization_mode=QuantizationMode.TRUNCATION,
     )
@@ -100,7 +100,7 @@ def test_multiple_io(
     sfg_two_inputs_two_outputs_independent_with_cmul_scaled,
     arch_two_inputs_two_outputs_independent_with_cmul_scaled,
 ):
-    dt = VhdlDataType(
+    dt = DataType(
         wl=(1, 7),
         quantization_mode=QuantizationMode.TRUNCATION,
     )

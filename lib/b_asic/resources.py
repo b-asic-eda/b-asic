@@ -31,7 +31,7 @@ from pulp import (
 )
 
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 from b_asic.process import (
     MemoryProcess,
     MemoryVariable,
@@ -2157,7 +2157,7 @@ class ProcessCollection:
             memory._assignment = assignment
 
         # Create printer and generate code
-        dt = VhdlDataType(word_length)
+        dt = DataType(word_length)
         printer = VhdlPrinter(dt)
 
         printer_kwargs = {
@@ -2270,7 +2270,7 @@ class ProcessCollection:
         )
 
         # Create printer and generate code
-        dt = VhdlDataType(word_length)
+        dt = DataType(word_length)
         printer = VhdlPrinter(dt)
 
         code = printer.print_Memory(

@@ -8,7 +8,7 @@ from b_asic.architecture import Architecture, ProcessingElement
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
 from b_asic.core_operations import Addition
-from b_asic.data_type import VhdlDataType
+from b_asic.data_type import DataType
 from b_asic.quantization import OverflowMode, QuantizationMode
 from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
@@ -18,49 +18,49 @@ from b_asic.special_operations import Input, Output
 # test_cases: list of (input0, input1) tuples
 TEST_PARAMS = [
     pytest.param(
-        VhdlDataType(wl=4),
+        DataType(wl=4),
         1,
         0,
         [(3, 2), (7, 5), (-1, -2)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         0,
         [(10, 20), (127, 0), (100, 27)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         1,
         [(16, 8), (32, 16), (-8, -4), (20, 10)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         2,
         [(32, 16), (64, 32), (-16, -8), (40, 20)],
     ),
     pytest.param(
-        VhdlDataType(wl=8),
+        DataType(wl=8),
         1,
         3,
         [(64, 32), (128, 64), (-32, -16), (80, 40)],
     ),
     pytest.param(
-        VhdlDataType(wl=16),
+        DataType(wl=16),
         1,
         0,
         [(1000, 2000), (32767, 0)],
     ),
     pytest.param(
-        VhdlDataType(wl=16),
+        DataType(wl=16),
         1,
         2,
         [(1000, 2000), (32767, 1000), (5000, 3000)],
     ),
     pytest.param(
-        VhdlDataType(
+        DataType(
             wl=(4, 4),
             quantization_mode=QuantizationMode.TRUNCATION,
             overflow_mode=OverflowMode.WRAPPING,
@@ -75,7 +75,7 @@ TEST_PARAMS = [
         ],
     ),
     pytest.param(
-        VhdlDataType(
+        DataType(
             wl=(4, 4),
             quantization_mode=QuantizationMode.TRUNCATION,
             overflow_mode=OverflowMode.WRAPPING,

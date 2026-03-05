@@ -2,7 +2,6 @@
 B-ASIC Data Type Module.
 """
 
-from abc import ABC, abstractmethod
 from enum import Enum, auto
 from typing import Self
 
@@ -34,7 +33,7 @@ def _count_bits(wl: tuple[int, int], num_repr: NumRepresentation) -> int:
     return sum(wl) + (1 if num_repr == NumRepresentation.FLOATING_POINT else 0)
 
 
-class DataType(ABC):
+class DataType:
     """
     Data type specification.
 
@@ -96,80 +95,6 @@ class DataType(ABC):
         self.is_complex = is_complex
         self.quantization_mode = quantization_mode
         self.overflow_mode = overflow_mode
-
-    @property
-    @abstractmethod
-    def type_str(self) -> str:
-        """
-        Type used for computations.
-
-        Returns
-        -------
-        str
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def init_val(self) -> str:
-        """
-        Initial value for signals of this data type.
-
-        Returns
-        -------
-        str
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def dontcare_str(self) -> str:
-        """
-        Don't care value for signals of this data type.
-
-        Returns
-        -------
-        str
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def scalar_type_str(self) -> str:
-        """
-        Scalar type used for computations.
-
-        Same as :meth:`type_str` when using a real type. The inner type when using a complex type.
-
-        Returns
-        -------
-        str
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def input_type_str(self) -> str:
-        """
-        Type used for input.
-
-        Returns
-        -------
-        str
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def output_type_str(self) -> str:
-        """
-        Type used for output.
-
-        Returns
-        -------
-        str
-        """
-        ...
 
     @property
     def bits(self) -> int:
@@ -313,44 +238,18 @@ class DataType(ABC):
         return cls(**other.__dict__)
 
 
-class VhdlDataType(DataType):
+class _VhdlDataType(DataType):
     """
-    Data type specification for VHDL.
+    Internal VHDL-specific data type.
 
-    All arguments are keyword only.
-
-    The number of bits can be specified in two few different ways.
-
-    +-------------------------------------------+----------------------------------------------------+---------------------------------+
-    | *num_repr*                                | int                                                | (int, int)                      |
-    +===========================================+====================================================+=================================+
-    | :attr:`~NumRepresentation.FIXED_POINT`    | (1, *wl* -1), one integer bits, *wl* bits in total | (integer bits, fractional bits) |
-    +-------------------------------------------+----------------------------------------------------+---------------------------------+
-    | :attr:`~NumRepresentation.FLOATING_POINT` | N/A                                                | (exponent bits, mantissa bits)  |
-    +-------------------------------------------+----------------------------------------------------+---------------------------------+
-
-    If *input_wl* or *output_wl* are not provided, they are assumed to be the same as *wl*.
+    Created by :class:`~b_asic.code_printer.VhdlPrinter` from a :class:`DataType`.
+    Extends :class:`DataType` with VHDL string representations and index conventions.
 
     Parameters
     ----------
-    wl : int or (int, int)
-        Number of bits for data type used in computations.
-    input_wl : int or (int, int), optional
-        Number of bits for input data type.
-    output_wl : int or (int, int), optional
-        Number of bits for output data type.
-    num_repr : :class:`NumRepresentation`, default: :attr:`NumRepresentation.FIXED_POINT`
-        Type of number representation to use.
-    is_signed : bool, default: True
-        If number representation is signed.
-    is_complex : bool, default: False
-        If number representation is complex-valued.
     vhdl_2008 : bool, default: False
-        If True, use ``fixed_pkg`` for fixed-point values and ``float_pkg`` for floating-point values.
-    quantization_mode : :class:`QuantizationMode`, default: :attr:`QuantizationMode.TRUNCATION`
-        Type of quantization to use.
-    overflow_mode : :class:`OverflowMode`, default: :attr:`OverflowMode.WRAPPING`
-        Type of overflow to use.
+        If True, use ``fixed_pkg`` for fixed-point values and ``float_pkg`` for
+        floating-point values.
     """
 
     def __init__(

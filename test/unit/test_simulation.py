@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from b_asic.data_type import OverflowMode, VhdlDataType
+from b_asic.data_type import DataType, OverflowMode
 from b_asic.quantization import QuantizationMode
 from b_asic.signal_generator import Impulse
 from b_asic.simulation import Simulation
@@ -279,7 +279,7 @@ class TestFiniteWordLength:
         sim1 = Simulation(sfg, [lambda n: n / 16])
         sim1.run_for(10)
 
-        sim2 = Simulation(sfg, [lambda n: n / 16], VhdlDataType(wl=8))
+        sim2 = Simulation(sfg, [lambda n: n / 16], DataType(wl=8))
         sim2.run_for(10)
 
         unsigned_err = sim2.results["out0"] - sim1.results["out0"]
@@ -306,7 +306,7 @@ class TestFiniteWordLength:
         sim2 = Simulation(
             sfg,
             [lambda n: n / 16],
-            VhdlDataType(
+            DataType(
                 wl=8,
                 overflow_mode=OverflowMode.SATURATION,
             ),
@@ -333,7 +333,7 @@ class TestFiniteWordLength:
         sim4 = Simulation(
             sfg,
             [lambda n: n / 16],
-            VhdlDataType(
+            DataType(
                 wl=(2, 6),
                 overflow_mode=OverflowMode.SATURATION,
             ),
@@ -353,7 +353,7 @@ class TestFiniteWordLength:
         sim1 = Simulation(sfg_direct_form_iir_lp_filter, [[1.0] + [0.0] * 19])
         sim1.run()
 
-        dt = VhdlDataType(wl=(2, 4))
+        dt = DataType(wl=(2, 4))
         sim2 = Simulation(sfg_direct_form_iir_lp_filter, [[1.0] + [0.0] * 19], dt)
         sim2.run()
 
@@ -365,14 +365,14 @@ class TestFiniteWordLength:
     def test_iir_impulse_response_magnitude_truncation(
         self, sfg_direct_form_iir_lp_filter
     ):
-        dt = VhdlDataType(
+        dt = DataType(
             wl=(3, 7),
             quantization_mode=QuantizationMode.TRUNCATION,
         )
         sim1 = Simulation(sfg_direct_form_iir_lp_filter, [[1.0] + [0.0] * 19], dt)
         sim1.run()
 
-        dt = VhdlDataType(
+        dt = DataType(
             wl=(3, 7),
             quantization_mode=QuantizationMode.MAGNITUDE_TRUNCATION,
         )
