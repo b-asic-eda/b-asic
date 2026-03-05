@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from b_asic.data_type import DataType, NumRepresentation
+from b_asic.data_type import DataType
 
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture, Memory, ProcessingElement
@@ -87,27 +87,19 @@ class Printer(ABC):
 
     @property
     def int_bits(self) -> int:
-        if self._dt.num_repr == NumRepresentation.FIXED_POINT:
-            return self._dt.wl[0]
-        raise TypeError("Only fixed-point data types has integer bits")
+        return self._dt.int_bits
 
     @property
     def frac_bits(self) -> int:
-        if self._dt.num_repr == NumRepresentation.FIXED_POINT:
-            return self._dt.wl[1]
-        raise TypeError("Only fixed-point data types has fractional bits")
+        return self._dt.frac_bits
 
     @property
     def exp_bits(self) -> int:
-        if self._dt.num_repr == NumRepresentation.FLOATING_POINT:
-            return self._dt.wl[0]
-        raise TypeError("Only floating-point data types has exponent bits")
+        return self._dt.exp_bits
 
     @property
     def man_bits(self) -> int:
-        if self._dt.num_repr == NumRepresentation.FLOATING_POINT:
-            return self._dt.wl[1]
-        raise TypeError("Only floating-point data types has mantissa bits")
+        return self._dt.man_bits
 
     @property
     def bits(self) -> int:
