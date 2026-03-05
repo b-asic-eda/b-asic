@@ -18,6 +18,22 @@ class NumRepresentation(Enum):
     FLOATING_POINT = auto()
 
 
+def _format_wl(
+    wl: int | tuple[int, int], num_repr: NumRepresentation
+) -> tuple[int, int]:
+    if isinstance(wl, int):
+        if num_repr == NumRepresentation.FLOATING_POINT:
+            raise TypeError(
+                "Both exponent and mantissa word lengths must be provided for floating-point."
+            )
+        return (1, wl - 1)
+    return wl
+
+
+def _count_bits(wl: tuple[int, int], num_repr: NumRepresentation) -> int:
+    return sum(wl) + (1 if num_repr == NumRepresentation.FLOATING_POINT else 0)
+
+
 class DataType(ABC):
     """
     Data type specification.
@@ -69,28 +85,9 @@ class DataType(ABC):
         quantization_mode: QuantizationMode = QuantizationMode.TRUNCATION,
         overflow_mode: OverflowMode = OverflowMode.WRAPPING,
     ):
-        if isinstance(wl, int):
-            if num_repr == NumRepresentation.FLOATING_POINT:
-                raise TypeError(
-                    "Both exponent and mantissa word lengths must be provided for floating-point."
-                )
-            wl = (1, wl - 1)
-        if isinstance(input_wl, int):
-            if num_repr == NumRepresentation.FLOATING_POINT:
-                raise TypeError(
-                    "Both exponent and mantissa word lengths must be provided for floating-point."
-                )
-            input_wl = (1, input_wl - 1)
-        if isinstance(output_wl, int):
-            if num_repr == NumRepresentation.FLOATING_POINT:
-                raise TypeError(
-                    "Both exponent and mantissa word lengths must be provided for floating-point."
-                )
-            output_wl = (1, output_wl - 1)
-        if input_wl is None:
-            input_wl = wl
-        if output_wl is None:
-            output_wl = wl
+        wl = _format_wl(wl, num_repr)
+        input_wl = _format_wl(input_wl, num_repr) if input_wl is not None else wl
+        output_wl = _format_wl(output_wl, num_repr) if output_wl is not None else wl
         self.wl = wl
         self.input_wl = input_wl
         self.output_wl = output_wl
@@ -110,7 +107,7 @@ class DataType(ABC):
         -------
         str
         """
-        raise NotImplementedError
+        ...
 
     @property
     @abstractmethod
@@ -122,9 +119,10 @@ class DataType(ABC):
         -------
         str
         """
-        raise NotImplementedError
+        ...
 
     @property
+    @abstractmethod
     def dontcare_str(self) -> str:
         """
         Don't care value for signals of this data type.
@@ -133,7 +131,7 @@ class DataType(ABC):
         -------
         str
         """
-        raise NotImplementedError
+        ...
 
     @property
     @abstractmethod
@@ -147,9 +145,7 @@ class DataType(ABC):
         -------
         str
         """
-        if self.is_complex:
-            raise NotImplementedError
-        return self.type_str()
+        ...
 
     @property
     @abstractmethod
@@ -161,7 +157,7 @@ class DataType(ABC):
         -------
         str
         """
-        raise NotImplementedError
+        ...
 
     @property
     @abstractmethod
@@ -173,7 +169,7 @@ class DataType(ABC):
         -------
         str
         """
-        raise NotImplementedError
+        ...
 
     @property
     def bits(self) -> int:
@@ -184,7 +180,7 @@ class DataType(ABC):
         -------
         int
         """
-        return sum(self.wl)
+        return _count_bits(self.wl, self.num_repr)
 
     @property
     def high(self) -> int:
@@ -217,7 +213,7 @@ class DataType(ABC):
         -------
         int
         """
-        return sum(self.input_wl)
+        return _count_bits(self.input_wl, self.num_repr)
 
     @property
     def input_high(self) -> int:
@@ -239,7 +235,7 @@ class DataType(ABC):
         -------
         int
         """
-        return sum(self.output_wl)
+        return _count_bits(self.output_wl, self.num_repr)
 
     @property
     def output_high(self) -> int:
@@ -251,6 +247,58 @@ class DataType(ABC):
         int
         """
         return self.output_bits - 1
+
+    @property
+    def int_bits(self) -> int:
+        """
+        Number of integer bits. Only valid for fixed-point types.
+
+        Returns
+        -------
+        int
+        """
+        if self.num_repr != NumRepresentation.FIXED_POINT:
+            raise TypeError("Only fixed-point data types have integer bits")
+        return self.wl[0]
+
+    @property
+    def frac_bits(self) -> int:
+        """
+        Number of fractional bits. Only valid for fixed-point types.
+
+        Returns
+        -------
+        int
+        """
+        if self.num_repr != NumRepresentation.FIXED_POINT:
+            raise TypeError("Only fixed-point data types have fractional bits")
+        return self.wl[1]
+
+    @property
+    def exp_bits(self) -> int:
+        """
+        Number of exponent bits. Only valid for floating-point types.
+
+        Returns
+        -------
+        int
+        """
+        if self.num_repr != NumRepresentation.FLOATING_POINT:
+            raise TypeError("Only floating-point data types have exponent bits")
+        return self.wl[0]
+
+    @property
+    def man_bits(self) -> int:
+        """
+        Number of mantissa bits. Only valid for floating-point types.
+
+        Returns
+        -------
+        int
+        """
+        if self.num_repr != NumRepresentation.FLOATING_POINT:
+            raise TypeError("Only floating-point data types have mantissa bits")
+        return self.wl[1]
 
     @classmethod
     def from_DataType(cls, other: "DataType") -> Self:
@@ -330,32 +378,25 @@ class VhdlDataType(DataType):
         self.vhdl_2008 = vhdl_2008
 
     @property
+    def high(self) -> int:
+        # Doc-string inherited
+        if self.vhdl_2008 and not self.is_complex:
+            return self.wl[0] - 1
+        return super().high
+
+    @property
     def low(self) -> int:
         # Doc-string inherited
-        _LOW_LUT = {
-            (0, 0): 0,
-            (0, 1): 0,
-            (1, 0): -self.wl[1],
-            (1, 1): 0,
-        }
-        return _LOW_LUT[(self.vhdl_2008, self.is_complex)]
+        if self.vhdl_2008 and not self.is_complex:
+            return -self.wl[1]
+        return 0
 
     @property
     def type_str(self) -> str:
         # Doc-string inherited
-        _TYPE_LUT = {
-            # Pre VHDL-2008
-            (0, 0, 0): self._match_unsigned_real,
-            (0, 0, 1): self._match_unsigned_complex,
-            (0, 1, 0): self._match_signed_real,
-            (0, 1, 1): self._match_signed_complex,
-            # Post VHDL-2008
-            (1, 0, 0): self._match_unsigned_real_2008,
-            (1, 0, 1): self._match_unsigned_complex_2008,
-            (1, 1, 0): self._match_signed_real_2008,
-            (1, 1, 1): self._match_signed_complex_2008,
-        }
-        return _TYPE_LUT[(self.vhdl_2008, self.is_signed, self.is_complex)]()
+        if self.is_complex:
+            return "complex"
+        return self._real_type_str(self.is_signed, self.vhdl_2008)
 
     @property
     def init_val(self) -> str:
@@ -373,14 +414,9 @@ class VhdlDataType(DataType):
 
     @property
     def scalar_type_str(self) -> str:
-        if self.is_complex:
-            if self.vhdl_2008:
-                vhdl_type = "sfixed" if self.is_signed else "ufixed"
-            else:
-                vhdl_type = "signed" if self.is_signed else "unsigned"
-            return f"{vhdl_type}({self.high} downto {self.low})"
-        else:
-            return self.type_str()
+        if not self.is_complex:
+            return self.type_str
+        return self._real_type_str(self.is_signed, self.vhdl_2008)
 
     @property
     def input_type_str(self) -> str:
@@ -426,74 +462,18 @@ class VhdlDataType(DataType):
         else:
             return [f"p_0_out => {entity_name}_0_out"]
 
-    def _match_unsigned_real(self):
-        match self.num_repr:
-            case NumRepresentation.FIXED_POINT:
-                return f"unsigned({self.high} downto {self.low})"
-            case NumRepresentation.FLOATING_POINT:
-                raise NotImplementedError
-            case _:
-                raise ValueError
+    def _vhdl_type(self, name: str) -> str:
+        return f"{name}({self.high} downto {self.low})"
 
-    def _match_unsigned_complex(self):
+    def _real_type_str(self, is_signed: bool, use_2008: bool) -> str:
         match self.num_repr:
             case NumRepresentation.FIXED_POINT:
-                return "complex"
+                if use_2008:
+                    name = "sfixed" if is_signed else "ufixed"
+                else:
+                    name = "signed" if is_signed else "unsigned"
             case NumRepresentation.FLOATING_POINT:
-                raise NotImplementedError
+                name = "float" if use_2008 else "std_logic_vector"
             case _:
                 raise ValueError
-
-    def _match_signed_real(self):
-        match self.num_repr:
-            case NumRepresentation.FIXED_POINT:
-                return f"signed({self.high} downto {self.low})"
-            case NumRepresentation.FLOATING_POINT:
-                raise NotImplementedError
-            case _:
-                raise ValueError
-
-    def _match_signed_complex(self):
-        match self.num_repr:
-            case NumRepresentation.FIXED_POINT:
-                return "complex"
-            case NumRepresentation.FLOATING_POINT:
-                raise NotImplementedError
-            case _:
-                raise ValueError
-
-    def _match_unsigned_real_2008(self):
-        match self.num_repr:
-            case NumRepresentation.FIXED_POINT:
-                return f"ufixed({self.high} downto {self.low})"
-            case NumRepresentation.FLOATING_POINT:
-                raise NotImplementedError
-            case _:
-                raise ValueError
-
-    def _match_unsigned_complex_2008(self):
-        match self.num_repr:
-            case NumRepresentation.FIXED_POINT:
-                return "complex"
-            case NumRepresentation.FLOATING_POINT:
-                raise NotImplementedError
-            case _:
-                raise ValueError
-
-    def _match_signed_real_2008(self):
-        match self.num_repr:
-            case NumRepresentation.FIXED_POINT:
-                return f"sfixed({self.high} downto {self.low})"
-            case NumRepresentation.FLOATING_POINT:
-                raise NotImplementedError
-            case _:
-                raise ValueError
-
-    def _match_signed_complex_2008(self):
-        match self.num_repr:
-            case NumRepresentation.FIXED_POINT:
-                return "complex"
-            case NumRepresentation.FLOATING_POINT:
-                raise NotImplementedError
-            case _:
-                raise ValueError
+        return self._vhdl_type(name)
