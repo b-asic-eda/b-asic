@@ -106,6 +106,10 @@ class Printer(ABC):
         return self._dt.type_str
 
     @property
+    def _slv_type_str(self) -> str:
+        return self._dt.slv_type_str
+
+    @property
     def int_bits(self) -> int:
         return self._dt.int_bits
 
