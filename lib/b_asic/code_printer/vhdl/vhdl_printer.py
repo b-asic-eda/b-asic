@@ -169,19 +169,6 @@ class VhdlPrinter(Printer):
         processing_element.architecture(f, pe, self._dt, core_code)
         return f.getvalue()
 
-    def print_operation(self, pe: "ProcessingElement") -> tuple[str, str]:
-        # Generate code for the arithmetic operation
-        wls, arith_code = self.print_arith(pe)
-        # Generate code for quantization
-        wls, quant_code = self._print_quantization(wls, pe)
-        # Generate code for overflow handling
-        overflow_code = self._print_overflow(wls, pe)
-        # Merge all code sections
-        return tuple(
-            a + q + o
-            for a, q, o in zip(arith_code, quant_code, overflow_code, strict=True)
-        )
-
     def print_Input_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
         common.signal_declaration(declarations, "res_arith_0", self._dt.type_str)
@@ -860,10 +847,18 @@ class VhdlPrinter(Printer):
     def print_default(self) -> tuple[str, str]:
         return [self._dt.wl], ("", "")
 
-    def _print_quantization(
-        self, wls: WLS, pe: "ProcessingElement"
-    ) -> tuple[WLS, CODE]:
-        """Handle quantization based on quantization mode."""
+    def print_cast(
+        self, wl: tuple[int, int], port_number: int, pe: "ProcessingElement"
+    ) -> CODE:
+        """Generate quantization and overflow code for a single output signal."""
+        wl_out, quant_code = self._print_quantization_signal(wl, port_number, pe)
+        overflow_code = self._print_overflow_signal(wl_out, port_number, pe)
+        return tuple(q + o for q, o in zip(quant_code, overflow_code, strict=True))
+
+    def _print_quantization_signal(
+        self, wl: tuple[int, int], port_number: int, pe: "ProcessingElement"
+    ) -> tuple[tuple[int, int], CODE]:
+        """Handle quantization for a single output signal."""
         declarations, code = io.StringIO(), io.StringIO()
 
         # Check if this is an Output operation to use output_wl
@@ -873,92 +868,88 @@ class VhdlPrinter(Printer):
         target_wl = self._dt.output_wl if is_output else self._dt.wl
         parts = ("_re", "_im") if self.is_complex else ("",)
 
-        wls_out = []
-        for wl, port_number in zip(wls, range(len(wls)), strict=True):
-            bits_in = wl[0] + wl[1]
-            frac_diff = wl[1] - target_wl[1]
-            new_high = bits_in - 1
-            new_low = frac_diff
-            # If applicable, adjust new_high to account for addition growth
-            if (
-                self._dt.quantization_mode == QuantizationMode.MAGNITUDE_TRUNCATION
-                and frac_diff > 0
-            ):
-                new_high = new_high + 1
-            # Declare output signals
-            if self.is_complex:
-                common.signal_declaration(
-                    declarations,
-                    f"res_quant_{port_number}_re, res_quant_{port_number}_im",
-                    f"{self.scalar_type_name}({new_high - new_low} downto 0)",
-                )
-            else:
-                common.signal_declaration(
-                    declarations,
-                    f"res_quant_{port_number}",
-                    f"{self.type_name}({new_high - new_low} downto 0)",
-                )
+        bits_in = wl[0] + wl[1]
+        frac_diff = wl[1] - target_wl[1]
+        new_high = bits_in - 1
+        new_low = frac_diff
+        # If applicable, adjust new_high to account for addition growth
+        if (
+            self._dt.quantization_mode == QuantizationMode.MAGNITUDE_TRUNCATION
+            and frac_diff > 0
+        ):
+            new_high = new_high + 1
+        # Declare output signals
+        if self.is_complex:
+            common.signal_declaration(
+                declarations,
+                f"res_quant_{port_number}_re, res_quant_{port_number}_im",
+                f"{self.scalar_type_name}({new_high - new_low} downto 0)",
+            )
+        else:
+            common.signal_declaration(
+                declarations,
+                f"res_quant_{port_number}",
+                f"{self.type_name}({new_high - new_low} downto 0)",
+            )
 
-            # Mode-specific assignments
-            if frac_diff > 0:
-                if self._dt.quantization_mode == QuantizationMode.TRUNCATION:
-                    # Truncation: throw away excess LSBs
-                    for part in parts:
-                        common.write(
-                            code,
-                            1,
-                            f"res_quant_{port_number}{part} <= res_arith_{port_number}{part}({new_high} downto {new_low});",
-                        )
-                    wls_out.append((wl[0], wl[1] - frac_diff))
-                elif (
-                    self._dt.quantization_mode == QuantizationMode.MAGNITUDE_TRUNCATION
-                ):
-                    # Magnitude Truncation: round towards zero
-                    # Add sign bit to position $W + 1$
-                    type_name = (
-                        self.scalar_type_name if self.is_complex else self.type_name
-                    )
-                    for part in parts:
-                        common.signal_declaration(
-                            declarations,
-                            f"mag_trunc_tmp_{port_number}{part}",
-                            f"{type_name}({bits_in} downto 0)",
-                        )
-                        # Add sign bit at position new_low (LSB+1 position)
-                        # Create proper bit string: sign bit at position new_low, zeros below
-                        zeros_low = "0" * (new_low - 1)
-                        zeros_high = "0" * (bits_in - new_low + 1)
-                        sign_value = f'("{zeros_high}" & res_arith_{port_number}{part}({bits_in - 1}) & "{zeros_low}")'
-                        common.write(
-                            code,
-                            1,
-                            f"mag_trunc_tmp_{port_number}{part} <= resize(res_arith_{port_number}{part}, {bits_in + 1}) "
-                            f"+ {sign_value};",
-                        )
-                        # Truncate to target word length - use new_high + 1 because addition can grow by 1 bit
-                        common.write(
-                            code,
-                            1,
-                            f"res_quant_{port_number}{part} <= mag_trunc_tmp_{port_number}{part}({new_high} downto {new_low});",
-                        )
-                    wls_out.append((wl[0] + 1, wl[1] - frac_diff))
-                else:
-                    raise NotImplementedError(
-                        f"Quantization mode {self._dt.quantization_mode.name} not implemented for VHDL"
-                    )
-            else:
-                # No fractional bits to remove, just pass through
+        # Mode-specific assignments
+        if frac_diff > 0:
+            if self._dt.quantization_mode == QuantizationMode.TRUNCATION:
+                # Truncation: throw away excess LSBs
                 for part in parts:
                     common.write(
                         code,
                         1,
                         f"res_quant_{port_number}{part} <= res_arith_{port_number}{part}({new_high} downto {new_low});",
                     )
-                wls_out.append((wl[0], wl[1]))
-        return wls_out, (declarations.getvalue(), code.getvalue())
+                wl_out = (wl[0], wl[1] - frac_diff)
+            elif self._dt.quantization_mode == QuantizationMode.MAGNITUDE_TRUNCATION:
+                # Magnitude Truncation: round towards zero
+                # Add sign bit to position $W + 1$
+                type_name = self.scalar_type_name if self.is_complex else self.type_name
+                for part in parts:
+                    common.signal_declaration(
+                        declarations,
+                        f"mag_trunc_tmp_{port_number}{part}",
+                        f"{type_name}({bits_in} downto 0)",
+                    )
+                    # Add sign bit at position new_low (LSB+1 position)
+                    # Create proper bit string: sign bit at position new_low, zeros below
+                    zeros_low = "0" * (new_low - 1)
+                    zeros_high = "0" * (bits_in - new_low + 1)
+                    sign_value = f'("{zeros_high}" & res_arith_{port_number}{part}({bits_in - 1}) & "{zeros_low}")'
+                    common.write(
+                        code,
+                        1,
+                        f"mag_trunc_tmp_{port_number}{part} <= resize(res_arith_{port_number}{part}, {bits_in + 1}) "
+                        f"+ {sign_value};",
+                    )
+                    # Truncate to target word length - use new_high + 1 because addition can grow by 1 bit
+                    common.write(
+                        code,
+                        1,
+                        f"res_quant_{port_number}{part} <= mag_trunc_tmp_{port_number}{part}({new_high} downto {new_low});",
+                    )
+                wl_out = (wl[0] + 1, wl[1] - frac_diff)
+            else:
+                raise NotImplementedError(
+                    f"Quantization mode {self._dt.quantization_mode.name} not implemented for VHDL"
+                )
+        else:
+            # No fractional bits to remove, just pass through
+            for part in parts:
+                common.write(
+                    code,
+                    1,
+                    f"res_quant_{port_number}{part} <= res_arith_{port_number}{part}({new_high} downto {new_low});",
+                )
+            wl_out = (wl[0], wl[1])
+        return wl_out, (declarations.getvalue(), code.getvalue())
 
-    def _print_overflow(self, wls: WLS, pe: "ProcessingElement") -> CODE:
-        """Handle overflow based on overflow mode."""
+    def _print_overflow_signal(
+        self, wl: tuple[int, int], port_number: int, pe: "ProcessingElement"
+    ) -> CODE:
+        """Handle overflow for a single output signal."""
         declarations, code = io.StringIO(), io.StringIO()
 
         # Check if this is an Output operation to use output_wl
@@ -968,100 +959,91 @@ class VhdlPrinter(Printer):
         target_bits = sum(self._dt.output_wl) if is_output else self._dt.bits
         parts = ("_re", "_im") if self.is_complex else ("",)
 
-        for port_number in range(len(wls)):
-            # Declare output signals
-            if self.is_complex:
-                common.signal_declaration(
-                    declarations,
-                    f"res_overflow_{port_number}_re, res_overflow_{port_number}_im",
-                    f"{self.get_scalar_type(target_bits)}",
-                )
-                common.signal_declaration(
-                    declarations, f"res_overflow_{port_number}", self.type_str
-                )
-            else:
-                common.signal_declaration(
-                    declarations,
-                    f"res_overflow_{port_number}",
-                    f"{self.type_name}({target_bits - 1} downto 0)",
-                )
+        # Declare output signals
+        if self.is_complex:
+            common.signal_declaration(
+                declarations,
+                f"res_overflow_{port_number}_re, res_overflow_{port_number}_im",
+                f"{self.get_scalar_type(target_bits)}",
+            )
+            common.signal_declaration(
+                declarations, f"res_overflow_{port_number}", self.type_str
+            )
+        else:
+            common.signal_declaration(
+                declarations,
+                f"res_overflow_{port_number}",
+                f"{self.type_name}({target_bits - 1} downto 0)",
+            )
 
-            # Mode-specific assignments
-            if self._dt.overflow_mode == OverflowMode.WRAPPING:
-                # Wrapping: throw away excess MSBs
-                for part in parts:
+        # Mode-specific assignments
+        if self._dt.overflow_mode == OverflowMode.WRAPPING:
+            # Wrapping: throw away excess MSBs
+            for part in parts:
+                common.write(
+                    code,
+                    1,
+                    f"res_overflow_{port_number}{part} <= res_quant_{port_number}{part}({target_bits - 1} downto 0);",
+                )
+        elif self._dt.overflow_mode == OverflowMode.SATURATION:
+            # Saturation: check guard bits for overflow
+            quant_bits = wl[0] + wl[1]
+            guard_bits = quant_bits - target_bits
+
+            for part in parts:
+                if guard_bits > 0:
+                    # Check if guard bits match the sign bit of target value
+                    # If all is fine, throw away guard bits
+                    # Otherwise, set to max or min value based on sign
+                    sign_bit_pos = target_bits - 1
+                    guard_high = quant_bits - 1
+                    guard_low = target_bits
+
+                    if self._dt.is_signed:
+                        # For signed: overflow if guard bits != sign bit (MSB of target)
+                        max_val = 2 ** (target_bits - 1) - 1
+                        min_val = -(2 ** (target_bits - 1))
+                        common.write(
+                            code,
+                            1,
+                            f"res_overflow_{port_number}{part} <= "
+                            f"to_signed({max_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
+                            f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos})) and "
+                            f"res_quant_{port_number}{part}({guard_high}) = '0' else "
+                            f"to_signed({min_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
+                            f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos})) else "
+                            f"res_quant_{port_number}{part}({target_bits - 1} downto 0);",
+                        )
+                    else:
+                        # For unsigned: overflow if any guard bit is 1
+                        zeros = "0" * guard_bits
+                        max_val = 2**target_bits - 1
+                        common.write(
+                            code,
+                            1,
+                            f"res_overflow_{port_number}{part} <= "
+                            f"to_unsigned({max_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
+                            f'"{zeros}" else '
+                            f"res_quant_{port_number}{part}({target_bits - 1} downto 0);",
+                        )
+                else:
+                    # No guard bits, just pass through
                     common.write(
                         code,
                         1,
                         f"res_overflow_{port_number}{part} <= res_quant_{port_number}{part}({target_bits - 1} downto 0);",
                     )
-            elif self._dt.overflow_mode == OverflowMode.SATURATION:
-                # Saturation: check guard bits for overflow
-                wl = wls[port_number]
-                quant_bits = wl[0] + wl[1]
-                guard_bits = quant_bits - target_bits
-
-                for part in parts:
-                    if guard_bits > 0:
-                        # Check if guard bits match the sign bit of target value
-                        # If all is fine, throw away guard bits
-                        # Otherwise, set to max or min value based on sign
-                        sign_bit_pos = target_bits - 1
-                        guard_high = quant_bits - 1
-                        guard_low = target_bits
-
-                        if self._dt.is_signed:
-                            # For signed: overflow if guard bits != sign bit (MSB of target)
-                            max_val = 2 ** (target_bits - 1) - 1
-                            min_val = -(2 ** (target_bits - 1))
-                            common.write(
-                                code,
-                                1,
-                                f"res_overflow_{port_number}{part} <= "
-                                f"to_signed({max_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
-                                f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos})) and "
-                                f"res_quant_{port_number}{part}({guard_high}) = '0' else "
-                                f"to_signed({min_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
-                                f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos})) else "
-                                f"res_quant_{port_number}{part}({target_bits - 1} downto 0);",
-                            )
-                        else:
-                            # For unsigned: overflow if any guard bit is 1
-                            zeros = "0" * guard_bits
-                            max_val = 2**target_bits - 1
-                            common.write(
-                                code,
-                                1,
-                                f"res_overflow_{port_number}{part} <= "
-                                f"to_unsigned({max_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
-                                f'"{zeros}" else '
-                                f"res_quant_{port_number}{part}({target_bits - 1} downto 0);",
-                            )
-                    else:
-                        # No guard bits, just pass through
-                        common.write(
-                            code,
-                            1,
-                            f"res_overflow_{port_number}{part} <= res_quant_{port_number}{part}({target_bits - 1} downto 0);",
-                        )
-                if self.is_complex:
-                    # Combine real and imaginary parts into output signal with type complex
-                    common.write(
-                        code,
-                        1,
-                        f"res_overflow_{port_number} <= (re => res_overflow_{port_number}_re, im => res_overflow_{port_number}_im);",
-                    )
-            else:
-                raise NotImplementedError(
-                    f"Overflow mode {self._dt.overflow_mode.name} not implemented for VHDL"
-                )
-            if self.is_complex:
-                # Combine real and imaginary parts into output signal with type complex
-                common.write(
-                    code,
-                    1,
-                    f"res_overflow_{port_number} <= (re => res_overflow_{port_number}_re, im => res_overflow_{port_number}_im);",
-                )
+        else:
+            raise NotImplementedError(
+                f"Overflow mode {self._dt.overflow_mode.name} not implemented for VHDL"
+            )
+        if self.is_complex:
+            # Combine real and imaginary parts into output signal with type complex
+            common.write(
+                code,
+                1,
+                f"res_overflow_{port_number} <= (re => res_overflow_{port_number}_re, im => res_overflow_{port_number}_im);",
+            )
         return declarations.getvalue(), code.getvalue()
 
     def get_scalar_type(self, bits: int) -> str:
