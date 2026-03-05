@@ -3,7 +3,6 @@ B-ASIC Data Type Module.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Self
 
@@ -19,7 +18,6 @@ class NumRepresentation(Enum):
     FLOATING_POINT = auto()
 
 
-@dataclass
 class DataType(ABC):
     """
     Data type specification.
@@ -60,39 +58,47 @@ class DataType(ABC):
         Type of overflow to use.
     """
 
-    wl: tuple[int, int]
-    input_wl: tuple[int, int] | None = None
-    output_wl: tuple[int, int] | None = None
-    num_repr: NumRepresentation = NumRepresentation.FIXED_POINT
-    is_signed: bool = True
-    is_complex: bool = False
-    quantization_mode: QuantizationMode = QuantizationMode.TRUNCATION
-    overflow_mode: OverflowMode = OverflowMode.WRAPPING
-
-    def __post_init__(self):
-        if isinstance(self.wl, int):
-            if self.num_repr == NumRepresentation.FLOATING_POINT:
+    def __init__(
+        self,
+        wl: int | tuple[int, int],
+        input_wl: int | tuple[int, int] | None = None,
+        output_wl: int | tuple[int, int] | None = None,
+        num_repr: NumRepresentation = NumRepresentation.FIXED_POINT,
+        is_signed: bool = True,
+        is_complex: bool = False,
+        quantization_mode: QuantizationMode = QuantizationMode.TRUNCATION,
+        overflow_mode: OverflowMode = OverflowMode.WRAPPING,
+    ):
+        if isinstance(wl, int):
+            if num_repr == NumRepresentation.FLOATING_POINT:
                 raise TypeError(
                     "Both exponent and mantissa word lengths must be provided for floating-point."
                 )
-            self.wl = (1, self.wl - 1)
-        if isinstance(self.input_wl, int):
-            if self.num_repr == NumRepresentation.FLOATING_POINT:
+            wl = (1, wl - 1)
+        if isinstance(input_wl, int):
+            if num_repr == NumRepresentation.FLOATING_POINT:
                 raise TypeError(
                     "Both exponent and mantissa word lengths must be provided for floating-point."
                 )
-            self.input_wl = (1, self.input_wl - 1)
-        if isinstance(self.output_wl, int):
-            if self.num_repr == NumRepresentation.FLOATING_POINT:
+            input_wl = (1, input_wl - 1)
+        if isinstance(output_wl, int):
+            if num_repr == NumRepresentation.FLOATING_POINT:
                 raise TypeError(
                     "Both exponent and mantissa word lengths must be provided for floating-point."
                 )
-            self.output_wl = (1, self.output_wl - 1)
-
-        if self.input_wl is None:
-            self.input_wl = self.wl
-        if self.output_wl is None:
-            self.output_wl = self.wl
+            output_wl = (1, output_wl - 1)
+        if input_wl is None:
+            input_wl = wl
+        if output_wl is None:
+            output_wl = wl
+        self.wl = wl
+        self.input_wl = input_wl
+        self.output_wl = output_wl
+        self.num_repr = num_repr
+        self.is_signed = is_signed
+        self.is_complex = is_complex
+        self.quantization_mode = quantization_mode
+        self.overflow_mode = overflow_mode
 
     @property
     @abstractmethod
@@ -259,7 +265,6 @@ class DataType(ABC):
         return cls(**other.__dict__)
 
 
-@dataclass
 class VhdlDataType(DataType):
     """
     Data type specification for VHDL.
@@ -300,7 +305,29 @@ class VhdlDataType(DataType):
         Type of overflow to use.
     """
 
-    vhdl_2008: bool = False
+    def __init__(
+        self,
+        wl: int | tuple[int, int],
+        input_wl: int | tuple[int, int] | None = None,
+        output_wl: int | tuple[int, int] | None = None,
+        num_repr: NumRepresentation = NumRepresentation.FIXED_POINT,
+        is_signed: bool = True,
+        is_complex: bool = False,
+        quantization_mode: QuantizationMode = QuantizationMode.TRUNCATION,
+        overflow_mode: OverflowMode = OverflowMode.WRAPPING,
+        vhdl_2008: bool = False,
+    ):
+        super().__init__(
+            wl,
+            input_wl,
+            output_wl,
+            num_repr,
+            is_signed,
+            is_complex,
+            quantization_mode,
+            overflow_mode,
+        )
+        self.vhdl_2008 = vhdl_2008
 
     @property
     def low(self) -> int:
