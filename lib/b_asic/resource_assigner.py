@@ -25,14 +25,14 @@ from b_asic.operation import Operation
 from b_asic.port import OutputPort
 from b_asic.process import Process
 from b_asic.resources import ProcessCollection
+from b_asic.schedule import Schedule
 from b_asic.types import TypeName
 
 log = b_asic.logger.getLogger()
 
 
 def assign_processing_elements_and_memories(
-    operations: ProcessCollection,
-    memory_variables: ProcessCollection,
+    schedule: Schedule,
     *,
     strategy: Literal[
         "ilp_graph_color",
@@ -52,11 +52,8 @@ def assign_processing_elements_and_memories(
 
     Parameters
     ----------
-    operations : ProcessCollection
-        All operations from a schedule.
-
-    memory_variables : ProcessCollection
-        All memory variables from a schedule.
+    schedule : Schedule
+        The schedule to assign resources for.
 
     strategy : str, default: "ilp_graph_color"
         The strategy used when assigning resources.
@@ -118,6 +115,9 @@ def assign_processing_elements_and_memories(
 
     if strategy == "ilp_min_total_mux" and mux_targets is None:
         mux_targets = {"pe_to_mem", "mem_to_pe", "pe_to_pe"}
+
+    operations = schedule.get_operations()
+    memory_variables = schedule.get_memory_variables()
 
     operation_groups = operations.split_on_type_name()
     direct, mem_vars = memory_variables.split_on_length()
@@ -476,38 +476,53 @@ def _ilp_coloring_min_mux(
 
     # Connect assignment to PE→PE direct connections
     if "pe_to_pe" in mux_targets:
-        pe_ops = [op for graph in pe_exclusion_graphs for op in graph.nodes()]
-        log.debug("Constructing PE→PE direct constraints")
-        pe_to_pe_constraints = 0
-        for i in range(len(pe_exclusion_graphs)):
-            pe_nodes_1 = list(pe_exclusion_graphs[i].nodes())
-            for j in range(len(pe_exclusion_graphs)):
-                for pe_node_1 in pe_nodes_1:
-                    for l in pe_in_port_indices[j]:
-                        for k in pe_out_port_indices[i]:
-                            pe_nodes_2 = _get_pe_to_pe_connection(
-                                pe_node_1, direct, pe_ops, l, k
-                            )
-                            for pe_node_2 in pe_nodes_2:
-                                log.debug(
-                                    "  %s:out%d → %s:in%d",
-                                    pe_node_1.name,
-                                    k,
-                                    pe_node_2.name,
-                                    l,
-                                )
-                                for pe_color_1 in pe_colors[i]:
-                                    if pe_node_2 in pe_exclusion_graphs[j].nodes():
-                                        for pe_color_2 in pe_colors[j]:
-                                            problem += pe_to_pe_vars[i][pe_color_1][k][
-                                                j
-                                            ][pe_color_2][l] >= (
-                                                pe_x[i][pe_node_1][pe_color_1]
-                                                + pe_x[j][pe_node_2][pe_color_2]
-                                                - 1
-                                            )
-                                            pe_to_pe_constraints += 1
-        log.debug("Total PE→PE constraints: %d", pe_to_pe_constraints)
+        pass
+        # Get i, j, k, l, pe_node_1, pe_node_2 such that pe_node_1:outk → pe_node_2:inl is a direct connection between PE nodes
+        # Then do
+        # for pe_color_1 in pe_colors[i]:
+        # if pe_node_2 in pe_exclusion_graphs[j].nodes():
+        #     for pe_color_2 in pe_colors[j]:
+        #         problem += pe_to_pe_vars[i][pe_color_1][k][
+        #             j
+        #         ][pe_color_2][l] >= (
+        #             pe_x[i][pe_node_1][pe_color_1]
+        #             + pe_x[j][pe_node_2][pe_color_2]
+        #             - 1
+        #         )
+        #         pe_to_pe_constraints += 1
+
+        # pe_ops = [op for graph in pe_exclusion_graphs for op in graph.nodes()]
+        # log.debug("Constructing PE→PE direct constraints")
+        # pe_to_pe_constraints = 0
+        # for i in range(len(pe_exclusion_graphs)):
+        #     pe_nodes_1 = list(pe_exclusion_graphs[i].nodes())
+        #     for j in range(len(pe_exclusion_graphs)):
+        #         for pe_node_1 in pe_nodes_1:
+        #             for l in pe_in_port_indices[j]:
+        #                 for k in pe_out_port_indices[i]:
+        #                     # pe_nodes_2 = _get_pe_to_pe_connection(
+        #                     #     pe_node_1, direct, pe_ops, l, k
+        #                     # )
+        #                     for pe_node_2 in pe_nodes_2:
+        #                         log.debug(
+        #                             "  %s:out%d → %s:in%d",
+        #                             pe_node_1.name,
+        #                             k,
+        #                             pe_node_2.name,
+        #                             l,
+        #                         )
+        #                         for pe_color_1 in pe_colors[i]:
+        #                             if pe_node_2 in pe_exclusion_graphs[j].nodes():
+        #                                 for pe_color_2 in pe_colors[j]:
+        #                                     problem += pe_to_pe_vars[i][pe_color_1][k][
+        #                                         j
+        #                                     ][pe_color_2][l] >= (
+        #                                         pe_x[i][pe_node_1][pe_color_1]
+        #                                         + pe_x[j][pe_node_2][pe_color_2]
+        #                                         - 1
+        #                                     )
+        #                                     pe_to_pe_constraints += 1
+        # log.debug("Total PE→PE constraints: %d", pe_to_pe_constraints)
 
     # Speed
     if mem_exclusion_graph.number_of_nodes() > 0:
@@ -654,7 +669,9 @@ def _get_pe_to_pe_connection(
     pe_out_port_index: int,
 ) -> list[Process]:
     nodes = []
+    print("PE node:", pe_node.name)
     for direct_var in direct_variables:
+        print("Direct variable:", direct_var)
         parts = direct_var.name.split(".")
         var_name = parts[0]
         port_index = int(parts[1])

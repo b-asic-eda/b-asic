@@ -3,6 +3,7 @@ Module for generating VHDL code for described architectures.
 """
 
 import io
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -36,6 +37,7 @@ class VhdlPrinter(Printer):
         self._vhdl_2008 = vhdl_2008
         self._fp_ip_backend = ""
         self._generate_registers = True
+        self._register_split: tuple[int, int] | None = None
         super().__init__(dt=dt)
 
     def set_data_type(self, dt: DataType) -> None:
@@ -183,11 +185,18 @@ class VhdlPrinter(Printer):
             fp_ip = fp_ip.get(pe.entity_name, "")
         self._fp_ip_backend = str(fp_ip).lower()
 
-        # Check if registers should be generated for this PE
-        generate_registers = kwargs.get("generate_registers", True)
-        if isinstance(generate_registers, set):
-            generate_registers = pe.entity_name in generate_registers
-        self._generate_registers = generate_registers
+        # Check if a per-PE register split is specified via pe_registers
+        pe_registers: dict[str, tuple[int, int]] = kwargs.get("pe_registers", {})
+        self._register_split = self._resolve_pe_registers(pe, pe_registers)
+
+        # Check if registers should be generated for this PE (legacy flag)
+        if self._register_split is None:
+            generate_registers = kwargs.get("generate_registers", True)
+            if isinstance(generate_registers, set):
+                generate_registers = pe.entity_name in generate_registers
+            self._generate_registers = generate_registers
+        else:
+            self._generate_registers = True  # not used when register_split is set
 
         # Generate and return VHDL code for the PE
         f = io.StringIO()
@@ -198,12 +207,86 @@ class VhdlPrinter(Printer):
         processing_element.entity(f, pe, self._dt)
         core_code = self.print_operation(pe)
         processing_element.architecture(
-            f, pe, self._dt, core_code, generate_registers=self._generate_registers
+            f,
+            pe,
+            self._dt,
+            core_code,
+            generate_registers=self._generate_registers,
+            register_split=self._register_split,
         )
         return f.getvalue()
 
     def print_default(self) -> tuple[str, str]:
         return [self._dt.wl], ("", "")
+
+    def _resolve_pe_registers(
+        self,
+        pe: "ProcessingElement",
+        pe_registers: dict[str, tuple[int, int]],
+    ) -> "tuple[int, int] | None":
+        """
+        Resolve an explicit register split for *pe* from *pe_registers*.
+
+        Keys are matched first by entity name (e.g. ``"mul0"``), then by
+        operation type name (e.g. ``"addsub"``).  Entity-name keys take
+        precedence.  Returns *None* when no match is found, meaning the
+        legacy ``generate_registers`` flag should be used instead.
+
+        Raises :exc:`ValueError` when the requested total number of registers
+        exceeds the operation latency.  Issues a :class:`UserWarning` when it
+        is less.
+        """
+        if not pe_registers:
+            return None
+
+        # Entity-name match takes priority over type-name match
+        split: tuple[int, int] | None = None
+        matched_key: str | None = None
+
+        if pe.entity_name in pe_registers:
+            split = pe_registers[pe.entity_name]
+            matched_key = pe.entity_name
+        else:
+            for key, val in pe_registers.items():
+                if key == pe._type_name:
+                    split = val
+                    matched_key = key
+                    break
+
+        if split is None:
+            return None
+
+        n_in, n_out = split
+        if (
+            not isinstance(n_in, int)
+            or not isinstance(n_out, int)
+            or n_in < 0
+            or n_out < 0
+        ):
+            raise ValueError(
+                f"pe_registers[{matched_key!r}] must be a tuple of two non-negative "
+                f"integers (n_in, n_out), got {split!r}"
+            )
+
+        latency = pe._latency
+        total = n_in + n_out
+        if total > latency:
+            raise ValueError(
+                f"pe_registers[{matched_key!r}] requests {total} register(s) "
+                f"({n_in} input + {n_out} output) but the operation latency of "
+                f"{pe.entity_name!r} is only {latency}."
+            )
+        if total < latency:
+            warnings.warn(
+                f"pe_registers[{matched_key!r}] requests {total} register(s) "
+                f"({n_in} input + {n_out} output) which is less than the operation "
+                f"latency of {pe.entity_name!r} ({latency}). "
+                f"{latency - total} latency cycle(s) will be unregistered.",
+                UserWarning,
+                stacklevel=4,
+            )
+
+        return n_in, n_out
 
     # ------------------------------
     # Fixed-point operation printers

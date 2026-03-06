@@ -45,38 +45,49 @@ def architecture(
     dt: _VhdlDataType,
     core_code: tuple[str, str],
     generate_registers: bool = True,
+    register_split: tuple[int, int] | None = None,
 ) -> None:
     common.write(f, 0, f"architecture rtl of {pe.entity_name} is")
-    latency = pe._latency if generate_registers else 0
-    _declarative_region_common(f, pe, dt, latency)
+    if register_split is not None:
+        n_in, n_out = register_split
+    elif generate_registers and pe._latency > 0:
+        n_in, n_out = pe._latency - 1, 1
+    else:
+        n_in, n_out = 0, 0
+    _declarative_region_common(f, pe, dt, n_in, n_out)
     common.write(f, 0, core_code[0])
     common.write(f, 0, "begin")
-    _statement_region_common(f, pe, dt, latency)
+    _statement_region_common(f, pe, dt, n_in, n_out)
     common.write(f, 0, core_code[1])
     common.write(f, 0, "end architecture rtl;")
 
 
 def _declarative_region_common(
-    f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType, latency: int
+    f: TextIO,
+    pe: "ProcessingElement",
+    dt: _VhdlDataType,
+    n_in: int,
+    n_out: int,
 ) -> None:
-    # Define pipeline stages
-    for stage in range(latency):
-        if stage == 0:
-            for output_port in range(pe.output_count):
-                common.signal_declaration(
-                    f,
-                    f"res_overflow_{output_port}_reg_{stage}",
-                    dt.type_str,
-                    dt.init_val,
-                )
-        else:
-            for input_port in range(pe.input_count):
-                common.signal_declaration(
-                    f,
-                    f"p_{input_port}_in_reg_{stage - 1}",
-                    dt.type_str,
-                    dt.init_val,
-                )
+    # Define output pipeline registers
+    for k in range(n_out):
+        for output_port in range(pe.output_count):
+            common.signal_declaration(
+                f,
+                f"res_overflow_{output_port}_reg_{k}",
+                dt.type_str,
+                dt.init_val,
+            )
+
+    # Define input pipeline registers
+    for k in range(n_in):
+        for input_port in range(pe.input_count):
+            common.signal_declaration(
+                f,
+                f"p_{input_port}_in_reg_{k}",
+                dt.type_str,
+                dt.init_val,
+            )
 
     # Define inputs to arithmetic blocks (can be pipelined)
     for input_port in range(pe.input_count):
@@ -100,39 +111,53 @@ def _declarative_region_common(
 
 
 def _statement_region_common(
-    f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType, latency: int
+    f: TextIO,
+    pe: "ProcessingElement",
+    dt: _VhdlDataType,
+    n_in: int,
+    n_out: int,
 ) -> None:
-    # Generate pipeline stages
-    if latency > 0:
+    # Generate pipeline registers
+    if n_in > 0 or n_out > 0:
         common.synchronous_process_prologue(f)
         common.write(f, 3, "if en = '1' then")
 
-        for stage in range(latency):
-            if stage == 0:
+        # Output registers: res_overflow_*_reg_0 <= res_overflow_*; then shift chain
+        if n_out > 0:
+            for count in range(pe.output_count):
+                common.write(
+                    f, 4, f"res_overflow_{count}_reg_0 <= res_overflow_{count};"
+                )
+            for k in range(1, n_out):
                 for count in range(pe.output_count):
                     common.write(
-                        f, 4, f"res_overflow_{count}_reg_0 <= res_overflow_{count};"
+                        f,
+                        4,
+                        f"res_overflow_{count}_reg_{k} <= res_overflow_{count}_reg_{k - 1};",
                     )
-            elif stage == 1:
-                for count in range(pe.input_count):
-                    common.write(f, 4, f"p_{count}_in_reg_{stage - 1} <= p_{count}_in;")
-            elif stage >= 2:
+
+        # Input registers: p_*_in_reg_0 <= p_*_in; then shift chain
+        if n_in > 0:
+            for count in range(pe.input_count):
+                common.write(f, 4, f"p_{count}_in_reg_0 <= p_{count}_in;")
+            for k in range(1, n_in):
                 for count in range(pe.input_count):
                     common.write(
                         f,
                         4,
-                        f"p_{count}_in_reg_{stage - 1} <= p_{count}_in_reg_{stage - 2};",
+                        f"p_{count}_in_reg_{k} <= p_{count}_in_reg_{k - 1};",
                     )
 
         common.write(f, 3, "end if;")
         common.synchronous_process_epilogue(f)
 
+    # Connect (possibly pipelined) inputs to arithmetic core
     for input_port in range(pe.input_count):
-        if latency > 1:
+        if n_in > 0:
             common.write(
                 f,
                 1,
-                f"op_{input_port} <= p_{input_port}_in_reg_{latency - 2};",
+                f"op_{input_port} <= p_{input_port}_in_reg_{n_in - 1};",
             )
         else:
             common.write(f, 1, f"op_{input_port} <= p_{input_port}_in;")
@@ -160,8 +185,8 @@ def _statement_region_common(
                 val_str = f'b"{bin_str(int_val, entry.bits)}"'
             else:
                 raise NotImplementedError
-            offset = latency - 1 if latency >= 2 else 0
-            avail_time = (time + offset) % pe.schedule_time if latency > 0 else time
+            # Control is applied n_in cycles early (data delayed by input registers)
+            avail_time = (time + n_in) % pe.schedule_time if n_in > 0 else time
             common.write(
                 f, 3, f'{val_str} when "{time_bin_str(avail_time, pe.schedule_time)}",'
             )
@@ -170,10 +195,12 @@ def _statement_region_common(
         else:
             common.write(f, 3, "(others => '-') when others;", end="\n\n")
 
-    # Connect results to outputs
-    if latency == 0:
+    # Connect arithmetic output through output register chain (or directly)
+    if n_out > 0:
         for count in range(pe.output_count):
-            common.write(f, 1, f"p_{count}_out <= res_overflow_{count};")
+            common.write(
+                f, 1, f"p_{count}_out <= res_overflow_{count}_reg_{n_out - 1};"
+            )
     else:
         for count in range(pe.output_count):
-            common.write(f, 1, f"p_{count}_out <= res_overflow_{count}_reg_0;")
+            common.write(f, 1, f"p_{count}_out <= res_overflow_{count};")
