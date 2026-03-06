@@ -3,6 +3,7 @@ Module for generating VHDL code for described architectures.
 """
 
 import io
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -34,8 +35,8 @@ class VhdlPrinter(Printer):
         vhdl_2008: bool = False,
     ) -> None:
         self._vhdl_2008 = vhdl_2008
-        self._fp_ip_backend = ""
-        self._generate_registers = True
+        self._fp_backend = ""
+        self._register_split: tuple[int, int] | None = None
         super().__init__(dt=dt)
 
     def set_data_type(self, dt: DataType) -> None:
@@ -178,16 +179,14 @@ class VhdlPrinter(Printer):
 
     def print_ProcessingElement(self, pe: "ProcessingElement", **kwargs) -> str | None:
         # Check if a custom floating-point IP backend is specified for this PE
-        fp_ip = kwargs.get("fp_ip", "")
-        if isinstance(fp_ip, dict):
-            fp_ip = fp_ip.get(pe.entity_name, "")
-        self._fp_ip_backend = str(fp_ip).lower()
+        fp_backend = kwargs.get("fp_backend", "")
+        if isinstance(fp_backend, dict):
+            fp_backend = fp_backend.get(pe.entity_name, "")
+        self._fp_backend = str(fp_backend).lower()
 
-        # Check if registers should be generated for this PE
-        generate_registers = kwargs.get("generate_registers", True)
-        if isinstance(generate_registers, set):
-            generate_registers = pe.entity_name in generate_registers
-        self._generate_registers = generate_registers
+        # Check if a per-PE register split is specified via pe_registers
+        pe_registers: dict[str, tuple[int, int]] = kwargs.get("pe_registers", {})
+        self._register_split = self._resolve_pe_registers(pe, pe_registers)
 
         # Generate and return VHDL code for the PE
         f = io.StringIO()
@@ -198,12 +197,69 @@ class VhdlPrinter(Printer):
         processing_element.entity(f, pe, self._dt)
         core_code = self.print_operation(pe)
         processing_element.architecture(
-            f, pe, self._dt, core_code, generate_registers=self._generate_registers
+            f,
+            pe,
+            self._dt,
+            core_code,
+            register_split=self._register_split,
         )
         return f.getvalue()
 
     def print_default(self) -> tuple[str, str]:
         return [self._dt.wl], ("", "")
+
+    def _resolve_pe_registers(
+        self,
+        pe: "ProcessingElement",
+        pe_registers: dict[str, tuple[int, int]],
+    ) -> "tuple[int, int]":
+        # Extract register split for this PE, entity-name takes prio over type-name
+        split: tuple[int, int] | None = None
+        matched_key: str | None = None
+        if pe.entity_name in pe_registers:
+            split = pe_registers[pe.entity_name]
+            matched_key = pe.entity_name
+        else:
+            for key, val in pe_registers.items():
+                if key == pe._type_name:
+                    split = val
+                    matched_key = key
+                    break
+
+        if split is None:
+            # Default to latency-based register insertion
+            latency = pe._latency
+            return (latency - 1, 1) if latency > 0 else (0, 0)
+
+        n_in, n_out = split
+        # Sanity check the provided split values
+        if (
+            not isinstance(n_in, int)
+            or not isinstance(n_out, int)
+            or n_in < 0
+            or n_out < 0
+        ):
+            raise ValueError(
+                f"pe_registers[{matched_key!r}] must be a tuple of two non-negative "
+                f"integers (n_in, n_out), got {split!r}"
+            )
+        latency = pe._latency
+        total = n_in + n_out
+        if total > latency:
+            raise ValueError(
+                f"pe_registers[{matched_key!r}] requests {total} register(s) "
+                f"({n_in} input + {n_out} output) but the operation latency of "
+                f"{pe.entity_name!r} is only {latency}."
+            )
+        if total < latency:
+            warnings.warn(
+                f"pe_registers[{matched_key!r}] requests {total} register(s) "
+                f"({n_in} input + {n_out} output) which is less than the operation "
+                f"latency of {pe.entity_name!r} ({latency}). ",
+                UserWarning,
+                stacklevel=4,
+            )
+        return n_in, n_out
 
     # ------------------------------
     # Fixed-point operation printers
@@ -215,21 +271,6 @@ class VhdlPrinter(Printer):
         common.write(
             code, 1, f"res_arith_0 <= resize({self.type_name}(p_0_in), {self.bits});"
         )
-        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
-
-    def print_Input_floating_point_real(
-        self, pe: "ProcessingElement"
-    ) -> tuple[WLS, CODE]:
-        declarations, code = io.StringIO(), io.StringIO()
-        common.signal_declaration(declarations, "res_arith_0", self._dt.type_str)
-        if self._vhdl_2008:
-            common.write(
-                code,
-                1,
-                "res_arith_0 <= to_float(p_0_in, res_arith_0'high, -res_arith_0'low);",
-            )
-        else:
-            common.write(code, 1, "res_arith_0 <= p_0_in;")
         return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
     def print_Input_fixed_point_complex(
@@ -256,18 +297,6 @@ class VhdlPrinter(Printer):
         common.write(code, 1, "p_0_out <= std_logic_vector(res_overflow_0);")
         wls = [(self._dt.wl[0], self._dt.wl[1])]
         return wls, (declarations.getvalue(), code.getvalue())
-
-    def print_Output_floating_point_real(
-        self, pe: "ProcessingElement"
-    ) -> tuple[WLS, CODE]:
-        declarations, code = io.StringIO(), io.StringIO()
-        common.signal_declaration(declarations, "res_arith_0", self._dt.type_str)
-        common.write(code, 1, "res_arith_0 <= op_0;")
-        if self._vhdl_2008:
-            common.write(code, 1, "p_0_out <= to_slv(res_overflow_0);")
-        else:
-            common.write(code, 1, "p_0_out <= res_overflow_0;")
-        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
     def print_Output_fixed_point_complex(
         self, pe: "ProcessingElement"
@@ -914,20 +943,46 @@ class VhdlPrinter(Printer):
     # ------------------------------------------------------------------
     # Floating-point operations
     # ------------------------------------------------------------------
+    def print_Input_floating_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        declarations, code = io.StringIO(), io.StringIO()
+        common.signal_declaration(declarations, "res_arith_0", self._dt.type_str)
+        if self._vhdl_2008:
+            common.write(
+                code,
+                1,
+                "res_arith_0 <= to_float(p_0_in, res_arith_0'high, -res_arith_0'low);",
+            )
+        else:
+            common.write(code, 1, "res_arith_0 <= p_0_in;")
+        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
+
+    def print_Output_floating_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        declarations, code = io.StringIO(), io.StringIO()
+        common.signal_declaration(declarations, "res_arith_0", self._dt.type_str)
+        common.write(code, 1, "res_arith_0 <= op_0;")
+        if self._vhdl_2008:
+            common.write(code, 1, "p_0_out <= to_slv(res_overflow_0);")
+        else:
+            common.write(code, 1, "p_0_out <= res_overflow_0;")
+        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
     def print_Addition_floating_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[WLS, CODE]:
-        if self._fp_ip_backend != "amd":
+        if self._fp_backend != "amd":
             return self.print_default()
-        return self._amd_fp_ip("u_fp_add")
+        return self._amd_fp_backend("u_fp_add")
 
     def print_AddSub_floating_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[WLS, CODE]:
-        if self._fp_ip_backend != "amd":
+        if self._fp_backend != "amd":
             return self.print_default()
-        return self._amd_fp_ip(
+        return self._amd_fp_backend(
             "u_fp_addsub",
             component_name="fp_addsub",
             operation_signal='"0000000" & not is_add',
@@ -936,16 +991,18 @@ class VhdlPrinter(Printer):
     def print_Multiplication_floating_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[WLS, CODE]:
-        if self._fp_ip_backend != "amd":
+        if self._fp_backend != "amd":
             return self.print_default()
-        return self._amd_fp_ip("u_fp_mul", component_name="fp_mul")
+        return self._amd_fp_backend("u_fp_mul", component_name="fp_mul")
 
     def print_Reciprocal_floating_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[WLS, CODE]:
-        if self._fp_ip_backend != "amd":
+        if self._fp_backend != "amd":
             return self.print_default()
-        return self._amd_fp_ip("u_fp_rec", component_name="fp_rec", two_inputs=False)
+        return self._amd_fp_backend(
+            "u_fp_rec", component_name="fp_rec", two_inputs=False
+        )
 
     def print_Negation_floating_point_real(
         self, pe: "ProcessingElement"
@@ -959,7 +1016,7 @@ class VhdlPrinter(Printer):
         )
         return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
-    def _amd_fp_ip(
+    def _amd_fp_backend(
         self,
         label: str,
         *,
