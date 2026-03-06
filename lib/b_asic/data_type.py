@@ -318,6 +318,10 @@ class _VhdlDataType(DataType):
         return self._real_type_str(self.is_signed, self.vhdl_2008)
 
     @property
+    def slv_type_str(self) -> str:
+        return f"std_logic_vector({self.bits - 1} downto 0)"
+
+    @property
     def input_type_str(self) -> str:
         return f"std_logic_vector({self.input_bits - 1} downto 0)"
 

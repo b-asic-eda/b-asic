@@ -508,8 +508,7 @@ def test_joint_resource_assignment():
     )
 
     pes, mems, direct = assign_processing_elements_and_memories(
-        schedule.get_operations(),
-        schedule.get_memory_variables(),
+        schedule,
         resources=resources,
         max_memories=3,
         memory_read_ports=1,
@@ -530,8 +529,7 @@ def test_joint_resource_assignment():
     )
 
     pes, mems, direct = assign_processing_elements_and_memories(
-        schedule.get_operations(),
-        schedule.get_memory_variables(),
+        schedule,
         resources=resources,
         max_memories=4,
         memory_read_ports=1,
@@ -561,8 +559,7 @@ def test_joint_resource_assignment_mux_reduction():
     )
 
     pes, mems, direct = assign_processing_elements_and_memories(
-        schedule.get_operations(),
-        schedule.get_memory_variables(),
+        schedule,
         strategy="ilp_min_total_mux",
         resources=resources,
         max_memories=3,
@@ -661,8 +658,7 @@ def test_joint_ilp_color_no_max_colors_or_resources_provided():
     )
 
     pes, mems, direct = assign_processing_elements_and_memories(
-        schedule.get_operations(),
-        schedule.get_memory_variables(),
+        schedule,
         strategy="ilp_min_total_mux",
         memory_read_ports=1,
         memory_write_ports=1,
@@ -713,8 +709,7 @@ def test_ilp_resource_algorithm_single_port_memory(mem_variables_fft16):
     )
 
     pes, mems, direct = assign_processing_elements_and_memories(
-        schedule.get_operations(),
-        schedule.get_memory_variables(),
+        schedule,
         strategy="ilp_graph_color",
         memory_read_ports=1,
         memory_write_ports=1,

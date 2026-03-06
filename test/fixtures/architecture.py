@@ -438,8 +438,7 @@ def arch_simple_loop(sfg_simple_loop):
     sched.move_operation("out0", 1)
 
     pes, mems, direct = assign_processing_elements_and_memories(
-        sched.get_operations(),
-        sched.get_memory_variables(),
+        sched,
         strategy="ilp_min_total_mux",
         memory_read_ports=1,
         memory_write_ports=1,
