@@ -267,10 +267,12 @@ class Scheduler(ABC):
 
     def _handle_utility_operations(self) -> None:
         for dc_op in self._schedule._sfg.find_by_type(DontCare):
+            log.debug("Scheduling DontCare operation %s ALAP", dc_op.graph_id)
             self._schedule.start_times[dc_op.graph_id] = 0
             self._schedule.move_operation_alap(dc_op.graph_id)
 
         for sink_op in self._schedule._sfg.find_by_type(Sink):
+            log.debug("Scheduling Sink operation %s ASAP", sink_op.graph_id)
             self._schedule.start_times[sink_op.graph_id] = self._schedule._schedule_time
             self._schedule.move_operation_asap(sink_op.graph_id)
 

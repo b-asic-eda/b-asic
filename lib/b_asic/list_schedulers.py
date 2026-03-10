@@ -18,6 +18,7 @@ class EarliestDeadlineScheduler(ListScheduler):
         max_concurrent_writes: int | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
+        sort_y_location: bool = True,
     ) -> None:
         super().__init__(
             sort_order=((1, True),),
@@ -26,6 +27,7 @@ class EarliestDeadlineScheduler(ListScheduler):
             max_concurrent_writes=max_concurrent_writes,
             input_times=input_times,
             output_delta_times=output_delta_times,
+            sort_y_location=sort_y_location,
         )
 
 
@@ -39,6 +41,7 @@ class LeastSlackTimeScheduler(ListScheduler):
         max_concurrent_writes: int | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
+        sort_y_location: bool = True,
     ) -> None:
         super().__init__(
             sort_order=((2, True),),
@@ -47,6 +50,7 @@ class LeastSlackTimeScheduler(ListScheduler):
             max_concurrent_writes=max_concurrent_writes,
             input_times=input_times,
             output_delta_times=output_delta_times,
+            sort_y_location=sort_y_location,
         )
 
 
@@ -60,6 +64,7 @@ class MaxFanOutScheduler(ListScheduler):
         max_concurrent_writes: int | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
+        sort_y_location: bool = True,
     ) -> None:
         super().__init__(
             sort_order=((3, False),),
@@ -68,6 +73,7 @@ class MaxFanOutScheduler(ListScheduler):
             max_concurrent_writes=max_concurrent_writes,
             input_times=input_times,
             output_delta_times=output_delta_times,
+            sort_y_location=sort_y_location,
         )
 
 
@@ -81,6 +87,7 @@ class HybridScheduler(ListScheduler):
         max_concurrent_writes: int | None = None,
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
+        sort_y_location: bool = True,
     ) -> None:
         super().__init__(
             sort_order=((2, True), (3, False)),
@@ -89,4 +96,5 @@ class HybridScheduler(ListScheduler):
             max_concurrent_writes=max_concurrent_writes,
             input_times=input_times,
             output_delta_times=output_delta_times,
+            sort_y_location=sort_y_location,
         )
