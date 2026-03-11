@@ -1124,9 +1124,12 @@ class VhdlPrinter(Printer):
         common.signal_declaration(declarations, "res_arith_0", self._slv_type_str)
         common.signal_declaration(declarations, "fp_result_tvalid", "std_logic")
         common.signal_declaration(declarations, "fp_fma_c_in", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_fma_a_in", self._slv_type_str)
         common.signal_declaration(
             declarations, "fp_fma_operation", "std_logic_vector(7 downto 0)"
         )
+
+        bits = self._dt.bits
 
         # FMA
         common.write(
@@ -1134,15 +1137,16 @@ class VhdlPrinter(Printer):
             1,
             f"fp_fma_c_in <= (others => '0') when do_addsub = '0' else {slv('op_0')};",
         )
+        common.write(code, 1, 'fp_fma_operation <= "00000000";')
         common.write(
             code,
             1,
-            "fp_fma_operation <= \"000000\" & (do_addsub and not is_add) & '0';",
+            f"fp_fma_a_in <= (op_1({bits - 1}) xor (not is_add)) & op_1({bits - 2} downto 0);",
         )
         common.write(code, 1, "u_fp_fma : fp_fma")
         common.write(code, 2, "port map (")
         common.write(code, 3, "aclk => clk,")
-        common.write(code, 3, f"s_axis_a_tdata => {slv('op_1')},")
+        common.write(code, 3, "s_axis_a_tdata => fp_fma_a_in,")
         common.write(code, 3, "s_axis_a_tvalid => en,")
         common.write(code, 3, f"s_axis_b_tdata => {slv('op_2')},")
         common.write(code, 3, "s_axis_b_tvalid => en,")

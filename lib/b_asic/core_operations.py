@@ -10,6 +10,7 @@ import apytypes as apy
 from numpy import abs as np_abs
 from numpy import conjugate, sqrt
 
+from b_asic.data_type import NumRepresentation
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
@@ -181,7 +182,10 @@ class Negation(AbstractOperation):
 
     def evaluate(self, a, data_type=None) -> Num:
         if data_type is not None:
-            return apy.fx(-a, data_type.wl[0], data_type.wl[1])
+            if data_type.num_repr == NumRepresentation.FLOATING_POINT:
+                return apy.fp(-a, data_type.wl[0], data_type.wl[1])
+            elif data_type.num_repr == NumRepresentation.FIXED_POINT:
+                return apy.fx(-a, data_type.wl[0], data_type.wl[1])
         return -a
 
 
