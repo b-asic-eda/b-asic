@@ -124,7 +124,7 @@ class VhdlPrinter(Printer):
             # Extract known kwargs for memory_storage, pass through others
             memory_kwargs = {
                 "input_sync": kwargs.get("input_sync", False),
-                "output_sync": kwargs.get("output_sync", False),
+                "output_sync": kwargs.get("output_sync", True),
                 "external_schedule_counter": kwargs.get(
                     "external_schedule_counter", True
                 ),
