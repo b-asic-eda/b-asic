@@ -124,7 +124,7 @@ class VhdlPrinter(Printer):
             # Extract known kwargs for memory_storage, pass through others
             memory_kwargs = {
                 "input_sync": kwargs.get("input_sync", False),
-                "output_sync": kwargs.get("output_sync", False),
+                "output_sync": kwargs.get("output_sync", True),
                 "external_schedule_counter": kwargs.get(
                     "external_schedule_counter", True
                 ),
@@ -1016,6 +1016,24 @@ class VhdlPrinter(Printer):
         )
         return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
+    def print_MADS_floating_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        if self._fp_backend != "amd":
+            return self.print_default()
+        # check when inputs arrive and use the appropriate topology
+        op = pe.processes[0].operation
+        in_offsets = op.input_latency_offsets
+        delta = in_offsets[0] - min(in_offsets[1], in_offsets[2])
+        if delta > 0:
+            return self._amd_fp_mads_chained_backend()
+        elif delta == 0:
+            return self._amd_fp_mads_fma()
+        else:
+            raise NotImplementedError(
+                "MADS where a arrives before b and c is not supported with AMD FP backend."
+            )
+
     def _amd_fp_backend(
         self,
         label: str,
@@ -1071,6 +1089,162 @@ class VhdlPrinter(Printer):
         if operation_signal is not None:
             common.write(code, 3, "s_axis_operation_tdata => fp_operation,")
             common.write(code, 3, "s_axis_operation_tvalid => en,")
+        common.write(code, 3, "m_axis_result_tdata => res_arith_0,")
+        common.write(code, 3, "m_axis_result_tvalid => fp_result_tvalid")
+        common.write(code, 2, ");")
+
+        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
+
+    def _amd_fp_mads_fma(self) -> "tuple[WLS, CODE]":
+        declarations, code = io.StringIO(), io.StringIO()
+
+        def slv(sig: str) -> str:
+            return f"to_slv({sig})" if self._vhdl_2008 else sig
+
+        # Component declaration
+        common.write(declarations, 1, "component fp_fma")
+        common.write(declarations, 2, "port (")
+        common.write(declarations, 3, "aclk : in std_logic;")
+        common.write(declarations, 3, f"s_axis_a_tdata : in {self._slv_type_str};")
+        common.write(declarations, 3, "s_axis_a_tvalid : in std_logic;")
+        common.write(declarations, 3, f"s_axis_b_tdata : in {self._slv_type_str};")
+        common.write(declarations, 3, "s_axis_b_tvalid : in std_logic;")
+        common.write(declarations, 3, f"s_axis_c_tdata : in {self._slv_type_str};")
+        common.write(declarations, 3, "s_axis_c_tvalid : in std_logic;")
+        common.write(
+            declarations, 3, "s_axis_operation_tdata : in std_logic_vector(7 downto 0);"
+        )
+        common.write(declarations, 3, "s_axis_operation_tvalid : in std_logic;")
+        common.write(
+            declarations, 3, f"m_axis_result_tdata : out {self._slv_type_str};"
+        )
+        common.write(declarations, 3, "m_axis_result_tvalid : out std_logic")
+        common.write(declarations, 2, ");")
+        common.write(declarations, 1, "end component fp_fma;")
+        common.signal_declaration(declarations, "res_arith_0", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_result_tvalid", "std_logic")
+        common.signal_declaration(declarations, "fp_fma_c_in", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_fma_a_in", self._slv_type_str)
+        common.signal_declaration(
+            declarations, "fp_fma_operation", "std_logic_vector(7 downto 0)"
+        )
+
+        bits = self._dt.bits
+
+        # FMA
+        common.write(
+            code,
+            1,
+            f"fp_fma_c_in <= (others => '0') when do_addsub = '0' else {slv('op_0')};",
+        )
+        common.write(code, 1, 'fp_fma_operation <= "00000000";')
+        common.write(
+            code,
+            1,
+            f"fp_fma_a_in <= (op_1({bits - 1}) xor (not is_add)) & op_1({bits - 2} downto 0);",
+        )
+        common.write(code, 1, "u_fp_fma : fp_fma")
+        common.write(code, 2, "port map (")
+        common.write(code, 3, "aclk => clk,")
+        common.write(code, 3, "s_axis_a_tdata => fp_fma_a_in,")
+        common.write(code, 3, "s_axis_a_tvalid => en,")
+        common.write(code, 3, f"s_axis_b_tdata => {slv('op_2')},")
+        common.write(code, 3, "s_axis_b_tvalid => en,")
+        common.write(code, 3, "s_axis_c_tdata => fp_fma_c_in,")
+        common.write(code, 3, "s_axis_c_tvalid => en,")
+        common.write(code, 3, "s_axis_operation_tdata => fp_fma_operation,")
+        common.write(code, 3, "s_axis_operation_tvalid => en,")
+        common.write(code, 3, "m_axis_result_tdata => res_arith_0,")
+        common.write(code, 3, "m_axis_result_tvalid => fp_result_tvalid")
+        common.write(code, 2, ");")
+
+        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
+
+    def _amd_fp_mads_chained_backend(self) -> "tuple[WLS, CODE]":
+        """
+        Chained fp_mul + fp_addsub for MADS.
+
+        Used when in0 (a) has a positive latency offset.
+        """
+        declarations, code = io.StringIO(), io.StringIO()
+
+        def slv(sig: str) -> str:
+            return f"to_slv({sig})" if self._vhdl_2008 else sig
+
+        # --- fp_mul component ---
+        common.write(declarations, 1, "component fp_mul")
+        common.write(declarations, 2, "port (")
+        common.write(declarations, 3, "aclk : in std_logic;")
+        common.write(declarations, 3, f"s_axis_a_tdata : in {self._slv_type_str};")
+        common.write(declarations, 3, "s_axis_a_tvalid : in std_logic;")
+        common.write(declarations, 3, f"s_axis_b_tdata : in {self._slv_type_str};")
+        common.write(declarations, 3, "s_axis_b_tvalid : in std_logic;")
+        common.write(
+            declarations, 3, f"m_axis_result_tdata : out {self._slv_type_str};"
+        )
+        common.write(declarations, 3, "m_axis_result_tvalid : out std_logic")
+        common.write(declarations, 2, ");")
+        common.write(declarations, 1, "end component fp_mul;")
+
+        # --- fp_addsub component ---
+        common.write(declarations, 1, "component fp_addsub")
+        common.write(declarations, 2, "port (")
+        common.write(declarations, 3, "aclk : in std_logic;")
+        common.write(declarations, 3, f"s_axis_a_tdata : in {self._slv_type_str};")
+        common.write(declarations, 3, "s_axis_a_tvalid : in std_logic;")
+        common.write(declarations, 3, f"s_axis_b_tdata : in {self._slv_type_str};")
+        common.write(declarations, 3, "s_axis_b_tvalid : in std_logic;")
+        common.write(
+            declarations,
+            3,
+            "s_axis_operation_tdata : in std_logic_vector(7 downto 0);",
+        )
+        common.write(declarations, 3, "s_axis_operation_tvalid : in std_logic;")
+        common.write(
+            declarations, 3, f"m_axis_result_tdata : out {self._slv_type_str};"
+        )
+        common.write(declarations, 3, "m_axis_result_tvalid : out std_logic")
+        common.write(declarations, 2, ");")
+        common.write(declarations, 1, "end component fp_addsub;")
+
+        # Signal declarations
+        common.signal_declaration(declarations, "mul_result", self._slv_type_str)
+        common.signal_declaration(declarations, "mul_result_tvalid", "std_logic")
+        common.signal_declaration(declarations, "res_arith_0", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_result_tvalid", "std_logic")
+        common.signal_declaration(declarations, "addsub_a", self._slv_type_str)
+        common.signal_declaration(
+            declarations, "addsub_op", "std_logic_vector(7 downto 0)"
+        )
+
+        # Multiplier
+        common.write(code, 1, "u_fp_mul : fp_mul")
+        common.write(code, 2, "port map (")
+        common.write(code, 3, "aclk => clk,")
+        common.write(code, 3, f"s_axis_a_tdata => {slv('op_1')},")
+        common.write(code, 3, "s_axis_a_tvalid => en,")
+        common.write(code, 3, f"s_axis_b_tdata => {slv('op_2')},")
+        common.write(code, 3, "s_axis_b_tvalid => en,")
+        common.write(code, 3, "m_axis_result_tdata => mul_result,")
+        common.write(code, 3, "m_axis_result_tvalid => mul_result_tvalid")
+        common.write(code, 2, ");")
+
+        # Addsub
+        common.write(
+            code,
+            1,
+            f"addsub_a <= (others => '0') when do_addsub = '0' else {slv('op_0')};",
+        )
+        common.write(code, 1, 'addsub_op <= "0000000" & (not is_add and do_addsub);')
+        common.write(code, 1, "u_fp_addsub : fp_addsub")
+        common.write(code, 2, "port map (")
+        common.write(code, 3, "aclk => clk,")
+        common.write(code, 3, "s_axis_a_tdata => addsub_a,")
+        common.write(code, 3, "s_axis_a_tvalid => en,")
+        common.write(code, 3, "s_axis_b_tdata => mul_result,")
+        common.write(code, 3, "s_axis_b_tvalid => mul_result_tvalid,")
+        common.write(code, 3, "s_axis_operation_tdata => addsub_op,")
+        common.write(code, 3, "s_axis_operation_tvalid => en,")
         common.write(code, 3, "m_axis_result_tdata => res_arith_0,")
         common.write(code, 3, "m_axis_result_tvalid => fp_result_tvalid")
         common.write(code, 2, ");")

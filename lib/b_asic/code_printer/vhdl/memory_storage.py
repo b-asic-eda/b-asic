@@ -243,14 +243,20 @@ def architecture(
     if input_sync:
         common.write(f, 1, "-- Input synchronization", start="\n")
         for i in range(memory.input_count):
-            common.signal_declaration(f, f"p_{i}_in_sync", data_type)
+            common.signal_declaration(
+                f, f"p_{i}_in_sync", data_type, default_value=dt.init_val
+            )
 
     # Type conversion signals for interface
     common.write(f, 1, "-- Type conversion for interface", start="\n")
     for i in range(memory.input_count):
-        common.signal_declaration(f, f"p_{i}_in_internal", data_type)
+        common.signal_declaration(
+            f, f"p_{i}_in_internal", data_type, default_value=dt.init_val
+        )
     for i in range(memory.output_count):
-        common.signal_declaration(f, f"p_{i}_out_internal", data_type)
+        common.signal_declaration(
+            f, f"p_{i}_out_internal", data_type, default_value=dt.init_val
+        )
 
     #
     # Architecture body begin
@@ -343,33 +349,37 @@ def architecture(
     # Input and output assignments
     if output_sync:
         common.write(f, 1, "-- Input and output assignments", start="\n")
-        p_zero_exec = filter(
-            lambda p: p.execution_time == 0, (p for pc in memory.assignment for p in pc)
-        )
+        all_procs = [p for pc in memory.assignment for p in pc]
+        output_cases: dict[int, str] = {}
+        for p in all_procs:
+            if p.execution_time == 0:
+                if input_sync:
+                    write_time = (p.start_time + 1) % schedule_time
+                    rhs = "p_0_in_sync"
+                else:
+                    write_time = p.start_time % schedule_time
+                    rhs = "p_0_in_internal"
+                output_cases.setdefault(write_time, f"p_0_out_internal <= {rhs};")
+        for p in all_procs:
+            if 1 in p.reads.values():
+                print("P reads", p.reads)
+                if input_sync:
+                    write_time = (p.start_time + 1) % schedule_time
+                    rhs = "p_0_in_sync"
+                else:
+                    write_time = (p.start_time) % schedule_time
+                    rhs = "p_0_in_internal"
+                output_cases[write_time] = f"p_0_out_internal <= {rhs};"
         common.synchronous_process_prologue(f, name="output_reg_proc")
         common.write(f, 3, "if en = '1' then")
         common.write(f, 4, "case schedule_cnt is")
-        for p in p_zero_exec:
-            if input_sync:
-                write_time = (p.start_time + 1) % schedule_time
-                if adr_pipe_depth:
-                    bin_time = time_bin_str(write_time + adr_pipe_depth, schedule_time)
-                    common.write(
-                        f,
-                        5,
-                        f'when "{bin_time}" => p_0_out_internal <= p_0_in_sync;',
-                    )
-                else:
-                    bin_time = time_bin_str(write_time, schedule_time)
-                    common.write(
-                        f, 5, f'when "{bin_time}" => p_0_out_internal <= p_0_in_sync;'
-                    )
+        for write_time, stmt in sorted(output_cases.items()):
+            if adr_pipe_depth and "p_0_in_sync" in stmt:
+                bin_time = time_bin_str(write_time + adr_pipe_depth, schedule_time)
             else:
-                write_time = (p.start_time) % schedule_time
                 bin_time = time_bin_str(write_time, schedule_time)
-                common.write(
-                    f, 5, f'when "{bin_time}" => p_0_out_internal <= p_0_in_internal;'
-                )
+            common.write(f, 5, f'when "{bin_time}" => {stmt}')
+        # Normal operation, output the read port
         common.write_lines(
             f,
             [
@@ -561,13 +571,17 @@ def architecture(
                     continue
                 i = tp[0]
                 mv = tp[1]
+                time = idx % elements_per_rom
+                if output_sync:
+                    time -= 1  # Account for output register
+                    time = time % elements_per_rom
                 common.write_lines(
                     f,
                     [
                         (4 + indent_offset, f"-- {mv!r}"),
                         (
                             4 + indent_offset,
-                            f'when "{bin_str(idx % elements_per_rom, ADR_LEN)}" =>',
+                            f'when "{bin_str(time, ADR_LEN)}" =>',
                         ),
                         (
                             5 + indent_offset,

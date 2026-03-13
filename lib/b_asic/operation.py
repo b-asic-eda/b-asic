@@ -552,12 +552,18 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             elif data_type.num_repr == NumRepresentation.FIXED_POINT:
                 value = apy.fx(value, data_type.wl[0], data_type.wl[1])
 
-        return value.cast(
-            data_type.wl[0],
-            data_type.wl[1],
-            data_type.quantization_mode.to_apytypes(),
-            data_type.overflow_mode.to_apytypes(),
-        )
+        if isinstance(value, (APyFloat, APyCFloat)):
+            return value.cast(
+                exp_bits=data_type.exp_bits,
+                man_bits=data_type.man_bits,
+            )
+        else:
+            return value.cast(
+                data_type.wl[0],
+                data_type.wl[1],
+                quantization=data_type.quantization_mode.to_apytypes(),
+                overflow=data_type.overflow_mode.to_apytypes(),
+            )
 
     def __ilshift__(self, src: SignalSourceProvider) -> "Operation":
         if self.input_count != 1:
