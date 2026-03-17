@@ -1097,6 +1097,10 @@ class VhdlPrinter(Printer):
 
     def _amd_fp_mads_fma(self) -> "tuple[WLS, CODE]":
         declarations, code = io.StringIO(), io.StringIO()
+        # For MADS with FMA, we should place one pipeline stage at the inputs of the FMA
+        # Due to some combinatorial logic for swapping inputs
+        n_in, n_out = self._register_split
+        self._register_split = (n_in - 1, n_out) if n_in > 0 else (0, n_out)
 
         def slv(sig: str) -> str:
             return f"to_slv({sig})" if self._vhdl_2008 else sig
@@ -1121,12 +1125,14 @@ class VhdlPrinter(Printer):
         common.write(declarations, 3, "m_axis_result_tvalid : out std_logic")
         common.write(declarations, 2, ");")
         common.write(declarations, 1, "end component fp_fma;")
+
         common.signal_declaration(declarations, "res_arith_0", self._slv_type_str)
         common.signal_declaration(declarations, "fp_result_tvalid", "std_logic")
-        common.signal_declaration(declarations, "fp_fma_c_in", self._slv_type_str)
-        common.signal_declaration(declarations, "fp_fma_a_in", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_fma_c_comb", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_fma_a_comb", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_fma_b_comb", self._slv_type_str)
         common.signal_declaration(
-            declarations, "fp_fma_operation", "std_logic_vector(7 downto 0)"
+            declarations, "fp_fma_operation_comb", "std_logic_vector(7 downto 0)"
         )
 
         bits = self._dt.bits
@@ -1135,20 +1141,52 @@ class VhdlPrinter(Printer):
         common.write(
             code,
             1,
-            f"fp_fma_c_in <= (others => '0') when do_addsub = '0' else {slv('op_0')};",
+            f"fp_fma_c_comb <= (others => '0') when do_addsub = '0' else {slv('op_0')};",
         )
-        common.write(code, 1, 'fp_fma_operation <= "00000000";')
         common.write(
             code,
             1,
-            f"fp_fma_a_in <= (op_1({bits - 1}) xor (not is_add)) & op_1({bits - 2} downto 0);",
+            f"fp_fma_a_comb <= (op_1({bits - 1}) xor (not is_add)) & op_1({bits - 2} downto 0);",
         )
+        common.write(code, 1, f"fp_fma_b_comb <= {slv('op_2')};")
+        common.write(code, 1, 'fp_fma_operation <= "00000000";')
+
+        # Shift chain output declarations
+        common.signal_declaration(declarations, "fp_fma_c_in", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_fma_a_in", self._slv_type_str)
+        common.signal_declaration(declarations, "fp_fma_b_in", self._slv_type_str)
+        common.signal_declaration(
+            declarations, "fp_fma_operation", "std_logic_vector(7 downto 0)"
+        )
+
+        # Build registers / Shift chain
+        if n_in == 0:
+            common.write(code, 1, "fp_fma_c_in <= fp_fma_c_comb;")
+            common.write(code, 1, "fp_fma_a_in <= fp_fma_a_comb;")
+            common.write(code, 1, "fp_fma_b_in <= fp_fma_b_comb;")
+        else:
+            common.signal_declaration(declarations, "fp_fma_c_reg", self._slv_type_str)
+            common.signal_declaration(declarations, "fp_fma_a_reg", self._slv_type_str)
+            common.signal_declaration(declarations, "fp_fma_b_reg", self._slv_type_str)
+
+            common.synchronous_process_prologue(code)
+            common.write(code, 3, "if en = '1' then")
+            common.write(code, 4, "fp_fma_c_reg <= fp_fma_c_comb;")
+            common.write(code, 4, "fp_fma_a_reg <= fp_fma_a_comb;")
+            common.write(code, 4, "fp_fma_b_reg <= fp_fma_b_comb;")
+            common.write(code, 3, "end if;")
+            common.synchronous_process_epilogue(code)
+
+            common.write(code, 1, "fp_fma_c_in <= fp_fma_c_reg;")
+            common.write(code, 1, "fp_fma_a_in <= fp_fma_a_reg;")
+            common.write(code, 1, "fp_fma_b_in <= fp_fma_b_reg;")
+
         common.write(code, 1, "u_fp_fma : fp_fma")
         common.write(code, 2, "port map (")
         common.write(code, 3, "aclk => clk,")
         common.write(code, 3, "s_axis_a_tdata => fp_fma_a_in,")
         common.write(code, 3, "s_axis_a_tvalid => en,")
-        common.write(code, 3, f"s_axis_b_tdata => {slv('op_2')},")
+        common.write(code, 3, "s_axis_b_tdata => fp_fma_b_in,")
         common.write(code, 3, "s_axis_b_tvalid => en,")
         common.write(code, 3, "s_axis_c_tdata => fp_fma_c_in,")
         common.write(code, 3, "s_axis_c_tvalid => en,")
