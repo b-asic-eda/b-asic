@@ -1255,6 +1255,10 @@ class VhdlPrinter(Printer):
             declarations, "addsub_op", "std_logic_vector(7 downto 0)"
         )
 
+        # Pipeline signals
+        common.signal_declaration(declarations, "mul_result_in", self._slv_type_str)
+        common.signal_declaration(declarations, "mul_result_tvalid_in", "std_logic")
+
         # Multiplier
         common.write(code, 1, "u_fp_mul : fp_mul")
         common.write(code, 2, "port map (")
@@ -1274,13 +1278,29 @@ class VhdlPrinter(Printer):
             f"addsub_a <= (others => '0') when do_addsub = '0' else {slv('op_0')};",
         )
         common.write(code, 1, 'addsub_op <= "0000000" & (not is_add and do_addsub);')
+
+        # Unconditional pipeline stage for mul_result
+        common.signal_declaration(declarations, "mul_result_reg", self._slv_type_str)
+        common.signal_declaration(declarations, "mul_result_tvalid_reg", "std_logic")
+
+        common.synchronous_process_prologue(code)
+        common.write(code, 3, "if en = '1' then")
+        common.write(code, 4, "mul_result_reg <= mul_result;")
+        common.write(code, 4, "mul_result_tvalid_reg <= mul_result_tvalid;")
+        common.write(code, 3, "end if;")
+        common.synchronous_process_epilogue(code)
+
+        common.write(code, 1, "mul_result_in <= mul_result_reg;")
+        common.write(code, 1, "mul_result_tvalid_in <= mul_result_tvalid_reg;")
+
+        # Addsub
         common.write(code, 1, "u_fp_addsub : fp_addsub")
         common.write(code, 2, "port map (")
         common.write(code, 3, "aclk => clk,")
         common.write(code, 3, "s_axis_a_tdata => addsub_a,")
         common.write(code, 3, "s_axis_a_tvalid => en,")
-        common.write(code, 3, "s_axis_b_tdata => mul_result,")
-        common.write(code, 3, "s_axis_b_tvalid => mul_result_tvalid,")
+        common.write(code, 3, "s_axis_b_tdata => mul_result_in,")
+        common.write(code, 3, "s_axis_b_tvalid => mul_result_tvalid_in,")
         common.write(code, 3, "s_axis_operation_tdata => addsub_op,")
         common.write(code, 3, "s_axis_operation_tvalid => en,")
         common.write(code, 3, "m_axis_result_tdata => res_arith_0,")
