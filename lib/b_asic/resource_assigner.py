@@ -29,6 +29,7 @@ from b_asic.process import MemoryVariable, Process
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
 from b_asic.types import TypeName
+from b_asic.utility_operations import DontCare
 
 log = b_asic.logger.getLogger()
 
@@ -499,6 +500,8 @@ def _ilp_coloring_min_mux(
             source_port = dir_var.write_port
             for dest_port, offset in dir_var.reads.items():
                 if offset != 0:
+                    continue
+                if isinstance(source_port.operation, DontCare):
                     continue
                 src_idx = pe_op_indices[source_port.operation]
                 dst_idx = pe_op_indices[dest_port.operation]

@@ -40,6 +40,7 @@ from b_asic.resources import (
     _sanitize_port_option,
 )
 from b_asic.special_operations import Input, Output
+from b_asic.utility_operations import DontCare
 
 
 def _interconnect_dict() -> int:
@@ -981,7 +982,13 @@ of :class:`~b_asic.architecture.ProcessingElement`
         self._operation_outport_to_resource = {}
         for pe in self.processing_elements:
             for operator in pe.processes:
+                if isinstance(operator.operation, DontCare):
+                    continue
                 for input_port in operator.operation.inputs:
+                    if input_port.signals and isinstance(
+                        input_port.connected_source.operation, DontCare
+                    ):
+                        continue
                     self._operation_input_port_to_resource[input_port] = pe
                 for output_port in operator.operation.outputs:
                     self._operation_outport_to_resource[output_port] = pe
@@ -998,6 +1005,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
         if self._direct_interconnects:
             for di in self._direct_interconnects:
                 di = cast(MemoryVariable, di)
+                if isinstance(di.write_port.operation, DontCare):
+                    continue
                 for read_port in di.read_ports:
                     self._variable_input_port_to_resource[read_port].add(
                         (
@@ -1019,11 +1028,15 @@ of :class:`~b_asic.architecture.ProcessingElement`
         memory_write_ports = set()
         for memory in self.memories:
             for mv in memory:
+                if isinstance(mv.write_port.operation, DontCare):
+                    continue
                 memory_write_ports.add(mv.write_port)
                 memory_read_ports.update(mv.read_ports)
         if self._direct_interconnects:
             for mv in self._direct_interconnects:
                 mv = cast(MemoryVariable, mv)
+                if isinstance(mv.write_port.operation, DontCare):
+                    continue
                 memory_write_ports.add(mv.write_port)
                 memory_read_ports.update(mv.read_ports)
 
@@ -1031,7 +1044,14 @@ of :class:`~b_asic.architecture.ProcessingElement`
         pe_output_ports: set[OutputPort] = set()
         for pe in self.processing_elements:
             for operator in pe.processes:
-                pe_input_ports.update(operator.operation.inputs)
+                if isinstance(operator.operation, DontCare):
+                    continue
+                for input_port in operator.operation.inputs:
+                    if input_port.signals and isinstance(
+                        input_port.connected_source.operation, DontCare
+                    ):
+                        continue
+                    pe_input_ports.add(input_port)
                 pe_output_ports.update(operator.operation.outputs)
 
         # Make sure all inputs and outputs in the architecture are in use
