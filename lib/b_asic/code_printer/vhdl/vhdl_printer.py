@@ -33,8 +33,10 @@ class VhdlPrinter(Printer):
         self,
         dt: DataType,
         vhdl_2008: bool = False,
+        multiplexer_control_registered: bool = True,
     ) -> None:
         self._vhdl_2008 = vhdl_2008
+        self._multiplexer_control_registered = multiplexer_control_registered
         self._fp_backend = ""
         self._register_split: tuple[int, int] | None = None
         super().__init__(dt=dt)
@@ -110,7 +112,13 @@ class VhdlPrinter(Printer):
             common.package_header(f, "types")
 
         top_level.entity(f, arch, self._dt)
-        top_level.architecture(f, arch, self._dt, io_registers)
+        top_level.architecture(
+            f,
+            arch,
+            self._dt,
+            io_registers,
+            self._multiplexer_control_registered,
+        )
         return f.getvalue()
 
     def print_Memory(self, mem: "Memory", **kwargs) -> str | None:
@@ -123,22 +131,15 @@ class VhdlPrinter(Printer):
         if mem._memory_type == "RAM":
             # Extract known kwargs for memory_storage, pass through others
             memory_kwargs = {
-                "input_sync": kwargs.get("input_sync", False),
                 "output_sync": kwargs.get("output_sync", True),
                 "external_schedule_counter": kwargs.get(
                     "external_schedule_counter", True
                 ),
                 "std_logic_vector": kwargs.get("std_logic_vector", False),
+                "register_control_signals": kwargs.get(
+                    "register_control_signals", self._multiplexer_control_registered
+                ),
             }
-            # Add optional parameters if provided
-            for key in [
-                "adr_mux_size",
-                "adr_pipe_depth",
-                "vivado_ram_style",
-                "quartus_ram_style",
-            ]:
-                if key in kwargs:
-                    memory_kwargs[key] = kwargs[key]
 
             memory_storage.entity(
                 f,
