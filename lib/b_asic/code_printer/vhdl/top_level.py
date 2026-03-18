@@ -8,6 +8,7 @@ from b_asic.code_printer.util import selector_bits, time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.data_type import _VhdlDataType
 from b_asic.special_operations import Input, Output
+from b_asic.utility_operations import DontCare
 
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture
@@ -83,6 +84,8 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 source_port = op_input_port.signals[0].source
                 source_port_index = source_port.index
                 source_op = source_port.operation
+                if isinstance(source_op, DontCare):
+                    continue
                 is_found = False
 
                 for mem in arch.memories:
