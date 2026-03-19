@@ -5,6 +5,8 @@ Contains functions for joint resource assignment of processing elements and memo
 """
 
 import os
+import shutil
+import tempfile
 from typing import Literal, cast
 from uuid import uuid4
 
@@ -42,6 +44,7 @@ def assign_processing_elements_and_memories(
         "ilp_min_total_mux",
     ] = "ilp_graph_color",
     mux_targets: set[Literal["pe_to_mem", "mem_to_pe", "pe_to_pe"]] | None = None,
+    max_mux_size: int | None = None,
     resources: dict[TypeName, int] | None = None,
     max_memories: int | None = None,
     memory_read_ports: int | None = None,
@@ -73,6 +76,11 @@ def assign_processing_elements_and_memories(
         * "pe_to_mem" - Minimize PE to Memory connections
         * "mem_to_pe" - Minimize Memory to PE connections
         * "pe_to_pe" - Minimize PE to PE direct connections
+
+    max_mux_size : int, optional
+        The maximum fan-in size for any enabled multiplexer target in
+        strategy='ilp_min_total_mux'. Must be greater than or equal to 1.
+        Only valid with 'ilp_min_total_mux' strategy.
 
     resources : dict[TypeName, int], optional
         The maximum amount of resources to assign to, used to limit the solution
@@ -116,6 +124,17 @@ def assign_processing_elements_and_memories(
             f"not '{strategy}'"
         )
 
+    if max_mux_size is not None and strategy != "ilp_min_total_mux":
+        raise ValueError(
+            "max_mux_size can only be specified with strategy='ilp_min_total_mux', "
+            f"not '{strategy}'"
+        )
+
+    if max_mux_size is not None and max_mux_size < 1:
+        raise ValueError(
+            f"max_mux_size must be greater than or equal to 1, got {max_mux_size}"
+        )
+
     if strategy == "ilp_min_total_mux" and mux_targets is None:
         mux_targets = {"pe_to_mem", "mem_to_pe", "pe_to_pe"}
 
@@ -131,6 +150,7 @@ def assign_processing_elements_and_memories(
         direct,
         strategy,
         mux_targets,
+        max_mux_size,
         resources,
         max_memories,
         memory_read_ports,
@@ -163,6 +183,7 @@ def _split_operations_and_variables(
         "ilp_min_total_mux",
     ] = "ilp_graph_color",
     mux_targets: set[Literal["pe_to_mem", "mem_to_pe", "pe_to_pe"]] | None = None,
+    max_mux_size: int | None = None,
     resources: dict[TypeName, int] | None = None,
     max_memories: int | None = None,
     memory_read_ports: int | None = None,
@@ -234,6 +255,7 @@ def _split_operations_and_variables(
             pe_operations,
             direct_variables,
             mux_targets,
+            max_mux_size,
             solver,
         )
     else:
@@ -342,6 +364,7 @@ def _ilp_coloring_min_mux(
     pe_operations: list[Operation],
     direct: ProcessCollection,
     mux_targets: set[Literal["pe_to_mem", "mem_to_pe", "pe_to_pe"]],
+    max_mux_size: int | None = None,
     solver: LpSolver | None = None,
 ) -> tuple[dict, dict]:
     mem_graph_nodes = list(mem_exclusion_graph.nodes())
@@ -529,6 +552,45 @@ def _ilp_coloring_min_mux(
                         pe_to_pe_constraints += 1
         log.debug("Total PE→PE constraints: %d", pe_to_pe_constraints)
 
+    # Optional constraints to limit maximum mux fan-in for enabled targets
+    if max_mux_size is not None:
+        if "pe_to_mem" in mux_targets:
+            for mem_color in mem_colors:
+                problem += (
+                    lpSum(
+                        pe_to_mem_vars[graph_idx][pe_color][out_port][mem_color]
+                        for graph_idx in range(len(pe_exclusion_graphs))
+                        for pe_color in pe_colors[graph_idx]
+                        for out_port in pe_out_port_indices[graph_idx]
+                    )
+                    <= max_mux_size
+                )
+
+        # A PE input mux can be fed by memory outputs and/or direct PE outputs.
+        # Use one shared fan-in bound across both source types.
+        if "mem_to_pe" in mux_targets or "pe_to_pe" in mux_targets:
+            for dst_graph_idx in range(len(pe_exclusion_graphs)):
+                for dst_pe_color in pe_colors[dst_graph_idx]:
+                    for in_port in pe_in_port_indices[dst_graph_idx]:
+                        mux_input_terms = []
+                        if "mem_to_pe" in mux_targets:
+                            mux_input_terms.extend(
+                                mem_to_pe_vars[mem_color][dst_graph_idx][dst_pe_color][
+                                    in_port
+                                ]
+                                for mem_color in mem_colors
+                            )
+                        if "pe_to_pe" in mux_targets:
+                            mux_input_terms.extend(
+                                pe_to_pe_vars[src_graph_idx][src_pe_color][out_port][
+                                    dst_graph_idx
+                                ][dst_pe_color][in_port]
+                                for src_graph_idx in range(len(pe_exclusion_graphs))
+                                for src_pe_color in pe_colors[src_graph_idx]
+                                for out_port in pe_out_port_indices[src_graph_idx]
+                            )
+                        problem += lpSum(mux_input_terms) <= max_mux_size
+
     # Speed
     if mem_exclusion_graph.number_of_nodes() > 0:
         max_clique = next(nx.find_cliques(mem_exclusion_graph))
@@ -538,6 +600,9 @@ def _ilp_coloring_min_mux(
             problem += mem_c[color] <= lpSum(
                 mem_x[node][color] for node in mem_graph_nodes
             )
+        for clique in nx.find_cliques(mem_exclusion_graph):
+            for color in mem_colors:
+                problem += lpSum(mem_x[node][color] for node in clique) <= 1
         for color in mem_colors[:-1]:
             problem += mem_c[color + 1] <= mem_c[color]
 
@@ -547,9 +612,9 @@ def _ilp_coloring_min_mux(
         edges = list(pe_exclusion_graph.edges())
         for node in nodes:
             problem += lpSum(pe_x[i][node][color] for color in pe_colors[i]) == 1
-        for u, v in edges:
-            for color in pe_colors[i]:
-                problem += pe_x[i][u][color] + pe_x[i][v][color] <= 1
+        # for u, v in edges:
+        #    for color in pe_colors[i]:
+        #        problem += pe_x[i][u][color] + pe_x[i][v][color] <= 1
         for node in nodes:
             for color in pe_colors[i]:
                 problem += pe_x[i][node][color] <= pe_c[i][color]
@@ -559,6 +624,9 @@ def _ilp_coloring_min_mux(
             problem += pe_x[i][node][color] == pe_c[i][color] == 1
         for color in pe_colors[i]:
             problem += pe_c[i][color] <= lpSum(pe_x[i][node][color] for node in nodes)
+        for clique in nx.find_cliques(pe_exclusion_graph):
+            for color in pe_colors[i]:
+                problem += lpSum(pe_x[i][node][color] for node in clique) <= 1
         for color in pe_colors[i][:-1]:
             problem += pe_c[i][color + 1] <= pe_c[i][color]
 
@@ -856,7 +924,8 @@ def _prepare_interrupted_recovery(
 
     original_keep_files = cast(bool, solver.keepFiles)
     original_name = problem.name
-    recovery_name = f"{problem.name}-{uuid4().hex}"
+    recovery_dir = tempfile.mkdtemp(prefix="b_asic_ilp_recovery_")
+    recovery_name = os.path.join(recovery_dir, f"{problem.name}-{uuid4().hex}")
 
     solver.keepFiles = True
     problem.name = recovery_name
@@ -866,6 +935,7 @@ def _prepare_interrupted_recovery(
         "original_keep_files": original_keep_files,
         "original_name": original_name,
         "recovery_name": recovery_name,
+        "recovery_dir": recovery_dir,
         "solution_path": solution_path,
         "temp_paths": tuple(solver.create_tmp_files(recovery_name, "lp", "sol", "mst")),
     }
@@ -890,6 +960,9 @@ def _restore_interrupted_recovery(
             os.remove(path)
         except FileNotFoundError:
             pass
+    recovery_dir = cast(str | None, recovery_state.get("recovery_dir"))
+    if recovery_dir is not None:
+        shutil.rmtree(recovery_dir, ignore_errors=True)
     try:
         os.remove("gurobi.log")
     except FileNotFoundError:
