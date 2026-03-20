@@ -137,7 +137,7 @@ class VhdlPrinter(Printer):
                 ),
                 "std_logic_vector": kwargs.get("std_logic_vector", False),
                 "register_control_signals": kwargs.get(
-                    "register_control_signals", self._multiplexer_control_registered
+                    "pipeline_mux_control", self._multiplexer_control_registered
                 ),
             }
 
@@ -189,6 +189,14 @@ class VhdlPrinter(Printer):
         pe_registers: dict[str, tuple[int, int]] = kwargs.get("pe_registers", {})
         self._register_split = self._resolve_pe_registers(pe, pe_registers)
 
+        # Optional absolute per-control availability cycle.
+        # Shape: {pe_entity_or_type: {control_name: cycle_in_[0, latency]}}
+        control_cycle: dict[str, dict[str, int]] = kwargs.get("control_cycle", {})
+        pe_control_cycle = self._resolve_control_cycle(pe, control_cycle)
+
+        # Optional design-level flag to register PE control signals.
+        pipeline_pe_control_signals = bool(kwargs.get("pipeline_pe_control", True))
+
         # Generate and return VHDL code for the PE
         f = io.StringIO()
         common.b_asic_preamble(f)
@@ -203,6 +211,8 @@ class VhdlPrinter(Printer):
             self._dt,
             core_code,
             register_split=self._register_split,
+            control_cycle=pe_control_cycle,
+            pipeline_control_signals=pipeline_pe_control_signals,
         )
         return f.getvalue()
 
@@ -261,6 +271,60 @@ class VhdlPrinter(Printer):
                 stacklevel=4,
             )
         return n_in, n_out
+
+    def _resolve_control_cycle(
+        self,
+        pe: "ProcessingElement",
+        control_cycle: dict[str, dict[str, int]],
+    ) -> dict[str, int]:
+        """
+        Resolve per-control absolute availability cycles for one PE.
+
+        Cycle is absolute in PE-local timing and must be within [0, pe._latency].
+        """
+        pe_cycle: dict[str, int] | None = None
+        matched_key: str | None = None
+
+        if pe.entity_name in control_cycle:
+            pe_cycle = control_cycle[pe.entity_name]
+            matched_key = pe.entity_name
+        else:
+            for key, val in control_cycle.items():
+                if key == pe._type_name:
+                    pe_cycle = val
+                    matched_key = key
+                    break
+
+        if pe_cycle is None:
+            return {}
+
+        if not isinstance(pe_cycle, dict):
+            raise ValueError(
+                f"control_cycle[{matched_key!r}] must be a mapping from control name "
+                f"to integer cycle, got {pe_cycle!r}"
+            )
+
+        resolved: dict[str, int] = {}
+        for ctrl_name, cycle in pe_cycle.items():
+            if ctrl_name not in pe.control_table:
+                raise ValueError(
+                    f"Unknown control name {ctrl_name!r} in control_cycle[{matched_key!r}] "
+                    f"for processing element {pe.entity_name!r}."
+                )
+            if not isinstance(cycle, int) or isinstance(cycle, bool):
+                raise ValueError(
+                    f"control_cycle[{matched_key!r}][{ctrl_name!r}] must be an integer, "
+                    f"got {cycle!r}"
+                )
+            if cycle < 0 or cycle > pe._latency:
+                raise ValueError(
+                    f"control_cycle[{matched_key!r}][{ctrl_name!r}] must be within "
+                    f"[0, {pe._latency}] for processing element {pe.entity_name!r}, "
+                    f"got {cycle}."
+                )
+            resolved[ctrl_name] = cycle
+
+        return resolved
 
     # ------------------------------
     # Fixed-point operation printers
@@ -1248,7 +1312,7 @@ class VhdlPrinter(Printer):
 
         # Signal declarations
         common.signal_declaration(declarations, "mul_result", self._slv_type_str)
-        common.signal_declaration(declarations, "mul_result_tvalid", "std_logic")
+        common.signal_declaration(declarations, "mul_result_tvalid_unused", "std_logic")
         common.signal_declaration(declarations, "res_arith_0", self._slv_type_str)
         common.signal_declaration(declarations, "fp_result_tvalid", "std_logic")
         common.signal_declaration(declarations, "addsub_a", self._slv_type_str)
@@ -1258,7 +1322,6 @@ class VhdlPrinter(Printer):
 
         # Pipeline signals
         common.signal_declaration(declarations, "mul_result_in", self._slv_type_str)
-        common.signal_declaration(declarations, "mul_result_tvalid_in", "std_logic")
 
         # Multiplier
         common.write(code, 1, "u_fp_mul : fp_mul")
@@ -1269,7 +1332,7 @@ class VhdlPrinter(Printer):
         common.write(code, 3, f"s_axis_b_tdata => {slv('op_2')},")
         common.write(code, 3, "s_axis_b_tvalid => en,")
         common.write(code, 3, "m_axis_result_tdata => mul_result,")
-        common.write(code, 3, "m_axis_result_tvalid => mul_result_tvalid")
+        common.write(code, 3, "m_axis_result_tvalid => mul_result_tvalid_unused")
         common.write(code, 2, ");")
 
         # Addsub
@@ -1282,17 +1345,14 @@ class VhdlPrinter(Printer):
 
         # Unconditional pipeline stage for mul_result
         common.signal_declaration(declarations, "mul_result_reg", self._slv_type_str)
-        common.signal_declaration(declarations, "mul_result_tvalid_reg", "std_logic")
 
         common.synchronous_process_prologue(code)
         common.write(code, 3, "if en = '1' then")
         common.write(code, 4, "mul_result_reg <= mul_result;")
-        common.write(code, 4, "mul_result_tvalid_reg <= mul_result_tvalid;")
         common.write(code, 3, "end if;")
         common.synchronous_process_epilogue(code)
 
         common.write(code, 1, "mul_result_in <= mul_result_reg;")
-        common.write(code, 1, "mul_result_tvalid_in <= mul_result_tvalid_reg;")
 
         # Addsub
         common.write(code, 1, "u_fp_addsub : fp_addsub")
@@ -1301,7 +1361,7 @@ class VhdlPrinter(Printer):
         common.write(code, 3, "s_axis_a_tdata => addsub_a,")
         common.write(code, 3, "s_axis_a_tvalid => en,")
         common.write(code, 3, "s_axis_b_tdata => mul_result_in,")
-        common.write(code, 3, "s_axis_b_tvalid => mul_result_tvalid_in,")
+        common.write(code, 3, "s_axis_b_tvalid => en,")
         common.write(code, 3, "s_axis_operation_tdata => addsub_op,")
         common.write(code, 3, "s_axis_operation_tvalid => en,")
         common.write(code, 3, "m_axis_result_tdata => res_arith_0,")
