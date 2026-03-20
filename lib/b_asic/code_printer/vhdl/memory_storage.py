@@ -3,7 +3,7 @@ Module for VHDL code generation of memory based storage.
 """
 
 import math
-from typing import TYPE_CHECKING, Literal, TextIO, cast
+from typing import TYPE_CHECKING, TextIO, cast
 
 from b_asic.code_printer.util import bin_str, time_bin_str
 from b_asic.code_printer.vhdl import common
@@ -70,18 +70,10 @@ def architecture(
     memory: "Memory",
     dt: _VhdlDataType,
     *,
-    input_sync: bool = True,
     output_sync: bool = True,
-    adr_mux_size: int = 1,
-    adr_pipe_depth: int = 0,
     external_schedule_counter: bool = True,
     std_logic_vector: bool = False,
-    vivado_ram_style: (
-        Literal["block", "distributed", "registers", "ultra", "mixed", "auto"] | None
-    ) = None,
-    quartus_ram_style: (
-        Literal["M4K", "M9K", "M10K", "M20K", "M144K", "MLAB", "logic"] | None
-    ) = None,
+    register_control_signals: bool = False,
 ) -> None:
     """
     Generate the VHDL architecture for a memory-based storage architecture.
@@ -97,30 +89,15 @@ def architecture(
         Memory object to generate code for.
     dt : :class:`DataType`
         Meta information of data signals.
-    input_sync : bool, default: True
-        Add registers to the input signals (enable signal and data input signals).
-        Adding registers to the inputs allow pipelining of address generation (which
-        is added automatically). For large interleavers, this can improve timing
-        significantly.
     output_sync : bool, default: True
         Add registers to the output signal.
-    adr_mux_size : int, default: 1
-        Size of multiplexer if using address generation pipelining. Set to 1 for no
-        multiplexer pipelining. If any other value than 1, `input_sync` must be set.
-    adr_pipe_depth : int, default: 0
-        Depth of address generation pipelining. Set to 0 for no multiplexer pipelining.
-        If any other value than 0, `input_sync` must be set.
     external_schedule_counter : bool, default: True
         If True, schedule counter comes from external input port.
         If False, schedule counter is generated internally with synchronous reset.
     std_logic_vector : bool, default: False
         If True, use std_logic_vector for data signals. If False, use dt.type_str.
-    vivado_ram_style : str, optional
-        An optional Xilinx Vivado RAM style attribute to apply to this memory.
-        If set, exactly one of: "block", "distributed", "registers", "ultra", "mixed" or "auto".
-    quartus_ram_style : str, optional
-        An optional Quartus Prime RAM style attribute to apply to this memory.
-        If set, exactly one of: "M4K", "M9K", "M10K", "M20K", "M144K", "MLAB" or "logic".
+    register_control_signals : bool, default: False
+        If True, register the control signals.
     """
     # Code settings
     mem_depth = len(memory.assignment)
@@ -132,14 +109,11 @@ def architecture(
         f"std_logic_vector({dt.high} downto 0)" if std_logic_vector else dt.type_str
     )
 
-    # Address generation "ROMs"
-    total_roms = adr_mux_size**adr_pipe_depth
-    bits_per_mux = int(math.log2(adr_mux_size))
+    # Address generation "ROM" (single non-pipelined table)
     elements_per_rom = int(
-        2 ** math.ceil(math.log2(schedule_time / total_roms))
+        2 ** math.ceil(math.log2(schedule_time))
     )  # Next power-of-two
 
-    # Write architecture header
     common.write(f, 0, f"architecture rtl of {memory.entity_name} is", end="\n\n")
 
     #
@@ -161,45 +135,13 @@ def architecture(
         "mem_type",
         f"array(0 to {mem_depth - 1}) of {data_type}",
     )
-    if vivado_ram_style is not None:
-        common.signal_declaration(
-            f,
-            name="memory",
-            signal_type="mem_type",
-            vivado_ram_style=vivado_ram_style,
-        )
-    elif quartus_ram_style is not None:
-        common.signal_declaration(
-            f,
-            name="memory",
-            signal_type="mem_type",
-            quartus_ram_style=quartus_ram_style,
-        )
-    else:
-        common.signal_declaration(
-            f,
-            name="memory",
-            signal_type="mem_type",
-        )
-
-    # Schedule time counter pipelined signals
-    for i in range(adr_pipe_depth):
-        common.signal_declaration(
-            f,
-            name=f"schedule_cnt{i + 1}",
-            signal_type=schedule_time_type(memory.schedule_time),
-            default_value=dt.init_val,
-        )
-    ADR_LEN = (memory.schedule_time - 1).bit_length() - int(
-        math.log2(adr_mux_size)
-    ) * adr_pipe_depth
-
-    common.alias_declaration(
+    common.signal_declaration(
         f,
-        name="schedule_cnt_adr",
-        signal_type=unsigned_type(ADR_LEN),
-        value=f"schedule_cnt({ADR_LEN - 1} downto 0)",
+        name="memory",
+        signal_type="mem_type",
     )
+
+    ADR_LEN = (memory.schedule_time - 1).bit_length()
 
     # Address generation signals
     common.write(f, 1, "-- Memory address generation", start="\n")
@@ -212,45 +154,51 @@ def architecture(
         common.signal_declaration(f, f"write_adr_{i}", unsigned_type(mem_adress_bits))
         common.signal_declaration(f, f"write_en_{i}", "std_logic")
 
-    # Address generation mutltiplexing signals
+    # Address generation signals (single ROM instance)
     common.write(f, 1, "-- Address generation multiplexing signals", start="\n")
     for write_port_idx in range(memory.output_count):
-        for depth in range(adr_pipe_depth + 1):
-            for rom in range(total_roms // adr_mux_size**depth):
-                common.signal_declaration(
-                    f,
-                    f"write_adr_{write_port_idx}_{depth}_{rom}",
-                    unsigned_type(mem_adress_bits),
-                )
+        common.signal_declaration(
+            f,
+            f"write_adr_{write_port_idx}_0_0",
+            unsigned_type(mem_adress_bits),
+        )
     for write_port_idx in range(memory.output_count):
-        for depth in range(adr_pipe_depth + 1):
-            for rom in range(total_roms // adr_mux_size**depth):
-                common.signal_declaration(
-                    f,
-                    f"write_en_{write_port_idx}_{depth}_{rom}",
-                    signal_type="std_logic",
-                )
+        common.signal_declaration(
+            f,
+            f"write_en_{write_port_idx}_0_0",
+            signal_type="std_logic",
+        )
     for read_port_idx in range(memory.input_count):
-        for depth in range(adr_pipe_depth + 1):
-            for rom in range(total_roms // adr_mux_size**depth):
-                common.signal_declaration(
-                    f,
-                    f"read_adr_{read_port_idx}_{depth}_{rom}",
-                    unsigned_type(mem_adress_bits),
-                )
-
-    # Input sync signals
-    if input_sync:
-        common.write(f, 1, "-- Input synchronization", start="\n")
-        for i in range(memory.input_count):
-            common.signal_declaration(f, f"p_{i}_in_sync", data_type)
+        common.signal_declaration(
+            f,
+            f"read_adr_{read_port_idx}_0_0",
+            unsigned_type(mem_adress_bits),
+        )
+    for read_port_idx in range(memory.input_count):
+        common.signal_declaration(
+            f,
+            f"read_en_{read_port_idx}_0_0",
+            signal_type="std_logic",
+        )
 
     # Type conversion signals for interface
     common.write(f, 1, "-- Type conversion for interface", start="\n")
     for i in range(memory.input_count):
-        common.signal_declaration(f, f"p_{i}_in_internal", data_type)
+        common.signal_declaration(
+            f, f"p_{i}_in_internal", data_type, default_value=dt.init_val
+        )
     for i in range(memory.output_count):
-        common.signal_declaration(f, f"p_{i}_out_internal", data_type)
+        common.signal_declaration(
+            f, f"p_{i}_out_internal", data_type, default_value=dt.init_val
+        )
+
+    # forward_ctrl signal
+    if output_sync:
+        common.signal_declaration(
+            f,
+            "forward_ctrl",
+            signal_type="std_logic",
+        )
 
     #
     # Architecture body begin
@@ -282,39 +230,26 @@ def architecture(
             clk="clk",
         )
 
-    # Schedule counter pipelining
-    if adr_pipe_depth > 0:
-        common.write(f, 1, "-- Schedule counter pipelining")
-        common.synchronous_process_prologue(f, name="schedule_cnt_pipe_proc")
-        common.write(f, 3, "if en = '1' then")
-        for i in range(adr_pipe_depth):
-            if i == 0:
-                common.write(f, 4, "schedule_cnt1 <= schedule_cnt;")
-            else:
-                common.write(f, 4, f"schedule_cnt{i + 1} <= schedule_cnt{i};")
-        common.write(f, 3, "end if;")
-        common.synchronous_process_epilogue(
-            f=f,
-            name="schedule_cnt_pipe_proc",
-            clk="clk",
-        )
-
-    # Input synchronization
-    if input_sync:
-        common.write(f, 1, "-- Input synchronization", start="\n")
-        common.synchronous_process_prologue(f, name="input_sync_proc")
-        common.write(f, 3, "if en = '1' then")
-        for i in range(memory.input_count):
-            common.write(f, 4, f"p_{i}_in_sync <= p_{i}_in_internal;")
-        common.write(f, 3, "end if;")
-        common.synchronous_process_epilogue(f, name="input_sync_proc")
-
     # Type conversions
     common.write(f, 1, "-- Type conversions", start="\n")
     for i in range(memory.input_count):
         common.write(f, 1, f"p_{i}_in_internal <= p_{i}_in;")
     for i in range(memory.output_count):
         common.write(f, 1, f"p_{i}_out <= p_{i}_out_internal;")
+
+    # Register control signals generated by address ROMs.
+    if register_control_signals:
+        common.write(f, 1, "-- Control signal registers", start="\n")
+        common.synchronous_process_prologue(f, name="control_regs_proc")
+        common.write(f, 3, "if en = '1' then")
+        for i in range(memory.input_count):
+            common.write(f, 4, f"read_adr_{i} <= read_adr_{i}_0_0;")
+            common.write(f, 4, f"read_en_{i} <= read_en_{i}_0_0;")
+        for i in range(memory.output_count):
+            common.write(f, 4, f"write_adr_{i} <= write_adr_{i}_0_0;")
+            common.write(f, 4, f"write_en_{i} <= write_en_{i}_0_0;")
+        common.write(f, 3, "end if;")
+        common.synchronous_process_epilogue(f, clk="clk", name="control_regs_proc")
 
     # Infer the memory
     common.write(f, 1, "-- Memory", start="\n")
@@ -332,52 +267,44 @@ def architecture(
         },
         enable="en",
     )
-    common.write(f, 1, f"read_adr_0 <= read_adr_0_{adr_pipe_depth}_0;")
-    common.write(f, 1, f"write_adr_0 <= write_adr_0_{adr_pipe_depth}_0;")
-    common.write(f, 1, f"write_en_0 <= write_en_0_{adr_pipe_depth}_0;")
-    if input_sync:
-        common.write(f, 1, "write_port_0 <= p_0_in_sync;")
-    else:
-        common.write(f, 1, "write_port_0 <= p_0_in_internal;")
+    if not register_control_signals:
+        common.write(f, 1, "read_adr_0 <= read_adr_0_0_0;")
+        common.write(f, 1, "read_en_0 <= read_en_0_0_0;")
+        common.write(f, 1, "write_adr_0 <= write_adr_0_0_0;")
+        common.write(f, 1, "write_en_0 <= write_en_0_0_0;")
+    common.write(f, 1, "write_port_0 <= p_0_in_internal;")
 
     # Input and output assignments
     if output_sync:
         common.write(f, 1, "-- Input and output assignments", start="\n")
-        p_zero_exec = filter(
-            lambda p: p.execution_time == 0, (p for pc in memory.assignment for p in pc)
-        )
+        all_procs = [p for pc in memory.assignment for p in pc]
+        output_cases: dict[int, str] = {}
+        # forward_ctrl ROM
+        for p in all_procs:
+            write_time = (p.start_time - 1) % schedule_time
+            output_cases[write_time] = (
+                f"forward_ctrl <= '{int(1 in p.reads.values())}';"
+            )
         common.synchronous_process_prologue(f, name="output_reg_proc")
         common.write(f, 3, "if en = '1' then")
         common.write(f, 4, "case schedule_cnt is")
-        for p in p_zero_exec:
-            if input_sync:
-                write_time = (p.start_time + 1) % schedule_time
-                if adr_pipe_depth:
-                    bin_time = time_bin_str(write_time + adr_pipe_depth, schedule_time)
-                    common.write(
-                        f,
-                        5,
-                        f'when "{bin_time}" => p_0_out_internal <= p_0_in_sync;',
-                    )
-                else:
-                    bin_time = time_bin_str(write_time, schedule_time)
-                    common.write(
-                        f, 5, f'when "{bin_time}" => p_0_out_internal <= p_0_in_sync;'
-                    )
-            else:
-                write_time = (p.start_time) % schedule_time
-                bin_time = time_bin_str(write_time, schedule_time)
-                common.write(
-                    f, 5, f'when "{bin_time}" => p_0_out_internal <= p_0_in_internal;'
-                )
+        for write_time, stmt in sorted(output_cases.items()):
+            bin_time = time_bin_str(write_time, schedule_time)
+            common.write(f, 5, f'when "{bin_time}" => {stmt}')
+        # Normal operation, output the read port
         common.write_lines(
             f,
             [
-                (5, "when others => p_0_out_internal <= read_port_0;"),
+                (5, "when others => forward_ctrl <= '-';"),
                 (4, "end case;"),
-                (3, "end if;"),
             ],
         )
+        common.write(f, 4, "if forward_ctrl = '1' then")
+        common.write(f, 5, "p_0_out_internal <= p_0_in_internal;")
+        common.write(f, 4, "else")
+        common.write(f, 5, "p_0_out_internal <= read_port_0;")
+        common.write(f, 4, "end if;")
+        common.write(f, 3, "end if;")
         common.synchronous_process_epilogue(
             f,
             clk="clk",
@@ -405,122 +332,39 @@ def architecture(
             if mv.execution_time:
                 write_list[mv.start_time] = (i, mv)
 
-    for rom in range(total_roms):
-        if input_sync:
-            common.synchronous_process_prologue(
-                f, name=f"mem_write_address_proc_{0}_{rom}"
-            )
-            common.write(f, 3, "if en = '1' then")
-            indent_offset = 1
-        else:
-            common.process_prologue(
-                f, sensitivity_list="schedule_cnt_adr", name="mem_write_address_proc"
-            )
-            indent_offset = 0
-        common.write(f, 3 + indent_offset, "case schedule_cnt_adr is")
-        list_start_idx = rom * elements_per_rom
-        list_stop_idx = list_start_idx + elements_per_rom
-        for i, mv in filter(None, write_list[list_start_idx:list_stop_idx]):
-            bin_time = bin_str(
-                (mv.start_time % schedule_time) % elements_per_rom, ADR_LEN
-            )
-            common.write_lines(
-                f,
-                [
-                    (4 + indent_offset, f"-- {mv!r}"),
-                    (
-                        4 + indent_offset,
-                        (f'when "{bin_time}" =>'),
-                    ),
-                    (
-                        5 + indent_offset,
-                        f"write_adr_0_{0}_{rom} <= to_unsigned({i}, write_adr_0_{0}_{rom}'length);",
-                    ),
-                    (5 + indent_offset, f"write_en_0_{0}_{rom} <= '1';"),
-                ],
-            )
+    common.process_prologue(
+        f, sensitivity_list="schedule_cnt", name="mem_write_address_proc"
+    )
+    indent_offset = 0
+    common.write(f, 3 + indent_offset, "case schedule_cnt is")
+    for i, mv in filter(None, write_list[:elements_per_rom]):
+        write_time = mv.start_time % schedule_time
+        if register_control_signals:
+            write_time = (write_time - 1) % schedule_time
+        bin_time = bin_str(write_time % elements_per_rom, ADR_LEN)
         common.write_lines(
             f,
             [
-                (4 + indent_offset, "when others =>"),
-                (5 + indent_offset, f"write_adr_0_{0}_{rom} <= (others => '-');"),
-                (5 + indent_offset, f"write_en_0_{0}_{rom} <= '0';"),
-                (3 + indent_offset, "end case;"),
+                (4 + indent_offset, f"-- {mv!r}"),
+                (4 + indent_offset, (f'when "{bin_time}" =>')),
+                (
+                    5 + indent_offset,
+                    f"write_adr_0_0_0 <= to_unsigned({i}, write_adr_0_0_0'length);",
+                ),
+                (5 + indent_offset, "write_en_0_0_0 <= '1';"),
             ],
         )
-        if input_sync:
-            common.write(f, 3, "end if;")
-            common.synchronous_process_epilogue(
-                f, clk="clk", name=f"mem_write_address_proc_{0}_{rom}"
-            )
-            common.blank(f)
-        else:
-            common.process_epilogue(
-                f, sensitivity_list="clk", name="mem_write_address_proc"
-            )
-            common.blank(f)
-
-    # Write address multiplexing layers
-    for layer in range(adr_pipe_depth):
-        for mux_idx in range(total_roms // adr_mux_size ** (layer + 1)):
-            common.synchronous_process_prologue(
-                f, name=f"mem_write_address_proc{layer + 1}_{mux_idx}"
-            )
-            common.write(f, 3, "if en = '1' then")
-            common.write(
-                f,
-                4,
-                (
-                    f"case schedule_cnt{layer + 1}("
-                    f"{ADR_LEN + layer * bits_per_mux + bits_per_mux - 1} downto "
-                    f"{ADR_LEN + layer * bits_per_mux}"
-                    ") is"
-                ),
-            )
-            for in_idx in range(adr_mux_size):
-                out_idx = in_idx + mux_idx * adr_mux_size
-                common.write(
-                    f,
-                    5,
-                    (
-                        f"-- {adr_mux_size}-to-1 MUX layer: "
-                        f"layer={layer}, MUX={mux_idx}, input={in_idx}"
-                    ),
-                )
-                common.write_lines(
-                    f,
-                    [
-                        (5, f'when "{bin_str(in_idx, bits_per_mux)}" =>'),
-                        (
-                            6,
-                            (
-                                f"write_adr_0_{layer + 1}_{mux_idx} <="
-                                f" write_adr_0_{layer}_{out_idx};"
-                            ),
-                        ),
-                        (
-                            6,
-                            (
-                                f"write_en_0_{layer + 1}_{mux_idx} <="
-                                f" write_en_0_{layer}_{out_idx};"
-                            ),
-                        ),
-                    ],
-                )
-            common.write_lines(
-                f,
-                [
-                    (5, "when others =>"),
-                    (6, f"write_adr_0_{layer + 1}_{mux_idx} <= (others => '-');"),
-                    (6, f"write_en_0_{layer + 1}_{mux_idx} <= '0';"),
-                    (4, "end case;"),
-                    (3, "end if;"),
-                ],
-            )
-            common.synchronous_process_epilogue(
-                f, clk="clk", name=f"mem_write_address_proc{layer + 1}_{mux_idx}"
-            )
-            common.blank(f)
+    common.write_lines(
+        f,
+        [
+            (4 + indent_offset, "when others =>"),
+            (5 + indent_offset, "write_adr_0_0_0 <= (others => '-');"),
+            (5 + indent_offset, "write_en_0_0_0 <= '0';"),
+            (3 + indent_offset, "end case;"),
+        ],
+    )
+    common.process_epilogue(f, sensitivity_list="clk", name="mem_write_address_proc")
+    common.blank(f)
 
     #
     # ROM read address generation
@@ -539,114 +383,49 @@ def architecture(
             for read_time in mv.reads.values():
                 read_list[(mv.start_time + read_time) % schedule_time] = (i, mv)
 
-    for rom in range(total_roms):
-        if input_sync:
-            common.synchronous_process_prologue(
-                f, name=f"mem_read_address_proc_{0}_{rom}"
-            )
-            common.write(f, 3, "if en = '1' then")
-            indent_offset = 1
-        else:
-            common.process_prologue(
-                f, sensitivity_list="schedule_cnt_adr", name="mem_read_address_proc"
-            )
-            indent_offset = 0
-        common.write(f, 3 + indent_offset, "case schedule_cnt_adr is")
-        list_start_idx = rom * elements_per_rom
-        list_stop_idx = list_start_idx + elements_per_rom
-        for idx in range(list_start_idx, list_stop_idx):
-            if idx < schedule_time:
-                tp = read_list[idx]
-                if tp is None:
-                    continue
-                i = tp[0]
-                mv = tp[1]
-                common.write_lines(
-                    f,
-                    [
-                        (4 + indent_offset, f"-- {mv!r}"),
-                        (
-                            4 + indent_offset,
-                            f'when "{bin_str(idx % elements_per_rom, ADR_LEN)}" =>',
-                        ),
-                        (
-                            5 + indent_offset,
-                            f"read_adr_0_{0}_{rom} <= to_unsigned({i}, read_adr_0_{0}_{rom}'length);",
-                        ),
-                    ],
-                )
-        common.write_lines(
-            f,
-            [
-                (4 + indent_offset, "when others =>"),
-                (5 + indent_offset, f"read_adr_0_{0}_{rom} <= (others => '-');"),
-                (3 + indent_offset, "end case;"),
-            ],
-        )
-        if input_sync:
-            common.write(f, 3, "end if;")
-            common.synchronous_process_epilogue(
-                f, clk="clk", name=f"mem_read_address_proc_{0}_{rom}"
-            )
-            common.blank(f)
-        else:
-            common.process_epilogue(
-                f, sensitivity_list="clk", name="mem_read_address_proc"
-            )
-            common.blank(f)
-
-    # Read address multiplexing layers
-    for layer in range(adr_pipe_depth):
-        for mux_idx in range(total_roms // adr_mux_size ** (layer + 1)):
-            common.synchronous_process_prologue(
-                f, name=f"mem_read_address_proc{layer + 1}_{mux_idx}"
-            )
-            common.write(f, 3, "if en = '1' then")
-            common.write(
-                f,
-                4,
-                (
-                    f"case schedule_cnt{layer + 1}("
-                    f"{ADR_LEN + layer * bits_per_mux + bits_per_mux - 1} downto "
-                    f"{ADR_LEN + layer * bits_per_mux}"
-                    ") is"
-                ),
-            )
-            for in_idx in range(adr_mux_size):
-                out_idx = in_idx + mux_idx * adr_mux_size
-                common.write(
-                    f,
-                    5,
-                    (
-                        f"-- {adr_mux_size}-to-1 MUX layer: "
-                        f"layer={layer}, MUX={mux_idx}, input={in_idx}"
-                    ),
-                )
-                common.write_lines(
-                    f,
-                    [
-                        (5, f'when "{bin_str(in_idx, bits_per_mux)}" =>'),
-                        (
-                            6,
-                            (
-                                f"read_adr_0_{layer + 1}_{mux_idx} <="
-                                f" read_adr_0_{layer}_{out_idx};"
-                            ),
-                        ),
-                    ],
-                )
+    common.process_prologue(
+        f, sensitivity_list="schedule_cnt", name="mem_read_address_proc"
+    )
+    indent_offset = 0
+    common.write(f, 3 + indent_offset, "case schedule_cnt is")
+    for idx in range(elements_per_rom):
+        if idx < schedule_time:
+            tp = read_list[idx]
+            if tp is None:
+                continue
+            i = tp[0]
+            mv = tp[1]
+            time = idx % elements_per_rom
+            if output_sync:
+                time -= 1  # Account for output register
+            if register_control_signals:
+                time -= 1  # Account for control-signal register stage
+            time = time % elements_per_rom
             common.write_lines(
                 f,
                 [
-                    (5, "when others =>"),
-                    (6, f"read_adr_0_{layer + 1}_{mux_idx} <= (others => '-');"),
-                    (4, "end case;"),
-                    (3, "end if;"),
+                    (4 + indent_offset, f"-- {mv!r}"),
+                    (
+                        4 + indent_offset,
+                        f'when "{bin_str(time, ADR_LEN)}" =>',
+                    ),
+                    (
+                        5 + indent_offset,
+                        f"read_adr_0_0_0 <= to_unsigned({i}, read_adr_0_0_0'length);",
+                    ),
+                    (5 + indent_offset, "read_en_0_0_0 <= '1';"),
                 ],
             )
-            common.synchronous_process_epilogue(
-                f, clk="clk", name=f"mem_read_address_proc{layer + 1}_{mux_idx}"
-            )
-            common.blank(f)
+    common.write_lines(
+        f,
+        [
+            (4 + indent_offset, "when others =>"),
+            (5 + indent_offset, "read_adr_0_0_0 <= (others => '-');"),
+            (5 + indent_offset, "read_en_0_0_0 <= '0';"),
+            (3 + indent_offset, "end case;"),
+        ],
+    )
+    common.process_epilogue(f, sensitivity_list="clk", name="mem_read_address_proc")
+    common.blank(f)
 
     common.write(f, 0, "end architecture rtl;")
