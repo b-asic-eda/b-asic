@@ -42,6 +42,7 @@ def assign_processing_elements_and_memories(
     strategy: Literal[
         "ilp_graph_color",
         "ilp_min_total_mux",
+        "greedy_graph_color",
     ] = "ilp_graph_color",
     mux_targets: set[Literal["pe_to_mem", "mem_to_pe", "pe_to_pe"]] | None = None,
     max_mux_size: int | None = None,
@@ -67,6 +68,7 @@ def assign_processing_elements_and_memories(
 
         * "ilp_graph_color" - ILP-based optimal resource assignment.
         * "ilp_min_total_mux" - ILP-based optimal resource assignment with multiplexer minimization.
+        * "greedy_graph_color" - Greedy graph coloring-based resource assignment.
 
     mux_targets : set of {'pe_to_mem', 'mem_to_pe', 'pe_to_pe'}, optional
         Specifies which multiplexer types to minimize when using strategy='ilp_min_total_mux'.
@@ -181,6 +183,7 @@ def _split_operations_and_variables(
     strategy: Literal[
         "ilp_graph_color",
         "ilp_min_total_mux",
+        "greedy_graph_color",
     ] = "ilp_graph_color",
     mux_targets: set[Literal["pe_to_mem", "mem_to_pe", "pe_to_pe"]] | None = None,
     max_mux_size: int | None = None,
@@ -258,6 +261,23 @@ def _split_operations_and_variables(
             max_mux_size,
             solver,
         )
+    elif strategy == "greedy_graph_color":
+        pe_x = {}
+        for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
+            coloring = nx.coloring.greedy_color(
+                pe_exclusion_graph, strategy="saturation_largest_first"
+            )
+            pe_x[i] = {
+                node: {color: 1 if color == node_color else 0 for color in pe_colors[i]}
+                for node, node_color in coloring.items()
+            }
+        mem_coloring = nx.coloring.greedy_color(
+            mem_exclusion_graph, strategy="saturation_largest_first"
+        )
+        mem_x = {
+            node: {color: 1 if color == node_color else 0 for color in mem_colors}
+            for node, node_color in mem_coloring.items()
+        }
     else:
         raise ValueError(f"Invalid strategy '{strategy}'")
 
@@ -593,14 +613,16 @@ def _ilp_coloring_min_mux(
 
     # Speed
     if mem_exclusion_graph.number_of_nodes() > 0:
-        max_clique = next(nx.find_cliques(mem_exclusion_graph))
+        mem_cliques = list(nx.enumerate_all_cliques(mem_exclusion_graph))
+        mem_cliques.sort(key=lambda c: len(c), reverse=True)
+        max_clique = mem_cliques[0]
         for color, node in enumerate(max_clique):
             problem += mem_x[node][color] == mem_c[color] == 1
         for color in mem_colors:
             problem += mem_c[color] <= lpSum(
                 mem_x[node][color] for node in mem_graph_nodes
             )
-        for clique in nx.find_cliques(mem_exclusion_graph):
+        for clique in mem_cliques:
             for color in mem_colors:
                 problem += lpSum(mem_x[node][color] for node in clique) <= 1
         for color in mem_colors[:-1]:
@@ -619,12 +641,14 @@ def _ilp_coloring_min_mux(
             for color in pe_colors[i]:
                 problem += pe_x[i][node][color] <= pe_c[i][color]
         # Speed
-        max_clique = next(nx.find_cliques(pe_exclusion_graph))
+        pe_cliques = list(nx.enumerate_all_cliques(pe_exclusion_graph))
+        pe_cliques.sort(key=lambda c: len(c), reverse=True)
+        max_clique = pe_cliques[0]
         for color, node in enumerate(max_clique):
             problem += pe_x[i][node][color] == pe_c[i][color] == 1
         for color in pe_colors[i]:
             problem += pe_c[i][color] <= lpSum(pe_x[i][node][color] for node in nodes)
-        for clique in nx.find_cliques(pe_exclusion_graph):
+        for clique in pe_cliques:
             for color in pe_colors[i]:
                 problem += lpSum(pe_x[i][node][color] for node in clique) <= 1
         for color in pe_colors[i][:-1]:
