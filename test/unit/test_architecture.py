@@ -228,6 +228,46 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         [{(adder, 0): 1, (output_pe, 0): 1, (memory, 0): 2, (multiplier, 0): 1}],
     )
 
+    edge_set: set[tuple[str, int, str, int]] = set()
+    for pe in architecture.processing_elements:
+        inputs, outputs = architecture.get_interconnects_for_pe(pe)
+
+        for input_port, sources in enumerate(inputs):
+            for source, source_port in sources:
+                edge_set.add(
+                    (source.entity_name, source_port, pe.entity_name, input_port)
+                )
+
+        for output_port, destinations in enumerate(outputs):
+            for destination, destination_port in destinations:
+                edge_set.add(
+                    (
+                        pe.entity_name,
+                        output_port,
+                        destination.entity_name,
+                        destination_port,
+                    )
+                )
+
+    expected_total_connections = len(edge_set)
+
+    destination_fan_in: dict[tuple[str, int], int] = {}
+    for _, _, destination_name, destination_port in edge_set:
+        destination_key = (destination_name, destination_port)
+        destination_fan_in[destination_key] = (
+            destination_fan_in.get(destination_key, 0) + 1
+        )
+
+    expected_multiplexed_connections = sum(
+        fan_in for fan_in in destination_fan_in.values() if fan_in > 1
+    )
+
+    assert architecture.get_multiplexer_input_count() == expected_total_connections
+    assert (
+        architecture.get_multiplexer_input_count(multiplexed_only=True)
+        == expected_multiplexed_connections
+    )
+
 
 def test_architecture_not_unique_entity_names():
     pe_1 = ProcessingElement(

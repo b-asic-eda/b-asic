@@ -1207,6 +1207,35 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     d_out[i][v] += 1
         return [dict(d) for d in d_in], [dict(d) for d in d_out]
 
+    def get_multiplexer_input_count(self, multiplexed_only: bool = False) -> int:
+        """
+        Return the number of multiplexer inputs in the architecture.
+
+        This corresponds to the total number of interconnect connections, where each
+        source feeding a destination input contributes one multiplexer input.
+
+        Parameters
+        ----------
+        multiplexed_only : bool, default: False
+            If ``True``, only destinations with fan-in greater than one are included.
+            If ``False``, all connections are counted.
+
+        Returns
+        -------
+        int
+            Total number of multiplexer inputs (connections).
+        """
+        _, destination_edges = self._build_interconnect_edges()
+
+        if multiplexed_only:
+            return sum(
+                len(source_set)
+                for source_set in destination_edges.values()
+                if len(source_set) > 1
+            )
+
+        return sum(len(source_set) for source_set in destination_edges.values())
+
     def resource_from_name(self, name: str) -> Resource:
         """
         Get :class:`Resource` based on name.

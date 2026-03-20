@@ -45,13 +45,23 @@ def architecture(
     dt: _VhdlDataType,
     core_code: tuple[str, str],
     register_split: tuple[int, int],
+    control_cycle: dict[str, int] | None = None,
+    pipeline_control_signals: bool = False,
 ) -> None:
     common.write(f, 0, f"architecture rtl of {pe.entity_name} is")
     n_in, n_out = register_split
-    _declarative_region_common(f, pe, dt, n_in, n_out)
+    _declarative_region_common(f, pe, dt, n_in, n_out, pipeline_control_signals)
     common.write(f, 0, core_code[0])
     common.write(f, 0, "begin")
-    _statement_region_common(f, pe, dt, n_in, n_out)
+    _statement_region_common(
+        f,
+        pe,
+        dt,
+        n_in,
+        n_out,
+        control_cycle,
+        pipeline_control_signals,
+    )
     common.write(f, 0, core_code[1])
     common.write(f, 0, "end architecture rtl;")
 
@@ -62,6 +72,7 @@ def _declarative_region_common(
     dt: _VhdlDataType,
     n_in: int,
     n_out: int,
+    pipeline_control_signals: bool,
 ) -> None:
     # Define output pipeline registers
     for k in range(n_out):
@@ -96,6 +107,8 @@ def _declarative_region_common(
         else:
             vhdl_type = f"unsigned({entry.bits - 1} downto 0)"
         common.signal_declaration(f, name, vhdl_type)
+        if pipeline_control_signals:
+            common.signal_declaration(f, f"{name}_comb", vhdl_type)
 
     # Define integer bits for control signals
     for name, entry in pe.control_table.items():
@@ -110,9 +123,11 @@ def _statement_region_common(
     dt: _VhdlDataType,
     n_in: int,
     n_out: int,
+    control_cycle: dict[str, int] | None,
+    pipeline_control_signals: bool,
 ) -> None:
     # Generate pipeline registers
-    if n_in > 0 or n_out > 0:
+    if n_in > 0 or n_out > 0 or pipeline_control_signals:
         common.synchronous_process_prologue(f)
         common.write(f, 3, "if en = '1' then")
 
@@ -142,6 +157,10 @@ def _statement_region_common(
                         f"p_{count}_in_reg_{k} <= p_{count}_in_reg_{k - 1};",
                     )
 
+        if pipeline_control_signals:
+            for name in pe.control_table:
+                common.write(f, 4, f"{name} <= {name}_comb;")
+
         common.write(f, 3, "end if;")
         common.synchronous_process_epilogue(f)
 
@@ -157,7 +176,9 @@ def _statement_region_common(
             common.write(f, 1, f"op_{input_port} <= p_{input_port}_in;")
 
     # Generate control signals
+    control_cycle = {} if control_cycle is None else control_cycle
     for name, entry in pe.control_table.items():
+        ctrl_target = f"{name}_comb" if pipeline_control_signals else name
         if entry.is_static:
             val = entry.get_static_value()
             if isinstance(val, bool):
@@ -167,10 +188,11 @@ def _statement_region_common(
                 val_str = f'b"{bin_str(int_val, entry.bits)}"'
             else:
                 raise NotImplementedError
-            common.write(f, 1, f"{name} <= {val_str};\n")
+            common.write(f, 1, f"{ctrl_target} <= {val_str};\n")
             continue
         common.write(f, 1, "with schedule_cnt select")
-        common.write(f, 2, f"{name} <=")
+        common.write(f, 2, f"{ctrl_target} <=")
+        target_cycle = control_cycle.get(name)
         for time, val in entry.values.items():
             if isinstance(val, bool):
                 val_str = f"'{int(val)}'"
@@ -179,8 +201,13 @@ def _statement_region_common(
                 val_str = f'b"{bin_str(int_val, entry.bits)}"'
             else:
                 raise NotImplementedError
-            # Control is applied n_in cycles early (data delayed by input registers)
-            avail_time = (time + n_in) % pe.schedule_time if n_in > 0 else time
+            # Control is applied n_in cycles early (data delayed by input registers).
+            # If absolute control cycle is configured, use that instead.
+            control_cycle_now = target_cycle if target_cycle is not None else n_in
+            if pipeline_control_signals:
+                # One register stage means decode must happen one cycle earlier.
+                control_cycle_now -= 1
+            avail_time = (time + control_cycle_now) % pe.schedule_time
             common.write(
                 f, 3, f'{val_str} when "{time_bin_str(avail_time, pe.schedule_time)}",'
             )
