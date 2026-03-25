@@ -7,6 +7,7 @@ Contains functions for joint resource assignment of processing elements and memo
 import os
 import shutil
 import tempfile
+from collections import defaultdict
 from typing import Literal, cast
 from uuid import uuid4
 
@@ -195,6 +196,7 @@ def _split_operations_and_variables(
     memory_type: Literal["RAM", "register"] = "RAM",
     solver: LpSolver | None = None,
 ) -> tuple[dict[TypeName, list[ProcessCollection]], list[ProcessCollection]]:
+    log.info("Checking that operation execution times do not exceed schedule time")
     for group in operation_groups.values():
         for process in group:
             if process.execution_time > group.schedule_time:
@@ -202,8 +204,10 @@ def _split_operations_and_variables(
                     f"Operation {process} has execution time greater than the schedule time."
                 )
 
-    # For RAM memories, the lifetime of a variable must not exceed the schedule time
     if memory_type == "RAM":
+        log.info(
+            "Checking that memory variable execution times do not exceed schedule time due to RAM memory type"
+        )
         for process in memory_variables:
             if process.execution_time > memory_variables.schedule_time:
                 raise ValueError(
@@ -211,6 +215,7 @@ def _split_operations_and_variables(
                 )
 
     # Generate the exclusion graphs along with a color upper bound for PEs
+    log.info("Generating PE exclusion graphs and color upper bounds")
     pe_exclusion_graphs = []
     pe_colors = []
     pe_operations = []
@@ -226,18 +231,29 @@ def _split_operations_and_variables(
             pe_colors.append(list(range(len(set(coloring.values())))))
         else:
             pe_colors.append(list(range(resources[operation.type_name()])))
+    log.info("Upper bounds on PE colors: %s", pe_colors)
 
-    # Generate the exclusion graphs along with a color upper bound for memories
+    log.info("Generating memory variable exclusion graph")
     mem_exclusion_graph = memory_variables.exclusion_graph_from_ports(
         memory_read_ports, memory_write_ports, memory_total_ports
     )
     if max_memories is None:
+        log.info(
+            "max_memories not provided, using greedy graph coloring to determine upper bound on memory colors"
+        )
         coloring = nx.coloring.greedy_color(
             mem_exclusion_graph, strategy="saturation_largest_first"
         )
         max_memories = len(set(coloring.values()))
+    log.info(
+        "Upper bound on memory colors: %d, maximum number of memory reads: %d and memory writes: %d",
+        max_memories,
+        memory_variables.read_ports_bound(),
+        memory_variables.write_ports_bound(),
+    )
     mem_colors = list(range(max_memories))
 
+    log.info("Using strategy '%s' for resource assignment", strategy)
     if strategy == "ilp_graph_color":
         # Color the graphs concurrently using ILP to minimize the total amount of resources
         pe_x, mem_x = _ilp_coloring(
@@ -253,6 +269,7 @@ def _split_operations_and_variables(
         pe_x, mem_x = _ilp_coloring_min_mux(
             pe_exclusion_graphs,
             mem_exclusion_graph,
+            memory_variables,
             mem_colors,
             pe_colors,
             pe_operations,
@@ -379,6 +396,7 @@ def _ilp_coloring(
 def _ilp_coloring_min_mux(
     pe_exclusion_graphs: list[nx.Graph],
     mem_exclusion_graph: nx.Graph,
+    mem_variables: ProcessCollection,
     mem_colors: list[int],
     pe_colors: list[list[int]],
     pe_operations: list[Operation],
@@ -402,6 +420,10 @@ def _ilp_coloring_min_mux(
     pe_x, pe_c = _create_pe_variables(pe_exclusion_graphs, pe_colors)
 
     # Objective: minimize the number of connections of the specified mux_targets
+    log.info(
+        "Creating ILP problem with objective to minimize the number of connections for the target mux types: %s",
+        mux_targets,
+    )
     problem = LpProblem()
     objective_terms = []
     # pe_to_mem_vars[graph_idx][pe_color][out_port][mem_color]
@@ -463,6 +485,7 @@ def _ilp_coloring_min_mux(
     problem += lpSum(objective_terms)
 
     # Coloring constraints for the memory variable exclusion graph
+    log.info("Adding coloring constraints for memory variable exclusion graph")
     for node in mem_graph_nodes:
         problem += lpSum(mem_x[node][i] for i in mem_colors) == 1
     for u, v in mem_graph_edges:
@@ -472,9 +495,9 @@ def _ilp_coloring_min_mux(
         for color in mem_colors:
             problem += mem_x[node][color] <= mem_c[color]
 
-    # Connect assignment to PE→Memory connections
+    log.info("Adding constraints for connecting assignments to PE->Memory connections")
     if "pe_to_mem" in mux_targets:
-        log.debug("Constructing PE→Memory constraints")
+        log.info("Adding PE->Memory constraints")
         pe_to_mem_constraints = 0
         for i in range(len(pe_exclusion_graphs)):
             pe_nodes = list(pe_exclusion_graphs[i].nodes())
@@ -483,7 +506,7 @@ def _ilp_coloring_min_mux(
                     mem_node = _get_mem_node(pe_node, k, mem_graph_nodes)
                     if mem_node is not None:
                         log.debug(
-                            "  %s:out%d → memory:%s", pe_node.name, k, mem_node.name
+                            "  %s:out%d -> memory:%s", pe_node.name, k, mem_node.name
                         )
                         for j in pe_colors[i]:
                             for l in mem_colors:
@@ -491,18 +514,18 @@ def _ilp_coloring_min_mux(
                                     pe_x[i][pe_node][j] + mem_x[mem_node][l] - 1
                                 )
                                 pe_to_mem_constraints += 1
-        log.debug("Total PE→Memory constraints: %d", pe_to_mem_constraints)
+        log.info("Total PE->Memory constraints: %d", pe_to_mem_constraints)
 
-    # Connect assignment to Memory→PE connections
+    log.info("Adding constraints for connecting assignments to Memory->PE connections")
     if "mem_to_pe" in mux_targets:
-        log.debug("Constructing Memory→PE constraints")
+        log.info("Adding Memory->PE constraints")
         mem_to_pe_constraints = 0
         for mem_graph_node in mem_graph_nodes:
             for j in range(len(pe_exclusion_graphs)):
                 pe_pairs = _get_pe_nodes(mem_graph_node, pe_exclusion_graphs[j])
                 for pair in pe_pairs:
                     log.debug(
-                        "  memory:%s → %s:in%d",
+                        "  memory:%s -> %s:in%d",
                         mem_graph_node.name,
                         pair[0].name,
                         pair[1],
@@ -522,9 +545,11 @@ def _ilp_coloring_min_mux(
                                 pe_x[j][pair[0]][k] + mem_x[mem_graph_node][i] - 1
                             )
                             mem_to_pe_constraints += 1
-        log.debug("Total Memory→PE constraints: %d", mem_to_pe_constraints)
+        log.info("Total Memory->PE constraints: %d", mem_to_pe_constraints)
 
-    # Connect assignment to PE→PE direct connections
+    log.info(
+        "Adding constraints for connecting assignments to PE->PE direct connections"
+    )
     if "pe_to_pe" in mux_targets:
         pe_op_indices = {
             op.operation: i
@@ -551,7 +576,7 @@ def _ilp_coloring_min_mux(
                 src_proc = pe_processes[source_port.operation]
                 dest_proc = pe_processes[dest_port.operation]
                 log.debug(
-                    "  %s:out%d → %s:in%d",
+                    "  %s:out%d -> %s:in%d",
                     source_port.operation.graph_id,
                     source_port.index,
                     dest_port.operation.graph_id,
@@ -560,7 +585,7 @@ def _ilp_coloring_min_mux(
                 for source_color in pe_colors[src_idx]:
                     for dest_color in pe_colors[dst_idx]:
                         # If the source op is assigned to source_color AND the destination op is assigned to dest_color,
-                        # then there must be a PE→PE connection from source_color to dest_color
+                        # then there must be a PE->PE connection from source_color to dest_color
                         problem += (
                             pe_to_pe_vars[src_idx][source_color][source_port.index][
                                 dst_idx
@@ -570,10 +595,15 @@ def _ilp_coloring_min_mux(
                             - 1
                         )
                         pe_to_pe_constraints += 1
-        log.debug("Total PE→PE constraints: %d", pe_to_pe_constraints)
+        log.info("Total PE->PE constraints: %d", pe_to_pe_constraints)
 
     # Optional constraints to limit maximum mux fan-in for enabled targets
     if max_mux_size is not None:
+        log.info(
+            "Adding constraints to limit maximum mux fan-in to %d for mux targets: %s",
+            max_mux_size,
+            mux_targets,
+        )
         if "pe_to_mem" in mux_targets:
             for mem_color in mem_colors:
                 problem += (
@@ -613,47 +643,97 @@ def _ilp_coloring_min_mux(
 
     # Speed
     if mem_exclusion_graph.number_of_nodes() > 0:
-        mem_cliques = list(nx.enumerate_all_cliques(mem_exclusion_graph))
-        mem_cliques.sort(key=lambda c: len(c), reverse=True)
-        max_clique = mem_cliques[0]
-        for color, node in enumerate(max_clique):
+        log.info("Adding constraints to speed up memory variable coloring")
+
+        # Find the time step with the most reads or writes
+        schedule_time = mem_variables.schedule_time
+        time_to_reads: dict[int, list] = defaultdict(list)
+        time_to_writes: dict[int, list] = defaultdict(list)
+        for var in mem_variables:
+            time_to_writes[var.start_time % schedule_time].append(var)
+            for rt in var.read_times:
+                time_to_reads[rt % schedule_time].append(var)
+        all_times = set(time_to_reads) | set(time_to_writes)
+        busiest_t = max(
+            all_times, key=lambda t: max(len(time_to_reads[t]), len(time_to_writes[t]))
+        )
+        if len(time_to_reads[busiest_t]) > len(time_to_writes[busiest_t]):
+            log.info(
+                "Busiest time step %d has %d reads",
+                busiest_t,
+                len(time_to_reads[busiest_t]),
+            )
+            busiest_vars = time_to_reads[busiest_t]
+        else:
+            log.info(
+                "Busiest time step %d has %d writes",
+                busiest_t,
+                len(time_to_writes[busiest_t]),
+            )
+            busiest_vars = time_to_writes[busiest_t]
+
+        log.info(
+            "Adding constraints to assign the busiest set of memory variables to different colors"
+        )
+        for color, node in enumerate(busiest_vars):
             problem += mem_x[node][color] == mem_c[color] == 1
+
+        # log.info("Adding constraints to ensure that at most one memory variable in the busiest set can be given a color")
+        # for color in mem_colors:
+        #     problem += lpSum(mem_x[node][color] for node in busiest_vars) <= 1
+        log.info(
+            "Adding constraints to ensure that if a memory color is used, at least one memory variable must be assigned to it"
+        )
         for color in mem_colors:
             problem += mem_c[color] <= lpSum(
                 mem_x[node][color] for node in mem_graph_nodes
             )
-        for clique in mem_cliques:
-            for color in mem_colors:
-                problem += lpSum(mem_x[node][color] for node in clique) <= 1
+        # Symmetry breaking constraints to reduce the solution space
         for color in mem_colors[:-1]:
             problem += mem_c[color + 1] <= mem_c[color]
 
     for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
-        # Coloring constraints for PE exclusion graphs
+        log.info("Adding coloring constraints for PE exclusion graph %d", i)
         nodes = list(pe_exclusion_graph.nodes())
-        edges = list(pe_exclusion_graph.edges())
         for node in nodes:
             problem += lpSum(pe_x[i][node][color] for color in pe_colors[i]) == 1
+        # edges = list(pe_exclusion_graph.edges())
         # for u, v in edges:
         #    for color in pe_colors[i]:
         #        problem += pe_x[i][u][color] + pe_x[i][v][color] <= 1
         for node in nodes:
             for color in pe_colors[i]:
                 problem += pe_x[i][node][color] <= pe_c[i][color]
-        # Speed
-        pe_cliques = list(nx.enumerate_all_cliques(pe_exclusion_graph))
-        pe_cliques.sort(key=lambda c: len(c), reverse=True)
-        max_clique = pe_cliques[0]
-        for color, node in enumerate(max_clique):
+        # Speed: find the time step where the most PEs of this type execute simultaneously
+        log.info("Adding speed constraints for PE exclusion graph %d", i)
+        pe_schedule_time = mem_variables.schedule_time
+        pe_time_to_active: dict[int, list] = defaultdict(list)
+        for node in nodes:
+            for t in range(node.start_time, node.start_time + node.execution_time):
+                pe_time_to_active[t % pe_schedule_time].append(node)
+        busiest_pe_t = max(pe_time_to_active, key=lambda t: len(pe_time_to_active[t]))
+        busiest_pe_nodes = pe_time_to_active[busiest_pe_t]
+        log.info(
+            "Busiest time step for PE graph %d: t=%d with %d active PEs",
+            i,
+            busiest_pe_t,
+            len(busiest_pe_nodes),
+        )
+
+        # Color the busiest set with distinct colors to reduce the solution space
+        for color, node in enumerate(busiest_pe_nodes):
             problem += pe_x[i][node][color] == pe_c[i][color] == 1
         for color in pe_colors[i]:
             problem += pe_c[i][color] <= lpSum(pe_x[i][node][color] for node in nodes)
-        for clique in pe_cliques:
-            for color in pe_colors[i]:
-                problem += lpSum(pe_x[i][node][color] for node in clique) <= 1
         for color in pe_colors[i][:-1]:
             problem += pe_c[i][color + 1] <= pe_c[i][color]
 
+    log.info(
+        "Model created with %d variables and %d constraints. Starting to solve with solver: %s",
+        len(problem.variables()),
+        len(problem.constraints),
+        solver.__class__.__name__ if solver else "default",
+    )
     _solve_ilp_problem(problem, solver)
 
     # Log active connections
@@ -667,9 +747,9 @@ def _ilp_coloring_min_mux(
             for l in mem_colors
             if value(pe_to_mem_vars[i][j][k][l]) == 1
         ]
-        log.info("PE→Memory connections: %d", len(active_pe_to_mem))
+        log.info("PE->Memory connections: %d", len(active_pe_to_mem))
         for i, j, k, l in active_pe_to_mem:
-            log.debug("  %s%d:out%d → memory%d", pe_type_names[i], j, k, l)
+            log.info("  %s%d:out%d -> memory%d", pe_type_names[i], j, k, l)
     if "mem_to_pe" in mux_targets:
         active_mem_to_pe = [
             (i, j, k, l)
@@ -679,9 +759,9 @@ def _ilp_coloring_min_mux(
             for l in pe_in_port_indices[j]
             if value(mem_to_pe_vars[i][j][k][l]) == 1
         ]
-        log.info("Memory→PE connections: %d", len(active_mem_to_pe))
+        log.info("Memory->PE connections: %d", len(active_mem_to_pe))
         for i, j, k, l in active_mem_to_pe:
-            log.debug("  memory%d → %s%d:in%d", i, pe_type_names[j], k, l)
+            log.info("  memory%d -> %s%d:in%d", i, pe_type_names[j], k, l)
     if "pe_to_pe" in mux_targets:
         active_pe_to_pe = [
             (i, j, k, l, m, n)
@@ -693,10 +773,10 @@ def _ilp_coloring_min_mux(
             for n in pe_in_port_indices[l]
             if value(pe_to_pe_vars[i][j][k][l][m][n]) == 1
         ]
-        log.info("PE→PE connections: %d", len(active_pe_to_pe))
+        log.info("PE->PE connections: %d", len(active_pe_to_pe))
         for i, j, k, l, m, n in active_pe_to_pe:
-            log.debug(
-                "  %s%d:out%d → %s%d:in%d",
+            log.info(
+                "  %s%d:out%d -> %s%d:in%d",
                 pe_type_names[i],
                 j,
                 k,
@@ -709,7 +789,7 @@ def _ilp_coloring_min_mux(
     for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
         for node in pe_exclusion_graph.nodes():
             for color in pe_colors[i]:
-                log.debug(
+                log.info(
                     "  pe_x[%d][%s][%d] = %s",
                     i,
                     node,
@@ -935,7 +1015,7 @@ def _recover_interrupted_solution(
     try:
         return cast(int, find_solution_values(problem))
     except Exception as exc:
-        log.debug("Failed to recover interrupted ILP solution: %s", exc)
+        log.info("Failed to recover interrupted ILP solution: %s", exc)
         return None
 
 
@@ -1005,7 +1085,7 @@ def _recover_cmd_solution_file(
     try:
         solution = read_solution(solution_path)
     except Exception as exc:
-        log.debug(
+        log.info(
             "Failed to parse interrupted solver solution file %s: %s",
             solution_path,
             exc,
