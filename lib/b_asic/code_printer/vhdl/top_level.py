@@ -8,6 +8,7 @@ from b_asic.code_printer.util import selector_bits, time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.data_type import _VhdlDataType
 from b_asic.special_operations import Input, Output
+from b_asic.utility_operations import DontCare
 
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture
@@ -31,7 +32,11 @@ def entity(f: TextIO, arch: "Architecture", dt: _VhdlDataType) -> None:
 
 
 def architecture(
-    f: TextIO, arch: "Architecture", dt: _VhdlDataType, io_registers: bool = False
+    f: TextIO,
+    arch: "Architecture",
+    dt: _VhdlDataType,
+    io_registers: bool = False,
+    multiplexer_control_registered: bool = True,
 ) -> None:
     common.write(f, 0, f"architecture rtl of {arch.entity_name} is")
 
@@ -47,7 +52,9 @@ def architecture(
 
     # Fetch information about multiplexers needed and declare control signals for them
     pe_mux_info, mem_mux_info = _collect_mux_info(arch)
-    _write_mux_control_signal_declarations(f, pe_mux_info, mem_mux_info)
+    _write_mux_control_signal_declarations(
+        f, pe_mux_info, mem_mux_info, multiplexer_control_registered
+    )
 
     common.write(f, 0, "begin")
 
@@ -63,7 +70,13 @@ def architecture(
     _write_schedule_counter(f, arch, io_registers)
 
     # Generate control signals for multiplexers and then connect the top-level
-    _write_mux_control_signals(f, arch.schedule_time, pe_mux_info, mem_mux_info)
+    _write_mux_control_signals(
+        f,
+        arch.schedule_time,
+        pe_mux_info,
+        mem_mux_info,
+        multiplexer_control_registered,
+    )
     _write_interconnect(f, dt, pe_mux_info, mem_mux_info)
 
     common.write(f, 0, "end architecture rtl;", start="", end="\n\n")
@@ -83,6 +96,8 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 source_port = op_input_port.signals[0].source
                 source_port_index = source_port.index
                 source_op = source_port.operation
+                if isinstance(source_op, DontCare):
+                    continue
                 is_found = False
 
                 for mem in arch.memories:
@@ -154,7 +169,10 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
 
 
 def _write_mux_control_signal_declarations(
-    f: TextIO, pe_mux_info: list, mem_mux_info: list
+    f: TextIO,
+    pe_mux_info: list,
+    mem_mux_info: list,
+    multiplexer_control_registered: bool = False,
 ) -> None:
     if not pe_mux_info and not mem_mux_info:
         return
@@ -172,6 +190,12 @@ def _write_mux_control_signal_declarations(
                 f"{pe.entity_name}_{port_number}_sel",
                 f"std_logic_vector({sel_bits - 1} downto 0)",
             )
+            if multiplexer_control_registered:
+                common.signal_declaration(
+                    f,
+                    f"{pe.entity_name}_{port_number}_sel_next",
+                    f"std_logic_vector({sel_bits - 1} downto 0)",
+                )
 
     # Memory input mux control signals
     for mem, assignments in mem_mux_info:
@@ -184,12 +208,22 @@ def _write_mux_control_signal_declarations(
                 f"{mem.entity_name}_0_sel",
                 f"std_logic_vector({sel_bits - 1} downto 0)",
             )
+            if multiplexer_control_registered:
+                common.signal_declaration(
+                    f,
+                    f"{mem.entity_name}_0_sel_next",
+                    f"std_logic_vector({sel_bits - 1} downto 0)",
+                )
 
     common.blank(f)
 
 
 def _write_mux_control_signals(
-    f: TextIO, schedule_time: int, pe_mux_info: list, mem_mux_info: list
+    f: TextIO,
+    schedule_time: int,
+    pe_mux_info: list,
+    mem_mux_info: list,
+    multiplexer_control_registered: bool = False,
 ) -> None:
     if not pe_mux_info and not mem_mux_info:
         return
@@ -204,19 +238,41 @@ def _write_mux_control_signals(
             source_to_idx = {src: idx for idx, src in enumerate(list(unique_sources))}
 
             common.write(f, 1, "with schedule_cnt select")
-            common.write(f, 2, f"{pe.entity_name}_{port_number}_sel <=")
+            if multiplexer_control_registered:
+                common.write(f, 2, f"{pe.entity_name}_{port_number}_sel_next <=")
+            else:
+                common.write(f, 2, f"{pe.entity_name}_{port_number}_sel <=")
             sel_bits = selector_bits(len(unique_sources))
             for time, source_signal in assignments:
                 idx = source_to_idx[source_signal]
                 sel_value = format(idx, f"0{sel_bits}b")
+                schedule_time_val = (
+                    (time - 1) % schedule_time
+                    if multiplexer_control_registered
+                    else time
+                )
                 common.write(
                     f,
                     3,
-                    f'"{sel_value}" when "{time_bin_str(time, schedule_time)}",',
+                    f'"{sel_value}" when "{time_bin_str(schedule_time_val, schedule_time)}",',
                 )
             common.write(
-                f, 3, f'"{"{}".format("-" * sel_bits)}" when others;', end="\n\n"
+                f, 3, f'"{"{}".format("-" * sel_bits)}" when others;', end="\n"
             )
+
+            if multiplexer_control_registered:
+                common.write(f, 1, "process(clk)")
+                common.write(f, 1, "begin")
+                common.write(f, 2, "if rising_edge(clk) then")
+                common.write(
+                    f,
+                    3,
+                    f"{pe.entity_name}_{port_number}_sel <= {pe.entity_name}_{port_number}_sel_next;",
+                )
+                common.write(f, 2, "end if;")
+                common.write(f, 1, "end process;", end="\n\n")
+            else:
+                common.blank(f)
 
     # Memory input mux control signals
     for mem, assignments in mem_mux_info:
@@ -226,19 +282,41 @@ def _write_mux_control_signals(
             source_to_idx = {src: idx for idx, src in enumerate(list(unique_sources))}
 
             common.write(f, 1, "with schedule_cnt select")
-            common.write(f, 2, f"{mem.entity_name}_0_sel <=")
+            if multiplexer_control_registered:
+                common.write(f, 2, f"{mem.entity_name}_0_sel_next <=")
+            else:
+                common.write(f, 2, f"{mem.entity_name}_0_sel <=")
             sel_bits = selector_bits(len(unique_sources))
             for time, source_signal in assignments:
                 idx = source_to_idx[source_signal]
                 sel_value = format(idx, f"0{sel_bits}b")
+                schedule_time_val = (
+                    (time - 1) % schedule_time
+                    if multiplexer_control_registered
+                    else time
+                )
                 common.write(
                     f,
                     3,
-                    f'"{sel_value}" when "{time_bin_str(time, schedule_time)}",',
+                    f'"{sel_value}" when "{time_bin_str(schedule_time_val, schedule_time)}",',
                 )
             common.write(
-                f, 3, f'"{"{}".format("-" * sel_bits)}" when others;', end="\n\n"
+                f, 3, f'"{"{}".format("-" * sel_bits)}" when others;', end="\n"
             )
+
+            if multiplexer_control_registered:
+                common.write(f, 1, "process(clk)")
+                common.write(f, 1, "begin")
+                common.write(f, 2, "if rising_edge(clk) then")
+                common.write(
+                    f,
+                    3,
+                    f"{mem.entity_name}_0_sel <= {mem.entity_name}_0_sel_next;",
+                )
+                common.write(f, 2, "end if;")
+                common.write(f, 1, "end process;", end="\n\n")
+            else:
+                common.blank(f)
 
 
 def _write_interconnect(

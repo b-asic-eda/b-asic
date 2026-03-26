@@ -1223,6 +1223,7 @@ class Schedule:
                     start_time, cast(Operation, self._sfg.find_by_id(graph_id))
                 )
                 for graph_id, start_time in self._start_times.items()
+                if not isinstance(self._sfg.find_by_id(graph_id), (DontCare, Sink))
             },
             self.schedule_time,
             self.cyclic,
