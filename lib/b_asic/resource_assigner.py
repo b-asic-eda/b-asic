@@ -694,13 +694,16 @@ def _ilp_coloring_min_mux(
 
     for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
         log.info("Adding coloring constraints for PE exclusion graph %d", i)
+        # Nodes have exactly one color
         nodes = list(pe_exclusion_graph.nodes())
         for node in nodes:
             problem += lpSum(pe_x[i][node][color] for color in pe_colors[i]) == 1
-        # edges = list(pe_exclusion_graph.edges())
-        # for u, v in edges:
-        #    for color in pe_colors[i]:
-        #        problem += pe_x[i][u][color] + pe_x[i][v][color] <= 1
+        # Adjacent nodes cannot have the same color
+        edges = list(pe_exclusion_graph.edges())
+        for u, v in edges:
+            for color in pe_colors[i]:
+                problem += pe_x[i][u][color] + pe_x[i][v][color] <= 1
+        # Only permit assignments if color is used
         for node in nodes:
             for color in pe_colors[i]:
                 problem += pe_x[i][node][color] <= pe_c[i][color]
