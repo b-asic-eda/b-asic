@@ -4,10 +4,11 @@ B-ASIC Resource Assigner Module.
 Contains functions for joint resource assignment of processing elements and memories.
 """
 
-import os
+import contextlib
 import shutil
 import tempfile
 from collections import defaultdict
+from pathlib import Path
 from typing import Literal, cast
 from uuid import uuid4
 
@@ -232,7 +233,9 @@ def _split_operations_and_variables(
     log.info("Using strategy '%s' for resource assignment", strategy)
     if strategy == "ilp_graph_color":
         # Color the graphs concurrently using ILP to minimize the total amount of resources
-        pe_x, mem_x = _ilp_coloring(op_groups, mem_vars, max_pes, max_mems, solver)
+        pe_x, mem_x = _ilp_coloring(
+            op_groups, mem_exclusion_graph, max_pes, max_mems, solver
+        )
     elif strategy == "ilp_min_total_mux":
         # Color the graphs concurrently using ILP to minimize the amount of multiplexers
         # given the amount of resources and memories
@@ -294,11 +297,16 @@ def _split_operations_and_variables(
 
 def _ilp_coloring(
     op_groups: dict[TypeName, ProcessCollection],
-    mem_vars: ProcessCollection,
+    mem_exclusion_graph: nx.Graph | None,
     max_pes: dict[TypeName, int],
     max_mems: int,
     solver: LpSolver | None = None,
 ) -> tuple[dict, dict]:
+    pe_exclusion_graphs = {
+        op_type_name: group.exclusion_graph_from_execution_time()
+        for op_type_name, group in op_groups.items()
+    }
+
     mem_graph_nodes = list(mem_exclusion_graph.nodes())
     mem_graph_edges = list(mem_exclusion_graph.edges())
 
@@ -312,10 +320,10 @@ def _ilp_coloring(
 
     # Objective: minimize the total amount of colors used
     problem = LpProblem()
-    problem += lpSum(mem_c[color] for color in mem_colors) + lpSum(
-        pe_c[i][color]
-        for i in range(len(pe_exclusion_graphs))
-        for color in pe_colors[i]
+    problem += lpSum(mem_c[color] for color in range(max_mems)) + lpSum(
+        pe_c[op_type_name][color]
+        for op_type_name in pe_exclusion_graphs
+        for color in range(max_pes[op_type_name])
     )
 
     # Constraints (for all exclusion graphs):
@@ -326,39 +334,51 @@ def _ilp_coloring(
     #   (5 & 6) - reduce solution space by ignoring the symmetry caused
     #       by cycling the graph colors
     for node in mem_graph_nodes:
-        problem += lpSum(mem_x[node][i] for i in mem_colors) == 1
+        problem += lpSum(mem_x[node][i] for i in range(max_mems)) == 1
     for u, v in mem_graph_edges:
-        for color in mem_colors:
+        for color in range(max_mems):
             problem += mem_x[u][color] + mem_x[v][color] <= 1
     for node in mem_graph_nodes:
-        for color in mem_colors:
+        for color in range(max_mems):
             problem += mem_x[node][color] <= mem_c[color]
     max_clique = next(nx.find_cliques(mem_exclusion_graph))
     for color, node in enumerate(max_clique):
         problem += mem_x[node][color] == mem_c[color] == 1
-    for color in mem_colors:
+    for color in range(max_mems):
         problem += mem_c[color] <= lpSum(mem_x[node][color] for node in mem_graph_nodes)
-    for color in mem_colors[:-1]:
+    for color in range(max_mems)[:-1]:
         problem += mem_c[color + 1] <= mem_c[color]
 
-    for i, pe_exclusion_graph in enumerate(pe_exclusion_graphs):
+    for op_type_name, pe_exclusion_graph in pe_exclusion_graphs.items():
         nodes = list(pe_exclusion_graph.nodes())
         edges = list(pe_exclusion_graph.edges())
         for node in nodes:
-            problem += lpSum(pe_x[i][node][color] for color in pe_colors[i]) == 1
+            problem += (
+                lpSum(
+                    pe_x[op_type_name][node][color]
+                    for color in range(max_pes[op_type_name])
+                )
+                == 1
+            )
         for u, v in edges:
-            for color in pe_colors[i]:
-                problem += pe_x[i][u][color] + pe_x[i][v][color] <= 1
+            for color in range(max_pes[op_type_name]):
+                problem += (
+                    pe_x[op_type_name][u][color] + pe_x[op_type_name][v][color] <= 1
+                )
         for node in nodes:
-            for color in pe_colors[i]:
-                problem += pe_x[i][node][color] <= pe_c[i][color]
+            for color in range(max_pes[op_type_name]):
+                problem += pe_x[op_type_name][node][color] <= pe_c[op_type_name][color]
         max_clique = next(nx.find_cliques(pe_exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += pe_x[i][node][color] == pe_c[i][color] == 1  # TODO FIXVALUE
-        for color in pe_colors[i]:
-            problem += pe_c[i][color] <= lpSum(pe_x[i][node][color] for node in nodes)
-        for color in pe_colors[i][:-1]:
-            problem += pe_c[i][color + 1] <= pe_c[i][color]
+            problem += (
+                pe_x[op_type_name][node][color] == pe_c[op_type_name][color] == 1
+            )  # TODO FIXVALUE
+        for color in range(max_pes[op_type_name]):
+            problem += pe_c[op_type_name][color] <= lpSum(
+                pe_x[op_type_name][node][color] for node in nodes
+            )
+        for color in range(max_pes[op_type_name])[:-1]:
+            problem += pe_c[op_type_name][color + 1] <= pe_c[op_type_name][color]
 
     _solve_ilp_problem(problem, solver)
 
@@ -377,11 +397,11 @@ def _ilp_coloring_min_mux(
 ) -> tuple[dict, dict]:
     pe_in_cnt = {
         op_type_name: op.input_count
-        for op_type_name, op in zip(op_groups.keys(), pe_operations)
+        for op_type_name, op in zip(op_groups.keys(), pe_operations, strict=True)
     }
     pe_out_cnt = {
         op_type_name: op.output_count
-        for op_type_name, op in zip(op_groups.keys(), pe_operations)
+        for op_type_name, op in zip(op_groups.keys(), pe_operations, strict=True)
     }
 
     mem_x, mem_c = _create_memory_variables(mem_vars, max_mems)
@@ -525,8 +545,10 @@ def _ilp_coloring_min_mux(
     for src_pe_port, dst_vars in pe_to_pe_vars_used.items():
         for dst_pe_port, used in dst_vars.items():
             if not used:
-                print(
-                    f"PE->PE connection variable {src_pe_port} -> {dst_pe_port} is not used in any constraint, fixing to 0"
+                log.info(
+                    "PE->PE connection variable %s -> %s is not used in any constraint, fixing to 0",
+                    src_pe_port,
+                    dst_pe_port,
                 )
                 # If the connection variable is not used in any constraint, fix it to 0 to reduce the solution space
                 pe_to_pe_vars[src_pe_port][dst_pe_port].setInitialValue(0)
@@ -818,8 +840,11 @@ def _get_pe_nodes(
 def _create_memory_variables(mem_vars: list, max_mems: list[int]) -> tuple[dict, dict]:
     mem_x = LpVariable.dicts("mem_x", (mem_vars, range(max_mems)), cat=LpBinary)
     mem_c = LpVariable.dicts("mem_c", range(max_mems), cat=LpBinary)
-    print(
-        f"Memory variables created: mem_x with shape ({len(mem_vars)}, {max_mems}) and mem_c with shape ({max_mems})"
+    log.info(
+        "Memory variables created: mem_x with shape (%d, %s) and mem_c with shape (%s)",
+        len(mem_vars),
+        max_mems,
+        max_mems,
     )
     return mem_x, mem_c
 
@@ -889,7 +914,7 @@ def _create_pe_to_pe_connection_variables(
                             )
                             pe_to_pe_vars_used[src_pe_port][dst_pe_port] = False
                             cnt += 1
-    print(f"PE->PE connection variables created: {cnt}")
+    log.info("PE->PE connection variables created: %d", cnt)
     return pe_to_pe_vars, pe_to_pe_vars_used
 
 
@@ -995,7 +1020,7 @@ def _prepare_interrupted_recovery(
     original_keep_files = cast(bool, solver.keepFiles)
     original_name = problem.name
     recovery_dir = tempfile.mkdtemp(prefix="b_asic_ilp_recovery_")
-    recovery_name = os.path.join(recovery_dir, f"{problem.name}-{uuid4().hex}")
+    recovery_name = str(Path(recovery_dir) / f"{problem.name}-{uuid4().hex}")
 
     solver.keepFiles = True
     problem.name = recovery_name
@@ -1026,17 +1051,13 @@ def _restore_interrupted_recovery(
         return
 
     for path in cast(tuple[str, ...], recovery_state["temp_paths"]):
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
+        with contextlib.suppress(FileNotFoundError):
+            Path(path).unlink()
     recovery_dir = cast(str | None, recovery_state.get("recovery_dir"))
     if recovery_dir is not None:
         shutil.rmtree(recovery_dir, ignore_errors=True)
-    try:
-        os.remove("gurobi.log")
-    except FileNotFoundError:
-        pass
+    with contextlib.suppress(FileNotFoundError):
+        Path("gurobi.log").unlink()
 
 
 def _recover_cmd_solution_file(
@@ -1045,7 +1066,7 @@ def _recover_cmd_solution_file(
     solution_path: str,
 ) -> bool:
     read_solution = getattr(solver, "readsol", None)
-    if not callable(read_solution) or not os.path.exists(solution_path):
+    if not callable(read_solution) or not Path(solution_path).exists():
         return False
 
     try:

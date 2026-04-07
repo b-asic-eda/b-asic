@@ -396,13 +396,11 @@ def arch_mat_inv():
     operations = schedule.get_operations()
     madss = operations.get_by_type_name("mads")
     recs = operations.get_by_type_name("rec")
-    dontcares = operations.get_by_type_name("dontcare")
     ins = operations.get_by_type_name("in")
     outs = operations.get_by_type_name("out")
 
     mads = ProcessingElement(madss, entity_name="mads")
     rec = ProcessingElement(recs, entity_name="rec")
-    dc = ProcessingElement(dontcares, entity_name="dc")
     input_pe = ProcessingElement(ins, entity_name="input")
     output_pe = ProcessingElement(outs, entity_name="output")
 
@@ -419,7 +417,7 @@ def arch_mat_inv():
         memory.assign("greedy_graph_color")
 
     return Architecture(
-        {mads, rec, dc, input_pe, output_pe},
+        {mads, rec, input_pe, output_pe},
         memories,
         entity_name="mat_inv",
         direct_interconnects=direct,

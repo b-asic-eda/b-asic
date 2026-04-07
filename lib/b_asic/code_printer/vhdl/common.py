@@ -547,6 +547,7 @@ def asynchronous_read_memory(
     write_ports: set[tuple[str, str, str]],
     name: str | None = None,
     enable: str | None = None,
+    use_to_integer: bool = True,
 ) -> None:
     """
     Infer a VHDL memory with synchronous writes and asynchronous reads.
@@ -565,9 +566,16 @@ def asynchronous_read_memory(
         An optional name for the memory process.
     enable : str, optional
         An optional enable signal to gate the memory writes.
+    use_to_integer : bool, default: True
+        Wrap address signals in ``to_integer()``. Set to False when the address
+        signal is already an integer type.
     """
     assert len(read_ports) >= 1
     assert len(write_ports) >= 1
+
+    def fmt_adr(adr: str) -> str:
+        return f"to_integer({adr})" if use_to_integer else adr
+
     synchronous_process_prologue(f, clk=clk, name=name)
     if enable:
         write(f, 3, f"if {enable} = '1' then")
@@ -579,7 +587,7 @@ def asynchronous_read_memory(
             f,
             [
                 (3 + indent_offset, f"if {we} = '1' then"),
-                (4 + indent_offset, f"memory(to_integer({address})) <= {write_name};"),
+                (4 + indent_offset, f"memory({fmt_adr(address)}) <= {write_name};"),
                 (3 + indent_offset, "end if;"),
             ],
         )
@@ -587,7 +595,7 @@ def asynchronous_read_memory(
         write(f, 3, "end if;")
     synchronous_process_epilogue(f, clk=clk, name=name)
     for read_name, address, _ in read_ports:
-        write(f, 1, f"{read_name} <= memory(to_integer({address}));")
+        write(f, 1, f"{read_name} <= memory({fmt_adr(address)});")
 
 
 def is_valid_vhdl_identifier(identifier: str) -> bool:

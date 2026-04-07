@@ -165,8 +165,6 @@ class TestProcessCollectionPlainMemoryVariable:
                 word_length=16,
                 adr_mux_size=mux_size,
                 adr_pipe_depth=pipe_depth,
-                external_schedule_counter=False,
-                output_sync=True,
             )
 
     def test_generate_register_based_vhdl(self):
@@ -180,7 +178,6 @@ class TestProcessCollectionPlainMemoryVariable:
                 ),
                 entity_name=f"streaming_matrix_transposition_register_{rows}x{rows}",
                 word_length=16,
-                external_schedule_counter=False,
             )
 
     def test_rectangular_matrix_transposition(self):
@@ -192,7 +189,6 @@ class TestProcessCollectionPlainMemoryVariable:
             ),
             entity_name="streaming_matrix_transposition_register_4x8",
             word_length=16,
-            external_schedule_counter=False,
         )
 
     def test_forward_backward_table_to_string(self):
