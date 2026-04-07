@@ -33,7 +33,7 @@ class VhdlPrinter(Printer):
         self,
         dt: DataType,
         vhdl_2008: bool = False,
-        multiplexer_control_registered: bool = True,
+        multiplexer_control_registered: bool = False,
     ) -> None:
         self._vhdl_2008 = vhdl_2008
         self._multiplexer_control_registered = multiplexer_control_registered
@@ -136,9 +136,7 @@ class VhdlPrinter(Printer):
                     "external_schedule_counter", True
                 ),
                 "std_logic_vector": kwargs.get("std_logic_vector", False),
-                "register_control_signals": kwargs.get(
-                    "pipeline_mux_control", self._multiplexer_control_registered
-                ),
+                "pipeline_control_signals": kwargs.get("pipeline_mem_control", False),
             }
 
             memory_storage.entity(
@@ -195,7 +193,7 @@ class VhdlPrinter(Printer):
         pe_control_cycle = self._resolve_control_cycle(pe, control_cycle)
 
         # Optional design-level flag to register PE control signals.
-        pipeline_pe_control_signals = bool(kwargs.get("pipeline_pe_control", True))
+        pipeline_pe_control_signals = bool(kwargs.get("pipeline_pe_control", False))
 
         # Generate and return VHDL code for the PE
         f = io.StringIO()

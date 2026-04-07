@@ -510,7 +510,7 @@ def test_joint_resource_assignment():
     pes, mems, direct = assign_processing_elements_and_memories(
         schedule,
         resources=resources,
-        max_memories=3,
+        max_mems=3,
         memory_read_ports=1,
         memory_write_ports=1,
         memory_total_ports=2,
@@ -531,7 +531,7 @@ def test_joint_resource_assignment():
     pes, mems, direct = assign_processing_elements_and_memories(
         schedule,
         resources=resources,
-        max_memories=4,
+        max_mems=4,
         memory_read_ports=1,
         memory_write_ports=1,
         memory_total_ports=2,
@@ -562,7 +562,7 @@ def test_joint_resource_assignment_mux_reduction():
         schedule,
         strategy="ilp_min_total_mux",
         resources=resources,
-        max_memories=3,
+        max_mems=3,
         memory_read_ports=1,
         memory_write_ports=1,
         memory_total_ports=2,
