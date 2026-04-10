@@ -125,3 +125,4 @@ Digraph.gv.pdf
 *.prof
 *.spyproject
 *.wraplock
+*uv.lock
