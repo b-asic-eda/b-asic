@@ -70,6 +70,7 @@ doc = [
   "mplsignal",
   "sphinx-copybutton",
 ]
+dev = ["meson-python", "ninja", "pre-commit"]
 
 [project.urls]
 homepage = "https://github.com/b-asic-eda/b-asic"
@@ -111,7 +112,7 @@ precision = 2
 exclude = [
   "examples",
   "docs_sphinx",
-  "lib/b_asic/scheduler_gui/ui_main_window.py"
+  "lib/b_asic/scheduler_gui/ui_main_window.py",
 ]
 
 [tool.ruff.lint]
