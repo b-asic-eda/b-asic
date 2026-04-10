@@ -6,7 +6,7 @@ Contains custom types used in the library.
 
 from typing import NewType
 
-from apytypes._typing import APyScalar
+from apytypes.typing import APyScalar
 from numpy.typing import DTypeLike
 
 # https://stackoverflow.com/questions/69334475/how-to-hint-at-number-types-i-e-subclasses-of-number-not-numbers-themselv
