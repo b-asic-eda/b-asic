@@ -8,9 +8,10 @@ from collections import defaultdict
 from collections.abc import Callable, Mapping, MutableMapping, MutableSequence, Sequence
 from numbers import Number
 
+import apytypes as apy
 import numpy as np
 
-from b_asic.data_type import DataType
+from b_asic.data_type import DataType, NumRepresentation
 from b_asic.operation import MutableDelayMap, ResultKey
 from b_asic.sfg import SFG
 from b_asic.special_operations import Delay
@@ -298,6 +299,25 @@ class Simulation:
             {"c1": [3, 6, 7], "c2": [4, 5, 5], "bfly1.0": [7, 0, 0], "bfly1.1":\
  [-1, 0, 2], "out0": [7, -2, -1]}
         """
+        if self._data_type:
+            if self._data_type.num_repr == NumRepresentation.FIXED_POINT:
+                return {
+                    key: apy.APyFixedArray(
+                        [v.to_bits() for v in value],
+                        int_bits=self._data_type.int_bits,
+                        frac_bits=self._data_type.frac_bits,
+                    )
+                    for key, value in self._results.items()
+                }
+            if self._data_type.num_repr == NumRepresentation.FLOATING_POINT:
+                return {
+                    key: apy.APyFloatArray.from_bits(
+                        [v.to_bits() for v in value],
+                        exp_bits=self._data_type.exp_bits,
+                        sig_bits=self._data_type.sig_bits,
+                    )
+                    for key, value in self._results.items()
+                }
         return {key: np.array(value) for key, value in self._results.items()}
 
     def clear_results(self) -> None:
