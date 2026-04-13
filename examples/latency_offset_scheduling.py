@@ -12,15 +12,12 @@ from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg_generators import ldlt_matrix_inverse
 
-sfg = ldlt_matrix_inverse(
-    N=3,
-    name="matrix-inv",
-    mads_properties={
-        "latency_offsets": {"in0": 3, "in1": 0, "in2": 0, "out0": 4},
-        "execution_time": 1,
-    },
-    reciprocal_properties={"latency": 10, "execution_time": 1},
-)
+sfg = ldlt_matrix_inverse(N=3, name="matrix-inv", pe="mads")
+
+sfg.set_latency_offsets_of_type_name("mads", {"in0": 3, "in1": 0, "in2": 0, "out0": 4})
+sfg.set_execution_time_of_type_name("mads", 1)
+sfg.set_latency_of_type_name("rec", 10)
+sfg.set_execution_time_of_type_name("rec", 1)
 
 # %%
 # The SFG is

@@ -900,7 +900,7 @@ class TestLdltMatrixInverse:
         assert np.isclose(res["out0"], 0.2)
 
     def test_2x2_simple_spd(self):
-        sfg = ldlt_matrix_inverse(N=2, use_mads=True)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         assert len(sfg.inputs) == 3
         assert len(sfg.outputs) == 3
@@ -918,11 +918,11 @@ class TestLdltMatrixInverse:
 
         res = sim.results
         assert np.isclose(res["out0"], A_inv[0, 0])
-        assert np.isclose(res["out1"], A_inv[0, 1])
+        assert np.isclose(res["out1"], A_inv[1, 0])
         assert np.isclose(res["out2"], A_inv[1, 1])
 
     def test_3x3_simple_spd(self):
-        sfg = ldlt_matrix_inverse(N=3, use_mads=True)
+        sfg = ldlt_matrix_inverse(N=3, pe="mads")
 
         assert len(sfg.inputs) == 6
         assert len(sfg.outputs) == 6
@@ -934,8 +934,8 @@ class TestLdltMatrixInverse:
         A_input = [
             Constant(2),
             Constant(-1),
-            Constant(0),
             Constant(3),
+            Constant(0),
             Constant(-1),
             Constant(2),
         ]
@@ -947,16 +947,16 @@ class TestLdltMatrixInverse:
 
         res = sim.results
         assert np.isclose(res["out0"], A_inv[0, 0])
-        assert np.isclose(res["out1"], A_inv[0, 1])
-        assert np.isclose(res["out2"], A_inv[0, 2])
-        assert np.isclose(res["out3"], A_inv[1, 1])
-        assert np.isclose(res["out4"], A_inv[1, 2])
+        assert np.isclose(res["out1"], A_inv[1, 0])
+        assert np.isclose(res["out2"], A_inv[1, 1])
+        assert np.isclose(res["out3"], A_inv[2, 0])
+        assert np.isclose(res["out4"], A_inv[2, 1])
         assert np.isclose(res["out5"], A_inv[2, 2])
 
     def test_5x5_random_spd(self):
         N = 5
 
-        sfg = ldlt_matrix_inverse(N=N, use_mads=True)
+        sfg = ldlt_matrix_inverse(N=N, pe="mads")
 
         assert len(sfg.inputs) == 15
         assert len(sfg.outputs) == 15
@@ -966,16 +966,53 @@ class TestLdltMatrixInverse:
 
         A = self._generate_random_spd_matrix(N)
 
-        upper_tridiag = A[np.triu_indices_from(A)]
+        lower_tridiag = A[np.tril_indices(N)]
 
-        A_input = [Constant(num) for num in upper_tridiag]
+        A_input = [Constant(num) for num in lower_tridiag]
         A_inv = np.linalg.inv(A)
 
         sim = Simulation(sfg, A_input)
         sim.run_for(1)
         res = sim.results
 
-        row_indices, col_indices = np.triu_indices(N)
+        row_indices, col_indices = np.tril_indices(N)
+        expected_values = A_inv[row_indices, col_indices]
+        actual_values = [res[f"out{i}"] for i in range(len(expected_values))]
+
+        for i in range(len(expected_values)):
+            assert np.isclose(actual_values[i], expected_values[i])
+
+    @pytest.mark.parametrize(
+        ("mode", "pe", "negate"),
+        [
+            ("mult", "mads", False),
+            ("mult", "mads", True),
+            ("mult", "addsub", False),
+            ("mult", "addsub", True),
+            ("mult", None, False),
+            ("mult", None, True),
+            ("eqs", "mads", False),
+            ("eqs", "addsub", False),
+            ("eqs", None, False),
+        ],
+    )
+    def test_4x4_spd_combinations(self, mode, pe, negate):
+        N = 4
+        sfg = ldlt_matrix_inverse(N=N, mode=mode, pe=pe, negate=negate)
+
+        A = self._generate_random_spd_matrix(N)
+        lower_tridiag = A[np.tril_indices(N)]
+        A_input = [Constant(num) for num in lower_tridiag]
+        A_inv = np.linalg.inv(A)
+
+        assert len(sfg.inputs) == len(A_input)
+        assert len(sfg.outputs) == len(A_input)
+
+        sim = Simulation(sfg, A_input)
+        sim.run_for(1)
+
+        res = sim.results
+        row_indices, col_indices = np.tril_indices(N)
         expected_values = A_inv[row_indices, col_indices]
         actual_values = [res[f"out{i}"] for i in range(len(expected_values))]
 
@@ -985,7 +1022,7 @@ class TestLdltMatrixInverse:
     def test_20x20_random_spd_no_mads(self):
         N = 20
 
-        sfg = ldlt_matrix_inverse(N=N, use_mads=False)
+        sfg = ldlt_matrix_inverse(N=N, pe=None)
 
         A = self._generate_random_spd_matrix(N)
 
@@ -994,16 +1031,16 @@ class TestLdltMatrixInverse:
 
         assert len(sfg.find_by_type_name(Reciprocal.type_name())) == N
 
-        upper_tridiag = A[np.triu_indices_from(A)]
+        lower_tridiag = A[np.tril_indices(N)]
 
-        A_input = [Constant(num) for num in upper_tridiag]
+        A_input = [Constant(num) for num in lower_tridiag]
         A_inv = np.linalg.inv(A)
 
         sim = Simulation(sfg, A_input)
         sim.run_for(1)
         res = sim.results
 
-        row_indices, col_indices = np.triu_indices(N)
+        row_indices, col_indices = np.tril_indices(N)
         expected_values = A_inv[row_indices, col_indices]
         actual_values = [res[f"out{i}"] for i in range(len(expected_values))]
 

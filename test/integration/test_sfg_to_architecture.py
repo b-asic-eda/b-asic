@@ -17,7 +17,7 @@ from b_asic.special_operations import Input, Output
 
 
 def test_pe_constrained_schedule():
-    sfg = ldlt_matrix_inverse(N=5)
+    sfg = ldlt_matrix_inverse(N=5, pe="mads")
 
     sfg.set_latency_of_type_name(MADS.type_name(), 3)
     sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)

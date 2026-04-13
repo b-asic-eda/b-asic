@@ -20,7 +20,7 @@ from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg_generators import ldlt_matrix_inverse
 from b_asic.special_operations import Input, Output
 
-sfg = ldlt_matrix_inverse(N=3)
+sfg = ldlt_matrix_inverse(N=3, pe="mads")
 
 # %%
 # The SFG is
