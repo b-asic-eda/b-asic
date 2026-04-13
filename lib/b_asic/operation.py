@@ -550,9 +550,19 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         if not isinstance(value, (APyFixed, APyFloat, APyCFixed, APyCFloat)):
             if data_type.num_repr == NumRepresentation.FLOATING_POINT:
-                value = apy.fp(value, data_type.wl[0], data_type.wl[1])
+                return apy.fp(
+                    value,
+                    data_type.exp_bits,
+                    data_type.man_bits,
+                    force_complex=data_type.is_complex,
+                )
             elif data_type.num_repr == NumRepresentation.FIXED_POINT:
-                value = apy.fx(value, data_type.wl[0], data_type.wl[1])
+                return apy.fx(
+                    value,
+                    data_type.int_bits,
+                    data_type.frac_bits,
+                    force_complex=data_type.is_complex,
+                )
 
         if isinstance(value, (APyFloat, APyCFloat)):
             return value.cast(
@@ -561,8 +571,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
             )
         else:
             return value.cast(
-                data_type.wl[0],
-                data_type.wl[1],
+                int_bits=data_type.int_bits,
+                frac_bits=data_type.frac_bits,
                 quantization=data_type.quantization_mode.to_apytypes(),
                 overflow=data_type.overflow_mode.to_apytypes(),
             )
