@@ -1067,6 +1067,28 @@ class VhdlPrinter(Printer):
             "u_fp_rec", component_name="fp_rec", two_inputs=False
         )
 
+    def print_ReciprocalSquareRoot_floating_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        if self._fp_backend != "amd":
+            return self.print_default()
+        # Real-valued operation using AMD Floating-point IP
+        return self._amd_fp_backend(
+            "u_fp_recsqrt", component_name="fp_recsqrt", two_inputs=False
+        )
+
+    def print_ReciprocalSquareRoot_floating_point_complex(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        if self._fp_backend != "amd":
+            return self.print_default()
+        if not pe._process_collection.collection[0].real_valued:
+            return self.print_default()
+        # Real-valued operation using AMD Floating-point IP
+        return self._amd_fp_backend(
+            "u_fp_recsqrt", component_name="fp_recsqrt", two_inputs=False
+        )
+
     def print_Negation_floating_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[WLS, CODE]:
