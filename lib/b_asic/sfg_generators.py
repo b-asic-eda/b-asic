@@ -13,6 +13,7 @@ from b_asic.core_operations import (
     MAD,
     MADS,
     Addition,
+    AddSub,
     ConstantMultiplication,
     Name,
     Reciprocal,
@@ -450,9 +451,9 @@ def radix_2_dif_fft(points: int) -> SFG:
 def ldlt_matrix_inverse(
     N: int,
     name: str | None = None,
-    use_mads: bool = True,
-    mads_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
-    reciprocal_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    mode: str = "eqs",
+    pe: str | None = None,
+    negate: bool = False,
 ) -> SFG:
     """
     Generate an SFG for the LDLT matrix inverse algorithm.
@@ -461,146 +462,283 @@ def ldlt_matrix_inverse(
     ----------
     N : int
         Dimension of the square input matrix.
-    name : Name, optional
+    name : str, optional
         The name of the SFG. If None, "LDLT matrix-inversion".
-    use_mads : bool, optional
-        Whether to use MADS-operations for multiplications and additions.
-        If False, multiplication, addition and subtractions operations are used.
-    mads_properties : dictionary, optional
-        Properties passed to :class:`~b_asic.core_operations.MADS`.
-    reciprocal_properties : dictionary, optional
-        Properties passed to :class:`~b_asic.core_operations.Reciprocal`.
+    mode : str, default: "eqs"
+        The mode of operation, either "mult" or "eqs".
+    pe : str, optional
+        Processing element to use. Can be "mads", "addsub", or None.
+    negate : bool, default: False
+        Whether to negate or take 0 - value.
 
     Returns
     -------
     SFG
-        Signal Flow Graph
+        Signal Flow Graph.
     """
     if name is None:
         name = "LDLT matrix-inversion"
-    if mads_properties is None:
-        mads_properties = {}
-    if reciprocal_properties is None:
-        reciprocal_properties = {}
+
+    def ldl_decomposition(A):
+        N_local = len(A)
+        L = [[None for _ in range(N_local)] for _ in range(N_local)]
+        D = [None for _ in range(N_local)]
+        D_inv = [None for _ in range(N_local)]
+        M = [[None for _ in range(N_local)] for _ in range(N_local)]
+
+        for j in range(N_local):
+            D[j] = A[j][j]
+            for k in range(j):
+                if pe == "mads":
+                    D[j] = MADS(
+                        is_add=False,
+                        src0=D[j],
+                        src1=M[j][k],
+                        src2=L[j][k],
+                        do_addsub=True,
+                    )
+                elif pe == "addsub":
+                    D[j] = AddSub(
+                        is_add=False,
+                        src0=D[j],
+                        src1=M[j][k] * L[j][k],
+                    )
+                else:
+                    D[j] = D[j] - M[j][k] * L[j][k]
+
+            D_inv[j] = (
+                Reciprocal(D[j], name=f"D_inv[{j}]") if pe is not None else 1 / D[j]
+            )
+
+            for i in range(j + 1, N_local):
+                M[i][j] = A[i][j]
+                for k in range(j):
+                    if pe == "mads":
+                        M[i][j] = MADS(
+                            is_add=False,
+                            src0=M[i][j],
+                            src1=M[i][k],
+                            src2=L[j][k],
+                            do_addsub=True,
+                        )
+                    elif pe == "addsub":
+                        M[i][j] = AddSub(
+                            is_add=False,
+                            src0=M[i][j],
+                            src1=M[i][k] * L[j][k],
+                        )
+                    else:
+                        M[i][j] = M[i][j] - M[i][k] * L[j][k]
+
+                if pe == "mads":
+                    L[i][j] = MADS(
+                        is_add=True,
+                        src0=DontCare(),
+                        src1=M[i][j],
+                        src2=D_inv[j],
+                        do_addsub=False,
+                    )
+                else:
+                    L[i][j] = M[i][j] * D_inv[j]
+
+        return L, D, D_inv
+
+    def ldl_l_inv(L, negate=False):
+        N_local = len(L)
+        L_inv = [[None for _ in range(N_local)] for _ in range(N_local)]
+        for i in range(1, N_local):
+            for j in range(i - 1, -1, -1):
+                if negate:
+                    if pe == "mads":
+                        acc = L[i][j]
+                        for k in range(j + 1, i):
+                            acc = MADS(
+                                is_add=True,
+                                src0=acc,
+                                src1=L[i][k],
+                                src2=L_inv[k][j],
+                                do_addsub=True,
+                            )
+                        L_inv[i][j] = -acc
+                    elif pe == "addsub":
+                        acc = L[i][j]
+                        for k in range(j + 1, i):
+                            acc = AddSub(
+                                is_add=True,
+                                src0=acc,
+                                src1=L[i][k] * L_inv[k][j],
+                            )
+                        L_inv[i][j] = -acc
+                    else:
+                        acc = L[i][j]
+                        for k in range(j + 1, i):
+                            acc = acc + L[i][k] * L_inv[k][j]
+                        L_inv[i][j] = -acc
+                else:
+                    if pe == "mads":
+                        L_inv[i][j] = -L[i][j]
+                        for k in range(j + 1, i):
+                            L_inv[i][j] = MADS(
+                                is_add=False,
+                                src0=L_inv[i][j],
+                                src1=L[i][k],
+                                src2=L_inv[k][j],
+                                do_addsub=True,
+                            )
+                    elif pe == "addsub":
+                        L_inv[i][j] = -L[i][j]
+                        for k in range(j + 1, i):
+                            L_inv[i][j] = AddSub(
+                                is_add=False,
+                                src0=L_inv[i][j],
+                                src1=L[i][k] * L_inv[k][j],
+                            )
+                    else:
+                        L_inv[i][j] = -L[i][j]
+                        for k in range(j + 1, i):
+                            L_inv[i][j] = L_inv[i][j] - L[i][k] * L_inv[k][j]
+
+        return L_inv
+
+    def ldl_matmul(L_inv, D_inv):
+        n = len(L_inv)
+        res = [[None for _ in range(n)] for _ in range(n)]
+        for i in range(n - 1, -1, -1):
+            for j in range(i, -1, -1):
+                if i == j:
+                    res[i][j] = D_inv[i]
+                elif pe == "mads":
+                    res[i][j] = MADS(
+                        is_add=True,
+                        src0=DontCare(),
+                        src1=D_inv[i],
+                        src2=L_inv[i][j],
+                        do_addsub=False,
+                    )
+                else:
+                    res[i][j] = D_inv[i] * L_inv[i][j]
+
+                for k in range(i + 1, n):
+                    if pe == "mads":
+                        t0 = MADS(
+                            is_add=True,
+                            src0=DontCare(),
+                            src1=L_inv[k][i],
+                            src2=D_inv[k],
+                            do_addsub=False,
+                        )
+                        res[i][j] = MADS(
+                            is_add=True,
+                            src0=res[i][j],
+                            src1=t0,
+                            src2=L_inv[k][j],
+                            do_addsub=True,
+                        )
+                    elif pe == "addsub":
+                        t0 = L_inv[k][i] * D_inv[k]
+                        res[i][j] = AddSub(
+                            is_add=True,
+                            src0=res[i][j],
+                            src1=t0 * L_inv[k][j],
+                        )
+                    else:
+                        t0 = L_inv[k][i] * D_inv[k]
+                        res[i][j] = res[i][j] + t0 * L_inv[k][j]
+
+        return res
+
+    def ldl_eqs(L, D_inv):
+        n = len(L)
+        res = [[None for _ in range(n)] for _ in range(n)]
+
+        for s in range(2 * (n - 1), -1, -1):
+            i_min = (s + 1) // 2
+            i_max = min(s, n - 1)
+            for i in range(i_max, i_min - 1, -1):
+                j = s - i
+                if i == j:
+                    val = D_inv[i]
+                    for k in range(n - 1, i, -1):
+                        if pe == "mads":
+                            val = MADS(
+                                is_add=False,
+                                src0=val,
+                                src1=L[k][i],
+                                src2=res[k][i],
+                                do_addsub=True,
+                            )
+                        elif pe == "addsub":
+                            val = AddSub(
+                                is_add=False,
+                                src0=val,
+                                src1=L[k][i] * res[k][i],
+                            )
+                        else:
+                            val = val - L[k][i] * res[k][i]
+                else:
+                    for k in range(n - 1, j, -1):
+                        if pe == "mads":
+                            if k == n - 1:
+                                val = MADS(
+                                    is_add=False,
+                                    src0=DontCare(),
+                                    src1=L[k][j],
+                                    src2=res[max(i, k)][min(i, k)],
+                                    do_addsub=False,
+                                )
+                            else:
+                                val = MADS(
+                                    is_add=False,
+                                    src0=val,
+                                    src1=L[k][j],
+                                    src2=res[max(i, k)][min(i, k)],
+                                    do_addsub=True,
+                                )
+                        elif pe == "addsub":
+                            if k == n - 1:
+                                val = -(L[k][j] * res[max(i, k)][min(i, k)])
+                            else:
+                                val = AddSub(
+                                    is_add=False,
+                                    src0=val,
+                                    src1=L[k][j] * res[max(i, k)][min(i, k)],
+                                )
+                        else:
+                            if k == n - 1:
+                                val = -L[k][j] * res[max(i, k)][min(i, k)]
+                            else:
+                                val = val - L[k][j] * res[max(i, k)][min(i, k)]
+                res[i][j] = val
+
+        return res
 
     inputs = []
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
-        for j in range(i, N):
+        for j in range(i + 1):
             in_op = Input(name=f"A[{i},{j}]")
             A[i][j] = in_op
             inputs.append(in_op)
 
-    D = [None for _ in range(N)]
-    for i in range(N):
-        D[i] = A[i][i]
+    L, _, D_inv = ldl_decomposition(A)
 
-    D_inv = [None for _ in range(N)]
+    if mode == "mult":
+        L_inv = ldl_l_inv(L, negate)
+        res = ldl_matmul(L_inv, D_inv)
+        outputs = [
+            Output(res[i][j], name=f"res[{i},{j}]")
+            for i in range(N)
+            for j in range(i + 1)
+        ]
+    else:
+        res = ldl_eqs(L, D_inv)
+        outputs = [
+            Output(res[i][j], name=f"res[{i},{j}]")
+            for i in range(N)
+            for j in range(i + 1)
+        ]
 
-    R = [[None for _ in range(N)] for _ in range(N)]
-    M = [[None for _ in range(N)] for _ in range(N)]
-
-    # R*di*R^T factorization
-    for i in range(N):
-        for k in range(i):
-            if use_mads:
-                D[i] = MADS(
-                    is_add=False,
-                    src0=D[i],
-                    src1=M[k][i],
-                    src2=R[k][i],
-                    do_addsub=True,
-                    **mads_properties,
-                )
-            else:
-                D[i] = D[i] - M[k][i] * R[k][i]
-
-        D_inv[i] = Reciprocal(D[i], **reciprocal_properties, name=f"D_inv[{i}]")
-
-        for j in range(i + 1, N):
-            R[i][j] = A[i][j]
-
-            for k in range(i):
-                if use_mads:
-                    R[i][j] = MADS(
-                        is_add=False,
-                        src0=R[i][j],
-                        src1=M[k][i],
-                        src2=R[k][j],
-                        do_addsub=True,
-                        **mads_properties,
-                    )
-                else:
-                    R[i][j] = R[i][j] - M[k][i] * R[k][j]
-
-            # if is_complex:
-            #     M[i][j] = ComplexConjugate(R[i][j])
-            # else:
-            M[i][j] = R[i][j]
-
-            if use_mads:
-                R[i][j] = MADS(
-                    is_add=True,
-                    src0=DontCare(),
-                    src1=R[i][j],
-                    src2=D_inv[i],
-                    do_addsub=False,
-                    **mads_properties,
-                )
-            else:
-                R[i][j] = R[i][j] * D_inv[i]
-
-    # back substitution
-    A_inv = [[None for _ in range(N)] for _ in range(N)]
-    for i in reversed(range(N)):
-        A_inv[i][i] = D_inv[i]
-        for j in reversed(range(i + 1)):
-            for k in reversed(range(j + 1, N)):
-                if k == N - 1 and i != j:
-                    if use_mads:
-                        A_inv[j][i] = MADS(
-                            is_add=False,
-                            src0=DontCare(),
-                            src1=R[j][k],
-                            src2=A_inv[i][k],
-                            do_addsub=False,
-                            **mads_properties,
-                        )
-                    else:
-                        A_inv[j][i] = -(R[j][k] * A_inv[i][k])
-                else:
-                    if A_inv[i][k]:
-                        if use_mads:
-                            A_inv[j][i] = MADS(
-                                is_add=False,
-                                src0=A_inv[j][i],
-                                src1=R[j][k],
-                                src2=A_inv[i][k],
-                                do_addsub=True,
-                                **mads_properties,
-                            )
-                        else:
-                            A_inv[j][i] = A_inv[j][i] - R[j][k] * A_inv[i][k]
-                    else:
-                        if use_mads:
-                            A_inv[j][i] = MADS(
-                                is_add=False,
-                                src0=A_inv[j][i],
-                                src1=R[j][k],
-                                src2=A_inv[k][i],
-                                do_addsub=True,
-                                **mads_properties,
-                            )
-                        else:
-                            A_inv[j][i] = A_inv[j][i] - R[j][k] * A_inv[k][i]
-
-    outputs = [
-        Output(A_inv[i][j], name=f"A_inv[{i},{j}]")
-        for i in range(N)
-        for j in range(i, N)
-    ]
-
-    return SFG(inputs, outputs)
+    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
 
 
 def matrix_multiplication(

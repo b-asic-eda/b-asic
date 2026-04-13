@@ -376,7 +376,7 @@ def arch_simple():
 @pytest.fixture
 def arch_mat_inv():
     N = 4
-    sfg = ldlt_matrix_inverse(N, use_mads=True)
+    sfg = ldlt_matrix_inverse(N, pe="mads")
 
     sfg.set_execution_time_of_type_name("mads", 1)
     sfg.set_latency_of_type_name("mads", 2)

@@ -422,7 +422,7 @@ class TestMaxFanOutScheduler:
         _validate_recreated_sfg_filter(sfg, schedule)
 
     def test_ldlt_inverse_3x3(self):
-        sfg = ldlt_matrix_inverse(N=3)
+        sfg = ldlt_matrix_inverse(N=3, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -432,44 +432,6 @@ class TestMaxFanOutScheduler:
         resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
         schedule = Schedule(sfg, scheduler=MaxFanOutScheduler(resources))
 
-        assert schedule.start_times == {
-            "in1": 0,
-            "in2": 1,
-            "in0": 2,
-            "rec0": 2,
-            "in4": 3,
-            "in5": 4,
-            "mads1": 4,
-            "dontcare4": 4,
-            "dontcare5": 5,
-            "in3": 5,
-            "mads0": 5,
-            "mads13": 7,
-            "mads12": 8,
-            "mads14": 9,
-            "rec1": 12,
-            "mads8": 14,
-            "dontcare2": 14,
-            "mads10": 17,
-            "rec2": 20,
-            "mads9": 22,
-            "out5": 22,
-            "dontcare0": 22,
-            "dontcare1": 23,
-            "mads11": 23,
-            "mads7": 25,
-            "out4": 25,
-            "mads3": 26,
-            "mads6": 27,
-            "dontcare3": 27,
-            "out3": 28,
-            "mads2": 29,
-            "out2": 29,
-            "mads5": 30,
-            "mads4": 33,
-            "out1": 33,
-            "out0": 36,
-        }
         assert schedule.schedule_time == 36
         _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 3)
 
@@ -798,7 +760,7 @@ class TestHybridScheduler:
         _validate_recreated_sfg_fft(schedule, 8)
 
     def test_ldlt_inverse_2x2(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -836,7 +798,7 @@ class TestHybridScheduler:
         _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 2)
 
     def test_ldlt_inverse_2x2_specified_IO_times_cyclic(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -897,7 +859,7 @@ class TestHybridScheduler:
         assert np.allclose(sim.results["out2"], [0, A_inv[1, 1]])
 
     def test_invalid_max_resources(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -935,7 +897,7 @@ class TestHybridScheduler:
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
     def test_invalid_max_concurrent_writes(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -970,7 +932,7 @@ class TestHybridScheduler:
             )
 
     def test_invalid_max_concurrent_reads(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1005,7 +967,7 @@ class TestHybridScheduler:
             )
 
     def test_invalid_input_times(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1049,7 +1011,7 @@ class TestHybridScheduler:
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
     def test_invalid_output_delta_times(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1106,7 +1068,7 @@ class TestHybridScheduler:
             )
 
     def test_resource_not_in_sfg(self):
-        sfg = ldlt_matrix_inverse(N=3)
+        sfg = ldlt_matrix_inverse(N=3, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1125,7 +1087,7 @@ class TestHybridScheduler:
             Schedule(sfg, scheduler=HybridScheduler(resources))
 
     def test_input_not_in_sfg(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1140,7 +1102,7 @@ class TestHybridScheduler:
             Schedule(sfg, scheduler=HybridScheduler(input_times=input_times))
 
     def test_output_not_in_sfg(self):
-        sfg = ldlt_matrix_inverse(N=2)
+        sfg = ldlt_matrix_inverse(N=2, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1157,7 +1119,7 @@ class TestHybridScheduler:
             )
 
     def test_ldlt_inverse_3x3_read_and_write_constrained(self):
-        sfg = ldlt_matrix_inverse(N=3)
+        sfg = ldlt_matrix_inverse(N=3, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1170,13 +1132,13 @@ class TestHybridScheduler:
             sfg,
             scheduler=HybridScheduler(
                 max_resources=resources,
-                max_concurrent_reads=3,
+                max_concurrent_reads=2,
                 max_concurrent_writes=1,
             ),
         )
 
         _, mem_vars = schedule.get_memory_variables().split_on_length()
-        assert mem_vars.read_ports_bound() == 3
+        assert mem_vars.read_ports_bound() == 2
         assert mem_vars.write_ports_bound() == 1
         _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 3)
 
@@ -1414,7 +1376,7 @@ class TestHybridScheduler:
         assert schedule_4.schedule_time == 4
 
     def test_resources_not_enough(self):
-        sfg = ldlt_matrix_inverse(N=3)
+        sfg = ldlt_matrix_inverse(N=3, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1459,7 +1421,7 @@ class TestHybridScheduler:
             )
 
     def test_scheduling_time_not_enough(self):
-        sfg = ldlt_matrix_inverse(N=3)
+        sfg = ldlt_matrix_inverse(N=3, pe="mads")
 
         sfg.set_latency_of_type_name(MADS.type_name(), 3)
         sfg.set_latency_of_type_name(Reciprocal.type_name(), 2)
@@ -1619,65 +1581,27 @@ class TestHybridScheduler:
     def test_latency_offsets(self):
         sfg = ldlt_matrix_inverse(
             N=3,
-            mads_properties={
-                "latency_offsets": {"in0": 3, "in1": 0, "in2": 0, "out0": 4},
-                "execution_time": 1,
-            },
-            reciprocal_properties={"latency": 10, "execution_time": 1},
+            pe="mads",
         )
+        sfg.set_latency_offsets_of_type_name(
+            "mads", {"in0": 3, "in1": 0, "in2": 0, "out0": 4}
+        )
+        sfg.set_execution_time_of_type_name("mads", 1)
+        sfg.set_latency_of_type_name("rec", 10)
+        sfg.set_execution_time_of_type_name("rec", 1)
         schedule = Schedule(sfg, scheduler=HybridScheduler())
-
-        assert schedule.start_times == {
-            "dontcare0": 49,
-            "dontcare1": 50,
-            "dontcare2": 31,
-            "dontcare3": 55,
-            "dontcare4": 14,
-            "dontcare5": 13,
-            "in0": 0,
-            "in1": 1,
-            "in2": 3,
-            "in3": 2,
-            "in4": 4,
-            "in5": 5,
-            "mads0": 10,
-            "mads1": 11,
-            "mads10": 32,
-            "mads11": 47,
-            "mads12": 16,
-            "mads13": 15,
-            "mads14": 14,
-            "mads2": 55,
-            "mads3": 51,
-            "mads4": 58,
-            "mads5": 54,
-            "mads6": 52,
-            "mads7": 50,
-            "mads8": 28,
-            "mads9": 46,
-            "out0": 62,
-            "out1": 58,
-            "out2": 55,
-            "out3": 54,
-            "out4": 50,
-            "out5": 46,
-            "rec0": 0,
-            "rec1": 18,
-            "rec2": 36,
-        }
 
         assert all(val == 0 for val in schedule.laps.values())
         _validate_recreated_sfg_ldlt_matrix_inverse(schedule, 3)
 
     def test_latency_offsets_cyclic(self):
-        sfg = ldlt_matrix_inverse(
-            N=3,
-            mads_properties={
-                "latency_offsets": {"in0": 3, "in1": 0, "in2": 0, "out0": 4},
-                "execution_time": 1,
-            },
-            reciprocal_properties={"latency": 10, "execution_time": 1},
+        sfg = ldlt_matrix_inverse(N=3, pe="mads")
+        sfg.set_latency_offsets_of_type_name(
+            "mads", {"in0": 3, "in1": 0, "in2": 0, "out0": 4}
         )
+        sfg.set_execution_time_of_type_name("mads", 1)
+        sfg.set_latency_of_type_name("rec", 10)
+        sfg.set_execution_time_of_type_name("rec", 1)
         schedule = Schedule(
             sfg,
             scheduler=HybridScheduler(),
@@ -1691,14 +1615,13 @@ class TestHybridScheduler:
         )
 
     def test_latency_offsets_cyclic_min_schedule_time(self):
-        sfg = ldlt_matrix_inverse(
-            N=3,
-            mads_properties={
-                "latency_offsets": {"in0": 3, "in1": 0, "in2": 0, "out0": 4},
-                "execution_time": 1,
-            },
-            reciprocal_properties={"latency": 10, "execution_time": 1},
+        sfg = ldlt_matrix_inverse(N=3, pe="mads")
+        sfg.set_latency_offsets_of_type_name(
+            "mads", {"in0": 3, "in1": 0, "in2": 0, "out0": 4}
         )
+        sfg.set_execution_time_of_type_name("mads", 1)
+        sfg.set_latency_of_type_name("rec", 10)
+        sfg.set_execution_time_of_type_name("rec", 1)
         schedule = Schedule(
             sfg,
             scheduler=HybridScheduler(),
@@ -2339,20 +2262,20 @@ def _validate_recreated_sfg_ldlt_matrix_inverse(
     A = np.random.default_rng().random((N, N))
     A = np.dot(A, A.T)
 
-    # iterate through the upper diagonal and construct the input to the SFG
+    # iterate through the lower diagonal and construct the input to the SFG
     input_signals = []
     for i in range(N):
-        for j in range(i, N):
+        for j in range(i + 1):
             input_signals.append(Constant(A[i, j]))
 
     A_inv = np.linalg.inv(A)
     sim = Simulation(schedule.sfg, input_signals)
     sim.run_for(128)
 
-    # iterate through the upper diagonal and check
+    # iterate through the lower diagonal and check
     count = 0
     for i in range(N):
-        for j in range(i, N):
+        for j in range(i + 1):
             assert np.all(
                 np.isclose(sim.results[f"out{count}"][delays[count] :], A_inv[i, j])
             )
