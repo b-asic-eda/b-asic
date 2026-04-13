@@ -525,7 +525,9 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
     @overload
     @abstractmethod
-    def evaluate(self, *inputs: Num, data_type: DataType | None = None) -> list[Num]:  # pylint: disable=arguments-differ
+    def evaluate(
+        self, *inputs: Num, data_type: DataType | None = None
+    ) -> Num | list[Num]:  # pylint: disable=arguments-differ
         ...
 
     @abstractmethod

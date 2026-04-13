@@ -2198,7 +2198,10 @@ class RightShift(AbstractOperation):
         return f"{inputs[0]} >> {self.value}"
 
     def evaluate(self, a, data_type=None) -> Num:
-        res = a * 2 ** (-self.param("value"))
+        if isinstance(a, (apy.APyFixed, apy.APyCFixed)):
+            res = a >> self.param("value")
+        else:
+            res = a * 2 ** (-self.param("value"))
         return self._cast_to_data_type(res, data_type)
 
     @property
@@ -2295,7 +2298,10 @@ class LeftShift(AbstractOperation):
         return f"{inputs[0]} << {self.value}"
 
     def evaluate(self, a, data_type=None) -> Num:
-        res = a * 2 ** (self.param("value"))
+        if isinstance(a, (apy.APyFixed, apy.APyCFixed)):
+            res = a << self.param("value")
+        else:
+            res = a * 2 ** (self.param("value"))
         return self._cast_to_data_type(res, data_type)
 
     @property
