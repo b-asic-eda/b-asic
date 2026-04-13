@@ -33,7 +33,7 @@ dependencies = [
   "qtawesome",
   "natsort",
   "setuptools_scm",
-  "apytypes",
+  "apytypes>=0.5",
 ]
 classifiers = [
   "Intended Audience :: Education",
