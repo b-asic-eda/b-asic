@@ -4,6 +4,7 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
+import numbers
 from typing import TYPE_CHECKING, Union
 
 import apytypes as apy
@@ -1370,6 +1371,10 @@ class SquareRoot(AbstractOperation):
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
+
+    See Also
+    --------
+    ReciprocalSquareRoot
     """
 
     __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
@@ -2116,6 +2121,84 @@ class Reciprocal(AbstractOperation):
 
     def evaluate(self, a, data_type=None) -> Num:
         res = float("inf") if a == 0 else 1 / a
+        return self._cast_to_data_type(res, data_type)
+
+
+class ReciprocalSquareRoot(AbstractOperation):
+    r"""
+    Reciprocal square root operation.
+
+    Gives the reciprocal of the square root of its input.
+
+    .. math:: y = \frac{1}{\sqrt{x}}
+
+    Parameters
+    ----------
+    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to compute the reciprocal square root of.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if input arrives later than when the operator starts, e.g.,
+        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        operator starts. If not provided and *latency* is provided, set to zero.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
+    --------
+    SquareRoot
+    Reciprocal
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+        "_real_valued",
+        "_src0",
+    )
+    _src0: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+    _real_valued: bool | None
+
+    def __init__(
+        self,
+        src0: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+        real_valued: bool | None = None,
+    ) -> None:
+        """Construct a ReciprocalSquareRoot operation."""
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            name=Name(name),
+            input_sources=[src0],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self._real_valued = real_valued
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("recsqrt")
+
+    def evaluate(self, a, data_type=None) -> Num:
+        if isinstance(a, numbers.Real):
+            res = float("inf") if a == 0 else float(a) ** (-0.5)
+        else:
+            operand = complex(a).real if self._real_valued else complex(a)
+            res = float("inf") if operand == 0 else operand ** (-0.5)
         return self._cast_to_data_type(res, data_type)
 
 

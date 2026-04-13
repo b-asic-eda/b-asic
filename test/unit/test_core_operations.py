@@ -1,5 +1,6 @@
 """B-ASIC test suite for the core operations."""
 
+import apytypes as apy
 import pytest
 
 from b_asic import (
@@ -20,6 +21,7 @@ from b_asic import (
     Multiplication,
     R2Butterfly,
     Reciprocal,
+    ReciprocalSquareRoot,
     RightShift,
     Shift,
     SquareRoot,
@@ -537,6 +539,68 @@ class TestReciprocal:
     def test_zero_input(self):
         test_operation = Reciprocal()
         assert test_operation.evaluate_output(0, [0]) == float("inf")
+
+
+class TestReciprocalSquareRoot:
+    def test_positive(self):
+        test_operation = ReciprocalSquareRoot()
+        assert test_operation.evaluate_output(0, [4]) == 0.5
+
+    def test_complex(self):
+        test_operation = ReciprocalSquareRoot()
+        a = 4 + 2j
+        result = test_operation.evaluate_output(0, [a])
+        assert result == a**-0.5
+
+    def test_zero(self):
+        test_operation = ReciprocalSquareRoot()
+        assert test_operation.evaluate_output(0, [0]) == float("inf")
+
+    def test_apyfixed_positive(self):
+        test_operation = ReciprocalSquareRoot()
+        a = apy.fx(4.0, int_bits=4, frac_bits=4)
+        assert test_operation.evaluate_output(0, [a]) == 0.5
+
+    def test_apyfixed_complex(self):
+        test_operation = ReciprocalSquareRoot()
+        a = apy.APyCFixed.from_complex(4 + 2j, int_bits=4, frac_bits=4)
+        result = test_operation.evaluate_output(0, [a])
+        assert result == (4 + 2j) ** -0.5
+
+    def test_apyfixed_zero(self):
+        test_operation = ReciprocalSquareRoot()
+        a = apy.fx(0.0, int_bits=4, frac_bits=4)
+        assert test_operation.evaluate_output(0, [a]) == float("inf")
+
+    def test_apyfloat_positive(self):
+        test_operation = ReciprocalSquareRoot()
+        a = apy.fp(16, exp_bits=8, man_bits=23)
+        assert test_operation.evaluate_output(0, [a]) == 0.25
+
+    def test_apyfloat_complex(self):
+        test_operation = ReciprocalSquareRoot()
+        a = apy.fp(-2 - 3j, exp_bits=8, man_bits=23)
+        result = test_operation.evaluate_output(0, [a])
+        assert result == (-2 - 3j) ** -0.5
+
+    def test_apyfloat_zero(self):
+        test_operation = ReciprocalSquareRoot()
+        a = apy.fp(0.0, exp_bits=8, man_bits=23)
+        assert test_operation.evaluate_output(0, [a]) == float("inf")
+
+    def test_real_valued_complex_input(self):
+        test_operation = ReciprocalSquareRoot(real_valued=True)
+        assert test_operation.evaluate_output(0, [4 + 2j]) == 0.5
+
+    def test_real_valued_apycfixed(self):
+        test_operation = ReciprocalSquareRoot(real_valued=True)
+        a = apy.APyCFixed.from_complex(9 + 2j, int_bits=5, frac_bits=4)
+        assert test_operation.evaluate_output(0, [a]) == 1 / 3
+
+    def test_real_valued_apycfixed_zero(self):
+        test_operation = ReciprocalSquareRoot(real_valued=True)
+        a = apy.APyCFixed.from_complex(0 + 2j, int_bits=4, frac_bits=4)
+        assert test_operation.evaluate_output(0, [a]) == float("inf")
 
 
 class TestDepends:
