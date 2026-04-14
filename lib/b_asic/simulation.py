@@ -181,8 +181,8 @@ class Simulation:
                         input_vals.append(val)
             return input_vals
 
-        results: dict[ResultKey, Num] = {}
         while self._iteration < iteration:
+            results: dict[ResultKey, Num] = {}
             # Fetch the input values for this iteration
             input_values = [
                 self._input_functions[i](self._iteration)
