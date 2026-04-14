@@ -387,3 +387,13 @@ def sfg_simple_loop():
     d <<= (in0 + d) * 0.5
     out0 = Output(d)
     return SFG([in0], [out0])
+
+
+@pytest.fixture
+def sfg_nested_sfg():
+    in0 = Input()
+    d0 = Delay(in0)
+    inner_sfg = SFG([in0], [Output(d0)])
+    in1 = Input()
+    inner_sfg <<= in1
+    return SFG([in1], [Output(inner_sfg)])

@@ -1655,6 +1655,9 @@ class SFG(AbstractOperation):
             )
             for input_port in src.operation.inputs
         ]
+        if isinstance(src.operation, Delay) and input_values:
+            delays[key] = input_values[0]
+            return results[key]
         value = src.operation.evaluate_output(
             src.index,
             input_values,
