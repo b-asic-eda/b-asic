@@ -437,7 +437,7 @@ def arch_simple_loop(sfg_simple_loop):
 
     pes, mems, direct = assign_processing_elements_and_memories(
         sched,
-        strategy="ilp_min_total_mux",
+        strategy="ilp_min_mux",
         memory_read_ports=1,
         memory_write_ports=1,
         memory_total_ports=2,

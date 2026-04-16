@@ -43,8 +43,9 @@ def assign_processing_elements_and_memories(
     *,
     strategy: Literal[
         "ilp_graph_color",
-        "ilp_min_total_mux",
+        "ilp_min_mux",
         "greedy_graph_color",
+        "left_edge",
     ] = "ilp_graph_color",
     max_mux_size: int | None = None,
     resources: dict[TypeName, int] | None = None,
@@ -68,13 +69,14 @@ def assign_processing_elements_and_memories(
         Valid options are:
 
         * "ilp_graph_color" - ILP-based optimal resource assignment.
-        * "ilp_min_total_mux" - ILP-based optimal resource assignment with multiplexer minimization.
+        * "ilp_min_mux" - ILP-based optimal resource assignment with multiplexer minimization.
         * "greedy_graph_color" - Greedy graph coloring-based resource assignment.
+        * "left_edge" - Left-edge coloring-based resource assignment.
 
     max_mux_size : int, optional
         The maximum fan-in size for any enabled multiplexer target in
-        strategy='ilp_min_total_mux'. Must be greater than or equal to 1.
-        Only valid with 'ilp_min_total_mux' strategy.
+        strategy='ilp_min_mux'. Must be greater than or equal to 1.
+        Only valid with 'ilp_min_mux' strategy.
 
     resources : dict[TypeName, int], optional
         The maximum amount of resources to assign to, used to limit the solution
@@ -112,9 +114,9 @@ def assign_processing_elements_and_memories(
     -------
     A tuple containing one list of assigned PEs and one list of assigned memories.
     """
-    if max_mux_size is not None and strategy != "ilp_min_total_mux":
+    if max_mux_size is not None and strategy != "ilp_min_mux":
         raise ValueError(
-            "max_mux_size can only be specified with strategy='ilp_min_total_mux', "
+            "max_mux_size can only be specified with strategy='ilp_min_mux', "
             f"not '{strategy}'"
         )
 
@@ -164,8 +166,9 @@ def _split_operations_and_variables(
     direct_variables: ProcessCollection,
     strategy: Literal[
         "ilp_graph_color",
-        "ilp_min_total_mux",
+        "ilp_min_mux",
         "greedy_graph_color",
+        "left_edge",
     ] = "ilp_graph_color",
     max_mux_size: int | None = None,
     resources: dict[TypeName, int] | None = None,
@@ -197,15 +200,17 @@ def _split_operations_and_variables(
     # Generate the color upper bound for PEs
     log.info("Generating color upper bounds")
     max_pes = {}
+    pe_greedy_colorings: dict[TypeName, dict] = {}
     pe_operations = []
     for group in op_groups.values():
         operation = next(iter(group)).operation
         pe_operations.append(operation)
+        pe_ex_graph = group.exclusion_graph_from_execution_time()
+        coloring = nx.coloring.greedy_color(
+            pe_ex_graph, strategy="saturation_largest_first"
+        )
+        pe_greedy_colorings[operation.type_name()] = coloring
         if not resources or operation.type_name() not in resources:
-            pe_ex_graph = group.exclusion_graph_from_execution_time()
-            coloring = nx.coloring.greedy_color(
-                pe_ex_graph, strategy="saturation_largest_first"
-            )
             max_pes[operation.type_name()] = len(set(coloring.values()))
         else:
             max_pes[operation.type_name()] = resources[operation.type_name()]
@@ -215,14 +220,14 @@ def _split_operations_and_variables(
     mem_exclusion_graph = mem_vars.exclusion_graph_from_ports(
         memory_read_ports, memory_write_ports, memory_total_ports
     )
+    mem_greedy_coloring = nx.coloring.greedy_color(
+        mem_exclusion_graph, strategy="saturation_largest_first"
+    )
     if max_mems is None:
         log.info(
             "max_mems not provided, using greedy graph coloring to determine upper bound on memory colors"
         )
-        coloring = nx.coloring.greedy_color(
-            mem_exclusion_graph, strategy="saturation_largest_first"
-        )
-        max_mems = len(set(coloring.values()))
+        max_mems = len(set(mem_greedy_coloring.values()))
     log.info(
         "Upper bound on memory colors: %d, maximum number of memory reads: %d and memory writes: %d",
         max_mems,
@@ -236,10 +241,10 @@ def _split_operations_and_variables(
         pe_x, mem_x = _ilp_coloring(
             op_groups, mem_exclusion_graph, max_pes, max_mems, solver
         )
-    elif strategy == "ilp_min_total_mux":
+    elif strategy == "ilp_min_mux":
         # Color the graphs concurrently using ILP to minimize the amount of multiplexers
         # given the amount of resources and memories
-        pe_x, mem_x = _ilp_coloring_min_mux(
+        pe_x, mem_x = _ilp_min_mux(
             op_groups,
             mem_vars,
             max_pes,
@@ -248,6 +253,8 @@ def _split_operations_and_variables(
             direct_variables,
             max_mux_size,
             solver,
+            pe_greedy_colorings,
+            mem_greedy_coloring,
         )
     elif strategy == "greedy_graph_color":
         pe_x = {}
@@ -270,6 +277,19 @@ def _split_operations_and_variables(
             node: {color: 1 if color == node_color else 0 for color in range(max_mems)}
             for node, node_color in mem_coloring.items()
         }
+    elif strategy == "left_edge":
+        mem_process_collections = mem_vars.split_on_ports(
+            strategy="left_edge",
+            read_ports=memory_read_ports,
+            write_ports=memory_write_ports,
+            total_ports=memory_total_ports,
+        )
+        pe_process_collections = {}
+        for op_type_name, group in op_groups.items():
+            pe_process_collections[op_type_name] = group.split_on_execution_time(
+                strategy="left_edge"
+            )
+        return pe_process_collections, mem_process_collections
     else:
         raise ValueError(f"Invalid strategy '{strategy}'")
 
@@ -385,7 +405,55 @@ def _ilp_coloring(
     return pe_x, mem_x
 
 
-def _ilp_coloring_min_mux(
+def _apply_warm_start(
+    pe_x: dict,
+    mem_x: dict,
+    pe_c: dict,
+    mem_c: dict,
+    pe_warm_start: dict[TypeName, dict] | None,
+    mem_warm_start: dict | None,
+    max_pes: dict[TypeName, int],
+    max_mems: int,
+) -> None:
+    def _set(var: LpVariable, val: int) -> None:
+        # Skip variables already fixed by busiest-slot pinning or other constraints
+        if var.lowBound == var.upBound:
+            return
+        var.setInitialValue(val)
+
+    if pe_warm_start is not None:
+        for op_type_name, coloring in pe_warm_start.items():
+            if max_pes[op_type_name] == 1:
+                continue  # already fixed as integer constants, not LpVariables
+            used_colors: set[int] = set()
+            for proc, color in coloring.items():
+                used_colors.add(color)
+                for pe_idx in range(max_pes[op_type_name]):
+                    var = pe_x[op_type_name][proc][pe_idx]
+                    if isinstance(var, LpVariable):
+                        _set(var, 1 if pe_idx == color else 0)
+            for pe_idx in range(max_pes[op_type_name]):
+                var = pe_c[op_type_name][pe_idx]
+                if isinstance(var, LpVariable):
+                    _set(var, 1 if pe_idx in used_colors else 0)
+
+    if mem_warm_start is not None:
+        used_mem_colors: set[int] = set()
+        for mem_var, color in mem_warm_start.items():
+            used_mem_colors.add(color)
+            for mem_idx in range(max_mems):
+                var = mem_x[mem_var][mem_idx]
+                if isinstance(var, LpVariable):
+                    _set(var, 1 if mem_idx == color else 0)
+        for mem_idx in range(max_mems):
+            var = mem_c[mem_idx]
+            if isinstance(var, LpVariable):
+                _set(var, 1 if mem_idx in used_mem_colors else 0)
+
+    log.info("Warm start applied from greedy coloring")
+
+
+def _ilp_min_mux(
     op_groups: dict[TypeName, ProcessCollection],
     mem_vars: ProcessCollection,
     max_pes: dict[TypeName, int],
@@ -394,6 +462,8 @@ def _ilp_coloring_min_mux(
     direct: ProcessCollection,
     max_mux_size: int | None = None,
     solver: LpSolver | None = None,
+    pe_warm_start: dict[TypeName, dict] | None = None,
+    mem_warm_start: dict | None = None,
 ) -> tuple[dict, dict]:
     pe_in_cnt = {
         op_type_name: op.input_count
@@ -703,13 +773,22 @@ def _ilp_coloring_min_mux(
             for pe_idx in range(1, max_pes[op_type_name]):
                 problem += pe_c[op_type_name][pe_idx] <= pe_c[op_type_name][pe_idx - 1]
 
+    if pe_warm_start is not None or mem_warm_start is not None:
+        _apply_warm_start(
+            pe_x, mem_x, pe_c, mem_c, pe_warm_start, mem_warm_start, max_pes, max_mems
+        )
+
     log.info(
         "Model created with %d variables and %d constraints. Starting to solve with solver: %s",
         len(problem.variables()),
         len(problem.constraints),
         solver.__class__.__name__ if solver else "default",
     )
-    _solve_ilp_problem(problem, solver)
+    _solve_ilp_problem(
+        problem,
+        solver,
+        warm_start=pe_warm_start is not None or mem_warm_start is not None,
+    )
 
     # Log active connections
     active_pe_to_mem = [
@@ -949,12 +1028,15 @@ def _create_pe_variables(
 def _solve_ilp_problem(
     problem: LpProblem,
     solver: LpSolver | None,
+    warm_start: bool = False,
 ) -> None:
     # Default to a CBC solver if no solver is provided
     # Suppress ILP solver output if logging not set to DEBUG
     if solver is None:
         msg = 1 if log.isEnabledFor(b_asic.logger.logging.DEBUG) else 0
-        solver = PULP_CBC_CMD(msg=msg)
+        solver = PULP_CBC_CMD(msg=msg, warmStart=warm_start)
+    elif warm_start and isinstance(solver, PULP_CBC_CMD):
+        solver.warmStart = True
 
     recovery_state = _prepare_interrupted_recovery(problem, solver)
 

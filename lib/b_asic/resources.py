@@ -991,7 +991,7 @@ class ProcessCollection:
             "ilp_graph_color",
             "ilp_min_input_mux",
             "ilp_min_output_mux",
-            "ilp_min_total_mux",
+            "ilp_min_mux",
             "greedy_graph_color",
             "equitable_graph_color",
             "left_edge",
@@ -1063,6 +1063,7 @@ class ProcessCollection:
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
         )
+
         if strategy == "ilp_graph_color":
             return self._split_ports_ilp_graph_color(
                 read_ports, write_ports, total_ports, max_colors, solver
@@ -1093,12 +1094,12 @@ class ProcessCollection:
                 max_colors,
                 solver,
             )
-        elif strategy == "ilp_min_total_mux":
+        elif strategy == "ilp_min_mux":
             if processing_elements is None:
                 raise ValueError(
-                    "processing_elements must be provided if strategy = 'ilp_min_total_mux'"
+                    "processing_elements must be provided if strategy = 'ilp_min_mux'"
                 )
-            return self._split_ports_ilp_min_total_mux_graph_color(
+            return self._split_ports_ilp_min_mux_graph_color(
                 read_ports,
                 write_ports,
                 total_ports,
@@ -1730,7 +1731,7 @@ class ProcessCollection:
 
         return self._split_from_graph_coloring(minimal_coloring)
 
-    def _split_ports_ilp_min_total_mux_graph_color(
+    def _split_ports_ilp_min_mux_graph_color(
         self,
         read_ports: int,
         write_ports: int,
