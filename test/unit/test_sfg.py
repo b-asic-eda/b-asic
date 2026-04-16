@@ -659,105 +659,6 @@ class TestConstructSFG:
         assert sim.results["out0"][0].real == 1251184247.0026844
 
 
-class TestInsertComponent:
-    def test_insert_component_in_sfg(self, large_operation_tree_names):
-        sfg = SFG(outputs=[Output(large_operation_tree_names)])
-        sqrt = SquareRoot()
-
-        _sfg = sfg.insert_operation(sqrt, sfg.find_by_name("constant4")[0].graph_id)
-        assert _sfg.evaluate() != sfg.evaluate()
-
-        assert any(isinstance(comp, SquareRoot) for comp in _sfg.operations)
-        assert not any(isinstance(comp, SquareRoot) for comp in sfg.operations)
-
-        assert not isinstance(
-            sfg.find_by_name("constant4")[0].output(0).signals[0].destination.operation,
-            SquareRoot,
-        )
-        assert isinstance(
-            _sfg.find_by_name("constant4")[0]
-            .output(0)
-            .signals[0]
-            .destination.operation,
-            SquareRoot,
-        )
-
-        assert sfg.find_by_name("constant4")[0].output(0).signals[
-            0
-        ].destination.operation is sfg.find_by_id("add2")
-        assert _sfg.find_by_name("constant4")[0].output(0).signals[
-            0
-        ].destination.operation is not _sfg.find_by_id("add2")
-        assert _sfg.find_by_id("sqrt0").output(0).signals[
-            0
-        ].destination.operation is _sfg.find_by_id("add2")
-
-    def test_insert_invalid_component_in_sfg(self, large_operation_tree):
-        sfg = SFG(outputs=[Output(large_operation_tree)])
-
-        # Should raise an exception for not matching input count to output count.
-        add4 = Addition()
-        with pytest.raises(TypeError, match=r"Source operation output count"):
-            sfg.insert_operation(add4, "c0")
-
-    def test_insert_at_output(self, large_operation_tree):
-        sfg = SFG(outputs=[Output(large_operation_tree)])
-
-        # Should raise an exception for trying to insert an operation after an output.
-        sqrt = SquareRoot()
-        with pytest.raises(TypeError, match=r"Source operation cannot be an"):
-            _ = sfg.insert_operation(sqrt, "out0")
-
-    def test_insert_multiple_output_ports(self, butterfly_operation_tree):
-        sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
-        _sfg = sfg.insert_operation(R2Butterfly(name="n_bfly"), "r2bfly2")
-
-        assert sfg.evaluate() != _sfg.evaluate()
-
-        assert len(sfg.find_by_name("n_bfly")) == 0
-        assert len(_sfg.find_by_name("n_bfly")) == 1
-
-        # Correctly connected old output -> new input
-        assert (
-            _sfg.find_by_name("r2bfly3")[0].output(0).signals[0].destination.operation
-            is _sfg.find_by_name("n_bfly")[0]
-        )
-        assert (
-            _sfg.find_by_name("r2bfly3")[0].output(1).signals[0].destination.operation
-            is _sfg.find_by_name("n_bfly")[0]
-        )
-
-        # Correctly connected new input -> old output
-        assert (
-            _sfg.find_by_name("n_bfly")[0].input(0).signals[0].source.operation
-            is _sfg.find_by_name("r2bfly3")[0]
-        )
-        assert (
-            _sfg.find_by_name("n_bfly")[0].input(1).signals[0].source.operation
-            is _sfg.find_by_name("r2bfly3")[0]
-        )
-
-        # Correctly connected new output -> next input
-        assert (
-            _sfg.find_by_name("n_bfly")[0].output(0).signals[0].destination.operation
-            is _sfg.find_by_name("r2bfly2")[0]
-        )
-        assert (
-            _sfg.find_by_name("n_bfly")[0].output(1).signals[0].destination.operation
-            is _sfg.find_by_name("r2bfly2")[0]
-        )
-
-        # Correctly connected next input -> new output
-        assert (
-            _sfg.find_by_name("r2bfly2")[0].input(0).signals[0].source.operation
-            is _sfg.find_by_name("n_bfly")[0]
-        )
-        assert (
-            _sfg.find_by_name("r2bfly2")[0].input(1).signals[0].source.operation
-            is _sfg.find_by_name("n_bfly")[0]
-        )
-
-
 class TestFindComponentsWithTypeName:
     def test_mac_components(self):
         inp1 = Input("INP1")
@@ -2068,6 +1969,107 @@ class TestSwapIOOfOperation:
         self.do_test(sfg_simple_accumulator, "add1")
 
 
+class TestInsertComponent:
+    pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
+
+    def test_insert_component_in_sfg(self, large_operation_tree_names):
+        sfg = SFG(outputs=[Output(large_operation_tree_names)])
+        sqrt = SquareRoot()
+
+        _sfg = sfg.insert_operation(sqrt, sfg.find_by_name("constant4")[0].graph_id)
+        assert _sfg.evaluate() != sfg.evaluate()
+
+        assert any(isinstance(comp, SquareRoot) for comp in _sfg.operations)
+        assert not any(isinstance(comp, SquareRoot) for comp in sfg.operations)
+
+        assert not isinstance(
+            sfg.find_by_name("constant4")[0].output(0).signals[0].destination.operation,
+            SquareRoot,
+        )
+        assert isinstance(
+            _sfg.find_by_name("constant4")[0]
+            .output(0)
+            .signals[0]
+            .destination.operation,
+            SquareRoot,
+        )
+
+        assert sfg.find_by_name("constant4")[0].output(0).signals[
+            0
+        ].destination.operation is sfg.find_by_id("add2")
+        assert _sfg.find_by_name("constant4")[0].output(0).signals[
+            0
+        ].destination.operation is not _sfg.find_by_id("add2")
+        assert _sfg.find_by_id("sqrt0").output(0).signals[
+            0
+        ].destination.operation is _sfg.find_by_id("add2")
+
+    def test_insert_invalid_component_in_sfg(self, large_operation_tree):
+        sfg = SFG(outputs=[Output(large_operation_tree)])
+
+        # Should raise an exception for not matching input count to output count.
+        add4 = Addition()
+        with pytest.raises(TypeError, match=r"Source operation output count"):
+            sfg.insert_operation(add4, "c0")
+
+    def test_insert_at_output(self, large_operation_tree):
+        sfg = SFG(outputs=[Output(large_operation_tree)])
+
+        # Should raise an exception for trying to insert an operation after an output.
+        sqrt = SquareRoot()
+        with pytest.raises(TypeError, match=r"Source operation cannot be an"):
+            _ = sfg.insert_operation(sqrt, "out0")
+
+    def test_insert_multiple_output_ports(self, butterfly_operation_tree):
+        sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
+        _sfg = sfg.insert_operation(R2Butterfly(name="n_bfly"), "r2bfly2")
+
+        assert sfg.evaluate() != _sfg.evaluate()
+
+        assert len(sfg.find_by_name("n_bfly")) == 0
+        assert len(_sfg.find_by_name("n_bfly")) == 1
+
+        # Correctly connected old output -> new input
+        assert (
+            _sfg.find_by_name("r2bfly3")[0].output(0).signals[0].destination.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+        assert (
+            _sfg.find_by_name("r2bfly3")[0].output(1).signals[0].destination.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+
+        # Correctly connected new input -> old output
+        assert (
+            _sfg.find_by_name("n_bfly")[0].input(0).signals[0].source.operation
+            is _sfg.find_by_name("r2bfly3")[0]
+        )
+        assert (
+            _sfg.find_by_name("n_bfly")[0].input(1).signals[0].source.operation
+            is _sfg.find_by_name("r2bfly3")[0]
+        )
+
+        # Correctly connected new output -> next input
+        assert (
+            _sfg.find_by_name("n_bfly")[0].output(0).signals[0].destination.operation
+            is _sfg.find_by_name("r2bfly2")[0]
+        )
+        assert (
+            _sfg.find_by_name("n_bfly")[0].output(1).signals[0].destination.operation
+            is _sfg.find_by_name("r2bfly2")[0]
+        )
+
+        # Correctly connected next input -> new output
+        assert (
+            _sfg.find_by_name("r2bfly2")[0].input(0).signals[0].source.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+        assert (
+            _sfg.find_by_name("r2bfly2")[0].input(1).signals[0].source.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+
+
 class TestInsertComponentAfter:
     def test_insert_component_after_in_sfg(self, large_operation_tree_names):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
@@ -2103,14 +2105,62 @@ class TestInsertComponentAfter:
             0
         ].destination.operation is _sfg.find_by_id("add2")
 
-    def test_insert_component_after_mimo_operation_error(
+    def test_insert_multiple_output_ports(self, butterfly_operation_tree):
+        sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
+        _sfg = sfg.insert_operation_after("r2bfly3", R2Butterfly(name="n_bfly"))
+
+        assert sfg.evaluate() != _sfg.evaluate()
+
+        assert len(sfg.find_by_name("n_bfly")) == 0
+        assert len(_sfg.find_by_name("n_bfly")) == 1
+
+        # Correctly connected old output -> new input
+        assert (
+            _sfg.find_by_name("r2bfly3")[0].output(0).signals[0].destination.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+        assert (
+            _sfg.find_by_name("r2bfly3")[0].output(1).signals[0].destination.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+
+        # Correctly connected new input -> old output
+        assert (
+            _sfg.find_by_name("n_bfly")[0].input(0).signals[0].source.operation
+            is _sfg.find_by_name("r2bfly3")[0]
+        )
+        assert (
+            _sfg.find_by_name("n_bfly")[0].input(1).signals[0].source.operation
+            is _sfg.find_by_name("r2bfly3")[0]
+        )
+
+        # Correctly connected new output -> next input
+        assert (
+            _sfg.find_by_name("n_bfly")[0].output(0).signals[0].destination.operation
+            is _sfg.find_by_name("r2bfly2")[0]
+        )
+        assert (
+            _sfg.find_by_name("n_bfly")[0].output(1).signals[0].destination.operation
+            is _sfg.find_by_name("r2bfly2")[0]
+        )
+
+        # Correctly connected next input -> new output
+        assert (
+            _sfg.find_by_name("r2bfly2")[0].input(0).signals[0].source.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+        assert (
+            _sfg.find_by_name("r2bfly2")[0].input(1).signals[0].source.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+
+    def test_insert_component_after_mimo_count_mismatch_error(
         self, large_operation_tree_names
     ):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
-        with pytest.raises(
-            TypeError, match=r"Only operations with one input and one output"
-        ):
-            sfg.insert_operation_after("constant4", SymmetricTwoportAdaptor(0.5))
+        comp_id = sfg.find_by_name("constant4")[0].graph_id
+        with pytest.raises(TypeError, match=r"Source operation output count"):
+            sfg.insert_operation_after(comp_id, SymmetricTwoportAdaptor(0.5))
 
     def test_insert_component_after_unknown_component_error(
         self, large_operation_tree_names
@@ -2118,6 +2168,14 @@ class TestInsertComponentAfter:
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
         with pytest.raises(ValueError, match=r"Unknown component:"):
             sfg.insert_operation_after("foo", SquareRoot())
+
+    def test_insert_after_output_error(self, large_operation_tree):
+        sfg = SFG(outputs=[Output(large_operation_tree)])
+        with pytest.raises(
+            TypeError,
+            match=r"Cannot insert after 'out0': operation has no output ports.",
+        ):
+            sfg.insert_operation_after("out0", SquareRoot())
 
 
 class TestInsertComponentBefore:
@@ -2155,7 +2213,51 @@ class TestInsertComponentBefore:
             is _sfg.find_by_name("r2bfly2")[0]
         )
 
-    def test_insert_component_before_mimo_operation_error(
+    def test_insert_component_before_dot_notation(self, butterfly_operation_tree):
+        sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
+        graph_id = sfg.find_by_name("r2bfly1")[0].graph_id
+
+        _sfg = sfg.insert_operation_before(f"{graph_id}.0", SquareRoot())
+
+        assert isinstance(
+            _sfg.find_by_name("r2bfly1")[0].input(0).signals[0].source.operation,
+            SquareRoot,
+        )
+        assert (
+            _sfg.find_by_id("sqrt0").input(0).signals[0].source.operation
+            is _sfg.find_by_name("r2bfly2")[0]
+        )
+
+    def test_insert_mimo_operation_before(self, butterfly_operation_tree):
+        sfg = SFG(outputs=list(map(Output, butterfly_operation_tree.outputs)))
+        _sfg = sfg.insert_operation_before("r2bfly2", R2Butterfly(name="n_bfly"))
+
+        assert sfg.evaluate() != _sfg.evaluate()
+
+        assert len(sfg.find_by_name("n_bfly")) == 0
+        assert len(_sfg.find_by_name("n_bfly")) == 1
+
+        # new op's outputs connect to r2bfly2's inputs
+        assert (
+            _sfg.find_by_name("r2bfly2")[0].input(0).signals[0].source.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+        assert (
+            _sfg.find_by_name("r2bfly2")[0].input(1).signals[0].source.operation
+            is _sfg.find_by_name("n_bfly")[0]
+        )
+
+        # new op's inputs come from whatever fed r2bfly2 before
+        assert (
+            _sfg.find_by_name("n_bfly")[0].input(0).signals[0].source.operation
+            is _sfg.find_by_name("r2bfly3")[0]
+        )
+        assert (
+            _sfg.find_by_name("n_bfly")[0].input(1).signals[0].source.operation
+            is _sfg.find_by_name("r2bfly3")[0]
+        )
+
+    def test_insert_component_before_mimo_count_mismatch_error(
         self, large_operation_tree_names
     ):
         sfg = SFG(outputs=[Output(large_operation_tree_names)])
@@ -2196,7 +2298,7 @@ class TestKeepGraphIDs:
         sfg = SFG([i], [o])
         sfg = sfg.insert_operation_before("t0", ConstantMultiplication(8))
         sfg = sfg.insert_operation_after("t0", ConstantMultiplication(8))
-        sfg = sfg.insert_operation(ConstantMultiplication(8), "t0")
+        sfg = sfg.insert_operation_after("t0", ConstantMultiplication(8))
         assert sfg.get_used_graph_ids() == {
             "add0",
             "cmul0",
