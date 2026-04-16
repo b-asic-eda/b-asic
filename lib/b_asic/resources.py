@@ -923,19 +923,7 @@ class ProcessCollection:
             "greedy_graph_color",
             "ilp_graph_color",
         ] = "left_edge",
-        coloring_strategy: Literal[
-            "largest_first",
-            "random_sequential",
-            "smallest_last",
-            "independent_set",
-            "connected_sequential_bfs",
-            "connected_sequential_dfs",
-            "connected_sequential",
-            "saturation_largest_first",
-            "DSATUR",
-        ] = "saturation_largest_first",
-        max_colors: int | None = None,
-        solver: LpSolver | None = None,
+        alg_params: dict | None = None,
     ) -> list["ProcessCollection"]:
         """
         Split based on overlapping execution time.
@@ -945,37 +933,44 @@ class ProcessCollection:
         strategy : {'ilp_graph_color', 'greedy_graph_color', 'left_edge'}, default: 'left_edge'
             The strategy used when splitting based on execution times.
 
-        coloring_strategy : str, default: 'saturation_largest_first'
-            Node ordering strategy passed to
-            :func:`networkx.algorithms.coloring.greedy_color`.
-            This parameter is only considered if *strategy* is set to 'greedy_graph_color'.
-            Valid options are:
+        alg_params : dict, optional
+            Algorithm-specific parameters. Valid keys depend on *strategy*:
 
-            * 'largest_first'
-            * 'random_sequential'
-            * 'smallest_last'
-            * 'independent_set'
-            * 'connected_sequential_bfs'
-            * 'connected_sequential_dfs' or 'connected_sequential'
-            * 'saturation_largest_first' or 'DSATUR'
+            For ``'greedy_graph_color'``:
 
-        max_colors : int, optional
-            The maximum amount of colors to split based on,
-            only required if strategy is an ILP method.
+            coloring_strategy : str, default: ``'saturation_largest_first'``
+                Node ordering strategy passed to
+                :func:`networkx.algorithms.coloring.greedy_color`.
+                Valid values are ``'largest_first'``, ``'random_sequential'``,
+                ``'smallest_last'``, ``'independent_set'``,
+                ``'connected_sequential_bfs'``, ``'connected_sequential_dfs'``,
+                ``'connected_sequential'``, ``'saturation_largest_first'``,
+                ``'DSATUR'``.
 
-        solver : :class:`~pulp.LpSolver`, optional
-            Only used if strategy is an ILP method. To see which solvers are available:
+            For ``'ilp_graph_color'``:
 
-            .. code-block:: python
+            max_colors : int, optional
+                The maximum number of colors (resources) to split into.
 
-                import pulp
+            solver : :class:`~pulp.LpSolver`, optional
+                ILP solver to use. To see available solvers:
 
-                print(pulp.listSolvers(onlyAvailable=True))
+                .. code-block:: python
+
+                    import pulp
+
+                    print(pulp.listSolvers(onlyAvailable=True))
 
         Returns
         -------
         A list of new ProcessCollection objects with the process splitting.
         """
+        alg_params = alg_params or {}
+        coloring_strategy = alg_params.get(
+            "coloring_strategy", "saturation_largest_first"
+        )
+        max_colors = alg_params.get("max_colors", None)
+        solver = alg_params.get("solver", None)
         if strategy == "ilp_graph_color":
             return self._ilp_graph_color_assignment(max_colors, solver)
         elif strategy == "greedy_graph_color":
@@ -1001,9 +996,7 @@ class ProcessCollection:
         read_ports: int | None = None,
         write_ports: int | None = None,
         total_ports: int | None = None,
-        processing_elements: list["ProcessingElement"] | None = None,
-        max_colors: int | None = None,
-        solver: LpSolver | None = None,
+        alg_params: dict | None = None,
     ) -> list["ProcessCollection"]:
         """
         Split based on concurrent read and write accesses.
@@ -1012,54 +1005,63 @@ class ProcessCollection:
 
         Parameters
         ----------
-        strategy : str, default: "left_edge"
+        strategy : str, default: ``'left_edge'``
             The strategy used when splitting this :class:`ProcessCollection`.
             Valid options are:
 
-            * "ilp_graph_color" - ILP-based optimal graph coloring.
-            * "ilp_min_input_mux" - ILP-based optimal graph coloring reducing the number of PE -> memory multiplexers.
-            * "ilp_min_output_mux" - ILP-based optimal graph coloring reducing the number of memory -> PE multiplexers.
-            * "ilp_min_total_mux" - ILP-based optimal graph coloring reducing the number of total multiplexers.
-            * "greedy_graph_color" - Greedy graph coloring based heuristic.
-            * "equitable_graph_color" - Equitable graph coloring, attempting to divide the variables evenly.
-            * "left_edge" - Greedy heuristic for assigning variables.
-            * "left_edge_min_pe_to_mem" - Greedy heuristic for assigning variables, attempting to reduce the amount of PE -> memory connections.
-            * "left_edge_min_mem_to_pe" Greedy heuristic for assigning variables, attempting to reduce the amount of memory -> PE connections.
+            * ``'ilp_graph_color'`` - ILP-based optimal graph coloring.
+            * ``'ilp_min_input_mux'`` - ILP-based optimal graph coloring reducing the number of PE -> memory multiplexers.
+            * ``'ilp_min_output_mux'`` - ILP-based optimal graph coloring reducing the number of memory -> PE multiplexers.
+            * ``'ilp_min_mux'`` - ILP-based optimal graph coloring reducing the number of total multiplexers.
+            * ``'greedy_graph_color'`` - Greedy graph coloring based heuristic.
+            * ``'equitable_graph_color'`` - Equitable graph coloring, attempting to divide the variables evenly.
+            * ``'left_edge'`` - Greedy heuristic for assigning variables.
+            * ``'left_edge_min_pe_to_mem'`` - Greedy heuristic for assigning variables, attempting to reduce the amount of PE -> memory connections.
+            * ``'left_edge_min_mem_to_pe'`` - Greedy heuristic for assigning variables, attempting to reduce the amount of memory -> PE connections.
 
         read_ports : int, optional
-            The number of read ports used when splitting process collection based on
-            memory variable access.
+            The number of read ports per memory resource.
 
         write_ports : int, optional
-            The number of write ports used when splitting process collection based on
-            memory variable access.
+            The number of write ports per memory resource.
 
         total_ports : int, optional
-            The total number of ports used when splitting process collection based on
-            memory variable access.
+            The total number of ports per memory resource.
 
-        processing_elements : list of :class:`ProcessingElement`, optional
-            The currently used PEs,
-            only required if *strategy* is "left_edge_min_mem_to_pe",
-            "ilp_graph_color" or "ilp_min_input_mux".
+        alg_params : dict, optional
+            Algorithm-specific parameters. Valid keys depend on *strategy*:
 
-        max_colors : int, optional
-            The maximum amount of colors to split based on,
-            only required if *strategy* is an ILP method.
+            For ``'ilp_graph_color'``, ``'ilp_min_input_mux'``,
+            ``'ilp_min_output_mux'``, ``'ilp_min_mux'``:
 
-        solver : :class:`~pulp.LpSolver`, optional
-            Only used if *strategy* is an ILP method. To see which solvers are available:
+            max_colors : int, optional
+                The maximum number of colors (memory resources) to split into.
 
-            .. code-block:: python
+            solver : :class:`~pulp.LpSolver`, optional
+                ILP solver to use. To see available solvers:
 
-                import pulp
+                .. code-block:: python
 
-                print(pulp.listSolvers(onlyAvailable=True))
+                    import pulp
+
+                    print(pulp.listSolvers(onlyAvailable=True))
+
+            For ``'ilp_min_input_mux'``, ``'ilp_min_output_mux'``,
+            ``'ilp_min_mux'``, ``'left_edge_min_pe_to_mem'``,
+            ``'left_edge_min_mem_to_pe'``:
+
+            processing_elements : list of :class:`ProcessingElement`
+                The currently used processing elements.
+                Used to determine PE-memory connections when minimizing multiplexers.
 
         Returns
         -------
-        A set of new ProcessCollection objects with the process splitting.
+        A list of new ProcessCollection objects with the process splitting.
         """
+        alg_params = alg_params or {}
+        processing_elements = alg_params.get("processing_elements", None)
+        max_colors = alg_params.get("max_colors", None)
+        solver = alg_params.get("solver", None)
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
         )
