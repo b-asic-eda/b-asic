@@ -408,7 +408,7 @@ def test_ilp_color_total_mux(mem_variables_fft16):
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        strategy="ilp_min_total_mux",
+        strategy="ilp_min_mux",
         processing_elements=processing_elements,
         max_colors=4,
     )
@@ -470,7 +470,7 @@ def test_ilp_resource_algorithm_custom_solver():
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        strategy="ilp_min_total_mux",
+        strategy="ilp_min_mux",
         processing_elements=processing_elements,
         max_colors=3,
         solver=PULP_CBC_CMD(),
@@ -560,7 +560,7 @@ def test_joint_resource_assignment_mux_reduction():
 
     pes, mems, direct = assign_processing_elements_and_memories(
         schedule,
-        strategy="ilp_min_total_mux",
+        strategy="ilp_min_mux",
         resources=resources,
         max_mems=3,
         memory_read_ports=1,
@@ -623,7 +623,7 @@ def test_separate_ilp_color_no_max_colors_provided(mem_variables_fft16):
         read_ports=1,
         write_ports=1,
         total_ports=2,
-        strategy="ilp_min_total_mux",
+        strategy="ilp_min_mux",
         processing_elements=processing_elements,
     )
 
@@ -659,7 +659,7 @@ def test_joint_ilp_color_no_max_colors_or_resources_provided():
 
     pes, mems, direct = assign_processing_elements_and_memories(
         schedule,
-        strategy="ilp_min_total_mux",
+        strategy="ilp_min_mux",
         memory_read_ports=1,
         memory_write_ports=1,
         memory_total_ports=2,

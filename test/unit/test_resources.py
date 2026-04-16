@@ -90,11 +90,9 @@ class TestProcessCollectionPlainMemoryVariable:
 
         with pytest.raises(
             ValueError,
-            match=r"processing_elements must be provided if strategy = 'ilp_min_total_mux'",
+            match=r"processing_elements must be provided if strategy = 'ilp_min_mux'",
         ):
-            simple_collection.split_on_ports(
-                strategy="ilp_min_total_mux", total_ports=1
-            )
+            simple_collection.split_on_ports(strategy="ilp_min_mux", total_ports=1)
 
         with pytest.raises(
             ValueError,
