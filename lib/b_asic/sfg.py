@@ -749,7 +749,12 @@ class SFG(AbstractOperation):
 
         return sfg_copy()
 
-    def insert_operation(self, component: Operation, output_comp_id: GraphID) -> "SFG":
+    def insert_operation(
+        self,
+        component: Operation,
+        output_comp_id: GraphID,
+        port: int | None = None,
+    ) -> "SFG":
         """
         Insert an operation in the SFG after a given source operation.
 
@@ -762,32 +767,56 @@ class SFG(AbstractOperation):
         component : Operation
             The new component, e.g. Multiplication.
         output_comp_id : GraphID
-            The source operation GraphID to connect from.
+            The source operation GraphID to connect from. Can use ``'id.port'``
+            notation to specify a port, e.g. ``'sym2p4.1'``.
+        port : int, optional
+            The number of the OutputPort after which the new operation shall be
+            inserted. Overridden by dot notation in *output_comp_id*.
         """
+        warnings.warn(
+            "insert_operation is deprecated, use insert_operation_after instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Preserve the original SFG by creating a copy.
         sfg_copy = self()
         comp = sfg_copy._add_component_unconnected_copy(component)
+        if "." in output_comp_id:
+            output_comp_id, port_id_str = output_comp_id.split(".")
+            port_id = int(port_id_str)
+        else:
+            port_id = port
         output_comp = cast(Operation, sfg_copy.find_by_id(output_comp_id))
         if output_comp is None:
             return None
 
         if isinstance(output_comp, Output):
             raise TypeError("Source operation cannot be an output operation.")
-        if len(output_comp.output_signals) != comp.input_count:
-            raise TypeError(
-                "Source operation output count"
-                f" ({len(output_comp.output_signals)}) does not match input"
-                f" count for component ({comp.input_count})."
-            )
-        if len(output_comp.output_signals) != comp.output_count:
-            raise TypeError(
-                "Destination operation input count does not match output for component."
-            )
 
-        for index, signal_in in enumerate(output_comp.output_signals):
-            destination = cast(InputPort, signal_in.destination)
-            signal_in.set_destination(comp.input(index))
-            destination.connect(comp.output(index))
+        if port_id is not None:
+            if component.input_count != 1 or component.output_count != 1:
+                raise TypeError(
+                    "Only operations with one input and one output can be"
+                    " inserted at a specific port."
+                )
+            sfg_copy._insert_operation_after_outputport(
+                output_comp.output(port_id), comp
+            )
+        else:
+            if len(output_comp.output_signals) != comp.input_count:
+                raise TypeError(
+                    "Source operation output count"
+                    f" ({len(output_comp.output_signals)}) does not match input"
+                    f" count for component ({comp.input_count})."
+                )
+            if len(output_comp.output_signals) != comp.output_count:
+                raise TypeError(
+                    "Destination operation input count does not match output for component."
+                )
+            for index, signal_in in enumerate(output_comp.output_signals):
+                destination = cast(InputPort, signal_in.destination)
+                signal_in.set_destination(comp.input(index))
+                destination.connect(comp.output(index))
 
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
@@ -796,6 +825,7 @@ class SFG(AbstractOperation):
         self,
         output_comp_id: GraphID,
         new_operation: Operation,
+        port: int | None = None,
     ) -> "SFG":
         """
         Insert an operation in the SFG after a given source operation.
@@ -803,43 +833,85 @@ class SFG(AbstractOperation):
         Then return a new deepcopy of the sfg with the inserted component.
 
         The graph_id can be an Operation or a Signal. If the operation has multiple
-        outputs, (copies of) the same operation will be inserted on every port.
-        To specify a port use ``'graph_id.port_number'``, e.g., ``'sym2p4.1'``.
-
-        Currently, the new operation must have one input and one output.
+        outputs, (copies of) the new operation will be inserted on every port.
+        To specify a port use ``'graph_id.port_number'``, e.g., ``'sym2p4.1'``,
+        or the *port* parameter.
 
         Parameters
         ----------
         output_comp_id : GraphID
-            The source operation GraphID to connect from.
+            The source operation GraphID to connect from. Can use ``'id.port'``
+            notation to specify a port, e.g. ``'sym2p4.1'``.
         new_operation : Operation
             The new operation, e.g. Multiplication.
+        port : int, optional
+            The number of the OutputPort after which the new operation shall be
+            inserted. Overridden by dot notation in *output_comp_id*.
         """
         # Preserve the original SFG by creating a copy.
         sfg_copy = self()
-        if new_operation.output_count != 1 or new_operation.input_count != 1:
-            raise TypeError(
-                "Only operations with one input and one output can be inserted."
-            )
         if "." in output_comp_id:
             output_comp_id, port_id_str = output_comp_id.split(".")
             port_id = int(port_id_str)
         else:
-            port_id = None
+            port_id = port
 
-        output_comp = sfg_copy.find_by_id(output_comp_id)
-        if output_comp is None:
-            raise ValueError(f"Unknown component: {output_comp_id!r}")
+        by_name = sfg_copy.find_by_name(output_comp_id)
+        if len(by_name) == 1:
+            output_comp = by_name[0]
+        elif len(by_name) > 1:
+            raise ValueError(
+                f"Multiple components with name {output_comp_id!r},"
+                " specify graph ID instead."
+            )
+        else:
+            output_comp = sfg_copy.find_by_id(output_comp_id)
+            if output_comp is None:
+                raise ValueError(f"Unknown component: {output_comp_id!r}")
         if isinstance(output_comp, Operation):
-            comp = sfg_copy._add_component_unconnected_copy(new_operation)
-
-            if port_id is None:
-                sfg_copy._insert_operation_after_operation(output_comp, comp)
-            else:
+            if output_comp.output_count == 0:
+                raise TypeError(
+                    f"Cannot insert after {output_comp.graph_id!r}:"
+                    " operation has no output ports."
+                )
+            if port_id is not None:
+                if new_operation.output_count != 1 or new_operation.input_count != 1:
+                    raise TypeError(
+                        "Only operations with one input and one output can be"
+                        " inserted at a specific port."
+                    )
+                comp = sfg_copy._add_component_unconnected_copy(new_operation)
                 sfg_copy._insert_operation_after_outputport(
                     output_comp.output(port_id), comp
                 )
+            elif new_operation.input_count == 1 and new_operation.output_count == 1:
+                for output in output_comp.outputs:
+                    comp = sfg_copy._add_component_unconnected_copy(
+                        new_operation.copy()
+                    )
+                    sfg_copy._insert_operation_after_outputport(output, comp)
+            else:
+                if output_comp.output_count != new_operation.input_count:
+                    raise TypeError(
+                        f"Source operation output count ({output_comp.output_count})"
+                        f" does not match input count for new operation"
+                        f" ({new_operation.input_count})."
+                    )
+                if new_operation.output_count != output_comp.output_count:
+                    raise TypeError(
+                        f"New operation output count ({new_operation.output_count})"
+                        f" does not match source output count ({output_comp.output_count})."
+                    )
+                comp = sfg_copy._add_component_unconnected_copy(new_operation)
+                for i, output in enumerate(output_comp.outputs):
+                    sfg_copy._insert_operation_after_outputport(output, comp, i)
         elif isinstance(output_comp, Signal):
+            if new_operation.output_count != 1 or new_operation.input_count != 1:
+                raise TypeError(
+                    "Only operations with one input and one output can be inserted"
+                    " after a signal."
+                )
+            comp = sfg_copy._add_component_unconnected_copy(new_operation)
             sfg_copy._insert_operation_before_signal(output_comp, comp)
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
@@ -856,42 +928,84 @@ class SFG(AbstractOperation):
         Then return a new deepcopy of the sfg with the inserted component.
 
         The graph_id can be an Operation or a Signal. If the operation has multiple
-        inputs, (copies of) the same operation will be inserted on every port.
-        To specify a port use the ``port`` parameter.
-
-        Currently, the new operation must have one input and one output.
+        inputs, (copies of) the new operation will be inserted on every port.
+        To specify a port use ``'graph_id.port_number'``, e.g., ``'sym2p4.1'``,
+        or the *port* parameter.
 
         Parameters
         ----------
         input_comp_id : GraphID
-            The source operation GraphID to connect to.
+            The source operation GraphID to connect to. Can use ``'id.port'``
+            notation to specify a port, e.g. ``'sym2p4.0'``.
         new_operation : Operation
             The new operation, e.g. Multiplication.
         port : int, optional
             The number of the InputPort before which the new operation shall be
-            inserted.
+            inserted. Overridden by dot notation in *input_comp_id*.
         """
         # Preserve the original SFG by creating a copy.
         sfg_copy = self()
-        if new_operation.output_count != 1 or new_operation.input_count != 1:
-            raise TypeError(
-                "Only operations with one input and one output can be inserted."
-            )
+        if "." in input_comp_id:
+            input_comp_id, port_id_str = input_comp_id.split(".")
+            port = int(port_id_str)
 
-        input_comp = sfg_copy.find_by_id(input_comp_id)
-        if input_comp is None:
-            raise ValueError(f"Unknown component: {input_comp_id!r}")
+        by_name = sfg_copy.find_by_name(input_comp_id)
+        if len(by_name) == 1:
+            input_comp = by_name[0]
+        elif len(by_name) > 1:
+            raise ValueError(
+                f"Multiple components with name {input_comp_id!r},"
+                " specify graph ID instead."
+            )
+        else:
+            input_comp = sfg_copy.find_by_id(input_comp_id)
+            if input_comp is None:
+                raise ValueError(f"Unknown component: {input_comp_id!r}")
         if isinstance(input_comp, Operation):
-            comp = sfg_copy._add_component_unconnected_copy(new_operation)
-            if port is None:
-                sfg_copy._insert_operation_before_operation(input_comp, comp)
-            else:
+            if input_comp.input_count == 0:
+                raise TypeError(
+                    f"Cannot insert before {input_comp.graph_id!r}:"
+                    " operation has no input ports."
+                )
+            if port is not None:
+                if new_operation.output_count != 1 or new_operation.input_count != 1:
+                    raise TypeError(
+                        "Only operations with one input and one output can be"
+                        " inserted at a specific port."
+                    )
+                comp = sfg_copy._add_component_unconnected_copy(new_operation)
                 sfg_copy._insert_operation_before_inputport(
                     input_comp.input(port), comp
                 )
+            elif new_operation.input_count == 1 and new_operation.output_count == 1:
+                for input_port in input_comp.inputs:
+                    comp = sfg_copy._add_component_unconnected_copy(
+                        new_operation.copy()
+                    )
+                    sfg_copy._insert_operation_before_inputport(input_port, comp)
+            else:
+                if input_comp.input_count != new_operation.output_count:
+                    raise TypeError(
+                        f"Destination operation input count ({input_comp.input_count})"
+                        f" does not match output count for new operation"
+                        f" ({new_operation.output_count})."
+                    )
+                if new_operation.input_count != input_comp.input_count:
+                    raise TypeError(
+                        f"New operation input count ({new_operation.input_count})"
+                        f" does not match destination input count ({input_comp.input_count})."
+                    )
+                comp = sfg_copy._add_component_unconnected_copy(new_operation)
+                for i, input_port in enumerate(input_comp.inputs):
+                    sfg_copy._insert_operation_before_inputport(input_port, comp, i)
         elif isinstance(input_comp, Signal):
+            if new_operation.output_count != 1 or new_operation.input_count != 1:
+                raise TypeError(
+                    "Only operations with one input and one output can be inserted"
+                    " before a signal."
+                )
+            comp = sfg_copy._add_component_unconnected_copy(new_operation)
             sfg_copy._insert_operation_after_signal(input_comp, comp)
-
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
 
@@ -931,33 +1045,18 @@ class SFG(AbstractOperation):
 
         return sfg_copy
 
-    def _insert_operation_after_operation(
-        self, output_operation: Operation, new_operation: Operation
-    ) -> None:
-        for output in output_operation.outputs:
-            self._insert_operation_after_outputport(output, new_operation.copy())
-
-    def _insert_operation_before_operation(
-        self, input_operation: Operation, new_operation: Operation
-    ) -> None:
-        for port in input_operation.inputs:
-            self._insert_operation_before_inputport(port, new_operation.copy())
-
     def _insert_operation_after_outputport(
-        self, output_port: OutputPort, new_operation: Operation
+        self, output_port: OutputPort, new_operation: Operation, port_index: int = 0
     ) -> None:
-        # Make copy as list will be updated
-        signal_list = output_port.signals[:]
-        for signal in signal_list:
-            signal.set_source(new_operation)
-        new_operation.input(0).connect(output_port)
+        for signal in output_port.signals[:]:
+            signal.set_source(new_operation.output(port_index))
+        new_operation.input(port_index).connect(output_port)
 
     def _insert_operation_before_inputport(
-        self, input_port: InputPort, new_operation: Operation
+        self, input_port: InputPort, new_operation: Operation, port_index: int = 0
     ) -> None:
-        # Make copy as list will be updated
-        input_port.signals[0].set_destination(new_operation)
-        new_operation.output(0).add_signal(Signal(destination=input_port))
+        input_port.signals[0].set_destination(new_operation.input(port_index))
+        new_operation.output(port_index).add_signal(Signal(destination=input_port))
 
     def _insert_operation_before_signal(
         self, signal: Signal, new_operation: Operation
