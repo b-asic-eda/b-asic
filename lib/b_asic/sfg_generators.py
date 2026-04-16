@@ -15,8 +15,11 @@ from b_asic.core_operations import (
     Addition,
     AddSub,
     ConstantMultiplication,
+    Multiplication,
     Name,
+    Negation,
     Reciprocal,
+    ReciprocalSquareRoot,
 )
 from b_asic.fft_operations import R2Butterfly
 from b_asic.sfg import SFG
@@ -453,7 +456,6 @@ def ldlt_matrix_inverse(
     name: str | None = None,
     mode: str = "eqs",
     pe: str | None = None,
-    negate: bool = False,
 ) -> SFG:
     """
     Generate an SFG for the LDLT matrix inverse algorithm.
@@ -468,13 +470,11 @@ def ldlt_matrix_inverse(
         The mode of operation, either "mult" or "eqs".
     pe : str, optional
         Processing element to use. Can be "mads", "addsub", or None.
-    negate : bool, default: False
-        Whether to negate or take 0 - value.
 
     Returns
     -------
     SFG
-        Signal Flow Graph.
+        Signal Flow Graph
     """
     if name is None:
         name = "LDLT matrix-inversion"
@@ -543,60 +543,36 @@ def ldlt_matrix_inverse(
 
         return L, D, D_inv
 
-    def ldl_l_inv(L, negate=False):
+    def ldl_l_inv(L):
         N_local = len(L)
         L_inv = [[None for _ in range(N_local)] for _ in range(N_local)]
         for i in range(1, N_local):
             for j in range(i - 1, -1, -1):
-                if negate:
-                    if pe == "mads":
-                        acc = L[i][j]
-                        for k in range(j + 1, i):
-                            acc = MADS(
-                                is_add=True,
-                                src0=acc,
-                                src1=L[i][k],
-                                src2=L_inv[k][j],
-                                do_addsub=True,
-                            )
-                        L_inv[i][j] = -acc
-                    elif pe == "addsub":
-                        acc = L[i][j]
-                        for k in range(j + 1, i):
-                            acc = AddSub(
-                                is_add=True,
-                                src0=acc,
-                                src1=L[i][k] * L_inv[k][j],
-                            )
-                        L_inv[i][j] = -acc
-                    else:
-                        acc = L[i][j]
-                        for k in range(j + 1, i):
-                            acc = acc + L[i][k] * L_inv[k][j]
-                        L_inv[i][j] = -acc
+                if pe == "mads":
+                    acc = L[i][j]
+                    for k in range(j + 1, i):
+                        acc = MADS(
+                            is_add=True,
+                            src0=acc,
+                            src1=L[i][k],
+                            src2=L_inv[k][j],
+                            do_addsub=True,
+                        )
+                    L_inv[i][j] = -acc
+                elif pe == "addsub":
+                    acc = L[i][j]
+                    for k in range(j + 1, i):
+                        acc = AddSub(
+                            is_add=True,
+                            src0=acc,
+                            src1=L[i][k] * L_inv[k][j],
+                        )
+                    L_inv[i][j] = -acc
                 else:
-                    if pe == "mads":
-                        L_inv[i][j] = -L[i][j]
-                        for k in range(j + 1, i):
-                            L_inv[i][j] = MADS(
-                                is_add=False,
-                                src0=L_inv[i][j],
-                                src1=L[i][k],
-                                src2=L_inv[k][j],
-                                do_addsub=True,
-                            )
-                    elif pe == "addsub":
-                        L_inv[i][j] = -L[i][j]
-                        for k in range(j + 1, i):
-                            L_inv[i][j] = AddSub(
-                                is_add=False,
-                                src0=L_inv[i][j],
-                                src1=L[i][k] * L_inv[k][j],
-                            )
-                    else:
-                        L_inv[i][j] = -L[i][j]
-                        for k in range(j + 1, i):
-                            L_inv[i][j] = L_inv[i][j] - L[i][k] * L_inv[k][j]
+                    acc = L[i][j]
+                    for k in range(j + 1, i):
+                        acc = acc + L[i][k] * L_inv[k][j]
+                    L_inv[i][j] = -acc
 
         return L_inv
 
@@ -723,7 +699,7 @@ def ldlt_matrix_inverse(
     L, _, D_inv = ldl_decomposition(A)
 
     if mode == "mult":
-        L_inv = ldl_l_inv(L, negate)
+        L_inv = ldl_l_inv(L)
         res = ldl_matmul(L_inv, D_inv)
         outputs = [
             Output(res[i][j], name=f"res[{i},{j}]")
@@ -732,6 +708,298 @@ def ldlt_matrix_inverse(
         ]
     else:
         res = ldl_eqs(L, D_inv)
+        outputs = [
+            Output(res[i][j], name=f"res[{i},{j}]")
+            for i in range(N)
+            for j in range(i + 1)
+        ]
+
+    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+
+
+def cholesky_matrix_inverse(
+    N: int,
+    name: str | None = None,
+    mode: str = "eqs",
+    pe: str | None = None,
+) -> SFG:
+    """
+    Generate an SFG for the Cholesky matrix inverse algorithm.
+
+    Parameters
+    ----------
+    N : int
+        Dimension of the square input matrix.
+    name : str, optional
+        The name of the SFG. If None, "Cholesky matrix-inversion".
+    mode : str, default: "eqs"
+        The mode of operation, either "mult" or "eqs".
+    pe : str, optional
+        Processing element to use. Can be "mads", "addsub", or None.
+
+    Returns
+    -------
+    SFG
+        Signal Flow Graph
+    """
+    if name is None:
+        name = "Cholesky matrix-inversion"
+
+    def chol_decomposition(A):
+        N_local = len(A)
+        L = [[None for _ in range(N_local)] for _ in range(N_local)]
+        L_inv = [[None for _ in range(N_local)] for _ in range(N_local)]
+
+        for j in range(N_local):
+            acc = A[j][j]
+            for k in range(j):
+                if pe == "mads":
+                    acc = MADS(
+                        is_add=False,
+                        src0=acc,
+                        src1=L[j][k],
+                        src2=L[j][k],
+                        do_addsub=True,
+                    )
+                elif pe == "addsub":
+                    acc = AddSub(is_add=False, src0=acc, src1=L[j][k] * L[j][k])
+                else:
+                    acc = acc - L[j][k] * L[j][k]
+
+            L_inv[j][j] = ReciprocalSquareRoot(acc)
+
+            for i in range(j + 1, N_local):
+                acc2 = A[i][j]
+                for k in range(j):
+                    if pe == "mads":
+                        acc2 = MADS(
+                            is_add=False,
+                            src0=acc2,
+                            src1=L[i][k],
+                            src2=L[j][k],
+                            do_addsub=True,
+                        )
+                    elif pe == "addsub":
+                        acc2 = AddSub(is_add=False, src0=acc2, src1=L[i][k] * L[j][k])
+                    else:
+                        acc2 = acc2 - L[i][k] * L[j][k]
+
+                if pe == "mads":
+                    L[i][j] = MADS(
+                        is_add=True,
+                        src0=DontCare(),
+                        src1=acc2,
+                        src2=L_inv[j][j],
+                        do_addsub=False,
+                    )
+                elif pe == "addsub":
+                    L[i][j] = Multiplication(
+                        acc2,
+                        L_inv[j][j],
+                    )
+                else:
+                    L[i][j] = acc2 * L_inv[j][j]
+
+        return L, L_inv
+
+    def chol_l_inv(L, L_inv_diag):
+        N_local = len(L)
+        L_inv = [[None for _ in range(N_local)] for _ in range(N_local)]
+        for i in range(N_local):
+            L_inv[i][i] = L_inv_diag[i][i]
+
+        for i in range(1, N_local):
+            for j in range(i):
+                if pe == "mads":
+                    acc = MADS(
+                        is_add=True,
+                        src0=DontCare(),
+                        src1=L[i][j],
+                        src2=L_inv[j][j],
+                        do_addsub=False,
+                    )
+                    for k in range(j + 1, i):
+                        acc = MADS(
+                            is_add=True,
+                            src0=acc,
+                            src1=L[i][k],
+                            src2=L_inv[k][j],
+                            do_addsub=True,
+                        )
+                    L_inv[i][j] = MADS(
+                        is_add=False,
+                        src0=DontCare(),
+                        src1=acc,
+                        src2=L_inv[i][i],
+                        do_addsub=False,
+                    )
+                elif pe == "addsub":
+                    acc = L[i][j] * L_inv[j][j]
+                    for k in range(j + 1, i):
+                        acc = AddSub(is_add=True, src0=acc, src1=L[i][k] * L_inv[k][j])
+                    L_inv[i][j] = Negation(
+                        acc * L_inv[i][i],
+                    )
+                else:
+                    acc = L[i][j] * L_inv[j][j]
+                    for k in range(j + 1, i):
+                        acc = acc + L[i][k] * L_inv[k][j]
+                    L_inv[i][j] = -(acc * L_inv[i][i])
+
+        return L_inv
+
+    def chol_matmul(L_inv):
+        n = len(L_inv)
+        res = [[None for _ in range(n)] for _ in range(n)]
+
+        for i in range(n - 1, -1, -1):
+            for j in range(i, -1, -1):
+                if pe == "mads":
+                    if i + 1 == n:
+                        res[i][j] = MADS(
+                            is_add=True,
+                            src0=DontCare(),
+                            src1=L_inv[i][i],
+                            src2=L_inv[i][j],
+                            do_addsub=False,
+                        )
+                    else:
+                        acc = MADS(
+                            is_add=True,
+                            src0=DontCare(),
+                            src1=L_inv[i][i],
+                            src2=L_inv[i][j],
+                            do_addsub=False,
+                        )
+                        for k in range(i + 1, n):
+                            acc = MADS(
+                                is_add=True,
+                                src0=acc,
+                                src1=L_inv[k][i],
+                                src2=L_inv[k][j],
+                                do_addsub=True,
+                            )
+                        res[i][j] = acc
+                elif pe == "addsub":
+                    if i + 1 == n:
+                        res[i][j] = L_inv[i][i] * L_inv[i][j]
+                    else:
+                        acc = L_inv[i][i] * L_inv[i][j]
+                        for k in range(i + 1, n):
+                            acc = AddSub(
+                                is_add=True, src0=acc, src1=L_inv[k][i] * L_inv[k][j]
+                            )
+                        res[i][j] = acc
+                else:
+                    if i + 1 == n:
+                        res[i][j] = L_inv[i][i] * L_inv[i][j]
+                    else:
+                        acc = L_inv[i][i] * L_inv[i][j]
+                        for k in range(i + 1, n):
+                            acc = acc + L_inv[k][i] * L_inv[k][j]
+                        res[i][j] = acc
+        return res
+
+    def chol_eqs(L, L_inv):
+        n = len(L)
+        res = [[None for _ in range(n)] for _ in range(n)]
+
+        for s in range(2 * (n - 1), -1, -1):
+            i_min = (s + 1) // 2
+            i_max = min(s, n - 1)
+            for i in range(i_max, i_min - 1, -1):
+                j = s - i
+                if i == j:
+                    acc = L_inv[i][i]
+                    for k in range(n - 1, i, -1):
+                        if pe == "mads":
+                            acc = MADS(
+                                is_add=False,
+                                src0=acc,
+                                src1=L[k][i],
+                                src2=res[k][i],
+                                do_addsub=True,
+                            )
+                        elif pe == "addsub":
+                            acc = AddSub(
+                                is_add=False, src0=acc, src1=L[k][i] * res[k][i]
+                            )
+                        else:
+                            acc = acc - L[k][i] * res[k][i]
+                    if pe == "mads":
+                        acc = MADS(
+                            is_add=True,
+                            src0=DontCare(),
+                            src1=acc,
+                            src2=L_inv[i][i],
+                            do_addsub=False,
+                        )
+                    elif pe == "addsub":
+                        acc = Multiplication(acc, L_inv[i][i])
+                    else:
+                        acc = acc * L_inv[i][i]
+                else:
+                    if pe == "mads":
+                        acc = MADS(
+                            is_add=False,
+                            src0=DontCare(),
+                            src1=L[n - 1][j],
+                            src2=res[max(i, n - 1)][min(i, n - 1)],
+                            do_addsub=False,
+                        )
+                        for k in range(n - 2, j, -1):
+                            acc = MADS(
+                                is_add=False,
+                                src0=acc,
+                                src1=L[k][j],
+                                src2=res[max(i, k)][min(i, k)],
+                                do_addsub=True,
+                            )
+                        acc = MADS(
+                            is_add=True,
+                            src0=DontCare(),
+                            src1=acc,
+                            src2=L_inv[j][j],
+                            do_addsub=False,
+                        )
+                    elif pe == "addsub":
+                        acc = -(L[n - 1][j] * res[max(i, n - 1)][min(i, n - 1)])
+                        for k in range(n - 2, j, -1):
+                            acc = AddSub(
+                                is_add=False,
+                                src0=acc,
+                                src1=L[k][j] * res[max(i, k)][min(i, k)],
+                            )
+                        acc = acc * L_inv[j][j]
+                    else:
+                        acc = -L[n - 1][j] * res[max(i, n - 1)][min(i, n - 1)]
+                        for k in range(n - 2, j, -1):
+                            acc = acc - L[k][j] * res[max(i, k)][min(i, k)]
+                        acc = acc * L_inv[j][j]
+                res[i][j] = acc
+
+        return res
+
+    inputs = []
+    A = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N):
+        for j in range(i + 1):
+            in_op = Input(name=f"A[{i},{j}]")
+            A[i][j] = in_op
+            inputs.append(in_op)
+
+    L, L_inv_diag = chol_decomposition(A)
+
+    if mode == "mult":
+        L_inv = chol_l_inv(L, L_inv_diag)
+        res = chol_matmul(L_inv)
+        outputs = [
+            Output(res[i][j], name=f"res[{i},{j}]")
+            for i in range(N)
+            for j in range(i + 1)
+        ]
+    else:
+        res = chol_eqs(L, L_inv_diag)
         outputs = [
             Output(res[i][j], name=f"res[{i},{j}]")
             for i in range(N)

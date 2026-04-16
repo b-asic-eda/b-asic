@@ -9,6 +9,7 @@ from b_asic.core_operations import (
 )
 from b_asic.fft_operations import R2Butterfly
 from b_asic.sfg_generators import (
+    cholesky_matrix_inverse,
     direct_form_1_iir,
     direct_form_2_iir,
     fir,
@@ -983,22 +984,19 @@ class TestLdltMatrixInverse:
             assert np.isclose(actual_values[i], expected_values[i])
 
     @pytest.mark.parametrize(
-        ("mode", "pe", "negate"),
+        ("mode", "pe"),
         [
-            ("mult", "mads", False),
-            ("mult", "mads", True),
-            ("mult", "addsub", False),
-            ("mult", "addsub", True),
-            ("mult", None, False),
-            ("mult", None, True),
-            ("eqs", "mads", False),
-            ("eqs", "addsub", False),
-            ("eqs", None, False),
+            ("mult", "mads"),
+            ("mult", "addsub"),
+            ("mult", None),
+            ("eqs", "mads"),
+            ("eqs", "addsub"),
+            ("eqs", None),
         ],
     )
-    def test_4x4_spd_combinations(self, mode, pe, negate):
+    def test_4x4_spd_combinations(self, mode, pe):
         N = 4
-        sfg = ldlt_matrix_inverse(N=N, mode=mode, pe=pe, negate=negate)
+        sfg = ldlt_matrix_inverse(N=N, mode=mode, pe=pe)
 
         A = self._generate_random_spd_matrix(N)
         lower_tridiag = A[np.tril_indices(N)]
@@ -1089,6 +1087,40 @@ class TestLdltMatrixInverse:
     #     min_eig = np.min(np.linalg.eigvals(A))
     #     A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
     #     return A
+
+
+class TestCholeskyMatrixInverse:
+    def _generate_random_spd_matrix(self, N: int) -> np.ndarray:
+        A = np.random.default_rng().standard_normal((N, N))
+        A = A @ A.T  # ensure symmetric and positive semi-definite
+        min_eig = np.min(np.linalg.eigvals(A))
+        A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
+        return A
+
+    @pytest.mark.parametrize("N", [1, 2, 4, 8, 16])
+    @pytest.mark.parametrize("mode", ["mult", "eqs"])
+    @pytest.mark.parametrize("pe", ["mads", "addsub", None])
+    def test_NxN_spd_combinations(self, N, mode, pe):
+        sfg = cholesky_matrix_inverse(N=N, mode=mode, pe=pe)
+
+        A = self._generate_random_spd_matrix(N)
+        A_input = [Constant(num) for num in A[np.tril_indices(N)]]
+        A_inv = np.linalg.inv(A)
+
+        assert len(sfg.inputs) == len(A_input)
+        assert len(sfg.outputs) == len(A_input)
+
+        sim = Simulation(sfg, A_input)
+        sim.run_for(1)
+
+        res = sim.results
+        row_indices, col_indices = np.tril_indices(N)
+        expected_values = A_inv[row_indices, col_indices]
+        actual_values = np.array(
+            [res[f"out{i}"] for i in range(len(expected_values))],
+        ).flatten()
+
+        assert np.allclose(actual_values, expected_values)
 
 
 class TestMatrixMultiplication:
