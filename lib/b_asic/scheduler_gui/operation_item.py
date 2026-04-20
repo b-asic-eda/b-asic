@@ -391,7 +391,13 @@ class OperationItem(QGraphicsItemGroup):
         self._parent._total_execution_time_plot(self._operation.type_name())
 
     def _move_asap(self, event=None) -> None:
-        self._parent.schedule.move_operation_asap(self._operation.graph_id)
+        graph_id = self._operation.graph_id
+        self._parent.schedule.move_operation_asap(graph_id)
+        print(f"schedule.move_operation_asap({graph_id!r})")
+        self._parent._signals.reopen.emit()
 
     def _move_alap(self, event=None) -> None:
-        self._parent.schedule.move_operation_alap(self._operation.graph_id)
+        graph_id = self._operation.graph_id
+        self._parent.schedule.move_operation_alap(graph_id)
+        print(f"schedule.move_operation_alap({graph_id!r})")
+        self._parent._signals.reopen.emit()

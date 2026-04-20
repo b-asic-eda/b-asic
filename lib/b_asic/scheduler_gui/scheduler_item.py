@@ -8,7 +8,6 @@ maintaining a schedule.
 
 import math
 from collections import defaultdict
-from pprint import pprint
 from typing import cast
 
 # QGraphics and QPainter imports
@@ -390,6 +389,3 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         self._schedule.swap_io_of_operation(graph_id)
         print(f"schedule.swap_io_of_operation({graph_id!r})")
         self._signals.reopen.emit()
-
-
-pprint(SchedulerItem.__mro__)
