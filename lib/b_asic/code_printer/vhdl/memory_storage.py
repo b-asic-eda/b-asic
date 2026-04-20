@@ -139,6 +139,7 @@ def architecture(
         f,
         name="memory",
         signal_type="mem_type",
+        default_value=f"(others => {dt.init_val})",
     )
 
     ADR_LEN = (memory.schedule_time - 1).bit_length()
@@ -416,7 +417,7 @@ def architecture(
                 time -= 1  # Account for output register
             if pipeline_control_signals:
                 time -= 1  # Account for control-signal register stage
-            time = time % elements_per_rom
+            time = time % schedule_time
             common.write_lines(
                 f,
                 [
