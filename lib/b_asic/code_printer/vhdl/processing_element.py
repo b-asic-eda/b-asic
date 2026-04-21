@@ -102,11 +102,14 @@ def _declarative_region_common(
     for name, entry in pe.control_table.items():
         if isinstance(next(iter(entry.values.values())), bool):
             vhdl_type = "std_logic"
+            default_value = "'0'"
         elif entry.is_signed:
             vhdl_type = f"signed({entry.bits - 1} downto 0)"
+            default_value = "(others => '0')"
         else:
             vhdl_type = f"unsigned({entry.bits - 1} downto 0)"
-        common.signal_declaration(f, name, vhdl_type)
+            default_value = "(others => '0')"
+        common.signal_declaration(f, name, vhdl_type, default_value=default_value)
         if pipeline_control_signals:
             common.signal_declaration(f, f"{name}_comb", vhdl_type)
 

@@ -39,6 +39,7 @@ class VhdlPrinter(Printer):
         self._multiplexer_control_registered = multiplexer_control_registered
         self._fp_backend = ""
         self._register_split: tuple[int, int] | None = None
+        self._pe_control_cycle: dict[str, dict[str, int]] = {}
         super().__init__(dt=dt)
 
     def set_data_type(self, dt: DataType) -> None:
@@ -188,9 +189,7 @@ class VhdlPrinter(Printer):
         self._register_split = self._resolve_pe_registers(pe, pe_registers)
 
         # Optional absolute per-control availability cycle.
-        # Shape: {pe_entity_or_type: {control_name: cycle_in_[0, latency]}}
-        control_cycle: dict[str, dict[str, int]] = kwargs.get("control_cycle", {})
-        pe_control_cycle = self._resolve_control_cycle(pe, control_cycle)
+        self._pe_control_cycle = dict(kwargs.get("control_cycle", {}))
 
         # Optional design-level flag to register PE control signals.
         pipeline_pe_control_signals = bool(kwargs.get("pipeline_pe_control", False))
@@ -203,6 +202,7 @@ class VhdlPrinter(Printer):
             common.package_header(f, "types")
         processing_element.entity(f, pe, self._dt)
         core_code = self.print_operation(pe)
+        pe_control_cycle = self._resolve_control_cycle(pe, self._pe_control_cycle)
         processing_element.architecture(
             f,
             pe,
@@ -921,20 +921,30 @@ class VhdlPrinter(Printer):
     ) -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
 
-        value = pe.control_table["value"]
-        value_int_bits = value.wl[0]
-        value_frac_bits = value.wl[1]
+        value_entry = pe.control_table["value"]
+        value_int_bits = value_entry.wl[0]
+        value_frac_bits = value_entry.wl[1]
         value_bits = value_int_bits + value_frac_bits
 
-        # declare signals
-        common.signal_declaration(
-            declarations, "u0", f"{self.type_name}({self.bits} downto 0)"
-        )
-        common.signal_declaration(
-            declarations,
-            "mul_res",
-            f"{self.type_name}({self.bits + value_bits} downto 0)",
-        )
+        u0_type = f"{self.type_name}({self.bits} downto 0)"
+        mul_res_type = f"{self.type_name}({self.bits + value_bits} downto 0)"
+
+        n_in, n_out = self._register_split
+        pipeline_after_mul = n_in >= 2
+        pipeline_before_mul = n_out >= 2
+        n_consumed = int(pipeline_after_mul) + int(pipeline_before_mul)
+        if n_consumed:
+            self._register_split = (
+                n_in - int(pipeline_before_mul),
+                n_out - int(pipeline_after_mul),
+            )
+
+        if pipeline_before_mul:
+            self._pe_control_cycle.setdefault(pe.entity_name, {}).setdefault("value", 2)
+
+        # Declare combinatorial intermediate signals
+        common.signal_declaration(declarations, "u0", u0_type)
+        common.signal_declaration(declarations, "mul_res", mul_res_type)
         common.signal_declaration(
             declarations,
             "res_arith_0",
@@ -946,27 +956,106 @@ class VhdlPrinter(Printer):
             f"{self.type_name}({self.bits + value_bits + 1} downto 0)",
         )
 
-        # u0 = op_1 - op_0
+        # Declare pipeline-register signals
+        if pipeline_before_mul:
+            common.signal_declaration(
+                declarations, "u0_p", u0_type, default_value=self._dt.init_val
+            )
+            common.signal_declaration(
+                declarations,
+                "op_0_p",
+                self._dt.type_str,
+                default_value=self._dt.init_val,
+            )
+            common.signal_declaration(
+                declarations,
+                "op_1_p",
+                self._dt.type_str,
+                default_value=self._dt.init_val,
+            )
+        if pipeline_after_mul:
+            common.signal_declaration(
+                declarations, "mul_res_p", mul_res_type, default_value=self._dt.init_val
+            )
+            if pipeline_before_mul:
+                common.signal_declaration(
+                    declarations,
+                    "op_0_pp",
+                    self._dt.type_str,
+                    default_value=self._dt.init_val,
+                )
+                common.signal_declaration(
+                    declarations,
+                    "op_1_pp",
+                    self._dt.type_str,
+                    default_value=self._dt.init_val,
+                )
+            else:
+                common.signal_declaration(
+                    declarations,
+                    "op_0_p",
+                    self._dt.type_str,
+                    default_value=self._dt.init_val,
+                )
+                common.signal_declaration(
+                    declarations,
+                    "op_1_p",
+                    self._dt.type_str,
+                    default_value=self._dt.init_val,
+                )
+
+        # Stage 1: u0 = op_1 - op_0
         common.write(
             code,
             1,
             f"u0 <= resize(op_1, {self._dt.bits + 1}) - resize(op_0, {self._dt.bits + 1});",
         )
 
-        common.write(code, 1, "mul_res <= u0 * value;")
+        if pipeline_before_mul:
+            common.synchronous_process_prologue(code)
+            common.write(code, 3, "if en = '1' then")
+            common.write(code, 4, "u0_p <= u0;")
+            common.write(code, 4, "op_0_p <= op_0;")
+            common.write(code, 4, "op_1_p <= op_1;")
+            common.write(code, 3, "end if;")
+            common.synchronous_process_epilogue(code)
+            u0_mul_src = "u0_p"
+        else:
+            u0_mul_src = "u0"
 
-        # res_arith_1 = in0 + mul_res
+        # Stage 2: multiply (combinatorial)
+        common.write(code, 1, f"mul_res <= {u0_mul_src} * value;")
+
+        if pipeline_after_mul:
+            op_in0 = "op_0_p" if pipeline_before_mul else "op_0"
+            op_in1 = "op_1_p" if pipeline_before_mul else "op_1"
+            op_out0 = "op_0_pp" if pipeline_before_mul else "op_0_p"
+            op_out1 = "op_1_pp" if pipeline_before_mul else "op_1_p"
+            common.synchronous_process_prologue(code)
+            common.write(code, 3, "if en = '1' then")
+            common.write(code, 4, "mul_res_p <= mul_res;")
+            common.write(code, 4, f"{op_out0} <= {op_in0};")
+            common.write(code, 4, f"{op_out1} <= {op_in1};")
+            common.write(code, 3, "end if;")
+            common.synchronous_process_epilogue(code)
+            mul_src = "mul_res_p"
+            op0_src, op1_src = op_out0, op_out1
+        else:
+            mul_src = "mul_res"
+            op0_src = "op_0_p" if pipeline_before_mul else "op_0"
+            op1_src = "op_1_p" if pipeline_before_mul else "op_1"
+
+        # Stage 3: add (combinatorial)
         zero = "0"
         common.write(
             code,
             1,
-            f"res_arith_1 <= (resize(op_0, op_0'length + 1 + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize(mul_res, res_arith_0'length);",
+            f"res_arith_1 <= (resize({op0_src}, {op0_src}'length + 1 + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_0'length);",
         )
-        # res_arith_0 = in0 + mul_res
         common.write(
             code,
             1,
-            f"res_arith_0 <= (resize(op_1, op_1'length + 1 + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize(mul_res, res_arith_1'length);",
+            f"res_arith_0 <= (resize({op1_src}, {op1_src}'length + 1 + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_1'length);",
         )
 
         wls = [
