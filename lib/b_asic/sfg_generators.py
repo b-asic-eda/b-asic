@@ -1009,6 +1009,769 @@ def cholesky_matrix_inverse(
     return SFG(inputs=inputs, outputs=outputs, name=Name(name))
 
 
+def block_ldlt_matrix_inverse(
+    N: int,
+    name: str | None = None,
+    mode: str = "eqs",
+    pe: str | None = None,
+) -> SFG:
+    """
+    Generate an SFG for the block LDLT matrix inverse algorithm.
+
+    Parameters
+    ----------
+    N : int
+        Dimension of the square input matrix.
+    name : str, optional
+        The name of the SFG. If None, "Block LDLT matrix-inversion".
+    mode : str, default: "eqs"
+        The mode of operation, either "mult" or "eqs".
+    pe : str, optional
+        Processing element to use. Can be "mads", "addsub", or None.
+
+    Returns
+    -------
+    SFG
+        Signal Flow Graph
+    """
+    BLOCK_SIZE = 2
+    if N % BLOCK_SIZE != 0:
+        raise ValueError("Block size needs to be a positive divisor of N.")
+
+    if name is None:
+        name = "Block LDLT matrix-inversion"
+
+    if mode not in ("mult", "eqs"):
+        raise NotImplementedError(f"mode={mode} is not yet implemented for block LDLT.")
+    if pe not in (None, "addsub", "mads"):
+        raise NotImplementedError(f"pe={pe} is not yet implemented for block LDLT.")
+
+    N_blocks = N // BLOCK_SIZE
+
+    def _mac_blocks(
+        is_add: bool,
+        acc_block,
+        A_block,
+        B_block,
+        mult_mode="regular",
+        lower_triangular=False,
+    ):
+        res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
+        for r in range(BLOCK_SIZE):
+            for c in range(BLOCK_SIZE):
+                if lower_triangular and r < c:
+                    continue
+
+                if mult_mode == "regular":
+                    v1 = [A_block[r][x] for x in range(BLOCK_SIZE)]
+                    v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
+                elif mult_mode == "T":
+                    v1 = [A_block[r][x] for x in range(BLOCK_SIZE)]
+                    v2 = [B_block[c][x] for x in range(BLOCK_SIZE)]
+                elif mult_mode == "T_blocks":
+                    v1 = [A_block[x][r] for x in range(BLOCK_SIZE)]
+                    v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
+                elif mult_mode == "diag_block":
+                    v1 = [
+                        A_block[r][x] if r >= x else A_block[x][r]
+                        for x in range(BLOCK_SIZE)
+                    ]
+                    v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
+                elif mult_mode == "block_diag":
+                    v1 = A_block[r]
+                    v2 = [
+                        B_block[x][c] if x >= c else B_block[c][x]
+                        for x in range(BLOCK_SIZE)
+                    ]
+                elif mult_mode == "T_block_diag":
+                    v1 = [A_block[x][r] for x in range(BLOCK_SIZE)]
+                    v2 = [B_block[max(x, c)][min(x, c)] for x in range(BLOCK_SIZE)]
+                else:
+                    raise ValueError(f"Unknown mult_mode {mult_mode}")
+
+                if pe == "mads":
+                    if acc_block is None:
+                        if is_add:
+                            acc = MADS(
+                                is_add=True,
+                                src0=DontCare(),
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=False,
+                            )
+                            for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                                acc = MADS(
+                                    is_add=True,
+                                    src0=acc,
+                                    src1=xv1,
+                                    src2=xv2,
+                                    do_addsub=True,
+                                )
+                        else:
+                            acc = MADS(
+                                is_add=False,
+                                src0=DontCare(),
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=False,
+                            )
+                            for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                                acc = MADS(
+                                    is_add=False,
+                                    src0=acc,
+                                    src1=xv1,
+                                    src2=xv2,
+                                    do_addsub=True,
+                                )
+                    else:
+                        if acc_block[r][c] is None:
+                            if is_add:
+                                acc = MADS(
+                                    is_add=True,
+                                    src0=DontCare(),
+                                    src1=v1[0],
+                                    src2=v2[0],
+                                    do_addsub=False,
+                                )
+                            else:
+                                acc = MADS(
+                                    is_add=False,
+                                    src0=DontCare(),
+                                    src1=v1[0],
+                                    src2=v2[0],
+                                    do_addsub=False,
+                                )
+                        else:
+                            acc = MADS(
+                                is_add=is_add,
+                                src0=acc_block[r][c],
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=True,
+                            )
+
+                        for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                            acc = MADS(
+                                is_add=is_add,
+                                src0=acc,
+                                src1=xv1,
+                                src2=xv2,
+                                do_addsub=True,
+                            )
+                else:
+                    acc = v1[0] * v2[0]
+                    for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                        acc = _add_nodes(acc, xv1 * xv2)
+                    if acc_block is not None:
+                        if acc_block[r][c] is None:
+                            acc = acc if is_add else -acc
+                        else:
+                            acc = (
+                                _add_nodes(acc_block[r][c], acc)
+                                if is_add
+                                else _sub_nodes(acc_block[r][c], acc)
+                            )
+                    else:
+                        acc = acc if is_add else -acc
+                res[r][c] = acc
+        return res
+
+    def _copy_block(A_block):
+        return [[A_block[r][c] for c in range(BLOCK_SIZE)] for r in range(BLOCK_SIZE)]
+
+    def _copy_lower_triangular(A_block):
+        res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
+        for r in range(BLOCK_SIZE):
+            for c in range(r + 1):
+                res[r][c] = A_block[r][c]
+        return res
+
+    def _add_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(True, a, b)
+        return a + b
+
+    def _sub_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(False, a, b)
+        return a - b
+
+    def _neg_block(A_block):
+        return [[-A_block[r][c] for c in range(BLOCK_SIZE)] for r in range(BLOCK_SIZE)]
+
+    def _inv_2x2_symmetric(d_val):
+        res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
+        if pe == "mads":
+            tmp = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=d_val[0][0],
+                src2=d_val[1][1],
+                do_addsub=False,
+            )
+            det = MADS(
+                is_add=False,
+                src0=tmp,
+                src1=d_val[1][0],
+                src2=d_val[1][0],
+                do_addsub=True,
+            )
+            inv_det = Reciprocal(det)
+            res[0][0] = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=d_val[1][1],
+                src2=inv_det,
+                do_addsub=False,
+            )
+            res[1][0] = MADS(
+                is_add=False,
+                src0=DontCare(),
+                src1=d_val[1][0],
+                src2=inv_det,
+                do_addsub=False,
+            )
+            res[1][1] = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=d_val[0][0],
+                src2=inv_det,
+                do_addsub=False,
+            )
+        else:
+            det = _sub_nodes(d_val[0][0] * d_val[1][1], d_val[1][0] * d_val[1][0])
+            inv_det = Reciprocal(det) if pe == "addsub" else 1.0 / det
+            res[0][0] = d_val[1][1] * inv_det
+            res[1][0] = -d_val[1][0] * inv_det
+            res[1][1] = d_val[0][0] * inv_det
+        return res
+
+    inputs = []
+    A = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N):
+        for j in range(i + 1):
+            in_op = Input(name=f"A[{i},{j}]")
+            A[i][j] = in_op
+            inputs.append(in_op)
+
+    L = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+    D_inv = [None for _ in range(N_blocks)]
+    M = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+
+    A_blk = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+    for i in range(N_blocks):
+        for j in range(i + 1):
+            block = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
+            for r in range(BLOCK_SIZE):
+                for c in range(BLOCK_SIZE):
+                    row = i * BLOCK_SIZE + r
+                    col = j * BLOCK_SIZE + c
+                    if row >= col:
+                        block[r][c] = A[row][col]
+                    else:
+                        block[r][c] = A[col][row]
+            A_blk[i][j] = block
+
+    for j in range(N_blocks):
+        d_val = _copy_lower_triangular(A_blk[j][j])
+        for k in range(j):
+            d_val = _mac_blocks(False, d_val, M[j][k], L[j][k], "T", True)
+
+        D_inv[j] = _inv_2x2_symmetric(d_val)
+
+        for i in range(j + 1, N_blocks):
+            m_blk = _copy_block(A_blk[i][j])
+            for k in range(j):
+                m_blk = _mac_blocks(False, m_blk, M[i][k], L[j][k], "T")
+            M[i][j] = m_blk
+            L[i][j] = _mac_blocks(True, None, M[i][j], D_inv[j], "block_diag")
+
+    res_blk = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+
+    if mode == "mult":
+        L_inv = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+        for i in range(1, N_blocks):
+            for j in range(i - 1, -1, -1):
+                acc = _copy_block(L[i][j])
+                for k in range(j + 1, i):
+                    acc = _mac_blocks(True, acc, L[i][k], L_inv[k][j])
+                L_inv[i][j] = _neg_block(acc)
+
+        for i in range(N_blocks - 1, -1, -1):
+            for j in range(i, -1, -1):
+                if i == j:
+                    res_blk[i][j] = _copy_lower_triangular(D_inv[i])
+                else:
+                    res_blk[i][j] = _mac_blocks(
+                        True, None, D_inv[i], L_inv[i][j], "diag_block"
+                    )
+
+                for k in range(i + 1, N_blocks):
+                    t0 = _mac_blocks(True, None, L_inv[k][i], D_inv[k], "T_block_diag")
+                    res_blk[i][j] = _mac_blocks(
+                        True,
+                        res_blk[i][j],
+                        t0,
+                        L_inv[k][j],
+                        "regular",
+                        lower_triangular=(i == j),
+                    )
+    else:  # mode == "eqs"
+        for s in range(2 * (N_blocks - 1), -1, -1):
+            i_min = (s + 1) // 2
+            i_max = min(s, N_blocks - 1)
+            for i in range(i_max, i_min - 1, -1):
+                j = s - i
+                if i == j:
+                    res_blk[i][j] = _copy_lower_triangular(D_inv[i])
+                    for k in range(N_blocks - 1, i, -1):
+                        res_blk[i][j] = _mac_blocks(
+                            False,
+                            res_blk[i][j],
+                            res_blk[k][i],
+                            L[k][i],
+                            "T_blocks",
+                            True,
+                        )
+                else:
+                    k = N_blocks - 1
+                    if i == k:
+                        val = _mac_blocks(
+                            False, None, res_blk[i][k], L[k][j], "diag_block"
+                        )
+                    elif i > k:
+                        val = _mac_blocks(
+                            False, None, res_blk[i][k], L[k][j], "regular"
+                        )
+                    else:
+                        val = _mac_blocks(
+                            False, None, res_blk[k][i], L[k][j], "T_blocks"
+                        )
+
+                    for k in range(N_blocks - 2, j, -1):
+                        if i == k:
+                            val = _mac_blocks(
+                                False, val, res_blk[i][k], L[k][j], "diag_block"
+                            )
+                        elif i > k:
+                            val = _mac_blocks(
+                                False, val, res_blk[i][k], L[k][j], "regular"
+                            )
+                        else:
+                            val = _mac_blocks(
+                                False, val, res_blk[k][i], L[k][j], "T_blocks"
+                            )
+
+                    res_blk[i][j] = val
+
+    res = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N_blocks):
+        for j in range(i + 1):
+            if i == j:
+                for r in range(BLOCK_SIZE):
+                    for c in range(r + 1):
+                        val = res_blk[i][j][r][c]
+                        row = i * BLOCK_SIZE + r
+                        col = j * BLOCK_SIZE + c
+                        res[row][col] = Output(val, name=f"res[{row},{col}]")
+            else:
+                for r in range(BLOCK_SIZE):
+                    for c in range(BLOCK_SIZE):
+                        val = res_blk[i][j][r][c]
+                        row = i * BLOCK_SIZE + r
+                        col = j * BLOCK_SIZE + c
+                        res[row][col] = Output(val, name=f"res[{row},{col}]")
+
+    outputs = [res[i][j] for i in range(N) for j in range(i + 1)]
+
+    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+
+
+def block_cholesky_matrix_inverse(
+    N: int,
+    name: str | None = None,
+    mode: str = "eqs",
+    pe: str | None = None,
+) -> SFG:
+    """
+    Generate an SFG for the block Cholesky matrix inverse algorithm.
+
+    Parameters
+    ----------
+    N : int
+        Dimension of the square input matrix.
+    name : str, optional
+        The name of the SFG. If None, "Block Cholesky matrix-inversion".
+    mode : str, default: "eqs"
+        The mode of operation, either "mult" or "eqs".
+    pe : str, optional
+        Processing element to use. Currently only None is supported.
+
+    Returns
+    -------
+    SFG
+        Signal Flow Graph
+    """
+    BLOCK_SIZE = 2
+    if N % BLOCK_SIZE != 0:
+        raise ValueError("Block size needs to be a positive divisor of N.")
+
+    if name is None:
+        name = "Block Cholesky matrix-inversion"
+
+    if mode not in ("mult", "eqs"):
+        raise NotImplementedError(
+            f"mode={mode} is not yet implemented for block Cholesky."
+        )
+    if pe not in (None, "addsub", "mads"):
+        raise NotImplementedError(f"pe={pe} is not yet implemented for block Cholesky.")
+
+    N_blocks = N // BLOCK_SIZE
+
+    def _add_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(True, a, b)
+        return a + b
+
+    def _sub_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(False, a, b)
+        return a - b
+
+    def _mac_blocks(
+        is_add: bool,
+        acc_block,
+        A_block,
+        B_block,
+        mult_mode="regular",
+        lower_triangular=False,
+    ):
+        res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
+        for r in range(BLOCK_SIZE):
+            for c in range(BLOCK_SIZE):
+                if lower_triangular and r < c:
+                    continue
+
+                if mult_mode == "regular":
+                    v1 = [A_block[r][x] for x in range(BLOCK_SIZE)]
+                    v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
+                elif mult_mode == "T":
+                    v1 = [A_block[r][x] for x in range(BLOCK_SIZE)]
+                    v2 = [B_block[c][x] for x in range(BLOCK_SIZE)]
+                elif mult_mode == "T_blocks":
+                    v1 = [A_block[x][r] for x in range(BLOCK_SIZE)]
+                    v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
+                elif mult_mode == "block_tri":
+                    v1 = [A_block[r][x] for x in range(c, BLOCK_SIZE)]
+                    v2 = [B_block[x][c] for x in range(c, BLOCK_SIZE)]
+                elif mult_mode == "block_T_tri":
+                    v1 = [A_block[x][r] for x in range(r, BLOCK_SIZE)]
+                    v2 = [B_block[c][x] for x in range(r, BLOCK_SIZE)]
+                elif mult_mode == "block_tri_T":
+                    v1 = [A_block[r][x] for x in range(c + 1)]
+                    v2 = [B_block[c][x] for x in range(c + 1)]
+                elif mult_mode == "tri_block":
+                    v1 = [A_block[r][x] for x in range(r + 1)]
+                    v2 = [B_block[x][c] for x in range(r + 1)]
+                elif mult_mode == "tri_T_block":
+                    v1 = [A_block[x][r] for x in range(r, BLOCK_SIZE)]
+                    v2 = [B_block[x][c] for x in range(r, BLOCK_SIZE)]
+                elif mult_mode == "tri_T_tri":
+                    start = max(r, c)
+                    v1 = [A_block[x][r] for x in range(start, BLOCK_SIZE)]
+                    v2 = [B_block[x][c] for x in range(start, BLOCK_SIZE)]
+                elif mult_mode == "diag_block":
+                    v1 = [
+                        A_block[r][x] if r >= x else A_block[x][r]
+                        for x in range(BLOCK_SIZE)
+                    ]
+                    v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
+                else:
+                    raise ValueError(f"Unknown mult_mode {mult_mode}")
+
+                if any(x is None for x in v1) or any(x is None for x in v2):
+                    print(
+                        f"Cholesky NONE found: mult_mode={mult_mode}, r={r}, c={c}, v1={v1}, v2={v2}"
+                    )
+                if pe == "mads":
+                    if acc_block is None:
+                        if is_add:
+                            acc = MADS(
+                                is_add=True,
+                                src0=DontCare(),
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=False,
+                            )
+                            for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                                acc = MADS(
+                                    is_add=True,
+                                    src0=acc,
+                                    src1=xv1,
+                                    src2=xv2,
+                                    do_addsub=True,
+                                )
+                        else:
+                            acc = MADS(
+                                is_add=False,
+                                src0=DontCare(),
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=False,
+                            )
+                            for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                                acc = MADS(
+                                    is_add=False,
+                                    src0=acc,
+                                    src1=xv1,
+                                    src2=xv2,
+                                    do_addsub=True,
+                                )
+                    else:
+                        if acc_block[r][c] is None:
+                            if is_add:
+                                acc = MADS(
+                                    is_add=True,
+                                    src0=DontCare(),
+                                    src1=v1[0],
+                                    src2=v2[0],
+                                    do_addsub=False,
+                                )
+                            else:
+                                acc = MADS(
+                                    is_add=False,
+                                    src0=DontCare(),
+                                    src1=v1[0],
+                                    src2=v2[0],
+                                    do_addsub=True,
+                                )
+                        else:
+                            acc = MADS(
+                                is_add=is_add,
+                                src0=acc_block[r][c],
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=True,
+                            )
+
+                        for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                            acc = MADS(
+                                is_add=is_add,
+                                src0=acc,
+                                src1=xv1,
+                                src2=xv2,
+                                do_addsub=True,
+                            )
+                else:
+                    acc = v1[0] * v2[0]
+                    for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                        acc = _add_nodes(acc, xv1 * xv2)
+                    if acc_block is not None:
+                        if acc_block[r][c] is None:
+                            acc = acc if is_add else -acc
+                        else:
+                            acc = (
+                                _add_nodes(acc_block[r][c], acc)
+                                if is_add
+                                else _sub_nodes(acc_block[r][c], acc)
+                            )
+                    else:
+                        acc = acc if is_add else -acc
+                res[r][c] = acc
+        return res
+
+    def _copy_block(A_block):
+        return [[A_block[r][c] for c in range(BLOCK_SIZE)] for r in range(BLOCK_SIZE)]
+
+    def _copy_lower_triangular(A_block):
+        res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
+        for r in range(BLOCK_SIZE):
+            for c in range(r + 1):
+                res[r][c] = A_block[r][c]
+        return res
+
+    def _neg_block(A_block):
+        return [[-A_block[r][c] for c in range(BLOCK_SIZE)] for r in range(BLOCK_SIZE)]
+
+    def _chol_inv_2x2(acc):
+        res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
+        inv_L00 = ReciprocalSquareRoot(acc[0][0])
+        if pe == "mads":
+            L10 = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=acc[1][0],
+                src2=inv_L00,
+                do_addsub=False,
+            )
+            tmp1 = MADS(
+                is_add=False, src0=acc[1][1], src1=L10, src2=L10, do_addsub=True
+            )
+            inv_L11 = ReciprocalSquareRoot(tmp1)
+            tmp2 = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=L10,
+                src2=inv_L00,
+                do_addsub=False,
+            )
+            res[0][0] = inv_L00
+            res[1][0] = MADS(
+                is_add=False,
+                src0=DontCare(),
+                src1=tmp2,
+                src2=inv_L11,
+                do_addsub=False,
+            )
+            res[1][1] = inv_L11
+        elif pe == "addsub":
+            L10 = Multiplication(acc[1][0], inv_L00)
+            tmp1 = _sub_nodes(acc[1][1], Multiplication(L10, L10))
+            inv_L11 = ReciprocalSquareRoot(tmp1)
+            res[0][0] = inv_L00
+            res[1][0] = Negation(Multiplication(Multiplication(L10, inv_L00), inv_L11))
+            res[1][1] = inv_L11
+        else:
+            L10 = acc[1][0] * inv_L00
+            inv_L11 = ReciprocalSquareRoot(_sub_nodes(acc[1][1], L10 * L10))
+            res[0][0] = inv_L00
+            res[1][0] = -(L10 * inv_L00 * inv_L11)
+            res[1][1] = inv_L11
+        return res
+
+    inputs = []
+    A = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N):
+        for j in range(i + 1):
+            in_op = Input(name=f"A[{i},{j}]")
+            A[i][j] = in_op
+            inputs.append(in_op)
+
+    L = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+    L_inv = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+
+    A_blk = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+    for i in range(N_blocks):
+        for j in range(i + 1):
+            block = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
+            for r in range(BLOCK_SIZE):
+                for c in range(BLOCK_SIZE):
+                    row = i * BLOCK_SIZE + r
+                    col = j * BLOCK_SIZE + c
+                    if row >= col:
+                        block[r][c] = A[row][col]
+                    else:
+                        block[r][c] = A[col][row]
+            A_blk[i][j] = block
+
+    for j in range(N_blocks):
+        acc = _copy_lower_triangular(A_blk[j][j])
+        for k in range(j):
+            acc = _mac_blocks(False, acc, L[j][k], L[j][k], "T", lower_triangular=True)
+
+        L_inv[j][j] = _chol_inv_2x2(acc)
+
+        for i in range(j + 1, N_blocks):
+            acc_ij = _copy_block(A_blk[i][j])
+            for k in range(j):
+                acc_ij = _mac_blocks(False, acc_ij, L[i][k], L[j][k], "T")
+
+            L[i][j] = _mac_blocks(True, None, acc_ij, L_inv[j][j], "block_tri_T")
+
+    res_blk = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
+
+    if mode == "mult":
+        for i in range(1, N_blocks):
+            for j in range(i):
+                acc = _mac_blocks(True, None, L[i][j], L_inv[j][j], "block_tri")
+                for k in range(j + 1, i):
+                    acc = _mac_blocks(True, acc, L[i][k], L_inv[k][j])
+
+                L_inv[i][j] = _mac_blocks(False, None, L_inv[i][i], acc, "tri_block")
+
+        for i in range(N_blocks - 1, -1, -1):
+            for j in range(i, -1, -1):
+                if i == j:
+                    acc = _mac_blocks(True, None, L_inv[i][i], L_inv[i][j], "tri_T_tri")
+                else:
+                    acc = _mac_blocks(
+                        True, None, L_inv[i][i], L_inv[i][j], "tri_T_block"
+                    )
+                for k in range(i + 1, N_blocks):
+                    acc = _mac_blocks(True, acc, L_inv[k][i], L_inv[k][j], "T_blocks")
+                res_blk[i][j] = acc
+
+    else:  # mode == "eqs"
+        for s in range(2 * (N_blocks - 1), -1, -1):
+            i_min = (s + 1) // 2
+            i_max = min(s, N_blocks - 1)
+            for i in range(i_max, i_min - 1, -1):
+                j = s - i
+                if i == j:
+                    acc2 = _copy_lower_triangular(L_inv[i][i])
+                    for k in range(N_blocks - 1, i, -1):
+                        acc2 = _mac_blocks(
+                            False, acc2, L[k][i], res_blk[k][i], "T_blocks", True
+                        )
+                    res_blk[i][i] = _mac_blocks(
+                        True, None, L_inv[i][i], acc2, "tri_T_tri", True
+                    )
+                else:
+                    k = N_blocks - 1
+                    if i == k:
+                        acc = _mac_blocks(
+                            False, None, res_blk[i][k], L[k][j], "diag_block"
+                        )
+                    elif i > k:
+                        acc = _mac_blocks(
+                            False, None, res_blk[i][k], L[k][j], "regular"
+                        )
+                    else:
+                        acc = _mac_blocks(
+                            False, None, res_blk[k][i], L[k][j], "T_blocks"
+                        )
+
+                    for k in range(N_blocks - 2, j, -1):
+                        if k > i:
+                            acc = _mac_blocks(
+                                False, acc, res_blk[k][i], L[k][j], "T_blocks"
+                            )
+                        elif k == i:
+                            acc = _mac_blocks(
+                                False, acc, res_blk[i][i], L[k][j], "diag_block"
+                            )
+                        else:  # k < i
+                            acc = _mac_blocks(
+                                False, acc, res_blk[i][k], L[k][j], "regular"
+                            )
+
+                    res_blk[i][j] = _mac_blocks(
+                        True, None, acc, L_inv[j][j], "block_tri"
+                    )
+
+    res = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N_blocks):
+        for j in range(i + 1):
+            if i == j:
+                for r in range(BLOCK_SIZE):
+                    for c in range(r + 1):
+                        val = res_blk[i][j][r][c]
+                        row = i * BLOCK_SIZE + r
+                        col = j * BLOCK_SIZE + c
+                        res[row][col] = Output(val, name=f"res[{row},{col}]")
+            else:
+                for r in range(BLOCK_SIZE):
+                    for c in range(BLOCK_SIZE):
+                        val = res_blk[i][j][r][c]
+                        row = i * BLOCK_SIZE + r
+                        col = j * BLOCK_SIZE + c
+                        res[row][col] = Output(val, name=f"res[{row},{col}]")
+
+    outputs = [res[i][j] for i in range(N) for j in range(i + 1)]
+
+    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+
+
 def matrix_multiplication(
     m: int,
     n: int,
