@@ -25,6 +25,17 @@ if TYPE_CHECKING:
 
 
 class VhdlPrinter(Printer):
+    """
+    Generate VHDL source files for an :class:`~b_asic.architecture.Architecture`.
+
+    Parameters
+    ----------
+    dt : :class:`~b_asic.data_type.DataType`
+        Data type configuration used for generated VHDL.
+    vhdl_2008 : bool, default: False
+        Enable VHDL-2008 specific output where applicable.
+    """
+
     _dt: _VhdlDataType
 
     CUSTOM_PRINTER_PREFIX = "_vhdl"
@@ -33,10 +44,8 @@ class VhdlPrinter(Printer):
         self,
         dt: DataType,
         vhdl_2008: bool = False,
-        multiplexer_control_registered: bool = False,
     ) -> None:
         self._vhdl_2008 = vhdl_2008
-        self._multiplexer_control_registered = multiplexer_control_registered
         self._fp_backend = ""
         self._register_split: tuple[int, int] | None = None
         self._pe_control_cycle: dict[str, dict[str, int]] = {}
@@ -53,19 +62,64 @@ class VhdlPrinter(Printer):
         path: str | Path = Path(),
         **kwargs,
     ) -> None:
-        """
-        Write VHDL files for *arch* into *path*.
+        r"""
+        Write VHDL files for an :class:`~b_asic.architecture.Architecture`.
 
-        Arguments:
-        ---------
-        arch : Architecture
-            The architecture to generate code for.
-        path : str | Path
-            Directory to write VHDL files into. Defaults to current directory.
-        kwargs : dict
-            Additional keyword arguments for code generation.
+        Parameters
+        ----------
+        arch : :class:`~b_asic.architecture.Architecture`
+            Architecture instance to generate code for.
+        path : str | Path, optional
+            Output directory. Defaults to the current directory.
+        **kwargs
+            Optional VHDL code-generation settings. For info, see Notes.
+
+        Notes
+        -----
+        Recognised keyword arguments, grouped by the component they affect:
+
+        **Top-level / architecture**
+
+            io_registers : :class:`bool`, default ``False``
+                Insert registers on all top-level I/O ports.
+            multiplexer_control_registered : :class:`bool`, default ``False``
+                Register multiplexer control signals in generated top-level.
+
+        **Processing elements**
+
+            **fp_backend** : :class:`str` or :class:`dict`\[:class:`str`, :class:`str`]
+                Floating-point IP backend to use. Pass a string to apply
+                the same backend to every PE, or a ``{entity_name: backend}``
+                dict to select on a per-PE basis.
+            **pe_registers** : :class:`dict`\[:class:`str`, :class:`tuple`\[:class:`int`, :class:`int`]]
+                Register split ``(pre, post)`` inserted around the operator of a PE.
+                Keys are either the PE entity name or the PE type name.
+            **control_cycle** : :class:`dict`
+                Clock cycle inside an operation at which each control signal becomes
+                available.
+            **pipeline_pe_control** : :class:`bool`, default ``False``
+                Register PE control signals after generation.
+
+        **Memories (RAM)**
+
+            **output_sync** : :class:`bool`, default ``True``
+                Place output registers after memory read.
+            **external_schedule_counter** : :class:`bool`, default ``True``
+                Use an external schedule counter signal.
+            **std_logic_vector** : :class:`bool`, default ``False``
+                Use ``std_logic_vector`` data instead of ``signed``/``unsigned``.
+            **pipeline_mem_control** : :class:`bool`, default ``False``
+                Register memory control signals after generation.
+
+        **Memories (register-based)**
+
+            **external_schedule_counter** : :class:`bool`, default ``True``
+                Use an external schedule counter signal.
+            **std_logic_vector** : :class:`bool`, default ``False``
+                Use ``std_logic_vector`` data.
         """
         dir_path = Path(path)
+        dir_path.mkdir(parents=True, exist_ok=True)
 
         if self.is_complex:
             with (dir_path / "types.vhdl").open("w") as f:
@@ -83,6 +137,14 @@ class VhdlPrinter(Printer):
             common.write(f, 0, self.print_Architecture(arch, **kwargs))
 
     def get_compile_order(self, arch: "Architecture") -> list[str]:
+        """
+        Return the file names for the VHDL code describing the provided architecture.
+
+        Parameters
+        ----------
+        arch
+            Architecture instance used to determine the compile order of the generated VHDL files.
+        """
         order = []
         order.extend(["types.vhdl"] if self.is_complex else [])
         order.extend(f"{mem.entity_name}.vhdl" for mem in arch.memories)
@@ -106,6 +168,9 @@ class VhdlPrinter(Printer):
 
     def print_Architecture(self, arch: "Architecture", **kwargs) -> str | None:
         io_registers = bool(kwargs.get("io_registers", False))
+        multiplexer_control_registered = bool(
+            kwargs.get("multiplexer_control_registered", False)
+        )
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self.vhdl_2008)
@@ -118,7 +183,7 @@ class VhdlPrinter(Printer):
             arch,
             self._dt,
             io_registers,
-            self._multiplexer_control_registered,
+            multiplexer_control_registered,
         )
         return f.getvalue()
 
@@ -155,8 +220,6 @@ class VhdlPrinter(Printer):
                     "Call memory.assign() first."
                 )
             register_kwargs = {
-                "sync_rst": kwargs.get("sync_rst", False),
-                "async_rst": kwargs.get("async_rst", False),
                 "external_schedule_counter": kwargs.get(
                     "external_schedule_counter", True
                 ),

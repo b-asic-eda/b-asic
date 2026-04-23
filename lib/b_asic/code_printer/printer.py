@@ -17,6 +17,17 @@ CODE = tuple[str, ...]
 
 
 class Printer(ABC):
+    """
+    Base class for code generators.
+
+    Subclasses implement target-specific output.
+
+    Parameters
+    ----------
+    dt : :class:`~b_asic.data_type.DataType`
+        Data type used by the printer.
+    """
+
     CUSTOM_PRINTER_PREFIX = "generic"
 
     def __init__(self, dt: DataType) -> None:
@@ -26,6 +37,18 @@ class Printer(ABC):
     def print(
         self, arch: "Architecture", *, path: str | Path = Path(), **kwargs
     ) -> None:
+        """
+        Write generated files for an :class:`~b_asic.architecture.Architecture`.
+
+        Parameters
+        ----------
+        arch : :class:`~b_asic.architecture.Architecture`
+            Architecture instance to generate code for.
+        path : str | Path, optional
+            Output directory. Defaults to the current directory.
+        **kwargs
+            Optional printer-specific settings used by subclasses.
+        """
         raise NotImplementedError
 
     @abstractmethod
