@@ -1048,16 +1048,6 @@ def block_ldlt_matrix_inverse(
 
     N_blocks = N // BLOCK_SIZE
 
-    def _add_nodes(a, b):
-        if pe == "addsub":
-            return AddSub(True, a, b)
-        return a + b
-
-    def _sub_nodes(a, b):
-        if pe == "addsub":
-            return AddSub(False, a, b)
-        return a - b
-
     def _mac_blocks(
         is_add: bool,
         acc_block,
@@ -1096,8 +1086,6 @@ def block_ldlt_matrix_inverse(
                 elif mult_mode == "T_block_diag":
                     v1 = [A_block[x][r] for x in range(BLOCK_SIZE)]
                     v2 = [B_block[max(x, c)][min(x, c)] for x in range(BLOCK_SIZE)]
-                else:
-                    raise ValueError(f"Unknown mult_mode {mult_mode}")
 
                 if pe == "mads":
                     if acc_block is None:
@@ -1134,24 +1122,7 @@ def block_ldlt_matrix_inverse(
                                     do_addsub=True,
                                 )
                     else:
-                        if acc_block[r][c] is None:
-                            if is_add:
-                                acc = MADS(
-                                    is_add=True,
-                                    src0=DontCare(),
-                                    src1=v1[0],
-                                    src2=v2[0],
-                                    do_addsub=False,
-                                )
-                            else:
-                                acc = MADS(
-                                    is_add=False,
-                                    src0=DontCare(),
-                                    src1=v1[0],
-                                    src2=v2[0],
-                                    do_addsub=False,
-                                )
-                        else:
+                        if acc_block[r][c] is not None:
                             acc = MADS(
                                 is_add=is_add,
                                 src0=acc_block[r][c],
@@ -1173,9 +1144,7 @@ def block_ldlt_matrix_inverse(
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                         acc = _add_nodes(acc, xv1 * xv2)
                     if acc_block is not None:
-                        if acc_block[r][c] is None:
-                            acc = acc if is_add else -acc
-                        else:
+                        if acc_block[r][c] is not None:
                             acc = (
                                 _add_nodes(acc_block[r][c], acc)
                                 if is_add
@@ -1349,10 +1318,6 @@ def block_ldlt_matrix_inverse(
                         val = _mac_blocks(
                             False, None, res_blk[i][k], L[k][j], "diag_block"
                         )
-                    elif i > k:
-                        val = _mac_blocks(
-                            False, None, res_blk[i][k], L[k][j], "regular"
-                        )
                     else:
                         val = _mac_blocks(
                             False, None, res_blk[k][i], L[k][j], "T_blocks"
@@ -1366,10 +1331,6 @@ def block_ldlt_matrix_inverse(
                         elif i > k:
                             val = _mac_blocks(
                                 False, val, res_blk[i][k], L[k][j], "regular"
-                            )
-                        else:
-                            val = _mac_blocks(
-                                False, val, res_blk[k][i], L[k][j], "T_blocks"
                             )
 
                     res_blk[i][j] = val
@@ -1474,9 +1435,6 @@ def block_cholesky_matrix_inverse(
                 elif mult_mode == "block_tri":
                     v1 = [A_block[r][x] for x in range(c, BLOCK_SIZE)]
                     v2 = [B_block[x][c] for x in range(c, BLOCK_SIZE)]
-                elif mult_mode == "block_T_tri":
-                    v1 = [A_block[x][r] for x in range(r, BLOCK_SIZE)]
-                    v2 = [B_block[c][x] for x in range(r, BLOCK_SIZE)]
                 elif mult_mode == "block_tri_T":
                     v1 = [A_block[r][x] for x in range(c + 1)]
                     v2 = [B_block[c][x] for x in range(c + 1)]
@@ -1496,13 +1454,7 @@ def block_cholesky_matrix_inverse(
                         for x in range(BLOCK_SIZE)
                     ]
                     v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
-                else:
-                    raise ValueError(f"Unknown mult_mode {mult_mode}")
 
-                if any(x is None for x in v1) or any(x is None for x in v2):
-                    print(
-                        f"Cholesky NONE found: mult_mode={mult_mode}, r={r}, c={c}, v1={v1}, v2={v2}"
-                    )
                 if pe == "mads":
                     if acc_block is None:
                         if is_add:
@@ -1538,24 +1490,7 @@ def block_cholesky_matrix_inverse(
                                     do_addsub=True,
                                 )
                     else:
-                        if acc_block[r][c] is None:
-                            if is_add:
-                                acc = MADS(
-                                    is_add=True,
-                                    src0=DontCare(),
-                                    src1=v1[0],
-                                    src2=v2[0],
-                                    do_addsub=False,
-                                )
-                            else:
-                                acc = MADS(
-                                    is_add=False,
-                                    src0=DontCare(),
-                                    src1=v1[0],
-                                    src2=v2[0],
-                                    do_addsub=True,
-                                )
-                        else:
+                        if acc_block[r][c] is not None:
                             acc = MADS(
                                 is_add=is_add,
                                 src0=acc_block[r][c],
@@ -1577,9 +1512,7 @@ def block_cholesky_matrix_inverse(
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                         acc = _add_nodes(acc, xv1 * xv2)
                     if acc_block is not None:
-                        if acc_block[r][c] is None:
-                            acc = acc if is_add else -acc
-                        else:
+                        if acc_block[r][c] is not None:
                             acc = (
                                 _add_nodes(acc_block[r][c], acc)
                                 if is_add
@@ -1599,9 +1532,6 @@ def block_cholesky_matrix_inverse(
             for c in range(r + 1):
                 res[r][c] = A_block[r][c]
         return res
-
-    def _neg_block(A_block):
-        return [[-A_block[r][c] for c in range(BLOCK_SIZE)] for r in range(BLOCK_SIZE)]
 
     def _chol_inv_2x2(acc):
         res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
@@ -1732,21 +1662,13 @@ def block_cholesky_matrix_inverse(
                         acc = _mac_blocks(
                             False, None, res_blk[i][k], L[k][j], "diag_block"
                         )
-                    elif i > k:
-                        acc = _mac_blocks(
-                            False, None, res_blk[i][k], L[k][j], "regular"
-                        )
                     else:
                         acc = _mac_blocks(
                             False, None, res_blk[k][i], L[k][j], "T_blocks"
                         )
 
                     for k in range(N_blocks - 2, j, -1):
-                        if k > i:
-                            acc = _mac_blocks(
-                                False, acc, res_blk[k][i], L[k][j], "T_blocks"
-                            )
-                        elif k == i:
+                        if k == i:
                             acc = _mac_blocks(
                                 False, acc, res_blk[i][i], L[k][j], "diag_block"
                             )
@@ -1859,23 +1781,15 @@ def tile_ldlt_matrix_inverse(
                 if lower_triangular and r < c:
                     continue
 
-                if mult_mode == "regular":
-                    v1 = [A_tile[r][x] for x in range(TILE_SIZE)]
-                    v2 = [B_tile[x][c] for x in range(TILE_SIZE)]
-                elif mult_mode == "T":
+                if mult_mode == "T":
                     v1 = [A_tile[r][x] for x in range(TILE_SIZE)]
                     v2 = [B_tile[c][x] for x in range(TILE_SIZE)]
                 elif mult_mode == "tile_tri_T":
                     v1 = [A_tile[r][x] for x in range(c + 1)]
                     v2 = [B_tile[c][x] for x in range(c + 1)]
-                elif mult_mode == "T_tiles":
-                    v1 = [A_tile[x][r] for x in range(TILE_SIZE)]
-                    v2 = [B_tile[x][c] for x in range(TILE_SIZE)]
                 elif mult_mode == "tile_diag":
                     v1 = [A_tile[r][c]]
                     v2 = [B_tile[c][c]]
-                else:
-                    raise ValueError(f"Unknown mult_mode {mult_mode}")
 
                 if pe == "mads":
                     # First build the dot product positively.
@@ -1889,8 +1803,6 @@ def tile_ldlt_matrix_inverse(
                                 src2=xv2,
                                 do_addsub=True,
                             )
-                        if not is_add:
-                            acc = -acc
                     else:
                         acc = MADS(
                             is_add=is_add,
@@ -1913,19 +1825,12 @@ def tile_ldlt_matrix_inverse(
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                         acc = _add_nodes(acc, xv1 * xv2)
 
-                    if acc_tile is None:
-                        if not is_add:
-                            acc = -acc
-                    else:
-                        if acc_tile[r][c] is None:
-                            if not is_add:
-                                acc = -acc
-                        else:
-                            acc = AddSub(
-                                is_add=is_add,
-                                src0=acc_tile[r][c],
-                                src1=acc,
-                            )
+                    if acc_tile is not None and acc_tile[r][c] is not None:
+                        acc = AddSub(
+                            is_add=is_add,
+                            src0=acc_tile[r][c],
+                            src1=acc,
+                        )
                 else:
                     acc = v1[0] * v2[0]
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
@@ -1933,8 +1838,6 @@ def tile_ldlt_matrix_inverse(
 
                     if acc_tile is not None and acc_tile[r][c] is not None:
                         acc = acc_tile[r][c] + acc if is_add else acc_tile[r][c] - acc
-                    elif not is_add:
-                        acc = -acc
 
                 res[r][c] = acc
         return res
