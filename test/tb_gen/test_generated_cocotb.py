@@ -14,7 +14,7 @@ from b_asic.tb_printer import CocotbPrinter
 
 
 @pytest.mark.skipif(shutil.which("ghdl") is None, reason="GHDL simulator not available")
-def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, sfg_simple_loop):
+def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, schedule_simple_loop):
     # Generate VHDL code
     dt = DataType(
         wl=(3, 7),
@@ -24,12 +24,18 @@ def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, sfg_simple_loop)
     vhdl_printer.print(arch_simple_loop, path=tmp_path)
 
     # Run simulation to get expected results
-    sim = Simulation(sfg_simple_loop, [lambda n: n / 16], dt)
+    sim = Simulation(schedule_simple_loop.sfg, [lambda n: n / 16], dt)
     sim.run_for(20)
 
     # Generate cocotb testbench
     tb_printer = CocotbPrinter(sim.results)
-    tb_printer.print(arch_simple_loop, path=tmp_path, simulator="ghdl", waves=False)
+    tb_printer.print(
+        arch_simple_loop,
+        schedule_simple_loop,
+        path=tmp_path,
+        simulator="ghdl",
+        waves=False,
+    )
 
     # Verify testbench was generated
     tb_file = tmp_path / "tb.py"
@@ -62,7 +68,9 @@ def test_cocotb_testbench_execution(tmp_path, arch_simple_loop, sfg_simple_loop)
 
 
 @pytest.mark.skipif(shutil.which("ghdl") is None, reason="GHDL simulator not available")
-def test_cocotb_testbench_with_csv_output(tmp_path, arch_simple_loop, sfg_simple_loop):
+def test_cocotb_testbench_with_csv_output(
+    tmp_path, arch_simple_loop, schedule_simple_loop
+):
     # Generate VHDL code
     dt = DataType(
         wl=(3, 7),
@@ -72,13 +80,18 @@ def test_cocotb_testbench_with_csv_output(tmp_path, arch_simple_loop, sfg_simple
     vhdl_printer.print(arch_simple_loop, path=tmp_path)
 
     # Run simulation
-    sim = Simulation(sfg_simple_loop, [lambda n: n / 16], dt)
+    sim = Simulation(schedule_simple_loop.sfg, [lambda n: n / 16], dt)
     sim.run_for(10)
 
     # Generate cocotb testbench with CSV enabled
     tb_printer = CocotbPrinter(sim.results)
     tb_printer.print(
-        arch_simple_loop, path=tmp_path, simulator="ghdl", waves=False, csv=True
+        arch_simple_loop,
+        schedule_simple_loop,
+        path=tmp_path,
+        simulator="ghdl",
+        waves=False,
+        csv=True,
     )
 
     # Run the testbench

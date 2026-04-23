@@ -7,6 +7,29 @@ from b_asic.sfg import SFG
 
 
 @pytest.fixture
+def schedule_simple_loop(sfg_simple_loop):
+    sfg_simple_loop.set_execution_time_of_type_name("add", 1)
+    sfg_simple_loop.set_latency_of_type_name("add", 1)
+    sfg_simple_loop.set_execution_time_of_type_name("cmul", 1)
+    sfg_simple_loop.set_latency_of_type_name("cmul", 1)
+
+    sched = Schedule(sfg_simple_loop)
+    sched.set_schedule_time(2)
+    sched.move_operation("out0", 1)
+    return sched
+
+
+@pytest.fixture
+def schedule_two_inputs_two_outputs_independent_with_cmul_scaled(
+    sfg_two_inputs_two_outputs_independent_with_cmul_scaled,
+):
+    sfg = sfg_two_inputs_two_outputs_independent_with_cmul_scaled
+    sfg.set_latency_of_type_name("add", 7)
+    sfg.set_latency_of_type_name("cmul", 3)
+    return Schedule(sfg)
+
+
+@pytest.fixture
 def secondorder_iir_schedule(precedence_sfg_delays):
     precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 4)
     precedence_sfg_delays.set_latency_of_type_name(
