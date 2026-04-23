@@ -7,6 +7,7 @@ from pprint import pformat
 from apytypes import APyCFixed, APyCFloat
 
 from b_asic.architecture import Architecture
+from b_asic.schedule import Schedule
 from b_asic.simulation import ResultArrayMap
 from b_asic.special_operations import Input, Output
 
@@ -19,6 +20,7 @@ class CocotbPrinter:
     ----------
     sim_results : ResultArrayMap
         Simulation results mapping graph IDs to their output values over iterations.
+        Must be obtained by simulating ``schedule.sfg``, not the original SFG.
     """
 
     _sim_results: ResultArrayMap
@@ -29,6 +31,7 @@ class CocotbPrinter:
     def print(
         self,
         arch: Architecture,
+        schedule: Schedule,
         *,
         path: str | Path = Path(),
         simulator: str = "ghdl",
@@ -43,6 +46,9 @@ class CocotbPrinter:
         ----------
         arch : Architecture
             The architecture to generate the testbench for.
+        schedule : Schedule
+            The schedule used to build the architecture.
+            Required to determine the timing of inputs and outputs for the testbench.
         path : str or Path, default Path()
             The output directory path, defaults to the current directory.
         simulator : str, default "ghdl"
@@ -57,6 +63,9 @@ class CocotbPrinter:
         """
         path = Path(path)
 
+        schedule_time = schedule.schedule_time
+        start_times = schedule.start_times
+
         template_path = Path(__file__).parent / "template.py"
         with Path.open(template_path) as template_file:
             template = template_file.read()
@@ -66,38 +75,22 @@ class CocotbPrinter:
             for v in self._sim_results.values()
         )
 
-        # Track which graph_ids have been marked as input/output and their schedule
-        io_marked = {}
-
-        # First, scan architecture to mark which gids are inputs vs outputs
+        # Map each I/O gid to (pe_name, is_input)
+        gid_info: dict[str, tuple[str, bool]] = {}
         for pe in arch.processing_elements:
             if pe.operation_type not in (Input, Output):
                 continue
             for pe_process in pe.collection:
                 gid = pe_process.operation.graph_id
-                io_marked[gid] = {
-                    "is_input": pe.operation_type is Input,
-                    "pe_name": pe.entity_name,
-                    "start_time": pe_process.start_time,
-                }
+                gid_info[gid] = (pe.entity_name, pe.operation_type is Input)
 
         seq_map = defaultdict(dict)
 
-        # Track which (gid, sample_idx) pairs have been processed
-        processed = set()
-
-        # Now populate sequence map
-        for gid in io_marked:
+        for gid, (pe_name, is_input) in gid_info.items():
             values = self._sim_results[gid]
+            start_time = start_times[gid]
 
-            for sample_idx in range(len(values)):
-                value = values[sample_idx]
-                pe_name = io_marked[gid]["pe_name"]
-                is_input = io_marked[gid]["is_input"]
-                start_time = io_marked[gid]["start_time"]
-                schedule_time = arch.schedule_time
-
-                # Calculate actual hardware cycle time
+            for sample_idx, value in enumerate(values):
                 time = start_time + sample_idx * schedule_time
 
                 if is_complex:
@@ -112,8 +105,6 @@ class CocotbPrinter:
                         seq_map[time][f"{pe_name}_0_in"] = value.to_bits()
                     else:
                         seq_map[time][f"{pe_name}_0_out"] = value.to_bits()
-
-                processed.add((gid, sample_idx))
 
         seq_map = dict(seq_map)
 

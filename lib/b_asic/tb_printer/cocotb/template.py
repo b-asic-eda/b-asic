@@ -64,7 +64,7 @@ async def test_one(dut):
                                 f"but got {int(hw_val)}"
                             )
                             cocotb.log.info(
-                                f"Cycle {cycle}: {signal_name} = {int(hw_val)} ✓"
+                                f"Cycle {cycle}: {signal_name} = {int(hw_val)} OK"
                             )
                         else:
                             # Skip assertion if value is 'x' (unknown/undefined)
