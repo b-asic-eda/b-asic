@@ -1,1 +1,1 @@
-"""B-ASIC code generation helper module for VHDL."""
+"""B-ASIC code generation module for VHDL."""

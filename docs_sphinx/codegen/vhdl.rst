@@ -6,6 +6,13 @@
    :members:
    :undoc-members:
 
+``vhdl_printer`` module
+-----------------------
+
+.. autoclass:: b_asic.code_printer.vhdl.vhdl_printer.VhdlPrinter
+   :members: print, get_compile_order
+   :undoc-members:
+
 ``common`` module
 -----------------
 

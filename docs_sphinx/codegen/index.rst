@@ -5,6 +5,8 @@ Code generation
 
 Code generation using the B-ASIC toolbox.
 
+For VHDL generation, see :class:`~b_asic.code_printer.VhdlPrinter`.
+
 Printer
 =======
 .. automodule:: b_asic.code_printer.printer
