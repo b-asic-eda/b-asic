@@ -1512,12 +1512,6 @@ class VhdlPrinter(Printer):
         frac_diff = wl[1] - target_wl[1]
         new_high = bits_in - 1
         new_low = frac_diff
-        # If applicable, adjust new_high to account for addition growth
-        if (
-            self._dt.quantization_mode == QuantizationMode.MAGNITUDE_TRUNCATION
-            and frac_diff > 0
-        ):
-            new_high = new_high + 1
         # Declare output signals
         if self.is_complex:
             common.signal_declaration(
@@ -1544,33 +1538,37 @@ class VhdlPrinter(Printer):
                     )
                 wl_out = (wl[0], wl[1] - frac_diff)
             elif self._dt.quantization_mode == QuantizationMode.MAGNITUDE_TRUNCATION:
-                # Magnitude Truncation: round towards zero
-                # Add sign bit to position $W + 1$
+                # Magnitude truncation: round towards zero.
                 type_name = self.scalar_type_name if self.is_complex else self.type_name
                 for part in parts:
                     common.signal_declaration(
                         declarations,
+                        f"mag_trunc_sticky_{port_number}{part}",
+                        "std_logic",
+                    )
+                    common.signal_declaration(
+                        declarations,
                         f"mag_trunc_tmp_{port_number}{part}",
-                        f"{type_name}({bits_in} downto 0)",
+                        f"{type_name}({bits_in - new_low} downto 0)",
                     )
-                    # Add sign bit at position new_low (LSB+1 position)
-                    # Create proper bit string: sign bit at position new_low, zeros below
-                    zeros_low = "0" * (new_low - 1)
-                    zeros_high = "0" * (bits_in - new_low + 1)
-                    sign_value = f'("{zeros_high}" & res_arith_{port_number}{part}({bits_in - 1}) & "{zeros_low}")'
                     common.write(
                         code,
                         1,
-                        f"mag_trunc_tmp_{port_number}{part} <= resize(res_arith_{port_number}{part}, {bits_in + 1}) "
-                        f"+ {sign_value};",
+                        f"mag_trunc_sticky_{port_number}{part} <= '1' when res_arith_{port_number}{part}({new_low - 1} downto 0) /= 0 else '0';",
                     )
-                    # Truncate to target word length - use new_high + 1 because addition can grow by 1 bit
                     common.write(
                         code,
                         1,
-                        f"res_quant_{port_number}{part} <= mag_trunc_tmp_{port_number}{part}({new_high} downto {new_low});",
+                        f"mag_trunc_tmp_{port_number}{part} <="
+                        f" (res_arith_{port_number}{part}({bits_in - 1} downto {new_low}) & mag_trunc_sticky_{port_number}{part})"
+                        f" + (to_signed(0, {bits_in - new_low}) & res_arith_{port_number}{part}({bits_in - 1}));",
                     )
-                wl_out = (wl[0] + 1, wl[1] - frac_diff)
+                    common.write(
+                        code,
+                        1,
+                        f"res_quant_{port_number}{part} <= mag_trunc_tmp_{port_number}{part}({bits_in - new_low} downto 1);",
+                    )
+                wl_out = (wl[0], wl[1] - frac_diff)
             else:
                 raise NotImplementedError(
                     f"Quantization mode {self._dt.quantization_mode.name} not implemented for VHDL"
