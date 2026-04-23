@@ -1048,6 +1048,16 @@ def block_ldlt_matrix_inverse(
 
     N_blocks = N // BLOCK_SIZE
 
+    def _add_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(True, a, b)
+        return a + b
+
+    def _sub_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(False, a, b)
+        return a - b
+
     def _mac_blocks(
         is_add: bool,
         acc_block,
@@ -1768,6 +1778,401 @@ def block_cholesky_matrix_inverse(
                         res[row][col] = Output(val, name=f"res[{row},{col}]")
 
     outputs = [res[i][j] for i in range(N) for j in range(i + 1)]
+
+    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+
+
+def tile_ldlt_matrix_inverse(
+    N: int,
+    name: str | None = None,
+    mode: str = "eqs",
+    pe: str | None = None,
+) -> SFG:
+    """
+    Generate an SFG for the tile LDLT matrix inverse algorithm.
+
+    Parameters
+    ----------
+    N : int
+        Dimension of the square input matrix.
+    name : str, optional
+        The name of the SFG. If None, "Tile LDLT matrix-inversion".
+    mode : str, default: "eqs"
+        The mode of operation, either "mult" or "eqs".
+    pe : str, optional
+        Processing element to use. Can be "mads", "addsub", or None.
+
+    Returns
+    -------
+    SFG
+        Signal Flow Graph
+    """
+    TILE_SIZE = 2
+    if N % TILE_SIZE != 0:
+        raise ValueError("Tile size needs to be a positive divisor of N.")
+
+    if name is None:
+        name = "Tile LDLT matrix-inversion"
+
+    if mode not in ("mult", "eqs"):
+        raise NotImplementedError(f"mode={mode} is not yet implemented for tile LDLT.")
+    if pe not in (None, "addsub", "mads"):
+        raise NotImplementedError(f"pe={pe} is not yet implemented for tile LDLT.")
+
+    N_tiles = N // TILE_SIZE
+
+    def _add_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(True, a, b)
+        return a + b
+
+    def _sub_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(False, a, b)
+        return a - b
+
+    def _mul_nodes(a, b):
+        if pe == "mads":
+            # Pure multiplication. Do NOT rely on is_add when do_addsub=False.
+            return MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=a,
+                src2=b,
+                do_addsub=False,
+            )
+        if pe == "addsub":
+            return Multiplication(a, b)
+        return a * b
+
+    def _mac_tiles(
+        is_add: bool,
+        acc_tile,
+        A_tile,
+        B_tile,
+        mult_mode="regular",
+        lower_triangular=False,
+    ):
+        res = [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
+        for r in range(TILE_SIZE):
+            for c in range(TILE_SIZE):
+                if lower_triangular and r < c:
+                    continue
+
+                if mult_mode == "regular":
+                    v1 = [A_tile[r][x] for x in range(TILE_SIZE)]
+                    v2 = [B_tile[x][c] for x in range(TILE_SIZE)]
+                elif mult_mode == "T":
+                    v1 = [A_tile[r][x] for x in range(TILE_SIZE)]
+                    v2 = [B_tile[c][x] for x in range(TILE_SIZE)]
+                elif mult_mode == "tile_tri_T":
+                    v1 = [A_tile[r][x] for x in range(c + 1)]
+                    v2 = [B_tile[c][x] for x in range(c + 1)]
+                elif mult_mode == "T_tiles":
+                    v1 = [A_tile[x][r] for x in range(TILE_SIZE)]
+                    v2 = [B_tile[x][c] for x in range(TILE_SIZE)]
+                elif mult_mode == "tile_diag":
+                    v1 = [A_tile[r][c]]
+                    v2 = [B_tile[c][c]]
+                else:
+                    raise ValueError(f"Unknown mult_mode {mult_mode}")
+
+                if pe == "mads":
+                    # First build the dot product positively.
+                    if acc_tile is None or acc_tile[r][c] is None:
+                        acc = _mul_nodes(v1[0], v2[0])
+                        for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                            acc = MADS(
+                                is_add=True,
+                                src0=acc,
+                                src1=xv1,
+                                src2=xv2,
+                                do_addsub=True,
+                            )
+                        if not is_add:
+                            acc = -acc
+                    else:
+                        acc = MADS(
+                            is_add=is_add,
+                            src0=acc_tile[r][c],
+                            src1=v1[0],
+                            src2=v2[0],
+                            do_addsub=True,
+                        )
+                        for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                            acc = MADS(
+                                is_add=is_add,
+                                src0=acc,
+                                src1=xv1,
+                                src2=xv2,
+                                do_addsub=True,
+                            )
+
+                elif pe == "addsub":
+                    acc = v1[0] * v2[0]
+                    for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                        acc = _add_nodes(acc, xv1 * xv2)
+
+                    if acc_tile is None:
+                        if not is_add:
+                            acc = -acc
+                    else:
+                        if acc_tile[r][c] is None:
+                            if not is_add:
+                                acc = -acc
+                        else:
+                            acc = AddSub(
+                                is_add=is_add,
+                                src0=acc_tile[r][c],
+                                src1=acc,
+                            )
+                else:
+                    acc = v1[0] * v2[0]
+                    for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                        acc = acc + xv1 * xv2
+
+                    if acc_tile is not None and acc_tile[r][c] is not None:
+                        acc = acc_tile[r][c] + acc if is_add else acc_tile[r][c] - acc
+                    elif not is_add:
+                        acc = -acc
+
+                res[r][c] = acc
+        return res
+
+    inputs = []
+    A = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N):
+        for j in range(i + 1):
+            in_op = Input(name=f"A[{i},{j}]")
+            A[i][j] = in_op
+            inputs.append(in_op)
+
+    L_tiles = [
+        [
+            [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
+            for _ in range(N_tiles)
+        ]
+        for _ in range(N_tiles)
+    ]
+    L_inv_tiles = [
+        [
+            [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
+            for _ in range(N_tiles)
+        ]
+        for _ in range(N_tiles)
+    ]
+    D_tiles = [
+        [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
+        for _ in range(N_tiles)
+    ]
+    D_inv_tiles = [
+        [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
+        for _ in range(N_tiles)
+    ]
+
+    A_tiles = [
+        [
+            [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
+            for _ in range(N_tiles)
+        ]
+        for _ in range(N_tiles)
+    ]
+    for i in range(N_tiles):
+        for j in range(i + 1):
+            for r in range(TILE_SIZE):
+                for c in range(TILE_SIZE):
+                    row = i * TILE_SIZE + r
+                    col = j * TILE_SIZE + c
+                    if row >= col:
+                        A_tiles[i][j][r][c] = A[row][col]
+                    else:
+                        A_tiles[i][j][r][c] = A[col][row]
+
+    for k in range(N_tiles):
+        # xSYTRF2
+        A_kk = A_tiles[k][k]
+
+        D00 = A_kk[0][0]
+
+        D_inv00 = Reciprocal(D00) if pe is not None else 1.0 / D00
+
+        L10 = _mul_nodes(A_kk[1][0], D_inv00)
+        L_inv10 = -L10
+
+        if pe == "mads":
+            D11 = MADS(
+                is_add=False, src0=A_kk[1][1], src1=L10, src2=A_kk[1][0], do_addsub=True
+            )
+        elif pe == "addsub":
+            D11 = AddSub(is_add=False, src0=A_kk[1][1], src1=L10 * A_kk[1][0])
+        else:
+            D11 = A_kk[1][1] - L10 * A_kk[1][0]
+
+        D_inv11 = Reciprocal(D11) if pe is not None else 1.0 / D11
+
+        L_tiles[k][k][1][0] = L10
+        L_inv_tiles[k][k][1][0] = L_inv10
+
+        D_tiles[k][0][0] = D00
+        D_tiles[k][1][1] = D11
+
+        D_inv_tiles[k][0][0] = D_inv00
+        D_inv_tiles[k][1][1] = D_inv11
+
+        inv_W_kk_T = [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
+        inv_W_kk_T[0][0] = D_inv00
+        inv_W_kk_T[1][0] = _mul_nodes(L_inv10, D_inv11)
+        inv_W_kk_T[1][1] = D_inv11
+
+        for i in range(k + 1, N_tiles):
+            # xTRSM
+            L_tiles[i][k] = _mac_tiles(
+                True, None, A_tiles[i][k], inv_W_kk_T, "tile_tri_T"
+            )
+
+        for i in range(k + 1, N_tiles):
+            # xSYDRK
+            tmp = _mac_tiles(True, None, L_tiles[i][k], D_tiles[k], "tile_diag")
+            A_tiles[i][i] = _mac_tiles(
+                False, A_tiles[i][i], tmp, L_tiles[i][k], "T", True
+            )
+            for j in range(k + 1, i):
+                # xGEMDM
+                A_tiles[i][j] = _mac_tiles(
+                    False, A_tiles[i][j], tmp, L_tiles[j][k], "T"
+                )
+
+    L = [[None for _ in range(N)] for _ in range(N)]
+    L_inv = [[None for _ in range(N)] for _ in range(N)]
+    D = [None for _ in range(N)]
+    D_inv = [None for _ in range(N)]
+
+    # Copy tiles to L, L_inv, D, D_inv
+    for bi in range(N_tiles):
+        row_off = bi * TILE_SIZE
+        for bj in range(bi + 1):
+            col_off = bj * TILE_SIZE
+            l_tile = L_tiles[bi][bj]
+            l_inv_tile = L_inv_tiles[bi][bj]
+            for r in range(TILE_SIZE):
+                for c in range(TILE_SIZE):
+                    l_val = l_tile[r][c]
+                    if l_val is not None:
+                        L[row_off + r][col_off + c] = l_val
+
+                    l_inv_val = l_inv_tile[r][c]
+                    if l_inv_val is not None:
+                        L_inv[row_off + r][col_off + c] = l_inv_val
+
+    for bi in range(N_tiles):
+        off = bi * TILE_SIZE
+        for d in range(TILE_SIZE):
+            D[off + d] = D_tiles[bi][d][d]
+            D_inv[off + d] = D_inv_tiles[bi][d][d]
+
+    res = [[None for _ in range(N)] for _ in range(N)]
+    if mode == "mult":
+        # Complete strictly lower part of L_inv not produced by xSYTRF2.
+        for i in range(1, N):
+            for j in range(i - 1, -1, -1):
+                if i % 2 == 1 and j == i - 1:
+                    continue
+                acc = L[i][j]
+                for k in range(j + 1, i):
+                    if pe == "mads":
+                        acc = MADS(
+                            is_add=True,
+                            src0=acc,
+                            src1=L[i][k],
+                            src2=L_inv[k][j],
+                            do_addsub=True,
+                        )
+                    else:
+                        acc = _add_nodes(acc, L[i][k] * L_inv[k][j])
+                L_inv[i][j] = -acc
+
+        for i in range(N - 1, -1, -1):
+            for j in range(i, -1, -1):
+                if i == j:
+                    res[i][j] = D_inv[i]
+                elif pe == "mads":
+                    res[i][j] = _mul_nodes(D_inv[i], L_inv[i][j])
+                else:
+                    res[i][j] = D_inv[i] * L_inv[i][j]
+
+                for k in range(i + 1, N):
+                    if pe == "mads":
+                        t0 = _mul_nodes(L_inv[k][i], D_inv[k])
+                        res[i][j] = MADS(
+                            is_add=True,
+                            src0=res[i][j],
+                            src1=t0,
+                            src2=L_inv[k][j],
+                            do_addsub=True,
+                        )
+                    else:
+                        t0 = L_inv[k][i] * D_inv[k]
+                        res[i][j] = _add_nodes(res[i][j], t0 * L_inv[k][j])
+
+    else:  # mode == "eqs"
+        for s in range(2 * (N - 1), -1, -1):
+            i_min = (s + 1) // 2
+            i_max = min(s, N - 1)
+            for i in range(i_max, i_min - 1, -1):
+                j = s - i
+                if i == j:
+                    val = D_inv[i]
+                    for k in range(N - 1, i, -1):
+                        if pe == "mads":
+                            val = MADS(
+                                is_add=False,
+                                src0=val,
+                                src1=L[k][i],
+                                src2=res[k][i],
+                                do_addsub=True,
+                            )
+                        else:
+                            val = _sub_nodes(val, L[k][i] * res[k][i])
+                elif j == i - 1 and i % 2 == 1:
+                    if pe == "mads":
+                        val = _mul_nodes(D_inv[i], L_inv[i][j])
+                    else:
+                        val = D_inv[i] * L_inv[i][j]
+
+                    for k in range(N - 1, i, -1):
+                        if pe == "mads":
+                            val = MADS(
+                                is_add=False,
+                                src0=val,
+                                src1=L[k][i],
+                                src2=res[k][j],
+                                do_addsub=True,
+                            )
+                        else:
+                            val = _sub_nodes(val, L[k][i] * res[k][j])
+                else:
+                    if pe == "mads":
+                        val = -_mul_nodes(
+                            L[N - 1][j],
+                            res[max(i, N - 1)][min(i, N - 1)],
+                        )
+                        for k in range(N - 2, j, -1):
+                            val = MADS(
+                                is_add=False,
+                                src0=val,
+                                src1=L[k][j],
+                                src2=res[max(i, k)][min(i, k)],
+                                do_addsub=True,
+                            )
+                    else:
+                        val = -L[N - 1][j] * res[max(i, N - 1)][min(i, N - 1)]
+                        for k in range(N - 2, j, -1):
+                            val = _sub_nodes(val, L[k][j] * res[max(i, k)][min(i, k)])
+                res[i][j] = val
+
+    outputs = [
+        Output(res[i][j], name=f"res[{i},{j}]") for i in range(N) for j in range(i + 1)
+    ]
 
     return SFG(inputs=inputs, outputs=outputs, name=Name(name))
 
