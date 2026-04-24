@@ -2080,6 +2080,339 @@ def tile_ldlt_matrix_inverse(
     return SFG(inputs=inputs, outputs=outputs, name=Name(name))
 
 
+def analytical_block_matrix_inverse(
+    N: int,
+    name: str | None = None,
+    mode: str = "mid",
+    pe: str | None = None,
+) -> SFG:
+    """
+    Generate an SFG for the analytical block matrix inverse algorithm.
+
+    Parameters
+    ----------
+    N : int
+        Dimension of the square input matrix.
+    name : str, optional
+        The name of the SFG. If None, "Analytical block matrix-inversion".
+    mode : str, default: "mid"
+        The mode of operation, either "top", "bot", or "mid".
+    pe : str, optional
+        Processing element to use. Can be "mads", "addsub", or None.
+
+    Returns
+    -------
+    SFG
+        Signal Flow Graph
+    """
+    if name is None:
+        name = "Analytical block matrix-inversion"
+
+    if mode not in {"top", "bot", "mid"}:
+        raise ValueError(f"Unknown mode: {mode}")
+
+    def _add_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(True, a, b)
+        return a + b
+
+    def _sub_nodes(a, b):
+        if pe == "addsub":
+            return AddSub(False, a, b)
+        return a - b
+
+    def _mac_block(
+        is_add: bool,
+        acc_block,
+        A_block,
+        B_block,
+        mult_mode: str = "regular",
+        lower_triangular: bool = False,
+    ):
+        if mult_mode in {"regular", "diag_block", "block_diag"}:
+            bs_a = len(A_block)
+            bs_b = len(B_block[0])
+            bs_inner = len(A_block[0])
+        elif mult_mode == "T":
+            bs_a = len(A_block)
+            bs_b = len(B_block)
+            bs_inner = len(A_block[0])
+        elif mult_mode in {"T_blocks", "T_block_diag"}:
+            bs_a = len(A_block[0])
+            bs_b = len(B_block[0])
+            bs_inner = len(A_block)
+
+        res = [[None for _ in range(bs_b)] for _ in range(bs_a)]
+
+        for r in range(bs_a):
+            for c in range(bs_b):
+                if lower_triangular and r < c:
+                    continue
+
+                if mult_mode == "T":
+                    v1 = [A_block[r][x] for x in range(bs_inner)]
+                    v2 = [B_block[c][x] for x in range(bs_inner)]
+                elif mult_mode == "T_blocks":
+                    v1 = [A_block[x][r] for x in range(bs_inner)]
+                    v2 = [B_block[x][c] for x in range(bs_inner)]
+                elif mult_mode == "diag_block":
+                    v1 = [A_block[max(r, x)][min(r, x)] for x in range(bs_inner)]
+                    v2 = [B_block[x][c] for x in range(bs_inner)]
+                elif mult_mode == "block_diag":
+                    v1 = [A_block[r][x] for x in range(bs_inner)]
+                    v2 = [B_block[max(x, c)][min(x, c)] for x in range(bs_inner)]
+
+                if pe == "mads":
+                    if acc_block is None:
+                        if is_add:
+                            acc = MADS(
+                                is_add=True,
+                                src0=DontCare(),
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=False,
+                            )
+                            for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                                acc = MADS(
+                                    is_add=True,
+                                    src0=acc,
+                                    src1=xv1,
+                                    src2=xv2,
+                                    do_addsub=True,
+                                )
+                        else:
+                            acc = MADS(
+                                is_add=False,
+                                src0=DontCare(),
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=False,
+                            )
+                            for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                                acc = MADS(
+                                    is_add=False,
+                                    src0=acc,
+                                    src1=xv1,
+                                    src2=xv2,
+                                    do_addsub=True,
+                                )
+                    else:
+                        if acc_block[r][c] is not None:
+                            acc = MADS(
+                                is_add=is_add,
+                                src0=acc_block[r][c],
+                                src1=v1[0],
+                                src2=v2[0],
+                                do_addsub=True,
+                            )
+
+                        for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                            acc = MADS(
+                                is_add=is_add,
+                                src0=acc,
+                                src1=xv1,
+                                src2=xv2,
+                                do_addsub=True,
+                            )
+                else:
+                    acc = v1[0] * v2[0]
+                    for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
+                        acc = _add_nodes(acc, xv1 * xv2)
+                    if acc_block is not None:
+                        if acc_block[r][c] is not None:
+                            acc = (
+                                _add_nodes(acc_block[r][c], acc)
+                                if is_add
+                                else _sub_nodes(acc_block[r][c], acc)
+                            )
+                    else:
+                        acc = acc if is_add else -acc
+                res[r][c] = acc
+
+        return res
+
+    def _copy_block_full(A_block):
+        bs_r = len(A_block)
+        bs_c = len(A_block[0])
+        res = [[None for _ in range(bs_c)] for _ in range(bs_r)]
+        for r in range(bs_r):
+            for c in range(bs_c):
+                res[r][c] = A_block[r][c]
+        return res
+
+    def _copy_block_lower_triangular(A_block):
+        bs = len(A_block)
+        res = [[None for _ in range(bs)] for _ in range(bs)]
+        for r in range(bs):
+            for c in range(r + 1):
+                res[r][c] = A_block[r][c]
+        return res
+
+    def _inv_2x2_explicit(A_block):
+        res = [[None for _ in range(2)] for _ in range(2)]
+        if pe == "mads":
+            tmp = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=A_block[0][0],
+                src2=A_block[1][1],
+                do_addsub=False,
+            )
+            det = MADS(
+                is_add=False,
+                src0=tmp,
+                src1=A_block[1][0],
+                src2=A_block[1][0],
+                do_addsub=True,
+            )
+            inv_det = Reciprocal(det)
+            res[0][0] = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=A_block[1][1],
+                src2=inv_det,
+                do_addsub=False,
+            )
+            res[1][0] = MADS(
+                is_add=False,
+                src0=DontCare(),
+                src1=A_block[1][0],
+                src2=inv_det,
+                do_addsub=False,
+            )
+            res[1][1] = MADS(
+                is_add=True,
+                src0=DontCare(),
+                src1=A_block[0][0],
+                src2=inv_det,
+                do_addsub=False,
+            )
+        else:
+            det = _sub_nodes(
+                A_block[0][0] * A_block[1][1], A_block[1][0] * A_block[1][0]
+            )
+            inv_det = Reciprocal(det) if pe == "addsub" else 1.0 / det
+            res[0][0] = A_block[1][1] * inv_det
+            res[1][0] = -A_block[1][0] * inv_det
+            res[1][1] = A_block[0][0] * inv_det
+        return res
+
+    def _analytical_block_inv_inner(matrix):
+        n = len(matrix)
+
+        if n == 1:
+            inv_val = Reciprocal(matrix[0][0]) if pe is not None else 1.0 / matrix[0][0]
+            return [[inv_val]]
+
+        if n == 2:
+            return _inv_2x2_explicit(matrix)
+
+        # Determine split
+        if mode == "top":
+            n_a = 2
+            n_d = n - 2
+        elif mode == "bot":
+            n_a = n - 2
+            n_d = 2
+        else:
+            n_a = n // 2
+            n_d = n - n_a
+
+        # Extract blocks
+        if mode == "top":
+            A_blk = _copy_block_lower_triangular([row[:2] for row in matrix[:2]])
+            B_blk = _copy_block_full([row[:2] for row in matrix[2:]])
+            D_blk = _copy_block_lower_triangular([row[2:] for row in matrix[2:]])
+        elif mode == "bot":
+            A_blk = _copy_block_lower_triangular([row[:-2] for row in matrix[:-2]])
+            B_blk = _copy_block_full([row[:-2] for row in matrix[-2:]])
+            D_blk = _copy_block_lower_triangular([row[-2:] for row in matrix[-2:]])
+        else:
+            A_blk = _copy_block_lower_triangular([row[:n_a] for row in matrix[:n_a]])
+            B_blk = _copy_block_full([row[:n_a] for row in matrix[n_a:]])
+            D_blk = _copy_block_lower_triangular([row[n_a:] for row in matrix[n_a:]])
+
+        # V = inv(A)
+        V = _analytical_block_inv_inner(A_blk)
+
+        # X = B @ V
+        X = _mac_block(True, None, B_blk, V, "block_diag")
+
+        # schur = D - B @ X.T
+        schur = _mac_block(False, D_blk, B_blk, X, "T", lower_triangular=True)
+
+        # H = inv(schur)
+        H = _analytical_block_inv_inner(schur)
+
+        # F = -H @ X (which is -Z)
+        F = _mac_block(False, None, H, X, "diag_block")
+
+        # E = V - X.T @ F
+        E = _mac_block(False, V, X, F, "T_blocks", lower_triangular=True)
+
+        # Assemble result (only lower triangular for diagonal blocks)
+        matrix_inv = [[None for _ in range(n)] for _ in range(n)]
+        if mode == "top":
+            # Top-left
+            for r in range(2):
+                for c in range(r + 1):
+                    matrix_inv[r][c] = E[r][c]
+            # Bottom-left
+            for r in range(n_d):
+                for c in range(2):
+                    matrix_inv[2 + r][c] = F[r][c]
+            # Bottom-right
+            for r in range(n_d):
+                for c in range(r + 1):
+                    matrix_inv[2 + r][2 + c] = H[r][c]
+        elif mode == "bot":
+            # Top-left
+            for r in range(n_a):
+                for c in range(r + 1):
+                    matrix_inv[r][c] = E[r][c]
+            # Bottom-left
+            for r in range(2):
+                for c in range(n_a):
+                    matrix_inv[n_a + r][c] = F[r][c]
+            # Bottom-right
+            for r in range(2):
+                for c in range(r + 1):
+                    matrix_inv[n_a + r][n_a + c] = H[r][c]
+        else:
+            # Top-left
+            for r in range(n_a):
+                for c in range(r + 1):
+                    matrix_inv[r][c] = E[r][c]
+            # Bottom-left
+            for r in range(n_d):
+                for c in range(n_a):
+                    matrix_inv[n_a + r][c] = F[r][c]
+            # Bottom-right
+            for r in range(n_d):
+                for c in range(r + 1):
+                    matrix_inv[n_a + r][n_a + c] = H[r][c]
+
+        return matrix_inv
+
+    inputs = []
+    A = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N):
+        for j in range(i + 1):
+            in_op = Input(name=f"A[{i},{j}]")
+            A[i][j] = in_op
+            inputs.append(in_op)
+
+    result = _analytical_block_inv_inner(A)
+
+    outputs = [
+        Output(result[i][j], name=f"res[{i},{j}]")
+        for i in range(N)
+        for j in range(i + 1)
+    ]
+
+    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+
+
 def matrix_multiplication(
     m: int,
     n: int,
