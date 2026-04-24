@@ -9,6 +9,7 @@ from b_asic.core_operations import (
 )
 from b_asic.fft_operations import R2Butterfly
 from b_asic.sfg_generators import (
+    analytical_block_matrix_inverse,
     block_cholesky_matrix_inverse,
     block_ldlt_matrix_inverse,
     cholesky_matrix_inverse,
@@ -1343,6 +1344,56 @@ class TestTileLDLTMatrixInverse:
             match=r"pe=foo is not yet implemented for tile LDLT\.",
         ):
             tile_ldlt_matrix_inverse(N=2, mode="mult", pe="foo")
+
+
+class TestAnalyticalBlockMatrixInverse:
+    @pytest.mark.parametrize("mode", ["top", "bot", "mid"])
+    def test_allowed_operations_mads(self, mode):
+        sfg = analytical_block_matrix_inverse(N=4, mode=mode, pe="mads")
+        allowed = {"in", "out", "neg", "rec", "mads", "dontcare", "c"}
+        assert set(sfg.operation_counter()).issubset(allowed)
+
+    @pytest.mark.parametrize("mode", ["top", "bot", "mid"])
+    def test_allowed_operations_addsub(self, mode):
+        sfg = analytical_block_matrix_inverse(N=4, mode=mode, pe="addsub")
+        allowed = {"in", "out", "neg", "rec", "addsub", "mul"}
+        assert set(sfg.operation_counter()).issubset(allowed)
+
+    def _generate_random_spd_matrix(self, N: int) -> np.ndarray:
+        A = np.random.default_rng().standard_normal((N, N))
+        A = A @ A.T  # ensure symmetric and positive semi-definite
+        min_eig = np.min(np.linalg.eigvals(A))
+        A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
+        return A
+
+    @pytest.mark.parametrize("N", [2, 4, 6])
+    @pytest.mark.parametrize("mode", ["top", "bot", "mid"])
+    @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
+    def test_NxN_mult_none(self, N, mode, pe):
+        sfg = analytical_block_matrix_inverse(N=N, mode=mode, pe=pe)
+
+        A = self._generate_random_spd_matrix(N)
+        A_input = [Constant(num) for num in A[np.tril_indices(N)]]
+        A_inv = np.linalg.inv(A)
+
+        assert len(sfg.inputs) == len(A_input)
+        assert len(sfg.outputs) == len(A_input)
+
+        sim = Simulation(sfg, A_input)
+        sim.run_for(1)
+
+        res = sim.results
+        row_indices, col_indices = np.tril_indices(N)
+        expected_values = A_inv[row_indices, col_indices]
+        actual_values = np.array(
+            [res[f"out{i}"] for i in range(len(expected_values))],
+        ).flatten()
+
+        assert np.allclose(actual_values, expected_values)
+
+    def test_invalid_mode(self):
+        with pytest.raises(ValueError, match=r"Unknown mode: foo"):
+            analytical_block_matrix_inverse(N=2, mode="foo", pe=None)
 
 
 class TestMatrixMultiplication:
