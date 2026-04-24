@@ -1199,13 +1199,27 @@ def block_cholesky_matrix_inverse(
         for i in range(N_blocks - 1, -1, -1):
             for j in range(i, -1, -1):
                 if i == j:
-                    acc = _mac_blocks(True, None, L_inv[i][i], L_inv[i][j], "tri_T_tri")
+                    acc = _mac_blocks(
+                        True,
+                        None,
+                        L_inv[i][i],
+                        L_inv[i][j],
+                        "tri_T_tri",
+                        lower_triangular=True,
+                    )
                 else:
                     acc = _mac_blocks(
                         True, None, L_inv[i][i], L_inv[i][j], "tri_T_block"
                     )
                 for k in range(i + 1, N_blocks):
-                    acc = _mac_blocks(True, acc, L_inv[k][i], L_inv[k][j], "T_blocks")
+                    if i == j:
+                        acc = _mac_blocks(
+                            True, acc, L_inv[k][i], L_inv[k][j], "T_blocks", True
+                        )
+                    else:
+                        acc = _mac_blocks(
+                            True, acc, L_inv[k][i], L_inv[k][j], "T_blocks"
+                        )
                 res_blk[i][j] = acc
 
     else:  # mode == "eqs"
@@ -1489,10 +1503,11 @@ def tile_ldlt_matrix_inverse(
         D_inv_tiles[k][0][0] = D_inv00
         D_inv_tiles[k][1][1] = D_inv11
 
-        inv_W_kk_T = [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
-        inv_W_kk_T[0][0] = D_inv00
-        inv_W_kk_T[1][0] = _mul_nodes(L_inv10, D_inv11)
-        inv_W_kk_T[1][1] = D_inv11
+        if k < N_tiles - 1:
+            inv_W_kk_T = [[None for _ in range(TILE_SIZE)] for _ in range(TILE_SIZE)]
+            inv_W_kk_T[0][0] = D_inv00
+            inv_W_kk_T[1][0] = _mul_nodes(L_inv10, D_inv11)
+            inv_W_kk_T[1][1] = D_inv11
 
         for i in range(k + 1, N_tiles):
             # xTRSM
