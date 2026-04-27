@@ -994,12 +994,12 @@ class VhdlPrinter(Printer):
 
         n_in, n_out = self._register_split
         pipeline_after_mul = n_in >= 2
-        pipeline_before_mul = n_out >= 2
+        pipeline_before_mul = n_in >= 3
         n_consumed = int(pipeline_after_mul) + int(pipeline_before_mul)
         if n_consumed:
             self._register_split = (
-                n_in - int(pipeline_before_mul),
-                n_out - int(pipeline_after_mul),
+                n_in - int(pipeline_after_mul) - int(pipeline_before_mul),
+                n_out,
             )
 
         if pipeline_before_mul:
