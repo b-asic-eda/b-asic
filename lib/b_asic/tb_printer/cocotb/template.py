@@ -23,6 +23,7 @@ SIMULATOR = ""
 WAVES = False
 GUI = False
 CSV = False
+ASSERTS = True
 ENTITY_NAME = ""
 SEQUENCE = {}
 
@@ -59,13 +60,14 @@ async def test_one(dut):
                         if CSV and hw_val.is_resolvable:
                             writer.writerow([signal_name, cycle, int(hw_val)])
                         if hw_val.is_resolvable:
-                            assert hw_val == value, (
-                                f"Cycle {cycle}: Expected {signal_name} to be {value}, "
-                                f"but got {int(hw_val)}"
-                            )
-                            cocotb.log.info(
-                                f"Cycle {cycle}: {signal_name} = {int(hw_val)} OK"
-                            )
+                            if ASSERTS:
+                                assert hw_val == value, (
+                                    f"Cycle {cycle}: Expected {signal_name} to be {value}, "
+                                    f"but got {int(hw_val)}"
+                                )
+                                cocotb.log.info(
+                                    f"Cycle {cycle}: {signal_name} = {int(hw_val)} OK"
+                                )
                         else:
                             # Skip assertion if value is 'x' (unknown/undefined)
                             cocotb.log.warning(

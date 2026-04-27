@@ -38,6 +38,7 @@ class CocotbPrinter:
         waves: bool = False,
         gui: bool = False,
         csv: bool = False,
+        asserts: bool = True,
     ) -> None:
         """
         Generate the cocotb test bench files.
@@ -60,6 +61,8 @@ class CocotbPrinter:
             If the simulator lacks a GUI, a waveform viewer will be launched, if possible.
         csv : bool, default False
             Whether to dump input and output values to a CSV file during simulation.
+        asserts : bool, default True
+            Whether to include output assertions in the testbench.
         """
         path = Path(path)
 
@@ -133,6 +136,7 @@ class CocotbPrinter:
         tb_content = tb_content.replace("WAVES = False", f"WAVES = {waves!s}")
         tb_content = tb_content.replace("GUI = False", f"GUI = {gui!s}")
         tb_content = tb_content.replace("CSV = False", f"CSV = {csv!s}")
+        tb_content = tb_content.replace("ASSERTS = True", f"ASSERTS = {asserts!s}")
 
         with Path.open(path / "tb.py", "w") as output_file:
             output_file.write(tb_content)
