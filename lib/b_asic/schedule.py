@@ -1233,6 +1233,55 @@ class Schedule:
         """Get a list of all TypeNames used in the Schedule."""
         return self._sfg.get_used_type_names()
 
+    def get_io_latency(self) -> dict[GraphID, dict[GraphID, int]]:
+        """
+        Return the latency between each Input/Output pair.
+
+        The latency is the minimum number of :class:`~b_asic.special_operations.Delay`
+        elements on any path from a :class:`~b_asic.special_operations.Input`
+        to a :class:`~b_asic.special_operations.Output`, multiplied by the schedule time,
+        plus the difference in their start times within the schedule.
+
+        Returns
+        -------
+        dict
+            Mapping of latency from each :class:`~b_asic.special_operations.Input`
+            to each :class:`~b_asic.special_operations.Output`, as a dict of dicts.
+        """
+        sfg = self.sfg
+        inputs = [op for op in sfg.operations if isinstance(op, Input)]
+        outputs = [op for op in sfg.operations if isinstance(op, Output)]
+
+        result: dict[GraphID, dict[GraphID, int]] = {}
+
+        for out_op in outputs:
+            best: dict[GraphID, int] = {}
+            from collections import deque  # noqa: PLC0415
+
+            queue: deque[tuple] = deque([(out_op, 0)])
+            while queue:
+                op, d = queue.popleft()
+                if best.get(op.graph_id, float("inf")) <= d:
+                    continue
+                best[op.graph_id] = d
+                if isinstance(op, Input):
+                    continue
+                for in_port in op.inputs:
+                    for signal in in_port.signals:
+                        src = signal.source.operation
+                        queue.append((src, d + (1 if isinstance(src, Delay) else 0)))
+
+            out_start = self._start_times[out_op.graph_id]
+            for in_op in inputs:
+                if in_op.graph_id in best:
+                    in_start = self._start_times[in_op.graph_id]
+                    latency = best[in_op.graph_id] * self._schedule_time + (
+                        out_start - in_start
+                    )
+                    result.setdefault(in_op.graph_id, {})[out_op.graph_id] = latency
+
+        return result
+
     def _get_y_plot_location(
         self, graph_id, operation_height=1.0, operation_gap=OPERATION_GAP
     ) -> float:
