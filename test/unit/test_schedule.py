@@ -1086,3 +1086,23 @@ class TestYLocations:
         assert schedule._y_locations["add0"] is None
         assert schedule._y_locations["out0"] is None
         assert schedule._y_locations["foo"] is None
+
+
+class TestGetIoLatency:
+    def test_simple_filter(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 4
+        )
+        schedule = Schedule(sfg_simple_filter, scheduler=ASAPScheduler())
+
+        assert schedule.get_io_latency() == {"in0": {"out0": 9}}
+
+    def test_precedence_sfg_delays(self, precedence_sfg_delays):
+        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 4)
+        precedence_sfg_delays.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 3
+        )
+        schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
+
+        assert schedule.get_io_latency() == {"in0": {"out0": 21}}
