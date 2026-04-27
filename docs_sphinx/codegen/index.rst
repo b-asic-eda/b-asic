@@ -5,16 +5,19 @@ Code Generation
 
 Code generation using the B-ASIC toolbox.
 
-For VHDL generation, see :class:`~b_asic.code_printer.VhdlPrinter`.
+One code printer is currently available:
 
-Printer
-=======
-.. automodule:: b_asic.code_printer.printer
-   :members:
+- :class:`~b_asic.code_printer.VhdlPrinter` — generates a VHDL implementation of an architecture.
+
+``VhdlPrinter``
+===============
+
+.. autoclass:: b_asic.code_printer.vhdl.vhdl_printer.VhdlPrinter
+   :members: print, get_compile_order
    :undoc-members:
 
-Code Printers
-=============
+Internals
+=========
 .. toctree::
     :maxdepth: 1
 
