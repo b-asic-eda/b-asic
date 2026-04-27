@@ -890,7 +890,9 @@ class TestLdltMatrixInverse:
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     def test_allowed_operations_mads(self, mode):
         sfg = ldlt_matrix_inverse(N=4, mode=mode, pe="mads")
-        allowed = {"in", "out", "neg", "rec", "mads", "dontcare", "c"}
+        allowed = {"in", "out", "rec", "mads", "dontcare"}
+        if mode == "mult":
+            allowed.add("neg")
         assert set(sfg.operation_counter()).issubset(allowed)
 
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
@@ -1109,7 +1111,7 @@ class TestCholeskyMatrixInverse:
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     def test_allowed_operations_mads(self, mode):
         sfg = cholesky_matrix_inverse(N=4, mode=mode, pe="mads")
-        allowed = {"in", "out", "neg", "recsqrt", "mads", "dontcare", "c"}
+        allowed = {"in", "out", "recsqrt", "mads", "dontcare"}
         assert set(sfg.operation_counter()).issubset(allowed)
 
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
@@ -1125,7 +1127,7 @@ class TestCholeskyMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [1, 2, 4, 8, 16])
+    @pytest.mark.parametrize("N", [1, 2, 4, 8, 16, 24, 32])
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     @pytest.mark.parametrize("pe", ["mads", "addsub", None])
     def test_NxN_spd_combinations(self, N, mode, pe):
@@ -1155,7 +1157,9 @@ class TestBlockLDLTMatrixInverse:
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     def test_allowed_operations_mads(self, mode):
         sfg = block_ldlt_matrix_inverse(N=4, mode=mode, pe="mads")
-        allowed = {"in", "out", "neg", "rec", "mads", "dontcare", "c"}
+        allowed = {"in", "out", "rec", "mads", "dontcare"}
+        if mode == "mult":
+            allowed.add("neg")
         assert set(sfg.operation_counter()).issubset(allowed)
 
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
@@ -1171,7 +1175,7 @@ class TestBlockLDLTMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [2, 4, 6])
+    @pytest.mark.parametrize("N", [2, 4, 8, 16, 24, 32])
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
     def test_NxN_mult_none(self, N, mode, pe):
@@ -1220,7 +1224,7 @@ class TestBlockCholeskyMatrixInverse:
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     def test_allowed_operations_mads(self, mode):
         sfg = block_cholesky_matrix_inverse(N=4, mode=mode, pe="mads")
-        allowed = {"in", "out", "neg", "recsqrt", "mads", "dontcare", "c"}
+        allowed = {"in", "out", "recsqrt", "mads", "dontcare"}
         assert set(sfg.operation_counter()).issubset(allowed)
 
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
@@ -1236,7 +1240,7 @@ class TestBlockCholeskyMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [2, 4, 6])
+    @pytest.mark.parametrize("N", [2, 4, 8, 16, 24, 32])
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
     def test_NxN_mult_none(self, N, mode, pe):
@@ -1285,7 +1289,7 @@ class TestTileLDLTMatrixInverse:
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     def test_allowed_operations_mads(self, mode):
         sfg = tile_ldlt_matrix_inverse(N=4, mode=mode, pe="mads")
-        allowed = {"in", "out", "neg", "rec", "mads", "dontcare", "c"}
+        allowed = {"in", "out", "neg", "rec", "mads", "dontcare"}
         assert set(sfg.operation_counter()).issubset(allowed)
 
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
@@ -1301,7 +1305,7 @@ class TestTileLDLTMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [2, 4, 6])
+    @pytest.mark.parametrize("N", [2, 4, 8, 16, 24, 32])
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
     def test_NxN_mult_none(self, N, mode, pe):
@@ -1350,7 +1354,7 @@ class TestAnalyticalBlockMatrixInverse:
     @pytest.mark.parametrize("mode", ["top", "bot", "mid"])
     def test_allowed_operations_mads(self, mode):
         sfg = analytical_block_matrix_inverse(N=4, mode=mode, pe="mads")
-        allowed = {"in", "out", "neg", "rec", "mads", "dontcare", "c"}
+        allowed = {"in", "out", "rec", "mads", "dontcare"}
         assert set(sfg.operation_counter()).issubset(allowed)
 
     @pytest.mark.parametrize("mode", ["top", "bot", "mid"])
@@ -1366,7 +1370,7 @@ class TestAnalyticalBlockMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [2, 4, 6])
+    @pytest.mark.parametrize("N", [2, 4, 8, 16, 24, 32])
     @pytest.mark.parametrize("mode", ["top", "bot", "mid"])
     @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
     def test_NxN_mult_none(self, N, mode, pe):
