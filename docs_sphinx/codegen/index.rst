@@ -1,6 +1,6 @@
 .. _codegen:
 
-Code generation
+Code Generation
 ***************
 
 Code generation using the B-ASIC toolbox.
