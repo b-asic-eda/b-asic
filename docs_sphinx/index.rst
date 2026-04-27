@@ -50,6 +50,7 @@ Table of Contents
    scheduler_gui
    gui_utils
    codegen/index
+   tb_gen/index
    examples/index
    research
 
