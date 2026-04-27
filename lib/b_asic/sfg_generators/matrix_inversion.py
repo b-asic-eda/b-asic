@@ -899,6 +899,10 @@ def block_ldlt_matrix_inverse(
                             val = _mac_blocks(
                                 False, val, res_blk[i][k], L[k][j], "regular"
                             )
+                        else:
+                            val = _mac_blocks(
+                                False, val, res_blk[k][i], L[k][j], "T_blocks"
+                            )
 
                     res_blk[i][j] = val
 
@@ -1249,7 +1253,11 @@ def block_cholesky_matrix_inverse(
                         )
 
                     for k in range(N_blocks - 2, j, -1):
-                        if k == i:
+                        if k > i:
+                            acc = _mac_blocks(
+                                False, acc, res_blk[k][i], L[k][j], "T_blocks"
+                            )
+                        elif k == i:
                             acc = _mac_blocks(
                                 False, acc, res_blk[i][i], L[k][j], "diag_block"
                             )
