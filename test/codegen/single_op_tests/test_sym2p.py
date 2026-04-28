@@ -110,11 +110,11 @@ TEST_PARAMS = [
     pytest.param(
         DataType(
             wl=(4, 4),
-            quantization_mode=QuantizationMode.MAGNITUDE_TRUNCATION,
+            quantization_mode=QuantizationMode.UNBIASED_MAGNITUDE_TRUNCATION,
             overflow_mode=OverflowMode.SATURATION,
         ),
         1,
-        1,
+        -0.888980,
         [
             (56, 40),
             (120, 16),
@@ -124,6 +124,27 @@ TEST_PARAMS = [
             (249, 248),
             (255, 255),
             (-255, -255),
+            (-255, 0),
+            (0, -256),
+        ],
+    ),
+    pytest.param(
+        DataType(
+            wl=(1, 7),
+            quantization_mode=QuantizationMode.MAGNITUDE_TRUNCATION,
+            overflow_mode=OverflowMode.SATURATION,
+        ),
+        1,
+        -0.888980,
+        [
+            (56, 40),
+            (120, 16),
+            (-120, -8),
+            (120, -54),
+            (-54, -145),
+            (249, 248),
+            (255, 255),
+            (-256, -255),
             (-255, 0),
             (0, -256),
         ],
