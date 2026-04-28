@@ -30,6 +30,9 @@ class QuantizationMode(Enum):
     UNBIASED_JAMMING = auto()
     """Unbiased jamming/von Neumann rounding."""
 
+    UNBIASED_MAGNITUDE_TRUNCATION = auto()
+    """Unbiased magnitude truncation."""
+
     def to_apytypes(self) -> ApyQuantizationMode:
         """
         Convert to APyTypes QuantizationMode.
@@ -47,10 +50,11 @@ class QuantizationMode(Enum):
         mapping = {
             QuantizationMode.ROUNDING: ApyQuantizationMode.RND,
             QuantizationMode.TRUNCATION: ApyQuantizationMode.TRN,
-            QuantizationMode.MAGNITUDE_TRUNCATION: ApyQuantizationMode.TRN_ZERO,
+            QuantizationMode.MAGNITUDE_TRUNCATION: ApyQuantizationMode.TRN_MAG,
             QuantizationMode.JAMMING: ApyQuantizationMode.JAM,
             QuantizationMode.UNBIASED_ROUNDING: ApyQuantizationMode.RND_CONV,
             QuantizationMode.UNBIASED_JAMMING: ApyQuantizationMode.JAM_UNBIASED,
+            QuantizationMode.UNBIASED_MAGNITUDE_TRUNCATION: ApyQuantizationMode.TRN_ZERO,
         }
 
         if self not in mapping:

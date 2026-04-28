@@ -990,7 +990,7 @@ class VhdlPrinter(Printer):
         value_bits = value_int_bits + value_frac_bits
 
         u0_type = f"{self.type_name}({self.bits} downto 0)"
-        mul_res_type = f"{self.type_name}({self.bits + value_bits} downto 0)"
+        mul_res_type = f"{self.type_name}({self.bits + value_bits - 1} downto 0)"
 
         n_in, n_out = self._register_split
         pipeline_after_mul = n_in >= 2
@@ -1011,12 +1011,12 @@ class VhdlPrinter(Printer):
         common.signal_declaration(
             declarations,
             "res_arith_0",
-            f"{self.type_name}({self.bits + value_bits + 1} downto 0)",
+            f"{self.type_name}({self.bits + value_bits} downto 0)",
         )
         common.signal_declaration(
             declarations,
             "res_arith_1",
-            f"{self.type_name}({self.bits + value_bits + 1} downto 0)",
+            f"{self.type_name}({self.bits + value_bits} downto 0)",
         )
 
         # Declare pipeline-register signals
@@ -1087,7 +1087,9 @@ class VhdlPrinter(Printer):
             u0_mul_src = "u0"
 
         # Stage 2: multiply (combinatorial)
-        common.write(code, 1, f"mul_res <= {u0_mul_src} * value;")
+        common.write(
+            code, 1, f"mul_res <= resize({u0_mul_src} * value, mul_res'length);"
+        )
 
         if pipeline_after_mul:
             op_in0 = "op_0_p" if pipeline_before_mul else "op_0"
@@ -1113,17 +1115,17 @@ class VhdlPrinter(Printer):
         common.write(
             code,
             1,
-            f"res_arith_1 <= (resize({op0_src}, {op0_src}'length + 1 + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_0'length);",
+            f"res_arith_1 <= (resize({op0_src}, {op0_src}'length + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_0'length);",
         )
         common.write(
             code,
             1,
-            f"res_arith_0 <= (resize({op1_src}, {op1_src}'length + 1 + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_1'length);",
+            f"res_arith_0 <= (resize({op1_src}, {op1_src}'length + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_1'length);",
         )
 
         wls = [
-            (self._dt.wl[0] + 3, self._dt.wl[1] + value_frac_bits),
-            (self._dt.wl[0] + 3, self._dt.wl[1] + value_frac_bits),
+            (self._dt.wl[0] + 2, self._dt.wl[1] + value_frac_bits),
+            (self._dt.wl[0] + 2, self._dt.wl[1] + value_frac_bits),
         ]
         return wls, (declarations.getvalue(), code.getvalue())
 
@@ -1601,7 +1603,21 @@ class VhdlPrinter(Printer):
                     )
                 wl_out = (wl[0], wl[1] - frac_diff)
             elif self._dt.quantization_mode == QuantizationMode.MAGNITUDE_TRUNCATION:
-                # Magnitude truncation: round towards zero.
+                # Magnitude truncation: round towards zero by adding the sign bit to the LSB.
+                for part in parts:
+                    common.write(
+                        code,
+                        1,
+                        f"res_quant_{port_number}{part} <= res_arith_{port_number}{part}({new_high} downto {new_low})"
+                        f" + (to_signed(0, {new_high - new_low}) & res_arith_{port_number}{part}({bits_in - 1}));",
+                    )
+                wl_out = (wl[0], wl[1] - frac_diff)
+            elif (
+                self._dt.quantization_mode
+                == QuantizationMode.UNBIASED_MAGNITUDE_TRUNCATION
+            ):
+                # Unbiased magnitude truncation: round towards zero by adding the sign bit to the right of the LSB,
+                # but only when discarded bits are non-zero.
                 type_name = self.scalar_type_name if self.is_complex else self.type_name
                 for part in parts:
                     common.signal_declaration(
