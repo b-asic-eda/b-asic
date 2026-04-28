@@ -994,33 +994,43 @@ class VhdlPrinter(Printer):
 
         n_in, n_out = self._register_split
         pipeline_after_mul = n_in >= 2
-        pipeline_before_mul = n_in >= 3
-        n_consumed = int(pipeline_after_mul) + int(pipeline_before_mul)
+        pipeline_after_add = n_in >= 3
+        pipeline_after_sub = n_in >= 4
+        n_consumed = (
+            int(pipeline_after_mul) + int(pipeline_after_add) + int(pipeline_after_sub)
+        )
         if n_consumed:
-            self._register_split = (
-                n_in - int(pipeline_after_mul) - int(pipeline_before_mul),
-                n_out,
-            )
+            self._register_split = (n_in - n_consumed, n_out)
 
-        if pipeline_before_mul:
+        if pipeline_after_sub:
             self._pe_control_cycle.setdefault(pe.entity_name, {}).setdefault("value", 2)
+
+        add_res_type = f"{self.type_name}({self.bits + value_bits} downto 0)"
 
         # Declare combinatorial intermediate signals
         common.signal_declaration(declarations, "u0", u0_type)
         common.signal_declaration(declarations, "mul_res", mul_res_type)
-        common.signal_declaration(
-            declarations,
-            "res_arith_0",
-            f"{self.type_name}({self.bits + value_bits} downto 0)",
-        )
-        common.signal_declaration(
-            declarations,
-            "res_arith_1",
-            f"{self.type_name}({self.bits + value_bits} downto 0)",
-        )
+        if pipeline_after_add:
+            common.signal_declaration(declarations, "res_arith_0_comb", add_res_type)
+            common.signal_declaration(declarations, "res_arith_1_comb", add_res_type)
+            common.signal_declaration(
+                declarations,
+                "res_arith_0",
+                add_res_type,
+                default_value=self._dt.init_val,
+            )
+            common.signal_declaration(
+                declarations,
+                "res_arith_1",
+                add_res_type,
+                default_value=self._dt.init_val,
+            )
+        else:
+            common.signal_declaration(declarations, "res_arith_0", add_res_type)
+            common.signal_declaration(declarations, "res_arith_1", add_res_type)
 
         # Declare pipeline-register signals
-        if pipeline_before_mul:
+        if pipeline_after_sub:
             common.signal_declaration(
                 declarations, "u0_p", u0_type, default_value=self._dt.init_val
             )
@@ -1040,7 +1050,7 @@ class VhdlPrinter(Printer):
             common.signal_declaration(
                 declarations, "mul_res_p", mul_res_type, default_value=self._dt.init_val
             )
-            if pipeline_before_mul:
+            if pipeline_after_sub:
                 common.signal_declaration(
                     declarations,
                     "op_0_pp",
@@ -1067,14 +1077,14 @@ class VhdlPrinter(Printer):
                     default_value=self._dt.init_val,
                 )
 
-        # Stage 1: u0 = op_1 - op_0
+        # Stage 1: u0 = op_1 - op_0 (combinatorial)
         common.write(
             code,
             1,
             f"u0 <= resize(op_1, {self._dt.bits + 1}) - resize(op_0, {self._dt.bits + 1});",
         )
 
-        if pipeline_before_mul:
+        if pipeline_after_sub:
             common.synchronous_process_prologue(code)
             common.write(code, 3, "if en = '1' then")
             common.write(code, 4, "u0_p <= u0;")
@@ -1092,10 +1102,10 @@ class VhdlPrinter(Printer):
         )
 
         if pipeline_after_mul:
-            op_in0 = "op_0_p" if pipeline_before_mul else "op_0"
-            op_in1 = "op_1_p" if pipeline_before_mul else "op_1"
-            op_out0 = "op_0_pp" if pipeline_before_mul else "op_0_p"
-            op_out1 = "op_1_pp" if pipeline_before_mul else "op_1_p"
+            op_in0 = "op_0_p" if pipeline_after_sub else "op_0"
+            op_in1 = "op_1_p" if pipeline_after_sub else "op_1"
+            op_out0 = "op_0_pp" if pipeline_after_sub else "op_0_p"
+            op_out1 = "op_1_pp" if pipeline_after_sub else "op_1_p"
             common.synchronous_process_prologue(code)
             common.write(code, 3, "if en = '1' then")
             common.write(code, 4, "mul_res_p <= mul_res;")
@@ -1107,21 +1117,31 @@ class VhdlPrinter(Printer):
             op0_src, op1_src = op_out0, op_out1
         else:
             mul_src = "mul_res"
-            op0_src = "op_0_p" if pipeline_before_mul else "op_0"
-            op1_src = "op_1_p" if pipeline_before_mul else "op_1"
+            op0_src = "op_0_p" if pipeline_after_sub else "op_0"
+            op1_src = "op_1_p" if pipeline_after_sub else "op_1"
 
         # Stage 3: add (combinatorial)
         zero = "0"
+        add_out1 = "res_arith_1_comb" if pipeline_after_add else "res_arith_1"
+        add_out0 = "res_arith_0_comb" if pipeline_after_add else "res_arith_0"
         common.write(
             code,
             1,
-            f"res_arith_1 <= (resize({op0_src}, {op0_src}'length + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_0'length);",
+            f"{add_out1} <= (resize({op0_src}, {op0_src}'length + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_0'length);",
         )
         common.write(
             code,
             1,
-            f"res_arith_0 <= (resize({op1_src}, {op1_src}'length + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_1'length);",
+            f"{add_out0} <= (resize({op1_src}, {op1_src}'length + {value_int_bits + 1}) & \"{zero * value_frac_bits}\") + resize({mul_src}, res_arith_1'length);",
         )
+
+        if pipeline_after_add:
+            common.synchronous_process_prologue(code)
+            common.write(code, 3, "if en = '1' then")
+            common.write(code, 4, "res_arith_0 <= res_arith_0_comb;")
+            common.write(code, 4, "res_arith_1 <= res_arith_1_comb;")
+            common.write(code, 3, "end if;")
+            common.synchronous_process_epilogue(code)
 
         wls = [
             (self._dt.wl[0] + 2, self._dt.wl[1] + value_frac_bits),
