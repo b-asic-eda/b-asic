@@ -233,6 +233,15 @@ class TestProcessCollectionPlainMemoryVariable:
             for operand in pc_cmul.collection
         )
 
+    def test_get_by_type(self, secondorder_iir_schedule_with_execution_times):
+        pc = secondorder_iir_schedule_with_execution_times.get_operations()
+        pc_cmul = pc.get_by_type(ConstantMultiplication)
+        assert len(pc_cmul) == 7
+        assert all(
+            isinstance(operand.operation, ConstantMultiplication)
+            for operand in pc_cmul.collection
+        )
+
     def test_show(self, simple_collection: ProcessCollection):
         simple_collection.show()
 
