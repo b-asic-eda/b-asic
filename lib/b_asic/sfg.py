@@ -2790,18 +2790,15 @@ class SFG(AbstractOperation):
         )
 
         # Construct the noise gain dictionary with operation IDs
-        noise_gains = {}
-        for output_idx in range(len(noise_sfg._output_operations)):
-            output_key = f"out{output_idx}"
-            noise_gains[output_key] = {}
+        noise_gains = {op.graph_id: {} for op in noise_sfg._output_operations}
 
         # Map noise sources back to their original operations
         for noise_source_op in noise_sfg_inputs[num_original_inputs:]:
             noise_name = noise_source_op.name
             op_graph_id = noise_name.replace("noise_", "").rsplit("_out", 1)[0]
 
-            for out_idx, output_op in enumerate(noise_sfg._output_operations):
-                output_key = f"out{out_idx}"
+            for output_op in noise_sfg._output_operations:
+                output_key = output_op.graph_id
                 response_key = (noise_source_op.graph_id, output_op.graph_id)
                 noise_gains[output_key][op_graph_id] = responses_dict[response_key]
 
