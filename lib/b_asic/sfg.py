@@ -61,6 +61,16 @@ class GraphIDGenerator:
         """Construct a GraphIDGenerator."""
         self._next_id_number = defaultdict(lambda: id_number_offset)
 
+    def __getstate__(self) -> dict:
+        return {
+            "id_number_offset": self.id_number_offset,
+            "next_id_numbers": dict(self._next_id_number),
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        offset = state["id_number_offset"]
+        self._next_id_number = defaultdict(lambda: offset, state["next_id_numbers"])
+
     def next_id(self, type_name: TypeName, used_ids: MutableSet = set()) -> GraphID:  # noqa: B006
         """Get the next graph id for a certain graph id type."""
         new_id = type_name + str(self._next_id_number[type_name])
@@ -542,6 +552,8 @@ class SFG(AbstractOperation):
         """
         Get the graph id number offset of the graph id generator for this SFG.
         """
+        if self._graph_id_generator is None:
+            self._graph_id_generator = GraphIDGenerator(GraphIDNumber(0))
         return self._graph_id_generator.id_number_offset
 
     @property

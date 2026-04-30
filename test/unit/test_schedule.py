@@ -2,6 +2,8 @@
 B-ASIC test suite for the schedule module and Schedule class.
 """
 
+import io
+import pickle
 import re
 
 import matplotlib.testing.decorators
@@ -1106,3 +1108,20 @@ class TestGetIoLatency:
         schedule = Schedule(precedence_sfg_delays, scheduler=ASAPScheduler())
 
         assert schedule.get_io_latency() == {"in0": {"out0": 21}}
+
+
+class TestPickle:
+    def test_sfg_accessible_after_pickle(self, sfg_simple_filter):
+        sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
+        sfg_simple_filter.set_latency_of_type_name(
+            ConstantMultiplication.type_name(), 4
+        )
+        schedule = Schedule(sfg_simple_filter, scheduler=ASAPScheduler())
+        original_op_ids = {op.graph_id for op in schedule.sfg.operations}
+
+        buf = io.BytesIO()
+        pickle.dump(schedule, buf)
+        buf.seek(0)
+        loaded = pickle.load(buf)
+
+        assert {op.graph_id for op in loaded.sfg.operations} == original_op_ids
