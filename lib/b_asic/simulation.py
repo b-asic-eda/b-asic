@@ -301,20 +301,32 @@ class Simulation:
         """
         if self._data_type:
             if self._data_type.num_repr == NumRepresentation.FIXED_POINT:
-                return {
-                    key: apy.APyFixedArray(
-                        [v.to_bits() for v in value],
-                        int_bits=self._data_type.int_bits,
-                        frac_bits=self._data_type.frac_bits,
-                    )
-                    for key, value in self._results.items()
-                }
+                if self._data_type.is_complex:
+                    return {
+                        key: apy.APyCFixedArray(
+                            [v.to_bits() for v in value],
+                            int_bits=self._data_type.int_bits,
+                            frac_bits=self._data_type.frac_bits,
+                        )
+                        for key, value in self._results.items()
+                    }
+                else:
+                    return {
+                        key: apy.APyFixedArray(
+                            [v.to_bits() for v in value],
+                            int_bits=self._data_type.int_bits,
+                            frac_bits=self._data_type.frac_bits,
+                        )
+                        for key, value in self._results.items()
+                    }
             if self._data_type.num_repr == NumRepresentation.FLOATING_POINT:
+                if self._data_type.is_complex:
+                    raise NotImplementedError
                 return {
                     key: apy.APyFloatArray.from_bits(
                         [v.to_bits() for v in value],
                         exp_bits=self._data_type.exp_bits,
-                        sig_bits=self._data_type.sig_bits,
+                        man_bits=self._data_type.man_bits,
                     )
                     for key, value in self._results.items()
                 }
