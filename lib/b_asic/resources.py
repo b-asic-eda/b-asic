@@ -2360,7 +2360,7 @@ class ProcessCollection:
 
     def get_by_type_name(self, type_name: TypeName) -> "ProcessCollection":
         """
-        Return a new ProcessCollection with only a given type of operation.
+        Return a new ProcessCollection containing only processes of the given type name.
 
         Parameters
         ----------
@@ -2377,6 +2377,29 @@ class ProcessCollection:
                 for process in self._collection
                 if isinstance(process, OperatorProcess)
                 and process.operation.type_name() == type_name
+            },
+            self._schedule_time,
+            self._cyclic,
+        )
+
+    def get_by_type(self, process_type: type[Process]) -> "ProcessCollection":
+        """
+        Return a new ProcessCollection containing only processes of the given type.
+
+        Parameters
+        ----------
+        process_type : type
+            The :class:`~b_asic.process.Process` subclass to filter by.
+
+        Returns
+        -------
+        A new :class:`~b_asic.resources.ProcessCollection`.
+        """
+        return ProcessCollection(
+            {
+                process
+                for process in self._collection
+                if isinstance(process.operation, process_type)
             },
             self._schedule_time,
             self._cyclic,
