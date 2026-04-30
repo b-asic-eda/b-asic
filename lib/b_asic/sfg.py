@@ -4,6 +4,7 @@ B-ASIC Signal Flow Graph Module.
 Contains the signal flow graph operation.
 """
 
+import inspect
 import itertools
 import math
 import re
@@ -1802,6 +1803,7 @@ class SFG(AbstractOperation):
         splines: Literal["spline", "line", "ortho", "polyline", "curved"] = "spline",
         input_order: list["GraphID"] | None = None,
         output_order: list["GraphID"] | None = None,
+        show_op_params: bool = False,
     ) -> Digraph:
         """
         Return a Digraph of the SFG.
@@ -1831,6 +1833,8 @@ class SFG(AbstractOperation):
         output_order : list of GraphID or operation name, optional
             Top-to-bottom ordering of output nodes.
             Defaults to the SFG's natural output order.
+        show_op_params : bool, default: False
+            Annotate each operation node with its non-default-valued parameters.
         """
         dg = Digraph()
         dg.attr(rankdir="LR", splines=splines)
@@ -1911,10 +1915,29 @@ class SFG(AbstractOperation):
                         taillabel=taillabel,
                     )
             else:
+                _param_str = ""
+                if show_op_params:
+                    _init_defaults = {
+                        name: p.default
+                        for name, p in inspect.signature(
+                            op.__class__.__init__
+                        ).parameters.items()
+                        if p.default is not inspect.Parameter.empty
+                    }
+                    _nontrivial = {
+                        k: v
+                        for k, v in op.params.items()
+                        if v != _init_defaults.get(k, inspect.Parameter.empty)
+                    }
+                    if _nontrivial:
+                        _param_str = "\n" + ", ".join(
+                            f"{k}={v}" for k, v in _nontrivial.items()
+                        )
+                _base_label = f"{op.name}\n({op.graph_id})" if op.name else op.graph_id
                 dg.node(
                     op.graph_id,
                     shape=_OPERATION_SHAPE[op.type_name()],
-                    label=f"{op.name}\n({op.graph_id})" if op.name else None,
+                    label=_base_label + _param_str if _param_str or op.name else None,
                 )
         _input_order = (
             [self._resolve_graph_id_or_name(x) for x in input_order]
@@ -1991,6 +2014,7 @@ class SFG(AbstractOperation):
         splines: Literal["spline", "line", "ortho", "polyline", "curved"] = "spline",
         input_order: list["GraphID"] | None = None,
         output_order: list["GraphID"] | None = None,
+        show_op_params: bool = False,
     ) -> None:
         """
         Display a visual representation of the SFG using the default system viewer.
@@ -2025,6 +2049,8 @@ class SFG(AbstractOperation):
             Top-to-bottom ordering of output nodes.  Each entry may be a
             GraphID, an operation name, or a mix of both.
             See :meth:`sfg_digraph` for details.
+        show_op_params : bool, default: False
+            Annotate each operation node with its non-default-valued parameters.
         """
         dg = self.sfg_digraph(
             signal_info=signal_info,
@@ -2034,6 +2060,7 @@ class SFG(AbstractOperation):
             splines=splines,
             input_order=input_order,
             output_order=output_order,
+            show_op_params=show_op_params,
         )
         if fmt is not None:
             dg.format = fmt
