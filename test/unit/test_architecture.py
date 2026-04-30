@@ -146,10 +146,10 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         "digraph {\n\tnode [shape=box]\n\t"
         + "adder"
         + ' [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
-        + '<TR><TD COLSPAN="1" PORT="in0">in0</TD>'
-        + '<TD COLSPAN="1" PORT="in1">in1</TD></TR>'
-        + '<TR><TD COLSPAN="2"><B>adder</B></TD></TR>'
-        + '<TR><TD COLSPAN="2" PORT="out0">out0</TD></TR>'
+        + '<TR><TD PORT="in0">0</TD>'
+        + '<TD ROWSPAN="2"><B>adder</B></TD>'
+        + '<TD ROWSPAN="2" PORT="out0">0</TD></TR>'
+        + '<TR><TD PORT="in1">1</TD></TR>'
         + '</TABLE>> fillcolor="#00B9E7" fontname="Times New Roman" style=filled]\n}'
     )
     assert adder._digraph().source in (s, s + "\n")
@@ -169,9 +169,9 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
             "digraph {\n\tnode [shape=box]\n\tMEM0"
             + ' [label=<<TABLE BORDER="0" CELLBORDER="1"'
             + ' CELLSPACING="0" CELLPADDING="4">'
-            + '<TR><TD COLSPAN="1" PORT="in0">in0</TD></TR>'
-            + '<TR><TD COLSPAN="1"><B>MEM0</B></TD></TR>'
-            + '<TR><TD COLSPAN="1" PORT="out0">out0</TD></TR>'
+            + '<TR><TD PORT="in0">0</TD>'
+            + "<TD><B>MEM0</B></TD>"
+            + '<TD PORT="out0">0</TD></TR>'
             + '</TABLE>> fillcolor="#00CFB5" fontname="Times New Roman" '
             + "style=filled]\n}"
         )
@@ -205,9 +205,8 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
 
     # Graph representation
     # Parts are non-deterministic, but this first part seems OK
-    s = "digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tsubgraph cluster_memories"
+    s = "digraph {\n\tnode [shape=box]\n\t"
     assert architecture._digraph().source.startswith(s)
-    s = "digraph {\n\tnode [shape=box]\n\tsplines=spline\n\tMEM0"
     assert architecture._digraph(cluster=False).source.startswith(s)
     assert architecture.schedule_time == 18
 

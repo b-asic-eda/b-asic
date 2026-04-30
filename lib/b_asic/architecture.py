@@ -275,30 +275,80 @@ class Resource(HardwareBlock, ABC):
         """
         return self._output_count
 
-    def _struct_def(self) -> str:
-        # Create GraphViz struct
+    def _struct_def(
+        self, orientation: Literal["horizontal", "vertical"] = "horizontal"
+    ) -> str:
         inputs = [f"in{i}" for i in range(self.input_count)]
         outputs = [f"out{i}" for i in range(self.output_count)]
         ret = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
-        table_width = max(len(inputs), len(outputs), 1)
-        if inputs:
-            in_strs = [
-                f'<TD COLSPAN="{int(table_width / len(inputs))}"'
-                f' PORT="{in_str}">{in_str}</TD>'
-                for in_str in inputs
-            ]
-            ret += f"<TR>{''.join(in_strs)}</TR>"
-        ret += (
-            f'<TR><TD COLSPAN="{table_width}">'
-            f"<B>{self.entity_name}{self._info()}</B></TD></TR>"
-        )
-        if outputs:
-            out_strs = [
-                f'<TD COLSPAN="{int(table_width / len(outputs))}"'
-                f' PORT="{out_str}">{out_str}</TD>'
-                for out_str in outputs
-            ]
-            ret += f"<TR>{''.join(out_strs)}</TR>"
+
+        info = self._info()
+        name_cell = f"<B>{self.entity_name}</B>"
+        if info:
+            name_cell += f"<BR/>{info}"
+
+        if orientation == "horizontal":
+            n_rows = max(len(inputs), len(outputs), 1)
+            for row_idx in range(n_rows):
+                ret += "<TR>"
+                # Inputs
+                if inputs:
+                    if len(inputs) == 1:
+                        if row_idx == 0:
+                            rowspan = f' ROWSPAN="{n_rows}"' if n_rows > 1 else ""
+                            ret += (
+                                f'<TD{rowspan} PORT="{inputs[0]}">{inputs[0][2:]}</TD>'
+                            )
+                    else:
+                        if row_idx < len(inputs):
+                            ret += f'<TD PORT="{inputs[row_idx]}">{inputs[row_idx][2:]}</TD>'
+                        else:
+                            ret += '<TD BORDER="0"></TD>'
+
+                # Name
+                if row_idx == 0:
+                    rowspan = f' ROWSPAN="{n_rows}"' if n_rows > 1 else ""
+                    ret += f"<TD{rowspan}>{name_cell}</TD>"
+
+                # Outputs
+                if outputs:
+                    if len(outputs) == 1:
+                        if row_idx == 0:
+                            rowspan = f' ROWSPAN="{n_rows}"' if n_rows > 1 else ""
+                            ret += f'<TD{rowspan} PORT="{outputs[0]}">{outputs[0][3:]}</TD>'
+                    else:
+                        if row_idx < len(outputs):
+                            ret += f'<TD PORT="{outputs[row_idx]}">{outputs[row_idx][3:]}</TD>'
+                        else:
+                            ret += '<TD BORDER="0"></TD>'
+                ret += "</TR>"
+        else:
+            n_cols = max(len(inputs), len(outputs), 1)
+            if inputs:
+                ret += "<TR>"
+                if len(inputs) == 1:
+                    ret += f'<TD COLSPAN="{n_cols}" PORT="{inputs[0]}">{inputs[0][2:]}</TD>'
+                else:
+                    for i in range(n_cols):
+                        if i < len(inputs):
+                            ret += f'<TD PORT="{inputs[i]}">{inputs[i][2:]}</TD>'
+                        else:
+                            ret += '<TD BORDER="0"></TD>'
+                ret += "</TR>"
+
+            ret += f'<TR><TD COLSPAN="{n_cols}">{name_cell}</TD></TR>'
+
+            if outputs:
+                ret += "<TR>"
+                if len(outputs) == 1:
+                    ret += f'<TD COLSPAN="{n_cols}" PORT="{outputs[0]}">{outputs[0][3:]}</TD>'
+                else:
+                    for i in range(n_cols):
+                        if i < len(outputs):
+                            ret += f'<TD PORT="{outputs[i]}">{outputs[i][3:]}</TD>'
+                        else:
+                            ret += '<TD BORDER="0"></TD>'
+                ret += "</TR>"
         return ret + "</TABLE>>"
 
     def _info(self) -> str:
@@ -841,6 +891,18 @@ class Memory(Resource):
         --------
         ProcessCollection.split_on_execution_time
         """
+        write_bound = self._collection.write_ports_bound()
+        if write_bound > self._input_count:
+            raise ValueError(
+                f"{self.entity_name}: {write_bound} concurrent write(s) required"
+                f" but only {self._input_count} write port(s) declared."
+            )
+        read_bound = self._collection.read_ports_bound()
+        if read_bound > self._output_count:
+            raise ValueError(
+                f"{self.entity_name}: {read_bound} concurrent read(s) required"
+                f" but only {self._output_count} read port(s) declared."
+            )
         if self._memory_type == "RAM":
             self._assignment = self._collection.split_on_execution_time(
                 strategy, **kwargs
@@ -1403,7 +1465,12 @@ of :class:`~b_asic.architecture.ProcessingElement`
         }
 
     def _add_memory_nodes(
-        self, dg: Digraph, colors: dict[str, str], fontname: str, cluster: bool
+        self,
+        dg: Digraph,
+        colors: dict[str, str],
+        fontname: str,
+        cluster: bool,
+        orientation: Literal["horizontal", "vertical"],
     ) -> None:
         if not self._memories:
             return
@@ -1413,7 +1480,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 for mem in self._memories:
                     c.node(
                         mem.entity_name,
-                        mem._struct_def(),
+                        mem._struct_def(orientation),
                         style="filled",
                         fillcolor=colors["memory"],
                         fontname=fontname,
@@ -1424,7 +1491,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             for mem in self._memories:
                 dg.node(
                     mem.entity_name,
-                    mem._struct_def(),
+                    mem._struct_def(orientation),
                     style="filled",
                     fillcolor=colors["memory"],
                     fontname=fontname,
@@ -1437,6 +1504,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         fontname: str,
         cluster: bool,
         io_cluster: bool,
+        orientation: Literal["horizontal", "vertical"],
     ) -> None:
         if cluster:
             # Add non-IO processing elements
@@ -1445,7 +1513,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     if pe._type_name not in ("in", "out"):
                         c.node(
                             pe.entity_name,
-                            pe._struct_def(),
+                            pe._struct_def(orientation),
                             style="filled",
                             fillcolor=colors["pe"],
                             fontname=fontname,
@@ -1459,23 +1527,48 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
             # Add I/O processing elements
             if io_cluster:
-                with dg.subgraph(name="cluster_io") as c:
-                    for pe in self._processing_elements:
-                        if pe._type_name in ("in", "out"):
+                in_pes = [
+                    pe for pe in self._processing_elements if pe._type_name == "in"
+                ]
+                out_pes = [
+                    pe for pe in self._processing_elements if pe._type_name == "out"
+                ]
+                if in_pes:
+                    with dg.subgraph(name="cluster_io_in") as c:
+                        for pe in in_pes:
                             c.node(
                                 pe.entity_name,
-                                pe._struct_def(),
+                                pe._struct_def(orientation),
                                 style="filled",
                                 fillcolor=colors["io"],
                                 fontname=fontname,
                             )
-                    c.attr(label="I/O", bgcolor=colors["io_cluster"], fontname=fontname)
+                        c.attr(
+                            label="Inputs",
+                            bgcolor=colors["io_cluster"],
+                            fontname=fontname,
+                        )
+                if out_pes:
+                    with dg.subgraph(name="cluster_io_out") as c:
+                        for pe in out_pes:
+                            c.node(
+                                pe.entity_name,
+                                pe._struct_def(orientation),
+                                style="filled",
+                                fillcolor=colors["io"],
+                                fontname=fontname,
+                            )
+                        c.attr(
+                            label="Outputs",
+                            bgcolor=colors["io_cluster"],
+                            fontname=fontname,
+                        )
             else:
                 for pe in self._processing_elements:
                     if pe._type_name in ("in", "out"):
                         dg.node(
                             pe.entity_name,
-                            pe._struct_def(),
+                            pe._struct_def(orientation),
                             style="filled",
                             fillcolor=colors["io"],
                             fontname=fontname,
@@ -1484,7 +1577,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             for pe in self._processing_elements:
                 dg.node(
                     pe.entity_name,
-                    pe._struct_def(),
+                    pe._struct_def(orientation),
                     style="filled",
                     fillcolor=colors["pe"],
                     fontname=fontname,
@@ -1521,29 +1614,43 @@ of :class:`~b_asic.architecture.ProcessingElement`
         source_list: list[str],
         mux_color: str,
         fontname: str,
+        orientation: Literal["horizontal", "vertical"],
+        mux_label: bool = True,
     ) -> None:
-        input_strings = [f"in{i}" for i in range(len(source_list))]
-        ret = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
-        in_strs = [
-            f'<TD COLSPAN="1" PORT="{in_str}">{in_str}</TD>' for in_str in input_strings
-        ]
-        ret += f"<TR>{''.join(in_strs)}</TR>"
-
+        n_inputs = len(source_list)
         name = f"{destination_str.replace(':', '_')}_mux"
-        ret += (
-            f'<TR><TD COLSPAN="{len(input_strings)}" PORT="{name}">'
-            f"<B>{name}</B></TD></TR>"
-        )
-        ret += f'<TR><TD COLSPAN="{len(input_strings)}" PORT="out0">out0</TD></TR>'
-
+        ret = '<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
+        if orientation == "horizontal":
+            for i in range(n_inputs):
+                ret += f'<TR><TD PORT="{i}">{i}</TD>'
+                if i == 0:
+                    if mux_label:
+                        ret += (
+                            f'<TD ROWSPAN="{n_inputs}" PORT="{name}"><B>{name}</B></TD>'
+                        )
+                    ret += f'<TD ROWSPAN="{n_inputs}" PORT="out">0</TD>'
+                ret += "</TR>"
+        else:
+            ret += "<TR>"
+            for i in range(n_inputs):
+                ret += f'<TD PORT="{i}">{i}</TD>'
+            ret += "</TR>"
+            if mux_label:
+                ret += f'<TR><TD COLSPAN="{n_inputs}" PORT="{name}"><B>{name}</B></TD></TR>'
+            ret += "<TR>"
+            ret += f'<TD COLSPAN="{n_inputs}" PORT="out">0</TD>'
+            ret += "</TR>"
+        ret += "</TABLE>>"
         dg.node(
             name,
-            ret + "</TABLE>>",
+            ret,
             style="filled",
             fillcolor=mux_color,
             fontname=fontname,
         )
-        dg.edge(f"{name}:out0", destination_str)
+        out_port = "e" if orientation == "horizontal" else "s"
+        in_port = "w" if orientation == "horizontal" else "n"
+        dg.edge(f"{name}:out:{out_port}", f"{destination_str}:{in_port}")
 
     def _add_multiplexers(
         self,
@@ -1551,11 +1658,19 @@ of :class:`~b_asic.architecture.ProcessingElement`
         destination_list: dict[str, list[str]],
         mux_color: str,
         fontname: str,
+        orientation: Literal["horizontal", "vertical"],
+        mux_label: bool = True,
     ) -> None:
         for destination_str, source_list in destination_list.items():
             if len(source_list) > 1:
                 self._create_multiplexer_node(
-                    dg, destination_str, source_list, mux_color, fontname
+                    dg,
+                    destination_str,
+                    source_list,
+                    mux_color,
+                    fontname,
+                    orientation,
+                    mux_label,
                 )
 
     def _add_digraph_edges(
@@ -1566,25 +1681,79 @@ of :class:`~b_asic.architecture.ProcessingElement`
         branch_node: bool,
         multiplexers: bool,
         fontname: str,
+        wire_labels: bool = False,
+        orientation: Literal["horizontal", "vertical"] = "horizontal",
     ) -> None:
+        out_port = "e" if orientation == "horizontal" else "s"
+        in_port = "w" if orientation == "horizontal" else "n"
+        pe_names = {
+            pe.entity_name
+            for pe in self._processing_elements
+            if pe._type_name not in ("in", "out")
+        } | {mem.entity_name for mem in self._memories}
         destination_indices = {
             dest: {src: i for i, src in enumerate(sources)}
             for dest, sources in destination_list.items()
         }
+        wire_label_counter = 0
 
         for src_str, destination_counts in edges.items():
             original_src_str = src_str
-            if len(destination_counts) > 1 and branch_node:
-                branch = f"{src_str}_branch".replace(":", "")
-                dg.node(branch, shape="point")
-                dg.edge(src_str, branch, arrowhead="none", fontname=fontname)
-                src_str = branch
+            src_entity = src_str.split(":")[0]
+            use_wire_label = wire_labels and src_entity in pe_names
 
-            for destination_str, cnt_str in destination_counts:
-                if multiplexers and len(destination_list[destination_str]) > 1:
-                    idx = destination_indices[destination_str][original_src_str]
-                    destination_str = f"{destination_str.replace(':', '_')}_mux:in{idx}"
-                dg.edge(src_str, destination_str, label=cnt_str, fontname=fontname)
+            if use_wire_label:
+                wire_name = original_src_str.replace(":", "_")
+
+                # One outgoing stub at the PE output port
+                out_stub = f"_wl_out_{wire_label_counter}"
+                wire_label_counter += 1
+                dg.node(out_stub, wire_name, shape="plain", fontname=fontname)
+                dg.edge(
+                    f"{original_src_str}:{out_port}",
+                    out_stub,
+                    arrowhead="none",
+                    fontname=fontname,
+                )
+
+                # One incoming stub per destination
+                for destination_str, cnt_str in destination_counts:
+                    dest = destination_str
+                    if multiplexers and len(destination_list[destination_str]) > 1:
+                        idx = destination_indices[destination_str][original_src_str]
+                        dest = f"{destination_str.replace(':', '_')}_mux:{idx}"
+                    in_stub = f"_wl_in_{wire_label_counter}"
+                    wire_label_counter += 1
+                    dg.node(in_stub, wire_name, shape="plain", fontname=fontname)
+                    dg.edge(
+                        f"{in_stub}:{out_port}",
+                        f"{dest}:{in_port}",
+                        label=cnt_str,
+                        fontname=fontname,
+                    )
+            else:
+                using_branch = False
+                if len(destination_counts) > 1 and branch_node:
+                    branch = f"{src_str}_branch".replace(":", "")
+                    dg.node(branch, shape="point")
+                    dg.edge(
+                        f"{src_str}:{out_port}",
+                        branch,
+                        arrowhead="none",
+                        fontname=fontname,
+                    )
+                    src_str = branch
+                    using_branch = True
+
+                for destination_str, cnt_str in destination_counts:
+                    dest = destination_str
+                    if multiplexers and len(destination_list[destination_str]) > 1:
+                        idx = destination_indices[destination_str][original_src_str]
+                        dest = f"{destination_str.replace(':', '_')}_mux:{idx}"
+                    src_edge = src_str if using_branch else f"{src_str}:{out_port}"
+                    dg.edge(
+                        src_edge, f"{dest}:{in_port}", label=cnt_str, fontname=fontname
+                    )
 
     def show(
         self,
@@ -1596,6 +1765,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
         multiplexers: bool = True,
         colored: bool = True,
         engine: str = "dot",
+        ranksep: float = 0.5,
+        nodesep: float = 0.25,
+        wire_labels: bool = True,
+        orientation: Literal["horizontal", "vertical"] = "horizontal",
+        mux_label: bool = True,
     ) -> None:
         """
         Display a visual representation of the Architecture using the default system viewer.
@@ -1622,6 +1796,19 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether to color the nodes.
         engine : str, default: "dot"
             Graphviz engine to use. See https://graphviz.org/docs/layouts/ for more info.
+        ranksep : float, default: 0.5
+            Horizontal distance (in inches) between ranks, e.g. between the memory
+            column and the PE column.
+        nodesep : float, default: 0.25
+            Vertical distance (in inches) between nodes on the same rank.
+        wire_labels : bool, default: True
+            When True, PE output connections are shown as small named stubs at the
+            destination instead of routed arrows, reducing visual clutter from
+            feedback paths.
+        orientation : {"horizontal", "vertical"}, default: "horizontal"
+            Rendering orientation of the graph.
+        mux_label : bool, default: True
+            Whether to include labels on the multiplexer nodes.
         """
         dg = self._digraph(
             branch_node=branch_node,
@@ -1631,6 +1818,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
             multiplexers=multiplexers,
             colored=colored,
             engine=engine,
+            ranksep=ranksep,
+            nodesep=nodesep,
+            wire_labels=wire_labels,
+            orientation=orientation,
+            mux_label=mux_label,
         )
         if fmt is not None:
             dg.format = fmt
@@ -1646,6 +1838,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
         colored: bool = True,
         fontname: str = "Times New Roman",
         engine: str = "dot",
+        ranksep: float = 0.5,
+        nodesep: float = 0.25,
+        wire_labels: bool = True,
+        orientation: Literal["horizontal", "vertical"] = "horizontal",
+        mux_label: bool = True,
     ) -> Digraph:
         """
         Return a Digraph of the architecture.
@@ -1671,6 +1868,19 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Font to use.
         engine : str, default: "dot"
             Graphviz engine to use. See https://graphviz.org/docs/layouts/ for more info.
+        ranksep : float, default: 0.5
+            Horizontal distance (in inches) between ranks, e.g. between the memory
+            column and the PE column.
+        nodesep : float, default: 0.25
+            Vertical distance (in inches) between nodes on the same rank.
+        wire_labels : bool, default: False
+            When True, PE output connections are shown as small named stubs at the
+            destination instead of routed arrows, reducing visual clutter from
+            feedback paths.
+        orientation : {"horizontal", "vertical"}, default: "horizontal"
+            Overall orientation of the graph.
+        mux_label : bool, default: True
+            Whether to include labels on the multiplexer nodes.
 
         Returns
         -------
@@ -1678,24 +1888,49 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Digraph of the rendered architecture.
         """
         dg = Digraph(node_attr={"shape": "box"}, engine=engine)
-        dg.attr(splines=splines)
+        dg.attr(
+            splines=splines,
+            rankdir="LR" if orientation == "horizontal" else "TB",
+            ranksep=str(ranksep),
+            nodesep=str(nodesep),
+        )
 
         colors = self._get_digraph_colors(colored)
 
         # Add PE and memory nodes
-        self._add_memory_nodes(dg, colors, fontname, cluster)
-        self._add_pe_nodes(dg, colors, fontname, cluster, io_cluster)
+        self._add_memory_nodes(dg, colors, fontname, cluster, orientation)
+        self._add_pe_nodes(dg, colors, fontname, cluster, io_cluster, orientation)
 
         # Build and add interconnect edges
         edges, destination_edges = self._build_interconnect_edges()
-        destination_list = {k: list(v) for k, v in destination_edges.items()}
+        # Sort each mux's source list so ports are ordered by upstream position,
+        # which avoids edge crossings in the left-to-right layout.
+        pe_rank = {pe.entity_name: i for i, pe in enumerate(self._processing_elements)}
+        mem_rank = {
+            mem.entity_name: len(self._processing_elements) + i
+            for i, mem in enumerate(self._memories)
+        }
+        combined_rank = {**pe_rank, **mem_rank}
+        destination_list = {
+            k: sorted(v, key=lambda s: combined_rank.get(s.split(":")[0], 0))
+            for k, v in destination_edges.items()
+        }
 
         # Add muxes if needed and draw edges from mux to destinations
         if multiplexers:
-            self._add_multiplexers(dg, destination_list, colors["mux"], fontname)
+            self._add_multiplexers(
+                dg, destination_list, colors["mux"], fontname, orientation, mux_label
+            )
 
         self._add_digraph_edges(
-            dg, edges, destination_list, branch_node, multiplexers, fontname
+            dg,
+            edges,
+            destination_list,
+            branch_node,
+            multiplexers,
+            fontname,
+            wire_labels,
+            orientation,
         )
 
         return dg
