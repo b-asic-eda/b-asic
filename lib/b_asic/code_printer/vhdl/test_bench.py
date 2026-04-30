@@ -35,6 +35,7 @@ def _write_signal_generation(
 ) -> None:
     common.signal_declaration(f, "tb_clk", "std_logic", "'0'")
     common.signal_declaration(f, "tb_rst", "std_logic", "'0'")
+    common.signal_declaration(f, "tb_en", "std_logic", "'0'")
     inputs = [pe for pe in arch.processing_elements if pe.operation_type == Input]
     for pe in inputs:
         if dt.is_complex:
@@ -104,6 +105,10 @@ def _write_stimulus_generation(f: TextIO) -> None:
         [
             (1, "process"),
             (1, "begin"),
+            (2, "tb_rst <= '1';"),
+            (2, "wait for CLK_PERIOD;"),
+            (2, "tb_rst <= '0';"),
+            (2, "tb_en <= '1';"),
             (2, "-- WRITE CODE HERE"),
             (1, "end process;"),
         ],

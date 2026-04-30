@@ -43,8 +43,10 @@ async def r2bf_test(dut):
     cocotb.start_soon(_generate_clk(dut))
 
     dut.rst.value = 1
+    dut.en.value = 0
     await Timer(2, "ns")
     dut.rst.value = 0
+    dut.en.value = 1
     dut.input0_0_in.value = 5
 
     await Timer(2, "ns")

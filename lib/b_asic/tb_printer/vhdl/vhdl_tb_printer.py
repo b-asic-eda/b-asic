@@ -137,11 +137,12 @@ class VhdlTbPrinter:
             "",
             "    signal clk : std_logic := '0';",
             "    signal rst : std_logic := '1';",
+            "    signal en  : std_logic := '0';",
             "",
         ]
 
         # Signal declarations and port map entries
-        input_port_maps = ["clk => clk", "rst => rst"]
+        input_port_maps = ["clk => clk", "rst => rst", "en => en"]
         output_port_maps = []
 
         for pe in arch.processing_elements:
@@ -200,11 +201,11 @@ class VhdlTbPrinter:
         lines += [
             "    stimulus : process",
             "    begin",
-            "        -- Assert reset for two clock cycles",
             "        rst <= '1';",
-            "        wait until falling_edge(clk);",
+            "        en  <= '0';",
             "        wait until falling_edge(clk);",
             "        rst <= '0';",
+            "        en  <= '1';",
             "",
             # "        -- Sync to first active falling edge",
             # "        wait until falling_edge(clk);",

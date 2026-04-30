@@ -15,7 +15,12 @@ if TYPE_CHECKING:
 
 
 def entity(f: TextIO, arch: "Architecture", dt: _VhdlDataType) -> None:
-    ports = ["clk : in std_logic", "rst : in std_logic"]
+    ports = [
+        "clk : in std_logic",
+        "rst : in std_logic",
+        "en : in std_logic",
+    ]
+
     ports += [
         port
         for pe in arch.processing_elements
@@ -38,6 +43,7 @@ def architecture(
     io_registers: bool = False,
     multiplexer_control_registered: bool = True,
 ) -> None:
+    en_sig = "en_internal" if io_registers else "en"
     common.write(f, 0, f"architecture rtl of {arch.entity_name} is")
 
     common.write(f, 1, "-- Component declaration")
@@ -63,11 +69,13 @@ def architecture(
 
     common.write(f, 1, "-- Component instantiation")
     for pe in arch.processing_elements:
-        pe.write_component_instantiation(f, dt, io_registers=io_registers)
+        pe.write_component_instantiation(
+            f, dt, en_sig=en_sig, io_registers=io_registers
+        )
     for mem in arch.memories:
-        mem.write_component_instantiation(f)
+        mem.write_component_instantiation(f, en_sig=en_sig)
 
-    _write_schedule_counter(f, arch, io_registers)
+    _write_schedule_counter(f, arch, en_sig)
 
     # Generate control signals for multiplexers and then connect the top-level
     _write_mux_control_signals(
@@ -76,6 +84,7 @@ def architecture(
         pe_mux_info,
         mem_mux_info,
         multiplexer_control_registered,
+        en_sig,
     )
     _write_interconnect(f, dt, pe_mux_info, mem_mux_info)
 
@@ -224,6 +233,7 @@ def _write_mux_control_signals(
     pe_mux_info: list,
     mem_mux_info: list,
     multiplexer_control_registered: bool = False,
+    en_sig: str = "en",
 ) -> None:
     if not pe_mux_info and not mem_mux_info:
         return
@@ -261,14 +271,17 @@ def _write_mux_control_signals(
             )
 
             if multiplexer_control_registered:
+                sel_bits = selector_bits(len(unique_sources))
                 common.write(f, 1, "process(clk)")
                 common.write(f, 1, "begin")
                 common.write(f, 2, "if rising_edge(clk) then")
+                common.write(f, 3, f"if {en_sig} = '1' then")
                 common.write(
                     f,
-                    3,
+                    4,
                     f"{pe.entity_name}_{port_number}_sel <= {pe.entity_name}_{port_number}_sel_next;",
                 )
+                common.write(f, 3, "end if;")
                 common.write(f, 2, "end if;")
                 common.write(f, 1, "end process;", end="\n\n")
             else:
@@ -305,14 +318,17 @@ def _write_mux_control_signals(
             )
 
             if multiplexer_control_registered:
+                sel_bits = selector_bits(len(unique_sources))
                 common.write(f, 1, "process(clk)")
                 common.write(f, 1, "begin")
                 common.write(f, 2, "if rising_edge(clk) then")
+                common.write(f, 3, f"if {en_sig} = '1' then")
                 common.write(
                     f,
-                    3,
+                    4,
                     f"{mem.entity_name}_0_sel <= {mem.entity_name}_0_sel_next;",
                 )
+                common.write(f, 3, "end if;")
                 common.write(f, 2, "end if;")
                 common.write(f, 1, "end process;", end="\n\n")
             else:
@@ -376,17 +392,16 @@ def _write_interconnect(
 
 
 def _write_schedule_counter(
-    f: TextIO, arch: "Architecture", io_registers: bool = False
+    f: TextIO, arch: "Architecture", en_sig: str = "en"
 ) -> None:
-    rst_signal = "rst_int" if io_registers else "rst"
     common.write(f, 1, "-- Schedule counter")
     common.synchronous_process_prologue(f, name="schedule_cnt_proc")
     common.write_lines(
         f,
         [
-            (3, f"if {rst_signal} = '1' then"),
+            (3, "if rst = '1' then"),
             (4, "schedule_cnt <= (others => '0');"),
-            (3, "else"),
+            (3, f"elsif {en_sig} = '1' then"),
             (4, f"if schedule_cnt = {arch.schedule_time - 1} then"),
             (5, "schedule_cnt <= (others => '0');"),
             (4, "else"),
@@ -403,14 +418,12 @@ def _write_io_register_signal_declarations(
     f: TextIO, arch: "Architecture", dt: _VhdlDataType
 ) -> None:
     common.write(f, 1, "-- Internal signals for pipelined I/O")
-
-    # Pipelined reset
-    common.signal_declaration(f, "rst_int", "std_logic")
+    common.signal_declaration(f, "en_internal", "std_logic")
 
     # Pipelined inputs
     for pe in arch.processing_elements:
         if pe.operation_type == Input:
-            for port in dt.get_input_port_declaration(f"{pe.entity_name}_int"):
+            for port in dt.get_input_port_declaration(pe.entity_name, "_internal"):
                 port_parts = port.split(":")
                 signal_name = port_parts[0].strip()
                 signal_type = ":".join(port_parts[1:]).strip()
@@ -420,7 +433,7 @@ def _write_io_register_signal_declarations(
     # Pipelined outputs
     for pe in arch.processing_elements:
         if pe.operation_type == Output:
-            for port in dt.get_output_port_declaration(f"{pe.entity_name}_int"):
+            for port in dt.get_output_port_declaration(pe.entity_name, "_internal"):
                 port_parts = port.split(":")
                 signal_name = port_parts[0].strip()
                 signal_type = ":".join(port_parts[1:]).strip()
@@ -432,28 +445,34 @@ def _write_io_register_signal_declarations(
 def _write_io_registers(f: TextIO, arch: "Architecture", dt: _VhdlDataType) -> None:
     common.write(f, 1, "-- Pipelining of I/O")
 
-    # Pipelining of reset
-    common.synchronous_process_prologue(f, name="rst_pipeline_proc")
-    common.write(f, 3, "rst_int <= rst;")
-    common.synchronous_process_epilogue(f, name="rst_pipeline_proc", clk="clk")
+    # Pipeline enable by one cycle to align with registered inputs
+    common.synchronous_process_prologue(f, name="en_reg_proc")
+    common.write(f, 3, "en_internal <= en;")
+    common.synchronous_process_epilogue(f, name="en_reg_proc", clk="clk")
     common.blank(f)
 
     # Pipelining of inputs
     input_pes = [pe for pe in arch.processing_elements if pe.operation_type == Input]
     if input_pes:
         common.synchronous_process_prologue(f, name="input_reg_proc")
+        common.write(f, 3, "if en = '1' then")
         for pe in input_pes:
             if dt.is_complex:
                 common.write(
-                    f, 3, f"{pe.entity_name}_int_0_in_re <= {pe.entity_name}_0_in_re;"
+                    f,
+                    4,
+                    f"{pe.entity_name}_0_in_re_internal <= {pe.entity_name}_0_in_re;",
                 )
                 common.write(
-                    f, 3, f"{pe.entity_name}_int_0_in_im <= {pe.entity_name}_0_in_im;"
+                    f,
+                    4,
+                    f"{pe.entity_name}_0_in_im_internal <= {pe.entity_name}_0_in_im;",
                 )
             else:
                 common.write(
-                    f, 3, f"{pe.entity_name}_int_0_in <= {pe.entity_name}_0_in;"
+                    f, 4, f"{pe.entity_name}_0_in_internal <= {pe.entity_name}_0_in;"
                 )
+        common.write(f, 3, "end if;")
         common.synchronous_process_epilogue(f, name="input_reg_proc", clk="clk")
         common.blank(f)
 
@@ -461,17 +480,23 @@ def _write_io_registers(f: TextIO, arch: "Architecture", dt: _VhdlDataType) -> N
     output_pes = [pe for pe in arch.processing_elements if pe.operation_type == Output]
     if output_pes:
         common.synchronous_process_prologue(f, name="output_reg_proc")
+        common.write(f, 3, "if en_internal = '1' then")
         for pe in output_pes:
             if dt.is_complex:
                 common.write(
-                    f, 3, f"{pe.entity_name}_0_out_re <= {pe.entity_name}_int_0_out_re;"
+                    f,
+                    4,
+                    f"{pe.entity_name}_0_out_re <= {pe.entity_name}_0_out_re_internal;",
                 )
                 common.write(
-                    f, 3, f"{pe.entity_name}_0_out_im <= {pe.entity_name}_int_0_out_im;"
+                    f,
+                    4,
+                    f"{pe.entity_name}_0_out_im <= {pe.entity_name}_0_out_im_internal;",
                 )
             else:
                 common.write(
-                    f, 3, f"{pe.entity_name}_0_out <= {pe.entity_name}_int_0_out;"
+                    f, 4, f"{pe.entity_name}_0_out <= {pe.entity_name}_0_out_internal;"
                 )
+        common.write(f, 3, "end if;")
         common.synchronous_process_epilogue(f, name="output_reg_proc", clk="clk")
         common.blank(f)

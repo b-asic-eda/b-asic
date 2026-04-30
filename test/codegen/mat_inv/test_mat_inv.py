@@ -48,8 +48,10 @@ async def mat_inv_test(dut):
     cocotb.start_soon(_generate_clk(dut))
     # 3x3 matrix inversion, input in natural order, output in reversed order
     dut.rst.value = 1
+    dut.en.value = 0
     await Timer(2, "ns")
     dut.rst.value = 0
+    dut.en.value = 1
 
     # ROW 1
     dut.input_0_in.value = LogicArray.from_signed((1 * 2**13), 16)

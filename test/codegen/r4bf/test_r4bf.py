@@ -44,8 +44,10 @@ async def r4bf_test(dut):
     cocotb.start_soon(_generate_clk(dut))
 
     dut.rst.value = 1
+    dut.en.value = 0
     await Timer(2, "ns")
     dut.rst.value = 0
+    dut.en.value = 1
     # Iteration 1
     dut.input_0_in_re.value = 0
     dut.input_0_in_im.value = 1
