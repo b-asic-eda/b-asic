@@ -271,7 +271,6 @@ def _write_mux_control_signals(
             )
 
             if multiplexer_control_registered:
-                sel_bits = selector_bits(len(unique_sources))
                 common.write(f, 1, "process(clk)")
                 common.write(f, 1, "begin")
                 common.write(f, 2, "if rising_edge(clk) then")
@@ -318,7 +317,6 @@ def _write_mux_control_signals(
             )
 
             if multiplexer_control_registered:
-                sel_bits = selector_bits(len(unique_sources))
                 common.write(f, 1, "process(clk)")
                 common.write(f, 1, "begin")
                 common.write(f, 2, "if rising_edge(clk) then")

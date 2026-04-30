@@ -39,6 +39,7 @@ class CocotbPrinter:
         gui: bool = False,
         csv: bool = False,
         asserts: bool = True,
+        io_registers: bool = False,
     ) -> None:
         """
         Generate the cocotb test bench files.
@@ -63,6 +64,9 @@ class CocotbPrinter:
             Whether to dump input and output values to a CSV file during simulation.
         asserts : bool, default True
             Whether to include output assertions in the testbench.
+        io_registers : bool, default False
+            Whether the design was built with I/O registers.
+            When True, output assertions are offset by 2 cycles.
         """
         path = Path(path)
 
@@ -88,6 +92,7 @@ class CocotbPrinter:
                 gid_info[gid] = (pe.entity_name, pe.operation_type is Input)
 
         seq_map = defaultdict(dict)
+        output_offset = 2 if io_registers else 0
 
         for gid, (pe_name, is_input) in gid_info.items():
             values = self._sim_results[gid]
@@ -95,6 +100,8 @@ class CocotbPrinter:
 
             for sample_idx, value in enumerate(values):
                 time = start_time + sample_idx * schedule_time
+                if not is_input:
+                    time += output_offset
 
                 if is_complex:
                     if is_input:
