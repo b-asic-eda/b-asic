@@ -329,41 +329,49 @@ class _VhdlDataType(DataType):
     def output_type_str(self) -> str:
         return f"std_logic_vector({self.output_bits - 1} downto 0)"
 
-    def get_input_port_declaration(self, entity_name: str) -> list[str]:
+    def get_input_port_declaration(
+        self, entity_name: str, signal_suffix: str = ""
+    ) -> list[str]:
         if self.is_complex:
             return [
-                f"{entity_name}_0_in_re : in {self.input_type_str}",
-                f"{entity_name}_0_in_im : in {self.input_type_str}",
+                f"{entity_name}_0_in_re{signal_suffix} : in {self.input_type_str}",
+                f"{entity_name}_0_in_im{signal_suffix} : in {self.input_type_str}",
             ]
         else:
-            return [f"{entity_name}_0_in : in {self.input_type_str}"]
+            return [f"{entity_name}_0_in{signal_suffix} : in {self.input_type_str}"]
 
-    def get_output_port_declaration(self, entity_name: str) -> list[str]:
+    def get_output_port_declaration(
+        self, entity_name: str, signal_suffix: str = ""
+    ) -> list[str]:
         if self.is_complex:
             return [
-                f"{entity_name}_0_out_re : out {self.output_type_str}",
-                f"{entity_name}_0_out_im : out {self.output_type_str}",
+                f"{entity_name}_0_out_re{signal_suffix} : out {self.output_type_str}",
+                f"{entity_name}_0_out_im{signal_suffix} : out {self.output_type_str}",
             ]
         else:
-            return [f"{entity_name}_0_out : out {self.output_type_str}"]
+            return [f"{entity_name}_0_out{signal_suffix} : out {self.output_type_str}"]
 
-    def get_input_port_mapping(self, entity_name: str) -> list[str]:
+    def get_input_port_mapping(
+        self, entity_name: str, signal_suffix: str = ""
+    ) -> list[str]:
         if self.is_complex:
             return [
-                f"p_0_in_re => {entity_name}_0_in_re",
-                f"p_0_in_im => {entity_name}_0_in_im",
+                f"p_0_in_re => {entity_name}_0_in_re{signal_suffix}",
+                f"p_0_in_im => {entity_name}_0_in_im{signal_suffix}",
             ]
         else:
-            return [f"p_0_in => {entity_name}_0_in"]
+            return [f"p_0_in => {entity_name}_0_in{signal_suffix}"]
 
-    def get_output_port_mapping(self, entity_name: str) -> list[str]:
+    def get_output_port_mapping(
+        self, entity_name: str, signal_suffix: str = ""
+    ) -> list[str]:
         if self.is_complex:
             return [
-                f"p_0_out_re => {entity_name}_0_out_re",
-                f"p_0_out_im => {entity_name}_0_out_im",
+                f"p_0_out_re => {entity_name}_0_out_re{signal_suffix}",
+                f"p_0_out_im => {entity_name}_0_out_im{signal_suffix}",
             ]
         else:
-            return [f"p_0_out => {entity_name}_0_out"]
+            return [f"p_0_out => {entity_name}_0_out{signal_suffix}"]
 
     def _vhdl_type(self, name: str) -> str:
         return f"{name}({self.high} downto {self.low})"

@@ -47,8 +47,10 @@ async def r3bf_test(dut):
     cocotb.start_soon(_generate_clk(dut))
 
     dut.rst.value = 1
+    dut.en.value = 0
     await Timer(2, "ns")
     dut.rst.value = 0
+    dut.en.value = 1
 
     dut.input_0_in_re.value = 8192
     dut.input_0_in_im.value = 0
@@ -162,8 +164,10 @@ async def r3bf_io_registers_test(dut):
     cocotb.start_soon(_generate_clk(dut))
 
     dut.rst.value = 1
+    dut.en.value = 0
     await Timer(2, "ns")
     dut.rst.value = 0
+    dut.en.value = 1
 
     dut.input_0_in_re.value = 8192
     dut.input_0_in_im.value = 0

@@ -313,8 +313,10 @@ async def shiftaddsub_test(dut):
     cocotb.start_soon(Clock(dut.clk, 2, unit="ns").start())
 
     dut.rst.value = 1
+    dut.en.value = 0
     await FallingEdge(dut.clk)
     dut.rst.value = 0
+    dut.en.value = 1
 
     # Get test cases and latency from environment variables
     test_cases = json.loads(os.environ.get("TEST_CASES", "[]"))

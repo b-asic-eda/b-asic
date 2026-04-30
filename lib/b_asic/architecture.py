@@ -646,17 +646,26 @@ class ProcessingElement(Resource):
         common.blank(f)
 
     def write_component_instantiation(
-        self, f: TextIO, dt: _VhdlDataType, indent: int = 1, io_registers: bool = False
+        self,
+        f: TextIO,
+        dt: _VhdlDataType,
+        indent: int = 1,
+        en_sig: str = "en",
+        io_registers: bool = False,
     ) -> None:
-        port_mappings = ["clk => clk", "en => '1'", "schedule_cnt => schedule_cnt"]
+        port_mappings = [
+            "clk => clk",
+            f"en => {en_sig}",
+            "schedule_cnt => schedule_cnt",
+        ]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
         ]
         if self.operation_type == Input:
-            suffix = "_int" if io_registers else ""
+            signal_suffix = "_internal" if io_registers else ""
             port_mappings.extend(
-                dt.get_input_port_mapping(f"{self.entity_name}{suffix}")
+                dt.get_input_port_mapping(self.entity_name, signal_suffix)
             )
 
         port_mappings += [
@@ -664,9 +673,9 @@ class ProcessingElement(Resource):
             for port_number in range(self.output_count)
         ]
         if self.operation_type == Output:
-            suffix = "_int" if io_registers else ""
+            signal_suffix = "_internal" if io_registers else ""
             port_mappings.extend(
-                dt.get_output_port_mapping(f"{self.entity_name}{suffix}")
+                dt.get_output_port_mapping(self.entity_name, signal_suffix)
             )
 
         common.component_instantiation(
@@ -879,8 +888,14 @@ class Memory(Resource):
             )
         common.blank(f)
 
-    def write_component_instantiation(self, f: TextIO, indent: int = 1) -> None:
-        port_mappings = ["clk => clk", "en => '1'", "schedule_cnt => schedule_cnt"]
+    def write_component_instantiation(
+        self, f: TextIO, indent: int = 1, en_sig: str = "en"
+    ) -> None:
+        port_mappings = [
+            "clk => clk",
+            f"en => {en_sig}",
+            "schedule_cnt => schedule_cnt",
+        ]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
@@ -1072,7 +1087,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
     def write_component_declaration(
         self, f: TextIO, dt: _VhdlDataType, indent: int = 1
     ) -> None:
-        ports = ["clk : in std_logic", "rst : in std_logic"]
+        ports = ["clk : in std_logic", "rst : in std_logic", "en : in std_logic"]
 
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         for pe in inputs:
@@ -1102,7 +1117,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
     def write_component_instantiation(
         self, f: TextIO, dt: _VhdlDataType, indent: int = 1
     ) -> None:
-        port_mappings = ["clk => tb_clk", "rst => tb_rst"]
+        port_mappings = ["clk => tb_clk", "rst => tb_rst", "en => tb_en"]
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         for pe in inputs:
             if dt.is_complex:
