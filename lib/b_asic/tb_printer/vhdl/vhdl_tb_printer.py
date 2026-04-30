@@ -34,6 +34,7 @@ class VhdlTbPrinter:
         *,
         path: str | Path = Path(),
         asserts: bool = True,
+        io_registers: bool = False,
     ) -> None:
         """
         Generate the VHDL test bench file.
@@ -48,6 +49,9 @@ class VhdlTbPrinter:
             The output directory path, defaults to the current directory.
         asserts : bool, default True
             Whether to include output assertions in the testbench.
+        io_registers : bool, default False
+            Whether the design was built with I/O registers.
+            When True, output assertions are offset by 2 cycles.
         """
         path = Path(path)
 
@@ -71,6 +75,7 @@ class VhdlTbPrinter:
 
         seq_map = defaultdict(dict)
         input_signal_names: set[str] = set()
+        output_offset = 2 if io_registers else 0
 
         for gid in io_marked:
             values = self._sim_results[gid]
@@ -82,6 +87,8 @@ class VhdlTbPrinter:
             for sample_idx in range(len(values)):
                 value = values[sample_idx]
                 time = start_time + sample_idx * schedule_time
+                if not is_input:
+                    time += output_offset
 
                 if is_complex:
                     if is_input:
