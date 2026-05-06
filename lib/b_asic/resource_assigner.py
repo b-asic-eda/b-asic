@@ -29,7 +29,7 @@ from pulp import (
 import b_asic.logger
 from b_asic.architecture import Memory, ProcessingElement
 from b_asic.operation import Operation
-from b_asic.process import MemoryVariable, Process
+from b_asic.process import MemoryOutputPort, MemoryVariable, Process
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
 from b_asic.types import TypeName
@@ -187,15 +187,14 @@ def _split_operations_and_variables(
                     f"Operation {process} has execution time greater than the schedule time."
                 )
 
-    if memory_type == "RAM":
+    if memory_type == "RAM" and any(
+        p.execution_time > mem_vars.schedule_time for p in mem_vars
+    ):
         log.info(
-            "Checking that memory variable execution times do not exceed schedule time due to RAM memory type"
+            "Memory variables with execution time exceeding schedule time detected;"
+            " splitting into chains automatically"
         )
-        for process in mem_vars:
-            if process.execution_time > mem_vars.schedule_time:
-                raise ValueError(
-                    f"Memory variable {process} has execution time greater than the schedule time."
-                )
+        mem_vars = mem_vars.split_into_chains()
 
     # Generate the color upper bound for PEs
     log.info("Generating color upper bounds")
@@ -487,6 +486,7 @@ def _ilp_min_mux(
     pe_to_pe_vars, pe_to_pe_vars_used = _create_pe_to_pe_connection_variables(
         op_groups, max_pes, pe_out_cnt, pe_in_cnt
     )
+    mem_to_mem_vars = _create_mem_to_mem_connection_variables(max_mems)
 
     problem = LpProblem()
     problem += lpSum(
@@ -503,6 +503,11 @@ def _ilp_min_mux(
             ),
             lpSum(
                 var for dst_vars in pe_to_pe_vars.values() for var in dst_vars.values()
+            ),
+            lpSum(
+                mem_to_mem_vars[src][dst]
+                for src in range(max_mems)
+                for dst in range(max_mems)
             ),
         ]
     )
@@ -557,6 +562,21 @@ def _ilp_min_mux(
                         )
                         mem_to_pe_constraints += 1
     log.info("Total Memory->PE constraints: %d", mem_to_pe_constraints)
+
+    log.info("Adding Memory->Memory constraints")
+    mem_to_mem_constraints = 0
+    for var in mem_vars:
+        if not isinstance(var.write_port, MemoryOutputPort):
+            continue
+        source_var = var.write_port.source_variable
+        for src_mem_idx in range(max_mems):
+            for dst_mem_idx in range(max_mems):
+                problem += (
+                    mem_to_mem_vars[src_mem_idx][dst_mem_idx]
+                    >= mem_x[source_var][src_mem_idx] + mem_x[var][dst_mem_idx] - 1
+                )
+                mem_to_mem_constraints += 1
+    log.info("Total Memory->Memory constraints: %d", mem_to_mem_constraints)
 
     log.info("Adding PE->PE constraints")
     op_info = {
@@ -635,6 +655,7 @@ def _ilp_min_mux(
                     for pe_idx in range(max_pes[op_type_name])
                     for out_port in range(pe_out_cnt[op_type_name])
                 )
+                + lpSum(mem_to_mem_vars[src][mem_idx] for src in range(max_mems))
                 <= max_mux_size
             )
 
@@ -893,7 +914,10 @@ def _get_mem_node(
     for mem_process in mem_nodes:
         parts = mem_process.name.split(".")
         var_name, port_str = parts[0], parts[1]
-        if var_name == pe_node.operation.graph_id and int(port_str) == pe_port_index:
+        if (
+            var_name == pe_node.operation.graph_id
+            and int(port_str.split("_")[0]) == pe_port_index
+        ):
             return mem_process
     return None
 
@@ -904,7 +928,7 @@ def _get_pe_nodes(
     nodes = []
     parts = mem_node.name.split(".")
     var_name = parts[0]
-    port_index = int(parts[1])
+    port_index = int(parts[1].split("_")[0])
     for pe_process in pe_nodes:
         for input_port in pe_process.operation.inputs:
             input_op = input_port.connected_source.operation
@@ -995,6 +1019,18 @@ def _create_pe_to_pe_connection_variables(
                             cnt += 1
     log.info("PE->PE connection variables created: %d", cnt)
     return pe_to_pe_vars, pe_to_pe_vars_used
+
+
+def _create_mem_to_mem_connection_variables(max_mems: int) -> dict:
+    mem_to_mem_vars: dict[int, dict[int, LpVariable]] = {}
+    for src in range(max_mems):
+        mem_to_mem_vars[src] = {}
+        for dst in range(max_mems):
+            mem_to_mem_vars[src][dst] = LpVariable(
+                f"mem_to_mem_{src}_{dst}", cat=LpBinary
+            )
+    log.info("Memory->Memory connection variables created: %d", max_mems * max_mems)
+    return mem_to_mem_vars
 
 
 def _create_pe_variables(

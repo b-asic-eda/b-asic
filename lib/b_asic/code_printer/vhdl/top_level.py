@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, TextIO
 from b_asic.code_printer.util import selector_bits, time_bin_str
 from b_asic.code_printer.vhdl import common
 from b_asic.data_type import _VhdlDataType
+from b_asic.process import MemoryOutputPort
 from b_asic.special_operations import Input, Output
 from b_asic.utility_operations import DontCare
 
@@ -117,7 +118,7 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                         if process.start_time % arch.schedule_time not in read_times:
                             continue
                         var_op_id = var.name.split(".")[0]
-                        var_port_index = int(var.name.split(".")[1])
+                        var_port_index = int(var.name.split(".")[1].split("_")[0])
                         if (
                             var_op_id == source_op.graph_id
                             and var_port_index == source_port.index
@@ -154,22 +155,38 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
     for mem in arch.memories:
         assignments = []
         for var in mem.collection:
-            source_op_graph_id = var.name.split(".")[0]
-            source_port_index = var.name.split(".")[1]
             is_found = False
-            for other_pe in arch.processing_elements:
-                for pro in other_pe.collection:
-                    if pro.operation.graph_id == source_op_graph_id:
-                        source_pe = other_pe
+            time = var.start_time % arch.schedule_time
+
+            if isinstance(var.write_port, MemoryOutputPort):
+                # Source is another memory variable (chained lifetime split)
+                source_var = var.write_port.source_variable
+                for other_mem in arch.memories:
+                    if any(ov is source_var for ov in other_mem.collection):
+                        source_signal = f"{other_mem.entity_name}_0_out"
+                        assignments.append((time, source_signal))
                         is_found = True
                         break
-                if is_found:
-                    break
-            if not is_found:
-                raise ValueError("Source resource not found.")
-            time = var.start_time % arch.schedule_time
-            source_signal = f"{source_pe.entity_name}_{source_port_index}_out"
-            assignments.append((time, source_signal))
+                if not is_found:
+                    raise ValueError(
+                        f"Source memory not found for chained variable {var.name!r}"
+                    )
+            else:
+                # Source is a PE output port
+                source_op_graph_id = var.name.split(".")[0]
+                source_port_index = var.name.split(".")[1].split("_")[0]
+                for other_pe in arch.processing_elements:
+                    for pro in other_pe.collection:
+                        if pro.operation.graph_id == source_op_graph_id:
+                            source_pe = other_pe
+                            is_found = True
+                            break
+                    if is_found:
+                        break
+                if not is_found:
+                    raise ValueError("Source resource not found.")
+                source_signal = f"{source_pe.entity_name}_{source_port_index}_out"
+                assignments.append((time, source_signal))
 
         if assignments:
             mem_mux_info.append((mem, assignments))

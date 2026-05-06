@@ -33,7 +33,13 @@ from b_asic.code_printer.vhdl.util import schedule_time_type
 from b_asic.data_type import DataType, _VhdlDataType
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
-from b_asic.process import MemoryProcess, MemoryVariable, OperatorProcess, Process
+from b_asic.process import (
+    MemoryOutputPort,
+    MemoryProcess,
+    MemoryVariable,
+    OperatorProcess,
+    Process,
+)
 from b_asic.resources import (
     ProcessCollection,
     _ForwardBackwardTable,
@@ -1073,18 +1079,22 @@ of :class:`~b_asic.architecture.ProcessingElement`
         for memory in self.memories:
             for mv in memory:
                 for read_port in mv.read_ports:
-                    self._variable_input_port_to_resource[read_port].add(
-                        (memory, 0)
-                    )  # Fix
-                self._variable_outport_to_resource[mv.write_port].add(
-                    (memory, 0)
-                )  # Fix
+                    if isinstance(read_port, InputPort):  # skip MemoryInputPort relays
+                        self._variable_input_port_to_resource[read_port].add(
+                            (memory, 0)
+                        )
+                if not isinstance(mv.write_port, MemoryOutputPort):
+                    self._variable_outport_to_resource[mv.write_port].add((memory, 0))
         if self._direct_interconnects:
             for di in self._direct_interconnects:
                 di = cast(MemoryVariable, di)
+                if isinstance(di.write_port, MemoryOutputPort):
+                    continue
                 if isinstance(di.write_port.operation, DontCare):
                     continue
                 for read_port in di.read_ports:
+                    if not isinstance(read_port, InputPort):
+                        continue
                     self._variable_input_port_to_resource[read_port].add(
                         (
                             self._operation_outport_to_resource[di.write_port],
@@ -1105,17 +1115,28 @@ of :class:`~b_asic.architecture.ProcessingElement`
         memory_write_ports = set()
         for memory in self.memories:
             for mv in memory:
-                if isinstance(mv.write_port.operation, DontCare):
-                    continue
-                memory_write_ports.add(mv.write_port)
-                memory_read_ports.update(mv.read_ports)
+                # Always collect PE reads, but only record PE-sourced write_ports
+                if not isinstance(mv.write_port, MemoryOutputPort) and not isinstance(
+                    mv.write_port.operation, DontCare
+                ):
+                    memory_write_ports.add(mv.write_port)
+                memory_read_ports.update(
+                    rp for rp in mv.read_ports if isinstance(rp, InputPort)
+                )
         if self._direct_interconnects:
             for mv in self._direct_interconnects:
                 mv = cast(MemoryVariable, mv)
+                if isinstance(mv.write_port, MemoryOutputPort):
+                    memory_read_ports.update(
+                        rp for rp in mv.read_ports if isinstance(rp, InputPort)
+                    )
+                    continue
                 if isinstance(mv.write_port.operation, DontCare):
                     continue
                 memory_write_ports.add(mv.write_port)
-                memory_read_ports.update(mv.read_ports)
+                memory_read_ports.update(
+                    rp for rp in mv.read_ports if isinstance(rp, InputPort)
+                )
 
         pe_input_ports: set[InputPort] = set()
         pe_output_ports: set[OutputPort] = set()
@@ -1237,9 +1258,18 @@ of :class:`~b_asic.architecture.ProcessingElement`
         d_out: defaultdict[Resource, int] = defaultdict(_interconnect_dict)
         for var in mem.collection:
             var = cast(MemoryVariable, var)
-            d_in[self._operation_outport_to_resource[var.write_port]] += 1
+            if isinstance(var.write_port, MemoryOutputPort):
+                # Source is another memory (chained variable)
+                source_var = var.write_port.source_variable
+                for other_mem in self._memories:
+                    if any(v is source_var for v in other_mem):
+                        d_in[other_mem] += 1
+                        break
+            else:
+                d_in[self._operation_outport_to_resource[var.write_port]] += 1
             for read_port in var.read_ports:
-                d_out[self._operation_input_port_to_resource[read_port]] += 1
+                if isinstance(read_port, InputPort):
+                    d_out[self._operation_input_port_to_resource[read_port]] += 1
         return dict(d_in), dict(d_out)
 
     def get_interconnects_for_pe(
@@ -1604,6 +1634,20 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     destination_str = f"{destination.entity_name}:in{port}"
                     edges[source_str].add((destination_str, f"{cnt}"))
                     destination_edges[destination_str].add(source_str)
+
+        # Add memory-to-memory edges for chained lifetime-split variables
+        for dst_mem in self._memories:
+            for mv in dst_mem:
+                if not isinstance(mv.write_port, MemoryOutputPort):
+                    continue
+                source_var = mv.write_port.source_variable
+                for src_mem in self._memories:
+                    if any(v is source_var for v in src_mem):
+                        source_str = f"{src_mem.entity_name}:out0"
+                        destination_str = f"{dst_mem.entity_name}:in0"
+                        edges[source_str].add((destination_str, "1"))
+                        destination_edges[destination_str].add(source_str)
+                        break
 
         return edges, destination_edges
 

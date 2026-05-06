@@ -121,6 +121,44 @@ class OperatorProcess(Process):
         return f"OperatorProcess({self.start_time}, {self.operation}, {self.name!r})"
 
 
+class MemoryOutputPort:
+    """
+    Represents the read-output of a memory variable.
+
+    Used as the ``write_port`` of a chained :class:`MemoryVariable` when the data source
+    is another memory variable's read output rather than an SFG operation
+    :class:`~b_asic.port.OutputPort`.
+    """
+
+    __slots__ = ("source_variable",)
+
+    def __init__(self, source_variable: "MemoryVariable") -> None:
+        self.source_variable = source_variable
+
+    @property
+    def name(self) -> str:
+        return f"mem_out.{self.source_variable.name}"
+
+
+class MemoryInputPort:
+    """
+    Represents the write-input of a downstream memory variable.
+
+    Used as a key in the ``reads`` dict of a :class:`MemoryVariable` when the read's
+    destination is the next variable in a chain rather than an SFG operation
+    :class:`~b_asic.port.InputPort`.
+    """
+
+    __slots__ = ("destination_variable",)
+
+    def __init__(self, destination_variable: "MemoryVariable") -> None:
+        self.destination_variable = destination_variable
+
+    @property
+    def name(self) -> str:
+        return f"mem_in.{self.destination_variable.name}"
+
+
 class MemoryProcess(Process):
     """
     Intermediate class (abstract) for memory processes.
@@ -283,15 +321,15 @@ class MemoryVariable(MemoryProcess):
     """
 
     __slots__ = ("_read_ports", "_reads", "_write_port")
-    _reads: dict[InputPort, int]
-    _read_ports: list[InputPort]
-    _write_port: OutputPort
+    _reads: dict[InputPort | MemoryInputPort, int]
+    _read_ports: list[InputPort | MemoryInputPort]
+    _write_port: OutputPort | MemoryOutputPort
 
     def __init__(
         self,
         write_time: int,
-        write_port: OutputPort,
-        reads: dict[InputPort, int],
+        write_port: OutputPort | MemoryOutputPort,
+        reads: dict[InputPort | MemoryInputPort, int],
         name: str | None = None,
     ) -> None:
         self._read_ports = list(reads.keys())
@@ -304,15 +342,15 @@ class MemoryVariable(MemoryProcess):
         )
 
     @property
-    def reads(self) -> dict[InputPort, int]:
+    def reads(self) -> dict[InputPort | MemoryInputPort, int]:
         return self._reads
 
     @property
-    def read_ports(self) -> list[InputPort]:
+    def read_ports(self) -> list[InputPort | MemoryInputPort]:
         return self._read_ports
 
     @property
-    def write_port(self) -> OutputPort:
+    def write_port(self) -> OutputPort | MemoryOutputPort:
         return self._write_port
 
     def __repr__(self) -> str:
