@@ -33,6 +33,8 @@ from pulp import (
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
 from b_asic.code_printer.vhdl.common import is_valid_vhdl_identifier
 from b_asic.process import (
+    MemoryInputPort,
+    MemoryOutputPort,
     MemoryProcess,
     MemoryVariable,
     OperatorProcess,
@@ -119,7 +121,7 @@ def _sanitize_port_option(
 def _get_source_port(var: MemoryVariable, pes: list["ProcessingElement"]) -> str:
     split_var = iter(var.name.split("."))
     var_name = next(split_var)
-    port_index = int(next(split_var))
+    port_index = int(next(split_var).split("_")[0])
     for pe in pes:
         for process in pe:
             if var_name == process.name:
@@ -132,7 +134,7 @@ def _get_source_port(var: MemoryVariable, pes: list["ProcessingElement"]) -> str
 def _get_destination_port(var: MemoryVariable, pes: list["ProcessingElement"]) -> str:
     split_var = iter(var.name.split("."))
     var_name = next(split_var)
-    port_index = int(next(split_var))
+    port_index = int(next(split_var).split("_")[0])
     for pe in pes:
         for process in pe:
             for input_port in process.operation.inputs:
@@ -920,6 +922,7 @@ class ProcessCollection:
         self,
         strategy: Literal[
             "left_edge",
+            "left_edge_min_mux",
             "greedy_graph_color",
             "ilp_graph_color",
         ] = "left_edge",
@@ -930,7 +933,7 @@ class ProcessCollection:
 
         Parameters
         ----------
-        strategy : {'ilp_graph_color', 'greedy_graph_color', 'left_edge'}, default: 'left_edge'
+        strategy : {'ilp_graph_color', 'greedy_graph_color', 'left_edge', 'left_edge_min_mux'}, default: 'left_edge'
             The strategy used when splitting based on execution times.
 
         alg_params : dict, optional
@@ -961,6 +964,12 @@ class ProcessCollection:
 
                     print(pulp.listSolvers(onlyAvailable=True))
 
+            For ``'left_edge_min_mux'``:
+
+            direct_variables : :class:`ProcessCollection`
+                Variables that are passed directly between operations without going
+                through memory. Used to inform mux-minimizing placement decisions.
+
         Returns
         -------
         A list of new ProcessCollection objects with the process splitting.
@@ -971,12 +980,19 @@ class ProcessCollection:
         )
         max_colors = alg_params.get("max_colors", None)
         solver = alg_params.get("solver", None)
+        direct_variables = alg_params.get("direct_variables", None)
         if strategy == "ilp_graph_color":
             return self._ilp_graph_color_assignment(max_colors, solver)
         elif strategy == "greedy_graph_color":
             return self._greedy_graph_color_assignment(coloring_strategy)
         elif strategy == "left_edge":
             return self._left_edge_assignment()
+        elif strategy == "left_edge_min_mux":
+            if direct_variables is None:
+                raise ValueError(
+                    "direct_variables must be provided if strategy = 'left_edge_min_mux'"
+                )
+            return self._left_edge_min_mux_assignment(direct_variables)
         else:
             raise ValueError(f"Invalid strategy '{strategy}'")
 
@@ -992,6 +1008,7 @@ class ProcessCollection:
             "left_edge",
             "left_edge_min_pe_to_mem",
             "left_edge_min_mem_to_pe",
+            "left_edge_min_mux",
         ] = "left_edge",
         read_ports: int | None = None,
         write_ports: int | None = None,
@@ -1018,6 +1035,7 @@ class ProcessCollection:
             * ``'left_edge'`` - Greedy heuristic for assigning variables.
             * ``'left_edge_min_pe_to_mem'`` - Greedy heuristic for assigning variables, attempting to reduce the amount of PE -> memory connections.
             * ``'left_edge_min_mem_to_pe'`` - Greedy heuristic for assigning variables, attempting to reduce the amount of memory -> PE connections.
+            * ``'left_edge_min_mux'`` - Greedy heuristic for assigning variables, attempting to reduce the total number of multiplexers.
 
         read_ports : int, optional
             The number of read ports per memory resource.
@@ -1054,6 +1072,12 @@ class ProcessCollection:
                 The currently used processing elements.
                 Used to determine PE-memory connections when minimizing multiplexers.
 
+            For ``'left_edge_min_mux'``:
+
+            direct_variables : :class:`ProcessCollection`
+                Variables that are passed directly between operations without going
+                through memory. Used to inform mux-minimizing placement decisions.
+
         Returns
         -------
         A list of new ProcessCollection objects with the process splitting.
@@ -1062,6 +1086,7 @@ class ProcessCollection:
         processing_elements = alg_params.get("processing_elements", None)
         max_colors = alg_params.get("max_colors", None)
         solver = alg_params.get("solver", None)
+        direct_variables = alg_params.get("direct_variables", None)
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
         )
@@ -1147,6 +1172,18 @@ class ProcessCollection:
                 total_ports,
                 sequence=sorted(self),
                 processing_elements=processing_elements,
+            )
+        elif strategy == "left_edge_min_mux":
+            if direct_variables is None:
+                raise ValueError(
+                    "direct_variables must be provided if strategy = 'left_edge_min_mux'"
+                )
+            return self._split_ports_sequentially_minimize_mux(
+                read_ports,
+                write_ports,
+                total_ports,
+                sequence=sorted(self),
+                direct_variables=direct_variables,
             )
         else:
             raise ValueError("Invalid strategy provided.")
@@ -1332,6 +1369,19 @@ class ProcessCollection:
                 best_collection.add_process(process)
 
         return [collection for collection in collections if collection.collection]
+
+    def _split_ports_sequentially_minimize_mux(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        sequence: list[Process],
+        direct_variables: "ProcessCollection",
+    ) -> list["ProcessCollection"]:
+        if set(self.collection) != set(sequence):
+            raise KeyError("processes in `sequence` must be equal to processes in self")
+
+        raise NotImplementedError
 
     def _get_process_fits_in_collection(
         self, process, collections, write_ports, read_ports, total_ports
@@ -1901,7 +1951,8 @@ class ProcessCollection:
         for process in self:
             if process.execution_time > self.schedule_time:
                 raise ValueError(
-                    f"{process} has execution time greater than the schedule time"
+                    f"{process} has execution time greater than the schedule time."
+                    " Call ProcessCollection.split_into_chains() first"
                 )
 
         cell_assignment: dict[int, ProcessCollection] = {}
@@ -2003,7 +2054,8 @@ class ProcessCollection:
         for process in self:
             if process.execution_time > self.schedule_time:
                 raise ValueError(
-                    f"{process} has execution time greater than the schedule time"
+                    f"{process} has execution time greater than the schedule time."
+                    " Call ProcessCollection.split_into_chains() first"
                 )
 
         cell_assignment: dict[int, ProcessCollection] = {}
@@ -2037,7 +2089,8 @@ class ProcessCollection:
         for next_process in sorted(self):
             if next_process.execution_time > self.schedule_time:
                 raise ValueError(
-                    f"{next_process} has execution time greater than the schedule time"
+                    f"{next_process} has execution time greater than the schedule time."
+                    " Call ProcessCollection.split_into_chains() first"
                 )
             if next_process.execution_time == self.schedule_time:
                 assignment.append(
@@ -2081,6 +2134,54 @@ class ProcessCollection:
                         )
                     )
         return assignment
+
+    def _left_edge_min_mux_assignment(
+        self,
+        direct_variables: "ProcessCollection",
+    ) -> list["ProcessCollection"]:
+        # 1. Cluster operations based on PE to PE communication (direct_variables)
+        # Key: (source TypeName, output port index) -> list of destination processes
+        # that receive a direct variable from that specific output port.
+        op_to_proc: dict = {
+            proc.operation: proc for proc in self if isinstance(proc, OperatorProcess)
+        }
+        clusters: dict[TypeName, dict[int, list[OperatorProcess]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        for direct_variable in direct_variables:
+            if not isinstance(direct_variable, MemoryVariable):
+                continue
+            write_port = direct_variable.write_port  # source port
+            src_type = write_port.operation.type_name()
+            port_index = write_port.index
+            for read_port in direct_variable.read_ports:
+                dst_proc = op_to_proc.get(read_port.operation)
+                if dst_proc is not None:
+                    clusters[src_type][port_index].append(dst_proc)
+
+        for src_type, port_dict in clusters.items():
+            print(f"Source type: {src_type}")
+            for port_index, dst_procs in port_dict.items():
+                print(f"  Port index: {port_index}")
+                for dst_proc in dst_procs:
+                    print(f"    Destination process: {dst_proc}")
+
+        # 2. Sort the processes based on the clustering
+        for port_dict in clusters.values():
+            for dst_procs in port_dict.values():
+                # Sort the dst_procs based on their start time (or any other criteria)
+                dst_procs.sort(key=lambda proc: proc.start_time)
+
+        print("Sorted processes based on clustering:")
+        for src_type, port_dict in clusters.items():
+            print(f"Source type: {src_type}")
+            for port_index, dst_procs in port_dict.items():
+                print(f"  Port index: {port_index}")
+                for dst_proc in dst_procs:
+                    print(f"    Destination process: {dst_proc}")
+
+        # 3. Perform sequential left-edge assignment based on the sorted processes
+        raise NotImplementedError
 
     def generate_memory_based_storage_vhdl(
         self,
@@ -2271,6 +2372,83 @@ class ProcessCollection:
             ProcessCollection(short, self.schedule_time, self._cyclic),
             ProcessCollection(long, self.schedule_time, self._cyclic),
         )
+
+    def split_into_chains(self, max_length: int | None = None) -> "ProcessCollection":
+        """
+        Split long-lived memory variables into chains of shorter variables.
+
+        Each :class:`~b_asic.process.MemoryVariable` with
+        ``execution_time > max_length`` is replaced by a chain of variables,
+        each with ``execution_time <= max_length``.
+
+        Parameters
+        ----------
+        max_length : int, optional
+            Maximum allowed execution time for any variable in the result.
+            Defaults to ``self.schedule_time``.
+
+        Returns
+        -------
+        :class:`ProcessCollection`
+            New collection with the same ``schedule_time`` and ``cyclic``
+            settings, but all variables within ``max_length``.
+        """
+        if max_length is None:
+            max_length = self.schedule_time
+
+        result: list[Process] = []
+        for process in self.collection:
+            if process.execution_time <= max_length:
+                result.append(process)
+                continue
+
+            if isinstance(process, PlainMemoryVariable):
+                raise TypeError(
+                    f"{process} is a PlainMemoryVariable with execution_time"
+                    f" {process.execution_time} > max_length {max_length}."
+                    " PlainMemoryVariable does not support chaining."
+                )
+
+            if not isinstance(process, MemoryVariable):
+                result.append(process)
+                continue
+
+            all_reads = process.reads
+            T = max_length
+            S = process.start_time
+
+            # Number of time windows needed
+            K = max((L - 1) // T for L in all_reads.values()) + 1
+
+            # Build chain in reverse so relay MemoryInputPort targets already exist.
+            # Each window k covers lifetimes in the range (k*T, (k+1)*T].
+            chain: list[MemoryVariable] = []
+            for k in range(K - 1, -1, -1):
+                write_time = (S + k * T) % self.schedule_time
+                reads_k: dict = {
+                    port: L - k * T
+                    for port, L in all_reads.items()
+                    if k == (L - 1) // T
+                }
+                if k < K - 1:
+                    # chain[0] is chain[k+1] since we prepend each iteration
+                    relay = MemoryInputPort(chain[0])
+                    reads_k[relay] = T
+                wp = process.write_port  # placeholder for k > 0; fixed below
+                chain.insert(
+                    0,
+                    MemoryVariable(
+                        write_time, wp, reads_k, name=f"{process.name}_chain{k}"
+                    ),
+                )
+
+            # Fix write_ports for all links after the first
+            for k in range(1, K):
+                chain[k]._write_port = MemoryOutputPort(chain[k - 1])
+
+            result.extend(chain)
+
+        return ProcessCollection(result, self.schedule_time, self._cyclic)
 
     def generate_register_based_storage_vhdl(
         self,
