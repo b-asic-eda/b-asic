@@ -143,6 +143,7 @@ def architecture(
         name="shift_reg",
         signal_type="shift_reg_type",
         name_pad=18,
+        default_value=f"(others => {dt.init_val})",
     )
 
     # Back edge mux decoder
