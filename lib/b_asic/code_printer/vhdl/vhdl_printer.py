@@ -84,6 +84,8 @@ class VhdlPrinter(Printer):
                 Insert registers on all top-level I/O ports.
             multiplexer_control_registered : :class:`bool`, default ``False``
                 Register multiplexer control signals in generated top-level.
+            enable_pin : :class:`bool`, default ``True``
+                Whether to include an enable pin on the top-level entity.
 
         **Processing elements**
 
@@ -171,19 +173,21 @@ class VhdlPrinter(Printer):
         multiplexer_control_registered = bool(
             kwargs.get("multiplexer_control_registered", False)
         )
+        enable_pin = bool(kwargs.get("enable_pin", True))
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self.vhdl_2008)
         if self.is_complex:
             common.package_header(f, "types")
 
-        top_level.entity(f, arch, self._dt)
+        top_level.entity(f, arch, self._dt, enable_pin=enable_pin)
         top_level.architecture(
             f,
             arch,
             self._dt,
             io_registers,
             multiplexer_control_registered,
+            enable_pin=enable_pin,
         )
         return f.getvalue()
 

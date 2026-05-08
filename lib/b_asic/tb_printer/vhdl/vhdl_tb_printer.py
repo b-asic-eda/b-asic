@@ -35,6 +35,7 @@ class VhdlTbPrinter:
         path: str | Path = Path(),
         asserts: bool = True,
         io_registers: bool = False,
+        enable_pin: bool = True,
     ) -> None:
         """
         Generate the VHDL test bench file.
@@ -52,6 +53,9 @@ class VhdlTbPrinter:
         io_registers : bool, default False
             Whether the design was built with I/O registers.
             When True, output assertions are offset by 2 cycles.
+        enable_pin : bool, default True
+            Whether the DUT has an ``en`` enable pin. When ``False``, no
+            ``en`` signal is declared and the port map omits the connection.
         """
         path = Path(path)
 
@@ -111,7 +115,7 @@ class VhdlTbPrinter:
         seq_map = dict(seq_map)
 
         vhdl_content = self._generate_vhdl(
-            arch, dt, seq_map, input_signal_names, is_complex, asserts
+            arch, dt, seq_map, input_signal_names, is_complex, asserts, enable_pin
         )
 
         with (path / "tb.vhdl").open("w") as f:
@@ -125,6 +129,7 @@ class VhdlTbPrinter:
         input_signal_names: set[str],
         is_complex: bool,
         asserts: bool = True,
+        enable_pin: bool = True,
     ) -> str:
         lines = []
 
@@ -144,12 +149,15 @@ class VhdlTbPrinter:
             "",
             "    signal clk : std_logic := '0';",
             "    signal rst : std_logic := '1';",
-            "    signal en  : std_logic := '0';",
-            "",
         ]
+        if enable_pin:
+            lines.append("    signal en  : std_logic := '0';")
+        lines.append("")
 
         # Signal declarations and port map entries
-        input_port_maps = ["clk => clk", "rst => rst", "en => en"]
+        input_port_maps = ["clk => clk", "rst => rst"]
+        if enable_pin:
+            input_port_maps.append("en => en")
         output_port_maps = []
 
         for pe in arch.processing_elements:
@@ -205,19 +213,21 @@ class VhdlTbPrinter:
         lines.append("")
 
         # Stimulus process
-        lines += [
+        stimulus_lines = [
             "    stimulus : process",
             "    begin",
             "        rst <= '1';",
-            "        en  <= '0';",
+        ]
+        if enable_pin:
+            stimulus_lines.append("        en  <= '0';")
+        stimulus_lines += [
             "        wait until falling_edge(clk);",
             "        rst <= '0';",
-            "        en  <= '1';",
-            "",
-            # "        -- Sync to first active falling edge",
-            # "        wait until falling_edge(clk);",
-            "",
         ]
+        if enable_pin:
+            stimulus_lines.append("        en  <= '1';")
+        stimulus_lines.append("")
+        lines += stimulus_lines
 
         max_cycle = max(seq_map.keys()) if seq_map else 0
 

@@ -24,6 +24,7 @@ WAVES = False
 GUI = False
 CSV = False
 ASSERTS = True
+ENABLE_PIN = True
 ENTITY_NAME = ""
 SEQUENCE = {}
 
@@ -36,10 +37,12 @@ async def test_one(dut):
     max_cycle = max(SEQUENCE.keys())
 
     dut.rst.value = 1
-    dut.en.value = 0
-    await FallingEdge(dut.clk)
+    if ENABLE_PIN:
+        dut.en.value = 0
+        await FallingEdge(dut.clk)
     dut.rst.value = 0
-    dut.en.value = 1
+    if ENABLE_PIN:
+        dut.en.value = 1
 
     # Context manager that does nothing if CSV is False
     csv_context = Path("waveform.csv").open("w", newline="") if CSV else nullcontext()  # noqa: SIM115
