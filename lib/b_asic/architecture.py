@@ -1198,9 +1198,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
         common.blank(f)
 
     def write_component_instantiation(
-        self, f: TextIO, dt: _VhdlDataType, indent: int = 1
+        self, f: TextIO, dt: _VhdlDataType, indent: int = 1, enable_pin: bool = True
     ) -> None:
-        port_mappings = ["clk => tb_clk", "rst => tb_rst", "en => tb_en"]
+        port_mappings = ["clk => tb_clk", "rst => tb_rst"]
+        if enable_pin:
+            port_mappings.append("en => tb_en")
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
         for pe in inputs:
             if dt.is_complex:

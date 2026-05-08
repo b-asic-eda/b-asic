@@ -16,26 +16,29 @@ def entity(f: TextIO, arch: "Architecture") -> None:
     common.entity_declaration(f, f"{arch.entity_name}_tb")
 
 
-def architecture(f: TextIO, arch: "Architecture", dt: _VhdlDataType) -> None:
+def architecture(
+    f: TextIO, arch: "Architecture", dt: _VhdlDataType, enable_pin: bool = True
+) -> None:
     common.write(f, 0, f"architecture tb of {arch.entity_name}_tb is")
 
     arch.write_component_declaration(f, dt)
     common.constant_declaration(f, "CLK_PERIOD", "time", "2 ns")
-    _write_signal_generation(f, arch, dt)
+    _write_signal_generation(f, arch, dt, enable_pin)
     common.write(f, 0, "begin")
 
-    arch.write_component_instantiation(f, dt)
+    arch.write_component_instantiation(f, dt, enable_pin=enable_pin)
     _write_clock_generation(f)
-    _write_stimulus_generation(f)
+    _write_stimulus_generation(f, enable_pin)
     common.write(f, 0, "end architecture tb;", start="", end="\n\n")
 
 
 def _write_signal_generation(
-    f: TextIO, arch: "Architecture", dt: _VhdlDataType
+    f: TextIO, arch: "Architecture", dt: _VhdlDataType, enable_pin: bool = True
 ) -> None:
     common.signal_declaration(f, "tb_clk", "std_logic", "'0'")
     common.signal_declaration(f, "tb_rst", "std_logic", "'0'")
-    common.signal_declaration(f, "tb_en", "std_logic", "'0'")
+    if enable_pin:
+        common.signal_declaration(f, "tb_en", "std_logic", "'0'")
     inputs = [pe for pe in arch.processing_elements if pe.operation_type == Input]
     for pe in inputs:
         if dt.is_complex:
@@ -98,18 +101,19 @@ def _write_clock_generation(f: TextIO) -> None:
     )
 
 
-def _write_stimulus_generation(f: TextIO) -> None:
+def _write_stimulus_generation(f: TextIO, enable_pin: bool = True) -> None:
     common.write(f, 1, "-- Stimulus generation", start="\n")
-    common.write_lines(
-        f,
-        [
-            (1, "process"),
-            (1, "begin"),
-            (2, "tb_rst <= '1';"),
-            (2, "wait for CLK_PERIOD;"),
-            (2, "tb_rst <= '0';"),
-            (2, "tb_en <= '1';"),
-            (2, "-- WRITE CODE HERE"),
-            (1, "end process;"),
-        ],
-    )
+    lines = [
+        (1, "process"),
+        (1, "begin"),
+        (2, "tb_rst <= '1';"),
+        (2, "wait for CLK_PERIOD;"),
+        (2, "tb_rst <= '0';"),
+    ]
+    if enable_pin:
+        lines.append((2, "tb_en <= '1';"))
+    lines += [
+        (2, "-- WRITE CODE HERE"),
+        (1, "end process;"),
+    ]
+    common.write_lines(f, lines)

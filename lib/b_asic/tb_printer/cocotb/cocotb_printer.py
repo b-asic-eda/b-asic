@@ -40,6 +40,7 @@ class CocotbPrinter:
         csv: bool = False,
         asserts: bool = True,
         io_registers: bool = False,
+        enable_pin: bool = True,
     ) -> None:
         """
         Generate the cocotb test bench files.
@@ -67,6 +68,9 @@ class CocotbPrinter:
         io_registers : bool, default False
             Whether the design was built with I/O registers.
             When True, output assertions are offset by 2 cycles.
+        enable_pin : bool, default True
+            Whether the DUT has an ``en`` enable pin. When ``False``, no
+            enable signal is driven in the testbench.
         """
         path = Path(path)
 
@@ -144,6 +148,9 @@ class CocotbPrinter:
         tb_content = tb_content.replace("GUI = False", f"GUI = {gui!s}")
         tb_content = tb_content.replace("CSV = False", f"CSV = {csv!s}")
         tb_content = tb_content.replace("ASSERTS = True", f"ASSERTS = {asserts!s}")
+        tb_content = tb_content.replace(
+            "ENABLE_PIN = True", f"ENABLE_PIN = {enable_pin!s}"
+        )
 
         with Path.open(path / "tb.py", "w") as output_file:
             output_file.write(tb_content)
