@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from b_asic.code_printer.printer import CODE, WLS, Printer
+from b_asic.code_printer.util import bin_str
 from b_asic.code_printer.vhdl import (
     common,
     memory_storage,
@@ -623,36 +624,88 @@ class VhdlPrinter(Printer):
             f"op_b <= resize(op_1, {self.bits + 1}) when is_add = '1' else not resize(op_1, {self.bits + 1});",
         )
 
-        # Handle shift: if static, use the value directly; otherwise convert signal to unsigned
         shift_entry = pe.control_table["shift"]
+        shift_output_entry = pe.control_table["shift_output"]
+
         if shift_entry.is_static:
             shift_val = int(shift_entry.get_static_value())
-            shift_expr = str(shift_val)
-        elif shift_entry.bits == 1:
-            # Single bit std_logic needs to be converted to unsigned(0 downto 0)
-            shift_expr = "to_integer(unsigned'(0 => shift))"
+            common.write(
+                code,
+                1,
+                f"tmp_res <= (op_a & '1') + (shift_right(op_b, {shift_val}) & not is_add);",
+            )
         else:
-            shift_expr = "to_integer(shift)"
+            common.signal_declaration(
+                declarations, "shifted_op_b", f"{self.type_name}({self.bits} downto 0)"
+            )
+            unique_shifts = sorted({int(v) for v in shift_entry.values.values()})
+            common.write(code, 1, "with shift select", start="\n")
+            common.write(code, 2, "shifted_op_b <=")
+            for sv in unique_shifts:
+                common.write(
+                    code,
+                    3,
+                    f'shift_right(op_b, {sv}) when b"{bin_str(sv, shift_entry.bits)}",',
+                )
+            common.write(code, 3, "(others => '-') when others;", end="\n\n")
+            common.write(
+                code,
+                1,
+                "tmp_res <= (op_a & '1') + (shifted_op_b & not is_add);",
+            )
 
-        common.write(
-            code,
-            1,
-            f"tmp_res <= (op_a & '1') + (shift_right(op_b, {shift_expr}) & not is_add);",
-        )
+        n_in, n_out = self._register_split
+        reg_before_shift_output = n_out >= 1
+        if reg_before_shift_output:
+            self._register_split = (n_in, n_out - 1)
+            self._pe_control_cycle.setdefault(pe.entity_name, {}).setdefault(
+                "shift_output", n_in + 1
+            )
+            common.signal_declaration(
+                declarations,
+                "tmp_res_shifted_comb",
+                f"{self.type_name}({self.bits} downto 0)",
+            )
+            common.signal_declaration(
+                declarations,
+                "tmp_res_shifted",
+                f"{self.type_name}({self.bits} downto 0)",
+                default_value="(others => '0')",
+            )
+            common.write(
+                code, 1, f"tmp_res_shifted_comb <= tmp_res({self.bits + 1} downto 1);"
+            )
+            common.synchronous_process_prologue(code)
+            common.write(code, 3, "if en = '1' then")
+            common.write(code, 4, "tmp_res_shifted <= tmp_res_shifted_comb;")
+            common.write(code, 3, "end if;")
+            common.synchronous_process_epilogue(code)
+        else:
+            common.signal_declaration(
+                declarations,
+                "tmp_res_shifted",
+                f"{self.type_name}({self.bits} downto 0)",
+            )
+            common.write(
+                code, 1, f"tmp_res_shifted <= tmp_res({self.bits + 1} downto 1);"
+            )
 
-        common.signal_declaration(
-            declarations, "tmp_res_shifted", f"{self.type_name}({self.bits} downto 0)"
-        )
-        common.write(
-            code,
-            1,
-            f"tmp_res_shifted <= tmp_res({self.bits + 1} downto 1);",
-        )
-        common.write(
-            code,
-            1,
-            "res_arith_0 <= shift_right(tmp_res_shifted, to_integer(shift_output));",
-        )
+        if shift_output_entry.is_static:
+            so_val = int(shift_output_entry.get_static_value())
+            common.write(
+                code, 1, f"res_arith_0 <= shift_right(tmp_res_shifted, {so_val});"
+            )
+        else:
+            unique_so = sorted({int(v) for v in shift_output_entry.values.values()})
+            common.write(code, 1, "with shift_output select", start="\n")
+            common.write(code, 2, "res_arith_0 <=")
+            for sv in unique_so:
+                common.write(
+                    code,
+                    3,
+                    f'shift_right(tmp_res_shifted, {sv}) when b"{bin_str(sv, shift_output_entry.bits)}",',
+                )
+            common.write(code, 3, "(others => '-') when others;", end="\n\n")
 
         wls = [(self.int_bits + 1, self.frac_bits)]
         return wls, (declarations.getvalue(), code.getvalue())
@@ -723,43 +776,109 @@ class VhdlPrinter(Printer):
         common.write(code, 2, "'0' when \"11\",")
         common.write(code, 2, "'-' when others;", end="\n\n")
 
-        # Handle shift: if static, use the value directly; otherwise convert signal to unsigned
         shift_entry = pe.control_table["shift"]
+        shift_output_entry = pe.control_table["shift_output"]
+
         if shift_entry.is_static:
             shift_val = int(shift_entry.get_static_value())
-            shift_expr = str(shift_val)
-        elif shift_entry.bits == 1:
-            # Single bit std_logic needs to be converted to unsigned(0 downto 0)
-            shift_expr = "to_integer(unsigned'(0 => shift))"
+            for part in "re", "im":
+                common.write(
+                    code,
+                    1,
+                    f"tmp_res_{part} <= (op_a_{part} & '1') + (shift_right(op_b_{part}, {shift_val}) & cin_{part});",
+                )
         else:
-            shift_expr = "to_integer(shift)"
+            unique_shifts = sorted({int(v) for v in shift_entry.values.values()})
+            for part in "re", "im":
+                common.signal_declaration(
+                    declarations,
+                    f"shifted_op_b_{part}",
+                    f"{self.scalar_type_name}({self.bits} downto 0)",
+                )
+            for part in "re", "im":
+                common.write(code, 1, "with shift select", start="\n")
+                common.write(code, 2, f"shifted_op_b_{part} <=")
+                for sv in unique_shifts:
+                    common.write(
+                        code,
+                        3,
+                        f'shift_right(op_b_{part}, {sv}) when b"{bin_str(sv, shift_entry.bits)}",',
+                    )
+                common.write(code, 3, "(others => '-') when others;", end="\n\n")
+            for part in "re", "im":
+                common.write(
+                    code,
+                    1,
+                    f"tmp_res_{part} <= (op_a_{part} & '1') + (shifted_op_b_{part} & cin_{part});",
+                )
 
-        for part in "re", "im":
-            common.write(
-                code,
-                1,
-                f"tmp_res_{part} <= (op_a_{part} & '1') + (shift_right(op_b_{part}, {shift_expr}) & cin_{part});",
+        n_in, n_out = self._register_split
+        reg_before_shift_output = n_out >= 1
+        if reg_before_shift_output:
+            self._register_split = (n_in, n_out - 1)
+            self._pe_control_cycle.setdefault(pe.entity_name, {}).setdefault(
+                "shift_output", n_in + 1
             )
+            for part in "re", "im":
+                common.signal_declaration(
+                    declarations,
+                    f"{part}_tmp_res_shifted_comb",
+                    f"{self.scalar_type_name}({self.bits} downto 0)",
+                )
+                common.signal_declaration(
+                    declarations,
+                    f"{part}_tmp_res_shifted",
+                    f"{self.scalar_type_name}({self.bits} downto 0)",
+                    default_value="(others => '0')",
+                )
+            for part in "re", "im":
+                common.write(
+                    code,
+                    1,
+                    f"{part}_tmp_res_shifted_comb <= tmp_res_{part}({self.bits + 1} downto 1);",
+                )
+            common.synchronous_process_prologue(code)
+            common.write(code, 3, "if en = '1' then")
+            for part in "re", "im":
+                common.write(
+                    code, 4, f"{part}_tmp_res_shifted <= {part}_tmp_res_shifted_comb;"
+                )
+            common.write(code, 3, "end if;")
+            common.synchronous_process_epilogue(code)
+        else:
+            for part in "re", "im":
+                common.signal_declaration(
+                    declarations,
+                    f"{part}_tmp_res_shifted",
+                    f"{self.scalar_type_name}({self.bits} downto 0)",
+                )
+            for part in "re", "im":
+                common.write(
+                    code,
+                    1,
+                    f"{part}_tmp_res_shifted <= tmp_res_{part}({self.bits + 1} downto 1);",
+                )
 
-        # Declare tmp_res_shifted signals and slice/assign to res_arith_0
-        for part in "re", "im":
-            common.signal_declaration(
-                declarations,
-                f"{part}_tmp_res_shifted",
-                f"{self.scalar_type_name}({self.bits} downto 0)",
-            )
-        for part in "re", "im":
-            common.write(
-                code,
-                1,
-                f"{part}_tmp_res_shifted <= tmp_res_{part}({self.bits + 1} downto 1);",
-            )
-        for part in "re", "im":
-            common.write(
-                code,
-                1,
-                f"res_arith_0_{part} <= shift_right({part}_tmp_res_shifted, to_integer(shift_output));",
-            )
+        if shift_output_entry.is_static:
+            so_val = int(shift_output_entry.get_static_value())
+            for part in "re", "im":
+                common.write(
+                    code,
+                    1,
+                    f"res_arith_0_{part} <= shift_right({part}_tmp_res_shifted, {so_val});",
+                )
+        else:
+            unique_so = sorted({int(v) for v in shift_output_entry.values.values()})
+            for part in "re", "im":
+                common.write(code, 1, "with shift_output select", start="\n")
+                common.write(code, 2, f"res_arith_0_{part} <=")
+                for sv in unique_so:
+                    common.write(
+                        code,
+                        3,
+                        f'shift_right({part}_tmp_res_shifted, {sv}) when b"{bin_str(sv, shift_output_entry.bits)}",',
+                    )
+                common.write(code, 3, "(others => '-') when others;", end="\n\n")
 
         wls = [(self.int_bits + 1, self.frac_bits)]
         return wls, (declarations.getvalue(), code.getvalue())
