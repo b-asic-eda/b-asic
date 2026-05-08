@@ -897,18 +897,19 @@ class Memory(Resource):
         --------
         ProcessCollection.split_on_execution_time
         """
-        write_bound = self._collection.write_ports_bound()
-        if write_bound > self._input_count:
-            raise ValueError(
-                f"{self.entity_name}: {write_bound} concurrent write(s) required"
-                f" but only {self._input_count} write port(s) declared."
-            )
-        read_bound = self._collection.read_ports_bound()
-        if read_bound > self._output_count:
-            raise ValueError(
-                f"{self.entity_name}: {read_bound} concurrent read(s) required"
-                f" but only {self._output_count} read port(s) declared."
-            )
+        if len(self._collection):
+            write_bound = self._collection.write_ports_bound()
+            if write_bound > self._input_count:
+                raise ValueError(
+                    f"{self.entity_name}: {write_bound} concurrent write(s) required"
+                    f" but only {self._input_count} write port(s) declared."
+                )
+            read_bound = self._collection.read_ports_bound()
+            if read_bound > self._output_count:
+                raise ValueError(
+                    f"{self.entity_name}: {read_bound} concurrent read(s) required"
+                    f" but only {self._output_count} read port(s) declared."
+                )
         if self._memory_type == "RAM":
             self._assignment = self._collection.split_on_execution_time(
                 strategy, **kwargs
