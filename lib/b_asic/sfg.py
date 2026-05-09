@@ -2232,6 +2232,18 @@ class SFG(AbstractOperation):
 
         return TransferFunction.from_sfg(self)
 
+    def to_zpk(self):
+        """
+        Return the zeros, poles, and gain of the SFG.
+
+        Returns
+        -------
+        dict
+            See :meth:`~b_asic.transfer_function.TransferFunction.zpk` for the
+            return format.
+        """
+        return self.to_ss().to_zpk()
+
     def find_all_paths(
         self, graph: dict, start: str, end: str, path: list | None = None
     ) -> list:

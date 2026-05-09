@@ -248,6 +248,18 @@ class StateSpace:
 
         return transfer_functions
 
+    def to_zpk(self):
+        """
+        Return the zeros, poles, and gain of the state-space representation.
+
+        Returns
+        -------
+        dict
+            See :meth:`~b_asic.transfer_function.TransferFunction.zpk` for the
+            return format.
+        """
+        return self.to_tf().zpk()
+
     def to_tf(self):
         """
         Convert the state-space representation to a transfer function.
