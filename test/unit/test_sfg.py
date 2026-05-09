@@ -2870,6 +2870,51 @@ class TestToTF:
         np.testing.assert_array_equal(tf.denominator, [1.0])
 
 
+class TestToZKG:
+    def test_fir(self):
+        from b_asic.sfg_generators import fir
+
+        sfg = fir([0.1, 0.2, 0.3, 0.4, 0.5])
+        zpk = sfg.to_zpk()
+
+        sp = pytest.importorskip("scipy")
+        z, p, k = sp.signal.tf2zpk([0.1, 0.2, 0.3, 0.4, 0.5], [1])
+
+        np.testing.assert_allclose(zpk["in0"][0], z)
+        np.testing.assert_allclose(zpk["in0"][1], p)
+        np.testing.assert_allclose(zpk["in0"][2], k)
+
+    def test_direct_form_1_iir(self):
+        from b_asic.sfg_generators import direct_form_1_iir
+
+        b = [0.1, -0.2, 0.3]
+        a = [1, 0.5, -0.6]
+        sfg = direct_form_1_iir(b, a)
+        zpk = sfg.to_zpk()
+
+        sp = pytest.importorskip("scipy")
+        z_ref, p_ref, k_ref = sp.signal.tf2zpk(b, a)
+
+        np.testing.assert_allclose(zpk["in0"][0], z_ref)
+        np.testing.assert_allclose(zpk["in0"][1], p_ref)
+        np.testing.assert_allclose(zpk["in0"][2], k_ref)
+
+    def test_direct_form_2_iir(self):
+        from b_asic.sfg_generators import direct_form_2_iir
+
+        b = [0.1, -0.2, 0.3]
+        a = [1, 0.5, -0.6]
+        sfg = direct_form_2_iir(b, a)
+        zpk = sfg.to_zpk()
+
+        sp = pytest.importorskip("scipy")
+        z_ref, p_ref, k_ref = sp.signal.tf2zpk(b, a)
+
+        np.testing.assert_allclose(zpk["in0"][0], z_ref)
+        np.testing.assert_allclose(zpk["in0"][1], p_ref)
+        np.testing.assert_allclose(zpk["in0"][2], k_ref)
+
+
 class TestGetImpulseResponsesFromNodes:
     def test_accumulator(self, sfg_simple_accumulator):
         noise_responses = sfg_simple_accumulator.get_impulse_responses_from_nodes(

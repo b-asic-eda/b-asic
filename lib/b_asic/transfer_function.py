@@ -128,6 +128,38 @@ class TransferFunction:
 
         return "\n".join(lines)
 
+    def zpk(
+        self,
+    ) -> dict[
+        str, tuple[npt.NDArray | list[npt.NDArray], npt.NDArray, float | list[float]]
+    ]:
+        """
+        Compute the zero-poles-gain model for each input.
+
+        Returns
+        -------
+        dict
+            Dictionary mapping each input key (e.g., ``"in0"``) to a tuple
+            ``(zeros, poles, gain)``.
+        """
+        den = self.denominator
+        poles = np.roots(den) if len(den) > 1 else np.array([], dtype=complex)
+        den0 = den[0] if len(den) > 0 else 1.0
+
+        result = {}
+        for input_key, num in self.numerator.items():
+            if num.ndim == 2:
+                zeros = [np.roots(num[k]) for k in range(num.shape[0])]
+                gains = [
+                    float(num[k, 0] / den0) if num.shape[1] > 0 else 0.0
+                    for k in range(num.shape[0])
+                ]
+            else:
+                zeros = np.roots(num) if len(num) > 1 else np.array([], dtype=complex)
+                gains = float(num[0] / den0) if len(num) > 0 else 0.0
+            result[input_key] = (zeros, poles, gains)
+        return result
+
     def __getitem__(self, key: str) -> tuple[npt.NDArray, npt.NDArray]:
         """
         Get the numerator and denominator for a specific input.
