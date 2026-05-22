@@ -120,15 +120,18 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                     continue
                 is_found = False
 
+                input_latency = op_input_port.latency_offset or 0
                 for mem in arch.memories:
                     for var in mem.collection:
                         read_times = [
                             time % arch.schedule_time for time in var.read_times
                         ]
-                        if process.start_time % arch.schedule_time not in read_times:
+                        if (
+                            process.start_time + input_latency
+                        ) % arch.schedule_time not in read_times:
                             continue
-                        var_op_id = var.name.split(".")[0]
-                        var_port_index = int(var.name.split(".")[1].split("_")[0])
+                        var_op_id = var.write_port.operation.graph_id
+                        var_port_index = var.write_port.index
                         if (
                             var_op_id == source_op.graph_id
                             and var_port_index == source_port.index
@@ -153,7 +156,7 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 if not is_found:
                     raise ValueError("Source resource not found.")
 
-                time = process.start_time % arch.schedule_time
+                time = (process.start_time + input_latency) % arch.schedule_time
                 source_signal = f"{source_resource.entity_name}_{source_port_index}_out"
                 assignments.append((time, source_signal))
 
