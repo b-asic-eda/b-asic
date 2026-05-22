@@ -36,6 +36,9 @@ class VhdlTbPrinter:
         asserts: bool = True,
         io_registers: bool = False,
         enable_pin: bool = True,
+        warmup_laps: int = 0,
+        abs_tol: float | None = None,
+        rel_tol: float | None = None,
     ) -> None:
         """
         Generate the VHDL test bench file.
@@ -56,6 +59,15 @@ class VhdlTbPrinter:
         enable_pin : bool, default True
             Whether the DUT has an ``en`` enable pin. When ``False``, no
             ``en`` signal is declared and the port map omits the connection.
+        warmup_laps : int, default 0
+            The number of warm-up laps to include in the testbench.
+        abs_tol : float or None, default None
+            Absolute tolerance for output assertions. When set (together with
+            or instead of *rel_tol*), assertions use ``ieee.float_pkg`` real
+            comparisons instead of exact bit patterns.
+        rel_tol : float or None, default None
+            Relative tolerance for output assertions. Combined with *abs_tol*
+            as ``max(abs_tol, rel_tol * abs(expected))``.
         """
         path = Path(path)
 
@@ -98,28 +110,58 @@ class VhdlTbPrinter:
                     if is_input:
                         sig_re = f"{pe_name}_0_in_re"
                         sig_im = f"{pe_name}_0_in_im"
-                        seq_map[time][sig_re] = value.to_bits()[0]
-                        seq_map[time][sig_im] = value.to_bits()[1]
+                        seq_map[time][sig_re] = (value.to_bits()[0], float(value.real))
+                        seq_map[time][sig_im] = (value.to_bits()[1], float(value.imag))
                         input_signal_names.update([sig_re, sig_im])
                     else:
-                        seq_map[time][f"{pe_name}_0_out_re"] = value.to_bits()[0]
-                        seq_map[time][f"{pe_name}_0_out_im"] = value.to_bits()[1]
+                        seq_map[time][f"{pe_name}_0_out_re"] = (
+                            value.to_bits()[0],
+                            float(value.real),
+                        )
+                        seq_map[time][f"{pe_name}_0_out_im"] = (
+                            value.to_bits()[1],
+                            float(value.imag),
+                        )
                 else:
                     if is_input:
                         sig = f"{pe_name}_0_in"
-                        seq_map[time][sig] = value.to_bits()
+                        seq_map[time][sig] = (value.to_bits(), float(value))
                         input_signal_names.add(sig)
                     else:
-                        seq_map[time][f"{pe_name}_0_out"] = value.to_bits()
+                        seq_map[time][f"{pe_name}_0_out"] = (
+                            value.to_bits(),
+                            float(value),
+                        )
 
         seq_map = dict(seq_map)
 
+        warmup_cycles = warmup_laps * arch.schedule_time
+        if warmup_cycles:
+            seq_map = {k + warmup_cycles: v for k, v in seq_map.items()}
+
         vhdl_content = self._generate_vhdl(
-            arch, dt, seq_map, input_signal_names, is_complex, asserts, enable_pin
+            arch,
+            dt,
+            seq_map,
+            input_signal_names,
+            is_complex,
+            asserts,
+            enable_pin,
+            warmup_cycles,
+            abs_tol,
+            rel_tol,
         )
 
         with (path / "tb.vhdl").open("w") as f:
             f.write(vhdl_content)
+
+    @staticmethod
+    def _vhdl_real_lit(v: float) -> str:
+        s = repr(v)
+        # VHDL real literals require a decimal point; Python omits it in scientific notation
+        if "e" in s and "." not in s:
+            s = s.replace("e", ".0e")
+        return s
 
     def _generate_vhdl(
         self,
@@ -130,15 +172,26 @@ class VhdlTbPrinter:
         is_complex: bool,
         asserts: bool = True,
         enable_pin: bool = True,
+        warmup_cycles: int = 0,
+        abs_tol: float | None = None,
+        rel_tol: float | None = None,
     ) -> str:
+        use_real_asserts = asserts and (abs_tol is not None or rel_tol is not None)
         lines = []
 
         # Header
-        lines += [
+        float_pkg_line = "use ieee.float_pkg.all;" if use_real_asserts else None
+        header = [
             "-- B-ASIC generated VHDL testbench",
             "library ieee;",
             "use ieee.std_logic_1164.all;",
             "use ieee.numeric_std.all;",
+        ]
+        if float_pkg_line:
+            header.append(float_pkg_line)
+        header.append("use std.env.all;")
+        lines += header
+        lines += [
             "",
             "entity tb is",
             "end entity tb;",
@@ -229,33 +282,53 @@ class VhdlTbPrinter:
         stimulus_lines.append("")
         lines += stimulus_lines
 
-        max_cycle = max(seq_map.keys()) if seq_map else 0
+        max_cycle = max(seq_map.keys()) if seq_map else warmup_cycles
 
         for cycle in range(max_cycle + 1):
-            lines.append(f"        -- Cycle {cycle}")
+            if cycle < warmup_cycles:
+                lines.append(f"        -- Warm-up cycle {cycle}")
+            else:
+                lines.append(f"        -- Cycle {cycle - warmup_cycles}")
             if cycle in seq_map:
                 step = seq_map[cycle]
 
                 # Check outputs first, then drive inputs
-                for signal_name, value in step.items():
+                for signal_name, (bits_val, real_val) in step.items():
                     if signal_name not in input_signal_names and asserts:
-                        bits = dt.output_bits
-                        lines.append(
-                            f'        assert {signal_name} = "{bin_str(value, bits)}";'
-                        )
-                        # TODO: Fix!
-                        # lines.append(
-                        #     f'            report "Cycle {cycle}: {signal_name}'
-                        #     f' expected {value}, got "'
-                        #     f" & integer'image(to_integer(unsigned({signal_name})))"
-                        #     f" severity failure;"
-                        # )
+                        if use_real_asserts:
+                            expected_lit = self._vhdl_real_lit(real_val)
+                            abs_tol_lit = self._vhdl_real_lit(
+                                abs_tol if abs_tol is not None else 0.0
+                            )
+                            rel_tol_lit = self._vhdl_real_lit(
+                                rel_tol if rel_tol is not None else 0.0
+                            )
+                            conv = f"to_real(to_float({signal_name}, 8, 23))"
+                            lines.append(
+                                f"        assert abs({conv} - ({expected_lit}))"
+                                f" <= {abs_tol_lit} + {rel_tol_lit} * abs({expected_lit})"
+                                f'\n            report "Error detected at cycle {cycle - warmup_cycles}:'
+                                f' {signal_name} expected {real_val}, got "'
+                                f" & real'image({conv})"
+                                f" severity failure;"
+                            )
+                        else:
+                            bits = dt.output_bits
+                            lines.append(
+                                f'        assert {signal_name} = "{bin_str(bits_val, bits)}"'
+                            )
+                            lines.append(
+                                f'            report "Error detected at cycle {cycle - warmup_cycles}: {signal_name}'
+                                f' expected {bits_val}, got "'
+                                f" & integer'image(to_integer(signed({signal_name})))"
+                                f" severity failure;"
+                            )
 
-                for signal_name, value in step.items():
+                for signal_name, (bits_val, _) in step.items():
                     if signal_name in input_signal_names:
                         bits = dt.input_bits
                         lines.append(
-                            f'        {signal_name} <= "{bin_str(value, bits)}";'
+                            f'        {signal_name} <= "{bin_str(bits_val, bits)}";'
                         )
 
             lines.append("        wait until falling_edge(clk);")
@@ -263,7 +336,7 @@ class VhdlTbPrinter:
 
         lines += [
             '        report "SUCCESS: All assertions passed" severity note;',
-            "        wait;",
+            "        stop(0);",
             "    end process stimulus;",
             "",
             "end architecture sim;",
