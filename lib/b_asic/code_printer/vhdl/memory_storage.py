@@ -304,7 +304,7 @@ def architecture(
             common.write(f, 4, "case schedule_cnt is")
             for write_time, stmt in sorted(output_cases.items()):
                 bin_time = time_bin_str(write_time, schedule_time)
-                common.write(f, 5, f"when {bin_time} => forward_ctrl <= {stmt};")
+                common.write(f, 5, f'when "{bin_time}" => forward_ctrl <= {stmt};')
             # Normal operation, output the read port
             common.write_lines(
                 f,
