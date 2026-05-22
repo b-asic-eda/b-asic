@@ -60,6 +60,7 @@ class VhdlPrinter(Printer):
         arch: "Architecture",
         *,
         path: str | Path = Path(),
+        vhdl_ls: bool = False,
         **kwargs,
     ) -> None:
         r"""
@@ -71,6 +72,9 @@ class VhdlPrinter(Printer):
             Architecture instance to generate code for.
         path : str | Path, optional
             Output directory. Defaults to the current directory.
+        vhdl_ls : bool, default ``False``
+            Also write a ``vhdl_ls.toml`` configuration file for the VHDL
+            Language Server alongside the generated VHDL files.
         **kwargs
             Optional VHDL code-generation settings. For info, see Notes.
 
@@ -138,6 +142,9 @@ class VhdlPrinter(Printer):
         with (dir_path / f"{arch.entity_name}.vhdl").open("w") as f:
             common.write(f, 0, self.print_Architecture(arch, **kwargs))
 
+        if vhdl_ls:
+            self.print_vhdl_ls_toml(arch, path=dir_path)
+
     def get_compile_order(self, arch: "Architecture") -> list[str]:
         """
         Return the file names for the VHDL code describing the provided architecture.
@@ -153,6 +160,42 @@ class VhdlPrinter(Printer):
         order.extend(f"{pe.entity_name}.vhdl" for pe in arch.processing_elements)
         order.append(f"{arch.entity_name}.vhdl")
         return order
+
+    def print_vhdl_ls_toml(
+        self,
+        arch: "Architecture",
+        *,
+        path: str | Path = Path(),
+        lib_name: str = "lib",
+    ) -> None:
+        """
+        Write a ``vhdl_ls.toml`` configuration file for the VHDL Language Server.
+
+        Parameters
+        ----------
+        arch : :class:`~b_asic.architecture.Architecture`
+            Architecture instance used to determine the file list.
+        path : str | Path, optional
+            Output directory (same directory where VHDL files were written).
+            Defaults to the current directory.
+        lib_name : str, optional
+            Library name used in the toml file. Defaults to ``"lib"``.
+        """
+        dir_path = Path(path)
+        standard = "2008" if self._vhdl_2008 else "1993"
+        files = self.get_compile_order(arch)
+
+        lines = [
+            f'standard = "{standard}"',
+            "",
+            "[libraries]",
+            f"{lib_name}.files = [",
+        ]
+        lines.extend(f"    '{fname}'," for fname in files)
+        lines.append("]")
+
+        with (dir_path / "vhdl_ls.toml").open("w") as f:
+            f.write("\n".join(lines) + "\n")
 
     def print_types(self) -> str:
         f = io.StringIO()
