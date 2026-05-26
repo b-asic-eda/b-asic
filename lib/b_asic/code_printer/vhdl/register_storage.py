@@ -16,7 +16,6 @@ def entity(
     f: TextIO,
     memory: "Memory",
     dt: _VhdlDataType,
-    external_schedule_counter: bool = False,
     std_logic_vector: bool = True,
 ) -> None:
     """
@@ -30,8 +29,6 @@ def entity(
         Memory object to generate entity for.
     dt : _VhdlDataType
         Data type information.
-    external_schedule_counter : bool, default: False
-        If True, schedule counter is an input port. If False, it's generated internally.
     std_logic_vector : bool, default: True
         If True, use std_logic_vector for data signals. If False, use dt.type_str.
     """
@@ -39,7 +36,7 @@ def entity(
         f,
         memory,
         dt,
-        external_schedule_counter=external_schedule_counter,
+        external_schedule_counter=True,
         std_logic_vector=std_logic_vector,
     )
 
@@ -51,7 +48,6 @@ def architecture(
     dt: _VhdlDataType,
     sync_rst: bool = False,
     async_rst: bool = False,
-    external_schedule_counter: bool = False,
     std_logic_vector: bool = True,
 ) -> None:
     """
@@ -71,9 +67,6 @@ def architecture(
         Enable synchronous reset.
     async_rst : bool, default: False
         Enable asynchronous reset.
-    external_schedule_counter : bool, default: False
-        If True, schedule counter comes from external input port.
-        If False, schedule counter is generated internally.
     std_logic_vector : bool, default: True
         If True, use std_logic_vector for data signals. If False, use dt.type_str.
     """
@@ -110,23 +103,12 @@ def architecture(
 
     # Schedule time counter
     common.write(f, 1, "-- Schedule counter")
-    if not external_schedule_counter:
-        # Internal counter as integer
-        common.signal_declaration(
-            f,
-            name="schedule_cnt",
-            signal_type=f"integer range 0 to {schedule_time - 1}",
-            name_pad=18,
-            default_value="0",
-        )
-    else:
-        # External counter: convert unsigned input to integer
-        common.signal_declaration(
-            f,
-            name="schedule_cnt_int",
-            signal_type=f"integer range 0 to {schedule_time - 1}",
-            name_pad=18,
-        )
+    common.signal_declaration(
+        f,
+        name="schedule_cnt_int",
+        signal_type=f"integer range 0 to {schedule_time - 1}",
+        name_pad=18,
+    )
 
     # Shift register
     common.write(f, 1, "-- Shift register", start="\n")
@@ -170,43 +152,17 @@ def architecture(
     common.write(f, 0, "begin", start="\n", end="\n\n")
 
     # Schedule counter logic
-    if not external_schedule_counter:
-        # Generate internal schedule counter
-        common.write(f, 1, "-- Schedule counter")
-        common.synchronous_process_prologue(f, clk="clk", name="schedule_cnt_proc")
-        common.write_lines(
-            f,
-            [
-                (3, "if en = '1' then"),
-                (4, f"if schedule_cnt = {schedule_time - 1} then"),
-                (5, "schedule_cnt <= 0;"),
-                (4, "else"),
-                (5, "schedule_cnt <= schedule_cnt + 1;"),
-                (4, "end if;"),
-                (3, "end if;"),
-            ],
-        )
-        common.synchronous_process_epilogue(
-            f=f,
-            name="schedule_cnt_proc",
-            clk="clk",
-        )
-    else:
-        # Convert external unsigned schedule_cnt to integer
-        common.write(
-            f, 1, "-- Convert unsigned schedule counter to integer", start="\n"
-        )
-        common.write(f, 1, "schedule_cnt_int <= to_integer(schedule_cnt);")
+    # Convert external unsigned schedule_cnt to integer
+    common.write(f, 1, "-- Convert unsigned schedule counter to integer", start="\n")
+    common.write(f, 1, "schedule_cnt_int <= to_integer(schedule_cnt);")
 
     # Shift register back-edge decoding
-    schedule_cnt_sig = (
-        "schedule_cnt_int" if external_schedule_counter else "schedule_cnt"
-    )
     common.write(f, 1, "-- Shift register back-edge decoding", start="\n")
     common.synchronous_process_prologue(
         f, clk="clk", name="shift_reg_back_edge_decode_proc"
     )
-    common.write(f, 3, f"case {schedule_cnt_sig} is")
+    common.write(f, 3, "if en = '1' then")
+    common.write(f, 4, "case schedule_cnt_int is")
     for time, entry in enumerate(forward_backward_table):
         if entry.back_edge_to:
             assert len(entry.back_edge_to) == 1
@@ -216,17 +172,18 @@ def architecture(
                 common.write_lines(
                     f,
                     [
-                        (4, f"when {time_val} =>"),
-                        (5, f"-- ({src} -> {dst})"),
-                        (5, f"back_edge_mux_sel <= {mux_idx};"),
+                        (5, f"when {time_val} =>"),
+                        (6, f"-- ({src} -> {dst})"),
+                        (6, f"back_edge_mux_sel <= {mux_idx};"),
                     ],
                 )
     common.write_lines(
         f,
         [
-            (4, "when others =>"),
-            (5, "back_edge_mux_sel <= 0;"),
-            (3, "end case;"),
+            (5, "when others =>"),
+            (6, "back_edge_mux_sel <= 0;"),
+            (4, "end case;"),
+            (3, "end if;"),
         ],
     )
     common.synchronous_process_epilogue(
@@ -281,34 +238,29 @@ def architecture(
 
     # Output multiplexer decoding logic
     common.write(f, 1, "-- Output multiplexer decoding logic", start="\n")
-    common.synchronous_process_prologue(f, clk="clk", name="out_mux_decode_proc")
-    common.write(f, 3, f"case {schedule_cnt_sig} is")
-    for i, entry in enumerate(forward_backward_table):
-        if entry.outputs_from is not None:
-            sel = output_mux_table[entry.outputs_from]
-            time_val = (i - 1) % schedule_time
-            common.write(f, 4, f"when {time_val} =>")
-            common.write(f, 5, f"out_mux_sel <= {sel};")
-    common.write(f, 4, "when others =>")
-    common.write(f, 5, "out_mux_sel <= 0;")
-    common.write(f, 3, "end case;")
-    common.synchronous_process_epilogue(f, clk="clk", name="out_mux_decode_proc")
+    decode_entries = [
+        (i % schedule_time, output_mux_table[entry.outputs_from])
+        for i, entry in enumerate(forward_backward_table)
+        if entry.outputs_from is not None
+    ]
+    for idx, (time_val, sel) in enumerate(decode_entries):
+        if idx == 0:
+            common.write(
+                f, 1, f"out_mux_sel <= {sel} when schedule_cnt_int = {time_val}"
+            )
+        else:
+            common.write(f, 5, f"else {sel} when schedule_cnt_int = {time_val}")
+    common.write(f, 5, "else 0;")
 
     # Output multiplexer logic
     common.write(f, 1, "-- Output multiplexer", start="\n")
-    common.synchronous_process_prologue(f, clk="clk", name="out_mux_proc")
-    common.write(f, 3, "case out_mux_sel is")
-    for reg_i, mux_i in output_mux_table.items():
-        common.write(f, 4, f"when {mux_i} =>")
-        if reg_i < 0:
-            common.write(f, 5, f"p_0_out <= p_{-1 - reg_i}_in;")
+    mux_items = list(output_mux_table.items())
+    for idx, (reg_i, mux_i) in enumerate(mux_items):
+        rhs = f"p_{-1 - reg_i}_in" if reg_i < 0 else f"shift_reg({reg_i})"
+        if idx == 0:
+            common.write(f, 1, f"p_0_out <= {rhs} when out_mux_sel = {mux_i}")
         else:
-            common.write(f, 5, f"p_0_out <= shift_reg({reg_i});")
-    common.write(f, 3, "end case;")
-    common.synchronous_process_epilogue(
-        f,
-        clk="clk",
-        name="out_mux_proc",
-    )
+            common.write(f, 5, f"else {rhs} when out_mux_sel = {mux_i}")
+    common.write(f, 5, "else (others => '0');")
 
     common.write(f, 0, "end architecture rtl;", start="\n")

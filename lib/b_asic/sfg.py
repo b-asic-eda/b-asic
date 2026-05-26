@@ -16,6 +16,7 @@ from io import StringIO
 from queue import PriorityQueue
 from typing import TYPE_CHECKING, Literal, Union, cast
 
+import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from graphviz import Digraph
@@ -494,6 +495,51 @@ class SFG(AbstractOperation):
 
     def to_sfg(self) -> "SFG":
         return self
+
+    def flatten(self, expand: bool = False) -> "SFG":
+        """
+        Return a new SFG with all sub-SFG operations recursively inlined.
+
+        Any operation in this SFG that is itself an SFG will have its internal
+        operations merged into the returned SFG. This is applied recursively
+        until no nested SFGs remain.
+
+        Parameters
+        ----------
+        expand : bool, optional
+            If True, also expand composite operations (e.g. SymmetricTwoportAdaptor)
+            into their primitive sub-operations via their ``to_sfg()`` method.
+            Operations whose ``to_sfg()`` only wraps themselves (i.e. primitives)
+            are left unchanged.
+        """
+        sfg_copy = self()
+
+        changed = True
+        while changed:
+            changed = False
+            for op in sfg_copy.operations:
+                if isinstance(op, SFG):
+                    op.connect_external_signals_to_components()
+                    sfg_copy = SFG(
+                        inputs=sfg_copy._input_operations,
+                        outputs=sfg_copy._output_operations,
+                        name=sfg_copy.name,
+                    )
+                    changed = True
+                    break
+                if expand and not isinstance(op, (Input, Output)):
+                    op_sfg = op.to_sfg()
+                    inner = [
+                        o
+                        for o in op_sfg.operations
+                        if not isinstance(o, (Input, Output))
+                    ]
+                    if len(inner) != 1 or type(inner[0]) is not type(op):
+                        sfg_copy = sfg_copy.replace(op.graph_id, op_sfg)
+                        changed = True
+                        break
+
+        return sfg_copy
 
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
         """
@@ -2074,30 +2120,6 @@ class SFG(AbstractOperation):
 
         return Schedule(self, ASAPScheduler()).schedule_time
 
-    def _dfs(self, graph, start, end):
-        """
-        Find loop(s) in graph.
-
-        Parameters
-        ----------
-        graph : dictionary
-            The dictionary that are to be searched for loops.
-        start : key in dictionary graph
-            The "node" in the dictionary that are set as the start point.
-        end : key in dictionary graph
-            The "node" in the dictionary that are set as the end point.
-        """
-        fringe = [(start, [])]
-        while fringe:
-            state, path = fringe.pop()
-            if path and state == end:
-                yield path
-                continue
-            for next_state in graph[state]:
-                if next_state in path:
-                    continue
-                fringe.append((next_state, [*path, next_state]))
-
     def resource_lower_bound(self, type_name: TypeName, schedule_time: int) -> int:
         """
         Return the lowest amount of resources of the given type needed to reach the scheduling time.
@@ -2174,41 +2196,31 @@ class SFG(AbstractOperation):
         """
         if not self.input_count:
             return []
-        dict_of_sfg: dict[GraphID, list[GraphID]] = {}
+        graph: nx.DiGraph = nx.DiGraph()
         queue: deque[Operation] = deque(self._input_operations)
         visited: set[Operation] = set(self._input_operations)
         while queue:
             op = queue.popleft()
             for output_port in op.outputs:
-                if not isinstance(op, (Input, Output)):
-                    dict_of_sfg[op.graph_id] = []
                 for signal in output_port.signals:
                     if signal.destination is not None:
                         new_op = signal.destination.operation
                         if not isinstance(op, (Input, Output)) and not isinstance(
                             new_op, Output
                         ):
-                            dict_of_sfg[op.graph_id].append(new_op.graph_id)
+                            graph.add_edge(op.graph_id, new_op.graph_id)
                         if new_op not in visited:
                             queue.append(new_op)
                             visited.add(new_op)
                     else:
                         raise ValueError("Destination for {signal!r} does not exist")
-        cycles = [
-            [node, *path]
-            for node in dict_of_sfg
-            for path in self._dfs(dict_of_sfg, node, node)
-        ]
-
-        # Get non-redundant cycles
-        unique_lists = []
-        seen_cycles = set()
-        for cycle in cycles:
-            operation_set = frozenset(cycle)
-            if operation_set not in seen_cycles:
-                unique_lists.append(cycle)
-                seen_cycles.add(operation_set)
-        return unique_lists
+        cycles = []
+        for cycle in nx.simple_cycles(graph):
+            min_idx = cycle.index(min(cycle))
+            normalized = cycle[min_idx:] + cycle[:min_idx]
+            cycles.append([*normalized, normalized[0]])
+        cycles.sort()
+        return cycles
 
     def to_ss(self) -> StateSpace:
         """
