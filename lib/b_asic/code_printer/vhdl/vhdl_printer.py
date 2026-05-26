@@ -268,16 +268,12 @@ class VhdlPrinter(Printer):
                     "Call memory.assign() first."
                 )
             register_kwargs = {
-                "external_schedule_counter": kwargs.get(
-                    "external_schedule_counter", True
-                ),
                 "std_logic_vector": kwargs.get("std_logic_vector", False),
             }
             register_storage.entity(
                 f,
                 mem,
                 self._dt,
-                external_schedule_counter=register_kwargs["external_schedule_counter"],
                 std_logic_vector=register_kwargs["std_logic_vector"],
             )
             register_storage.architecture(
@@ -1904,18 +1900,39 @@ class VhdlPrinter(Printer):
                     guard_low = target_bits
 
                     if self._dt.is_signed:
-                        # For signed: overflow if guard bits != sign bit (MSB of target)
+                        # For signed: overflow if guard bits != sign bit (MSB of target).
+                        # Intermediate std_logic flags ensure 'X' inputs propagate
+                        # correctly: when flags are 'X', = '1' evaluates false so the
+                        # output falls through to res_quant which is also 'X'.
                         max_val = 2 ** (target_bits - 1) - 1
                         min_val = -(2 ** (target_bits - 1))
+                        pos_flag = f"pos_overflow_{port_number}{part}"
+                        neg_flag = f"neg_overflow_{port_number}{part}"
+                        common.signal_declaration(
+                            declarations, f"{pos_flag}, {neg_flag}", "std_logic"
+                        )
+                        overflow_cond = (
+                            f"res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
+                            f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos}))"
+                        )
+                        common.write(
+                            code,
+                            1,
+                            f"{pos_flag} <= '1' when {overflow_cond} and "
+                            f"res_quant_{port_number}{part}({guard_high}) = '0' else '0';",
+                        )
+                        common.write(
+                            code,
+                            1,
+                            f"{neg_flag} <= '1' when {overflow_cond} and "
+                            f"res_quant_{port_number}{part}({guard_high}) = '1' else '0';",
+                        )
                         common.write(
                             code,
                             1,
                             f"res_overflow_{port_number}{part} <= "
-                            f"to_signed({max_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
-                            f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos})) and "
-                            f"res_quant_{port_number}{part}({guard_high}) = '0' else "
-                            f"to_signed({min_val}, {target_bits}) when res_quant_{port_number}{part}({guard_high} downto {guard_low}) /= "
-                            f"({guard_bits - 1} downto 0 => res_quant_{port_number}{part}({sign_bit_pos})) else "
+                            f"to_signed({max_val}, {target_bits}) when {pos_flag} = '1' else "
+                            f"to_signed({min_val}, {target_bits}) when {neg_flag} = '1' else "
                             f"res_quant_{port_number}{part}({target_bits - 1} downto 0);",
                         )
                     else:

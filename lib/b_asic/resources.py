@@ -372,6 +372,8 @@ class _ForwardBackwardTable:
             reg = entry.regs[-1]
             if reg is not None and reg not in outputs:
                 next_entry = self.table[(time + 1) % rows]
+                if reg in next_entry.regs:
+                    continue
                 for nreg_idx, nreg in enumerate(next_entry.regs):
                     if nreg is None and (
                         nreg_idx == 0 or entry.regs[nreg_idx - 1] is not None
@@ -388,6 +390,8 @@ class _ForwardBackwardTable:
             reg = entry.regs[-1]
             if reg is not None and reg not in outputs:
                 next_entry = self.table[(time + 1) % rows]
+                if reg in next_entry.regs:
+                    continue
                 for nreg_idx, nreg in enumerate(next_entry.regs):
                     if nreg is None:
                         next_entry.regs[nreg_idx] = reg
@@ -2603,7 +2607,7 @@ class ProcessCollection:
         int
             The maximum number of concurrent reads.
         """
-        return max(self.read_port_accesses().values())
+        return max(self.read_port_accesses().values(), default=0)
 
     def read_port_accesses(self) -> dict[int, int]:
         reads = list(
@@ -2623,7 +2627,7 @@ class ProcessCollection:
         int
             The maximum number of concurrent writes.
         """
-        return max(self.write_port_accesses().values())
+        return max(self.write_port_accesses().values(), default=0)
 
     def write_port_accesses(self) -> dict[int, int]:
         writes = [
@@ -2640,7 +2644,7 @@ class ProcessCollection:
         int
             The maximum number of concurrent reads and writes.
         """
-        return max(self.total_port_accesses().values())
+        return max(self.total_port_accesses().values(), default=0)
 
     def total_port_accesses(self) -> dict[int, int]:
         accesses = sum(

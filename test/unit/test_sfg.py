@@ -3006,3 +3006,107 @@ class TestGetImpulseResponsesFromNodes:
         np.testing.assert_array_equal(
             noise_responses["out0"]["add0"], np.array([7, 25, 95, 335, 1195])
         )
+
+
+class TestFlatten:
+    def test_single_level(self):
+        """Inline a single nested SFG containing an addition."""
+        a, b = Input(), Input()
+        add = Addition()
+        add.input(0).connect(a)
+        add.input(1).connect(b)
+        inner = SFG(inputs=[a, b], outputs=[Output(add)])
+
+        x, y = Input(), Input()
+        inst = inner()
+        inst.input(0).connect(x)
+        inst.input(1).connect(y)
+        outer = SFG(inputs=[x, y], outputs=[Output(inst)])
+
+        assert any(isinstance(op, SFG) for op in outer.operations)
+        flat = outer.flatten()
+        assert not any(isinstance(op, SFG) for op in flat.operations)
+        assert flat.evaluate_output(0, [3, 5]) == 8
+
+    def test_recursive(self):
+        """Recursively inline doubly-nested SFGs."""
+        a, b = Input(), Input()
+        add = Addition()
+        add.input(0).connect(a)
+        add.input(1).connect(b)
+        inner = SFG(inputs=[a, b], outputs=[Output(add)])
+
+        x, y = Input(), Input()
+        inst = inner()
+        inst.input(0).connect(x)
+        inst.input(1).connect(y)
+        mul = ConstantMultiplication(2)
+        mul.input(0).connect(inst)
+        middle = SFG(inputs=[x, y], outputs=[Output(mul)])
+
+        p, q = Input(), Input()
+        mid_inst = middle()
+        mid_inst.input(0).connect(p)
+        mid_inst.input(1).connect(q)
+        outer = SFG(inputs=[p, q], outputs=[Output(mid_inst)])
+
+        flat = outer.flatten()
+        assert not any(isinstance(op, SFG) for op in flat.operations)
+        assert flat.evaluate_output(0, [3, 5]) == 16
+
+    def test_no_nested_sfg_unchanged(self):
+        """flatten() on a flat SFG returns an equivalent SFG."""
+        inp = Input()
+        mul = ConstantMultiplication(3)
+        mul.input(0).connect(inp)
+        sfg = SFG(inputs=[inp], outputs=[Output(mul)])
+
+        flat = sfg.flatten()
+        assert not any(isinstance(op, SFG) for op in flat.operations)
+        assert flat.evaluate_output(0, [7]) == 21
+
+    def test_multiple_sub_sfgs(self):
+        """Inline two independent sub-SFGs in one outer SFG."""
+        # sub1: out = a * 2
+        a = Input()
+        m1 = ConstantMultiplication(2)
+        m1.input(0).connect(a)
+        sub1 = SFG(inputs=[a], outputs=[Output(m1)])
+
+        # sub2: out = b * 3
+        b = Input()
+        m2 = ConstantMultiplication(3)
+        m2.input(0).connect(b)
+        sub2 = SFG(inputs=[b], outputs=[Output(m2)])
+
+        # outer: out = sub1(x) + sub2(y)
+        x, y = Input(), Input()
+        s1, s2 = sub1(), sub2()
+        s1.input(0).connect(x)
+        s2.input(0).connect(y)
+        add = Addition()
+        add.input(0).connect(s1)
+        add.input(1).connect(s2)
+        outer = SFG(inputs=[x, y], outputs=[Output(add)])
+
+        flat = outer.flatten()
+        assert not any(isinstance(op, SFG) for op in flat.operations)
+        assert flat.evaluate_output(0, [4, 5]) == 23  # 4*2 + 5*3
+
+    def test_expand_composite_operation(self):
+        """expand=True decomposes composite operations via to_sfg()."""
+        sfg = wdf_allpass(0.5)
+        assert any(isinstance(op, SymmetricTwoportAdaptor) for op in sfg.operations)
+
+        expanded = sfg.flatten(expand=True)
+        assert not any(isinstance(op, SFG) for op in expanded.operations)
+        assert not any(
+            isinstance(op, SymmetricTwoportAdaptor) for op in expanded.operations
+        )
+        assert sfg.evaluate_output(0, [1]) == expanded.evaluate_output(0, [1])
+
+    def test_expand_false_leaves_composite_unchanged(self):
+        """flatten() without expand=True leaves composite operations in place."""
+        sfg = wdf_allpass(0.5)
+        flat = sfg.flatten()
+        assert any(isinstance(op, SymmetricTwoportAdaptor) for op in flat.operations)

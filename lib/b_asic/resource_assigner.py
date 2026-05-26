@@ -912,11 +912,11 @@ def _get_mem_node(
     pe_node: Process, pe_port_index: int, mem_nodes: list[Process]
 ) -> Process | None:
     for mem_process in mem_nodes:
-        parts = mem_process.name.split(".")
-        var_name, port_str = parts[0], parts[1]
+        if isinstance(mem_process.write_port, MemoryOutputPort):
+            continue
         if (
-            var_name == pe_node.operation.graph_id
-            and int(port_str.split("_")[0]) == pe_port_index
+            mem_process.write_port.operation.graph_id == pe_node.operation.graph_id
+            and mem_process.write_port.index == pe_port_index
         ):
             return mem_process
     return None
@@ -925,19 +925,19 @@ def _get_mem_node(
 def _get_pe_nodes(
     mem_node: Process, pe_nodes: list[Process]
 ) -> list[tuple[Process, int]]:
-    nodes = []
-    parts = mem_node.name.split(".")
-    var_name = parts[0]
-    port_index = int(parts[1].split("_")[0])
-    for pe_process in pe_nodes:
-        for input_port in pe_process.operation.inputs:
-            input_op = input_port.connected_source.operation
-            if (
-                input_op.graph_id == var_name
-                and input_port.connected_source.index == port_index
-            ):
-                nodes.append((pe_process, input_port.index))
-    return nodes
+    if isinstance(mem_node.write_port, MemoryOutputPort):
+        return []
+    src_op = mem_node.write_port.operation
+    src_port_index = mem_node.write_port.index
+    return [
+        (pe_process, input_port.index)
+        for pe_process in pe_nodes
+        for input_port in pe_process.operation.inputs
+        if (
+            input_port.connected_source.operation.graph_id == src_op.graph_id
+            and input_port.connected_source.index == src_port_index
+        )
+    ]
 
 
 def _create_memory_variables(mem_vars: list, max_mems: list[int]) -> tuple[dict, dict]:

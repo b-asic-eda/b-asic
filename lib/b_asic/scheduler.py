@@ -1555,7 +1555,7 @@ class ILPScheduler(Scheduler):
         schedule: "Schedule",
         input_times: dict["GraphID", int] | None = None,
         output_delta_times: dict["GraphID", int] | None = None,
-    ) -> (dict["GraphID", int], int):
+    ) -> tuple[dict["GraphID", int], int]:
         asap_schedule = copy.copy(schedule)
         asap_schedule._schedule_time = None
         asap_scheduler = ASAPScheduler(
