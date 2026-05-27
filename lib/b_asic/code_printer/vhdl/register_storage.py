@@ -49,6 +49,7 @@ def architecture(
     sync_rst: bool = False,
     async_rst: bool = False,
     std_logic_vector: bool = True,
+    pipeline_control_signals: bool = False,
 ) -> None:
     """
     Generate architecture for register-based storage.
@@ -69,6 +70,8 @@ def architecture(
         Enable asynchronous reset.
     std_logic_vector : bool, default: True
         If True, use std_logic_vector for data signals. If False, use dt.type_str.
+    pipeline_control_signals : bool, default: False
+        If True, register the control signals.
     """
     schedule_time = len(forward_backward_table)
 
@@ -158,39 +161,53 @@ def architecture(
 
     # Shift register back-edge decoding
     common.write(f, 1, "-- Shift register back-edge decoding", start="\n")
-    common.synchronous_process_prologue(
-        f, clk="clk", name="shift_reg_back_edge_decode_proc"
-    )
-    common.write(f, 3, "if en = '1' then")
-    common.write(f, 4, "case schedule_cnt_int is")
-    for time, entry in enumerate(forward_backward_table):
-        if entry.back_edge_to:
-            assert len(entry.back_edge_to) == 1
-            for src, dst in entry.back_edge_to.items():
-                mux_idx = back_edge_table[(src, dst)]
-                time_val = (time - 1) % schedule_time
-                common.write_lines(
-                    f,
-                    [
-                        (5, f"when {time_val} =>"),
-                        (6, f"-- ({src} -> {dst})"),
-                        (6, f"back_edge_mux_sel <= {mux_idx};"),
-                    ],
-                )
-    common.write_lines(
-        f,
-        [
-            (5, "when others =>"),
-            (6, "back_edge_mux_sel <= 0;"),
-            (4, "end case;"),
-            (3, "end if;"),
-        ],
-    )
-    common.synchronous_process_epilogue(
-        f,
-        clk="clk",
-        name="shift_reg_back_edge_decode_proc",
-    )
+    if pipeline_control_signals:
+        common.synchronous_process_prologue(
+            f, clk="clk", name="shift_reg_back_edge_decode_proc"
+        )
+        common.write(f, 3, "if en = '1' then")
+        common.write(f, 4, "case schedule_cnt_int is")
+        for time, entry in enumerate(forward_backward_table):
+            if entry.back_edge_to:
+                assert len(entry.back_edge_to) == 1
+                for src, dst in entry.back_edge_to.items():
+                    mux_idx = back_edge_table[(src, dst)]
+                    time_val = (time - 1) % schedule_time
+                    common.write_lines(
+                        f,
+                        [
+                            (5, f"when {time_val} =>"),
+                            (6, f"-- ({src} -> {dst})"),
+                            (6, f"back_edge_mux_sel <= {mux_idx};"),
+                        ],
+                    )
+        common.write_lines(
+            f,
+            [
+                (5, "when others =>"),
+                (6, "back_edge_mux_sel <= 0;"),
+                (4, "end case;"),
+                (3, "end if;"),
+            ],
+        )
+        common.synchronous_process_epilogue(
+            f,
+            clk="clk",
+            name="shift_reg_back_edge_decode_proc",
+        )
+    else:
+        common.write(f, 1, "with schedule_cnt_int select")
+        common.write(f, 2, "back_edge_mux_sel <=")
+        for time, entry in enumerate(forward_backward_table):
+            if entry.back_edge_to:
+                assert len(entry.back_edge_to) == 1
+                for src, dst in entry.back_edge_to.items():
+                    mux_idx = back_edge_table[(src, dst)]
+                    time_val = time % schedule_time
+                    common.write(
+                        f, 3, f"{mux_idx} when {time_val}, -- ({src} -> {dst})"
+                    )
+        common.write(f, 3, "0 when others;")
 
     # Shift register multiplexer logic
     common.write(f, 1, "-- Multiplexers for shift register", start="\n")
@@ -243,24 +260,20 @@ def architecture(
         for i, entry in enumerate(forward_backward_table)
         if entry.outputs_from is not None
     ]
-    for idx, (time_val, sel) in enumerate(decode_entries):
-        if idx == 0:
-            common.write(
-                f, 1, f"out_mux_sel <= {sel} when schedule_cnt_int = {time_val}"
-            )
-        else:
-            common.write(f, 5, f"else {sel} when schedule_cnt_int = {time_val}")
-    common.write(f, 5, "else 0;")
+    common.write(f, 1, "with schedule_cnt_int select")
+    common.write(f, 2, "out_mux_sel <=")
+    for time_val, sel in decode_entries:
+        common.write(f, 3, f"{sel} when {time_val},")
+    common.write(f, 3, "0 when others;")
 
     # Output multiplexer logic
     common.write(f, 1, "-- Output multiplexer", start="\n")
     mux_items = list(output_mux_table.items())
-    for idx, (reg_i, mux_i) in enumerate(mux_items):
+    common.write(f, 1, "with out_mux_sel select")
+    common.write(f, 2, "p_0_out <=")
+    for reg_i, mux_i in mux_items:
         rhs = f"p_{-1 - reg_i}_in" if reg_i < 0 else f"shift_reg({reg_i})"
-        if idx == 0:
-            common.write(f, 1, f"p_0_out <= {rhs} when out_mux_sel = {mux_i}")
-        else:
-            common.write(f, 5, f"else {rhs} when out_mux_sel = {mux_i}")
-    common.write(f, 5, "else (others => '0');")
+        common.write(f, 3, f"{rhs} when {mux_i},")
+    common.write(f, 3, "(others => '0') when others;")
 
     common.write(f, 0, "end architecture rtl;", start="\n")

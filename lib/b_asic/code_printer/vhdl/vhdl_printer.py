@@ -269,6 +269,7 @@ class VhdlPrinter(Printer):
                 )
             register_kwargs = {
                 "std_logic_vector": kwargs.get("std_logic_vector", False),
+                "pipeline_control_signals": kwargs.get("pipeline_mem_control", False),
             }
             register_storage.entity(
                 f,
