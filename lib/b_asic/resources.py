@@ -321,15 +321,25 @@ class _ForwardBackwardTable:
             forward = not forward
 
     def _forward_backward_is_complete(self) -> bool:
-        s = {proc for e in self.table for proc in e.outputs}
-        return len(self._collection - s) == 0
+        rows = len(self.table)
+        output_times: dict[Process, set[int]] = {}
+        for t, e in enumerate(self.table):
+            for proc in e.outputs:
+                output_times.setdefault(proc, set()).add(t)
+        for proc in self._collection:
+            expected = {rt % rows for rt in proc.read_times}
+            if output_times.get(proc, set()) != expected:
+                return False
+        return True
 
     def _do_forward_allocation(self) -> None:
         """
         Forward all Processes as far as possible in the register chain.
 
-        Processes are forwarded until they reach their end time (at which they are
-        added to the output list), or until they reach the end of the register chain.
+        Processes are forwarded until they reach their final read time (at which they
+        are added to the output list for the last time and stop being forwarded).
+        At any intermediate read time the process is also added to the output list but
+        continues to be forwarded so that later reads can still be served.
         """
         rows = len(self.table)
         cols = len(self.table[0].regs)
@@ -340,11 +350,18 @@ class _ForwardBackwardTable:
                 for reg_idx, reg in enumerate(entry.regs):
                     if reg is not None:
                         reg_end_time = (reg.start_time + reg.execution_time) % rows
-                        if reg_end_time == time:
-                            if reg not in self.table[time].outputs:
-                                self.table[time].outputs.append(reg)
-                                self.table[time].outputs_from = reg_idx
-                        elif reg_idx != cols - 1:
+                        all_read_times = {rt % rows for rt in reg.read_times}
+
+                        # Output at every read time (intermediate or final).
+                        if (
+                            time in all_read_times
+                            and reg not in self.table[time].outputs
+                        ):
+                            self.table[time].outputs.append(reg)
+                            self.table[time].outputs_from = reg_idx
+
+                        # Forward unless this is the final read time.
+                        if reg_end_time != time and reg_idx != cols - 1:
                             next_row = (time + 1) % rows
                             next_col = reg_idx + 1
                             if self.table[next_row].regs[next_col] not in (None, reg):
@@ -362,7 +379,16 @@ class _ForwardBackwardTable:
         """
         rows = len(self.table)
         cols = len(self.table[0].regs)
-        outputs = {out for e in self.table for out in e.outputs}
+        # Build a set of processes for which ALL read times are already covered.
+        output_times: dict[Process, set[int]] = {}
+        for t, e in enumerate(self.table):
+            for proc in e.outputs:
+                output_times.setdefault(proc, set()).add(t)
+        fully_output = {
+            proc
+            for proc in output_times
+            if output_times[proc] == {rt % rows for rt in proc.read_times}
+        }
         #
         # Pass #1: Find any (one) non-dead variable from the last register and try to
         # backward allocate it to a previous register where it is not blocking an open
@@ -370,7 +396,7 @@ class _ForwardBackwardTable:
         #
         for time, entry in enumerate(self.table):
             reg = entry.regs[-1]
-            if reg is not None and reg not in outputs:
+            if reg is not None and reg not in fully_output:
                 next_entry = self.table[(time + 1) % rows]
                 if reg in next_entry.regs:
                     continue
@@ -388,7 +414,7 @@ class _ForwardBackwardTable:
         #
         for time, entry in enumerate(self.table):
             reg = entry.regs[-1]
-            if reg is not None and reg not in outputs:
+            if reg is not None and reg not in fully_output:
                 next_entry = self.table[(time + 1) % rows]
                 if reg in next_entry.regs:
                     continue
