@@ -544,12 +544,18 @@ class ListScheduler(Scheduler):
         if max_resources is not None:
             if not isinstance(max_resources, dict):
                 raise ValueError("Provided max_resources must be a dictionary.")
+            normalized: dict[TypeName, int] = {}
             for key, value in max_resources.items():
+                if isinstance(key, type) and hasattr(key, "type_name"):
+                    key = key.type_name()
                 if not isinstance(key, str):
-                    raise ValueError("Provided max_resources keys must be strings.")
+                    raise ValueError(
+                        "Provided max_resources keys must be strings or operation types."
+                    )
                 if not isinstance(value, int):
                     raise ValueError("Provided max_resources values must be integers.")
-            self._max_resources = max_resources
+                normalized[TypeName(key)] = value
+            self._max_resources = normalized
         else:
             self._max_resources = {}
 

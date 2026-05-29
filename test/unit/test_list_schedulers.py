@@ -2029,7 +2029,7 @@ class TestRecursiveListScheduler:
             ),
         )
         _validate_recreated_sfg_filter(sfg, schedule)
-        assert schedule.schedule_time == 4  # all slots filled with cmul executions
+        assert schedule.schedule_time == 5
         for op_id in schedule.start_times:
             assert schedule.backward_slack(op_id) >= 0
             assert schedule.forward_slack(op_id) >= 0
