@@ -1959,6 +1959,7 @@ class ProcessCollection:
         self.plot(ax=ax, show_markers=False)
         f = io.StringIO()
         fig.savefig(f, format="svg")  # type: ignore
+        plt.close(fig)
         return f.getvalue()
 
     # SVG is valid HTML. This is useful for e.g. sphinx-gallery

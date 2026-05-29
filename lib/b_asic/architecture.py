@@ -164,7 +164,12 @@ class HardwareBlock(ABC):
         return self._digraph()._repr_mimebundle_(include=include, exclude=exclude)
 
     def _repr_jpeg_(self):
-        return self._digraph()._repr_mimebundle_(include=["image/jpeg"])["image/jpeg"]
+        try:
+            return self._digraph()._repr_mimebundle_(include=["image/jpeg"])[
+                "image/jpeg"
+            ]
+        except Exception:
+            return None
 
     def _repr_png_(self):
         return self._digraph()._repr_mimebundle_(include=["image/png"])["image/png"]

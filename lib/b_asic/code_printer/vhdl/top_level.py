@@ -130,6 +130,8 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                             process.start_time + input_latency
                         ) % arch.schedule_time not in read_times:
                             continue
+                        if isinstance(var.write_port, MemoryOutputPort):
+                            continue  # Source is another memory variable, handled in mem mux section
                         var_op_id = var.write_port.operation.graph_id
                         var_port_index = var.write_port.index
                         if (

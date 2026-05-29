@@ -1632,6 +1632,7 @@ class Schedule:
         fig = self._get_figure()
         buffer = io.StringIO()
         fig.savefig(buffer, format="svg")
+        plt.close(fig)
 
         return buffer.getvalue()
 
