@@ -12,6 +12,7 @@ from b_asic.sfg_generators import (
     analytical_block_matrix_inverse,
     block_cholesky_matrix_inverse,
     block_ldlt_matrix_inverse,
+    blwdf,
     cholesky_matrix_inverse,
     direct_form_1_iir,
     direct_form_2_iir,
@@ -1491,3 +1492,85 @@ class TestMatrixMultiplication:
         assert np.isclose(sim.results["out1"], 64)
         assert np.isclose(sim.results["out2"], 139)
         assert np.isclose(sim.results["out3"], 154)
+
+
+def _poly_to_blwdf_coeffs(a):
+    """Convert denominator polynomial to interleaved BLWDF adaptor coefficients."""
+    np_a = np.atleast_1d(np.asarray(a, dtype=float))
+    np_a = np_a / np_a[0]
+    poles = np.roots(np_a)
+    real_poles = [p for p in poles if abs(p.imag) < 1e-10]
+    complex_pairs = [p for p in poles if p.imag > 1e-10]
+
+    def _sec(pole):
+        if abs(pole.imag) < 1e-10:
+            return [float(pole.real)]
+        return [-(abs(pole) ** 2), 2.0 * pole.real / (1.0 + abs(pole) ** 2)]
+
+    a_sections: list = []
+    b_sections: list = []
+    if real_poles:
+        a_sections.append(_sec(real_poles[0]))
+        for i, p in enumerate(complex_pairs):
+            (b_sections if i % 2 == 0 else a_sections).append(_sec(p))
+    else:
+        for i, p in enumerate(complex_pairs):
+            (a_sections if i % 2 == 0 else b_sections).append(_sec(p))
+
+    coeffs: list = []
+    if real_poles:
+        coeffs.extend(a_sections[0])
+        a_rest = a_sections[1:]
+        for i in range(max(len(a_rest), len(b_sections))):
+            if i < len(b_sections):
+                coeffs.extend(b_sections[i])
+            if i < len(a_rest):
+                coeffs.extend(a_rest[i])
+    else:
+        for i in range(max(len(a_sections), len(b_sections))):
+            if i < len(a_sections):
+                coeffs.extend(a_sections[i])
+            if i < len(b_sections):
+                coeffs.extend(b_sections[i])
+    return coeffs
+
+
+class TestBLWDF:
+    @pytest.mark.parametrize("N", [1, 3, 7, 13])
+    def test_structure(self, N):
+        sp = pytest.importorskip("scipy")
+        _, a = sp.signal.ellip(N, 0.1, 40, 0.3)
+        sfg = blwdf(_poly_to_blwdf_coeffs(a))
+        assert len(sfg.inputs) == 1
+        assert len(sfg.outputs) == 1
+        assert sfg.name == "BLWDF"
+
+    @pytest.mark.parametrize("N", [1, 3, 7, 13])
+    def test_delay_count_equals_order(self, N):
+        sp = pytest.importorskip("scipy")
+        _, a = sp.signal.ellip(N, 0.1, 40, 0.3)
+        sfg = blwdf(_poly_to_blwdf_coeffs(a)).flatten(False)
+        assert len(sfg.find_by_type_name(Delay.type_name())) == N
+
+    @pytest.mark.parametrize("N", [1, 3, 7, 13])
+    def test_adaptor_count_equals_order(self, N):
+        sp = pytest.importorskip("scipy")
+        _, a = sp.signal.ellip(N, 0.1, 40, 0.3)
+        sfg = blwdf(_poly_to_blwdf_coeffs(a)).flatten(False)
+        assert len(sfg.find_by_type_name(SymmetricTwoportAdaptor.type_name())) == N
+
+    @pytest.mark.parametrize("N", [1, 3, 7, 13])
+    @pytest.mark.parametrize("only_adaptors", [True, False])
+    def test_dc_gain_is_unity(self, N, only_adaptors):
+        sp = pytest.importorskip("scipy")
+        _, a = sp.signal.ellip(N, 0.1, 40, 0.3)
+        sfg = blwdf(_poly_to_blwdf_coeffs(a), only_adaptors=only_adaptors).flatten(
+            False
+        )
+        sim = Simulation(sfg, [1] + [0] * 1999)
+        sim.run()
+        assert np.isclose(sum(sim.results["out0"]), 1.0, atol=0.01)
+
+    def test_invalid_empty(self):
+        with pytest.raises(ValueError, match="cannot be empty"):
+            blwdf([])

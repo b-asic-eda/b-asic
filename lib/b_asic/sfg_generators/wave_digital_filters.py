@@ -114,3 +114,72 @@ def wdf_allpass(
                 signal_out = Signal(delay2)
     output <<= signal_out
     return SFG([input_op], [output], name=Name(name))
+
+
+def blwdf(
+    coefficients: Sequence[float],
+    name: str | None = None,
+    only_adaptors: bool = False,
+) -> SFG:
+    """
+    Generate a signal flow graph of a Bireciprocal Lattice Wave Digital Filter.
+
+    Parameters
+    ----------
+    coefficients : 1D-array
+        Adaptor coefficients, interleaved between the two allpass branches.
+    name : str, optional
+        Name of the SFG. Defaults to ``"BLWDF"``.
+    only_adaptors : bool, optional
+        If True, use an adaptor for the final addition and scaling.
+
+    Returns
+    -------
+    SFG
+        Signal flow graph of the BLWDF.
+    """
+    if not len(coefficients):
+        raise ValueError("coefficients cannot be empty")
+
+    odd = len(coefficients) % 2
+    if odd:
+        a_coeffs = [coefficients[0]]
+        rest = coefficients[1:]
+        b_coeffs: list[float] = []
+        for i in range(0, len(rest), 2):
+            pair = rest[i : i + 2]
+            if (i // 2) % 2 == 0:
+                b_coeffs.extend(pair)
+            else:
+                a_coeffs.extend(pair)
+    else:
+        a_coeffs = []
+        b_coeffs = []
+        for i in range(0, len(coefficients), 2):
+            pair = coefficients[i : i + 2]
+            if (i // 2) % 2 == 0:
+                a_coeffs.extend(pair)
+            else:
+                b_coeffs.extend(pair)
+
+    input_op = Input()
+
+    sec_a = wdf_allpass(a_coeffs)
+    sec_a <<= input_op
+    sig_a = sec_a
+
+    if b_coeffs:
+        sec_b = wdf_allpass(b_coeffs)
+        sec_b <<= input_op
+        sig_b = sec_b
+    else:
+        sig_b = input_op
+
+    if only_adaptors:
+        adaptor = SymmetricTwoportAdaptor(-0.5, sig_a, sig_b)
+        output = Output(adaptor.output(0))
+    else:
+        output = Output((sig_a + sig_b) * 0.5)
+
+    sfg = SFG([input_op], [output], name=Name(name or "BLWDF"))
+    return sfg.flatten()

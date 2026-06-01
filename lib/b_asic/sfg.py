@@ -341,7 +341,7 @@ class SFG(AbstractOperation):
         return string_io.getvalue()
 
     def __call__(
-        self, *src: SignalSourceProvider | None, name: Name = Name("")
+        self, *src: SignalSourceProvider | None, name: Name | None = None
     ) -> "SFG":
         """
         Return a new SFG identical without any of its external connections.
@@ -350,7 +350,7 @@ class SFG(AbstractOperation):
             inputs=self._input_operations,
             outputs=self._output_operations,
             id_number_offset=self.id_number_offset,
-            name=Name(name),
+            name=self.name if name is None else Name(name),
             input_sources=src or None,
         )
 

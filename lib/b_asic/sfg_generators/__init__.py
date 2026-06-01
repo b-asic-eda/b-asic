@@ -15,12 +15,13 @@ from .matrix_inversion import (
     tile_ldlt_matrix_inverse,
 )
 from .matrix_operations import matrix_multiplication
-from .wave_digital_filters import wdf_allpass
+from .wave_digital_filters import blwdf, wdf_allpass
 
 __all__ = [
     "analytical_block_matrix_inverse",
     "block_cholesky_matrix_inverse",
     "block_ldlt_matrix_inverse",
+    "blwdf",
     "cholesky_matrix_inverse",
     "direct_form_1_iir",
     "direct_form_2_iir",
