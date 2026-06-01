@@ -262,7 +262,7 @@ class TestDeepCopy:
         mac_sfg_new = mac_sfg()
 
         assert mac_sfg.name == "mac_sfg"
-        assert mac_sfg_new.name == ""
+        assert mac_sfg_new.name == "mac_sfg"
 
         for g_id, component in mac_sfg._components_by_id.items():
             component_copy = mac_sfg_new.find_by_id(g_id)
