@@ -67,7 +67,7 @@ sfg.set_execution_time_of_type(AddSub, 1)
 # %%
 # Generate initial schedule
 schedule = Schedule(sfg, cyclic=True)
-schedule.show()
+schedule
 
 # %%
 # Reschedule to only use one AddSub and one ConstantMultiplication per time unit
@@ -99,7 +99,7 @@ schedule.move_operation('addsub3', -1)
 schedule.move_operation('addsub0', -1)
 schedule.move_operation('addsub2', -1)
 schedule.move_operation('addsub4', -4)
-schedule.show()
+schedule
 
 # %%
 # Extract memory variables and operation executions

@@ -32,12 +32,12 @@ sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 input_times = {f"in{i}": i for i in range(points)}
 output_delta_times = {f"out{i}": i for i in range(points)}
 schedule1 = Schedule(sfg, scheduler=ASAPScheduler(input_times, output_delta_times))
-schedule1.show()
+schedule1
 
 # %%
 # Generate an ALAP schedule for reference with custom IO times..
 schedule_t = Schedule(sfg, scheduler=ALAPScheduler(input_times, output_delta_times))
-schedule_t.show()
+schedule_t
 
 # %%
 # Generate a non-cyclic Schedule from HybridScheduler with custom IO times,
@@ -51,7 +51,7 @@ schedule2 = Schedule(
         output_delta_times=output_delta_times,
     ),
 )
-schedule2.show()
+schedule2
 
 # %%
 # Generate a new Schedule with cyclic scheduling enabled.
@@ -65,7 +65,7 @@ schedule3 = Schedule(
     schedule_time=14,
     cyclic=True,
 )
-schedule3.show()
+schedule3
 
 # %%
 # Generate a new Schedule with even less scheduling time.
@@ -79,7 +79,7 @@ schedule4 = Schedule(
     schedule_time=13,
     cyclic=True,
 )
-schedule4.show()
+schedule4
 
 # %%
 # Try scheduling for 12 cycles, which gives full butterfly usage.
@@ -93,4 +93,4 @@ schedule5 = Schedule(
     schedule_time=12,
     cyclic=True,
 )
-schedule5.show()
+schedule5

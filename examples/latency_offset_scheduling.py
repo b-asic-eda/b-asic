@@ -26,17 +26,17 @@ sfg
 # %%
 # Create an ASAP schedule for reference.
 schedule1 = Schedule(sfg, scheduler=ASAPScheduler())
-schedule1.show()
+schedule1
 
 # %%
 # Create an ALAP schedule for reference.
 schedule2 = Schedule(sfg, scheduler=ALAPScheduler())
-schedule2.show()
+schedule2
 
 # %%
 # Create a resource restricted schedule.
 schedule3 = Schedule(sfg, scheduler=HybridScheduler())
-schedule3.show()
+schedule3
 
 # %%
 # Create another schedule with shorter scheduling time by enabling cyclic.
@@ -46,7 +46,7 @@ schedule4 = Schedule(
     schedule_time=49,
     cyclic=True,
 )
-schedule4.show()
+schedule4
 
 # %%
 # Push the schedule time to the rate limit for one MADS operator.
@@ -56,4 +56,4 @@ schedule5 = Schedule(
     schedule_time=15,
     cyclic=True,
 )
-schedule5.show()
+schedule5

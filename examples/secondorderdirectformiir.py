@@ -45,4 +45,4 @@ sfg.set_execution_time_of_type(Addition, 1)
 # Create schedule
 
 schedule = Schedule(sfg, scheduler=ASAPScheduler(), cyclic=True)
-schedule.show()
+schedule

@@ -1702,7 +1702,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         )
         out_port = "e" if orientation == "horizontal" else "s"
         in_port = "w" if orientation == "horizontal" else "n"
-        dg.edge(f"{name}:out:{out_port}", f"{destination_str}:{in_port}")
+        dg.edge(f"{name}:out:{out_port}", f"{destination_str}:{in_port}", weight="100")
 
     def _add_multiplexers(
         self,
@@ -1735,6 +1735,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         fontname: str,
         wire_labels: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
+        show_edge_counts: bool = False,
     ) -> None:
         out_port = "e" if orientation == "horizontal" else "s"
         in_port = "w" if orientation == "horizontal" else "n"
@@ -1747,6 +1748,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
             dest: {src: i for i, src in enumerate(sources)}
             for dest, sources in destination_list.items()
         }
+        entity_output_count: defaultdict[str, int] = defaultdict(int)
+        for src_str in edges:
+            entity = src_str.split(":")[0]
+            if entity in pe_names:
+                entity_output_count[entity] += 1
         wire_label_counter = 0
 
         for src_str, destination_counts in edges.items():
@@ -1755,7 +1761,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
             use_wire_label = wire_labels and src_entity in pe_names
 
             if use_wire_label:
-                wire_name = original_src_str.replace(":", "_")
+                if entity_output_count[src_entity] == 1:
+                    wire_name = src_entity
+                else:
+                    entity, port = original_src_str.split(":")
+                    wire_name = f"{entity}_{port.removeprefix('out')}"
 
                 # One outgoing stub at the PE output port
                 out_stub = f"_wl_out_{wire_label_counter}"
@@ -1780,8 +1790,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     dg.edge(
                         f"{in_stub}:{out_port}",
                         f"{dest}:{in_port}",
-                        label=cnt_str,
+                        **({"label": cnt_str} if show_edge_counts else {}),
                         fontname=fontname,
+                        weight="10",
                     )
             else:
                 using_branch = False
@@ -1793,6 +1804,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
                         branch,
                         arrowhead="none",
                         fontname=fontname,
+                        weight="10",
                     )
                     src_str = branch
                     using_branch = True
@@ -1804,7 +1816,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
                         dest = f"{destination_str.replace(':', '_')}_mux:{idx}"
                     src_edge = src_str if using_branch else f"{src_str}:{out_port}"
                     dg.edge(
-                        src_edge, f"{dest}:{in_port}", label=cnt_str, fontname=fontname
+                        src_edge,
+                        f"{dest}:{in_port}",
+                        **({"label": cnt_str} if show_edge_counts else {}),
+                        fontname=fontname,
+                        weight="10",
                     )
 
     def show(
@@ -1822,6 +1838,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
         wire_labels: bool = True,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         mux_label: bool = True,
+        fontname: str = "Times New Roman",
+        fontsize: int = 14,
+        size: tuple[float, float] | None = None,
+        show_edge_counts: bool = False,
     ) -> None:
         """
         Display a visual representation of the Architecture using the default system viewer.
@@ -1861,6 +1881,15 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Rendering orientation of the graph.
         mux_label : bool, default: True
             Whether to include labels on the multiplexer nodes.
+        fontname : str, default: "Times New Roman"
+            Font to use for node labels.
+        fontsize : int, default: 14
+            Font size to use for node labels.
+        size : (float, float), optional
+            Maximum drawing size in inches as ``(width, height)``.
+        show_edge_counts : bool, default: False
+            Whether to display the number of times each connection is accessed
+            as a label on the edge.
         """
         dg = self._digraph(
             branch_node=branch_node,
@@ -1875,6 +1904,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
             wire_labels=wire_labels,
             orientation=orientation,
             mux_label=mux_label,
+            fontname=fontname,
+            fontsize=fontsize,
+            size=size,
+            show_edge_counts=show_edge_counts,
         )
         if fmt is not None:
             dg.format = fmt
@@ -1889,12 +1922,15 @@ of :class:`~b_asic.architecture.ProcessingElement`
         multiplexers: bool = True,
         colored: bool = True,
         fontname: str = "Times New Roman",
+        fontsize: int = 14,
         engine: str = "dot",
         ranksep: float = 0.5,
         nodesep: float = 0.25,
         wire_labels: bool = True,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         mux_label: bool = True,
+        size: tuple[float, float] | None = None,
+        show_edge_counts: bool = False,
     ) -> Digraph:
         """
         Return a Digraph of the architecture.
@@ -1918,6 +1954,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether to color the nodes.
         fontname : str, default: "Times New Roman"
             Font to use.
+        fontsize : int, default: 14
+            Font size to use.
         engine : str, default: "dot"
             Graphviz engine to use. See https://graphviz.org/docs/layouts/ for more info.
         ranksep : float, default: 0.5
@@ -1933,6 +1971,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Overall orientation of the graph.
         mux_label : bool, default: True
             Whether to include labels on the multiplexer nodes.
+        size : (float, float), optional
+            Maximum drawing size in inches as ``(width, height)``.
+        show_edge_counts: bool = False,
+            Whether to display the number of times each connection is accessed
+            as a label on the edge.
 
         Returns
         -------
@@ -1940,12 +1983,18 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Digraph of the rendered architecture.
         """
         dg = Digraph(node_attr={"shape": "box"}, engine=engine)
-        dg.attr(
-            splines=splines,
-            rankdir="LR" if orientation == "horizontal" else "TB",
-            ranksep=str(ranksep),
-            nodesep=str(nodesep),
-        )
+        graph_attrs: dict[str, str] = {
+            "splines": splines,
+            "rankdir": "LR" if orientation == "horizontal" else "TB",
+            "ranksep": str(ranksep),
+            "nodesep": str(nodesep),
+            "fontname": fontname,
+            "fontsize": str(fontsize),
+        }
+        if size is not None:
+            graph_attrs["size"] = f"{size[0]},{size[1]}"
+        dg.attr(**graph_attrs)
+        dg.attr("node", fontname=fontname, fontsize=str(fontsize))
 
         colors = self._get_digraph_colors(colored)
 
@@ -1983,6 +2032,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             fontname,
             wire_labels,
             orientation,
+            show_edge_counts,
         )
 
         return dg

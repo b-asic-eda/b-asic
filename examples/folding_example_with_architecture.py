@@ -50,7 +50,7 @@ sfg.set_execution_time_of_type(Addition, 1)
 # %%
 # Create schedule
 schedule = Schedule(sfg, scheduler=ASAPScheduler(), cyclic=True)
-schedule.show(title='Original schedule')
+schedule
 
 # %%
 # Reschedule to only require one adder and one multiplier
@@ -65,7 +65,7 @@ schedule.move_operation('cmul0', 1)
 schedule.move_operation('in0', 3)
 schedule.move_operation('cmul2', -1)
 schedule.move_operation('cmul0', 1)
-schedule.show(title='Improved schedule')
+schedule
 
 # %%
 # Extract operations and create processing elements

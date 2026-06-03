@@ -46,7 +46,7 @@ print("Tmin:", T_min)
 # %%
 # Create an ALAP schedule
 schedule = Schedule(sfg, scheduler=ALAPScheduler(), cyclic=True)
-schedule.show()
+schedule
 
 # %%
 # Move some operations "over the edge" in order to reach Tcp = Tmin.
@@ -55,7 +55,7 @@ schedule.move_operation('add2', 2)
 schedule.move_operation('add0', 2)
 schedule.move_operation('add3', 2)
 schedule.set_schedule_time(5)
-schedule.show()
+schedule
 
 # %%
 # Print the new critical path Tcp that is now equal to Tmin.
