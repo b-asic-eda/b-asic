@@ -12,11 +12,11 @@ from b_asic.sfg_generators import (
     analytical_block_matrix_inverse,
     block_cholesky_matrix_inverse,
     block_ldlt_matrix_inverse,
-    blwdf,
     cholesky_matrix_inverse,
     direct_form_1_iir,
     direct_form_2_iir,
     fir,
+    lattice_wdf,
     ldlt_matrix_inverse,
     matrix_multiplication,
     radix_2_dif_fft,
@@ -1494,8 +1494,8 @@ class TestMatrixMultiplication:
         assert np.isclose(sim.results["out3"], 154)
 
 
-def _poly_to_blwdf_coeffs(a):
-    """Convert denominator polynomial to interleaved BLWDF adaptor coefficients."""
+def _poly_to_lattice_wdf_coeffs(a):
+    """Convert denominator polynomial to interleaved Lattice WDF adaptor coefficients."""
     np_a = np.atleast_1d(np.asarray(a, dtype=float))
     np_a = np_a / np_a[0]
     poles = np.roots(np_a)
@@ -1535,28 +1535,28 @@ def _poly_to_blwdf_coeffs(a):
     return coeffs
 
 
-class TestBLWDF:
+class TestLatticeWDF:
     @pytest.mark.parametrize("N", [1, 3, 7, 13])
     def test_structure(self, N):
         sp = pytest.importorskip("scipy")
         _, a = sp.signal.ellip(N, 0.1, 40, 0.3)
-        sfg = blwdf(_poly_to_blwdf_coeffs(a))
+        sfg = lattice_wdf(_poly_to_lattice_wdf_coeffs(a))
         assert len(sfg.inputs) == 1
         assert len(sfg.outputs) == 1
-        assert sfg.name == "BLWDF"
+        assert sfg.name == "Lattice WDF"
 
     @pytest.mark.parametrize("N", [1, 3, 7, 13])
     def test_delay_count_equals_order(self, N):
         sp = pytest.importorskip("scipy")
         _, a = sp.signal.ellip(N, 0.1, 40, 0.3)
-        sfg = blwdf(_poly_to_blwdf_coeffs(a)).flatten(False)
+        sfg = lattice_wdf(_poly_to_lattice_wdf_coeffs(a)).flatten(False)
         assert len(sfg.find_by_type_name(Delay.type_name())) == N
 
     @pytest.mark.parametrize("N", [1, 3, 7, 13])
     def test_adaptor_count_equals_order(self, N):
         sp = pytest.importorskip("scipy")
         _, a = sp.signal.ellip(N, 0.1, 40, 0.3)
-        sfg = blwdf(_poly_to_blwdf_coeffs(a)).flatten(False)
+        sfg = lattice_wdf(_poly_to_lattice_wdf_coeffs(a)).flatten(False)
         assert len(sfg.find_by_type_name(SymmetricTwoportAdaptor.type_name())) == N
 
     @pytest.mark.parametrize("N", [1, 3, 7, 13])
@@ -1564,13 +1564,13 @@ class TestBLWDF:
     def test_dc_gain_is_unity(self, N, only_adaptors):
         sp = pytest.importorskip("scipy")
         _, a = sp.signal.ellip(N, 0.1, 40, 0.3)
-        sfg = blwdf(_poly_to_blwdf_coeffs(a), only_adaptors=only_adaptors).flatten(
-            False
-        )
+        sfg = lattice_wdf(
+            _poly_to_lattice_wdf_coeffs(a), only_adaptors=only_adaptors
+        ).flatten(False)
         sim = Simulation(sfg, [1] + [0] * 1999)
         sim.run()
         assert np.isclose(sum(sim.results["out0"]), 1.0, atol=0.01)
 
     def test_invalid_empty(self):
         with pytest.raises(ValueError, match="cannot be empty"):
-            blwdf([])
+            lattice_wdf([])
