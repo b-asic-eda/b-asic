@@ -116,27 +116,27 @@ def wdf_allpass(
     return SFG([input_op], [output], name=Name(name))
 
 
-def blwdf(
+def lattice_wdf(
     coefficients: Sequence[float],
     name: str | None = None,
     only_adaptors: bool = False,
 ) -> SFG:
     """
-    Generate a signal flow graph of a Bireciprocal Lattice Wave Digital Filter.
+    Generate a signal flow graph of a lattice wave digital filter.
 
     Parameters
     ----------
     coefficients : 1D-array
         Adaptor coefficients, interleaved between the two allpass branches.
     name : str, optional
-        Name of the SFG. Defaults to ``"BLWDF"``.
+        Name of the SFG. Defaults to ``"Lattice WDF"``.
     only_adaptors : bool, optional
         If True, use an adaptor for the final addition and scaling.
 
     Returns
     -------
     SFG
-        Signal flow graph of the BLWDF.
+        Signal flow graph of the lattice WDF.
     """
     if not len(coefficients):
         raise ValueError("coefficients cannot be empty")
@@ -181,5 +181,5 @@ def blwdf(
     else:
         output = Output((sig_a + sig_b) * 0.5)
 
-    sfg = SFG([input_op], [output], name=Name(name or "BLWDF"))
+    sfg = SFG([input_op], [output], name=Name(name or "Lattice WDF"))
     return sfg.flatten()
