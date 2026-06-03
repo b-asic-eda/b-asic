@@ -37,32 +37,32 @@ sfg.set_execution_time_of_type(Reciprocal, 1)
 # Create an ASAP schedule.
 schedule = Schedule(sfg, scheduler=ASAPScheduler())
 print("Scheduling time:", schedule.schedule_time)
-schedule.show()
+schedule
 
 # %%
 # Create an ALAP schedule.
 schedule = Schedule(sfg, scheduler=ALAPScheduler())
 print("Scheduling time:", schedule.schedule_time)
-schedule.show()
+schedule
 
 # %%
 # Create an earliest deadline schedule that uses one MADS and one Reciprocal PE.
 resources = {MADS.type_name(): 1, Reciprocal.type_name(): 1}
 schedule = Schedule(sfg, scheduler=EarliestDeadlineScheduler(resources))
 print("Scheduling time:", schedule.schedule_time)
-schedule.show()
+schedule
 
 # %%
 # Create a least slack-time schedule that uses one MADS and one Reciprocal PE.
 schedule = Schedule(sfg, scheduler=LeastSlackTimeScheduler(resources))
 print("Scheduling time:", schedule.schedule_time)
-schedule.show()
+schedule
 
 # %%
 # Create a max fan-out schedule that uses one MADS and one Reciprocal PE.
 schedule = Schedule(sfg, scheduler=MaxFanOutScheduler(resources))
 print("Scheduling time:", schedule.schedule_time)
-schedule.show()
+schedule
 
 # %%
 # Create a HybridScheduler schedule that one MADS and one Reciprocal PE with
@@ -93,7 +93,7 @@ schedule = Schedule(
     cyclic=True,
 )
 print("Scheduling time:", schedule.schedule_time)
-schedule.show()
+schedule
 
 # %%
 operations = schedule.get_operations()

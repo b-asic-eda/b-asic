@@ -30,13 +30,13 @@ sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 # # %%
 # Generate an ASAP schedule for reference
 schedule1 = Schedule(sfg, scheduler=ASAPScheduler())
-schedule1.show()
+schedule1
 
 # %%
 # Generate a PE constrained HybridSchedule
 resources = {R2Butterfly.type_name(): 1, ConstantMultiplication.type_name(): 1}
 schedule2 = Schedule(sfg, scheduler=HybridScheduler(resources))
-schedule2.show()
+schedule2
 
 # %% Print the max number of read and write port accesses to non-direct memories
 direct, mem_vars = schedule2.get_memory_variables().split_on_length()
@@ -96,7 +96,7 @@ schedule3 = Schedule(
         resources, max_concurrent_reads=2, max_concurrent_writes=2
     ),
 )
-schedule3.show()
+schedule3
 
 # %% Print the max number of read and write port accesses to non-direct memories
 direct, mem_vars = schedule3.get_memory_variables().split_on_length()

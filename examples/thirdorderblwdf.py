@@ -51,4 +51,4 @@ freqz_fir(np.array(sim.results["out0"]) / 2)
 # %%
 # Create and display schedule
 schedule = Schedule(sfg, cyclic=True)
-schedule.show()
+schedule

@@ -1850,6 +1850,13 @@ class SFG(AbstractOperation):
         input_order: list["GraphID"] | None = None,
         output_order: list["GraphID"] | None = None,
         show_op_params: bool = False,
+        direction: Literal["LR", "TB"] = "LR",
+        ranksep: float | None = None,
+        nodesep: float | None = None,
+        size: tuple[float, float] | None = None,
+        force_size: bool = False,
+        fontname: str | None = None,
+        fontsize: float | None = None,
     ) -> Digraph:
         """
         Return a Digraph of the SFG.
@@ -1881,9 +1888,56 @@ class SFG(AbstractOperation):
             Defaults to the SFG's natural output order.
         show_op_params : bool, default: False
             Annotate each operation node with its non-default-valued parameters.
+        direction : {"LR", "TB"}, default: "LR"
+            Direction of the graph layout.
+                - "LR": Left-to-right (inputs on the left, outputs on the right).
+                - "TB": Top-to-bottom (inputs at the top, outputs at the bottom).
+        ranksep : float, optional
+            Separation between ranks in inches. Default is graphviz's default (0.5).
+        nodesep : float, optional
+            Minimum separation between nodes in the same rank, in inches.
+            Default is graphviz's default (0.25).
+        size : tuple of (float, float), optional
+            Maximum bounding box of the drawing as ``(width, height)`` in
+            inches, e.g. ``(10, 5)``.
+        force_size : bool, default: False
+            When True, the ``size`` bounding box is treated as an exact target
+            and graphviz scales the entire drawing (including fonts) to fill
+            it.
+        fontname : str, optional
+            Font name for all node and edge labels, e.g. ``"Times New Roman"``.
+        fontsize : float, optional
+            Font size (in points) for all node and edge labels.
+            Note: if ``force_size=True``, graphviz will scale fonts
+            along with the rest of the drawing to meet the exact size target.
         """
         dg = Digraph()
-        dg.attr(rankdir="LR", splines=splines)
+        _graph_attrs: dict[str, str] = {"rankdir": direction, "splines": splines}
+        if ranksep is not None:
+            _graph_attrs["ranksep"] = str(ranksep)
+        if nodesep is not None:
+            _graph_attrs["nodesep"] = str(nodesep)
+        if size is not None:
+            _graph_attrs["size"] = (
+                f"{size[0]},{size[1]}!" if force_size else f"{size[0]},{size[1]}"
+            )
+        if size is not None:
+            _graph_attrs["ratio"] = "fill"
+        if fontname is not None:
+            _graph_attrs["fontname"] = fontname
+        if fontsize is not None:
+            _graph_attrs["fontsize"] = str(fontsize)
+        dg.attr(**_graph_attrs)
+        if fontname is not None or fontsize is not None:
+            _node_attrs: dict[str, str] = {}
+            if fontname is not None:
+                _node_attrs["fontname"] = fontname
+            if fontsize is not None:
+                _node_attrs["fontsize"] = str(fontsize)
+            dg.attr("node", **_node_attrs)
+            dg.attr("edge", **_node_attrs)
+        _out_port = "s" if direction == "TB" else "e"
+        _in_port = "n" if direction == "TB" else "w"
         branch_nodes = set()
         if engine is not None:
             dg.engine = engine
@@ -1930,10 +1984,10 @@ class SFG(AbstractOperation):
                     else None
                 )
                 dg.edge(
-                    source_name + ":e"
+                    source_name + f":{_out_port}"
                     if isinstance(source.operation, Input) and source.signal_count == 1
                     else source_name,
-                    destination.operation.graph_id + ":w"
+                    destination.operation.graph_id + f":{_in_port}"
                     if isinstance(destination.operation, Output)
                     else destination.operation.graph_id,
                     label=label,
@@ -1953,7 +2007,7 @@ class SFG(AbstractOperation):
                         else None
                     )
                     dg.edge(
-                        source.operation.graph_id + ":e"
+                        source.operation.graph_id + f":{_out_port}"
                         if isinstance(source.operation, Input)
                         else source.operation.graph_id,
                         source_name,
@@ -1980,11 +2034,25 @@ class SFG(AbstractOperation):
                             f"{k}={v}" for k, v in _nontrivial.items()
                         )
                 _base_label = f"{op.name}\n({op.graph_id})" if op.name else op.graph_id
-                dg.node(
-                    op.graph_id,
-                    shape=_OPERATION_SHAPE[op.type_name()],
-                    label=_base_label + _param_str if _param_str or op.name else None,
-                )
+                if direction == "TB" and isinstance(op, (Input, Output)):
+                    _shape = "invhouse"
+                    dg.node(
+                        op.graph_id,
+                        shape=_shape,
+                        label=_base_label + _param_str
+                        if _param_str or op.name
+                        else None,
+                        margin="0.05,0.02",
+                    )
+                else:
+                    _shape = _OPERATION_SHAPE[op.type_name()]
+                    dg.node(
+                        op.graph_id,
+                        shape=_shape,
+                        label=_base_label + _param_str
+                        if _param_str or op.name
+                        else None,
+                    )
         _input_order = (
             [self._resolve_graph_id_or_name(x) for x in input_order]
             if input_order is not None
@@ -2061,6 +2129,13 @@ class SFG(AbstractOperation):
         input_order: list["GraphID"] | None = None,
         output_order: list["GraphID"] | None = None,
         show_op_params: bool = False,
+        direction: Literal["LR", "TB"] = "LR",
+        ranksep: float | None = None,
+        nodesep: float | None = None,
+        size: tuple[float, float] | None = None,
+        force_size: bool = False,
+        fontname: str | None = "Times New Roman",
+        fontsize: float | None = None,
     ) -> None:
         """
         Display a visual representation of the SFG using the default system viewer.
@@ -2097,6 +2172,24 @@ class SFG(AbstractOperation):
             See :meth:`sfg_digraph` for details.
         show_op_params : bool, default: False
             Annotate each operation node with its non-default-valued parameters.
+        direction : {"LR", "TB"}, default: "LR"
+            Direction of the graph layout.
+                - "LR": Left-to-right (inputs on the left, outputs on the right).
+                - "TB": Top-to-bottom (inputs at the top, outputs at the bottom).
+        ranksep : float, optional
+            Separation between ranks in inches. Default is graphviz's default (0.5).
+        nodesep : float, optional
+            Minimum separation between nodes in the same rank, in inches.
+            Default is graphviz's default (0.25).
+        size : tuple of (float, float), optional
+            Maximum bounding box in inches of the drawing as ``(width, height)``.
+        force_size : bool, default: False
+            When True, the ``size`` bounding box is treated as an exact target
+            and graphviz scales the entire drawing (including fonts) to fill it.
+        fontname : str, default: "Times New Roman"
+            Font name for all node and edge labels.
+        fontsize : float, optional
+            Font size (in points) for all node and edge labels.
         """
         dg = self.sfg_digraph(
             signal_info=signal_info,
@@ -2107,6 +2200,13 @@ class SFG(AbstractOperation):
             input_order=input_order,
             output_order=output_order,
             show_op_params=show_op_params,
+            direction=direction,
+            ranksep=ranksep,
+            nodesep=nodesep,
+            size=size,
+            force_size=force_size,
+            fontname=fontname,
+            fontsize=fontsize,
         )
         if fmt is not None:
             dg.format = fmt

@@ -77,7 +77,7 @@ sfg.set_execution_time_of_type(R2Butterfly, 1)
 # %%
 # Generate schedule
 schedule = Schedule(sfg, cyclic=True)
-schedule.show()
+schedule
 
 # %%
 # Reschedule to only use one AddSub, one R2Butterfly, and one ConstantMultiplication per
@@ -132,7 +132,7 @@ schedule.move_operation("addsub1", -1)
 schedule.move_operation("r2bfly1", -1)
 schedule.move_operation("r2bfly2", -2)
 schedule.move_operation("r2bfly3", -1)
-schedule.show()
+schedule
 
 # %%
 # Extract memory variables and operation executions

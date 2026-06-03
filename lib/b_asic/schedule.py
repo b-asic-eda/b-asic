@@ -6,12 +6,14 @@ Contains the schedule class for scheduling operations in an SFG.
 
 import io
 import sys
+import tempfile
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
+from graphviz.backend.viewing import view as _view
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
@@ -1368,7 +1370,12 @@ class Schedule:
                         True,
                     )
 
-    def _plot_schedule(self, ax: Axes, operation_gap: float = OPERATION_GAP) -> None:
+    def _plot_schedule(
+        self,
+        ax: Axes,
+        operation_gap: float = OPERATION_GAP,
+        fontsize: int | None = None,
+    ) -> None:
         """Draw the schedule."""
         line_cache = []
 
@@ -1477,19 +1484,24 @@ class Schedule:
             if any(xvalues > self.schedule_time) and not isinstance(operation, Output):
                 xy = np.stack((xvalues - self.schedule_time, y + y_pos))
                 ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
+            _label_size = (
+                fontsize
+                if fontsize is not None
+                else 10 - (0.05 * len(self._start_times))
+            )
             if isinstance(operation, Input):
                 ax.annotate(
                     graph_id,
                     xy=(op_start_time - 0.48, y_pos + 0.7),
                     color="black",
-                    size=10 - (0.05 * len(self._start_times)),
+                    size=_label_size,
                 )
             else:
                 ax.annotate(
                     graph_id,
                     xy=(op_start_time + 0.03, y_pos + 0.7),
                     color="black",
-                    size=10 - (0.05 * len(self._start_times)),
+                    size=_label_size,
                 )
             if execution_time_coordinates:
                 _x, _y = zip(*execution_time_coordinates, strict=True)
@@ -1586,25 +1598,55 @@ class Schedule:
         self._plot_schedule(ax, operation_gap=operation_gap)
 
     def show(
-        self, operation_gap: float = OPERATION_GAP, title: str | None = None
+        self,
+        fmt: str = "pdf",
+        operation_gap: float = OPERATION_GAP,
+        title: str | None = None,
+        fontname: str | None = "Times New Roman",
+        fontsize: int | None = None,
+        figsize: tuple[float, float] | None = None,
     ) -> None:
         """
-        Show the schedule. Will display based on the current Matplotlib backend.
+        Show the schedule in the default system viewer.
 
         Parameters
         ----------
+        fmt : str, default: "pdf"
+            File format to render (e.g. ``"pdf"``, ``"png"``, ``"svg"``).
         operation_gap : float, optional
             The vertical distance between operations in the schedule. The height of
             the operation is always 1.
         title : str, optional
             Figure title.
+        fontname : str, default: "Times New Roman"
+            Font to use for all text in the figure.
+        fontsize : int, optional
+            Base font size for all text in the figure.
+        figsize : (float, float), optional
+            Figure size in inches as ``(width, height)``. Overrides the
+            automatically computed height.
         """
-        fig = self._get_figure(operation_gap=operation_gap)
+        fig = self._get_figure(
+            operation_gap=operation_gap,
+            fontname=fontname,
+            fontsize=fontsize,
+            figsize=figsize,
+        )
         if title:
             fig.suptitle(title)
-        fig.show()
+        with tempfile.NamedTemporaryFile(suffix=f".{fmt}", delete=False) as f:
+            tmp_path = f.name
+        fig.savefig(tmp_path, format=fmt)
+        plt.close(fig)
+        _view(tmp_path)
 
-    def _get_figure(self, operation_gap: float = OPERATION_GAP) -> Figure:
+    def _get_figure(
+        self,
+        operation_gap: float = OPERATION_GAP,
+        fontname: str | None = None,
+        fontsize: int | None = None,
+        figsize: tuple[float, float] | None = None,
+    ) -> Figure:
         """
         Create a Figure and an Axes and plot schedule in the Axes.
 
@@ -1613,14 +1655,28 @@ class Schedule:
         operation_gap : float, optional
             The vertical distance between operations in the schedule. The height of
             the operation is always 1.
+        fontname : str, optional
+            Font family for all text in the figure.
+        fontsize : int, optional
+            Base font size for all text in the figure.
+        figsize : (float, float), optional
+            Figure size in inches as ``(width, height)``.
 
         Returns
         -------
         The Matplotlib Figure.
         """
-        height = len(self._start_times) * 0.3 + 0.7
-        fig, ax = plt.subplots(figsize=(12, height), layout="constrained")
-        self._plot_schedule(ax, operation_gap=operation_gap)
+        rc_overrides: dict[str, object] = {}
+        if fontname is not None:
+            rc_overrides["font.family"] = fontname
+        if fontsize is not None:
+            rc_overrides["font.size"] = fontsize
+        if figsize is None:
+            scale = fontsize / 10 if fontsize is not None else 1.0
+            figsize = (12 * scale, (len(self._start_times) * 0.3 + 0.7) * scale)
+        with plt.rc_context(rc_overrides):
+            fig, ax = plt.subplots(figsize=figsize, layout="constrained")
+            self._plot_schedule(ax, operation_gap=operation_gap, fontsize=fontsize)
         return fig
 
     def _repr_svg_(self) -> str:
