@@ -1156,7 +1156,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     ):
                         continue
                     pe_input_ports.add(input_port)
-                pe_output_ports.update(operator.operation.outputs)
+                for output_port in operator.operation.outputs:
+                    if output_port.signals:
+                        pe_output_ports.add(output_port)
 
         # Make sure all inputs and outputs in the architecture are in use
         read_port_diff = memory_read_ports.symmetric_difference(pe_input_ports)

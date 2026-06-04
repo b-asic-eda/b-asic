@@ -7,13 +7,19 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 import shutil
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(__file__))
+from _scraper import ReprScraper
 
 project = "B-ASIC"
 copyright = "2020-2025, Oscar Gustafsson et al"
 author = "Oscar Gustafsson et al"
 html_logo = "../logos/logo_tiny.png"
 
-pygments_style = "sphinx"
+pygments_style = "default"
+pygments_dark_style = "monokai"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -23,6 +29,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.inheritance_diagram",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.mathjax",
     "sphinx_gallery.gen_gallery",
     "numpydoc",  # Needs to be loaded *after* autodoc.
     "sphinx_copybutton",
@@ -41,6 +48,7 @@ intersphinx_mapping = {
     "graphviz": ("https://graphviz.readthedocs.io/en/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "networkx": ("https://networkx.org/documentation/stable", None),
     "mplsignal": ("https://mplsignal.readthedocs.io/en/stable/", None),
     "pulp": ("https://coin-or.github.io/pulp/", None),
@@ -73,13 +81,19 @@ html_static_path = ["_static"]
 
 # -- Options for sphinx-gallery --
 sphinx_gallery_conf = {
-    "examples_dirs": "../examples",  # path to your example scripts
-    "gallery_dirs": "examples",  # path to where to save gallery generated output
+    "examples_dirs": [
+        "../galleries/examples",
+        "../galleries/tutorial",
+    ],
+    "gallery_dirs": ["examples", "tutorial"],
+    "capture_repr": (),
+    "within_subsection_order": "FileNameSortKey",
     "plot_gallery": "True",  # sphinx-gallery/913
     "filename_pattern": ".",
     "doc_module": ("b_asic",),
     "reference_url": {"b_asic": None},
     "image_scrapers": (
+        ReprScraper(),
         #    qtgallery.qtscraper,
         "matplotlib",
     ),

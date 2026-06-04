@@ -59,7 +59,7 @@ async def test_one(dut):
                 for signal_name, value in step.items():
                     if CSV:
                         hw_val = getattr(dut, signal_name).value
-                    if signal_name.startswith("in"):
+                    if signal_name.endswith(("_in", "_in_re", "_in_im")):
                         writer.writerow([signal_name, cycle, value]) if CSV else None
                         getattr(dut, signal_name).value = value
                     else:

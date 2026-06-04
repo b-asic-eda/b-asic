@@ -10,7 +10,7 @@
 -----------------------
 
 .. autoclass:: b_asic.code_printer.vhdl.vhdl_printer.VhdlPrinter
-   :members: print, get_compile_order
+   :members: print, get_compile_order, print_vhdl_ls_toml
    :undoc-members:
    :no-index:
 

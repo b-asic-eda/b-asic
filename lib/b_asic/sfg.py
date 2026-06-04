@@ -1842,7 +1842,7 @@ class SFG(AbstractOperation):
 
     def sfg_digraph(
         self,
-        signal_info: Literal["none", "id", "l1-norm"] = "none",
+        signal_info: Literal["none", "id", "l1-norm", "l2-norm"] = "none",
         engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
@@ -1865,11 +1865,12 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        signal_info : {"none", "id", "l1-norm"}, default: "none"
+        signal_info : {"none", "id", "l1-norm", "l2-norm"}, default: "none"
             Information to show for each signal in the graph.
                 - "none": Do not show any signal information.
                 - "id": Show the graph_id of each signal.
                 - "l1-norm": Show the L1 norm of the impulse response (worst-case magnitude for inputs in [-1, 1]).
+                - "l2-norm": Show the L2 norm of the impulse response (signal energy for unit-energy inputs).
         engine : str, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
@@ -1944,6 +1945,9 @@ class SFG(AbstractOperation):
         _l1_norms = (
             self.get_l1_norms(all_nodes=True) if signal_info == "l1-norm" else None
         )
+        _l2_norms = (
+            self.get_l2_norms(all_nodes=True) if signal_info == "l2-norm" else None
+        )
         for op in self._components_by_id.values():
             if isinstance(op, Signal):
                 source = cast(OutputPort, op.source)
@@ -1967,6 +1971,15 @@ class SFG(AbstractOperation):
                                 source.index, source.operation.graph_id
                             )
                             val = _l1_norms.get(port_key)
+                        label = f"{val:.4g}" if val is not None else None
+                    case "l2-norm":
+                        if isinstance(source.operation, Input):
+                            val = 1.0
+                        else:
+                            port_key = source.operation.key(
+                                source.index, source.operation.graph_id
+                            )
+                            val = _l2_norms.get(port_key)
                         label = f"{val:.4g}" if val is not None else None
                     case _:
                         raise ValueError(f"Invalid signal_info: {signal_info}")
@@ -2121,7 +2134,7 @@ class SFG(AbstractOperation):
     def show(
         self,
         fmt: str | None = None,
-        signal_info: Literal["none", "id", "l1-norm"] = "none",
+        signal_info: Literal["none", "id", "l1-norm", "l2-norm"] = "none",
         engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
@@ -2157,11 +2170,12 @@ class SFG(AbstractOperation):
             more.
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
-        signal_info : {"none", "id", "l1-norm"}, default: "none"
+        signal_info : {"none", "id", "l1-norm", "l2-norm"}, default: "none"
             Information to show for each signal in the graph.
                 - "none": Do not show any signal information.
                 - "id": Show the graph_id of each signal.
                 - "l1-norm": Show the L1 norm of the impulse response (worst-case magnitude for inputs bounded by 1).
+                - "l2-norm": Show the L2 norm of the impulse response (signal energy for unit-energy inputs).
         input_order : list of GraphID or operation name, optional
             Top-to-bottom ordering of input nodes.  Each entry may be a
             GraphID, an operation name, or a mix of both.
@@ -2787,6 +2801,20 @@ class SFG(AbstractOperation):
         )
         return {
             key: float(sum(np.sum(np.abs(h)) for h in responses))
+            for key, responses in impulse_responses.items()
+        }
+
+    def get_l2_norms(
+        self,
+        threshold: float = 1e-12,
+        max_iters: int = -1,
+        all_nodes: bool = False,
+    ) -> dict[str, float]:
+        impulse_responses = self.get_impulse_responses(
+            threshold=threshold, max_iters=max_iters, all_nodes=all_nodes
+        )
+        return {
+            key: float(np.sqrt(sum(np.sum(h**2) for h in responses)))
             for key, responses in impulse_responses.items()
         }
 

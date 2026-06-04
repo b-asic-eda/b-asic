@@ -111,6 +111,7 @@ precision = 2
 [tool.ruff]
 exclude = [
   "examples",
+  "tutorial",
   "docs_sphinx",
   "lib/b_asic/scheduler_gui/ui_main_window.py",
 ]
