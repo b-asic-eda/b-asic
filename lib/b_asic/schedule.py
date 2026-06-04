@@ -1188,6 +1188,8 @@ class Schedule:
                     cast(InputPort, signal.destination): slack
                     for signal, slack in signals.items()
                 }
+                if not reads:
+                    continue
                 ret.append(
                     MemoryVariable(
                         (start_time + cast(int, outport.latency_offset))

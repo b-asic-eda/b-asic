@@ -116,6 +116,8 @@ TODO.txt
 lib/b_asic/_version.py
 docs_sphinx/_build/
 docs_sphinx/examples
+docs_sphinx/tutorial
+galleries/tutorial/generated
 docs_sphinx/sg_execution_times.rst
 result_images/
 .coverage
