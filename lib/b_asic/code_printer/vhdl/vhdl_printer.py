@@ -1698,7 +1698,7 @@ class VhdlPrinter(Printer):
             1,
             f"addsub_a <= (others => '0') when do_addsub = '0' else {slv('op_0')};",
         )
-        common.write(code, 1, 'addsub_op <= "0000000" & (not is_add and do_addsub);')
+        common.write(code, 1, 'addsub_op <= "0000000" & (not is_add);')
 
         # Unconditional pipeline stage for mul_result
         common.signal_declaration(declarations, "mul_result_reg", self._slv_type_str)
