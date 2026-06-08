@@ -3,7 +3,7 @@
 Testbench Generation
 ********************
 
-Testbench generation using the B-ASIC toolbox.
+Generation of testbenches.
 
 Two testbench printers are available:
 

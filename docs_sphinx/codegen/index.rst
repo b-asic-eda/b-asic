@@ -1,9 +1,9 @@
 .. _codegen:
 
-Code Generation
-***************
+HDL Generation
+**************
 
-Code generation using the B-ASIC toolbox.
+Generation of HDL code.
 
 One code printer is currently available:
 
