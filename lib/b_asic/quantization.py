@@ -3,6 +3,7 @@
 import math
 from enum import Enum, auto
 
+import apytypes as apy
 from apytypes import OverflowMode as ApyOverflowMode
 from apytypes import QuantizationMode as ApyQuantizationMode
 
@@ -130,8 +131,8 @@ def quantize(
 
     Returns
     -------
-    int, float, complex
-        The quantized value.
+    :class:`~apytypes.APyFixed` or :class:`~apytypes.APyCFixed`
+        The quantized value, represented with exactly *integer_bits* + *fractional_bits* bits.
 
     Examples
     --------
@@ -151,22 +152,36 @@ def quantize(
     -0.25
     """
     if isinstance(value, complex):
-        return complex(
-            quantize(
+        result = complex(
+            _quantize_real(
                 value.real,
-                fractional_bits=fractional_bits,
-                integer_bits=integer_bits,
-                quantization_mode=quantization_mode,
-                overflow_mode=overflow_mode,
+                fractional_bits,
+                integer_bits,
+                quantization_mode,
+                overflow_mode,
             ),
-            quantize(
+            _quantize_real(
                 value.imag,
-                fractional_bits=fractional_bits,
-                integer_bits=integer_bits,
-                quantization_mode=quantization_mode,
-                overflow_mode=overflow_mode,
+                fractional_bits,
+                integer_bits,
+                quantization_mode,
+                overflow_mode,
             ),
         )
+    else:
+        result = _quantize_real(
+            value, fractional_bits, integer_bits, quantization_mode, overflow_mode
+        )
+    return apy.fx(result, int_bits=integer_bits, frac_bits=fractional_bits)
+
+
+def _quantize_real(
+    value: float,
+    fractional_bits: int,
+    integer_bits: int,
+    quantization_mode: QuantizationMode,
+    overflow_mode: OverflowMode,
+) -> float:
     b = 2**fractional_bits
     v = b * value
     if quantization_mode is QuantizationMode.TRUNCATION:

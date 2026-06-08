@@ -4,6 +4,7 @@ Module for VHDL code generation of processing elements.
 
 from typing import TYPE_CHECKING, TextIO
 
+import apytypes as apy
 import numpy as np
 
 from b_asic.code_printer.util import bin_str, time_bin_str
@@ -202,6 +203,8 @@ def _statement_region_common(
             elif isinstance(val, (int, np.integer, float, np.floating)):
                 int_val = int(val * 2**entry.frac_bits)
                 val_str = f'b"{bin_str(int_val, entry.bits)}"'
+            elif isinstance(val, apy.APyFixed):
+                val_str = f'b"{bin_str(val.to_bits(), entry.bits)}"'
             else:
                 raise NotImplementedError
             # Control is applied n_in cycles early (data delayed by input registers).

@@ -15,6 +15,7 @@ from typing import (
     cast,
 )
 
+import apytypes as apy
 import matplotlib.pyplot as plt
 import numpy as np
 from graphviz import Digraph
@@ -60,6 +61,9 @@ def _signed_bit_length(num: int) -> int:
 
 
 def _fixed_point_bits(num: float, is_signed: bool) -> tuple[int, int]:
+    if isinstance(num, (apy.APyFixed, apy.APyCFixed)):
+        return num.int_bits, num.frac_bits
+
     if num == 0 or isinstance(num, bool):
         return 1, 0
 
