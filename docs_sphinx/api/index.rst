@@ -2,32 +2,18 @@
 
 API
 ===
-.. toctree::
-    :maxdepth: 1
 
-    architecture.rst
-    core_operations.rst
-    data_type.rst
-    fft_operations.rst
-    graph_component.rst
-    list_schedulers.rst
-    operation.rst
-    port.rst
-    process.rst
-    quantization.rst
-    resource_assigner.rst
-    resources.rst
-    save_load_structure.rst
-    schedule.rst
-    scheduler.rst
-    sfg.rst
-    sfg_generators.rst
-    signal.rst
-    signal_generator.rst
-    simulation.rst
-    special_operations.rst
-    state_space.rst
-    transfer_function.rst
-    utility_operations.rst
-    utils.rst
-    wdf_operations.rst
+This is the API reference for B-ASIC, organized by topic.
+
+.. toctree::
+    :maxdepth: 2
+
+    alg_repr.rst
+    op_libs.rst
+    simulation_and_analysis.rst
+    scheduling.rst
+    resource_assignment_and_architecture.rst
+    code_generation.rst
+    gui.rst
+    research.rst
+    utilities.rst

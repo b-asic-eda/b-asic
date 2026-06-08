@@ -3,65 +3,67 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the documentation of B-ASIC!
-=======================================
+B-ASIC Documentation
+====================
 
-B-ASIC is a Python library for the design and implementation of static algorithms that simplifies
-the writing of efficient RTL code targeting both standard-cell and FPGA technologies.
+B-ASIC is a Python framework for efficient implementation of static algorithms.
+It provides a path from algorithm to RTL code while giving the designer full control of every step.
 
-The goal is to have a working design path from algorithm down to an HDL-description of a custom architecture.
-Once it becomes a bit more mature, we expect to make it available on PyPI and conda-forge
-such that it will become easier to access.
+.. admonition:: Install B-ASIC
 
-To install B-ASIC, the currently preferred way is::
+    .. code-block:: console
 
-    git clone https://github.com/b-asic-eda/b-asic.git
-    cd B-ASIC
-    python -m pip install .
+      $ pip install git+https://github.com/b-asic-eda/b-asic.git
 
-In addition to the dependencies that are automatically installed, you will also
-need a Qt-binding, but you are free to choose between PyQt6 and PySide6.
-See `https://github.com/b-asic-eda/b-asic <https://github.com/b-asic-eda/b-asic>`_ for more info.
+.. note::
 
-If you use B-ASIC in a publication, please acknowledge it. Later on there will be a
-citation provided, but right now, please refer to this documentation or the repository.
-We will also maintain a list of publications that have used B-ASIC.
+   A Qt binding is required for GUIs.
+   This is not installed automatically, so you need to install either `PyQt6
+   <https://pypi.org/project/PyQt6/>`_ or `PySide6
+   <https://pypi.org/project/PySide6/>`_, e.g.::
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+      pip install PyQt6
 
-Minimal working example
-=======================
-TODO
+To get started with B-ASIC, head over to the :doc:`tutorial/index`, which
+walks through the core concepts step by step. Once you are comfortable with
+the basics, the :doc:`examples/index` showcase a range of complete designs
+that you can use as a starting point for your own work.
 
-Indices and tables
-==================
+If you use B-ASIC in a publication, please acknowledge it.
+See :doc:`publications` for how to cite B-ASIC and a list of publications that have used it.
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-Table of Contents
-^^^^^^^^^^^^^^^^^
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
-   api/index
-   sfg_gui
-   scheduler_gui
-   gui_utils
-   codegen/index
-   tb_gen/index
    tutorial/index
    examples/index
-   research
+
+.. toctree::
+   :maxdepth: 3
+   :hidden:
+
+   api/index
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   publications
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   contributing
 
 Development
 ===========
 
-B-ASIC is developed at the `Division of Electronics and Computer Engineering <https://liu.se/en/organisation/liu/isy/elda>`__,
-`Linköping University <https://liu.se/>`__, Sweden, where it was initiated by `Oscar Gustafsson <https://liu.se/en/employee/oscgu95>`__.
+B-ASIC is developed by the `Division of Electronics and Computer Engineering <https://liu.se/en/organisation/liu/isy/elda>`__ at `Linköping University <https://liu.se/>`__.
 
-The development of B-ASIC happens at
-`https://github.com/b-asic-eda/b-asic <https://github.com/b-asic-eda/b-asic>`__.
+.. image:: _static/liu-white.svg
+   :class: only-dark
+
+.. image:: _static/liu-black.svg
+   :class: only-light

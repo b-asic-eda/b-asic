@@ -2,145 +2,51 @@
 
 <img src="logos/logo.png" width="278" height="100">
 
-# B-ASIC - Better ASIC Toolbox
+B-ASIC is a Python framework for efficient hardware implementation of static algorithms.
+It provides a path from algorithm to RTL code while giving the designer full control of every step.
 
-B-ASIC is a Python library for the design and implementation of static algorithms that simplifies the writing of efficient RTL code targeting both standard-cell and FPGA technologies.
+## Documentation
 
-The latest documentation can be viewed at: https://b-asic-eda.github.io/b-asic/
+**https://b-asic.org/**
 
-## Development
-
-How to build and debug the library during development.
-
-### Prerequisites
-
-The following packages are required in order to build the library:
-
-- [Python](https://python.org/) 3.10+
-- Python dependencies (will be installed as part of the
-  installation process):
-  - [APyTypes](https://github.com/apytypes/apytypes)
-  - [Graphviz](https://graphviz.org/)
-  - [Matplotlib](https://matplotlib.org/)
-  - [natsort](https://github.com/SethMMorton/natsort)
-  - [NetworkX](https://networkx.org/)
-  - [NumPy](https://numpy.org/)
-  - [PuLP](https://github.com/coin-or/pulp)
-  - [QtAwesome](https://github.com/spyder-ide/qtawesome/)
-  - [QtPy](https://github.com/spyder-ide/qtpy)
-  - [setuptools_scm](https://github.com/pypa/setuptools_scm/)
-- Qt 6, with Python bindings, one of: (install with `pip install ."[$BINDING_NAME]"`)
-  - pyqt6
-  - pyside6
-
-During the compilation process, [fmtlib](https://github.com/fmtlib/fmt) and [pybind11](https://pybind11.readthedocs.io/) are used.
-
-To build a binary distribution, the following additional packages are required:
-
-- Python:
-  - wheel
-
-To run the test suite, the following additional packages are required:
-
-- Python (installed with `pip install ."[test]"`):
-  - [pytest](https://pytest.org/)
-  - [pytest-qt](https://pytest-qt.readthedocs.io/)
-  - [pytest-mpl](https://github.com/matplotlib/pytest-mpl/)
-  - [pytest-cov](https://pytest-cov.readthedocs.io/en/latest/) (for testing with coverage)
-  - [pytest-xvfb](https://github.com/The-Compiler/pytest-xvfb) (for testing without showing windows on Linux, you will also need to install [xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml))
-  - [pytest-xdist](https://pytest-xdist.readthedocs.io/) (for parallel testing)
-  - [SciPy](https://scipy.org/)
-
-To generate the documentation, the following additional packages are required:
-
-- Python (installed with `pip install ."[doc]"`):
-  - [Sphinx](https://www.sphinx-doc.org/)
-  - [Furo](https://pradyunsg.me/furo/)
-  - [numpydoc](https://numpydoc.readthedocs.io/)
-  - [Sphinx-Gallery](https://sphinx-gallery.github.io/)
-  - [mplsignal](https://mplsignal.readthedocs.io/)
-  - [sphinx-copybutton](https://sphinx-copybutton.readthedocs.io/)
-
-### Running tests
-
-How to run the tests using pytest in a virtual environment.
-
-#### Linux/OS X
-
-In `B-ASIC`:
+## Installation
 
 ```bash
-python3 -m venv env
-source env/bin/activate
-pip install ."[test]"
-pytest
+pip install git+https://github.com/b-asic-eda/b-asic.git
 ```
 
-#### Windows
-
-In `B-ASIC` (as admin):
+A Qt binding is required for GUIs (optional feature) — install either `PyQt6` or `PySide6`:
 
 ```bash
-python3 -m venv env
-.\env\Scripts\activate.bat
-pip install ."[test]"
-pytest
+pip install PyQt6
 ```
 
-#### Test with coverage
+## Example
 
-```bash
-pytest --cov=b_asic --cov-report=html test
+```python
+from b_asic import SFG, Delay, Input, Output
+
+# Build the signal flow graph of a 6-tap FIR filter
+x = Input(name="x")
+
+d0 = Delay(x); d1 = Delay(d0); d2 = Delay(d1)
+d3 = Delay(d2); d4 = Delay(d3); d5 = Delay(d4)
+
+y = Output(
+    0.5*x + 0.25*d0 + 0.25*d1 + 0.5*d2 + 0.25*d3 + 0.25*d4 + 0.5*d5,
+    name="y",
+)
+
+fir = SFG([x], [y], name="6-tap FIR")
+fir.show()
 ```
 
-#### Generate new baseline images for the tests
+## Contributing
 
-In `B-ASIC`:
-
-```bash
-pytest      # The image comparison tests will fail
-cp -a result_images/* test/baseline_images/
-```
-
-### Generating documentation
-
-```bash
-sphinx-build -b html docs_sphinx docs_sphinx/_build
-```
-
-or in `B-ASIC/docs_sphinx`:
-
-```bash
-make html
-```
-
-The output gets written to `B-ASIC/docs_sphinx/_build`.
-
-## Usage
-
-How to build and use the library as a user.
-
-### Installation
-
-```bash
-pip install ."[pyqt6]"
-```
-
-or
-
-```bash
-pip install ."[pyside6]"
-```
-
-### Importing
-
-```bash
-python3
->>> import b_asic
->>> help(b_asic)
-```
+Contributions are very welcome.
+Bug reports, feature requests, and pull requests are all appreciated.
+See the [contributing guide](https://b-asic-eda.github.io/b-asic/contributing.html) for how to set up a development environment, run tests, and build the docs.
 
 ## License
 
-B-ASIC is distributed under the MIT license.
-See the included LICENSE file for more information.
+B-ASIC is distributed under the [MIT license](LICENSE).

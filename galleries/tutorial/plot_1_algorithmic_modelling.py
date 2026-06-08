@@ -3,11 +3,10 @@
 Algorithmic Modelling
 =====================
 
-In B-ASIC, algorithms are represented as *signal flow graphs* (SFGs).
+In B-ASIC, algorithms are represented as signal flow graphs (SFGs).
 Basically, a directed graph where nodes are operations that are connected by edges representing signals.
 
-
-As a first example, let us build a simple 6-tap FIR filter, as it is a common and relatively simple algorithm.
+As a first example, let us build a simple 6-tap FIR filter, as it is a common and simple algorithm.
 
 The FIR filter is defined by the following equation:
 :math:`y[n] = \sum_{k=0}^{N-1} h[k] x[n-k]`
@@ -25,10 +24,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import freqz, remez
 
-taps = remez(6, [0, 0.50 / 2, 0.6 / 2, 1 / 2], [1, 0])
+h = remez(6, [0, 0.50 / 2, 0.6 / 2, 1 / 2], [1, 0])
 
 fig, ax = plt.subplots()
-w, h = freqz(taps, [1])
+w, h = freqz(h, [1])
 ax.plot(w / np.pi, 20 * np.log10(np.abs(h)))
 ax.set_xlabel("Normalized frequency")
 ax.set_ylabel("Magnitude, dB")
@@ -36,9 +35,10 @@ ax.set_ylabel("Magnitude, dB")
 # %%
 # Constructing the SFG
 # --------------------
-# Define the input and three delay elements to form the tapped delay line.
-# The ``<<=`` operator is then used to connect the these components together.
-# Finally, the output is defined
+# Let us now construct the SFG of this filter.
+# We start by defining the input and the delay elements to form the tapped delay line.
+# Then the ``<<=`` operator is then used to connect the these components together.
+# Finally, the output is defined as according to the FIR equation.
 
 from b_asic import SFG, Delay, Input, Output
 
@@ -58,7 +58,7 @@ d4 <<= d3
 d5 <<= d4
 
 y = Output(
-    0.5 * x + 0.25 * d0 + 0.25 * d1 + 0.5 * d2 + 0.25 * d3 + 0.25 * d4 + 0.5 * d5,
+    h[0] * x + h[1] * d0 + h[2] * d1 + h[3] * d2 + h[4] * d3 + h[5] * d4 + h[6] * d5,
     name="y",
 )
 

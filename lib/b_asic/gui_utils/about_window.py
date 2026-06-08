@@ -65,7 +65,7 @@ class AboutWindow(QDialog):
             ' href="https://raw.githubusercontent.com/b-asic-eda/b-asic/refs/heads/main/LICENSE">'
             "MIT-license</a>"
             " and any extension to the program should follow that same"
-            f" license.\n\n*Version: {version}*\n\nCopyright 2020-2025,"
+            f" license.\n\n*Version: {version}*\n\nCopyright 2020-2026,"
             " Oscar Gustafsson et al."
         )
         label1.setTextFormat(Qt.MarkdownText)
