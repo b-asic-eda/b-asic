@@ -23,7 +23,7 @@ def wdf_allpass(
     latency: int | None = None,
     latency_offsets: dict[str, int] | None = None,
     execution_time: int | None = None,
-    adaptor_names: Sequence[str | None] | None = None,
+    adaptor_names: Sequence[str | None] | str | None = None,
 ) -> SFG:
     """
     Generate a signal flow graph of a WDF allpass section based on symmetric two-port adaptors.
@@ -42,9 +42,11 @@ def wdf_allpass(
         Latency offsets of the symmetric two-port adaptors.
     execution_time : int, optional
         Execution time of the symmetric two-port adaptors.
-    adaptor_names : sequence of str or None, optional
-        Names for each adaptor, parallel to ``coefficients``. Defaults to
-        ``"a0"``, ``"a1"``, ... based on coefficient position.
+    adaptor_names : sequence of str or None, or str, optional
+        Names for each adaptor, parallel to ``coefficients``, or a string prefix
+        used to generate names as ``f"{adaptor_names}{idx}"`` based on
+        coefficient position. Defaults to ``"a0"``, ``"a1"``, ... based on
+        coefficient position.
 
     Returns
     -------
@@ -61,6 +63,8 @@ def wdf_allpass(
         name = "WDF allpass section"
 
     def _aname(idx: int) -> Name:
+        if isinstance(adaptor_names, str):
+            return Name(f"{adaptor_names}{idx}")
         if adaptor_names is not None:
             n = adaptor_names[idx]
             return Name(n) if n else Name("")
@@ -141,7 +145,7 @@ def lattice_wdf(
     coefficients: Sequence[float],
     name: str | None = None,
     only_adaptors: bool = False,
-    adaptor_names: Sequence[str | None] | None = None,
+    adaptor_names: Sequence[str | None] | str | None = None,
 ) -> SFG:
     """
     Generate a signal flow graph of a lattice wave digital filter.
@@ -154,9 +158,11 @@ def lattice_wdf(
         Name of the SFG. Defaults to ``"Lattice WDF"``.
     only_adaptors : bool, optional
         If True, use an adaptor for the final addition and scaling.
-    adaptor_names : sequence of str or None, optional
-        Names for each adaptor, parallel to ``coefficients``. Defaults to
-        ``"a0"``, ``"a1"``, ... based on coefficient position.
+    adaptor_names : sequence of str or None, or str, optional
+        Names for each adaptor, parallel to ``coefficients``, or a string prefix
+        used to generate names as ``f"{adaptor_names}{idx}"`` based on
+        coefficient position. Defaults to ``"a0"``, ``"a1"``, ... based on
+        coefficient position.
 
     Returns
     -------
@@ -199,19 +205,20 @@ def lattice_wdf(
 
     input_op = Input(name=Name("x"))
 
-    if adaptor_names is not None:
-        a_names = [adaptor_names[i] for i in a_indices]
+    if isinstance(adaptor_names, str):
+        names = [f"{adaptor_names}{i}" for i in range(len(coefficients))]
+    elif adaptor_names is not None:
+        names = list(adaptor_names)
     else:
-        a_names = [f"a{i}" for i in a_indices]
+        names = [f"a{i}" for i in range(len(coefficients))]
+
+    a_names = [names[i] for i in a_indices]
     sec_a = wdf_allpass(a_coeffs, adaptor_names=a_names)
     sec_a <<= input_op
     sig_a = sec_a
 
     if b_coeffs:
-        if adaptor_names is not None:
-            b_names = [adaptor_names[i] for i in b_indices]
-        else:
-            b_names = [f"a{i}" for i in b_indices]
+        b_names = [names[i] for i in b_indices]
         sec_b = wdf_allpass(b_coeffs, adaptor_names=b_names)
         sec_b <<= input_op
         sig_b = sec_b
