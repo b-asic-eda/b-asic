@@ -110,6 +110,34 @@ def test_wdf_allpass():
     assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
 
 
+def test_wdf_allpass_adaptor_names():
+    # Sequence of names, parallel to coefficients
+    sfg = wdf_allpass([0.3, 0.5, 0.7], adaptor_names=["x0", "x1", "x2"])
+    assert {
+        comp.name
+        for comp in sfg.components
+        if isinstance(comp, SymmetricTwoportAdaptor)
+    } == {"x0", "x1", "x2"}
+    assert {comp.name for comp in sfg.components if isinstance(comp, Delay)} == {
+        "x0_T",
+        "x1_T",
+        "x2_T",
+    }
+
+    # String prefix, expanded based on coefficient position
+    sfg = wdf_allpass([0.3, 0.5, 0.7], adaptor_names="pfx")
+    assert {
+        comp.name
+        for comp in sfg.components
+        if isinstance(comp, SymmetricTwoportAdaptor)
+    } == {"pfx0", "pfx1", "pfx2"}
+    assert {comp.name for comp in sfg.components if isinstance(comp, Delay)} == {
+        "pfx0_T",
+        "pfx1_T",
+        "pfx2_T",
+    }
+
+
 class TestFIR:
     def test_direct_form(self):
         impulse_response = [0.3, 0.5, 0.7]
@@ -1574,3 +1602,19 @@ class TestLatticeWDF:
     def test_invalid_empty(self):
         with pytest.raises(ValueError, match="cannot be empty"):
             lattice_wdf([])
+
+    def test_adaptor_names_sequence(self):
+        coeffs = [0.3, 0.5, 0.7, 0.2]
+        sfg = lattice_wdf(coeffs, adaptor_names=["n0", "n1", "n2", "n3"]).flatten(False)
+        assert {
+            comp.name
+            for comp in sfg.find_by_type_name(SymmetricTwoportAdaptor.type_name())
+        } == {"n0", "n1", "n2", "n3"}
+
+    def test_adaptor_names_prefix(self):
+        coeffs = [0.3, 0.5, 0.7, 0.2]
+        sfg = lattice_wdf(coeffs, adaptor_names="pfx").flatten(False)
+        assert {
+            comp.name
+            for comp in sfg.find_by_type_name(SymmetricTwoportAdaptor.type_name())
+        } == {"pfx0", "pfx1", "pfx2", "pfx3"}
