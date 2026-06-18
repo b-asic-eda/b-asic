@@ -35,6 +35,8 @@ class VhdlTbPrinter:
         path: str | Path = Path(),
         asserts: bool = True,
         io_registers: bool = False,
+        input_register: bool = False,
+        output_register: bool = False,
         enable_pin: bool = True,
         warmup_laps: int = 0,
         abs_tol: float | None = None,
@@ -54,8 +56,13 @@ class VhdlTbPrinter:
         asserts : bool, default True
             Whether to include output assertions in the testbench.
         io_registers : bool, default False
-            Whether the design was built with I/O registers.
+            Whether the design was built with both input and output registers.
+            Equivalent to setting both ``input_register`` and ``output_register``.
             When True, output assertions are offset by 2 cycles.
+        input_register : bool, default False
+            Whether the design was built with an input register.
+        output_register : bool, default False
+            Whether the design was built with an output register.
         enable_pin : bool, default True
             Whether the DUT has an ``en`` enable pin. When ``False``, no
             ``en`` signal is declared and the port map omits the connection.
@@ -89,9 +96,12 @@ class VhdlTbPrinter:
                     "start_time": pe_process.start_time,
                 }
 
+        input_register = input_register or io_registers
+        output_register = output_register or io_registers
+
         seq_map = defaultdict(dict)
         input_signal_names: set[str] = set()
-        output_offset = 2 if io_registers else 0
+        output_offset = (1 if input_register else 0) + (1 if output_register else 0)
 
         for gid in io_marked:
             values = self._sim_results[gid]

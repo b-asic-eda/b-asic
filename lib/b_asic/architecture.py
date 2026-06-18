@@ -716,7 +716,8 @@ class ProcessingElement(Resource):
         dt: _VhdlDataType,
         indent: int = 1,
         en_sig: str = "en",
-        io_registers: bool = False,
+        input_register: bool = False,
+        output_register: bool = False,
     ) -> None:
         port_mappings = [
             "clk => clk",
@@ -728,7 +729,7 @@ class ProcessingElement(Resource):
             for port_number in range(self.input_count)
         ]
         if self.operation_type == Input:
-            signal_suffix = "_internal" if io_registers else ""
+            signal_suffix = "_internal" if input_register else ""
             port_mappings.extend(
                 dt.get_input_port_mapping(self.entity_name, signal_suffix)
             )
@@ -738,7 +739,7 @@ class ProcessingElement(Resource):
             for port_number in range(self.output_count)
         ]
         if self.operation_type == Output:
-            signal_suffix = "_internal" if io_registers else ""
+            signal_suffix = "_internal" if output_register else ""
             port_mappings.extend(
                 dt.get_output_port_mapping(self.entity_name, signal_suffix)
             )
