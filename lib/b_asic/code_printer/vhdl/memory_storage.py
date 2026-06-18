@@ -149,7 +149,6 @@ def architecture(
     for i in range(memory.input_count):
         common.signal_declaration(f, f"read_port_{i}", data_type)
         common.signal_declaration(f, f"read_adr_{i}", unsigned_type(mem_adress_bits))
-        common.signal_declaration(f, f"read_en_{i}", "std_logic")
     for i in range(memory.output_count):
         common.signal_declaration(f, f"write_port_{i}", data_type)
         common.signal_declaration(f, f"write_adr_{i}", unsigned_type(mem_adress_bits))
@@ -174,12 +173,6 @@ def architecture(
             f,
             f"read_adr_{read_port_idx}_0_0",
             unsigned_type(mem_adress_bits),
-        )
-    for read_port_idx in range(memory.input_count):
-        common.signal_declaration(
-            f,
-            f"read_en_{read_port_idx}_0_0",
-            signal_type="std_logic",
         )
 
     # Type conversion signals for interface
@@ -245,7 +238,6 @@ def architecture(
         common.write(f, 3, "if en = '1' then")
         for i in range(memory.input_count):
             common.write(f, 4, f"read_adr_{i} <= read_adr_{i}_0_0;")
-            common.write(f, 4, f"read_en_{i} <= read_en_{i}_0_0;")
         for i in range(memory.output_count):
             common.write(f, 4, f"write_adr_{i} <= write_adr_{i}_0_0;")
             common.write(f, 4, f"write_en_{i} <= write_en_{i}_0_0;")
@@ -259,8 +251,7 @@ def architecture(
         clk="clk",
         name=f"mem_{0}_proc",
         read_ports={
-            (f"read_port_{i}", f"read_adr_{i}", f"read_en_{i}")
-            for i in range(memory.input_count)
+            (f"read_port_{i}", f"read_adr_{i}") for i in range(memory.input_count)
         },
         write_ports={
             (f"write_port_{i}", f"write_adr_{i}", f"write_en_{i}")
@@ -270,7 +261,6 @@ def architecture(
     )
     if not pipeline_control_signals:
         common.write(f, 1, "read_adr_0 <= read_adr_0_0_0;")
-        common.write(f, 1, "read_en_0 <= read_en_0_0_0;")
         common.write(f, 1, "write_adr_0 <= write_adr_0_0_0;")
         common.write(f, 1, "write_en_0 <= write_en_0_0_0;")
     common.write(f, 1, "write_port_0 <= p_0_in_internal;")
@@ -430,15 +420,16 @@ def architecture(
                         5 + indent_offset,
                         f"read_adr_0_0_0 <= to_unsigned({i}, read_adr_0_0_0'length);",
                     ),
-                    (5 + indent_offset, "read_en_0_0_0 <= '1';"),
                 ],
             )
     common.write_lines(
         f,
         [
             (4 + indent_offset, "when others =>"),
-            (5 + indent_offset, "read_adr_0_0_0 <= (others => '-');"),
-            (5 + indent_offset, "read_en_0_0_0 <= '0';"),
+            (
+                5 + indent_offset,
+                "read_adr_0_0_0 <= to_unsigned(0, read_adr_0_0_0'length);",
+            ),
             (3 + indent_offset, "end case;"),
         ],
     )

@@ -44,13 +44,14 @@ def architecture(
     f: TextIO,
     arch: "Architecture",
     dt: _VhdlDataType,
-    io_registers: bool = False,
+    input_register: bool = False,
+    output_register: bool = False,
     multiplexer_control_registered: bool = True,
     enable_pin: bool = True,
 ) -> None:
     if not enable_pin:
         en_sig = "'1'"
-    elif io_registers:
+    elif input_register:
         en_sig = "en_internal"
     else:
         en_sig = "en"
@@ -63,8 +64,10 @@ def architecture(
         mem.write_component_declaration(f, dt)
     arch.write_signal_declarations(f, dt)
 
-    if io_registers:
-        _write_io_register_signal_declarations(f, arch, dt, enable_pin)
+    if input_register or output_register:
+        _write_io_register_signal_declarations(
+            f, arch, dt, input_register, output_register, enable_pin
+        )
 
     # Fetch information about multiplexers needed and declare control signals for them
     pe_mux_info, mem_mux_info = _collect_mux_info(arch)
@@ -74,13 +77,17 @@ def architecture(
 
     common.write(f, 0, "begin")
 
-    if io_registers:
-        _write_io_registers(f, arch, dt, enable_pin)
+    if input_register or output_register:
+        _write_io_registers(f, arch, dt, input_register, output_register, enable_pin)
 
     common.write(f, 1, "-- Component instantiation")
     for pe in arch.processing_elements:
         pe.write_component_instantiation(
-            f, dt, en_sig=en_sig, io_registers=io_registers
+            f,
+            dt,
+            en_sig=en_sig,
+            input_register=input_register,
+            output_register=output_register,
         )
     for mem in arch.memories:
         mem.write_component_instantiation(f, en_sig=en_sig)
@@ -479,40 +486,52 @@ def _write_schedule_counter(
 
 
 def _write_io_register_signal_declarations(
-    f: TextIO, arch: "Architecture", dt: _VhdlDataType, enable_pin: bool = True
+    f: TextIO,
+    arch: "Architecture",
+    dt: _VhdlDataType,
+    input_register: bool = False,
+    output_register: bool = False,
+    enable_pin: bool = True,
 ) -> None:
     common.write(f, 1, "-- Internal signals for pipelined I/O")
-    if enable_pin:
+    if enable_pin and input_register:
         common.signal_declaration(f, "en_internal", "std_logic")
 
     # Pipelined inputs
-    for pe in arch.processing_elements:
-        if pe.operation_type == Input:
-            for port in dt.get_input_port_declaration(pe.entity_name, "_internal"):
-                port_parts = port.split(":")
-                signal_name = port_parts[0].strip()
-                signal_type = ":".join(port_parts[1:]).strip()
-                signal_type = signal_type.replace("in ", "").replace("out ", "")
-                common.signal_declaration(f, signal_name, signal_type)
+    if input_register:
+        for pe in arch.processing_elements:
+            if pe.operation_type == Input:
+                for port in dt.get_input_port_declaration(pe.entity_name, "_internal"):
+                    port_parts = port.split(":")
+                    signal_name = port_parts[0].strip()
+                    signal_type = ":".join(port_parts[1:]).strip()
+                    signal_type = signal_type.replace("in ", "").replace("out ", "")
+                    common.signal_declaration(f, signal_name, signal_type)
 
     # Pipelined outputs
-    for pe in arch.processing_elements:
-        if pe.operation_type == Output:
-            for port in dt.get_output_port_declaration(pe.entity_name, "_internal"):
-                port_parts = port.split(":")
-                signal_name = port_parts[0].strip()
-                signal_type = ":".join(port_parts[1:]).strip()
-                signal_type = signal_type.replace("in ", "").replace("out ", "")
-                common.signal_declaration(f, signal_name, signal_type)
+    if output_register:
+        for pe in arch.processing_elements:
+            if pe.operation_type == Output:
+                for port in dt.get_output_port_declaration(pe.entity_name, "_internal"):
+                    port_parts = port.split(":")
+                    signal_name = port_parts[0].strip()
+                    signal_type = ":".join(port_parts[1:]).strip()
+                    signal_type = signal_type.replace("in ", "").replace("out ", "")
+                    common.signal_declaration(f, signal_name, signal_type)
     common.blank(f)
 
 
 def _write_io_registers(
-    f: TextIO, arch: "Architecture", dt: _VhdlDataType, enable_pin: bool = True
+    f: TextIO,
+    arch: "Architecture",
+    dt: _VhdlDataType,
+    input_register: bool = False,
+    output_register: bool = False,
+    enable_pin: bool = True,
 ) -> None:
     common.write(f, 1, "-- Pipelining of I/O")
 
-    if enable_pin:
+    if enable_pin and input_register:
         # Pipeline the enable signal by one cycle to align with input data
         common.synchronous_process_prologue(f, name="en_reg_proc")
         common.write(f, 3, "en_internal <= en;")
@@ -521,7 +540,7 @@ def _write_io_registers(
 
     # Pipelining of inputs
     input_pes = [pe for pe in arch.processing_elements if pe.operation_type == Input]
-    if input_pes:
+    if input_register and input_pes:
         common.synchronous_process_prologue(f, name="input_reg_proc")
         if enable_pin:
             common.write(f, 3, "if en = '1' then")
@@ -551,10 +570,11 @@ def _write_io_registers(
 
     # Pipelining of outputs
     output_pes = [pe for pe in arch.processing_elements if pe.operation_type == Output]
-    if output_pes:
+    if output_register and output_pes:
+        output_en_sig = "en_internal" if input_register else "en"
         common.synchronous_process_prologue(f, name="output_reg_proc")
         if enable_pin:
-            common.write(f, 3, "if en_internal = '1' then")
+            common.write(f, 3, f"if {output_en_sig} = '1' then")
         for pe in output_pes:
             indent = 4 if enable_pin else 3
             if dt.is_complex:

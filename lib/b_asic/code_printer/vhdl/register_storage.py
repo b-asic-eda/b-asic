@@ -274,6 +274,6 @@ def architecture(
     for reg_i, mux_i in mux_items:
         rhs = f"p_{-1 - reg_i}_in" if reg_i < 0 else f"shift_reg({reg_i})"
         common.write(f, 3, f"{rhs} when {mux_i},")
-    common.write(f, 3, "(others => '0') when others;")
+    common.write(f, 3, f"{dt.init_val} when others;")
 
     common.write(f, 0, "end architecture rtl;", start="\n")

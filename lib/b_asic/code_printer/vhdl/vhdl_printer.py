@@ -86,7 +86,12 @@ class VhdlPrinter(Printer):
         **Top-level / architecture**
 
             io_registers : :class:`bool`, default ``False``
-                Insert registers on all top-level I/O ports.
+                Insert registers on all top-level I/O ports. Equivalent to
+                setting both ``input_register`` and ``output_register``.
+            input_register : :class:`bool`, default ``False``
+                Insert registers on the top-level input ports only.
+            output_register : :class:`bool`, default ``False``
+                Insert registers on the top-level output ports only.
             multiplexer_control_registered : :class:`bool`, default ``False``
                 Register multiplexer control signals in generated top-level.
             enable_pin : :class:`bool`, default ``True``
@@ -214,6 +219,8 @@ class VhdlPrinter(Printer):
 
     def print_Architecture(self, arch: "Architecture", **kwargs) -> str | None:
         io_registers = bool(kwargs.get("io_registers", False))
+        input_register = bool(kwargs.get("input_register", False)) or io_registers
+        output_register = bool(kwargs.get("output_register", False)) or io_registers
         multiplexer_control_registered = bool(
             kwargs.get("multiplexer_control_registered", False)
         )
@@ -229,7 +236,8 @@ class VhdlPrinter(Printer):
             f,
             arch,
             self._dt,
-            io_registers,
+            input_register,
+            output_register,
             multiplexer_control_registered,
             enable_pin=enable_pin,
         )

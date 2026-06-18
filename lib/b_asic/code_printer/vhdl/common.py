@@ -543,7 +543,7 @@ def synchronous_memory(
 def asynchronous_read_memory(
     f: TextIO,
     clk: str,
-    read_ports: set[tuple[str, str, str]],
+    read_ports: set[tuple[str, str]],
     write_ports: set[tuple[str, str, str]],
     name: str | None = None,
     enable: str | None = None,
@@ -594,7 +594,7 @@ def asynchronous_read_memory(
     if enable:
         write(f, 3, "end if;")
     synchronous_process_epilogue(f, clk=clk, name=name)
-    for read_name, address, _ in read_ports:
+    for read_name, address in read_ports:
         write(f, 1, f"{read_name} <= memory({fmt_adr(address)});")
 
 

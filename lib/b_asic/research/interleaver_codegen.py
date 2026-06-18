@@ -241,7 +241,6 @@ def memory_based_storage_architecture(
         common.signal_declaration(
             f, f"read_adr_{i}", "integer range 0 to MEM_DEPTH-1", name_pad=18
         )
-        common.signal_declaration(f, f"read_en_{i}", "std_logic", name_pad=18)
     for i in range(write_ports):
         common.signal_declaration(
             f, f"write_port_{i}", "std_logic_vector(MEM_WL-1 downto 0)", name_pad=18
@@ -346,10 +345,7 @@ def memory_based_storage_architecture(
         f=f,
         clk="clk",
         name=f"mem_{0}_proc",
-        read_ports={
-            (f"read_port_{i}", f"read_adr_{i}", f"read_en_{i}")
-            for i in range(read_ports)
-        },
+        read_ports={(f"read_port_{i}", f"read_adr_{i}") for i in range(read_ports)},
         write_ports={
             (f"write_port_{i}", f"write_adr_{i}", f"write_en_{i}")
             for i in range(write_ports)
