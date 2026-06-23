@@ -97,8 +97,7 @@ from mplsignal import freqz_fir
 
 fig, ax = plt.subplots()
 for n_bits, h in impulse_responses.items():
-    freqz_fir(h, ax=ax, style="magnitude")
-    ax.lines[-1].set_label(f"{n_bits} bits")
+    freqz_fir(h, ax=ax, style="magnitude", label=f"{n_bits} bits")
 
 ax.legend()
 ax.set_xlim(0.3 * np.pi)
@@ -109,8 +108,7 @@ ax.grid(True)
 # Passband attenuation plotted for different wordlengths.
 fig, ax = plt.subplots()
 for n_bits, h in impulse_responses.items():
-    freqz_fir(h, ax=ax, style="magnitude")
-    ax.lines[-1].set_label(f"{n_bits} bits")
+    freqz_fir(h, ax=ax, style="magnitude", label=f"{n_bits} bits")
 
 ax.legend()
 ax.set_xlim(0, 0.32 * np.pi)
