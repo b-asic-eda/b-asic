@@ -27,7 +27,7 @@ dependencies = [
   "numpy>=2",
   "qtpy>=2",
   "graphviz>=0.21",
-  "matplotlib>=3.7",
+  "matplotlib>=3.11",
   "networkx>=3",
   "pulp",
   "qtawesome",
