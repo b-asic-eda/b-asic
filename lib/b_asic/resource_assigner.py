@@ -923,10 +923,9 @@ def _get_mem_node(
 def _get_pe_nodes(
     mem_node: Process, pe_nodes: list[Process]
 ) -> list[tuple[Process, int]]:
-    if isinstance(mem_node.write_port, MemoryOutputPort):
-        return []
-    src_op = mem_node.write_port.operation
-    src_port_index = mem_node.write_port.index
+    root_port = mem_node.root_write_port
+    src_op = root_port.operation
+    src_port_index = root_port.index
     return [
         (pe_process, input_port.index)
         for pe_process in pe_nodes
