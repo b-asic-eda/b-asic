@@ -129,6 +129,10 @@ class VhdlPrinter(Printer):
                 Use an external schedule counter signal.
             **std_logic_vector** : :class:`bool`, default ``False``
                 Use ``std_logic_vector`` data.
+            **pipeline_output_mux** : :class:`bool`, default ``False``
+                Register the output multiplexer select signal.
+            **pipeline_back_edge_mux** : :class:`bool`, default ``False``
+                Register the back-edge multiplexer select signal.
         """
         dir_path = Path(path)
         dir_path.mkdir(parents=True, exist_ok=True)
@@ -277,7 +281,8 @@ class VhdlPrinter(Printer):
                 )
             register_kwargs = {
                 "std_logic_vector": kwargs.get("std_logic_vector", False),
-                "pipeline_control_signals": kwargs.get("pipeline_mem_control", False),
+                "pipeline_output_mux": kwargs.get("pipeline_output_mux", False),
+                "pipeline_back_edge_mux": kwargs.get("pipeline_back_edge_mux", False),
             }
             register_storage.entity(
                 f,

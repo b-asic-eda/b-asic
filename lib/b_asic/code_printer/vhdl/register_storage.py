@@ -49,7 +49,8 @@ def architecture(
     sync_rst: bool = False,
     async_rst: bool = False,
     std_logic_vector: bool = True,
-    pipeline_control_signals: bool = False,
+    pipeline_output_mux: bool = False,
+    pipeline_back_edge_mux: bool = False,
 ) -> None:
     """
     Generate architecture for register-based storage.
@@ -70,8 +71,12 @@ def architecture(
         Enable asynchronous reset.
     std_logic_vector : bool, default: True
         If True, use std_logic_vector for data signals. If False, use dt.type_str.
-    pipeline_control_signals : bool, default: False
-        If True, register the control signals.
+    pipeline_output_mux : bool, default: False
+        If True, register the output multiplexer select signal, decoding it one
+        clock cycle earlier to compensate for the added register stage.
+    pipeline_back_edge_mux : bool, default: False
+        If True, register the back-edge multiplexer select signal, decoding it
+        one clock cycle earlier to compensate for the added register stage.
     """
     schedule_time = len(forward_backward_table)
 
@@ -161,7 +166,7 @@ def architecture(
 
     # Shift register back-edge decoding
     common.write(f, 1, "-- Shift register back-edge decoding", start="\n")
-    if pipeline_control_signals:
+    if pipeline_back_edge_mux:
         common.synchronous_process_prologue(
             f, clk="clk", name="shift_reg_back_edge_decode_proc"
         )
@@ -255,16 +260,43 @@ def architecture(
 
     # Output multiplexer decoding logic
     common.write(f, 1, "-- Output multiplexer decoding logic", start="\n")
-    decode_entries = [
-        (i % schedule_time, output_mux_table[entry.outputs_from])
-        for i, entry in enumerate(forward_backward_table)
-        if entry.outputs_from is not None
-    ]
-    common.write(f, 1, "with schedule_cnt_int select")
-    common.write(f, 2, "out_mux_sel <=")
-    for time_val, sel in decode_entries:
-        common.write(f, 3, f"{sel} when {time_val},")
-    common.write(f, 3, "0 when others;")
+    if pipeline_output_mux:
+        decode_entries = [
+            ((i - 1) % schedule_time, output_mux_table[entry.outputs_from])
+            for i, entry in enumerate(forward_backward_table)
+            if entry.outputs_from is not None
+        ]
+        common.synchronous_process_prologue(f, clk="clk", name="out_mux_sel_proc")
+        common.write(f, 3, "if en = '1' then")
+        common.write(f, 4, "case schedule_cnt_int is")
+        for time_val, sel in decode_entries:
+            common.write(f, 5, f"when {time_val} =>")
+            common.write(f, 6, f"out_mux_sel <= {sel};")
+        common.write_lines(
+            f,
+            [
+                (5, "when others =>"),
+                (6, "out_mux_sel <= 0;"),
+                (4, "end case;"),
+                (3, "end if;"),
+            ],
+        )
+        common.synchronous_process_epilogue(
+            f,
+            clk="clk",
+            name="out_mux_sel_proc",
+        )
+    else:
+        decode_entries = [
+            (i % schedule_time, output_mux_table[entry.outputs_from])
+            for i, entry in enumerate(forward_backward_table)
+            if entry.outputs_from is not None
+        ]
+        common.write(f, 1, "with schedule_cnt_int select")
+        common.write(f, 2, "out_mux_sel <=")
+        for time_val, sel in decode_entries:
+            common.write(f, 3, f"{sel} when {time_val},")
+        common.write(f, 3, "0 when others;")
 
     # Output multiplexer logic
     common.write(f, 1, "-- Output multiplexer", start="\n")
