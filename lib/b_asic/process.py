@@ -213,6 +213,22 @@ class MemoryProcess(Process):
     def write_port(self) -> Any:
         raise NotImplementedError("MemoryProcess should be derived from")
 
+    @property
+    def root_write_port(self) -> "OutputPort":
+        """
+        Resolve the originating :class:`~b_asic.port.OutputPort` of a possibly
+        chained memory variable.
+
+        A chained :class:`MemoryVariable` has a :class:`MemoryOutputPort` as its
+        ``write_port``, pointing at the variable in the upstream memory it was
+        split from. This follows that chain back to the :class:`OutputPort` of
+        the operation that actually produced the data.
+        """
+        write_port = self.write_port
+        while isinstance(write_port, MemoryOutputPort):
+            write_port = write_port.source_variable.write_port
+        return write_port
+
     def split_on_length(
         self,
         length: int = 0,
