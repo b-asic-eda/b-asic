@@ -15,6 +15,14 @@ if TYPE_CHECKING:
     from b_asic.architecture import Architecture
 
 
+def _unique_sources(assignments: list[tuple[int, str]]) -> list[str]:
+    seen = []
+    for _, signal in assignments:
+        if signal not in seen:
+            seen.append(signal)
+    return seen
+
+
 def entity(
     f: TextIO, arch: "Architecture", dt: _VhdlDataType, enable_pin: bool = True
 ) -> None:
@@ -228,7 +236,7 @@ def _write_mux_control_signal_declarations(
 
     # PE input mux control signals
     for pe, port_number, assignments in pe_mux_info:
-        unique_sources = {signal for _, signal in assignments}
+        unique_sources = _unique_sources(assignments)
         if len(unique_sources) > 1:
             # Calculate number of bits needed for selector
             sel_bits = selector_bits(len(unique_sources))
@@ -246,7 +254,7 @@ def _write_mux_control_signal_declarations(
 
     # Memory input mux control signals
     for mem, assignments in mem_mux_info:
-        unique_sources = {signal for _, signal in assignments}
+        unique_sources = _unique_sources(assignments)
         if len(unique_sources) > 1:
             sel_bits = selector_bits(len(unique_sources))
             # TODO: Handle multi-input memories here
@@ -281,10 +289,10 @@ def _write_mux_control_signals(
 
     # PE input mux control signals
     for pe, port_number, assignments in pe_mux_info:
-        unique_sources = {signal for _, signal in assignments}
+        unique_sources = _unique_sources(assignments)
         if len(unique_sources) > 1:
             # Build source to index mapping
-            source_to_idx = {src: idx for idx, src in enumerate(list(unique_sources))}
+            source_to_idx = {src: idx for idx, src in enumerate(unique_sources)}
 
             common.write(f, 1, "with schedule_cnt select")
             if multiplexer_control_registered:
@@ -334,10 +342,10 @@ def _write_mux_control_signals(
 
     # Memory input mux control signals
     for mem, assignments in mem_mux_info:
-        unique_sources = {signal for _, signal in assignments}
+        unique_sources = _unique_sources(assignments)
         if len(unique_sources) > 1:
             # Build source to index mapping
-            source_to_idx = {src: idx for idx, src in enumerate(list(unique_sources))}
+            source_to_idx = {src: idx for idx, src in enumerate(unique_sources)}
 
             common.write(f, 1, "with schedule_cnt select")
             if multiplexer_control_registered:
@@ -393,7 +401,7 @@ def _write_interconnect(
 
     # Define PE input interconnect
     for pe, port_number, assignments in pe_mux_info:
-        unique_sources = {signal for _, signal in assignments}
+        unique_sources = _unique_sources(assignments)
 
         if len(unique_sources) == 1:
             # Direct assignment
@@ -408,7 +416,7 @@ def _write_interconnect(
             common.write(f, 1, f"with {pe.entity_name}_{port_number}_sel select")
             common.write(f, 2, f"{pe.entity_name}_{port_number}_in <=")
             sel_bits = selector_bits(len(unique_sources))
-            for idx, source_signal in enumerate(list(unique_sources)):
+            for idx, source_signal in enumerate(unique_sources):
                 sel_value = format(idx, f"0{sel_bits}b")
                 common.write(
                     f,
@@ -420,7 +428,7 @@ def _write_interconnect(
     # Define memory input interconnect
     # TODO: Handle multi-input memories here
     for mem, assignments in mem_mux_info:
-        unique_sources = {signal for _, signal in assignments}
+        unique_sources = _unique_sources(assignments)
 
         if len(unique_sources) == 1:
             # Direct assignment
@@ -432,7 +440,7 @@ def _write_interconnect(
             common.write(f, 1, f"with {mem.entity_name}_0_sel select")
             common.write(f, 2, f"{mem.entity_name}_0_in <=")
             sel_bits = selector_bits(len(unique_sources))
-            for idx, source_signal in enumerate(list(unique_sources)):
+            for idx, source_signal in enumerate(unique_sources):
                 sel_value = format(idx, f"0{sel_bits}b")
                 common.write(
                     f,
