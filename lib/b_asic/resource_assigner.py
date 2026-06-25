@@ -187,9 +187,7 @@ def _split_operations_and_variables(
                     f"Operation {process} has execution time greater than the schedule time."
                 )
 
-    if memory_type == "RAM" and any(
-        p.execution_time > mem_vars.schedule_time for p in mem_vars
-    ):
+    if any(p.execution_time > mem_vars.schedule_time for p in mem_vars):
         log.info(
             "Memory variables with execution time exceeding schedule time detected;"
             " splitting into chains automatically"
