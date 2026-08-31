@@ -29,11 +29,15 @@ from b_asic import SFG, Delay, Input, Output
 # Build the signal flow graph of a 6-tap FIR filter
 x = Input(name="x")
 
-d0 = Delay(x); d1 = Delay(d0); d2 = Delay(d1)
-d3 = Delay(d2); d4 = Delay(d3); d5 = Delay(d4)
+d0 = Delay(x)
+d1 = Delay(d0)
+d2 = Delay(d1)
+d3 = Delay(d2)
+d4 = Delay(d3)
+d5 = Delay(d4)
 
 y = Output(
-    0.5*x + 0.25*d0 + 0.25*d1 + 0.5*d2 + 0.25*d3 + 0.25*d4 + 0.5*d5,
+    0.5 * x + 0.25 * d0 + 0.25 * d1 + 0.5 * d2 + 0.25 * d3 + 0.25 * d4 + 0.5 * d5,
     name="y",
 )
 
