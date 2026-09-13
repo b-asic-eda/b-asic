@@ -20,7 +20,7 @@ class ColorButton(QPushButton):
     """
 
     __slots__ = ("_color", "_default")
-    _color: None | QColor
+    _color: QColor | None
     _color_changed = Signal(QColor)
 
     def __init__(self, color: QColor, *args, **kwargs) -> None:
@@ -48,7 +48,7 @@ class ColorButton(QPushButton):
         self.setStyleSheet(f"color: {color.name()};")
 
     @property
-    def color(self) -> None | QColor:
+    def color(self) -> QColor | None:
         """Current color."""
         return self._color
 
