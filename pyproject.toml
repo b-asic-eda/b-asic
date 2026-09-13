@@ -158,12 +158,12 @@ ignore = [
   "PLR0911", # Too many return statements
   "PLR0912", # Too many branches
   "PLR0913", # Too many arguments in function definition
+  "PLR0917", # Too many positional arguments
   "PLR0915", # Too many statements
   "PLR2004", # Compare to constants
   "PLR5501", # Use `elif` instead of `else` then `if`: good for readability
   "PLW2901", # Overwrite loop variable: would be good to activate
   "RET505", # else after return: good for readability
-  "UP038", # isinstance form (deprecated) (removed in later ruff versions)
   "RUF100", # unused noqa, seems to not work
 
 ]
