@@ -1487,6 +1487,25 @@ of :class:`~b_asic.architecture.ProcessingElement`
             raise KeyError(f"{proc} not in {source.entity_name}")
         self._build_dicts()
 
+    def edit(self) -> "Architecture":
+        """
+        Edit architecture in GUI.
+
+        Opens the architecture GUI, where Processes can be inspected and
+        dragged between resources to reassign them.
+
+        Returns
+        -------
+        :class:`Architecture`
+            This architecture instance.
+        """
+        from b_asic.architecture_gui.main_window import (  # noqa: PLC0415
+            start_architecture_gui,
+        )
+
+        start_architecture_gui(self)
+        return self
+
     def _get_digraph_colors(self, colored: bool) -> dict[str, str]:
         if not colored:
             return {
