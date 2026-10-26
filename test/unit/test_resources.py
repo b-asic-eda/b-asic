@@ -15,7 +15,8 @@ from b_asic.resources import ProcessCollection, _ForwardBackwardTable
 
 class TestProcessCollectionPlainMemoryVariable:
     @matplotlib.testing.decorators.image_comparison(
-        ["test_draw_process_collection.png"]
+        ["test_draw_process_collection.png"],
+        style="default",
     )
     def test_draw_process_collection(self, simple_collection):
         fig, ax = plt.subplots()
@@ -23,7 +24,8 @@ class TestProcessCollectionPlainMemoryVariable:
         return fig
 
     @matplotlib.testing.decorators.image_comparison(
-        ["test_draw_matrix_transposer_4.png"]
+        ["test_draw_matrix_transposer_4.png"],
+        style="default",
     )
     def test_draw_matrix_transposer_4(self):
         fig, ax = plt.subplots()
@@ -114,7 +116,8 @@ class TestProcessCollectionPlainMemoryVariable:
             simple_collection.split_on_ports(strategy="foo", total_ports=1)
 
     @matplotlib.testing.decorators.image_comparison(
-        ["test_left_edge_cell_assignment.png"]
+        ["test_left_edge_cell_assignment.png"],
+        style="default",
     )
     def test_left_edge_cell_assignment(self, simple_collection: ProcessCollection):
         fig, ax = plt.subplots(1, 2)
@@ -262,7 +265,8 @@ class TestProcessCollectionPlainMemoryVariable:
         assert new_proc not in simple_collection
 
     @matplotlib.testing.decorators.image_comparison(
-        ["test_max_min_lifetime_bar_plot.png"]
+        ["test_max_min_lifetime_bar_plot.png"],
+        style="default",
     )
     def test_max_min_lifetime_bar_plot(self):
         fig, ax = plt.subplots()

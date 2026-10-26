@@ -935,7 +935,7 @@ class TestProcesses:
 
 class TestFigureGeneration:
     @matplotlib.testing.decorators.image_comparison(
-        ["test__get_figure_no_execution_times.png"], remove_text=True
+        ["test__get_figure_no_execution_times.png"], remove_text=True, style="default"
     )
     def test__get_figure_no_execution_times(self, secondorder_iir_schedule):
         return secondorder_iir_schedule._get_figure()
