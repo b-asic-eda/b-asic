@@ -29,7 +29,7 @@ dependencies = [
   "graphviz>=0.21",
   "matplotlib>=3.11",
   "networkx>=3",
-  "pulp",
+  "pulp[cbc]>=4.2",
   "qtawesome",
   "natsort",
   "setuptools_scm",

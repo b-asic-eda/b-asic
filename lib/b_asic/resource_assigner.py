@@ -14,13 +14,11 @@ from uuid import uuid4
 
 import networkx as nx
 from pulp import (
-    PULP_CBC_CMD,
+    COIN_CMD,
     LpBinary,
     LpProblem,
     LpSolver,
-    LpStatusInfeasible,
-    LpStatusNotSolved,
-    LpStatusOptimal,
+    LpSolveStatus,
     LpVariable,
     lpSum,
     value,
@@ -235,13 +233,16 @@ def _split_operations_and_variables(
     log.info("Using strategy '%s' for resource assignment", strategy)
     if strategy == "ilp_graph_color":
         # Color the graphs concurrently using ILP to minimize the total amount of resources
+        problem = LpProblem()
         pe_x, mem_x = _ilp_coloring(
-            op_groups, mem_exclusion_graph, max_pes, max_mems, solver
+            problem, op_groups, mem_exclusion_graph, max_pes, max_mems, solver
         )
     elif strategy == "ilp_min_mux":
         # Color the graphs concurrently using ILP to minimize the amount of multiplexers
         # given the amount of resources and memories
+        problem = LpProblem()
         pe_x, mem_x = _ilp_min_mux(
+            problem,
             op_groups,
             mem_vars,
             max_pes,
@@ -313,6 +314,7 @@ def _split_operations_and_variables(
 
 
 def _ilp_coloring(
+    problem: LpProblem,
     op_groups: dict[TypeName, ProcessCollection],
     mem_exclusion_graph: nx.Graph | None,
     max_pes: dict[TypeName, int],
@@ -330,13 +332,12 @@ def _ilp_coloring(
     # Create decision variables for graph coloring
     # mem_x[node][color] - whether memory variable "node" is given "color"
     # mem_c[color] - whether "color" is used
-    mem_x, mem_c = _create_memory_variables(mem_graph_nodes, max_mems)
+    mem_x, mem_c = _create_memory_variables(problem, mem_graph_nodes, max_mems)
     # pe_x[i][node][color] - whether PE node "node" in exclusion graph "i" is given "color"
     # pe_c[i][color] - whether "color" is used in exclusion graph "i"
-    pe_x, pe_c = _create_pe_variables(op_groups, max_pes)
+    pe_x, pe_c = _create_pe_variables(problem, op_groups, max_pes)
 
     # Objective: minimize the total amount of colors used
-    problem = LpProblem()
     problem += lpSum(mem_c[color] for color in range(max_mems)) + lpSum(
         pe_c[op_type_name][color]
         for op_type_name in pe_exclusion_graphs
@@ -360,7 +361,8 @@ def _ilp_coloring(
             problem += mem_x[node][color] <= mem_c[color]
     max_clique = next(nx.find_cliques(mem_exclusion_graph))
     for color, node in enumerate(max_clique):
-        problem += mem_x[node][color] == mem_c[color] == 1
+        problem += mem_x[node][color] == 1
+        problem += mem_c[color] == 1
     for color in range(max_mems):
         problem += mem_c[color] <= lpSum(mem_x[node][color] for node in mem_graph_nodes)
     for color in range(max_mems)[:-1]:
@@ -387,9 +389,8 @@ def _ilp_coloring(
                 problem += pe_x[op_type_name][node][color] <= pe_c[op_type_name][color]
         max_clique = next(nx.find_cliques(pe_exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += (
-                pe_x[op_type_name][node][color] == pe_c[op_type_name][color] == 1
-            )  # TODO FIXVALUE
+            problem += pe_x[op_type_name][node][color] == 1
+            problem += pe_c[op_type_name][color] == 1
         for color in range(max_pes[op_type_name]):
             problem += pe_c[op_type_name][color] <= lpSum(
                 pe_x[op_type_name][node][color] for node in nodes
@@ -451,6 +452,7 @@ def _apply_warm_start(
 
 
 def _ilp_min_mux(
+    problem: LpProblem,
     op_groups: dict[TypeName, ProcessCollection],
     mem_vars: ProcessCollection,
     max_pes: dict[TypeName, int],
@@ -471,22 +473,21 @@ def _ilp_min_mux(
         for op_type_name, op in zip(op_groups.keys(), pe_operations, strict=True)
     }
 
-    mem_x, mem_c = _create_memory_variables(mem_vars, max_mems)
-    pe_x, pe_c = _create_pe_variables(op_groups, max_pes)
+    mem_x, mem_c = _create_memory_variables(problem, mem_vars, max_mems)
+    pe_x, pe_c = _create_pe_variables(problem, op_groups, max_pes)
 
     # Objective: minimize the total number of mux connections
     pe_to_mem_vars = _create_pe_to_mem_connection_variables(
-        op_groups, max_pes, pe_out_cnt, max_mems
+        problem, op_groups, max_pes, pe_out_cnt, max_mems
     )
     mem_to_pe_vars = _create_mem_to_pe_connection_variables(
-        max_mems, op_groups, max_pes, pe_in_cnt
+        problem, max_mems, op_groups, max_pes, pe_in_cnt
     )
     pe_to_pe_vars, pe_to_pe_vars_used = _create_pe_to_pe_connection_variables(
-        op_groups, max_pes, pe_out_cnt, pe_in_cnt
+        problem, op_groups, max_pes, pe_out_cnt, pe_in_cnt
     )
-    mem_to_mem_vars = _create_mem_to_mem_connection_variables(max_mems)
+    mem_to_mem_vars = _create_mem_to_mem_connection_variables(problem, max_mems)
 
-    problem = LpProblem()
     problem += lpSum(
         [
             lpSum(
@@ -800,7 +801,7 @@ def _ilp_min_mux(
     log.info(
         "Model created with %d variables and %d constraints. Starting to solve with solver: %s",
         len(problem.variables()),
-        len(problem.constraints),
+        len(problem.constraints()),
         solver.__class__.__name__ if solver else "default",
     )
     _solve_ilp_problem(
@@ -937,9 +938,13 @@ def _get_pe_nodes(
     ]
 
 
-def _create_memory_variables(mem_vars: list, max_mems: list[int]) -> tuple[dict, dict]:
-    mem_x = LpVariable.dicts("mem_x", (mem_vars, range(max_mems)), cat=LpBinary)
-    mem_c = LpVariable.dicts("mem_c", range(max_mems), cat=LpBinary)
+def _create_memory_variables(
+    problem: LpProblem, mem_vars: list, max_mems: int
+) -> tuple[dict, dict]:
+    mem_x = problem.add_variable_dicts(
+        "mem_x", (mem_vars, range(max_mems)), cat=LpBinary
+    )
+    mem_c = problem.add_variable_dicts("mem_c", range(max_mems), cat=LpBinary)
     log.info(
         "Memory variables created: mem_x with shape (%d, %s) and mem_c with shape (%s)",
         len(mem_vars),
@@ -950,6 +955,7 @@ def _create_memory_variables(mem_vars: list, max_mems: list[int]) -> tuple[dict,
 
 
 def _create_pe_to_mem_connection_variables(
+    problem: LpProblem,
     op_groups: dict[TypeName, ProcessCollection],
     max_pes: dict[TypeName, int],
     pe_output_count: dict[TypeName, int],
@@ -963,13 +969,14 @@ def _create_pe_to_mem_connection_variables(
                 pe_to_mem_vars[src_pe_port] = {}
                 for mem_idx in range(max_mems):
                     var_name = f"pe_to_mem_{op_type_name}_{pe_idx}_{port_idx}_{mem_idx}"
-                    pe_to_mem_vars[src_pe_port][mem_idx] = LpVariable(
+                    pe_to_mem_vars[src_pe_port][mem_idx] = problem.add_variable(
                         var_name, cat=LpBinary
                     )
     return pe_to_mem_vars
 
 
 def _create_mem_to_pe_connection_variables(
+    problem: LpProblem,
     max_mems: int,
     op_groups: dict[TypeName, ProcessCollection],
     max_pes: dict[TypeName, int],
@@ -983,13 +990,14 @@ def _create_mem_to_pe_connection_variables(
                 for port_idx in range(pe_input_count[op_type_name]):
                     dst_pe_port = (op_type_name, pe_idx, port_idx)
                     var_name = f"mem_to_pe_{mem_idx}_{op_type_name}_{pe_idx}_{port_idx}"
-                    mem_to_pe_vars[mem_idx][dst_pe_port] = LpVariable(
+                    mem_to_pe_vars[mem_idx][dst_pe_port] = problem.add_variable(
                         var_name, cat=LpBinary
                     )
     return mem_to_pe_vars
 
 
 def _create_pe_to_pe_connection_variables(
+    problem: LpProblem,
     op_groups: dict[TypeName, ProcessCollection],
     max_pes: dict[TypeName, int],
     pe_output_count: dict[TypeName, int],
@@ -1009,8 +1017,8 @@ def _create_pe_to_pe_connection_variables(
                         for in_port_idx in range(pe_input_count[dst_op_type_name]):
                             dst_pe_port = (dst_op_type_name, dst_pe_idx, in_port_idx)
                             var_name = f"pe_to_pe_{src_op_type_name}_{src_pe_idx}_{out_port_idx}_{dst_op_type_name}_{dst_pe_idx}_{in_port_idx}"
-                            pe_to_pe_vars[src_pe_port][dst_pe_port] = LpVariable(
-                                var_name, cat=LpBinary
+                            pe_to_pe_vars[src_pe_port][dst_pe_port] = (
+                                problem.add_variable(var_name, cat=LpBinary)
                             )
                             pe_to_pe_vars_used[src_pe_port][dst_pe_port] = False
                             cnt += 1
@@ -1018,12 +1026,12 @@ def _create_pe_to_pe_connection_variables(
     return pe_to_pe_vars, pe_to_pe_vars_used
 
 
-def _create_mem_to_mem_connection_variables(max_mems: int) -> dict:
+def _create_mem_to_mem_connection_variables(problem: LpProblem, max_mems: int) -> dict:
     mem_to_mem_vars: dict[int, dict[int, LpVariable]] = {}
     for src in range(max_mems):
         mem_to_mem_vars[src] = {}
         for dst in range(max_mems):
-            mem_to_mem_vars[src][dst] = LpVariable(
+            mem_to_mem_vars[src][dst] = problem.add_variable(
                 f"mem_to_mem_{src}_{dst}", cat=LpBinary
             )
     log.info("Memory->Memory connection variables created: %d", max_mems * max_mems)
@@ -1031,7 +1039,9 @@ def _create_mem_to_mem_connection_variables(max_mems: int) -> dict:
 
 
 def _create_pe_variables(
-    op_groups: dict[TypeName, ProcessCollection], max_pes: list[int]
+    problem: LpProblem,
+    op_groups: dict[TypeName, ProcessCollection],
+    max_pes: dict[TypeName, int],
 ) -> tuple[dict, dict]:
     pe_x = {}
     pe_c = {}
@@ -1043,7 +1053,7 @@ def _create_pe_variables(
                 pe_x[op_type_name][proc][0] = 1
             else:
                 for pe_idx in range(max_pes[op_type_name]):
-                    pe_x[op_type_name][proc][pe_idx] = LpVariable(
+                    pe_x[op_type_name][proc][pe_idx] = problem.add_variable(
                         f"pe_x_{op_type_name}_{proc}_{pe_idx}", cat=LpBinary
                     )
 
@@ -1052,7 +1062,7 @@ def _create_pe_variables(
             pe_c[op_type_name][0] = 1
         else:
             for pe_idx in range(max_pes[op_type_name]):
-                pe_c[op_type_name][pe_idx] = LpVariable(
+                pe_c[op_type_name][pe_idx] = problem.add_variable(
                     f"pe_c_{op_type_name}_{pe_idx}", cat=LpBinary
                 )
     return pe_x, pe_c
@@ -1067,17 +1077,19 @@ def _solve_ilp_problem(
     # Suppress ILP solver output if logging not set to DEBUG
     if solver is None:
         msg = 1 if log.isEnabledFor(b_asic.logger.logging.DEBUG) else 0
-        solver = PULP_CBC_CMD(msg=msg, warmStart=warm_start)
-    elif warm_start and isinstance(solver, PULP_CBC_CMD):
-        solver.warmStart = True
+        solver = COIN_CMD(msg=msg, warmStart=warm_start)
+    elif warm_start and isinstance(solver, COIN_CMD):
+        solver.optionsDict["warmStart"] = True
 
     recovery_state = _prepare_interrupted_recovery(problem, solver)
 
     # Solve the ILP problem
+    stats = None
     status = None
     interrupted = False
     try:
-        status = problem.solve(solver)
+        stats = problem.solve(solver)
+        status = stats.status
     except KeyboardInterrupt:
         interrupted = True
         log.warning(
@@ -1087,8 +1099,10 @@ def _solve_ilp_problem(
     finally:
         _restore_interrupted_recovery(problem, solver, recovery_state)
 
-    if _has_feasible_solution(problem):
-        if interrupted or status == LpStatusNotSolved:
+    if (stats is not None and stats.has_solution) or (
+        interrupted and _has_feasible_solution(problem)
+    ):
+        if interrupted or status == LpSolveStatus.NotSolved:
             log.warning("Using best feasible ILP solution found before solver stopped.")
         return
 
@@ -1097,7 +1111,7 @@ def _solve_ilp_problem(
             "No feasible ILP solution was found before the solver stopped."
         )
 
-    if status not in (LpStatusOptimal, LpStatusNotSolved):
+    if status not in (LpSolveStatus.Optimal, LpSolveStatus.NotSolved):
         raise ValueError("Solution could not be found via ILP, use another method.")
 
     raise ValueError("No feasible ILP solution was found before the solver stopped.")
@@ -1107,19 +1121,20 @@ def _recover_interrupted_solution(
     problem: LpProblem,
     solver: LpSolver,
     recovery_state: dict[str, object] | None,
-) -> int | None:
+) -> LpSolveStatus | None:
     solution_path = None
     if recovery_state is not None:
         solution_path = cast(str | None, recovery_state.get("solution_path"))
     if solution_path and _recover_cmd_solution_file(problem, solver, solution_path):
-        return problem.status
+        return LpSolveStatus.Interrupted
 
     find_solution_values = getattr(solver, "findSolutionValues", None)
     if not callable(find_solution_values):
         return None
 
     try:
-        return cast(int, find_solution_values(problem))
+        status, _ = find_solution_values(problem)
+        return cast(LpSolveStatus, status)
     except Exception as exc:
         log.info("Failed to recover interrupted ILP solution: %s", exc)
         return None
@@ -1197,13 +1212,13 @@ def _recover_cmd_solution_file(
     if not isinstance(solution, tuple) or len(solution) < 2:
         return False
 
-    status = cast(int, solution[0])
+    status = cast(LpSolveStatus, solution[0])
     values = cast(dict[str, float], solution[1])
     reduced_costs = cast(dict[str, float], solution[2]) if len(solution) > 2 else {}
     shadow_prices = cast(dict[str, float], solution[3]) if len(solution) > 3 else {}
     slacks = cast(dict[str, float], solution[4]) if len(solution) > 4 else {}
 
-    if status != LpStatusInfeasible:
+    if status != LpSolveStatus.Infeasible:
         problem.assignVarsVals(values)
         if reduced_costs:
             problem.assignVarsDj(reduced_costs)
@@ -1211,7 +1226,6 @@ def _recover_cmd_solution_file(
             problem.assignConsPi(shadow_prices)
         if slacks:
             problem.assignConsSlack(slacks)
-    problem.assignStatus(status)
     return _has_feasible_solution(problem)
 
 

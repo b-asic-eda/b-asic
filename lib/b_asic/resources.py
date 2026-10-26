@@ -23,9 +23,6 @@ from pulp import (
     LpBinary,
     LpProblem,
     LpSolver,
-    LpStatusNotSolved,
-    LpStatusOptimal,
-    LpVariable,
     lpSum,
     value,
 )
@@ -1575,14 +1572,14 @@ class ProcessCollection:
             max_colors = len(set(coloring.values()))
         colors = range(max_colors)
 
+        problem = LpProblem()
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        x = problem.add_variable_dicts("x", (nodes, colors), cat=LpBinary)
         #   c[color] - whether color is used
-        c = LpVariable.dicts("c", colors, cat=LpBinary)
+        c = problem.add_variable_dicts("c", colors, cat=LpBinary)
 
         # find the minimal amount of colors (memories)
-        problem = LpProblem()
         problem += lpSum(c[i] for i in colors)
 
         # constraints:
@@ -1600,7 +1597,8 @@ class ProcessCollection:
         #   (4) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == c[color] == 1
+            problem += x[node][color] == 1
+            problem += c[color] == 1
         #   (5 & 6) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -1608,9 +1606,9 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        status = problem.solve(solver)
+        stats = problem.solve(solver)
 
-        if status not in (LpStatusOptimal, LpStatusNotSolved):
+        if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
@@ -1662,15 +1660,15 @@ class ProcessCollection:
         # minimize the amount of input muxes connecting PEs to memories
         # by minimizing the amount of PEs connected to each memory
 
+        problem = LpProblem()
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        x = problem.add_variable_dicts("x", (nodes, colors), cat=LpBinary)
         #   c[color] - whether color is used
-        c = LpVariable.dicts("c", colors, cat=LpBinary)
+        c = problem.add_variable_dicts("c", colors, cat=LpBinary)
         #   y[pe, color] - whether a color has nodes generated from a certain pe
-        y = LpVariable.dicts("y", (pe_out_ports, colors), cat=LpBinary)
+        y = problem.add_variable_dicts("y", (pe_out_ports, colors), cat=LpBinary)
 
-        problem = LpProblem()
         problem += lpSum(y[port][i] for port in pe_out_ports for i in colors)
 
         # constraints:
@@ -1693,7 +1691,8 @@ class ProcessCollection:
         #   (5) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == c[color] == 1
+            problem += x[node][color] == 1
+            problem += c[color] == 1
         #   (6 & 7) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -1701,9 +1700,9 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        status = problem.solve(solver)
+        stats = problem.solve(solver)
 
-        if status not in (LpStatusOptimal, LpStatusNotSolved):
+        if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
@@ -1752,17 +1751,17 @@ class ProcessCollection:
             for port_index in range(pe.input_count)
         ]
 
+        problem = LpProblem()
         # minimize the amount of output muxes connecting PEs to memories
         # by minimizing the amount of PEs connected to each memory
 
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        x = problem.add_variable_dicts("x", (nodes, colors), cat=LpBinary)
         #   c[color] - whether color is used
-        c = LpVariable.dicts("c", colors, cat=LpBinary)
+        c = problem.add_variable_dicts("c", colors, cat=LpBinary)
         #   y[pe, color] - whether a color has nodes writing to a certain PE
-        y = LpVariable.dicts("y", (pe_in_ports, colors), cat=LpBinary)
-        problem = LpProblem()
+        y = problem.add_variable_dicts("y", (pe_in_ports, colors), cat=LpBinary)
         problem += lpSum(y[port][i] for port in pe_in_ports for i in colors)
 
         # constraints:
@@ -1785,7 +1784,8 @@ class ProcessCollection:
         #   (5) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == c[color] == 1
+            problem += x[node][color] == 1
+            problem += c[color] == 1
         #   (6 & 7) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -1793,9 +1793,9 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        status = problem.solve(solver)
+        stats = problem.solve(solver)
 
-        if status not in (LpStatusOptimal, LpStatusNotSolved):
+        if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
@@ -1852,16 +1852,16 @@ class ProcessCollection:
         # minimize the amount of total muxes connecting PEs to memories
         # by minimizing the amount of PEs connected to each memory (input & output)
 
+        problem = LpProblem()
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        x = problem.add_variable_dicts("x", (nodes, colors), cat=LpBinary)
         #   c[color] - whether color is used
-        c = LpVariable.dicts("c", colors, cat=LpBinary)
+        c = problem.add_variable_dicts("c", colors, cat=LpBinary)
         #   y[pe, color] - whether a color has nodes generated from a certain pe
-        y = LpVariable.dicts("y", (pe_out_ports, colors), cat=LpBinary)
+        y = problem.add_variable_dicts("y", (pe_out_ports, colors), cat=LpBinary)
         #   z[pe, color] - whether a color has nodes writing to a certain PE
-        z = LpVariable.dicts("z", (pe_in_ports, colors), cat=LpBinary)
-        problem = LpProblem()
+        z = problem.add_variable_dicts("z", (pe_in_ports, colors), cat=LpBinary)
         problem += lpSum([y[port][i] for port in pe_out_ports for i in colors]) + lpSum(
             [z[port][i] for port in pe_in_ports for i in colors]
         )
@@ -1891,7 +1891,8 @@ class ProcessCollection:
         #   (6) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == c[color] == 1
+            problem += x[node][color] == 1
+            problem += c[color] == 1
         #   (7 & 8) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -1899,9 +1900,9 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        status = problem.solve(solver)
+        stats = problem.solve(solver)
 
-        if status not in (LpStatusOptimal, LpStatusNotSolved):
+        if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}
@@ -2002,13 +2003,13 @@ class ProcessCollection:
 
         # find the minimal amount of colors (memories)
 
+        problem = LpProblem()
         # binary variables:
         #   x[node, color] - whether node is colored in a certain color
-        x = LpVariable.dicts("x", (nodes, colors), cat=LpBinary)
+        x = problem.add_variable_dicts("x", (nodes, colors), cat=LpBinary)
         #   c[color] - whether color is used
-        c = LpVariable.dicts("c", colors, cat=LpBinary)
+        c = problem.add_variable_dicts("c", colors, cat=LpBinary)
 
-        problem = LpProblem()
         problem += lpSum(c[i] for i in colors)
 
         # constraints:
@@ -2026,7 +2027,8 @@ class ProcessCollection:
         #   (4) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == c[color] == 1
+            problem += x[node][color] == 1
+            problem += c[color] == 1
         #   (5 & 6) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -2034,9 +2036,9 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        status = problem.solve(solver)
+        stats = problem.solve(solver)
 
-        if status not in (LpStatusOptimal, LpStatusNotSolved):
+        if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         node_colors = {}

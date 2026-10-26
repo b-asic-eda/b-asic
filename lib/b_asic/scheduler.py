@@ -1422,8 +1422,9 @@ class ILPScheduler(Scheduler):
         ]
         op_types = list({op.type_name() for op in ops})
 
-        X = pulp.LpVariable.dicts("X", (ops, time_slots), cat=pulp.LpBinary)
-        R_used = pulp.LpVariable.dicts("R_used", op_types, cat=pulp.LpInteger)
+        problem = pulp.LpProblem()
+        X = problem.add_variable_dicts("X", (ops, time_slots), cat=pulp.LpBinary)
+        R_used = problem.add_variable_dicts("R_used", op_types, cat=pulp.LpInteger)
 
         # w - Stage difference between operations (i.e. number of Delays between)
         W = {}
@@ -1439,7 +1440,6 @@ class ILPScheduler(Scheduler):
             W[op.graph_id] = tmp
 
         # Minimize the amount of concurrent processes and I/O
-        problem = pulp.LpProblem()
         problem += pulp.lpSum(R_used[op_type] for op_type in op_types)
 
         # (1) - Each operation should have one and only one start time
@@ -1517,9 +1517,9 @@ class ILPScheduler(Scheduler):
                         <= 1
                     )
 
-        status = problem.solve(self._solver)
+        stats = problem.solve(self._solver)
 
-        if status not in (pulp.LpStatusOptimal, pulp.LpStatusNotSolved):
+        if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         for op in ops:

@@ -1,5 +1,5 @@
 import pytest
-from pulp import PULP_CBC_CMD
+from pulp import COIN_CMD
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import (
@@ -470,7 +470,7 @@ def test_ilp_resource_algorithm_custom_solver():
         alg_params={
             "processing_elements": processing_elements,
             "max_colors": 3,
-            "solver": PULP_CBC_CMD(),
+            "solver": COIN_CMD(),
         },
     )
 
