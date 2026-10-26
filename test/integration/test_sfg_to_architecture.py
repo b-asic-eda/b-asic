@@ -1,5 +1,5 @@
 import pytest
-from pulp import COIN_CMD
+from pulp import HiGHS
 
 from b_asic.architecture import Architecture, Memory, ProcessingElement
 from b_asic.core_operations import (
@@ -470,7 +470,7 @@ def test_ilp_resource_algorithm_custom_solver():
         alg_params={
             "processing_elements": processing_elements,
             "max_colors": 3,
-            "solver": COIN_CMD(),
+            "solver": HiGHS(),
         },
     )
 
@@ -478,7 +478,12 @@ def test_ilp_resource_algorithm_custom_solver():
     for i, mem in enumerate(mem_vars_set):
         memory = Memory(mem, memory_type="RAM", entity_name=f"memory{i}")
         memories.append(memory)
-        memory.assign("ilp_graph_color")
+        memory.assign(
+            "ilp_graph_color",
+            alg_params={
+                "solver": HiGHS(),
+            },
+        )
 
     arch = Architecture(
         processing_elements,

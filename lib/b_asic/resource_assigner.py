@@ -4,27 +4,21 @@ B-ASIC Resource Assigner Module.
 Contains functions for joint resource assignment of processing elements and memories.
 """
 
-import contextlib
-import shutil
-import tempfile
 from collections import defaultdict
-from pathlib import Path
 from typing import Literal, cast
-from uuid import uuid4
 
 import networkx as nx
 from pulp import (
-    COIN_CMD,
     LpBinary,
     LpProblem,
     LpSolver,
-    LpSolveStatus,
     LpVariable,
     lpSum,
     value,
 )
 
 import b_asic.logger
+from b_asic._ilp_utils import _solve_ilp_problem
 from b_asic.architecture import Memory, ProcessingElement
 from b_asic.operation import Operation
 from b_asic.process import MemoryOutputPort, MemoryVariable, Process
@@ -361,8 +355,10 @@ def _ilp_coloring(
             problem += mem_x[node][color] <= mem_c[color]
     max_clique = next(nx.find_cliques(mem_exclusion_graph))
     for color, node in enumerate(max_clique):
-        problem += mem_x[node][color] == 1
-        problem += mem_c[color] == 1
+        mem_x[node][color].setInitialValue(1)
+        mem_x[node][color].fixValue()
+        mem_c[color].setInitialValue(1)
+        mem_c[color].fixValue()
     for color in range(max_mems):
         problem += mem_c[color] <= lpSum(mem_x[node][color] for node in mem_graph_nodes)
     for color in range(max_mems)[:-1]:
@@ -388,9 +384,12 @@ def _ilp_coloring(
             for color in range(max_pes[op_type_name]):
                 problem += pe_x[op_type_name][node][color] <= pe_c[op_type_name][color]
         max_clique = next(nx.find_cliques(pe_exclusion_graph))
-        for color, node in enumerate(max_clique):
-            problem += pe_x[op_type_name][node][color] == 1
-            problem += pe_c[op_type_name][color] == 1
+        if max_pes[op_type_name] > 1:
+            for color, node in enumerate(max_clique):
+                pe_x[op_type_name][node][color].setInitialValue(1)
+                pe_x[op_type_name][node][color].fixValue()
+                pe_c[op_type_name][color].setInitialValue(1)
+                pe_c[op_type_name][color].fixValue()
         for color in range(max_pes[op_type_name]):
             problem += pe_c[op_type_name][color] <= lpSum(
                 pe_x[op_type_name][node][color] for node in nodes
@@ -1066,172 +1065,3 @@ def _create_pe_variables(
                     f"pe_c_{op_type_name}_{pe_idx}", cat=LpBinary
                 )
     return pe_x, pe_c
-
-
-def _solve_ilp_problem(
-    problem: LpProblem,
-    solver: LpSolver | None,
-    warm_start: bool = False,
-) -> None:
-    # Default to a CBC solver if no solver is provided
-    # Suppress ILP solver output if logging not set to DEBUG
-    if solver is None:
-        msg = 1 if log.isEnabledFor(b_asic.logger.logging.DEBUG) else 0
-        solver = COIN_CMD(msg=msg, warmStart=warm_start)
-    elif warm_start and isinstance(solver, COIN_CMD):
-        solver.optionsDict["warmStart"] = True
-
-    recovery_state = _prepare_interrupted_recovery(problem, solver)
-
-    # Solve the ILP problem
-    stats = None
-    status = None
-    interrupted = False
-    try:
-        stats = problem.solve(solver)
-        status = stats.status
-    except KeyboardInterrupt:
-        interrupted = True
-        log.warning(
-            "ILP solver interrupted; attempting to keep best feasible solution."
-        )
-        status = _recover_interrupted_solution(problem, solver, recovery_state)
-    finally:
-        _restore_interrupted_recovery(problem, solver, recovery_state)
-
-    if (stats is not None and stats.has_solution) or (
-        interrupted and _has_feasible_solution(problem)
-    ):
-        if interrupted or status == LpSolveStatus.NotSolved:
-            log.warning("Using best feasible ILP solution found before solver stopped.")
-        return
-
-    if interrupted:
-        raise ValueError(
-            "No feasible ILP solution was found before the solver stopped."
-        )
-
-    if status not in (LpSolveStatus.Optimal, LpSolveStatus.NotSolved):
-        raise ValueError("Solution could not be found via ILP, use another method.")
-
-    raise ValueError("No feasible ILP solution was found before the solver stopped.")
-
-
-def _recover_interrupted_solution(
-    problem: LpProblem,
-    solver: LpSolver,
-    recovery_state: dict[str, object] | None,
-) -> LpSolveStatus | None:
-    solution_path = None
-    if recovery_state is not None:
-        solution_path = cast(str | None, recovery_state.get("solution_path"))
-    if solution_path and _recover_cmd_solution_file(problem, solver, solution_path):
-        return LpSolveStatus.Interrupted
-
-    find_solution_values = getattr(solver, "findSolutionValues", None)
-    if not callable(find_solution_values):
-        return None
-
-    try:
-        status, _ = find_solution_values(problem)
-        return cast(LpSolveStatus, status)
-    except Exception as exc:
-        log.info("Failed to recover interrupted ILP solution: %s", exc)
-        return None
-
-
-def _prepare_interrupted_recovery(
-    problem: LpProblem,
-    solver: LpSolver,
-) -> dict[str, object] | None:
-    if not hasattr(solver, "keepFiles") or not hasattr(solver, "create_tmp_files"):
-        return None
-
-    original_keep_files = cast(bool, solver.keepFiles)
-    original_name = problem.name
-    recovery_dir = tempfile.mkdtemp(prefix="b_asic_ilp_recovery_")
-    recovery_name = str(Path(recovery_dir) / f"{problem.name}-{uuid4().hex}")
-
-    solver.keepFiles = True
-    problem.name = recovery_name
-    solution_path = next(solver.create_tmp_files(recovery_name, "sol"))
-
-    return {
-        "original_keep_files": original_keep_files,
-        "original_name": original_name,
-        "recovery_name": recovery_name,
-        "recovery_dir": recovery_dir,
-        "solution_path": solution_path,
-        "temp_paths": tuple(solver.create_tmp_files(recovery_name, "lp", "sol", "mst")),
-    }
-
-
-def _restore_interrupted_recovery(
-    problem: LpProblem,
-    solver: LpSolver,
-    recovery_state: dict[str, object] | None,
-) -> None:
-    if recovery_state is None:
-        return
-
-    problem.name = cast(str, recovery_state["original_name"])
-    solver.keepFiles = recovery_state["original_keep_files"]
-
-    if cast(bool, recovery_state["original_keep_files"]):
-        return
-
-    for path in cast(tuple[str, ...], recovery_state["temp_paths"]):
-        with contextlib.suppress(FileNotFoundError):
-            Path(path).unlink()
-    recovery_dir = cast(str | None, recovery_state.get("recovery_dir"))
-    if recovery_dir is not None:
-        shutil.rmtree(recovery_dir, ignore_errors=True)
-    with contextlib.suppress(FileNotFoundError):
-        Path("gurobi.log").unlink()
-
-
-def _recover_cmd_solution_file(
-    problem: LpProblem,
-    solver: LpSolver,
-    solution_path: str,
-) -> bool:
-    read_solution = getattr(solver, "readsol", None)
-    if not callable(read_solution) or not Path(solution_path).exists():
-        return False
-
-    try:
-        solution = read_solution(solution_path)
-    except Exception as exc:
-        log.info(
-            "Failed to parse interrupted solver solution file %s: %s",
-            solution_path,
-            exc,
-        )
-        return False
-
-    if not isinstance(solution, tuple) or len(solution) < 2:
-        return False
-
-    status = cast(LpSolveStatus, solution[0])
-    values = cast(dict[str, float], solution[1])
-    reduced_costs = cast(dict[str, float], solution[2]) if len(solution) > 2 else {}
-    shadow_prices = cast(dict[str, float], solution[3]) if len(solution) > 3 else {}
-    slacks = cast(dict[str, float], solution[4]) if len(solution) > 4 else {}
-
-    if status != LpSolveStatus.Infeasible:
-        problem.assignVarsVals(values)
-        if reduced_costs:
-            problem.assignVarsDj(reduced_costs)
-        if shadow_prices:
-            problem.assignConsPi(shadow_prices)
-        if slacks:
-            problem.assignConsSlack(slacks)
-    return _has_feasible_solution(problem)
-
-
-def _has_feasible_solution(problem: LpProblem) -> bool:
-    if value(problem.objective) is not None:
-        return True
-
-    variables = problem.variables()
-    return bool(variables) and all(var.varValue is not None for var in variables)

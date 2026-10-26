@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, cast
 import pulp
 
 import b_asic.logger
+from b_asic._ilp_utils import _resolve_solver
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.special_operations import Delay, Input, Output
@@ -1453,14 +1454,17 @@ class ILPScheduler(Scheduler):
 
         if self._input_times:
             for input_id, input_time in self._input_times.items():
-                problem += X[schedule._sfg.find_by_id(input_id)][input_time] == 1
+                input_op = schedule._sfg.find_by_id(input_id)
+                X[input_op][input_time].setInitialValue(1)
+                X[input_op][input_time].fixValue()
 
         if self._output_times:
             for output_id, output_time in self._output_times.items():
                 output_op = schedule._sfg.find_by_id(output_id)
                 for t in time_slots:
                     if t % Ts != output_time:
-                        problem += X[output_op][t] == 0
+                        X[output_op][t].setInitialValue(0)
+                        X[output_op][t].fixValue()
 
         # (2) - At most R_used[resource_type] can be used in each time slot for every resource type
         for op_type in op_types:
@@ -1517,14 +1521,14 @@ class ILPScheduler(Scheduler):
                         <= 1
                     )
 
-        stats = problem.solve(self._solver)
+        stats = problem.solve(_resolve_solver(self._solver))
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         for op in ops:
             for time in time_slots:
-                if pulp.value(X[op][time]) == 1:
+                if round(pulp.value(X[op][time])) == 1:
                     schedule.start_times[op.graph_id] = time
                     break
 
