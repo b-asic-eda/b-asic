@@ -13,7 +13,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator
 from functools import reduce
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, TypeVar, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -47,16 +47,12 @@ if TYPE_CHECKING:
 _LATENCY_COLOR = tuple(c / 255 for c in LATENCY_COLOR)
 _WARNING_COLOR = tuple(c / 255 for c in WARNING_COLOR)
 
+
 #
 # Human-intuitive sorting:
 # https://stackoverflow.com/questions/2669059/how-to-sort-alpha-numeric-set-in-python
 #
-# Typing '_T' to help Pyright propagate type-information
-#
-_T = TypeVar("_T")
-
-
-def _sorted_nicely(to_be_sorted: Iterable[_T]) -> list[_T]:
+def _sorted_nicely[ItemT](to_be_sorted: Iterable[ItemT]) -> list[ItemT]:
     """Sort the given iterable in the way that humans expect."""
 
     def convert(text):
