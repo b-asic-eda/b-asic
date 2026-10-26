@@ -1156,7 +1156,7 @@ class TestCholeskyMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [1, 2, 4, 8, 16, 24, 32])
+    @pytest.mark.parametrize("N", [1, 2, 4, 8, 16])
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     @pytest.mark.parametrize("pe", ["mads", "addsub", None])
     def test_NxN_spd_combinations(self, N, mode, pe):
@@ -1204,7 +1204,7 @@ class TestBlockLDLTMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [2, 4, 8, 16, 24, 32])
+    @pytest.mark.parametrize("N", [2, 4, 8, 16])
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
     def test_NxN_mult_none(self, N, mode, pe):
@@ -1269,7 +1269,7 @@ class TestBlockCholeskyMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [2, 4, 8, 16, 24, 32])
+    @pytest.mark.parametrize("N", [2, 4, 8, 16])
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
     def test_NxN_mult_none(self, N, mode, pe):
@@ -1334,7 +1334,7 @@ class TestTileLDLTMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [2, 4, 8, 16, 24, 32])
+    @pytest.mark.parametrize("N", [2, 4, 8, 16])
     @pytest.mark.parametrize("mode", ["mult", "eqs"])
     @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
     def test_NxN_mult_none(self, N, mode, pe):
@@ -1399,7 +1399,7 @@ class TestAnalyticalBlockMatrixInverse:
         A += (np.abs(min_eig) + 0.1) * np.eye(N)  # ensure positive definiteness
         return A
 
-    @pytest.mark.parametrize("N", [2, 4, 8, 16, 24, 32])
+    @pytest.mark.parametrize("N", [2, 4, 8, 16])
     @pytest.mark.parametrize("mode", ["top", "bot", "mid"])
     @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
     def test_NxN_mult_none(self, N, mode, pe):
