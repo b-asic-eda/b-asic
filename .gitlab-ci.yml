@@ -39,18 +39,6 @@ workflow:
   coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
   interruptible: true
 
-run-test-3.11-pyqt6:
-  variables:
-    QT_API: pyqt6
-  image: python:3.11
-  extends: ".run-test"
-
-run-test-3.11-pyside6:
-  variables:
-    QT_API: pyside6
-  image: python:3.11
-  extends: ".run-test"
-
 run-test-3.12-pyqt6:
   variables:
     QT_API: pyqt6
@@ -89,7 +77,7 @@ run-test-3.14-pyqt6:
 #   extends: ".run-test"
 
 run-vhdl-tests:
-  image: python:3.11
+  image: python:3.12
   stage: test
   script:
     - set -e
@@ -107,7 +95,7 @@ run-vhdl-tests:
     # - python test.py
 
 run-vhdl-tests-no-simulator-installed:
-  image: python:3.11
+  image: python:3.12
   stage: test
   script:
     - set -e
@@ -127,7 +115,7 @@ run-vhdl-tests-no-simulator-installed:
 run-doc-test:
   variables:
     QT_API: pyside6
-  image: python:3.11
+  image: python:3.12
   stage: test
   script:
     - set -e
@@ -151,7 +139,7 @@ pages:
   variables:
     QT_API: pyqt6
   stage: deploy
-  image: python:3.11
+  image: python:3.12
   script:
     - set -e
     - apt-get update -yy
