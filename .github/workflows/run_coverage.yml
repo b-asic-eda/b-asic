@@ -36,7 +36,7 @@ jobs:
           sudo apt-get update -yy
           sudo apt-get install -yy lcov graphviz python3-pyqt6 xvfb xdg-utils libxcb-cursor-dev cmake
           python -m pip install --upgrade pip
-          python -m pip install pytest-cov gcovr ninja meson-python numpy setuptools_scm matplotlib graphviz numpy qtpy networkx "pulp[cbc]>=4.2" qtawesome natsort apytypes pyqt6 pytest-qt pytest-cov pytest-qt pytest-timeout pytest-xvfb pytest-xdist
+          python -m pip install pytest-cov gcovr ninja meson-python numpy setuptools_scm matplotlib graphviz numpy qtpy networkx "pulp[highs]>=4.2" qtawesome natsort apytypes pyqt6 pytest-qt pytest-cov pytest-qt pytest-timeout pytest-xvfb pytest-xdist
       - name: Install optional dependencies
         if: matrix.optional-dependencies
         run: |

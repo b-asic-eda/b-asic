@@ -27,6 +27,7 @@ from pulp import (
     value,
 )
 
+from b_asic._ilp_utils import _resolve_solver
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
 from b_asic.code_printer.vhdl.common import is_valid_vhdl_identifier
 from b_asic.process import (
@@ -1593,8 +1594,10 @@ class ProcessCollection:
         #   (4) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == 1
-            problem += c[color] == 1
+            x[node][color].setInitialValue(1)
+            x[node][color].fixValue()
+            c[color].setInitialValue(1)
+            c[color].fixValue()
         #   (5 & 6) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -1602,7 +1605,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(solver)
+        stats = problem.solve(_resolve_solver(solver))
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -1610,7 +1613,7 @@ class ProcessCollection:
         node_colors = {}
         for node in nodes:
             for i in colors:
-                if value(x[node][i]) == 1:
+                if round(value(x[node][i])) == 1:
                     node_colors[node] = i
 
         # reduce the solution by removing unused colors
@@ -1687,8 +1690,10 @@ class ProcessCollection:
         #   (5) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == 1
-            problem += c[color] == 1
+            x[node][color].setInitialValue(1)
+            x[node][color].fixValue()
+            c[color].setInitialValue(1)
+            c[color].fixValue()
         #   (6 & 7) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -1696,7 +1701,8 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(solver)
+        print("solver:", solver)
+        stats = problem.solve(_resolve_solver(solver))
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -1704,7 +1710,7 @@ class ProcessCollection:
         node_colors = {}
         for node in nodes:
             for i in colors:
-                if value(x[node][i]) == 1:
+                if round(value(x[node][i])) == 1:
                     node_colors[node] = i
 
         # reduce the solution by removing unused colors
@@ -1780,8 +1786,10 @@ class ProcessCollection:
         #   (5) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == 1
-            problem += c[color] == 1
+            x[node][color].setInitialValue(1)
+            x[node][color].fixValue()
+            c[color].setInitialValue(1)
+            c[color].fixValue()
         #   (6 & 7) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -1789,7 +1797,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(solver)
+        stats = problem.solve(_resolve_solver(solver))
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -1797,7 +1805,7 @@ class ProcessCollection:
         node_colors = {}
         for node in nodes:
             for i in colors:
-                if value(x[node][i]) == 1:
+                if round(value(x[node][i])) == 1:
                     node_colors[node] = i
 
         # reduce the solution by removing unused colors
@@ -1887,8 +1895,10 @@ class ProcessCollection:
         #   (6) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == 1
-            problem += c[color] == 1
+            x[node][color].setInitialValue(1)
+            x[node][color].fixValue()
+            c[color].setInitialValue(1)
+            c[color].fixValue()
         #   (7 & 8) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -1896,7 +1906,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(solver)
+        stats = problem.solve(_resolve_solver(solver))
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -1904,7 +1914,7 @@ class ProcessCollection:
         node_colors = {}
         for node in nodes:
             for i in colors:
-                if value(x[node][i]) == 1:
+                if round(value(x[node][i])) == 1:
                     node_colors[node] = i
 
         # reduce the solution by removing unused colors
@@ -2023,8 +2033,10 @@ class ProcessCollection:
         #   (4) - reduce solution space by assigning colors to the largest clique
         max_clique = next(nx.find_cliques(exclusion_graph))
         for color, node in enumerate(max_clique):
-            problem += x[node][color] == 1
-            problem += c[color] == 1
+            x[node][color].setInitialValue(1)
+            x[node][color].fixValue()
+            c[color].setInitialValue(1)
+            c[color].fixValue()
         #   (5 & 6) - reduce solution space by ignoring the symmetry caused
         #       by cycling the graph colors
         for color in colors:
@@ -2032,7 +2044,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(solver)
+        stats = problem.solve(_resolve_solver(solver))
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -2040,7 +2052,7 @@ class ProcessCollection:
         node_colors = {}
         for node in nodes:
             for i in colors:
-                if value(x[node][i]) == 1:
+                if round(value(x[node][i])) == 1:
                     node_colors[node] = i
 
         # reduce the solution by removing unused colors
