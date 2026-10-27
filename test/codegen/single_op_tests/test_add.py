@@ -7,7 +7,7 @@ import pytest
 from b_asic.architecture import Architecture, ProcessingElement
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
-from b_asic.core_operations import Addition
+from b_asic.core_operations import Addition, Subtraction
 from b_asic.data_type import DataType
 from b_asic.quantization import OverflowMode, QuantizationMode
 from b_asic.schedule import Schedule
@@ -89,20 +89,63 @@ TEST_PARAMS = [
             (-120, -9),
         ],
     ),
+    pytest.param(
+        DataType(wl=4, is_complex=True),
+        1,
+        0,
+        [(0, 0), (3, 2), (7 + 7j, 5 + 5j), (-1 - 2j, -2 + 1j)],
+    ),
+    pytest.param(
+        DataType(wl=(4, 4), is_complex=True, overflow_mode=OverflowMode.SATURATION),
+        3,
+        1,
+        [
+            (0, 0),
+            (56 + 40j, 120 - 8j),
+            (-120 - 9j, -8 + 16j),
+            (127 + 127j, -128 - 128j),
+        ],
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    ("data_type", "latency", "out0_scale", "test_cases"), TEST_PARAMS
+    ("data_type", "latency", "out0_scale", "test_cases", "operation_type", "mul_j"),
+    [
+        (*parameters.values, operation_type, mul_j)
+        for parameters in TEST_PARAMS
+        for operation_type in (Addition, Subtraction)
+        for mul_j in ((False, True) if parameters.values[0].is_complex else (False,))
+    ],
 )
 @pytest.mark.parametrize(("in0_scale", "in1_scale"), [(0, 0), (1, 0), (0, 2), (1, 2)])
 def test_add(
-    tmp_path, data_type, latency, out0_scale, test_cases, in0_scale, in1_scale
+    tmp_path,
+    data_type,
+    latency,
+    out0_scale,
+    test_cases,
+    operation_type,
+    mul_j,
+    in0_scale,
+    in1_scale,
 ):
     tcs = []
     for tc in test_cases:
-        a = apy.APyFixed(tc[0], int_bits=data_type.wl[0], frac_bits=data_type.wl[1])
-        b = apy.APyFixed(tc[1], int_bits=data_type.wl[0], frac_bits=data_type.wl[1])
+        if data_type.is_complex:
+            a = apy.APyCFixed(
+                (int(tc[0].real), int(tc[0].imag)),
+                int_bits=data_type.wl[0],
+                frac_bits=data_type.wl[1],
+            )
+            b = apy.APyCFixed(
+                (int(tc[1].real), int(tc[1].imag)),
+                int_bits=data_type.wl[0],
+                frac_bits=data_type.wl[1],
+            )
+        else:
+            a = apy.APyFixed(tc[0], int_bits=data_type.wl[0], frac_bits=data_type.wl[1])
+            b = apy.APyFixed(tc[1], int_bits=data_type.wl[0], frac_bits=data_type.wl[1])
 
         scaled_a = (
             (a >> in0_scale).cast(
@@ -122,7 +165,9 @@ def test_add(
             if in1_scale
             else b
         )
-        res = scaled_a + scaled_b
+        if mul_j:
+            scaled_b *= apy.fx(1j, 2, 0)
+        res = scaled_a + scaled_b if operation_type is Addition else scaled_a - scaled_b
         if out0_scale > 0:
             res = (res >> out0_scale).cast(
                 data_type.wl[0],
@@ -142,11 +187,12 @@ def test_add(
 
     in0 = Input()
     in1 = Input()
-    op0 = Addition(
+    op0 = operation_type(
         in0,
         in1,
         latency=latency,
         execution_time=1,
+        mul_j=mul_j,
         out0_scale=out0_scale,
         in0_scale=in0_scale,
         in1_scale=in1_scale,
@@ -157,7 +203,7 @@ def test_add(
     schedule = Schedule(sfg)
 
     operations = schedule.get_operations()
-    adds = operations.get_by_type_name("add")
+    adds = operations.get_by_type(operation_type)
     in_ops = operations.get_by_type_name("in")
     in_ops = in_ops.split_on_execution_time()
     out_ops = operations.get_by_type_name("out")
@@ -217,20 +263,28 @@ async def add_test(dut):
 
     cocotb.log.info(f"Running {len(test_cases)} test cases with latency={latency}")
 
-    for i, (in0, in1, out0_scale, expected) in enumerate(test_cases, 1):
-        dut.in0_0_in.value = in0
-        dut.in1_0_in.value = in1
+    for in0, in1, _, expected in test_cases:
+        is_complex = isinstance(in0, list)
+        if is_complex:
+            dut.in0_0_in_re.value = in0[0]
+            dut.in0_0_in_im.value = in0[1]
+            dut.in1_0_in_re.value = in1[0]
+            dut.in1_0_in_im.value = in1[1]
+        else:
+            dut.in0_0_in.value = in0
+            dut.in1_0_in.value = in1
 
         # Wait for the operation latency
         for _ in range(latency):
             await FallingEdge(dut.clk)
 
-        actual = dut.output_0_out.value.to_unsigned()
-        if out0_scale > 0:
-            assert actual == expected
-            cocotb.log.info(f"Test {i}: ({in0} + {in1}) >> {out0_scale} = {actual}")
+        if is_complex:
+            actual = [
+                dut.output_0_out_re.value.to_unsigned(),
+                dut.output_0_out_im.value.to_unsigned(),
+            ]
         else:
-            assert actual == expected
-            cocotb.log.info(f"✓ Test {i}: {in0} + {in1} = {actual}")
+            actual = dut.output_0_out.value.to_unsigned()
+        assert actual == expected
 
     await Timer(2 * 10, "ns")
