@@ -110,7 +110,7 @@ class Output(AbstractOperation):
 
     Parameters
     ----------
-    src0 : SignalSourceProvider, optional
+    in0 : SignalSourceProvider, optional
         The signal connected to the Output operation.
     name : Name, optional
         Operation name.
@@ -120,7 +120,7 @@ class Output(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
     ) -> None:
         """Construct an Output operation."""
@@ -128,7 +128,7 @@ class Output(AbstractOperation):
             input_count=1,
             output_count=0,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency_offsets={"in0": 0},
             execution_time=1,
         )
@@ -175,7 +175,7 @@ class Delay(AbstractOperation):
 
     Parameters
     ----------
-    src0 : SignalSourceProvider, optional
+    in0 : SignalSourceProvider, optional
         The node to be delayed.
     initial_value : Number, default: 0
         Initial value of the delay.
@@ -187,7 +187,7 @@ class Delay(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         initial_value: Num = 0,
         name: Name = Name(""),
     ) -> None:
@@ -196,7 +196,7 @@ class Delay(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=0,
         )
         self.initial_value = initial_value

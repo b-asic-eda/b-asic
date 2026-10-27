@@ -1840,9 +1840,9 @@ class SFG(AbstractOperation):
             f"{identifier!r} is neither a valid GraphID nor a unique operation name"
         )
 
-    def sfg_digraph(
+    def display(
         self,
-        signal_info: Literal["none", "id", "l1-norm", "l2-norm"] = "none",
+        info: Literal["none", "id", "l1-norm", "l2-norm"] = "none",
         engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
@@ -1865,7 +1865,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        signal_info : {"none", "id", "l1-norm", "l2-norm"}, default: "none"
+        info : {"none", "id", "l1-norm", "l2-norm"}, default: "none"
             Information to show for each signal in the graph.
                 - "none": Do not show any signal information.
                 - "id": Show the graph_id of each signal.
@@ -1942,12 +1942,8 @@ class SFG(AbstractOperation):
         branch_nodes = set()
         if engine is not None:
             dg.engine = engine
-        _l1_norms = (
-            self.get_l1_norms(all_nodes=True) if signal_info == "l1-norm" else None
-        )
-        _l2_norms = (
-            self.get_l2_norms(all_nodes=True) if signal_info == "l2-norm" else None
-        )
+        _l1_norms = self.get_l1_norms(all_nodes=True) if info == "l1-norm" else None
+        _l2_norms = self.get_l2_norms(all_nodes=True) if info == "l2-norm" else None
         for op in self._components_by_id.values():
             if isinstance(op, Signal):
                 source = cast(OutputPort, op.source)
@@ -1958,7 +1954,7 @@ class SFG(AbstractOperation):
                     else source.operation.graph_id
                 )
                 label = None
-                match signal_info:
+                match info:
                     case "none":
                         pass
                     case "id":
@@ -1982,7 +1978,7 @@ class SFG(AbstractOperation):
                             val = _l2_norms.get(port_key)
                         label = f"{val:.4g}" if val is not None else None
                     case _:
-                        raise ValueError(f"Invalid signal_info: {signal_info}")
+                        raise ValueError(f"Invalid info: {info}")
 
                 taillabel = (
                     str(source.index)
@@ -2105,7 +2101,7 @@ class SFG(AbstractOperation):
         return dg
 
     def _repr_mimebundle_(self, include=None, exclude=None):
-        return self.sfg_digraph()._repr_mimebundle_(include=include, exclude=exclude)
+        return self.display()._repr_mimebundle_(include=include, exclude=exclude)
 
     def _repr_jpeg_(self):
         import subprocess  # noqa: PLC0415
@@ -2116,15 +2112,13 @@ class SFG(AbstractOperation):
         ).stderr
         if b"jpeg" not in supported and b"jpg" not in supported:
             return None
-        return self.sfg_digraph()._repr_mimebundle_(include=["image/jpeg"])[
-            "image/jpeg"
-        ]
+        return self.display()._repr_mimebundle_(include=["image/jpeg"])["image/jpeg"]
 
     def _repr_png_(self):
-        return self.sfg_digraph()._repr_mimebundle_(include=["image/png"])["image/png"]
+        return self.display()._repr_mimebundle_(include=["image/png"])["image/png"]
 
     def _repr_svg_(self):
-        return self.sfg_digraph()._repr_mimebundle_(include=["image/svg+xml"])[
+        return self.display()._repr_mimebundle_(include=["image/svg+xml"])[
             "image/svg+xml"
         ]
 
@@ -2134,7 +2128,7 @@ class SFG(AbstractOperation):
     def show(
         self,
         fmt: str | None = None,
-        signal_info: Literal["none", "id", "l1-norm", "l2-norm"] = "none",
+        info: Literal["none", "id", "l1-norm", "l2-norm"] = "none",
         engine: str | None = None,
         branch_node: bool = True,
         port_numbering: bool = True,
@@ -2170,7 +2164,7 @@ class SFG(AbstractOperation):
             more.
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
-        signal_info : {"none", "id", "l1-norm", "l2-norm"}, default: "none"
+        info : {"none", "id", "l1-norm", "l2-norm"}, default: "none"
             Information to show for each signal in the graph.
                 - "none": Do not show any signal information.
                 - "id": Show the graph_id of each signal.
@@ -2179,11 +2173,11 @@ class SFG(AbstractOperation):
         input_order : list of GraphID or operation name, optional
             Top-to-bottom ordering of input nodes.  Each entry may be a
             GraphID, an operation name, or a mix of both.
-            See :meth:`sfg_digraph` for details.
+            See :meth:`display` for details.
         output_order : list of GraphID or operation name, optional
             Top-to-bottom ordering of output nodes.  Each entry may be a
             GraphID, an operation name, or a mix of both.
-            See :meth:`sfg_digraph` for details.
+            See :meth:`display` for details.
         show_op_params : bool, default: False
             Annotate each operation node with its non-default-valued parameters.
         direction : {"LR", "TB"}, default: "LR"
@@ -2205,8 +2199,8 @@ class SFG(AbstractOperation):
         fontsize : float, optional
             Font size (in points) for all node and edge labels.
         """
-        dg = self.sfg_digraph(
-            signal_info=signal_info,
+        dg = self.display(
+            info=info,
             engine=engine,
             branch_node=branch_node,
             port_numbering=port_numbering,
@@ -2441,7 +2435,7 @@ class SFG(AbstractOperation):
         for delay in sfg.find_by_type(Delay):
             tmp_input = Input(name="input_" + delay.graph_id)
             tmp_output = Output(
-                src0=delay.input(0).signals[0].source, name="output_" + delay.graph_id
+                in0=delay.input(0).signals[0].source, name="output_" + delay.graph_id
             )
 
             inputs.append(tmp_input)
@@ -2883,6 +2877,12 @@ class SFG(AbstractOperation):
                     impulse_responses[response_key] = response[:cutoff]
         return impulse_responses
 
+    def __getitem__(self, key):
+        for op in self.operations:
+            if op.graph_id == key:
+                return op
+        return None
+
     def get_impulse_responses_from_nodes(
         self,
         nodes: list[GraphID] | None = None,
@@ -2944,8 +2944,8 @@ class SFG(AbstractOperation):
                 noise_input = Input(name=f"noise_{op.graph_id}_out{output_idx}")
                 noise_inputs.append(noise_input)
                 noise_adder = Addition(
-                    src0=op.output(output_idx),
-                    src1=noise_input,
+                    in0=op.output(output_idx),
+                    in1=noise_input,
                     name=f"noise_add_{op.graph_id}_out{output_idx}",
                 )
                 output_port = op.output(output_idx)

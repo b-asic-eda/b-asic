@@ -130,7 +130,7 @@ q_sfg = sfgs[14]
 # To investigate this, we can once again render the SFG, this time with the l2-norm values
 # of all signals.
 from b_asic.core_operations import LeftShift, RightShift
-q_sfg.sfg_digraph(signal_info="l1-norm")
+q_sfg.display(info="l1-norm")
 
 # %%
 # From the figure, we see that the l1-norm exceeds 1 at a lot of places,
@@ -146,7 +146,7 @@ q_sfg = q_sfg.insert_operation_after("a0", RightShift(2), 0)
 q_sfg = q_sfg.insert_operation_after("a3", LeftShift(1), 0)
 q_sfg = q_sfg.insert_operation_after("a5", LeftShift(2), 0)
 q_sfg = q_sfg.remove_operation("cmul0")
-q_sfg.sfg_digraph(signal_info="l1-norm")
+q_sfg.display(info="l1-norm")
 
 # %%
 # Note that the output is scaled by 1/4 now.

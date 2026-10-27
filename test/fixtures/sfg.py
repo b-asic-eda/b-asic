@@ -235,9 +235,9 @@ def sfg_custom_operation():
     """A valid SFG containing a custom operation."""
 
     class CustomOperation(AbstractOperation):
-        def __init__(self, src0: SignalSourceProvider | None = None, name: Name = ""):
+        def __init__(self, in0: SignalSourceProvider | None = None, name: Name = ""):
             super().__init__(
-                input_count=1, output_count=2, name=name, input_sources=[src0]
+                input_count=1, output_count=2, name=name, input_sources=[in0]
             )
 
         @classmethod
