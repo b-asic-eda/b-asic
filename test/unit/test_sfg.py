@@ -1466,7 +1466,7 @@ class TestSFGGraph:
 (t0)" shape=square]
 	"t0.0" -> cmul0
 }"""
-        assert sfg_simple_filter.sfg_digraph().source in (
+        assert sfg_simple_filter.display().source in (
             res,
             res + "\n",
         )
@@ -1493,7 +1493,7 @@ class TestSFGGraph:
 	"t0.0" -> cmul0 [label=s4]
 }"""
 
-        assert sfg_simple_filter.sfg_digraph(signal_info="id").source in (
+        assert sfg_simple_filter.display(info="id").source in (
             res,
             res + "\n",
         )
@@ -1517,7 +1517,7 @@ class TestSFGGraph:
 (t0)" shape=square]
 	t0 -> cmul0
 }"""
-        assert sfg_simple_filter.sfg_digraph(branch_node=False).source in (
+        assert sfg_simple_filter.display(branch_node=False).source in (
             res,
             res + "\n",
         )
@@ -1544,7 +1544,7 @@ class TestSFGGraph:
 	"t0.0" -> cmul0
 }"""
 
-        assert sfg_simple_filter.sfg_digraph(port_numbering=False).source in (
+        assert sfg_simple_filter.display(port_numbering=False).source in (
             res,
             res + "\n",
         )

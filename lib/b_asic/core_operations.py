@@ -127,7 +127,7 @@ class Negation(AbstractOperation):
 
     Parameters
     ----------
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to negate.
     name : Name, optional
         Operation name.
@@ -135,15 +135,15 @@ class Negation(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
     """
 
-    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
-    _src0: SignalSourceProvider | None
+    __slots__ = ("_execution_time", "_in0", "_latency", "_latency_offsets", "_name")
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -154,7 +154,7 @@ class Negation(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -167,7 +167,7 @@ class Negation(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -200,7 +200,7 @@ class Addition(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to add.
     name : Name, optional
         Operation name.
@@ -208,15 +208,15 @@ class Addition(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times, e.g.,
-        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
-        time unit later than *src0*. If not provided and *latency* is
+        ``{"in0": 0, "in1": 1}`` which corresponds to *in1* arriving one
+        time unit later than *in0*. If not provided and *latency* is
         provided, set to zero if not explicitly provided. So the previous
         example can be written as ``{"in1": 1}`` only.
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
     mul_j : bool, default: False
-        If True, *src1* is multiplied by j before the addition.
+        If True, *in1* is multiplied by j before the addition.
     shift_output : int, default: 0
         Right-shift amount applied to the output result.
 
@@ -227,16 +227,16 @@ class Addition(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_mul_j",
         "_name",
         "_shift_output",
-        "_src0",
-        "_src1",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -249,8 +249,8 @@ class Addition(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -265,7 +265,7 @@ class Addition(AbstractOperation):
             input_count=2,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -290,19 +290,19 @@ class Addition(AbstractOperation):
     @property
     def mul_j(self) -> bool:
         """
-        Get if *src1* is multiplied by j before the addition.
+        Get if *in1* is multiplied by j before the addition.
         """
         return self.param("mul_j")
 
     @mul_j.setter
     def mul_j(self, mul_j: bool) -> None:
         """
-        Set if *src1* is multiplied by j before the addition.
+        Set if *in1* is multiplied by j before the addition.
 
         Parameters
         ----------
         mul_j : bool
-            Whether *src1* is multiplied by j before the addition.
+            Whether *in1* is multiplied by j before the addition.
         """
         self.set_param("mul_j", mul_j)
 
@@ -352,8 +352,8 @@ class Addition(AbstractOperation):
         out0 = Output()
         addsub = AddSub(
             is_add=True,
-            src0=in0,
-            src1=in1,
+            in0=in0,
+            in1=in1,
             name=self.name,
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
@@ -373,8 +373,8 @@ class Addition(AbstractOperation):
         addsub = ShiftAddSub(
             is_add=True,
             shift=0,
-            src0=in0,
-            src1=in1,
+            in0=in0,
+            in1=in1,
             name=self.name,
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
@@ -395,7 +395,7 @@ class Subtraction(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to subtract.
     name : Name, optional
         Operation name.
@@ -403,15 +403,15 @@ class Subtraction(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times, e.g.,
-        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
-        time unit later than *src0*. If not provided and *latency* is
+        ``{"in0": 0, "in1": 1}`` which corresponds to *in1* arriving one
+        time unit later than *in0*. If not provided and *latency* is
         provided, set to zero if not explicitly provided. So the previous
         example can be written as ``{"in1": 1}`` only.
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
     mul_j : bool, default: False
-        If True, *src1* is multiplied by j before the subtraction.
+        If True, *in1* is multiplied by j before the subtraction.
     shift_output : int, default: 0
         Right-shift amount applied to the output result.
 
@@ -424,16 +424,16 @@ class Subtraction(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_mul_j",
         "_name",
         "_shift_output",
-        "_src0",
-        "_src1",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -443,8 +443,8 @@ class Subtraction(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -459,7 +459,7 @@ class Subtraction(AbstractOperation):
             input_count=2,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -484,19 +484,19 @@ class Subtraction(AbstractOperation):
     @property
     def mul_j(self) -> bool:
         """
-        Get if *src1* is multiplied by j before the subtraction.
+        Get if *in1* is multiplied by j before the subtraction.
         """
         return self.param("mul_j")
 
     @mul_j.setter
     def mul_j(self, mul_j: bool) -> None:
         """
-        Set if *src1* is multiplied by j before the subtraction.
+        Set if *in1* is multiplied by j before the subtraction.
 
         Parameters
         ----------
         mul_j : bool
-            Whether *src1* is multiplied by j before the subtraction.
+            Whether *in1* is multiplied by j before the subtraction.
         """
         self.set_param("mul_j", mul_j)
 
@@ -546,8 +546,8 @@ class Subtraction(AbstractOperation):
         out0 = Output()
         addsub = AddSub(
             is_add=False,
-            src0=in0,
-            src1=in1,
+            in0=in0,
+            in1=in1,
             name=self.name,
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
@@ -567,8 +567,8 @@ class Subtraction(AbstractOperation):
         addsub = ShiftAddSub(
             is_add=False,
             shift=0,
-            src0=in0,
-            src1=in1,
+            in0=in0,
+            in1=in1,
             name=self.name,
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
@@ -598,7 +598,7 @@ class AddSub(AbstractOperation):
     ----------
     is_add : bool, default: True
         If True, the operation is an addition, if False, a subtraction.
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to add or subtract.
     name : Name, optional
         Operation name.
@@ -606,15 +606,15 @@ class AddSub(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times, e.g.,
-        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
-        time unit later than *src0*. If not provided and *latency* is
+        ``{"in0": 0, "in1": 1}`` which corresponds to *in1* arriving one
+        time unit later than *in0*. If not provided and *latency* is
         provided, set to zero if not explicitly provided. So the previous
         example can be written as ``{"in1": 1}`` only.
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
     mul_j : bool, default: False
-        If True, *src1* is multiplied by j before the addition/subtraction.
+        If True, *in1* is multiplied by j before the addition/subtraction.
     shift_output : int, default: 0
         Right-shift amount applied to the output result.
 
@@ -625,18 +625,18 @@ class AddSub(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_is_add",
         "_latency",
         "_latency_offsets",
         "_mul_j",
         "_name",
         "_shift_output",
-        "_src0",
-        "_src1",
     )
     _is_add: bool
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -649,8 +649,8 @@ class AddSub(AbstractOperation):
     def __init__(
         self,
         is_add: bool = True,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -665,7 +665,7 @@ class AddSub(AbstractOperation):
             input_count=2,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -725,19 +725,19 @@ class AddSub(AbstractOperation):
     @property
     def mul_j(self) -> bool:
         """
-        Get if *src1* is multiplied by j before the addition/subtraction.
+        Get if *in1* is multiplied by j before the addition/subtraction.
         """
         return self.param("mul_j")
 
     @mul_j.setter
     def mul_j(self, mul_j: bool) -> None:
         """
-        Set if *src1* is multiplied by j before the addition/subtraction.
+        Set if *in1* is multiplied by j before the addition/subtraction.
 
         Parameters
         ----------
         mul_j : bool
-            Whether *src1* is multiplied by j before the addition/subtraction.
+            Whether *in1* is multiplied by j before the addition/subtraction.
         """
         self.set_param("mul_j", mul_j)
 
@@ -778,8 +778,8 @@ class AddSub(AbstractOperation):
         addsub = ShiftAddSub(
             is_add=self.is_add,
             shift=0,
-            src0=in0,
-            src1=in1,
+            in0=in0,
+            in1=in1,
             name=self.name,
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
@@ -805,7 +805,7 @@ class ShiftAddSub(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to add or subtract.
     is_add : bool, default: True
         If True, the operation is an addition, if False, a subtraction.
@@ -817,15 +817,15 @@ class ShiftAddSub(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times, e.g.,
-        ``{"in0": 0, "in1": 1}`` which corresponds to *src1* arriving one
-        time unit later than *src0*. If not provided and *latency* is
+        ``{"in0": 0, "in1": 1}`` which corresponds to *in1* arriving one
+        time unit later than *in0*. If not provided and *latency* is
         provided, set to zero if not explicitly provided. So the previous
         example can be written as ``{"in1": 1}`` only.
     execution_time : int, optional
         Operation execution time (time units before operator can be
         reused).
     mul_j : bool, default: False
-        If True, *src1* is multiplied by j before the addition/subtraction.
+        If True, *in1* is multiplied by j before the addition/subtraction.
     shift_output : int, default: 0
         Right-shift amount applied to the output result.
 
@@ -836,6 +836,8 @@ class ShiftAddSub(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_is_add",
         "_latency",
         "_latency_offsets",
@@ -843,12 +845,10 @@ class ShiftAddSub(AbstractOperation):
         "_name",
         "_shift",
         "_shift_output",
-        "_src0",
-        "_src1",
     )
     _is_add: bool
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -861,8 +861,8 @@ class ShiftAddSub(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         is_add: bool = True,
         shift: int = 0,
         name: Name = Name(""),
@@ -879,7 +879,7 @@ class ShiftAddSub(AbstractOperation):
             input_count=2,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -941,7 +941,7 @@ class ShiftAddSub(AbstractOperation):
     @property
     def mul_j(self) -> bool:
         """
-        Get if *src1* is multiplied by j before the shift and addition/subtraction.
+        Get if *in1* is multiplied by j before the shift and addition/subtraction.
         """
         return self.param("mul_j")
 
@@ -969,12 +969,12 @@ class ShiftAddSub(AbstractOperation):
     @shift.setter
     def shift(self, shift: int) -> None:
         """
-        Set the number of steps to shift *src1*.
+        Set the number of steps to shift *in1*.
 
         Parameters
         ----------
         shift : int
-            The number of steps to shift *src1*.
+            The number of steps to shift *in1*.
         """
         if not isinstance(shift, int):
             raise TypeError("shift must be an int")
@@ -985,12 +985,12 @@ class ShiftAddSub(AbstractOperation):
     @mul_j.setter
     def mul_j(self, mul_j: bool) -> None:
         """
-        Set if *src1* is multiplied by j before the shift and addition/subtraction.
+        Set if *in1* is multiplied by j before the shift and addition/subtraction.
 
         Parameters
         ----------
         mul_j : bool
-            Whether *src1* is multiplied by j before the shift and addition/subtraction.
+            Whether *in1* is multiplied by j before the shift and addition/subtraction.
         """
         if not isinstance(mul_j, bool):
             raise TypeError("mul_j must be a bool")
@@ -1027,7 +1027,7 @@ class Multiplication(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to multiply.
     name : Name, optional
         Operation name.
@@ -1036,7 +1036,7 @@ class Multiplication(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
-        corresponds to *src1* arriving one time unit later than *src0* and one time
+        corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -1050,14 +1050,14 @@ class Multiplication(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1067,8 +1067,8 @@ class Multiplication(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1079,7 +1079,7 @@ class Multiplication(AbstractOperation):
             input_count=2,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1114,7 +1114,7 @@ class Division(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to divide.
     name : Name, optional
         Operation name.
@@ -1123,7 +1123,7 @@ class Division(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
-        corresponds to *src1* arriving one time unit later than *src0* and one time
+        corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -1137,14 +1137,14 @@ class Division(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1152,8 +1152,8 @@ class Division(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1164,7 +1164,7 @@ class Division(AbstractOperation):
             input_count=2,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1199,7 +1199,7 @@ class Min(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to determine the min of.
     name : Name, optional
         Operation name.
@@ -1208,7 +1208,7 @@ class Min(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
-        corresponds to *src1* arriving one time unit later than *src0* and one time
+        corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -1222,14 +1222,14 @@ class Min(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1239,8 +1239,8 @@ class Min(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1251,7 +1251,7 @@ class Min(AbstractOperation):
             input_count=2,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1280,7 +1280,7 @@ class Max(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to determine the min of.
     name : Name, optional
         Operation name.
@@ -1289,7 +1289,7 @@ class Max(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
-        corresponds to *src1* arriving one time unit later than *src0* and one time
+        corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -1303,14 +1303,14 @@ class Max(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1320,8 +1320,8 @@ class Max(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1332,7 +1332,7 @@ class Max(AbstractOperation):
             input_count=2,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1359,7 +1359,7 @@ class SquareRoot(AbstractOperation):
 
     Parameters
     ----------
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the square root of.
     name : Name, optional
         Operation name.
@@ -1367,7 +1367,7 @@ class SquareRoot(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -1377,8 +1377,8 @@ class SquareRoot(AbstractOperation):
     ReciprocalSquareRoot
     """
 
-    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
-    _src0: SignalSourceProvider | None
+    __slots__ = ("_execution_time", "_in0", "_latency", "_latency_offsets", "_name")
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1386,7 +1386,7 @@ class SquareRoot(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1397,7 +1397,7 @@ class SquareRoot(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1422,7 +1422,7 @@ class ComplexConjugate(AbstractOperation):
 
     Parameters
     ----------
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the complex conjugate of.
     name : Name, optional
         Operation name.
@@ -1430,14 +1430,14 @@ class ComplexConjugate(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
     """
 
-    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
-    _src0: SignalSourceProvider | None
+    __slots__ = ("_execution_time", "_in0", "_latency", "_latency_offsets", "_name")
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1445,7 +1445,7 @@ class ComplexConjugate(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1456,7 +1456,7 @@ class ComplexConjugate(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1481,7 +1481,7 @@ class Absolute(AbstractOperation):
 
     Parameters
     ----------
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the absolute value of.
     name : Name, optional
         Operation name.
@@ -1489,14 +1489,14 @@ class Absolute(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
     """
 
-    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
-    _src0: SignalSourceProvider | None
+    __slots__ = ("_execution_time", "_in0", "_latency", "_latency_offsets", "_name")
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1504,7 +1504,7 @@ class Absolute(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1515,7 +1515,7 @@ class Absolute(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1539,7 +1539,7 @@ class ImaginaryMultiplication(AbstractOperation):
 
     Parameters
     ----------
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to multiply with the imaginary unit.
     name : Name, optional
         Operation name.
@@ -1547,7 +1547,7 @@ class ImaginaryMultiplication(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -1555,12 +1555,12 @@ class ImaginaryMultiplication(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
     )
-    _src0: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1570,7 +1570,7 @@ class ImaginaryMultiplication(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1581,7 +1581,7 @@ class ImaginaryMultiplication(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1614,8 +1614,8 @@ class ImaginaryMultiplication(AbstractOperation):
 
         if isinstance(other, Addition):
             op = Addition(
-                src0=in0,
-                src1=in1,
+                in0=in0,
+                in1=in1,
                 name=self.name,
                 latency_offsets=self.latency_offsets,
                 execution_time=self.execution_time,
@@ -1623,8 +1623,8 @@ class ImaginaryMultiplication(AbstractOperation):
             )
         elif isinstance(other, Subtraction):
             op = Subtraction(
-                src0=in0,
-                src1=in1,
+                in0=in0,
+                in1=in1,
                 name=self.name,
                 latency_offsets=self.latency_offsets,
                 execution_time=self.execution_time,
@@ -1632,8 +1632,8 @@ class ImaginaryMultiplication(AbstractOperation):
             )
         elif isinstance(other, AddSub):
             op = AddSub(
-                src0=in0,
-                src1=in1,
+                in0=in0,
+                in1=in1,
                 is_add=other.is_add,
                 name=self.name,
                 latency_offsets=self.latency_offsets,
@@ -1642,8 +1642,8 @@ class ImaginaryMultiplication(AbstractOperation):
             )
         elif isinstance(other, ShiftAddSub):
             op = ShiftAddSub(
-                src0=in0,
-                src1=in1,
+                in0=in0,
+                in1=in1,
                 is_add=other.is_add,
                 shift=other.shift,
                 name=self.name,
@@ -1667,7 +1667,7 @@ class ConstantMultiplication(AbstractOperation):
     ----------
     value : int
         Value to multiply with.
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to multiply.
     name : Name, optional
         Operation name.
@@ -1675,7 +1675,7 @@ class ConstantMultiplication(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -1687,14 +1687,14 @@ class ConstantMultiplication(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
         "_value",
     )
     _value: Num
-    _src0: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1705,7 +1705,7 @@ class ConstantMultiplication(AbstractOperation):
     def __init__(
         self,
         value: Num = 0,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1716,7 +1716,7 @@ class ConstantMultiplication(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1787,8 +1787,8 @@ class ConstantMultiplication(AbstractOperation):
                     prev_op = ShiftAddSub(
                         is_add=digit == 1,
                         shift=-exp,
-                        src0=prev_op,
-                        src1=in0,
+                        in0=prev_op,
+                        in1=in0,
                     )
 
         out0 <<= prev_op
@@ -1847,7 +1847,7 @@ class MAD(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1, src2 : SignalSourceProvider, optional
+    in0, in1, in2 : SignalSourceProvider, optional
         The three signals to determine the multiply-add operation of.
     name : Name, optional
         Operation name.
@@ -1856,8 +1856,8 @@ class MAD(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 0, "in2": 2}``
-        which corresponds to *src2*, i.e., the term to be added, arriving two time
-        units later than *src0* and *src1*. If not provided and *latency* is provided,
+        which corresponds to *in2*, i.e., the term to be added, arriving two time
+        units later than *in0* and *in1*. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
     execution_time : int, optional
@@ -1872,16 +1872,16 @@ class MAD(AbstractOperation):
     __slots__ = (
         "_do_add",
         "_execution_time",
+        "_in0",
+        "_in1",
+        "_in2",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
-        "_src2",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
-    _src2: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
+    _in2: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1892,9 +1892,9 @@ class MAD(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
-        src2: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1906,7 +1906,7 @@ class MAD(AbstractOperation):
             input_count=3,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1, src2],
+            input_sources=[in0, in1, in2],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -1936,12 +1936,12 @@ class MAD(AbstractOperation):
 
     @property
     def do_add(self) -> bool:
-        """Get whether the input to src2 is used when computing."""
+        """Get whether the input to in2 is used when computing."""
         return self.param("do_add")
 
     @do_add.setter
     def do_add(self, do_add: bool) -> None:
-        """Set whether the input to src2 is used when computing."""
+        """Set whether the input to in2 is used when computing."""
         self.set_param("do_add", do_add)
 
     def swap_io(self, force: bool = False) -> None:
@@ -1958,18 +1958,18 @@ class MADS(AbstractOperation):
     __slots__ = (
         "_do_addsub",
         "_execution_time",
+        "_in0",
+        "_in1",
+        "_in2",
         "_is_add",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
-        "_src2",
     )
     _is_add: bool | None
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
-    _src2: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
+    _in2: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -1981,9 +1981,9 @@ class MADS(AbstractOperation):
     def __init__(
         self,
         is_add: bool | None = True,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
-        src2: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -1995,7 +1995,7 @@ class MADS(AbstractOperation):
             input_count=3,
             output_count=1,
             name=Name(name),
-            input_sources=[src0, src1, src2],
+            input_sources=[in0, in1, in2],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -2033,12 +2033,12 @@ class MADS(AbstractOperation):
 
     @property
     def do_addsub(self) -> bool:
-        """Get whether the input to src0 is used when computing."""
+        """Get whether the input to in0 is used when computing."""
         return self.param("do_addsub")
 
     @do_addsub.setter
     def do_addsub(self, do_addsub: bool) -> None:
-        """Set whether the input to src0 is used when computing."""
+        """Set whether the input to in0 is used when computing."""
         self.set_param("do_addsub", do_addsub)
 
     @property
@@ -2068,7 +2068,7 @@ class Reciprocal(AbstractOperation):
 
     Parameters
     ----------
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the reciprocal of.
     name : Name, optional
         Operation name.
@@ -2076,7 +2076,7 @@ class Reciprocal(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -2086,8 +2086,8 @@ class Reciprocal(AbstractOperation):
     Division
     """
 
-    __slots__ = ("_execution_time", "_latency", "_latency_offsets", "_name", "_src0")
-    _src0: SignalSourceProvider | None
+    __slots__ = ("_execution_time", "_in0", "_latency", "_latency_offsets", "_name")
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -2095,7 +2095,7 @@ class Reciprocal(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -2106,7 +2106,7 @@ class Reciprocal(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -2134,7 +2134,7 @@ class ReciprocalSquareRoot(AbstractOperation):
 
     Parameters
     ----------
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the reciprocal square root of.
     name : Name, optional
         Operation name.
@@ -2142,7 +2142,7 @@ class ReciprocalSquareRoot(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -2155,13 +2155,13 @@ class ReciprocalSquareRoot(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
         "_latency",
         "_latency_offsets",
         "_name",
         "_real_valued",
-        "_src0",
     )
-    _src0: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -2170,7 +2170,7 @@ class ReciprocalSquareRoot(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -2182,7 +2182,7 @@ class ReciprocalSquareRoot(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -2215,7 +2215,7 @@ class RightShift(AbstractOperation):
     ----------
     value : int
         Number of bits to shift right.
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to shift right.
     name : Name, optional
         Operation name.
@@ -2223,7 +2223,7 @@ class RightShift(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -2236,14 +2236,14 @@ class RightShift(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
         "_value",
     )
     _value: Num
-    _src0: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -2254,7 +2254,7 @@ class RightShift(AbstractOperation):
     def __init__(
         self,
         value: int = 0,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -2265,7 +2265,7 @@ class RightShift(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -2315,7 +2315,7 @@ class LeftShift(AbstractOperation):
     ----------
     value : int
         Number of bits to shift left.
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to shift left.
     name : Name, optional
         Operation name.
@@ -2323,7 +2323,7 @@ class LeftShift(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -2336,14 +2336,14 @@ class LeftShift(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
         "_value",
     )
     _value: Num
-    _src0: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -2354,7 +2354,7 @@ class LeftShift(AbstractOperation):
     def __init__(
         self,
         value: int = 0,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -2365,7 +2365,7 @@ class LeftShift(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -2416,7 +2416,7 @@ class Shift(AbstractOperation):
     ----------
     value : int
         Number of bits to shift. Positive *value* shifts to the left.
-    src0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to shift.
     name : Name, optional
         Operation name.
@@ -2424,7 +2424,7 @@ class Shift(AbstractOperation):
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *src0* arriving one time unit after the
+        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -2437,14 +2437,14 @@ class Shift(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
         "_value",
     )
     _value: Num
-    _src0: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -2455,7 +2455,7 @@ class Shift(AbstractOperation):
     def __init__(
         self,
         value: int = 0,
-        src0: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -2466,7 +2466,7 @@ class Shift(AbstractOperation):
             input_count=1,
             output_count=1,
             name=Name(name),
-            input_sources=[src0],
+            input_sources=[in0],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -2519,8 +2519,8 @@ class Shift(AbstractOperation):
 
         return ShiftAddSub(
             shift=self.value,
-            src0=self.input(0).connected_source,
-            src1=add_op.input(1).connected_source,
+            in0=self.input(0).connected_source,
+            in1=add_op.input(1).connected_source,
         )
 
     def _combine_Subtraction(self) -> "ShiftAddSub":
@@ -2542,8 +2542,8 @@ class Shift(AbstractOperation):
         return ShiftAddSub(
             is_add=False,
             shift=self.value,
-            src0=self.input(0).connected_source,
-            src1=sub_op.input(1).connected_source,
+            in0=self.input(0).connected_source,
+            in1=sub_op.input(1).connected_source,
         )
 
     def _combine_AddSub(self) -> "ShiftAddSub":
@@ -2565,6 +2565,6 @@ class Shift(AbstractOperation):
         return ShiftAddSub(
             is_add=addsub_op.is_add,
             shift=self.value + addsub_op.shift,
-            src0=self.input(0).connected_source,
-            src1=addsub_op.input(1).connected_source,
+            in0=self.input(0).connected_source,
+            in1=addsub_op.input(1).connected_source,
         )

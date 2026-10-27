@@ -1701,7 +1701,6 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        print("solver:", solver)
         stats = problem.solve(_resolve_solver(solver))
 
         if not stats.has_solution:

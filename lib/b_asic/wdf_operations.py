@@ -24,14 +24,14 @@ class SymmetricTwoportAdaptor(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -43,8 +43,8 @@ class SymmetricTwoportAdaptor(AbstractOperation):
     def __init__(
         self,
         value: Num = 0,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -55,7 +55,7 @@ class SymmetricTwoportAdaptor(AbstractOperation):
             input_count=2,
             output_count=2,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -116,8 +116,8 @@ class SeriesTwoportAdaptor(AbstractOperation):
     def __init__(
         self,
         value: Num = 0,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -128,7 +128,7 @@ class SeriesTwoportAdaptor(AbstractOperation):
             input_count=2,
             output_count=2,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -193,8 +193,8 @@ class ParallelTwoportAdaptor(AbstractOperation):
     def __init__(
         self,
         value: Num = 0,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -205,7 +205,7 @@ class ParallelTwoportAdaptor(AbstractOperation):
             input_count=2,
             output_count=2,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -270,9 +270,9 @@ class SeriesThreeportAdaptor(AbstractOperation):
     def __init__(
         self,
         value: tuple[Num, Num] = (0, 0),
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
-        src2: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -283,7 +283,7 @@ class SeriesThreeportAdaptor(AbstractOperation):
             input_count=3,
             output_count=3,
             name=Name(name),
-            input_sources=[src0, src1, src2],
+            input_sources=[in0, in1, in2],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -343,9 +343,9 @@ class ReflectionFreeSeriesThreeportAdaptor(AbstractOperation):
     def __init__(
         self,
         value: Num = 0,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
-        src2: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -356,7 +356,7 @@ class ReflectionFreeSeriesThreeportAdaptor(AbstractOperation):
             input_count=3,
             output_count=3,
             name=Name(name),
-            input_sources=[src0, src1, src2],
+            input_sources=[in0, in1, in2],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,

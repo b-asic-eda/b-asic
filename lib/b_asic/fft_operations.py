@@ -26,7 +26,7 @@ class R2Butterfly(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to compute the 2-point DFT of.
     name : Name, optional
         Operation name.
@@ -35,7 +35,7 @@ class R2Butterfly(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
-        corresponds to *src1* arriving one time unit later than *src0* and one time
+        corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -45,14 +45,14 @@ class R2Butterfly(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -62,8 +62,8 @@ class R2Butterfly(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -74,7 +74,7 @@ class R2Butterfly(AbstractOperation):
             input_count=2,
             output_count=2,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -109,7 +109,7 @@ class R2DIFButterfly(AbstractOperation):
     ----------
     w : complex
         Twiddle factor to multiply the second output with.
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to compute the 2-point DFT of.
     name : Name, optional
         Operation name.
@@ -118,7 +118,7 @@ class R2DIFButterfly(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
-        corresponds to *src1* arriving one time unit later than *src0* and one time
+        corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -128,16 +128,16 @@ class R2DIFButterfly(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
         "_w",
     )
     _w: complex
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -148,8 +148,8 @@ class R2DIFButterfly(AbstractOperation):
     def __init__(
         self,
         w: complex,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -160,7 +160,7 @@ class R2DIFButterfly(AbstractOperation):
             input_count=2,
             output_count=2,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -206,7 +206,7 @@ class R2DITButterfly(AbstractOperation):
     ----------
     w : complex
         Twiddle factor to multiply the second input with.
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to compute the 2-point DFT of.
     name : Name, optional
         Operation name.
@@ -215,7 +215,7 @@ class R2DITButterfly(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
-        corresponds to *src1* arriving one time unit later than *src0* and one time
+        corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -225,16 +225,16 @@ class R2DITButterfly(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
         "_w",
     )
     _w: complex
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -245,8 +245,8 @@ class R2DITButterfly(AbstractOperation):
     def __init__(
         self,
         w: complex,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -257,7 +257,7 @@ class R2DITButterfly(AbstractOperation):
             input_count=2,
             output_count=2,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -306,7 +306,7 @@ class R2TFButterfly(AbstractOperation):
         Twiddle factor to multiply the first output with.
     w1 : complex
         Twiddle factor to multiply the second output with.
-    src0, src1 : SignalSourceProvider, optional
+    in0, in1 : SignalSourceProvider, optional
         The two signals to compute the 2-point DFT of.
     name : Name, optional
         Operation name.
@@ -315,7 +315,7 @@ class R2TFButterfly(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
-        corresponds to *src1* arriving one time unit later than *src0* and one time
+        corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -325,18 +325,18 @@ class R2TFButterfly(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
         "_w0",
         "_w1",
     )
     _w0: complex
     _w1: complex
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -348,8 +348,8 @@ class R2TFButterfly(AbstractOperation):
         self,
         w0: complex,
         w1: complex,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -360,7 +360,7 @@ class R2TFButterfly(AbstractOperation):
             input_count=2,
             output_count=2,
             name=Name(name),
-            input_sources=[src0, src1],
+            input_sources=[in0, in1],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -419,7 +419,7 @@ class R4Butterfly(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1, src2, src3 : SignalSourceProvider, optional
+    in0, in1, in2, in3 : SignalSourceProvider, optional
         The four signals to compute the 4-point DFT of.
     name : Name, optional
         Operation name.
@@ -428,7 +428,7 @@ class R4Butterfly(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0}`` which
-        corresponds to *src1* arriving one time unit later than the other inputs and one time
+        corresponds to *in1* arriving one time unit later than the other inputs and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -438,18 +438,18 @@ class R4Butterfly(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
+        "_in2",
+        "_in3",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
-        "_src2",
-        "_src3",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
-    _src2: SignalSourceProvider | None
-    _src3: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
+    _in2: SignalSourceProvider | None
+    _in3: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -459,10 +459,10 @@ class R4Butterfly(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
-        src2: SignalSourceProvider | None = None,
-        src3: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
+        in3: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -473,7 +473,7 @@ class R4Butterfly(AbstractOperation):
             input_count=4,
             output_count=4,
             name=Name(name),
-            input_sources=[src0, src1, src2, src3],
+            input_sources=[in0, in1, in2, in3],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -525,7 +525,7 @@ class R3Winograd(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1, src2 : SignalSourceProvider, optional
+    in0, in1, in2 : SignalSourceProvider, optional
         The three signals to compute the 3-point DFT of.
     name : Name, optional
         Operation name.
@@ -534,7 +534,7 @@ class R3Winograd(AbstractOperation):
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared. For example, ``{"in0": 0, "in1": 1, "in2": 0}`` which
-        corresponds to *src1* arriving one time unit later than the other inputs and one time
+        corresponds to *in1* arriving one time unit later than the other inputs and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -544,16 +544,16 @@ class R3Winograd(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
+        "_in2",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
-        "_src2",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
-    _src2: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
+    _in2: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -563,9 +563,9 @@ class R3Winograd(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
-        src2: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -576,7 +576,7 @@ class R3Winograd(AbstractOperation):
             input_count=3,
             output_count=3,
             name=Name(name),
-            input_sources=[src0, src1, src2],
+            input_sources=[in0, in1, in2],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -618,7 +618,7 @@ class R5Winograd(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1, src2, src3, src4 : SignalSourceProvider, optional
+    in0, in1, in2, in3, in4 : SignalSourceProvider, optional
         The five signals to compute the 5-point DFT of.
     name : Name, optional
         Operation name.
@@ -628,7 +628,7 @@ class R5Winograd(AbstractOperation):
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared.
         For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0, "in4": 0,}`` which
-        corresponds to *src1* arriving one time unit later than the other inputs and one time
+        corresponds to *in1* arriving one time unit later than the other inputs and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -638,20 +638,20 @@ class R5Winograd(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
+        "_in2",
+        "_in3",
+        "_in4",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
-        "_src2",
-        "_src3",
-        "_src4",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
-    _src2: SignalSourceProvider | None
-    _src3: SignalSourceProvider | None
-    _src4: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
+    _in2: SignalSourceProvider | None
+    _in3: SignalSourceProvider | None
+    _in4: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -661,11 +661,11 @@ class R5Winograd(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
-        src2: SignalSourceProvider | None = None,
-        src3: SignalSourceProvider | None = None,
-        src4: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
+        in3: SignalSourceProvider | None = None,
+        in4: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -676,7 +676,7 @@ class R5Winograd(AbstractOperation):
             input_count=5,
             output_count=5,
             name=Name(name),
-            input_sources=[src0, src1, src2, src3, src4],
+            input_sources=[in0, in1, in2, in3, in4],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,
@@ -756,7 +756,7 @@ class R7Winograd(AbstractOperation):
 
     Parameters
     ----------
-    src0, src1, src2, src3, src4, src5, src6 : SignalSourceProvider, optional
+    in0, in1, in2, in3, in4, in5, in6 : SignalSourceProvider, optional
         The seven signals to compute the 7-point DFT of.
     name : Name, optional
         Operation name.
@@ -766,7 +766,7 @@ class R7Winograd(AbstractOperation):
         Used if inputs have different arrival times or if the inputs should arrive
         after the operator has stared.
         For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0, "in4": 0, "in5": 0, "in6": 0,}`` which
-        corresponds to *src1* arriving one time unit later than the other inputs and one time
+        corresponds to *in1* arriving one time unit later than the other inputs and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
         only.
@@ -776,24 +776,24 @@ class R7Winograd(AbstractOperation):
 
     __slots__ = (
         "_execution_time",
+        "_in0",
+        "_in1",
+        "_in2",
+        "_in3",
+        "_in4",
+        "_in5",
+        "_in6",
         "_latency",
         "_latency_offsets",
         "_name",
-        "_src0",
-        "_src1",
-        "_src2",
-        "_src3",
-        "_src4",
-        "_src5",
-        "_src6",
     )
-    _src0: SignalSourceProvider | None
-    _src1: SignalSourceProvider | None
-    _src2: SignalSourceProvider | None
-    _src3: SignalSourceProvider | None
-    _src4: SignalSourceProvider | None
-    _src5: SignalSourceProvider | None
-    _src6: SignalSourceProvider | None
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
+    _in2: SignalSourceProvider | None
+    _in3: SignalSourceProvider | None
+    _in4: SignalSourceProvider | None
+    _in5: SignalSourceProvider | None
+    _in6: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
@@ -803,13 +803,13 @@ class R7Winograd(AbstractOperation):
 
     def __init__(
         self,
-        src0: SignalSourceProvider | None = None,
-        src1: SignalSourceProvider | None = None,
-        src2: SignalSourceProvider | None = None,
-        src3: SignalSourceProvider | None = None,
-        src4: SignalSourceProvider | None = None,
-        src5: SignalSourceProvider | None = None,
-        src6: SignalSourceProvider | None = None,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
+        in3: SignalSourceProvider | None = None,
+        in4: SignalSourceProvider | None = None,
+        in5: SignalSourceProvider | None = None,
+        in6: SignalSourceProvider | None = None,
         name: Name = Name(""),
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
@@ -820,7 +820,7 @@ class R7Winograd(AbstractOperation):
             input_count=7,
             output_count=7,
             name=Name(name),
-            input_sources=[src0, src1, src2, src3, src4, src5, src6],
+            input_sources=[in0, in1, in2, in3, in4, in5, in6],
             latency=latency,
             latency_offsets=latency_offsets,
             execution_time=execution_time,

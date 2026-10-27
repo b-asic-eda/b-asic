@@ -59,16 +59,16 @@ def ldlt_matrix_inverse(
                 if pe == "mads":
                     D[j] = MADS(
                         is_add=False,
-                        src0=D[j],
-                        src1=M[j][k],
-                        src2=L[j][k],
+                        in0=D[j],
+                        in1=M[j][k],
+                        in2=L[j][k],
                         do_addsub=True,
                     )
                 elif pe == "addsub":
                     D[j] = AddSub(
                         is_add=False,
-                        src0=D[j],
-                        src1=M[j][k] * L[j][k],
+                        in0=D[j],
+                        in1=M[j][k] * L[j][k],
                     )
                 else:
                     D[j] = D[j] - M[j][k] * L[j][k]
@@ -83,16 +83,16 @@ def ldlt_matrix_inverse(
                     if pe == "mads":
                         M[i][j] = MADS(
                             is_add=False,
-                            src0=M[i][j],
-                            src1=M[i][k],
-                            src2=L[j][k],
+                            in0=M[i][j],
+                            in1=M[i][k],
+                            in2=L[j][k],
                             do_addsub=True,
                         )
                     elif pe == "addsub":
                         M[i][j] = AddSub(
                             is_add=False,
-                            src0=M[i][j],
-                            src1=M[i][k] * L[j][k],
+                            in0=M[i][j],
+                            in1=M[i][k] * L[j][k],
                         )
                     else:
                         M[i][j] = M[i][j] - M[i][k] * L[j][k]
@@ -100,9 +100,9 @@ def ldlt_matrix_inverse(
                 if pe == "mads":
                     L[i][j] = MADS(
                         is_add=True,
-                        src0=DontCare(),
-                        src1=M[i][j],
-                        src2=D_inv[j],
+                        in0=DontCare(),
+                        in1=M[i][j],
+                        in2=D_inv[j],
                         do_addsub=False,
                     )
                 else:
@@ -120,9 +120,9 @@ def ldlt_matrix_inverse(
                     for k in range(j + 1, i):
                         acc = MADS(
                             is_add=True,
-                            src0=acc,
-                            src1=L[i][k],
-                            src2=L_inv[k][j],
+                            in0=acc,
+                            in1=L[i][k],
+                            in2=L_inv[k][j],
                             do_addsub=True,
                         )
                     L_inv[i][j] = -acc
@@ -131,8 +131,8 @@ def ldlt_matrix_inverse(
                     for k in range(j + 1, i):
                         acc = AddSub(
                             is_add=True,
-                            src0=acc,
-                            src1=L[i][k] * L_inv[k][j],
+                            in0=acc,
+                            in1=L[i][k] * L_inv[k][j],
                         )
                     L_inv[i][j] = -acc
                 else:
@@ -153,9 +153,9 @@ def ldlt_matrix_inverse(
                 elif pe == "mads":
                     res[i][j] = MADS(
                         is_add=True,
-                        src0=DontCare(),
-                        src1=D_inv[i],
-                        src2=L_inv[i][j],
+                        in0=DontCare(),
+                        in1=D_inv[i],
+                        in2=L_inv[i][j],
                         do_addsub=False,
                     )
                 else:
@@ -165,24 +165,24 @@ def ldlt_matrix_inverse(
                     if pe == "mads":
                         t0 = MADS(
                             is_add=True,
-                            src0=DontCare(),
-                            src1=L_inv[k][i],
-                            src2=D_inv[k],
+                            in0=DontCare(),
+                            in1=L_inv[k][i],
+                            in2=D_inv[k],
                             do_addsub=False,
                         )
                         res[i][j] = MADS(
                             is_add=True,
-                            src0=res[i][j],
-                            src1=t0,
-                            src2=L_inv[k][j],
+                            in0=res[i][j],
+                            in1=t0,
+                            in2=L_inv[k][j],
                             do_addsub=True,
                         )
                     elif pe == "addsub":
                         t0 = L_inv[k][i] * D_inv[k]
                         res[i][j] = AddSub(
                             is_add=True,
-                            src0=res[i][j],
-                            src1=t0 * L_inv[k][j],
+                            in0=res[i][j],
+                            in1=t0 * L_inv[k][j],
                         )
                     else:
                         t0 = L_inv[k][i] * D_inv[k]
@@ -205,16 +205,16 @@ def ldlt_matrix_inverse(
                         if pe == "mads":
                             val = MADS(
                                 is_add=False,
-                                src0=val,
-                                src1=L[k][i],
-                                src2=res[k][i],
+                                in0=val,
+                                in1=L[k][i],
+                                in2=res[k][i],
                                 do_addsub=True,
                             )
                         elif pe == "addsub":
                             val = AddSub(
                                 is_add=False,
-                                src0=val,
-                                src1=L[k][i] * res[k][i],
+                                in0=val,
+                                in1=L[k][i] * res[k][i],
                             )
                         else:
                             val = val - L[k][i] * res[k][i]
@@ -224,17 +224,17 @@ def ldlt_matrix_inverse(
                             if k == n - 1:
                                 val = MADS(
                                     is_add=False,
-                                    src0=DontCare(),
-                                    src1=L[k][j],
-                                    src2=res[max(i, k)][min(i, k)],
+                                    in0=DontCare(),
+                                    in1=L[k][j],
+                                    in2=res[max(i, k)][min(i, k)],
                                     do_addsub=False,
                                 )
                             else:
                                 val = MADS(
                                     is_add=False,
-                                    src0=val,
-                                    src1=L[k][j],
-                                    src2=res[max(i, k)][min(i, k)],
+                                    in0=val,
+                                    in1=L[k][j],
+                                    in2=res[max(i, k)][min(i, k)],
                                     do_addsub=True,
                                 )
                         elif pe == "addsub":
@@ -243,8 +243,8 @@ def ldlt_matrix_inverse(
                             else:
                                 val = AddSub(
                                     is_add=False,
-                                    src0=val,
-                                    src1=L[k][j] * res[max(i, k)][min(i, k)],
+                                    in0=val,
+                                    in1=L[k][j] * res[max(i, k)][min(i, k)],
                                 )
                         else:
                             if k == n - 1:
@@ -323,13 +323,13 @@ def cholesky_matrix_inverse(
                 if pe == "mads":
                     acc = MADS(
                         is_add=False,
-                        src0=acc,
-                        src1=L[j][k],
-                        src2=L[j][k],
+                        in0=acc,
+                        in1=L[j][k],
+                        in2=L[j][k],
                         do_addsub=True,
                     )
                 elif pe == "addsub":
-                    acc = AddSub(is_add=False, src0=acc, src1=L[j][k] * L[j][k])
+                    acc = AddSub(is_add=False, in0=acc, in1=L[j][k] * L[j][k])
                 else:
                     acc = acc - L[j][k] * L[j][k]
 
@@ -341,22 +341,22 @@ def cholesky_matrix_inverse(
                     if pe == "mads":
                         acc2 = MADS(
                             is_add=False,
-                            src0=acc2,
-                            src1=L[i][k],
-                            src2=L[j][k],
+                            in0=acc2,
+                            in1=L[i][k],
+                            in2=L[j][k],
                             do_addsub=True,
                         )
                     elif pe == "addsub":
-                        acc2 = AddSub(is_add=False, src0=acc2, src1=L[i][k] * L[j][k])
+                        acc2 = AddSub(is_add=False, in0=acc2, in1=L[i][k] * L[j][k])
                     else:
                         acc2 = acc2 - L[i][k] * L[j][k]
 
                 if pe == "mads":
                     L[i][j] = MADS(
                         is_add=True,
-                        src0=DontCare(),
-                        src1=acc2,
-                        src2=L_inv[j][j],
+                        in0=DontCare(),
+                        in1=acc2,
+                        in2=L_inv[j][j],
                         do_addsub=False,
                     )
                 elif pe == "addsub":
@@ -380,30 +380,30 @@ def cholesky_matrix_inverse(
                 if pe == "mads":
                     acc = MADS(
                         is_add=True,
-                        src0=DontCare(),
-                        src1=L[i][j],
-                        src2=L_inv[j][j],
+                        in0=DontCare(),
+                        in1=L[i][j],
+                        in2=L_inv[j][j],
                         do_addsub=False,
                     )
                     for k in range(j + 1, i):
                         acc = MADS(
                             is_add=True,
-                            src0=acc,
-                            src1=L[i][k],
-                            src2=L_inv[k][j],
+                            in0=acc,
+                            in1=L[i][k],
+                            in2=L_inv[k][j],
                             do_addsub=True,
                         )
                     L_inv[i][j] = MADS(
                         is_add=False,
-                        src0=DontCare(),
-                        src1=acc,
-                        src2=L_inv[i][i],
+                        in0=DontCare(),
+                        in1=acc,
+                        in2=L_inv[i][i],
                         do_addsub=False,
                     )
                 elif pe == "addsub":
                     acc = L[i][j] * L_inv[j][j]
                     for k in range(j + 1, i):
-                        acc = AddSub(is_add=True, src0=acc, src1=L[i][k] * L_inv[k][j])
+                        acc = AddSub(is_add=True, in0=acc, in1=L[i][k] * L_inv[k][j])
                     L_inv[i][j] = Negation(
                         acc * L_inv[i][i],
                     )
@@ -425,25 +425,25 @@ def cholesky_matrix_inverse(
                     if i + 1 == n:
                         res[i][j] = MADS(
                             is_add=True,
-                            src0=DontCare(),
-                            src1=L_inv[i][i],
-                            src2=L_inv[i][j],
+                            in0=DontCare(),
+                            in1=L_inv[i][i],
+                            in2=L_inv[i][j],
                             do_addsub=False,
                         )
                     else:
                         acc = MADS(
                             is_add=True,
-                            src0=DontCare(),
-                            src1=L_inv[i][i],
-                            src2=L_inv[i][j],
+                            in0=DontCare(),
+                            in1=L_inv[i][i],
+                            in2=L_inv[i][j],
                             do_addsub=False,
                         )
                         for k in range(i + 1, n):
                             acc = MADS(
                                 is_add=True,
-                                src0=acc,
-                                src1=L_inv[k][i],
-                                src2=L_inv[k][j],
+                                in0=acc,
+                                in1=L_inv[k][i],
+                                in2=L_inv[k][j],
                                 do_addsub=True,
                             )
                         res[i][j] = acc
@@ -454,7 +454,7 @@ def cholesky_matrix_inverse(
                         acc = L_inv[i][i] * L_inv[i][j]
                         for k in range(i + 1, n):
                             acc = AddSub(
-                                is_add=True, src0=acc, src1=L_inv[k][i] * L_inv[k][j]
+                                is_add=True, in0=acc, in1=L_inv[k][i] * L_inv[k][j]
                             )
                         res[i][j] = acc
                 else:
@@ -482,23 +482,21 @@ def cholesky_matrix_inverse(
                         if pe == "mads":
                             acc = MADS(
                                 is_add=False,
-                                src0=acc,
-                                src1=L[k][i],
-                                src2=res[k][i],
+                                in0=acc,
+                                in1=L[k][i],
+                                in2=res[k][i],
                                 do_addsub=True,
                             )
                         elif pe == "addsub":
-                            acc = AddSub(
-                                is_add=False, src0=acc, src1=L[k][i] * res[k][i]
-                            )
+                            acc = AddSub(is_add=False, in0=acc, in1=L[k][i] * res[k][i])
                         else:
                             acc = acc - L[k][i] * res[k][i]
                     if pe == "mads":
                         acc = MADS(
                             is_add=True,
-                            src0=DontCare(),
-                            src1=acc,
-                            src2=L_inv[i][i],
+                            in0=DontCare(),
+                            in1=acc,
+                            in2=L_inv[i][i],
                             do_addsub=False,
                         )
                     elif pe == "addsub":
@@ -509,24 +507,24 @@ def cholesky_matrix_inverse(
                     if pe == "mads":
                         acc = MADS(
                             is_add=False,
-                            src0=DontCare(),
-                            src1=L[n - 1][j],
-                            src2=res[max(i, n - 1)][min(i, n - 1)],
+                            in0=DontCare(),
+                            in1=L[n - 1][j],
+                            in2=res[max(i, n - 1)][min(i, n - 1)],
                             do_addsub=False,
                         )
                         for k in range(n - 2, j, -1):
                             acc = MADS(
                                 is_add=False,
-                                src0=acc,
-                                src1=L[k][j],
-                                src2=res[max(i, k)][min(i, k)],
+                                in0=acc,
+                                in1=L[k][j],
+                                in2=res[max(i, k)][min(i, k)],
                                 do_addsub=True,
                             )
                         acc = MADS(
                             is_add=True,
-                            src0=DontCare(),
-                            src1=acc,
-                            src2=L_inv[j][j],
+                            in0=DontCare(),
+                            in1=acc,
+                            in2=L_inv[j][j],
                             do_addsub=False,
                         )
                     elif pe == "addsub":
@@ -534,8 +532,8 @@ def cholesky_matrix_inverse(
                         for k in range(n - 2, j, -1):
                             acc = AddSub(
                                 is_add=False,
-                                src0=acc,
-                                src1=L[k][j] * res[max(i, k)][min(i, k)],
+                                in0=acc,
+                                in1=L[k][j] * res[max(i, k)][min(i, k)],
                             )
                         acc = acc * L_inv[j][j]
                     else:
@@ -659,51 +657,51 @@ def block_ldlt_matrix_inverse(
                         if is_add:
                             acc = MADS(
                                 is_add=True,
-                                src0=DontCare(),
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=DontCare(),
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = MADS(
                                     is_add=True,
-                                    src0=acc,
-                                    src1=xv1,
-                                    src2=xv2,
+                                    in0=acc,
+                                    in1=xv1,
+                                    in2=xv2,
                                     do_addsub=True,
                                 )
                         else:
                             acc = MADS(
                                 is_add=False,
-                                src0=DontCare(),
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=DontCare(),
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = MADS(
                                     is_add=False,
-                                    src0=acc,
-                                    src1=xv1,
-                                    src2=xv2,
+                                    in0=acc,
+                                    in1=xv1,
+                                    in2=xv2,
                                     do_addsub=True,
                                 )
                     else:
                         if acc_block[r][c] is not None:
                             acc = MADS(
                                 is_add=is_add,
-                                src0=acc_block[r][c],
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=acc_block[r][c],
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=True,
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                             acc = MADS(
                                 is_add=is_add,
-                                src0=acc,
-                                src1=xv1,
-                                src2=xv2,
+                                in0=acc,
+                                in1=xv1,
+                                in2=xv2,
                                 do_addsub=True,
                             )
                 else:
@@ -750,38 +748,38 @@ def block_ldlt_matrix_inverse(
         if pe == "mads":
             tmp = MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=d_val[0][0],
-                src2=d_val[1][1],
+                in0=DontCare(),
+                in1=d_val[0][0],
+                in2=d_val[1][1],
                 do_addsub=False,
             )
             det = MADS(
                 is_add=False,
-                src0=tmp,
-                src1=d_val[1][0],
-                src2=d_val[1][0],
+                in0=tmp,
+                in1=d_val[1][0],
+                in2=d_val[1][0],
                 do_addsub=True,
             )
             inv_det = Reciprocal(det)
             res[0][0] = MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=d_val[1][1],
-                src2=inv_det,
+                in0=DontCare(),
+                in1=d_val[1][1],
+                in2=inv_det,
                 do_addsub=False,
             )
             res[1][0] = MADS(
                 is_add=False,
-                src0=DontCare(),
-                src1=d_val[1][0],
-                src2=inv_det,
+                in0=DontCare(),
+                in1=d_val[1][0],
+                in2=inv_det,
                 do_addsub=False,
             )
             res[1][1] = MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=d_val[0][0],
-                src2=inv_det,
+                in0=DontCare(),
+                in1=d_val[0][0],
+                in2=inv_det,
                 do_addsub=False,
             )
         else:
@@ -1031,51 +1029,51 @@ def block_cholesky_matrix_inverse(
                         if is_add:
                             acc = MADS(
                                 is_add=True,
-                                src0=DontCare(),
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=DontCare(),
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = MADS(
                                     is_add=True,
-                                    src0=acc,
-                                    src1=xv1,
-                                    src2=xv2,
+                                    in0=acc,
+                                    in1=xv1,
+                                    in2=xv2,
                                     do_addsub=True,
                                 )
                         else:
                             acc = MADS(
                                 is_add=False,
-                                src0=DontCare(),
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=DontCare(),
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = MADS(
                                     is_add=False,
-                                    src0=acc,
-                                    src1=xv1,
-                                    src2=xv2,
+                                    in0=acc,
+                                    in1=xv1,
+                                    in2=xv2,
                                     do_addsub=True,
                                 )
                     else:
                         if acc_block[r][c] is not None:
                             acc = MADS(
                                 is_add=is_add,
-                                src0=acc_block[r][c],
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=acc_block[r][c],
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=True,
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                             acc = MADS(
                                 is_add=is_add,
-                                src0=acc,
-                                src1=xv1,
-                                src2=xv2,
+                                in0=acc,
+                                in1=xv1,
+                                in2=xv2,
                                 do_addsub=True,
                             )
                 else:
@@ -1110,28 +1108,26 @@ def block_cholesky_matrix_inverse(
         if pe == "mads":
             L10 = MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=acc[1][0],
-                src2=inv_L00,
+                in0=DontCare(),
+                in1=acc[1][0],
+                in2=inv_L00,
                 do_addsub=False,
             )
-            tmp1 = MADS(
-                is_add=False, src0=acc[1][1], src1=L10, src2=L10, do_addsub=True
-            )
+            tmp1 = MADS(is_add=False, in0=acc[1][1], in1=L10, in2=L10, do_addsub=True)
             inv_L11 = ReciprocalSquareRoot(tmp1)
             tmp2 = MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=L10,
-                src2=inv_L00,
+                in0=DontCare(),
+                in1=L10,
+                in2=inv_L00,
                 do_addsub=False,
             )
             res[0][0] = inv_L00
             res[1][0] = MADS(
                 is_add=False,
-                src0=DontCare(),
-                src1=tmp2,
-                src2=inv_L11,
+                in0=DontCare(),
+                in1=tmp2,
+                in2=inv_L11,
                 do_addsub=False,
             )
             res[1][1] = inv_L11
@@ -1347,9 +1343,9 @@ def tile_ldlt_matrix_inverse(
             # Pure multiplication. Do NOT rely on is_add when do_addsub=False.
             return MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=a,
-                src2=b,
+                in0=DontCare(),
+                in1=a,
+                in2=b,
                 do_addsub=False,
             )
         if pe == "addsub":
@@ -1387,25 +1383,25 @@ def tile_ldlt_matrix_inverse(
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                             acc = MADS(
                                 is_add=True,
-                                src0=acc,
-                                src1=xv1,
-                                src2=xv2,
+                                in0=acc,
+                                in1=xv1,
+                                in2=xv2,
                                 do_addsub=True,
                             )
                     else:
                         acc = MADS(
                             is_add=is_add,
-                            src0=acc_tile[r][c],
-                            src1=v1[0],
-                            src2=v2[0],
+                            in0=acc_tile[r][c],
+                            in1=v1[0],
+                            in2=v2[0],
                             do_addsub=True,
                         )
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                             acc = MADS(
                                 is_add=is_add,
-                                src0=acc,
-                                src1=xv1,
-                                src2=xv2,
+                                in0=acc,
+                                in1=xv1,
+                                in2=xv2,
                                 do_addsub=True,
                             )
 
@@ -1417,8 +1413,8 @@ def tile_ldlt_matrix_inverse(
                     if acc_tile is not None and acc_tile[r][c] is not None:
                         acc = AddSub(
                             is_add=is_add,
-                            src0=acc_tile[r][c],
-                            src1=acc,
+                            in0=acc_tile[r][c],
+                            in1=acc,
                         )
                 else:
                     acc = v1[0] * v2[0]
@@ -1493,10 +1489,10 @@ def tile_ldlt_matrix_inverse(
 
         if pe == "mads":
             D11 = MADS(
-                is_add=False, src0=A_kk[1][1], src1=L10, src2=A_kk[1][0], do_addsub=True
+                is_add=False, in0=A_kk[1][1], in1=L10, in2=A_kk[1][0], do_addsub=True
             )
         elif pe == "addsub":
-            D11 = AddSub(is_add=False, src0=A_kk[1][1], src1=L10 * A_kk[1][0])
+            D11 = AddSub(is_add=False, in0=A_kk[1][1], in1=L10 * A_kk[1][0])
         else:
             D11 = A_kk[1][1] - L10 * A_kk[1][0]
 
@@ -1575,9 +1571,9 @@ def tile_ldlt_matrix_inverse(
                     if pe == "mads":
                         acc = MADS(
                             is_add=True,
-                            src0=acc,
-                            src1=L[i][k],
-                            src2=L_inv[k][j],
+                            in0=acc,
+                            in1=L[i][k],
+                            in2=L_inv[k][j],
                             do_addsub=True,
                         )
                     else:
@@ -1598,9 +1594,9 @@ def tile_ldlt_matrix_inverse(
                         t0 = _mul_nodes(L_inv[k][i], D_inv[k])
                         res[i][j] = MADS(
                             is_add=True,
-                            src0=res[i][j],
-                            src1=t0,
-                            src2=L_inv[k][j],
+                            in0=res[i][j],
+                            in1=t0,
+                            in2=L_inv[k][j],
                             do_addsub=True,
                         )
                     else:
@@ -1619,9 +1615,9 @@ def tile_ldlt_matrix_inverse(
                         if pe == "mads":
                             val = MADS(
                                 is_add=False,
-                                src0=val,
-                                src1=L[k][i],
-                                src2=res[k][i],
+                                in0=val,
+                                in1=L[k][i],
+                                in2=res[k][i],
                                 do_addsub=True,
                             )
                         else:
@@ -1636,9 +1632,9 @@ def tile_ldlt_matrix_inverse(
                         if pe == "mads":
                             val = MADS(
                                 is_add=False,
-                                src0=val,
-                                src1=L[k][i],
-                                src2=res[k][j],
+                                in0=val,
+                                in1=L[k][i],
+                                in2=res[k][j],
                                 do_addsub=True,
                             )
                         else:
@@ -1652,9 +1648,9 @@ def tile_ldlt_matrix_inverse(
                         for k in range(N - 2, j, -1):
                             val = MADS(
                                 is_add=False,
-                                src0=val,
-                                src1=L[k][j],
-                                src2=res[max(i, k)][min(i, k)],
+                                in0=val,
+                                in1=L[k][j],
+                                in2=res[max(i, k)][min(i, k)],
                                 do_addsub=True,
                             )
                     else:
@@ -1757,51 +1753,51 @@ def analytical_block_matrix_inverse(
                         if is_add:
                             acc = MADS(
                                 is_add=True,
-                                src0=DontCare(),
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=DontCare(),
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = MADS(
                                     is_add=True,
-                                    src0=acc,
-                                    src1=xv1,
-                                    src2=xv2,
+                                    in0=acc,
+                                    in1=xv1,
+                                    in2=xv2,
                                     do_addsub=True,
                                 )
                         else:
                             acc = MADS(
                                 is_add=False,
-                                src0=DontCare(),
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=DontCare(),
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = MADS(
                                     is_add=False,
-                                    src0=acc,
-                                    src1=xv1,
-                                    src2=xv2,
+                                    in0=acc,
+                                    in1=xv1,
+                                    in2=xv2,
                                     do_addsub=True,
                                 )
                     else:
                         if acc_block[r][c] is not None:
                             acc = MADS(
                                 is_add=is_add,
-                                src0=acc_block[r][c],
-                                src1=v1[0],
-                                src2=v2[0],
+                                in0=acc_block[r][c],
+                                in1=v1[0],
+                                in2=v2[0],
                                 do_addsub=True,
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                             acc = MADS(
                                 is_add=is_add,
-                                src0=acc,
-                                src1=xv1,
-                                src2=xv2,
+                                in0=acc,
+                                in1=xv1,
+                                in2=xv2,
                                 do_addsub=True,
                             )
                 else:
@@ -1843,38 +1839,38 @@ def analytical_block_matrix_inverse(
         if pe == "mads":
             tmp = MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=A_block[0][0],
-                src2=A_block[1][1],
+                in0=DontCare(),
+                in1=A_block[0][0],
+                in2=A_block[1][1],
                 do_addsub=False,
             )
             det = MADS(
                 is_add=False,
-                src0=tmp,
-                src1=A_block[1][0],
-                src2=A_block[1][0],
+                in0=tmp,
+                in1=A_block[1][0],
+                in2=A_block[1][0],
                 do_addsub=True,
             )
             inv_det = Reciprocal(det)
             res[0][0] = MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=A_block[1][1],
-                src2=inv_det,
+                in0=DontCare(),
+                in1=A_block[1][1],
+                in2=inv_det,
                 do_addsub=False,
             )
             res[1][0] = MADS(
                 is_add=False,
-                src0=DontCare(),
-                src1=A_block[1][0],
-                src2=inv_det,
+                in0=DontCare(),
+                in1=A_block[1][0],
+                in2=inv_det,
                 do_addsub=False,
             )
             res[1][1] = MADS(
                 is_add=True,
-                src0=DontCare(),
-                src1=A_block[0][0],
-                src2=inv_det,
+                in0=DontCare(),
+                in1=A_block[0][0],
+                in2=inv_det,
                 do_addsub=False,
             )
         else:

@@ -367,23 +367,23 @@ class TestMADS:
 
     def test_mads_is_linear(self):
         test_operation = MADS(
-            src0=Constant(3),
-            src1=Addition(Input(), Constant(3)),
-            src2=Addition(Input(), Constant(3)),
+            in0=Constant(3),
+            in1=Addition(Input(), Constant(3)),
+            in2=Addition(Input(), Constant(3)),
         )
         assert not test_operation.is_linear
 
         test_operation = MADS(
-            src0=Addition(Input(), Constant(3)),
-            src1=Constant(3),
-            src2=Addition(Input(), Constant(3)),
+            in0=Addition(Input(), Constant(3)),
+            in1=Constant(3),
+            in2=Addition(Input(), Constant(3)),
         )
         assert test_operation.is_linear
 
         test_operation = MADS(
-            src0=Addition(Input(), Constant(3)),
-            src1=Addition(Input(), Constant(3)),
-            src2=Constant(3),
+            in0=Addition(Input(), Constant(3)),
+            in1=Addition(Input(), Constant(3)),
+            in2=Constant(3),
         )
         assert test_operation.is_linear
 
