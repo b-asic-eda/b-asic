@@ -618,6 +618,21 @@ class VhdlPrinter(Printer):
         common.write(code, 1, f"res_arith_0 <= {scaled[0]};")
         return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
+    def print_Addition_fixed_point_complex(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        return self._print_addsub_fixed_point(pe, "'1'")
+
+    def print_Subtraction_fixed_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        return self._print_addsub_fixed_point(pe, "'0'")
+
+    def print_Subtraction_fixed_point_complex(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        return self._print_addsub_fixed_point(pe, "'0'")
+
     def print_AddSub_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[WLS, CODE]:
@@ -628,7 +643,9 @@ class VhdlPrinter(Printer):
     ) -> tuple[WLS, CODE]:
         return self._print_addsub_fixed_point(pe)
 
-    def _print_addsub_fixed_point(self, pe: "ProcessingElement") -> tuple[WLS, CODE]:
+    def _print_addsub_fixed_point(
+        self, pe: "ProcessingElement", is_add: str = "is_add"
+    ) -> tuple[WLS, CODE]:
         declarations, code = io.StringIO(), io.StringIO()
         parts = ("_re", "_im") if self.is_complex else ("",)
         inputs = []
@@ -653,7 +670,7 @@ class VhdlPrinter(Printer):
             common.signal_declaration(
                 declarations, "sel", "std_logic_vector(1 downto 0)"
             )
-            common.write(code, 1, "sel <= mul_j & is_add;")
+            common.write(code, 1, f"sel <= mul_j & {is_add};")
 
         n_in, n_out = self._register_split or (0, 0)
         register_sum = n_out > 0
@@ -687,14 +704,16 @@ class VhdlPrinter(Printer):
                 for selection, expression in enumerate(choices):
                     common.write(code, 3, f'{expression} when "{selection:02b}",')
                 common.write(code, 3, "(others => '-') when others;")
-                carry = "not (is_add xor mul_j)" if part_index == 0 else "not is_add"
+                carry = (
+                    f"not ({is_add} xor mul_j)" if part_index == 0 else f"not {is_add}"
+                )
             else:
                 common.write(
                     code,
                     1,
-                    f"{operand} <= resize({inputs[1][0]}, {self.bits + 1}) when is_add = '1' else not resize({inputs[1][0]}, {self.bits + 1});",
+                    f"{operand} <= resize({inputs[1][0]}, {self.bits + 1}) when {is_add} = std_logic'('1') else not resize({inputs[1][0]}, {self.bits + 1});",
                 )
-                carry = "not is_add"
+                carry = f"not {is_add}"
             common.signal_declaration(declarations, f"cin{part}", "std_logic")
             common.write(code, 1, f"cin{part} <= {carry};")
             common.write(
