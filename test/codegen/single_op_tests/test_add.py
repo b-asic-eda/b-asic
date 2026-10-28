@@ -14,7 +14,7 @@ from b_asic.schedule import Schedule
 from b_asic.sfg import SFG
 from b_asic.special_operations import Input, Output
 
-# Test parameters: (data_type, latency, shift_output, test_cases)
+# Test parameters: (data_type, latency, out0_scale, test_cases)
 # test_cases: list of (input0, input1) tuples
 TEST_PARAMS = [
     pytest.param(
@@ -93,18 +93,38 @@ TEST_PARAMS = [
 
 
 @pytest.mark.parametrize(
-    ("data_type", "latency", "shift_output", "test_cases"), TEST_PARAMS
+    ("data_type", "latency", "out0_scale", "test_cases"), TEST_PARAMS
 )
-def test_add(tmp_path, data_type, latency, shift_output, test_cases):
+@pytest.mark.parametrize(("in0_scale", "in1_scale"), [(0, 0), (1, 0), (0, 2), (1, 2)])
+def test_add(
+    tmp_path, data_type, latency, out0_scale, test_cases, in0_scale, in1_scale
+):
     tcs = []
     for tc in test_cases:
         a = apy.APyFixed(tc[0], int_bits=data_type.wl[0], frac_bits=data_type.wl[1])
         b = apy.APyFixed(tc[1], int_bits=data_type.wl[0], frac_bits=data_type.wl[1])
 
-        # Apply shift_output to the result
-        res = a + b
-        if shift_output > 0:
-            res = (res >> shift_output).cast(
+        scaled_a = (
+            (a >> in0_scale).cast(
+                *data_type.wl,
+                data_type.quantization_mode.to_apytypes(),
+                data_type.overflow_mode.to_apytypes(),
+            )
+            if in0_scale
+            else a
+        )
+        scaled_b = (
+            (b >> in1_scale).cast(
+                *data_type.wl,
+                data_type.quantization_mode.to_apytypes(),
+                data_type.overflow_mode.to_apytypes(),
+            )
+            if in1_scale
+            else b
+        )
+        res = scaled_a + scaled_b
+        if out0_scale > 0:
+            res = (res >> out0_scale).cast(
                 data_type.wl[0],
                 data_type.wl[1],
                 data_type.quantization_mode.to_apytypes(),
@@ -118,12 +138,18 @@ def test_add(tmp_path, data_type, latency, shift_output, test_cases):
                 data_type.overflow_mode.to_apytypes(),
             )
 
-        tcs.append((a.to_bits(), b.to_bits(), shift_output, res.to_bits()))
+        tcs.append((a.to_bits(), b.to_bits(), out0_scale, res.to_bits()))
 
     in0 = Input()
     in1 = Input()
     op0 = Addition(
-        in0, in1, latency=latency, execution_time=1, shift_output=shift_output
+        in0,
+        in1,
+        latency=latency,
+        execution_time=1,
+        out0_scale=out0_scale,
+        in0_scale=in0_scale,
+        in1_scale=in1_scale,
     )
     out0 = Output(op0)
     sfg = SFG(inputs=[in0, in1], outputs=[out0])
@@ -191,7 +217,7 @@ async def add_test(dut):
 
     cocotb.log.info(f"Running {len(test_cases)} test cases with latency={latency}")
 
-    for i, (in0, in1, shift_output, expected) in enumerate(test_cases, 1):
+    for i, (in0, in1, out0_scale, expected) in enumerate(test_cases, 1):
         dut.in0_0_in.value = in0
         dut.in1_0_in.value = in1
 
@@ -200,9 +226,9 @@ async def add_test(dut):
             await FallingEdge(dut.clk)
 
         actual = dut.output_0_out.value.to_unsigned()
-        if shift_output > 0:
+        if out0_scale > 0:
             assert actual == expected
-            cocotb.log.info(f"✓ Test {i}: ({in0} + {in1}) >> {shift_output} = {actual}")
+            cocotb.log.info(f"Test {i}: ({in0} + {in1}) >> {out0_scale} = {actual}")
         else:
             assert actual == expected
             cocotb.log.info(f"✓ Test {i}: {in0} + {in1} = {actual}")

@@ -4,12 +4,42 @@ import pytest
 from b_asic import (
     SFG,
     Addition,
+    AddSub,
     Constant,
     FastSimulation,
+    Input,
     Output,
     R2Butterfly,
     Subtraction,
 )
+from b_asic.simulation import Simulation
+
+
+@pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+@pytest.mark.parametrize("mul_j", [False, True])
+@pytest.mark.parametrize(
+    ("in0_scale", "in1_scale", "out0_scale"),
+    [(0, 0, 0), (1, 0, 0), (0, 2, 0), (0, 0, 1), (1, 2, 1)],
+)
+def test_scaled_adders(operation_type, mul_j, in0_scale, in1_scale, out0_scale):
+    in0, in1 = Input(), Input()
+    operation = operation_type(
+        in0=in0,
+        in1=in1,
+        in0_scale=in0_scale,
+        in1_scale=in1_scale,
+        out0_scale=out0_scale,
+        mul_j=mul_j,
+    )
+    if operation_type is AddSub:
+        operation.is_add = False
+    sfg = SFG([in0, in1], [Output(operation)])
+    inputs = [[9, -5, 3.5, 4 + 8j], [3, 7, -1.5, 2 - 4j]]
+    fast = FastSimulation(sfg, inputs)
+    reference = Simulation(sfg, inputs)
+    fast.run()
+    reference.run()
+    np.testing.assert_array_equal(fast.results["out0"], reference.results["out0"])
 
 
 class TestRunFor:

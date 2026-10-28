@@ -2591,61 +2591,72 @@ class SFG(AbstractOperation):
 
         return new_sfg()
 
-    def _rewrite_ShiftAddSub(self) -> "SFG":
+    def _rewrite_AddSub(self) -> "SFG":
         from b_asic.core_operations import (  # noqa: PLC0415
             Addition,
             AddSub,
             Shift,
-            ShiftAddSub,
             Subtraction,
         )
 
         if len(self.inputs) != 2:
-            raise ValueError("SFG to ShiftAddSub rewrite requires exactly 2 inputs")
+            raise ValueError("SFG to AddSub rewrite requires exactly 2 inputs")
 
         ops = [op for op in self.operations if not isinstance(op, (Input, Output))]
         if len(ops) != 2:
-            raise ValueError("SFG to ShiftAddSub rewrite requires exactly 2 operations")
+            raise ValueError("SFG to AddSub rewrite requires exactly 2 operations")
 
-        # check that one operation is a shift and one is an addsub-like operation
-        if not (
-            isinstance(ops[0], Shift)
-            and isinstance(ops[1], (Addition, Subtraction, AddSub))
-        ) or (
-            isinstance(ops[1], Shift)
-            and isinstance(ops[0], (Addition, Subtraction, AddSub))
-        ):
+        shifts = [op for op in ops if isinstance(op, Shift)]
+        arithmetic_ops = [
+            op for op in ops if isinstance(op, (Addition, Subtraction, AddSub))
+        ]
+        if len(shifts) != 1 or len(arithmetic_ops) != 1:
             raise ValueError(
-                "SFG to ShiftAddSub rewrite requires one Shift and one of (Addition, Subtraction, AddSub)"
+                "SFG to AddSub rewrite requires one Shift and one of (Addition, Subtraction, AddSub)"
             )
+        shift, arithmetic = shifts[0], arithmetic_ops[0]
+        if shift.value < 0:
+            raise ValueError("Left shifts must remain separate operations")
+        if len(shift.output(0).signals) != 1:
+            raise ValueError("Output of Shift must only connect to one operation")
+        destination = shift.output(0).signals[0].destination
+        if destination.operation is not arithmetic:
+            raise ValueError("Shift must feed the arithmetic operation")
+        if any(
+            output.input(0).connected_source.operation is not arithmetic
+            for output in self._output_operations
+        ):
+            raise ValueError("All outputs must connect to the arithmetic operation")
 
-        # determine the modes of the ShiftAddSub operation
-        for op in ops:
-            if isinstance(op, Addition):
-                is_add = True
-            elif isinstance(op, Subtraction):
-                is_add = False
-            elif isinstance(op, AddSub):
-                is_add = op.is_add
-            else:
-                shift = op.value
-
-        # Construct and return the new SFG
-        in0 = Input()
-        in1 = Input()
-        op = ShiftAddSub(in0, in1, is_add=is_add, shift=shift)
-        outs = []
-        for out in self.outputs:
-            out = Output()
-            out <<= op
-            outs.append(out)
-
-        op_after_in0 = self.find_by_id("in0").output(0).signals[0].destination_operation
-        if isinstance(op_after_in0, Shift):
-            sfg = SFG([in1, in0], outs)
-        else:
-            sfg = SFG([in0, in1], outs)
-        return sfg
+        scales = [arithmetic.in0_scale, arithmetic.in1_scale]
+        scales[destination.index] += shift.value
+        inputs = {
+            operation: Input(name=operation.name)
+            for operation in self._input_operations
+        }
+        sources = [port.connected_source for port in arithmetic.inputs]
+        sources[destination.index] = shift.input(0).connected_source
+        if any(source.operation not in inputs for source in sources):
+            raise ValueError("Arithmetic inputs must connect to the SFG inputs")
+        fused = AddSub(
+            is_add=arithmetic.is_add
+            if isinstance(arithmetic, AddSub)
+            else isinstance(arithmetic, Addition),
+            in0=inputs[sources[0].operation],
+            in1=inputs[sources[1].operation],
+            name=arithmetic.name,
+            latency_offsets=arithmetic.latency_offsets,
+            execution_time=arithmetic.execution_time,
+            mul_j=arithmetic.mul_j,
+            in0_scale=scales[0],
+            in1_scale=scales[1],
+            out0_scale=arithmetic.out0_scale,
+        )
+        return SFG(
+            list(inputs.values()),
+            [Output(fused, name=output.name) for output in self._output_operations],
+            name=self.name,
+        )
 
     def join(self, target: GraphID, direction: Literal["forward", "backward"]) -> "SFG":
         """
