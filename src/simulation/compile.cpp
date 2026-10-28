@@ -226,14 +226,19 @@ private:
 	void add_operation_output(py::handle op, std::size_t output_index, std::string_view prefix, sfg_info_stack const& sfg_stack,
 							  delay_queue& deferred_delays) {
 		auto const type_name = op.attr("type_name")().cast<std::string_view>();
+		auto const native_addsub = (type_name == "add" || type_name == "sub")
+			&& !op.attr("mul_j").cast<bool>()
+			&& op.attr("in0_scale").cast<int>() == 0
+			&& op.attr("in1_scale").cast<int>() == 0
+			&& op.attr("out0_scale").cast<int>() == 0;
 		if (type_name == "out") {
 			this->add_source(op, 0, prefix, sfg_stack, deferred_delays);
 		} else if (auto const result_index = this->begin_operation_output(op, output_index, prefix)) {
 			if (type_name == "c") {
 				this->add_instruction(instruction_type::push_constant, *result_index, 1).value = op.attr("value").cast<number>();
-			} else if (type_name == "add") {
+			} else if (type_name == "add" && native_addsub) {
 				this->add_binary_operation_output(op, *result_index, prefix, sfg_stack, deferred_delays, instruction_type::addition);
-			} else if (type_name == "sub") {
+			} else if (type_name == "sub" && native_addsub) {
 				this->add_binary_operation_output(op, *result_index, prefix, sfg_stack, deferred_delays, instruction_type::subtraction);
 			} else if (type_name == "mul") {
 				this->add_binary_operation_output(op, *result_index, prefix, sfg_stack, deferred_delays, instruction_type::multiplication);

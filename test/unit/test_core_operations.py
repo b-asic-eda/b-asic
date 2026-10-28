@@ -27,6 +27,7 @@ from b_asic import (
     SquareRoot,
     Subtraction,
 )
+from b_asic.data_type import DataType
 
 
 class TestConstant:
@@ -135,6 +136,112 @@ class TestAddSub:
         test_operation = AddSub(is_add=True)
         test_operation.is_add = False
         assert not test_operation.is_add
+
+
+@pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+@pytest.mark.parametrize(
+    ("scales", "addition", "subtraction"),
+    [
+        ({}, 16, 0),
+        ({"in0_scale": 1}, 12, -4),
+        ({"in1_scale": 2}, 10, 6),
+        ({"out0_scale": 1}, 8, 0),
+        ({"in0_scale": 1, "in1_scale": 2, "out0_scale": 1}, 3, 1),
+    ],
+)
+def test_additive_scales(operation_type, scales, addition, subtraction):
+    operation = operation_type(**scales)
+    expected = subtraction if operation_type is Subtraction else addition
+    assert operation.evaluate_output(0, [8, 8]) == expected
+    assert "shift_output" not in operation.params
+    assert operation.copy().params == operation.params
+    if operation_type is AddSub:
+        operation.is_add = False
+        assert operation.evaluate_output(0, [8, 8]) == subtraction
+
+
+@pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+@pytest.mark.parametrize("scale_name", ["in0_scale", "in1_scale", "out0_scale"])
+def test_additive_scale_validation(operation_type, scale_name):
+    operation = operation_type()
+    assert getattr(operation, scale_name) == 0
+    setattr(operation, scale_name, 2)
+    assert getattr(operation, scale_name) == 2
+    for invalid, error in [(1.5, TypeError), (-1, ValueError)]:
+        with pytest.raises(error, match=scale_name):
+            operation_type(**{scale_name: invalid})
+        with pytest.raises(error, match=scale_name):
+            setattr(operation, scale_name, invalid)
+
+
+@pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+def test_additive_scale_division(operation_type):
+    operation = operation_type(in0_scale=1)
+    assert operation.evaluate_output(0, [9, 0]) == 4.5
+    with pytest.raises(TypeError, match="shift_output"):
+        operation_type(shift_output=1)
+
+
+@pytest.mark.parametrize("operation_type", [Addition, AddSub])
+def test_additive_scale_swappability(operation_type):
+    operation = operation_type(in0_scale=1)
+    assert not operation.is_swappable
+    operation.in1_scale = 1
+    assert operation.is_swappable
+    operation.mul_j = True
+    assert not operation.is_swappable
+
+
+@pytest.mark.parametrize("operation_type", [Addition, AddSub])
+def test_additive_scale_params(operation_type):
+    operation = operation_type()
+    operation.set_param("in0_scale", 1)
+    assert operation.in0_scale == 1
+    assert not operation.is_swappable
+    operation.set_param("in1_scale", 1)
+    assert operation.is_swappable
+    operation.set_param("out0_scale", 2)
+    assert operation.is_swappable
+    assert operation.evaluate_output(0, [8, 8]) == 2
+    operation.set_param("mul_j", True)
+    assert not operation.is_swappable
+    if operation_type is AddSub:
+        operation.set_param("mul_j", False)
+        operation.set_param("is_add", False)
+        assert not operation.is_swappable
+
+
+@pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+@pytest.mark.parametrize("is_complex", [False, True])
+def test_additive_fixed_point_scales(operation_type, is_complex):
+    data_type = DataType(wl=(4, 2), is_complex=is_complex)
+    first = apy.fx(-3.25 + 1.75j if is_complex else -3.25, 4, 2)
+    second = apy.fx(1.75 - 2.25j if is_complex else 1.75, 4, 2)
+    operation = operation_type(in0_scale=1, in1_scale=2, out0_scale=1, mul_j=is_complex)
+    first_scaled = operation._cast_to_data_type(first >> 1, data_type)
+    second_scaled = operation._cast_to_data_type(second >> 2, data_type)
+    if is_complex:
+        second_scaled = second_scaled * apy.fx(1j, 2, 0)
+    expected = (
+        first_scaled - second_scaled
+        if operation_type is Subtraction
+        else first_scaled + second_scaled
+    )
+    expected = operation._cast_to_data_type(expected >> 1, data_type)
+    assert operation.evaluate(first, second, data_type=data_type) == expected
+
+
+@pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+@pytest.mark.parametrize("mul_j", [False, True])
+def test_additive_scales_preserved_by_imaginary_join(operation_type, mul_j):
+    operation = operation_type(in0_scale=1, in1_scale=2, out0_scale=1, mul_j=mul_j)
+    joined = ImaginaryMultiplication()._join(operation)
+    fused = joined.find_by_type(operation_type)[0]
+    assert (fused.in0_scale, fused.in1_scale, fused.out0_scale) == (1, 2, 1)
+    first, second = 9 + 3j, -7 + 5j
+    assert joined.evaluate_output(0, [first, second]) == operation.evaluate_output(
+        0, [first, second * 1j]
+    )
 
 
 class TestMultiplication:

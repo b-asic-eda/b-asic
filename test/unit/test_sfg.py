@@ -25,7 +25,6 @@ from b_asic.core_operations import (
     Multiplication,
     Negation,
     Shift,
-    ShiftAddSub,
     SquareRoot,
     Subtraction,
 )
@@ -418,14 +417,61 @@ class TestReplace:
             sfg = sfg.replace(component_id, Multiplication(name="Multi"))
 
 
-class TestRewriteShiftAddSub:
+class TestRewriteAddSub:
+    @pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+    @pytest.mark.parametrize("shift_input", [0, 1])
+    @pytest.mark.parametrize("mul_j", [False, True])
+    @pytest.mark.parametrize("input_scale", [0, 1, 2])
+    def test_shift_fusion(self, operation_type, shift_input, mul_j, input_scale):
+        inputs = [Input("first"), Input("second")]
+        shift = Shift(2, inputs[shift_input])
+        sources = list(inputs)
+        sources[shift_input] = shift
+        scales = [0, 0]
+        scales[shift_input] = input_scale
+        scales[1 - shift_input] = 1
+        kwargs = {"is_add": False} if operation_type is AddSub else {}
+        arithmetic = operation_type(
+            in0=sources[0],
+            in1=sources[1],
+            in0_scale=scales[0],
+            in1_scale=scales[1],
+            out0_scale=1,
+            mul_j=mul_j,
+            name="arithmetic",
+            latency=3,
+            execution_time=2,
+            **kwargs,
+        )
+        original = SFG(inputs, [Output(arithmetic)])
+        rewritten = original._rewrite_AddSub()
+        fused = rewritten.find_by_type(AddSub)[0]
+        scales[shift_input] += 2
+        assert (fused.in0_scale, fused.in1_scale) == tuple(scales)
+        assert fused.out0_scale == 1
+        assert fused.mul_j == mul_j
+        assert fused.name == arithmetic.name
+        assert fused.latency_offsets == arithmetic.latency_offsets
+        assert fused.execution_time == arithmetic.execution_time
+        assert not rewritten.find_by_type(Shift)
+        values = [9 + 3j, -7 + 5j]
+        assert rewritten.evaluate_output(0, values) == original.evaluate_output(
+            0, values
+        )
+
+        combined = getattr(shift, f"_combine_{operation_type.__name__}")()
+        for index in range(2):
+            assert combined.input(index).connected_source is inputs[index].output(0)
+        assert combined.params == fused.params
+        assert combined.evaluate(*values) == original.evaluate_output(0, values)
+
     def test_simple_filter(self, sfg_simple_filter: SFG):
         targets = [
             op
             for op in sfg_simple_filter.operations
             if isinstance(op, ConstantMultiplication)
         ]
-        new_sfg = sfg_simple_filter.rewrite(ShiftAddSub, targets)
+        new_sfg = sfg_simple_filter.rewrite(AddSub, targets)
         assert not any(
             isinstance(op, ConstantMultiplication) for op in new_sfg.operations
         )
@@ -453,7 +499,7 @@ class TestRewriteShiftAddSub:
         sfg = sfg_two_inputs_two_outputs_independent_with_cmul_scaled
         assert len(sfg.operations) == 9
         new_sfg = sfg()
-        new_sfg = sfg.rewrite(ShiftAddSub, ["cmul0", "cmul1", "cmul2"])
+        new_sfg = sfg.rewrite(AddSub, ["cmul0", "cmul1", "cmul2"])
         assert len(new_sfg.operations) == 9
         assert len(new_sfg.find_by_type(ConstantMultiplication)) == 0
 
@@ -471,11 +517,11 @@ class TestRewriteShiftAddSub:
         cmul = ConstantMultiplication(val, in0)
         out0 = Output(cmul)
         sfg = SFG(inputs=[in0], outputs=[out0])
-        sfg = sfg.rewrite(ShiftAddSub, ["cmul0"])
+        sfg = sfg.rewrite(AddSub, ["cmul0"])
 
         assert len(sfg.find_by_type(ConstantMultiplication)) == 0
         for op in sfg.operations:
-            assert isinstance(op, (Input, Output, ShiftAddSub, Shift))
+            assert isinstance(op, (Input, Output, AddSub, Shift))
         assert sfg.get_impulse_responses()["out0"] == [val]
 
     def test_negative_cmul(self):
@@ -484,11 +530,11 @@ class TestRewriteShiftAddSub:
         cmul = ConstantMultiplication(val, in0)
         out0 = Output(cmul)
         sfg = SFG(inputs=[in0], outputs=[out0])
-        sfg = sfg.rewrite(ShiftAddSub, ["cmul0"])
+        sfg = sfg.rewrite(AddSub, ["cmul0"])
 
         assert len(sfg.find_by_type(ConstantMultiplication)) == 0
         for op in sfg.operations:
-            assert isinstance(op, (Input, Output, ShiftAddSub, Shift, Negation))
+            assert isinstance(op, (Input, Output, AddSub, Shift, Negation))
         assert sfg.get_impulse_responses()["out0"] == [val]
 
     def test_mag_larger_than_unity_pos(self):
@@ -497,17 +543,17 @@ class TestRewriteShiftAddSub:
         cmul = ConstantMultiplication(val, in0)
         out0 = Output(cmul)
         sfg = SFG(inputs=[in0], outputs=[out0])
-        sfg = sfg.rewrite(ShiftAddSub, ["cmul0"])
+        sfg = sfg.rewrite(AddSub, ["cmul0"])
 
         assert len(sfg.find_by_type(ConstantMultiplication)) == 0
         for op in sfg.operations:
-            assert isinstance(op, (Input, Output, ShiftAddSub, Shift, Negation))
+            assert isinstance(op, (Input, Output, AddSub, Shift, Negation))
         assert sfg.get_impulse_responses()["out0"] == [val]
 
         # 3.5 = 4 - 0.5
         assert sfg.find_by_id("shift0").value == -2  # left shift two steps (x4)
-        assert sfg.find_by_id("shiftaddsub0").shift == 1
-        assert not sfg.find_by_id("shiftaddsub0").is_add  # -0.5
+        assert sfg.find_by_id("addsub0").in1_scale == 1
+        assert not sfg.find_by_id("addsub0").is_add  # -0.5
 
     def test_mag_larger_than_unity_neg(self):
         in0 = Input()
@@ -515,17 +561,17 @@ class TestRewriteShiftAddSub:
         cmul = ConstantMultiplication(val, in0)
         out0 = Output(cmul)
         sfg = SFG(inputs=[in0], outputs=[out0])
-        sfg = sfg.rewrite(ShiftAddSub, ["cmul0"])
+        sfg = sfg.rewrite(AddSub, ["cmul0"])
 
         assert len(sfg.find_by_type(ConstantMultiplication)) == 0
         for op in sfg.operations:
-            assert isinstance(op, (Input, Output, ShiftAddSub, Shift, Negation))
+            assert isinstance(op, (Input, Output, AddSub, Shift, Negation))
         assert sfg.get_impulse_responses()["out0"] == [val]
 
         # -1.75 = -2 + 0.25
         assert sfg.find_by_id("shift0").value == -1  # left shift one step (x2)
-        assert sfg.find_by_id("shiftaddsub0").shift == 2
-        assert sfg.find_by_id("shiftaddsub0").is_add  # +0.25
+        assert sfg.find_by_id("addsub0").in1_scale == 2
+        assert sfg.find_by_id("addsub0").is_add  # +0.25
 
     def test_chained_complex_cmul(self):
         c310 = 55 / 64
@@ -536,16 +582,16 @@ class TestRewriteShiftAddSub:
         out0 = Output(((in0 * c310) * c311) * c312)
         sfg = SFG(inputs=[in0], outputs=[out0])
 
-        sfg = sfg.rewrite(ShiftAddSub, ConstantMultiplication)
+        sfg = sfg.rewrite(AddSub, ConstantMultiplication)
 
         assert len(sfg.find_by_type(ConstantMultiplication)) == 0
         for op in sfg.operations:
             assert isinstance(
                 op,
-                (Input, Output, ShiftAddSub, Shift, Negation, ImaginaryMultiplication),
+                (Input, Output, AddSub, Shift, Negation, ImaginaryMultiplication),
             )
         assert len(sfg.find_by_type(ImaginaryMultiplication)) == 1
-        assert len(sfg.find_by_type(ShiftAddSub)) == 3
+        assert len(sfg.find_by_type(AddSub)) == 3
         assert sfg.get_impulse_responses()["out0"] == [c310 * c311 * c312]
 
 
@@ -1299,6 +1345,29 @@ class TestRemove:
 
 
 class TestSaveLoadSFG:
+    @pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+    def test_addsub_roundtrip(self, tmp_path, operation_type):
+        inputs = [Input(), Input()]
+        kwargs = {"is_add": False} if operation_type is AddSub else {}
+        operation = operation_type(
+            in0=inputs[0],
+            in1=inputs[1],
+            in0_scale=1,
+            in1_scale=2,
+            out0_scale=1,
+            mul_j=True,
+            **kwargs,
+        )
+        original = SFG(inputs, [Output(operation)])
+        path = tmp_path / "scaled.py"
+        path.write_text(sfg_to_python(original))
+        restored, _ = python_to_sfg(path)
+        assert restored.find_by_type(operation_type)[0].params == operation.params
+        values = [9 + 3j, -7 + 5j]
+        assert restored.evaluate_output(0, values) == original.evaluate_output(
+            0, values
+        )
+
     # TODO: Rewrite to use TempDir/TempFileF
     def get_path(self, existing=False) -> Path:
         path = Path("".join(random.choices(string.ascii_uppercase, k=4)) + ".py")

@@ -196,7 +196,7 @@ class Addition(AbstractOperation):
 
     Gives the result of adding two inputs.
 
-    .. math:: y = x_0 + x_1
+    .. math:: y = (2^{-s_0} x_0 + 2^{-s_1} x_1) 2^{-s_y}
 
     Parameters
     ----------
@@ -217,8 +217,10 @@ class Addition(AbstractOperation):
         reused).
     mul_j : bool, default: False
         If True, *in1* is multiplied by j before the addition.
-    shift_output : int, default: 0
+    out0_scale : int, default: 0
         Right-shift amount applied to the output result.
+    in0_scale, in1_scale : int, default: 0
+        Right-shift amounts applied independently to the inputs before addition.
 
     See Also
     --------
@@ -228,12 +230,14 @@ class Addition(AbstractOperation):
     __slots__ = (
         "_execution_time",
         "_in0",
+        "_in0_scale",
         "_in1",
+        "_in1_scale",
         "_latency",
         "_latency_offsets",
         "_mul_j",
         "_name",
-        "_shift_output",
+        "_out0_scale",
     )
     _in0: SignalSourceProvider | None
     _in1: SignalSourceProvider | None
@@ -242,10 +246,11 @@ class Addition(AbstractOperation):
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
     _mul_j: bool
-    _shift_output: int
+    _in0_scale: int
+    _in1_scale: int
+    _out0_scale: int
 
     is_linear = True
-    is_swappable = True
 
     def __init__(
         self,
@@ -256,7 +261,9 @@ class Addition(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         mul_j: bool = False,
-        shift_output: int = 0,
+        out0_scale: int = 0,
+        in0_scale: int = 0,
+        in1_scale: int = 0,
     ) -> None:
         """
         Construct an Addition operation.
@@ -271,7 +278,9 @@ class Addition(AbstractOperation):
             execution_time=execution_time,
         )
         self.set_param("mul_j", mul_j)
-        self.set_param("shift_output", shift_output)
+        self.in0_scale = in0_scale
+        self.in1_scale = in1_scale
+        self.out0_scale = out0_scale
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -279,12 +288,17 @@ class Addition(AbstractOperation):
 
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
+        in0 = inputs[0]
         in1 = inputs[1]
+        if self.in0_scale:
+            in0 = f"({in0} >> {self.in0_scale})"
+        if self.in1_scale:
+            in1 = f"({in1} >> {self.in1_scale})"
         if self.mul_j:
             in1 = f"j * {in1}"
-        expr = f"{inputs[0]} + {in1}"
-        if self.shift_output != 0:
-            return f"({expr}) >> {self.shift_output}"
+        expr = f"{in0} + {in1}"
+        if self.out0_scale != 0:
+            return f"({expr}) >> {self.out0_scale}"
         return expr
 
     @property
@@ -307,40 +321,82 @@ class Addition(AbstractOperation):
         self.set_param("mul_j", mul_j)
 
     @property
-    def shift_output(self) -> int:
+    def in0_scale(self) -> int:
+        """Get the right-shift amount applied to the first input."""
+        return self.param("in0_scale")
+
+    @in0_scale.setter
+    def in0_scale(self, in0_scale: int) -> None:
+        """Set the right-shift amount applied to the first input."""
+        if not isinstance(in0_scale, int):
+            raise TypeError("in0_scale must be an int")
+        if in0_scale < 0:
+            raise ValueError("in0_scale must be non-negative")
+        self.set_param("in0_scale", in0_scale)
+
+    @property
+    def in1_scale(self) -> int:
+        """Get the right-shift amount applied to the second input."""
+        return self.param("in1_scale")
+
+    @in1_scale.setter
+    def in1_scale(self, in1_scale: int) -> None:
+        """Set the right-shift amount applied to the second input."""
+        if not isinstance(in1_scale, int):
+            raise TypeError("in1_scale must be an int")
+        if in1_scale < 0:
+            raise ValueError("in1_scale must be non-negative")
+        self.set_param("in1_scale", in1_scale)
+
+    @property
+    def out0_scale(self) -> int:
         """
         Get the right-shift amount applied to the output.
         """
-        return self.param("shift_output")
+        return self.param("out0_scale")
 
-    @shift_output.setter
-    def shift_output(self, shift_output: int) -> None:
+    @out0_scale.setter
+    def out0_scale(self, out0_scale: int) -> None:
         """
         Set the right-shift amount applied to the output.
 
         Parameters
         ----------
-        shift_output : int
+        out0_scale : int
             Right-shift amount for the output result.
         """
-        if not isinstance(shift_output, int):
-            raise TypeError("shift_output must be an int")
-        if shift_output < 0:
-            raise ValueError("shift_output must be non-negative")
-        self.set_param("shift_output", shift_output)
+        if not isinstance(out0_scale, int):
+            raise TypeError("out0_scale must be an int")
+        if out0_scale < 0:
+            raise ValueError("out0_scale must be non-negative")
+        self.set_param("out0_scale", out0_scale)
+
+    @property
+    def is_swappable(self) -> bool:
+        return self.in0_scale == self.in1_scale and not self.mul_j
 
     def evaluate(self, a, b, data_type=None) -> Num:
+        if self.in0_scale:
+            if isinstance(a, (apy.APyFixed, apy.APyCFixed)):
+                a = self._cast_to_data_type(a >> self.in0_scale, data_type)
+            else:
+                a = a / 2**self.in0_scale
+        if self.in1_scale:
+            if isinstance(b, (apy.APyFixed, apy.APyCFixed)):
+                b = self._cast_to_data_type(b >> self.in1_scale, data_type)
+            else:
+                b = b / 2**self.in1_scale
         if self.mul_j:
             if isinstance(b, apy.APyCFixed):
                 b *= apy.fx(1j, 2, 0)
             else:
                 b *= 1j
         res = a + b
-        if self.shift_output != 0:
+        if self.out0_scale != 0:
             if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
-                res = res >> self.shift_output
+                res = res >> self.out0_scale
             else:
-                res = res / (2**self.shift_output)
+                res = res / (2**self.out0_scale)
         return self._cast_to_data_type(res, data_type)
 
     def _rewrite_AddSub(self) -> "SFG":
@@ -358,28 +414,9 @@ class Addition(AbstractOperation):
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
             mul_j=self.mul_j,
-            shift_output=self.shift_output,
-        )
-        out0 <<= addsub
-        return SFG([in0, in1], [out0])
-
-    def _rewrite_ShiftAddSub(self) -> "SFG":
-        from b_asic.sfg import SFG  # noqa: PLC0415
-        from b_asic.special_operations import Input, Output  # noqa: PLC0415
-
-        in0 = Input()
-        in1 = Input()
-        out0 = Output()
-        addsub = ShiftAddSub(
-            is_add=True,
-            shift=0,
-            in0=in0,
-            in1=in1,
-            name=self.name,
-            latency_offsets=self.latency_offsets,
-            execution_time=self.execution_time,
-            mul_j=self.mul_j,
-            shift_output=self.shift_output,
+            out0_scale=self.out0_scale,
+            in0_scale=self.in0_scale,
+            in1_scale=self.in1_scale,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
@@ -391,7 +428,7 @@ class Subtraction(AbstractOperation):
 
     Gives the result of subtracting the second input from the first one.
 
-    .. math:: y = x_0 - x_1
+    .. math:: y = (2^{-s_0} x_0 - 2^{-s_1} x_1) 2^{-s_y}
 
     Parameters
     ----------
@@ -412,8 +449,10 @@ class Subtraction(AbstractOperation):
         reused).
     mul_j : bool, default: False
         If True, *in1* is multiplied by j before the subtraction.
-    shift_output : int, default: 0
+    out0_scale : int, default: 0
         Right-shift amount applied to the output result.
+    in0_scale, in1_scale : int, default: 0
+        Right-shift amounts applied independently to the inputs before subtraction.
 
     See Also
     --------
@@ -425,12 +464,14 @@ class Subtraction(AbstractOperation):
     __slots__ = (
         "_execution_time",
         "_in0",
+        "_in0_scale",
         "_in1",
+        "_in1_scale",
         "_latency",
         "_latency_offsets",
         "_mul_j",
         "_name",
-        "_shift_output",
+        "_out0_scale",
     )
     _in0: SignalSourceProvider | None
     _in1: SignalSourceProvider | None
@@ -439,7 +480,9 @@ class Subtraction(AbstractOperation):
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
     _mul_j: bool
-    _shift_output: int
+    _in0_scale: int
+    _in1_scale: int
+    _out0_scale: int
 
     def __init__(
         self,
@@ -450,7 +493,9 @@ class Subtraction(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         mul_j: bool = False,
-        shift_output: int = 0,
+        out0_scale: int = 0,
+        in0_scale: int = 0,
+        in1_scale: int = 0,
     ) -> None:
         """
         Construct a Subtraction operation.
@@ -465,7 +510,9 @@ class Subtraction(AbstractOperation):
             execution_time=execution_time,
         )
         self.set_param("mul_j", mul_j)
-        self.set_param("shift_output", shift_output)
+        self.in0_scale = in0_scale
+        self.in1_scale = in1_scale
+        self.out0_scale = out0_scale
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -473,12 +520,17 @@ class Subtraction(AbstractOperation):
 
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
+        in0 = inputs[0]
         in1 = inputs[1]
+        if self.in0_scale:
+            in0 = f"({in0} >> {self.in0_scale})"
+        if self.in1_scale:
+            in1 = f"({in1} >> {self.in1_scale})"
         if self.mul_j:
             in1 = f"j * {in1}"
-        expr = f"{inputs[0]} - {in1}"
-        if self.shift_output != 0:
-            return f"({expr}) >> {self.shift_output}"
+        expr = f"{in0} - {in1}"
+        if self.out0_scale != 0:
+            return f"({expr}) >> {self.out0_scale}"
         return expr
 
     @property
@@ -501,40 +553,78 @@ class Subtraction(AbstractOperation):
         self.set_param("mul_j", mul_j)
 
     @property
-    def shift_output(self) -> int:
+    def in0_scale(self) -> int:
+        """Get the right-shift amount applied to the first input."""
+        return self.param("in0_scale")
+
+    @in0_scale.setter
+    def in0_scale(self, in0_scale: int) -> None:
+        """Set the right-shift amount applied to the first input."""
+        if not isinstance(in0_scale, int):
+            raise TypeError("in0_scale must be an int")
+        if in0_scale < 0:
+            raise ValueError("in0_scale must be non-negative")
+        self.set_param("in0_scale", in0_scale)
+
+    @property
+    def in1_scale(self) -> int:
+        """Get the right-shift amount applied to the second input."""
+        return self.param("in1_scale")
+
+    @in1_scale.setter
+    def in1_scale(self, in1_scale: int) -> None:
+        """Set the right-shift amount applied to the second input."""
+        if not isinstance(in1_scale, int):
+            raise TypeError("in1_scale must be an int")
+        if in1_scale < 0:
+            raise ValueError("in1_scale must be non-negative")
+        self.set_param("in1_scale", in1_scale)
+
+    @property
+    def out0_scale(self) -> int:
         """
         Get the right-shift amount applied to the output.
         """
-        return self.param("shift_output")
+        return self.param("out0_scale")
 
-    @shift_output.setter
-    def shift_output(self, shift_output: int) -> None:
+    @out0_scale.setter
+    def out0_scale(self, out0_scale: int) -> None:
         """
         Set the right-shift amount applied to the output.
 
         Parameters
         ----------
-        shift_output : int
+        out0_scale : int
             Right-shift amount for the output result.
         """
-        if not isinstance(shift_output, int):
-            raise TypeError("shift_output must be an int")
-        if shift_output < 0:
-            raise ValueError("shift_output must be non-negative")
-        self.set_param("shift_output", shift_output)
+        if not isinstance(out0_scale, int):
+            raise TypeError("out0_scale must be an int")
+        if out0_scale < 0:
+            raise ValueError("out0_scale must be non-negative")
+        self.set_param("out0_scale", out0_scale)
 
     def evaluate(self, a, b, data_type=None) -> Num:
+        if self.in0_scale:
+            if isinstance(a, (apy.APyFixed, apy.APyCFixed)):
+                a = self._cast_to_data_type(a >> self.in0_scale, data_type)
+            else:
+                a = a / 2**self.in0_scale
+        if self.in1_scale:
+            if isinstance(b, (apy.APyFixed, apy.APyCFixed)):
+                b = self._cast_to_data_type(b >> self.in1_scale, data_type)
+            else:
+                b = b / 2**self.in1_scale
         if self.mul_j:
             if isinstance(b, apy.APyCFixed):
                 b *= apy.fx(1j, 2, 0)
             else:
                 b *= 1j
         res = a - b
-        if self.shift_output != 0:
+        if self.out0_scale != 0:
             if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
-                res = res >> self.shift_output
+                res = res >> self.out0_scale
             else:
-                res = res / (2**self.shift_output)
+                res = res / (2**self.out0_scale)
         return self._cast_to_data_type(res, data_type)
 
     def _rewrite_AddSub(self) -> "SFG":
@@ -552,28 +642,9 @@ class Subtraction(AbstractOperation):
             latency_offsets=self.latency_offsets,
             execution_time=self.execution_time,
             mul_j=self.mul_j,
-            shift_output=self.shift_output,
-        )
-        out0 <<= addsub
-        return SFG([in0, in1], [out0])
-
-    def _rewrite_ShiftAddSub(self) -> "SFG":
-        from b_asic.sfg import SFG  # noqa: PLC0415
-        from b_asic.special_operations import Input, Output  # noqa: PLC0415
-
-        in0 = Input()
-        in1 = Input()
-        out0 = Output()
-        addsub = ShiftAddSub(
-            is_add=False,
-            shift=0,
-            in0=in0,
-            in1=in1,
-            name=self.name,
-            latency_offsets=self.latency_offsets,
-            execution_time=self.execution_time,
-            mul_j=self.mul_j,
-            shift_output=self.shift_output,
+            out0_scale=self.out0_scale,
+            in0_scale=self.in0_scale,
+            in1_scale=self.in1_scale,
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
@@ -587,8 +658,8 @@ class AddSub(AbstractOperation):
 
     .. math::
         y = \begin{cases}
-        x_0 + x_1,& \text{is_add} = \text{True}\\
-        x_0 - x_1,& \text{is_add} = \text{False}
+        (2^{-s_0} x_0 + 2^{-s_1} x_1) 2^{-s_y},& \text{is_add} = \text{True}\\
+        (2^{-s_0} x_0 - 2^{-s_1} x_1) 2^{-s_y},& \text{is_add} = \text{False}
         \end{cases}
 
     This is used to later map additions and subtractions to the same
@@ -615,24 +686,28 @@ class AddSub(AbstractOperation):
         reused).
     mul_j : bool, default: False
         If True, *in1* is multiplied by j before the addition/subtraction.
-    shift_output : int, default: 0
+    out0_scale : int, default: 0
         Right-shift amount applied to the output result.
+    in0_scale, in1_scale : int, default: 0
+        Right-shift amounts applied independently to the inputs before arithmetic.
 
     See Also
     --------
-    Addition, Subtraction, ShiftAddSub
+    Addition, Subtraction
     """
 
     __slots__ = (
         "_execution_time",
         "_in0",
+        "_in0_scale",
         "_in1",
+        "_in1_scale",
         "_is_add",
         "_latency",
         "_latency_offsets",
         "_mul_j",
         "_name",
-        "_shift_output",
+        "_out0_scale",
     )
     _is_add: bool
     _in0: SignalSourceProvider | None
@@ -642,7 +717,9 @@ class AddSub(AbstractOperation):
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
     _mul_j: bool
-    _shift_output: int
+    _in0_scale: int
+    _in1_scale: int
+    _out0_scale: int
 
     is_linear = True
 
@@ -656,7 +733,9 @@ class AddSub(AbstractOperation):
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
         mul_j: bool = False,
-        shift_output: int = 0,
+        out0_scale: int = 0,
+        in0_scale: int = 0,
+        in1_scale: int = 0,
     ) -> None:
         """
         Construct an Addition/Subtraction operation.
@@ -672,7 +751,9 @@ class AddSub(AbstractOperation):
         )
         self.set_param("is_add", is_add)
         self.set_param("mul_j", mul_j)
-        self.set_param("shift_output", shift_output)
+        self.in0_scale = in0_scale
+        self.in1_scale = in1_scale
+        self.out0_scale = out0_scale
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -681,26 +762,41 @@ class AddSub(AbstractOperation):
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
         op = "+" if self.is_add else "-"
+        in0 = inputs[0]
         in1 = inputs[1]
+        if self.in0_scale:
+            in0 = f"({in0} >> {self.in0_scale})"
+        if self.in1_scale:
+            in1 = f"({in1} >> {self.in1_scale})"
         if self.mul_j:
             in1 = f"j * {in1}"
-        expr = f"{inputs[0]} {op} {in1}"
-        if self.shift_output != 0:
-            return f"({expr}) >> {self.shift_output}"
+        expr = f"{in0} {op} {in1}"
+        if self.out0_scale != 0:
+            return f"({expr}) >> {self.out0_scale}"
         return expr
 
     def evaluate(self, a, b, data_type=None) -> Num:
+        if self.in0_scale:
+            if isinstance(a, (apy.APyFixed, apy.APyCFixed)):
+                a = self._cast_to_data_type(a >> self.in0_scale, data_type)
+            else:
+                a = a / 2**self.in0_scale
+        if self.in1_scale:
+            if isinstance(b, (apy.APyFixed, apy.APyCFixed)):
+                b = self._cast_to_data_type(b >> self.in1_scale, data_type)
+            else:
+                b = b / 2**self.in1_scale
         if self.mul_j:
             if isinstance(b, apy.APyCFixed):
                 b *= apy.fx(1j, 2, 0)
             else:
                 b *= 1j
         res = a + b if self.is_add else a - b
-        if self.shift_output != 0:
+        if self.out0_scale != 0:
             if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
-                res = res >> self.shift_output
+                res = res >> self.out0_scale
             else:
-                res = res / (2**self.shift_output)
+                res = res / (2**self.out0_scale)
         return self._cast_to_data_type(res, data_type)
 
     @property
@@ -742,279 +838,59 @@ class AddSub(AbstractOperation):
         self.set_param("mul_j", mul_j)
 
     @property
-    def shift_output(self) -> int:
+    def in0_scale(self) -> int:
+        """Get the right-shift amount applied to the first input."""
+        return self.param("in0_scale")
+
+    @in0_scale.setter
+    def in0_scale(self, in0_scale: int) -> None:
+        """Set the right-shift amount applied to the first input."""
+        if not isinstance(in0_scale, int):
+            raise TypeError("in0_scale must be an int")
+        if in0_scale < 0:
+            raise ValueError("in0_scale must be non-negative")
+        self.set_param("in0_scale", in0_scale)
+
+    @property
+    def in1_scale(self) -> int:
+        """Get the right-shift amount applied to the second input."""
+        return self.param("in1_scale")
+
+    @in1_scale.setter
+    def in1_scale(self, in1_scale: int) -> None:
+        """Set the right-shift amount applied to the second input."""
+        if not isinstance(in1_scale, int):
+            raise TypeError("in1_scale must be an int")
+        if in1_scale < 0:
+            raise ValueError("in1_scale must be non-negative")
+        self.set_param("in1_scale", in1_scale)
+
+    @property
+    def out0_scale(self) -> int:
         """
         Get the right-shift amount applied to the output.
         """
-        return self.param("shift_output")
+        return self.param("out0_scale")
 
-    @shift_output.setter
-    def shift_output(self, shift_output: int) -> None:
+    @out0_scale.setter
+    def out0_scale(self, out0_scale: int) -> None:
         """
         Set the right-shift amount applied to the output.
 
         Parameters
         ----------
-        shift_output : int
+        out0_scale : int
             Right-shift amount for the output result.
         """
-        if not isinstance(shift_output, int):
-            raise TypeError("shift_output must be an int")
-        if shift_output < 0:
-            raise ValueError("shift_output must be non-negative")
-        self.set_param("shift_output", shift_output)
+        if not isinstance(out0_scale, int):
+            raise TypeError("out0_scale must be an int")
+        if out0_scale < 0:
+            raise ValueError("out0_scale must be non-negative")
+        self.set_param("out0_scale", out0_scale)
 
     @property
     def is_swappable(self) -> bool:
-        return self.is_add
-
-    def _rewrite_ShiftAddSub(self) -> "SFG":
-        from b_asic.sfg import SFG  # noqa: PLC0415
-        from b_asic.special_operations import Input, Output  # noqa: PLC0415
-
-        in0 = Input()
-        in1 = Input()
-        out0 = Output()
-        addsub = ShiftAddSub(
-            is_add=self.is_add,
-            shift=0,
-            in0=in0,
-            in1=in1,
-            name=self.name,
-            latency_offsets=self.latency_offsets,
-            execution_time=self.execution_time,
-            mul_j=self.mul_j,
-            shift_output=self.shift_output,
-        )
-        out0 <<= addsub
-        return SFG([in0, in1], [out0])
-
-
-class ShiftAddSub(AbstractOperation):
-    r"""
-    Two-input addition or subtraction operation with right-shift for the second operand.
-
-    .. math::
-        y = \begin{cases}
-        x_0 + x_1 \gg \text{shift},& \text{is_add} = \text{True}\\
-        x_0 - x_1 \gg \text{shift},& \text{is_add} = \text{False}
-        \end{cases}
-
-    This is used to map additions and subtractions to the same
-    operator.
-
-    Parameters
-    ----------
-    in0, in1 : SignalSourceProvider, optional
-        The two signals to add or subtract.
-    is_add : bool, default: True
-        If True, the operation is an addition, if False, a subtraction.
-    shift : int, default: 0
-        The right-shift amount.
-    name : Name, optional
-        Operation name.
-    latency : int, optional
-        Operation latency (delay from input to output in time units).
-    latency_offsets : dict[str, int], optional
-        Used if inputs have different arrival times, e.g.,
-        ``{"in0": 0, "in1": 1}`` which corresponds to *in1* arriving one
-        time unit later than *in0*. If not provided and *latency* is
-        provided, set to zero if not explicitly provided. So the previous
-        example can be written as ``{"in1": 1}`` only.
-    execution_time : int, optional
-        Operation execution time (time units before operator can be
-        reused).
-    mul_j : bool, default: False
-        If True, *in1* is multiplied by j before the addition/subtraction.
-    shift_output : int, default: 0
-        Right-shift amount applied to the output result.
-
-    See Also
-    --------
-    Addition, Subtraction, AddSub
-    """
-
-    __slots__ = (
-        "_execution_time",
-        "_in0",
-        "_in1",
-        "_is_add",
-        "_latency",
-        "_latency_offsets",
-        "_mul_j",
-        "_name",
-        "_shift",
-        "_shift_output",
-    )
-    _is_add: bool
-    _in0: SignalSourceProvider | None
-    _in1: SignalSourceProvider | None
-    _name: Name
-    _latency: int | None
-    _latency_offsets: dict[str, int] | None
-    _execution_time: int | None
-    _shift: int
-    _mul_j: bool
-    _shift_output: int
-
-    is_linear = True
-
-    def __init__(
-        self,
-        in0: SignalSourceProvider | None = None,
-        in1: SignalSourceProvider | None = None,
-        is_add: bool = True,
-        shift: int = 0,
-        name: Name = Name(""),
-        latency: int | None = None,
-        latency_offsets: dict[str, int] | None = None,
-        execution_time: int | None = None,
-        mul_j: bool = False,
-        shift_output: int = 0,
-    ) -> None:
-        """
-        Construct an Addition/Subtraction operation.
-        """
-        super().__init__(
-            input_count=2,
-            output_count=1,
-            name=Name(name),
-            input_sources=[in0, in1],
-            latency=latency,
-            latency_offsets=latency_offsets,
-            execution_time=execution_time,
-        )
-        self.is_add = is_add
-        self.shift = shift
-        self.mul_j = mul_j
-        self.shift_output = shift_output
-
-    @classmethod
-    def type_name(cls) -> TypeName:
-        return TypeName("shiftaddsub")
-
-    def _expr(self, recursive: bool = False) -> str:
-        inputs = self._get_input_representations(recursive)
-        op = "+" if self.is_add else "-"
-        in1 = inputs[1]
-        if self.shift != 0:
-            in1 = f"({in1} >> {self.shift})"
-        if self.mul_j:
-            in1 = f"j * {in1}"
-        expr = f"{inputs[0]} {op} {in1}"
-        if self.shift_output != 0:
-            return f"({expr}) >> {self.shift_output}"
-        return expr
-
-    def evaluate(self, a, b, data_type=None) -> Num:
-        if isinstance(b, (apy.APyFixed, apy.APyCFixed)):
-            if data_type is not None:
-                b = self._cast_to_data_type(b >> self.shift, data_type)
-            else:
-                b = b >> self.shift
-        else:
-            b /= 2**self.shift
-        if self.mul_j:
-            if isinstance(b, apy.APyCFixed):
-                b *= apy.fx(1j, 2, 0)
-            else:
-                b *= 1j
-        res = a + b if self.is_add else a - b
-        if self.shift_output != 0:
-            if isinstance(res, (apy.APyFixed, apy.APyCFixed)):
-                res = res >> self.shift_output
-            else:
-                res = res / (2**self.shift_output)
-        return self._cast_to_data_type(res, data_type)
-
-    @property
-    def is_add(self) -> bool:
-        """
-        Get if operation is an addition.
-        """
-        return self.param("is_add")
-
-    @property
-    def shift(self) -> int:
-        return self.param("shift")
-
-    @property
-    def mul_j(self) -> bool:
-        """
-        Get if *in1* is multiplied by j before the shift and addition/subtraction.
-        """
-        return self.param("mul_j")
-
-    @property
-    def shift_output(self) -> int:
-        """
-        Get the right-shift amount applied to the output.
-        """
-        return self.param("shift_output")
-
-    @is_add.setter
-    def is_add(self, is_add: bool) -> None:
-        """
-        Set if operation is an addition.
-
-        Parameters
-        ----------
-        is_add : bool
-            If True, operation is an addition. If False, operation is a subtraction.
-        """
-        if not isinstance(is_add, bool):
-            raise TypeError("is_add must be a bool")
-        self.set_param("is_add", is_add)
-
-    @shift.setter
-    def shift(self, shift: int) -> None:
-        """
-        Set the number of steps to shift *in1*.
-
-        Parameters
-        ----------
-        shift : int
-            The number of steps to shift *in1*.
-        """
-        if not isinstance(shift, int):
-            raise TypeError("shift must be an int")
-        if shift < 0:
-            raise ValueError("shift must be non-negative")
-        self.set_param("shift", shift)
-
-    @mul_j.setter
-    def mul_j(self, mul_j: bool) -> None:
-        """
-        Set if *in1* is multiplied by j before the shift and addition/subtraction.
-
-        Parameters
-        ----------
-        mul_j : bool
-            Whether *in1* is multiplied by j before the shift and addition/subtraction.
-        """
-        if not isinstance(mul_j, bool):
-            raise TypeError("mul_j must be a bool")
-        self.set_param("mul_j", mul_j)
-
-    @shift_output.setter
-    def shift_output(self, shift_output: int) -> None:
-        """
-        Set the right-shift amount applied to the output.
-
-        Parameters
-        ----------
-        shift_output : int
-            Right-shift amount for the output result.
-        """
-        if not isinstance(shift_output, int):
-            raise TypeError("shift_output must be an int")
-        if shift_output < 0:
-            raise ValueError("shift_output must be non-negative")
-        self.set_param("shift_output", shift_output)
-
-    @property
-    def is_swappable(self) -> bool:
-        return self.is_add and self.shift == 0
+        return self.is_add and self.in0_scale == self.in1_scale and not self.mul_j
 
 
 class Multiplication(AbstractOperation):
@@ -1603,53 +1479,50 @@ class ImaginaryMultiplication(AbstractOperation):
         from b_asic.sfg import SFG  # noqa: PLC0415
         from b_asic.special_operations import Input, Output  # noqa: PLC0415
 
-        if not isinstance(other, (Addition, Subtraction, AddSub, ShiftAddSub)):
+        if not isinstance(other, (Addition, Subtraction, AddSub)):
             return None
 
         in0 = Input()
         in1 = Input()
         out0 = Output()
-        if other.mul_j:
-            in1 = -in1
+        second_input = -in1 if other.mul_j else in1
 
         if isinstance(other, Addition):
             op = Addition(
                 in0=in0,
-                in1=in1,
+                in1=second_input,
                 name=self.name,
                 latency_offsets=self.latency_offsets,
                 execution_time=self.execution_time,
                 mul_j=not other.mul_j,
+                in0_scale=other.in0_scale,
+                in1_scale=other.in1_scale,
+                out0_scale=other.out0_scale,
             )
         elif isinstance(other, Subtraction):
             op = Subtraction(
                 in0=in0,
-                in1=in1,
+                in1=second_input,
                 name=self.name,
                 latency_offsets=self.latency_offsets,
                 execution_time=self.execution_time,
                 mul_j=not other.mul_j,
+                in0_scale=other.in0_scale,
+                in1_scale=other.in1_scale,
+                out0_scale=other.out0_scale,
             )
         elif isinstance(other, AddSub):
             op = AddSub(
                 in0=in0,
-                in1=in1,
+                in1=second_input,
                 is_add=other.is_add,
                 name=self.name,
                 latency_offsets=self.latency_offsets,
                 execution_time=self.execution_time,
                 mul_j=not other.mul_j,
-            )
-        elif isinstance(other, ShiftAddSub):
-            op = ShiftAddSub(
-                in0=in0,
-                in1=in1,
-                is_add=other.is_add,
-                shift=other.shift,
-                name=self.name,
-                latency_offsets=self.latency_offsets,
-                execution_time=self.execution_time,
-                mul_j=not other.mul_j,
+                in0_scale=other.in0_scale,
+                in1_scale=other.in1_scale,
+                out0_scale=other.out0_scale,
             )
         out0 <<= op
         return SFG([in0, in1], [out0])
@@ -1745,7 +1618,7 @@ class ConstantMultiplication(AbstractOperation):
         """Set the constant value of this operation."""
         self.set_param("value", value)
 
-    def _rewrite_ShiftAddSub(self) -> "SFG":
+    def _rewrite_AddSub(self) -> "SFG":
         from b_asic.sfg import SFG  # noqa: PLC0415
         from b_asic.special_operations import Input, Output  # noqa: PLC0415
 
@@ -1784,11 +1657,11 @@ class ConstantMultiplication(AbstractOperation):
                             prev_op = Negation(prev_op)
                 else:
                     # Subsequent digits: add or subtract from accumulated result
-                    prev_op = ShiftAddSub(
+                    prev_op = AddSub(
                         is_add=digit == 1,
-                        shift=-exp,
+                        in1_scale=max(0, -exp),
                         in0=prev_op,
-                        in1=in0,
+                        in1=Shift(-exp, in0) if exp > 0 else in0,
                     )
 
         out0 <<= prev_op
@@ -2501,70 +2374,43 @@ class Shift(AbstractOperation):
             raise TypeError("value must be an int")
         self.set_param("value", value)
 
-    def _combine_Addition(self) -> "ShiftAddSub":
-        from b_asic.core_operations import ShiftAddSub  # noqa: PLC0415
+    def _combine_Addition(self) -> "AddSub":
+        return self._combine_addsub(Addition)
 
+    def _combine_Subtraction(self) -> "AddSub":
+        return self._combine_addsub(Subtraction)
+
+    def _combine_AddSub(self) -> "AddSub":
+        return self._combine_addsub(AddSub)
+
+    def _combine_addsub(
+        self, operation_type: type[Addition | Subtraction | AddSub]
+    ) -> "AddSub":
         if len(self.output(0).signals) != 1:
             raise ValueError("Output of Shift must only connect to one operation")
         dest_port = self.output(0).signals[0].destination
-        add_op = dest_port.operation
-
-        if not isinstance(add_op, Addition):
-            raise TypeError("Output of Shift must connect to an Addition operation")
-
-        if not dest_port.index == 1:
-            raise ValueError(
-                "Shift can only be combined with the second input of Addition"
+        arithmetic = dest_port.operation
+        if not isinstance(arithmetic, operation_type):
+            raise TypeError(
+                f"Output of Shift must connect to an {operation_type.__name__} operation"
             )
-
-        return ShiftAddSub(
-            shift=self.value,
-            in0=self.input(0).connected_source,
-            in1=add_op.input(1).connected_source,
-        )
-
-    def _combine_Subtraction(self) -> "ShiftAddSub":
-        from b_asic.core_operations import ShiftAddSub  # noqa: PLC0415
-
-        if len(self.output(0).signals) != 1:
-            raise ValueError("Output of Shift must only connect to one operation")
-        dest_port = self.output(0).signals[0].destination
-        sub_op = dest_port.operation
-
-        if not isinstance(sub_op, Subtraction):
-            raise TypeError("Output of Shift must connect to a Subtraction operation")
-
-        if not dest_port.index == 1:
-            raise ValueError(
-                "Shift can only be combined with the second input of Subtraction"
-            )
-
-        return ShiftAddSub(
-            is_add=False,
-            shift=self.value,
-            in0=self.input(0).connected_source,
-            in1=sub_op.input(1).connected_source,
-        )
-
-    def _combine_AddSub(self) -> "ShiftAddSub":
-        from b_asic.core_operations import ShiftAddSub  # noqa: PLC0415
-
-        if len(self.output(0).signals) != 1:
-            raise ValueError("Output of Shift must only connect to one operation")
-        dest_port = self.output(0).signals[0].destination
-        addsub_op = dest_port.operation
-
-        if not isinstance(addsub_op, ShiftAddSub):
-            raise TypeError("Output of Shift must connect to a ShiftAddSub operation")
-
-        if not dest_port.index == 1:
-            raise ValueError(
-                "Shift can only be combined with the second input of ShiftAddSub"
-            )
-
-        return ShiftAddSub(
-            is_add=addsub_op.is_add,
-            shift=self.value + addsub_op.shift,
-            in0=self.input(0).connected_source,
-            in1=addsub_op.input(1).connected_source,
+        if self.value < 0:
+            raise ValueError("Left shifts must remain separate operations")
+        scales = [arithmetic.in0_scale, arithmetic.in1_scale]
+        scales[dest_port.index] += self.value
+        sources = [port.connected_source for port in arithmetic.inputs]
+        sources[dest_port.index] = self.input(0).connected_source
+        return AddSub(
+            is_add=arithmetic.is_add
+            if isinstance(arithmetic, AddSub)
+            else isinstance(arithmetic, Addition),
+            in0=sources[0],
+            in1=sources[1],
+            name=arithmetic.name,
+            latency_offsets=arithmetic.latency_offsets,
+            execution_time=arithmetic.execution_time,
+            mul_j=arithmetic.mul_j,
+            in0_scale=scales[0],
+            in1_scale=scales[1],
+            out0_scale=arithmetic.out0_scale,
         )
