@@ -762,7 +762,7 @@ class SFGMainWindow(QMainWindow):
             self.update_statusbar(f"{item.text()} added.")
         except Exception as e:
             self._logger.error(
-                "Unexpected error occurred while creating operation: %d", e
+                "Unexpected error occurred while creating operation: %s", e
             )
 
     def _refresh_operations_list_from_namespace(self) -> None:
@@ -905,7 +905,8 @@ class SFGMainWindow(QMainWindow):
             self._sim_worker[sfg].moveToThread(self._thread[sfg])
             self._thread[sfg].started.connect(self._sim_worker[sfg].start_simulation)
             self._sim_worker[sfg].finished.connect(self._thread[sfg].quit)
-            self._sim_worker[sfg].finished.connect(self._show_plot_window)
+            if properties["show_plot"]:
+                self._sim_worker[sfg].finished.connect(self._show_plot_window)
             self._sim_worker[sfg].finished.connect(self._sim_worker[sfg].deleteLater)
             self._thread[sfg].finished.connect(self._thread[sfg].deleteLater)
             self._thread[sfg].start()
