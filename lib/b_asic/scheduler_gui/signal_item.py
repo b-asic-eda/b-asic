@@ -5,7 +5,7 @@ Contains the scheduler_gui SignalItem class for drawing and maintaining a signal
 in the schedule.
 """
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QPointF
 from qtpy.QtGui import QPainterPath, QPen
@@ -14,12 +14,12 @@ from qtpy.QtWidgets import QGraphicsPathItem
 # B-ASIC
 from b_asic.scheduler_gui._preferences import (
     ACTIVE_COLOR_TYPE,
-    SCHEDULE_INDENT,
     SIGNAL_COLOR_TYPE,
     SIGNAL_WARNING_COLOR_TYPE,
     SIGNAL_WIDTH,
     SIGNAL_WIDTH_ACTIVE,
     SIGNAL_WIDTH_WARNING,
+    ColorDataType,
 )
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.signal import Signal
@@ -75,28 +75,27 @@ class SignalItem(QGraphicsPathItem):
         """
         source_point = self._src_operation.get_port_location(self._src_key)
         dest_point = self._dest_operation.get_port_location(self._dest_key)
-        path = QPainterPath()
-        path.moveTo(source_point)
+        path = QPainterPath(source_point)
         source_x = source_point.x()
         source_y = source_point.y()
         dest_x = dest_point.x()
         dest_y = dest_point.y()
-        wraps = dest_x - source_x <= -0.1
         if schedule is None:
-            schedule = cast("SchedulerItem", self.parentItem()).schedule
-        else:
-            # A drag preview has the positions that will be committed on drop.
-            source_time = schedule.start_time_of_operation(
-                self._src_operation.graph_id
-            ) + cast(int, self._signal.source.latency_offset)
-            dest_time = schedule.start_time_of_operation(
-                self._dest_operation.graph_id
-            ) + cast(int, self._signal.destination.latency_offset)
-            wraps = dest_time < source_time
-        if wraps or schedule._laps[self._signal.graph_id]:
-            offset = SCHEDULE_INDENT  # TODO: Get from parent/axes...
+            schedule = self._parent.schedule
+        # Boundary aliases (an input at T drawn at 0, or an output at 0 drawn
+        # at T) change the displayed lap count. Preserve the signal's lifetime
+        # rather than using the stored laps with different endpoint coordinates.
+        lifetime = schedule._input_slacks(self._signal.destination)[self._signal]
+        displayed_gap = dest_x - source_x
+        wraps = displayed_gap < -1e-9 or (
+            schedule.cyclic
+            and schedule.schedule_time > 0
+            and lifetime - displayed_gap >= schedule.schedule_time - 1e-9
+        )
+        if wraps:
+            offset = self._parent._x_axis_indent
             path.lineTo(schedule.schedule_time + offset, source_y)
-            path.moveTo(0 + offset, dest_y)
+            path.moveTo(offset, dest_y)
             path.lineTo(dest_x, dest_y)
         else:
             if abs(source_x - dest_x) <= 0.1:  # "== 0"
@@ -112,26 +111,15 @@ class SignalItem(QGraphicsPathItem):
 
     def _refresh_pens(self) -> None:
         """Create pens."""
-        if ACTIVE_COLOR_TYPE.changed:
-            pen = QPen(ACTIVE_COLOR_TYPE.current_color)
-        else:
-            pen = QPen(ACTIVE_COLOR_TYPE.DEFAULT)
-        pen.setWidthF(SIGNAL_WIDTH_ACTIVE)
-        self._active_pen = pen
 
-        if SIGNAL_COLOR_TYPE.changed:
-            pen = QPen(SIGNAL_COLOR_TYPE.current_color)
-        else:
-            pen = QPen(SIGNAL_COLOR_TYPE.DEFAULT)
-        pen.setWidthF(SIGNAL_WIDTH)
-        self._inactive_pen = pen
+        def make_pen(color: ColorDataType, width: float) -> QPen:
+            pen = QPen(color.current_color if color.changed else color.DEFAULT)
+            pen.setWidthF(width)
+            return pen
 
-        if SIGNAL_WARNING_COLOR_TYPE.changed:
-            pen = QPen(SIGNAL_WARNING_COLOR_TYPE.current_color)
-        else:
-            pen = QPen(SIGNAL_WARNING_COLOR_TYPE.DEFAULT)
-        pen.setWidthF(SIGNAL_WIDTH_WARNING)
-        self._warning_pen = pen
+        self._active_pen = make_pen(ACTIVE_COLOR_TYPE, SIGNAL_WIDTH_ACTIVE)
+        self._inactive_pen = make_pen(SIGNAL_COLOR_TYPE, SIGNAL_WIDTH)
+        self._warning_pen = make_pen(SIGNAL_WARNING_COLOR_TYPE, SIGNAL_WIDTH_WARNING)
 
     def set_active(self) -> None:
         """

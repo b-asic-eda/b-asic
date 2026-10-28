@@ -6,7 +6,6 @@ Contains the scheduler_gui SchedulerItem class for drawing and
 maintaining a schedule.
 """
 
-import math
 from collections import defaultdict
 from copy import copy
 from typing import cast
@@ -29,9 +28,7 @@ from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.scheduler_event import SchedulerEvent
 from b_asic.scheduler_gui.signal_item import SignalItem
-from b_asic.special_operations import Output
 from b_asic.types import GraphID
-from b_asic.utility_operations import Sink
 
 
 class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
@@ -121,22 +118,28 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         """
         if self.schedule is None:
             raise ValueError("No schedule installed.")
-        new_start_time = math.floor(pos) - math.floor(self._x_axis_indent)
+        new_start_time, move_time = self._operation_move(item, pos)
         slacks = self.schedule.slacks(item.graph_id)
-        op_start_time = self._display_start_time(item.graph_id)
-        if not -slacks[0] <= new_start_time - op_start_time <= slacks[1]:
+        if not -slacks[0] <= move_time <= slacks[1]:
             return False
         if self.schedule.cyclic:
             if new_start_time < -1:
                 # Moving one position before left edge => wrap
                 return False
         else:
-            if pos < 0:
+            if new_start_time < 0:
                 return False
             if new_start_time + item.operation.latency > self.schedule.schedule_time:
                 return False
 
         return True
+
+    def _operation_move(
+        self, item: OperationItem, pos: float | None = None
+    ) -> tuple[int, int]:
+        """Return the snapped start time and move used by validation, preview and drop."""
+        start_time = round((item.x() if pos is None else pos) - self._x_axis_indent)
+        return start_time, start_time - self._display_start_time(item.graph_id)
 
     def _redraw_all_lines(self) -> None:
         """Redraw all lines in schedule."""
@@ -163,8 +166,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     def _redraw_lines(self, item: OperationItem) -> None:
         """Update lines connected to *item*."""
         schedule = self.schedule
-        start_time = math.floor(item.x()) - math.floor(self._x_axis_indent)
-        move_time = start_time - self._display_start_time(item.graph_id)
+        _, move_time = self._operation_move(item)
         if move_time:
             # Preview the laps that will be committed when the item is dropped.
             schedule = copy(schedule)
@@ -248,10 +250,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         item : :class:`~b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
         """
-        pos = item.x()
-        op_start_time = self._display_start_time(item.graph_id)
-        new_start_time = math.floor(pos) - math.floor(self._x_axis_indent)
-        move_time = new_start_time - op_start_time
+        _, move_time = self._operation_move(item)
         if move_time:
             self.schedule.move_operation(item.graph_id, move_time)
             print(f"schedule.move_operation({item.graph_id!r}, {move_time})")
@@ -314,9 +313,11 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         """Return the start time on the displayed side of a cyclic boundary."""
         start_time = self.schedule.start_time_of_operation(graph_id)
         if self.schedule.cyclic:
-            operation = self._operation_items[graph_id].operation
-            if not isinstance(operation, Output | Sink):
-                start_time %= self.schedule.schedule_time
+            start_time = int(
+                self._operation_items[graph_id]._wrapped_start_time(
+                    start_time, self.schedule.schedule_time
+                )
+            )
         return start_time
 
     def _set_position(self, graph_id) -> None:
@@ -327,6 +328,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
                 graph_id, OPERATION_HEIGHT, OPERATION_GAP
             ),
         )
+        op_item._update_cycle_paths()
 
     def _redraw_from_start(self) -> None:
         self.schedule.reset_y_locations()

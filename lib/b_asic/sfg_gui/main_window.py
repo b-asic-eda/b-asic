@@ -936,7 +936,7 @@ class SFGMainWindow(QMainWindow):
     @Slot()
     def _open_documentation(self, event=None) -> None:
         """Open the documentation web page."""
-        webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
+        webbrowser.open_new_tab("https://b-asic.org/")
 
     def display_faq_page(self, event=None) -> None:
         """Display the FAQ dialog."""

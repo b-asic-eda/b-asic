@@ -6,10 +6,11 @@ Contains the scheduler_gui OperationItem class for drawing and maintain an opera
 in the schedule.
 """
 
-from typing import TYPE_CHECKING, cast
+import math
+from typing import TYPE_CHECKING, TypedDict
 
 # QGraphics and QPainter imports
-from qtpy.QtCore import QPointF, Qt
+from qtpy.QtCore import QPointF, QRectF, Qt
 from qtpy.QtGui import QBrush, QColor, QCursor, QFont, QPainterPath, QPen
 from qtpy.QtWidgets import (
     QAction,
@@ -34,10 +35,20 @@ from b_asic.scheduler_gui._preferences import (
     SIGNAL_COLOR_TYPE,
     SIGNAL_WARNING_COLOR_TYPE,
 )
+from b_asic.special_operations import Input, Output
 from b_asic.types import ShapeCoordinates
+from b_asic.utility_operations import DontCare, Sink
 
 if TYPE_CHECKING:
     from b_asic.scheduler_gui.scheduler_item import SchedulerItem
+
+
+class _Port(TypedDict):
+    """Unwrapped position and graphics belonging to one operation port."""
+
+    pos: QPointF
+    item: QGraphicsEllipseItem
+    number: QGraphicsSimpleTextItem
 
 
 class OperationItem(QGraphicsItemGroup):
@@ -58,13 +69,13 @@ class OperationItem(QGraphicsItemGroup):
     """Static, changed from MainWindow."""
     _operation: Operation
     _height: float
-    _ports: dict[str, dict[str, float | QPointF]]  # ['port-id']['latency/pos']
-    _end_time: int
+    _ports: dict[str, _Port]
+    _latency_path: QPainterPath
+    _execution_time_path: QPainterPath | None
     _latency_item: QGraphicsPathItem
     _execution_time_item: QGraphicsPathItem
     _label_item: QGraphicsSimpleTextItem
-    _port_items: list[QGraphicsEllipseItem]
-    _port_number_items: list[QGraphicsSimpleTextItem]
+    _label_center: QPointF
     _inactive_color: QColor = LATENCY_COLOR_TYPE.DEFAULT
 
     def __init__(
@@ -82,15 +93,13 @@ class OperationItem(QGraphicsItemGroup):
         self._operation = operation
         self._height = height
         operation._check_all_latencies_set()
-        latency_offsets = cast(dict[str, int], operation.latency_offsets)
-        self._ports = {k: {"latency": float(v)} for k, v in latency_offsets.items()}
-        self._end_time = max(latency_offsets.values())
-        self._port_items = []
-        self._port_number_items = []
+        self._ports = {}
+        self._execution_time_path = None
         self._parent = parent
 
         self.setFlag(QGraphicsItem.ItemIsMovable)  # mouse move events
         self.setFlag(QGraphicsItem.ItemIsSelectable)  # mouse move events
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
         # self.setAcceptHoverEvents(True)                 # mouse hover events
         self.setAcceptedMouseButtons(
             Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton
@@ -107,14 +116,6 @@ class OperationItem(QGraphicsItemGroup):
             self._port_outline_pen = QPen(SIGNAL_COLOR_TYPE.DEFAULT)
         self._port_outline_pen.setWidthF(0)
 
-        if ACTIVE_COLOR_TYPE.changed:
-            self._port_filling_brush_active = QBrush(ACTIVE_COLOR_TYPE.current_color)
-            self._port_outline_pen_active = QPen(ACTIVE_COLOR_TYPE.current_color)
-        else:
-            self._port_filling_brush_active = QBrush(ACTIVE_COLOR_TYPE.DEFAULT)
-            self._port_outline_pen_active = QPen(ACTIVE_COLOR_TYPE.DEFAULT)
-        self._port_outline_pen_active.setWidthF(0)
-
         if SIGNAL_WARNING_COLOR_TYPE.changed:
             self._port_filling_brush_warning = QBrush(
                 SIGNAL_WARNING_COLOR_TYPE.current_color
@@ -129,11 +130,14 @@ class OperationItem(QGraphicsItemGroup):
 
         self._make_component()
 
-    # def sceneEvent(self, event: QEvent) -> bool:
-    #     print(f'Component -->\t\t\t\t{event.type()}')
-    #     # event.accept()
-    #     # QApplication.sendEvent(self.scene(), event)
-    #     return True
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+            self._update_cycle_paths()
+        return super().itemChange(change, value)
+
+    def boundingRect(self) -> QRectF:
+        """Include fragments moved outside the group's original bounds."""
+        return super().boundingRect().united(self.childrenBoundingRect())
 
     def clear(self) -> None:
         """Set all children's parent to None and delete the axis."""
@@ -199,7 +203,7 @@ class OperationItem(QGraphicsItemGroup):
         QPointF
             Position of the port identified by *key*, in the parent item coordinate system.
         """
-        return self.mapToParent(self._ports[key]["pos"])
+        return self._ports[key]["item"].mapToItem(self.parentItem(), QPointF())
 
     def set_active(self) -> None:
         """Set the item as active, i.e., draw it in special colors."""
@@ -221,7 +225,10 @@ class OperationItem(QGraphicsItemGroup):
         """Set the items font settings to *font*."""
         self._label_item.prepareGeometryChange()
         self._label_item.setFont(font)
-        center = self._latency_item.boundingRect().center()
+        self._position_label()
+
+    def _position_label(self) -> None:
+        center = QPointF(self._label_center)
         center -= self._label_item.boundingRect().center() / self._scale
         self._label_item.setPos(self._latency_item.pos() + center)
 
@@ -232,12 +239,12 @@ class OperationItem(QGraphicsItemGroup):
 
     def set_show_port_numbers(self, port_number: bool = True) -> None:
         """Set if port numbers are shown."""
-        for item in self._port_number_items:
-            item.setVisible(port_number)
+        for port in self._ports.values():
+            port["number"].setVisible(port_number)
 
     def set_port_active(self, key: str) -> None:
         """Set the port as active, i.e., draw it in special colors."""
-        item = cast(QPointF, self._ports[key]["item"])
+        item = self._ports[key]["item"]
         if ACTIVE_COLOR_TYPE.changed:
             self._port_filling_brush_active = QBrush(ACTIVE_COLOR_TYPE.current_color)
             self._port_outline_pen_active = QPen(ACTIVE_COLOR_TYPE.current_color)
@@ -251,7 +258,7 @@ class OperationItem(QGraphicsItemGroup):
 
     def set_port_inactive(self, key: str, warning: bool = False) -> None:
         """Set the port as inactive, i.e., draw it in standard colors."""
-        item = cast(QPointF, self._ports[key]["item"])
+        item = self._ports[key]["item"]
         item.setBrush(
             self._port_filling_brush_warning if warning else self._port_filling_brush
         )
@@ -265,13 +272,10 @@ class OperationItem(QGraphicsItemGroup):
 
     def _make_component(self) -> None:
         """Make a new component out of the stored attributes."""
+        self._ports.clear()
         latency_outline_pen = QPen(Qt.GlobalColor.black)  # used by component outline
         latency_outline_pen.setWidthF(2 / self._scale)
-        # latency_outline_pen.setCapStyle(Qt.RoundCap)
-        # Qt.FlatCap, Qt.SquareCap (default), Qt.RoundCap
-        latency_outline_pen.setJoinStyle(
-            Qt.RoundJoin
-        )  # Qt.MiterJoin, Qt.BevelJoin (default), Qt.RoundJoin, Qt.SvgMiterJoin
+        latency_outline_pen.setJoinStyle(Qt.RoundJoin)
 
         port_size = 7 / self._scale  # the diameter of a port
 
@@ -294,15 +298,15 @@ class OperationItem(QGraphicsItemGroup):
             path.closeSubpath()
             return path
 
-        # Set the starting position
-
         latency, execution_time = self._operation.get_plot_coordinates()
         latency_path = generate_path(latency)
+        self._latency_path = latency_path
         self._latency_item = QGraphicsPathItem(latency_path)
         self._latency_item.setPen(latency_outline_pen)
 
         if execution_time:
             execution_time_path = generate_path(execution_time)
+            self._execution_time_path = execution_time_path
             self._execution_time_item = QGraphicsPathItem(execution_time_path)
             self._execution_time_item.setPen(execution_time_pen)
 
@@ -314,22 +318,16 @@ class OperationItem(QGraphicsItemGroup):
             for i, (x, y) in enumerate(io_coordinates):
                 pos = QPointF(x, y * self._height)
                 key = f"{prefix}{i}"
-                self._ports[key]["pos"] = pos
-                port_pos = self.mapToParent(pos)
                 new_port = QGraphicsEllipseItem(
                     -port_size / 2, -port_size / 2, port_size, port_size
                 )
                 new_port.setPen(self._port_outline_pen)
                 new_port.setBrush(self._port_filling_brush)
-                new_port.setPos(port_pos.x(), port_pos.y())
-                self._ports[key]["item"] = new_port
+                new_port.setPos(pos)
                 # Add port numbers
                 port_item = QGraphicsSimpleTextItem(str(i))
                 port_item.setScale(port_item.scale() / self._scale)
-                center = port_item.boundingRect().center() / self._scale
-                x_offset = center.x() if prefix == "in" else -3 * center.x()
-                port_item.setPos(QPointF(x + x_offset, y * self._height - center.y()))
-                self._port_number_items.append(port_item)
+                self._ports[key] = {"pos": pos, "item": new_port, "number": port_item}
 
         create_ports(self._operation.get_input_coordinates(), "in")
         create_ports(self._operation.get_output_coordinates(), "out")
@@ -337,21 +335,123 @@ class OperationItem(QGraphicsItemGroup):
         # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)
         self._label_item.setScale(self._label_item.scale() / self._scale)
-        center = self._latency_item.boundingRect().center()
-        center -= self._label_item.boundingRect().center() / self._scale
-        self._label_item.setPos(self._latency_item.pos() + center)
+        self._label_center = self._latency_item.boundingRect().center()
+        self._position_label()
 
         # item group, consist of component_item, port_items and execution_time_item
         self.addToGroup(self._latency_item)
         for port in self._ports.values():
             self.addToGroup(port["item"])
+            self.addToGroup(port["number"])
         self.addToGroup(self._label_item)
-        for item in self._port_number_items:
-            self.addToGroup(item)
         if execution_time:
             self.addToGroup(self._execution_time_item)
 
         self.set_inactive()
+        self._update_cycle_paths()
+
+    def _update_cycle_paths(self) -> None:
+        self.prepareGeometryChange()
+        schedule = self._parent.schedule
+        start_time = self.x() - self._parent._x_axis_indent
+        period = schedule.schedule_time if schedule.cyclic else 0
+        display_start = self._wrapped_start_time(start_time, period)
+        offset = display_start - start_time
+        preserve_boundary_shape = (
+            isinstance(self._operation, Input | DontCare)
+            and math.isclose(display_start, 0, abs_tol=1e-9)
+        ) or (
+            isinstance(self._operation, Output | Sink)
+            and math.isclose(display_start, period, abs_tol=1e-9)
+        )
+
+        def fragments(path: QPainterPath) -> list[QPainterPath]:
+            paths = (
+                [path]
+                if preserve_boundary_shape or period <= 0
+                else self._cycle_path_fragments(path, display_start, period)
+            )
+            return [fragment.translated(offset, 0) for fragment in paths]
+
+        latency_fragments = fragments(self._latency_path)
+        self._update_port_positions(start_time, display_start, period)
+
+        self._latency_item.setPath(self._combine_path_fragments(latency_fragments))
+        largest_fragment = max(
+            latency_fragments,
+            key=lambda fragment: fragment.boundingRect().width(),
+            default=self._latency_path,
+        )
+        self._label_center = largest_fragment.boundingRect().center()
+        self._position_label()
+
+        if self._execution_time_path is not None:
+            self._execution_time_item.setPath(
+                self._combine_path_fragments(fragments(self._execution_time_path))
+            )
+
+    def _wrapped_start_time(self, start_time: float, period: int) -> float:
+        """Choose the same displayed cycle during dragging and after dropping."""
+        if period <= 0:
+            return start_time
+        wrapped = start_time % period
+        if math.isclose(wrapped, 0, abs_tol=1e-9):
+            return period if isinstance(self._operation, Output | Sink) else 0
+        return wrapped
+
+    def _update_port_positions(
+        self, start_time: float, display_start: float, period: int
+    ) -> None:
+        for key, port in self._ports.items():
+            pos = port["pos"]
+            port_time = display_start + pos.x()
+            if period > 0 and (port_time > period or port_time < 0):
+                port_time %= period
+            port_x = port_time - start_time
+            port["item"].setPos(port_x, pos.y())
+
+            port_number = port["number"]
+            center = port_number.boundingRect().center() / self._scale
+            x_offset = center.x() if key.startswith("in") else -3 * center.x()
+            port_number.setPos(QPointF(port_x + x_offset, pos.y() - center.y()))
+
+    @staticmethod
+    def _cycle_path_fragments(
+        path: QPainterPath, start_time: float, period: int
+    ) -> list[QPainterPath]:
+        bounds = path.boundingRect()
+        clip = QRectF(
+            -start_time,
+            bounds.top() - 1,
+            period,
+            bounds.height() + 2,
+        )
+        clip_path = QPainterPath()
+        clip_path.addRect(clip)
+        first_cycle = math.ceil((-start_time - bounds.right()) / period)
+        last_cycle = math.floor((period - start_time - bounds.left()) / period)
+        fragments = []
+
+        for cycle in range(first_cycle, last_cycle + 1):
+            cycle_path = path.translated(cycle * period, 0)
+            fragment = (
+                cycle_path
+                if clip.contains(cycle_path.boundingRect())
+                else cycle_path.intersected(clip_path)
+            )
+            if not fragment.isEmpty() and (
+                bounds.width() == 0 or fragment.boundingRect().width() > 0
+            ):
+                fragments.append(fragment)
+
+        return fragments
+
+    @staticmethod
+    def _combine_path_fragments(fragments: list[QPainterPath]) -> QPainterPath:
+        combined_path = QPainterPath()
+        for fragment in fragments:
+            combined_path.addPath(fragment)
+        return combined_path
 
     def _open_context_menu(self) -> None:
         """Create and open context menu."""

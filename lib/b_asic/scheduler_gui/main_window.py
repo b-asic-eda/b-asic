@@ -279,7 +279,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def _open_documentation(self) -> None:
         """Open documentation web page."""
-        webbrowser.open_new_tab("https://da.gitlab-pages.liu.se/B-ASIC/")
+        webbrowser.open_new_tab("https://b-asic.org/")
 
     @Slot()
     def _action_reorder(self) -> None:
