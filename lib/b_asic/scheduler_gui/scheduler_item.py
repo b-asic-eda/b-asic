@@ -327,6 +327,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
                 graph_id, OPERATION_HEIGHT, OPERATION_GAP
             ),
         )
+        op_item._update_cycle_paths()
 
     def _redraw_from_start(self) -> None:
         self.schedule.reset_y_locations()

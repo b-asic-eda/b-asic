@@ -340,6 +340,225 @@ def test_rotate_backward(qtbot, precedence_sfg_delays):
     assert widget.statusbar.currentMessage() == "Scheduled rotated backward."
 
 
+def test_cyclic_operation_item_drawing_wraps_at_end(qtbot, precedence_sfg_delays):
+    precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type_name(
+        ConstantMultiplication.type_name(), 3
+    )
+    schedule = Schedule(precedence_sfg_delays, cyclic=True)
+    scheduler_item = SchedulerItem(schedule)
+    operation_item = max(
+        scheduler_item.components,
+        key=lambda item: item._latency_path.boundingRect().width(),
+    )
+    original_bounds = operation_item._latency_path.boundingRect()
+    period = schedule.schedule_time
+    for right_fraction in (0.25, 0.5):
+        start_time = (
+            period - original_bounds.left() - right_fraction * original_bounds.width()
+        )
+        operation_item.setX(scheduler_item._x_axis_indent + start_time)
+
+        wrapped_path = operation_item._latency_item.path()
+        wrapped_bounds = wrapped_path.boundingRect()
+        assert len(wrapped_path.toSubpathPolygons()) >= 2
+        assert wrapped_bounds.left() >= -start_time - 1e-6
+        assert wrapped_bounds.right() <= period - start_time + 1e-6
+
+        label_center = operation_item._label_item.mapToParent(
+            operation_item._label_item.boundingRect().center()
+        )
+        label_time = start_time + label_center.x()
+        left_width = (1 - right_fraction) * original_bounds.width()
+        right_width = right_fraction * original_bounds.width()
+        expected_label_time = (
+            left_width / 2 if left_width >= right_width else period - right_width / 2
+        )
+        assert label_time == pytest.approx(expected_label_time)
+
+
+@pytest.mark.parametrize(
+    "operation_type", [ConstantMultiplication, Input, Output, Sink]
+)
+def test_cyclic_operation_at_schedule_time_draws_on_expected_side(
+    qtbot, operation_type
+):
+    source = Input()
+    operation = ConstantMultiplication(0.5, source, latency=2, execution_time=1)
+    sink = Sink()
+    sink <<= operation
+    schedule = Schedule(SFG([source], [Output(operation)]), cyclic=True)
+    schedule.set_schedule_time(4)
+    graph = SchedulerItem(schedule)
+    item = next(
+        item for item in graph.components if isinstance(item.operation, operation_type)
+    )
+    period = schedule.schedule_time
+    item.setX(graph._x_axis_indent + period)
+    offset = 0 if operation_type in (Output, Sink) else -period
+
+    assert item._latency_item.path() == item._latency_path.translated(offset, 0)
+    if item._execution_time_path is not None:
+        assert item._execution_time_item.path() == item._execution_time_path.translated(
+            offset, 0
+        )
+    for key, port in item._ports.items():
+        assert item.get_port_location(key).x() == pytest.approx(
+            graph._x_axis_indent + period + port["pos"].x() + offset
+        )
+    label_center = item._label_item.mapToParent(
+        item._label_item.boundingRect().center()
+    )
+    expected_center = item._latency_item.path().boundingRect().center()
+    assert label_center.x() == pytest.approx(expected_center.x())
+    assert label_center.y() == pytest.approx(expected_center.y())
+
+
+def test_cyclic_operation_item_label_centered_on_initial_wrapped_part(
+    qtbot, precedence_sfg_delays
+):
+    precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type_name(
+        ConstantMultiplication.type_name(), 3
+    )
+    schedule = Schedule(precedence_sfg_delays, cyclic=True)
+    operation = schedule._sfg.find_by_name("C0")[0]
+    start_times = schedule.start_times.copy()
+    start_times[operation.graph_id] = schedule.schedule_time - 1
+    schedule.start_times = start_times
+
+    scheduler_item = SchedulerItem(schedule)
+    operation_item = scheduler_item._operation_items[operation.graph_id]
+    polygons = operation_item._latency_item.path().toSubpathPolygons()
+    largest_polygon = max(polygons, key=lambda polygon: polygon.boundingRect().width())
+    expected_center = largest_polygon.boundingRect().center()
+    label_center = operation_item._label_item.mapToParent(
+        operation_item._label_item.boundingRect().center()
+    )
+
+    assert len(polygons) >= 2
+    assert label_center.x() == pytest.approx(expected_center.x())
+    assert label_center.y() == pytest.approx(expected_center.y())
+
+
+def test_cyclic_io_operation_shapes_stay_outside_cycle(qtbot, precedence_sfg_delays):
+    precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type_name(
+        ConstantMultiplication.type_name(), 3
+    )
+    schedule = Schedule(precedence_sfg_delays, cyclic=True)
+    scheduler_item = SchedulerItem(schedule)
+    input_item = next(
+        item for item in scheduler_item.components if isinstance(item.operation, Input)
+    )
+    output_item = next(
+        item for item in scheduler_item.components if isinstance(item.operation, Output)
+    )
+    period = schedule.schedule_time
+    indent = scheduler_item._x_axis_indent
+
+    input_item.setX(indent)
+    output_item.setX(indent + period)
+
+    input_bounds = input_item._latency_item.path().boundingRect()
+    output_bounds = output_item._latency_item.path().boundingRect()
+    assert input_bounds.left() < 0
+    assert input_bounds.right() == pytest.approx(0)
+    assert output_bounds.left() == pytest.approx(0)
+    assert output_bounds.right() > 0
+
+    input_label_center = input_item._label_item.mapToParent(
+        input_item._label_item.boundingRect().center()
+    )
+    output_label_center = output_item._label_item.mapToParent(
+        output_item._label_item.boundingRect().center()
+    )
+    assert input_label_center.x() < 0
+    assert output_item.x() - indent + output_label_center.x() > period
+
+
+def test_cyclic_io_signal_endpoints_use_wrapped_ports(qtbot, precedence_sfg_delays):
+    precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type_name(
+        ConstantMultiplication.type_name(), 3
+    )
+    schedule = Schedule(precedence_sfg_delays, cyclic=True)
+    scheduler_item = SchedulerItem(schedule)
+    input_item = next(
+        item for item in scheduler_item.components if isinstance(item.operation, Input)
+    )
+    output_item = next(
+        item for item in scheduler_item.components if isinstance(item.operation, Output)
+    )
+    period = schedule.schedule_time
+    indent = scheduler_item._x_axis_indent
+
+    input_item.setX(indent - 1)
+    output_item.setX(indent + period + 1)
+
+    input_bounds = input_item._latency_item.path().boundingRect()
+    output_bounds = output_item._latency_item.path().boundingRect()
+    assert input_bounds.left() > 0
+    assert output_bounds.right() < 0
+    assert input_item.x() - indent + input_bounds.left() >= -1e-6
+    assert input_item.x() - indent + input_bounds.right() <= period + 1e-6
+    assert output_item.x() - indent + output_bounds.left() >= -1e-6
+    assert output_item.x() - indent + output_bounds.right() <= period + 1e-6
+
+    input_signal = input_item.operation.output(0).signals[0]
+    output_signal = output_item.operation.input(0).signals[0]
+    input_line = next(
+        line
+        for line in scheduler_item._signal_dict[input_item]
+        if line._signal is input_signal
+    )
+    output_line = next(
+        line
+        for line in scheduler_item._signal_dict[output_item]
+        if line._signal is output_signal
+    )
+    input_line.update_path()
+    output_line.update_path()
+
+    assert input_item.get_port_location("out0").x() == pytest.approx(
+        indent + period - 1
+    )
+    assert output_item.get_port_location("in0").x() == pytest.approx(indent + 1)
+    assert input_line.path().elementAt(0).x == pytest.approx(indent + period - 1)
+    assert output_line.path().elementAt(
+        output_line.path().elementCount() - 1
+    ).x == pytest.approx(indent + 1)
+
+
+def test_signal_uses_wrapped_port_when_one_time_unit_remains(
+    qtbot, precedence_sfg_delays
+):
+    precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type_name(
+        ConstantMultiplication.type_name(), 3
+    )
+    schedule = Schedule(precedence_sfg_delays, cyclic=True)
+    scheduler_item = SchedulerItem(schedule)
+    source_item = next(item for item in scheduler_item.components if item.name == "C0")
+    signal = source_item.operation.output(0).signals[0]
+    signal_item = next(
+        item
+        for item in scheduler_item._signal_dict[source_item]
+        if item._signal is signal
+    )
+    period = schedule.schedule_time
+    indent = scheduler_item._x_axis_indent
+    output_time = source_item._ports["out0"]["pos"].x()
+
+    source_item.setX(indent + period + 1 - output_time)
+    signal_item.update_path()
+    assert signal_item.path().elementAt(0).x == pytest.approx(indent + 1)
+
+    source_item.setX(indent + period + 0.5 - output_time)
+    signal_item.update_path()
+    assert signal_item.path().elementAt(0).x == pytest.approx(indent + period + 0.5)
+
+
 def test_increase_time_resolution(qtbot, monkeypatch, sfg_simple_filter):
     sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
     sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 4)
