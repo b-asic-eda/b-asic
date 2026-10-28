@@ -505,393 +505,234 @@ class VhdlPrinter(Printer):
         wls = [(self._dt.wl[0], self._dt.wl[1])]
         return wls, (declarations.getvalue(), code.getvalue())
 
+    def _print_scaled_value(
+        self,
+        pe: "ProcessingElement",
+        control_name: str,
+        sources: tuple[str, ...],
+        wl: tuple[int, int],
+        port_name: str,
+    ) -> tuple[tuple[str, ...], CODE]:
+        entry = pe.control_table[control_name]
+        shifts = sorted({int(value) for value in entry.values.values()})
+        max_shift = max(shifts)
+        if max_shift == 0 and wl == self._dt.wl:
+            return sources, ("", "")
+
+        declarations, code = io.StringIO(), io.StringIO()
+        parts = ("_re", "_im") if self.is_complex else ("",)
+        bits = sum(wl) + max_shift
+        for source, part in zip(sources, parts, strict=True):
+            target = f"res_arith_{port_name}{part}"
+            common.signal_declaration(declarations, target, self.get_scalar_type(bits))
+            if entry.is_static:
+                common.write(
+                    code,
+                    1,
+                    f"{target} <= shift_left(resize({source}, {bits}), {max_shift - shifts[0]});",
+                )
+            else:
+                common.write(code, 1, f"with {control_name} select")
+                common.write(code, 2, f"{target} <=")
+                for shift in shifts:
+                    common.write(
+                        code,
+                        3,
+                        f'shift_left(resize({source}, {bits}), {max_shift - shift}) when b"{bin_str(shift, entry.bits)}",',
+                    )
+                common.write(code, 3, "(others => '-') when others;")
+
+        cast_declarations, cast_code = self.print_cast(
+            (wl[0], wl[1] + max_shift), port_name, pe
+        )
+        declarations.write(cast_declarations)
+        code.write(cast_code)
+        scaled = tuple(f"res_overflow_{port_name}{part}" for part in parts)
+
+        if max_shift and 0 in shifts:
+            unshifted = sources
+            if wl != self._dt.wl:
+                unshifted_port = f"{port_name}_unshifted"
+                for source, part in zip(sources, parts, strict=True):
+                    common.signal_declaration(
+                        declarations,
+                        f"res_arith_{unshifted_port}{part}",
+                        self.get_scalar_type(sum(wl)),
+                    )
+                    common.write(
+                        code, 1, f"res_arith_{unshifted_port}{part} <= {source};"
+                    )
+                cast_declarations, cast_code = self.print_cast(wl, unshifted_port, pe)
+                declarations.write(cast_declarations)
+                code.write(cast_code)
+                unshifted = tuple(
+                    f"res_overflow_{unshifted_port}{part}" for part in parts
+                )
+            selected = []
+            for source, shifted, part in zip(unshifted, scaled, parts, strict=True):
+                target = f"scaled_{port_name}{part}"
+                common.signal_declaration(declarations, target, self.scalar_type_str)
+                common.write(
+                    code,
+                    1,
+                    f"{target} <= {source} when {control_name} = 0 else {shifted};",
+                )
+                selected.append(target)
+            scaled = tuple(selected)
+
+        return scaled, (declarations.getvalue(), code.getvalue())
+
     def print_Addition_fixed_point_real(
         self, pe: "ProcessingElement"
     ) -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
+        inputs = []
+        for input_index in range(2):
+            scaled, (scale_declarations, scale_code) = self._print_scaled_value(
+                pe,
+                f"in{input_index}_scale",
+                (f"op_{input_index}",),
+                self._dt.wl,
+                f"scaled_in{input_index}",
+            )
+            declarations.write(scale_declarations)
+            code.write(scale_code)
+            inputs.append(scaled[0])
 
         common.signal_declaration(declarations, "tmp_res", signed_type(self.bits + 1))
-        common.signal_declaration(
-            declarations, "res_arith_0", signed_type(self.bits + 1)
-        )
-
         common.write(
             code,
             1,
-            "tmp_res <= resize(op_0, op_0'length + 1) + resize(op_1, op_1'length + 1);",
+            f"tmp_res <= resize({inputs[0]}, {self.bits + 1}) + resize({inputs[1]}, {self.bits + 1});",
         )
-        common.write(
-            code,
-            1,
-            "res_arith_0 <= shift_right(tmp_res, to_integer(shift_output));",
+        scaled, (scale_declarations, scale_code) = self._print_scaled_value(
+            pe,
+            "out0_scale",
+            ("tmp_res",),
+            (self.int_bits + 1, self.frac_bits),
+            "scaled_out0",
         )
+        declarations.write(scale_declarations)
+        code.write(scale_code)
+        common.signal_declaration(declarations, "res_arith_0", self.scalar_type_str)
+        common.write(code, 1, f"res_arith_0 <= {scaled[0]};")
+        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
-        wls = [(self.int_bits + 1, self.frac_bits)]
-        return wls, (declarations.getvalue(), code.getvalue())
-
-    def print_AddSub_fixed_point_real(self, pe: "ProcessingElement") -> tuple[str, str]:
-        declarations, code = io.StringIO(), io.StringIO()
-
-        common.signal_declaration(
-            declarations, "op_b", f"{self.type_name}({self.bits} downto 0)"
-        )
-        common.signal_declaration(
-            declarations, "tmp_res", f"{self.type_name}({self.bits + 1} downto 0)"
-        )
-        common.signal_declaration(
-            declarations, "tmp_res_shifted", f"{self.type_name}({self.bits} downto 0)"
-        )
-        common.signal_declaration(
-            declarations, "res_arith_0", f"{self.type_name}({self.bits} downto 0)"
-        )
-
-        common.write(
-            code,
-            1,
-            f"op_b <= resize(op_1, {self.bits + 1}) when is_add = '1' else not resize(op_1, {self.bits + 1});",
-        )
-        common.write(code, 1, "tmp_res <= (op_0 & '1') + (op_b & not is_add);")
-        common.write(code, 1, f"tmp_res_shifted <= tmp_res({self.bits + 1} downto 1);")
-        common.write(
-            code,
-            1,
-            "res_arith_0 <= shift_right(tmp_res_shifted, to_integer(shift_output));",
-        )
-
-        wls = [(self.int_bits + 1, self.frac_bits)]
-        return wls, (declarations.getvalue(), code.getvalue())
+    def print_AddSub_fixed_point_real(
+        self, pe: "ProcessingElement"
+    ) -> tuple[WLS, CODE]:
+        return self._print_addsub_fixed_point(pe)
 
     def print_AddSub_fixed_point_complex(
         self, pe: "ProcessingElement"
-    ) -> tuple[str, str]:
+    ) -> tuple[WLS, CODE]:
+        return self._print_addsub_fixed_point(pe)
+
+    def _print_addsub_fixed_point(self, pe: "ProcessingElement") -> tuple[WLS, CODE]:
         declarations, code = io.StringIO(), io.StringIO()
+        parts = ("_re", "_im") if self.is_complex else ("",)
+        inputs = []
+        for input_index in range(2):
+            sources = (
+                (f"op_{input_index}.re", f"op_{input_index}.im")
+                if self.is_complex
+                else (f"op_{input_index}",)
+            )
+            scaled, (scale_declarations, scale_code) = self._print_scaled_value(
+                pe,
+                f"in{input_index}_scale",
+                sources,
+                self._dt.wl,
+                f"scaled_in{input_index}",
+            )
+            declarations.write(scale_declarations)
+            code.write(scale_code)
+            inputs.append(scaled)
 
-        for part in "re", "im":
+        if self.is_complex:
             common.signal_declaration(
-                declarations,
-                f"{part}_op_b",
-                f"{self.scalar_type_name}({self.bits} downto 0)",
+                declarations, "sel", "std_logic_vector(1 downto 0)"
             )
-            common.signal_declaration(
-                declarations,
-                f"{part}_tmp_res",
-                f"{self.scalar_type_name}({self.bits + 1} downto 0)",
-            )
-            common.signal_declaration(
-                declarations,
-                f"{part}_tmp_res_shifted",
-                f"{self.scalar_type_name}({self.bits} downto 0)",
-            )
-            common.signal_declaration(
-                declarations,
-                f"res_arith_0_{part}",
-                f"{self.scalar_type_name}({self.bits} downto 0)",
-            )
+            common.write(code, 1, "sel <= mul_j & is_add;")
 
-            common.write(
-                code,
-                1,
-                f"{part}_op_b <= resize(op_1.{part}, {self.bits + 1}) when is_add = '1' else not resize(op_1.{part}, {self.bits + 1});",
-            )
-            common.write(
-                code,
-                1,
-                f"{part}_tmp_res <= (op_0.{part} & '1') + ({part}_op_b & not is_add);",
-            )
-            common.write(
-                code,
-                1,
-                f"{part}_tmp_res_shifted <= {part}_tmp_res({self.bits + 1} downto 1);",
-            )
-            common.write(
-                code,
-                1,
-                f"res_arith_0_{part} <= shift_right({part}_tmp_res_shifted, to_integer(shift_output));",
-            )
-        wls = [(self.int_bits + 1, self.frac_bits)]
-        return wls, (declarations.getvalue(), code.getvalue())
-
-    def print_ShiftAddSub_fixed_point_real(
-        self, pe: "ProcessingElement"
-    ) -> tuple[str, str]:
-        declarations, code = io.StringIO(), io.StringIO()
-        common.signal_declaration(
-            declarations, "op_a", f"{self.type_name}({self.bits} downto 0)"
-        )
-        common.signal_declaration(
-            declarations, "op_b", f"{self.type_name}({self.bits} downto 0)"
-        )
-        common.signal_declaration(
-            declarations, "tmp_res", f"{self.type_name}({self.bits + 1} downto 0)"
-        )
-        common.signal_declaration(
-            declarations, "res_arith_0", f"{self.type_name}({self.bits} downto 0)"
-        )
-        common.write(code, 1, f"op_a <= resize(op_0, {self.bits + 1});")
-        common.write(
-            code,
-            1,
-            f"op_b <= resize(op_1, {self.bits + 1}) when is_add = '1' else not resize(op_1, {self.bits + 1});",
-        )
-
-        shift_entry = pe.control_table["shift"]
-        shift_output_entry = pe.control_table["shift_output"]
-
-        if shift_entry.is_static:
-            shift_val = int(shift_entry.get_static_value())
-            common.write(
-                code,
-                1,
-                f"tmp_res <= (op_a & '1') + (shift_right(op_b, {shift_val}) & not is_add);",
-            )
-        else:
-            common.signal_declaration(
-                declarations, "shifted_op_b", f"{self.type_name}({self.bits} downto 0)"
-            )
-            unique_shifts = sorted({int(v) for v in shift_entry.values.values()})
-            common.write(code, 1, "with shift select", start="\n")
-            common.write(code, 2, "shifted_op_b <=")
-            for sv in unique_shifts:
-                common.write(
-                    code,
-                    3,
-                    f'shift_right(op_b, {sv}) when b"{bin_str(sv, shift_entry.bits)}",',
-                )
-            common.write(code, 3, "(others => '-') when others;", end="\n\n")
-            common.write(
-                code,
-                1,
-                "tmp_res <= (op_a & '1') + (shifted_op_b & not is_add);",
-            )
-
-        n_in, n_out = self._register_split
-        reg_before_shift_output = n_out >= 1
-        if reg_before_shift_output:
+        n_in, n_out = self._register_split or (0, 0)
+        register_sum = n_out > 0
+        if register_sum:
             self._register_split = (n_in, n_out - 1)
             self._pe_control_cycle.setdefault(pe.entity_name, {}).setdefault(
-                "shift_output", n_in + 1
+                "out0_scale", n_in + 1
+            )
+
+        results = []
+        for part_index, part in enumerate(parts):
+            operand = f"op_b{part}"
+            total = f"tmp_res{part}"
+            result = f"tmp_res_shifted{part}"
+            common.signal_declaration(
+                declarations, operand, self.get_scalar_type(self.bits + 1)
             )
             common.signal_declaration(
-                declarations,
-                "tmp_res_shifted_comb",
-                f"{self.type_name}({self.bits} downto 0)",
+                declarations, total, self.get_scalar_type(self.bits + 2)
             )
-            common.signal_declaration(
-                declarations,
-                "tmp_res_shifted",
-                f"{self.type_name}({self.bits} downto 0)",
-                default_value="(others => '0')",
-            )
+            if self.is_complex:
+                same = f"resize({inputs[1][part_index]}, {self.bits + 1})"
+                other = f"resize({inputs[1][1 - part_index]}, {self.bits + 1})"
+                choices = (
+                    (f"not {same}", same, other, f"not {other}")
+                    if part_index == 0
+                    else (f"not {same}", same, f"not {other}", other)
+                )
+                common.write(code, 1, "with sel select")
+                common.write(code, 2, f"{operand} <=")
+                for selection, expression in enumerate(choices):
+                    common.write(code, 3, f'{expression} when "{selection:02b}",')
+                common.write(code, 3, "(others => '-') when others;")
+                carry = "not (is_add xor mul_j)" if part_index == 0 else "not is_add"
+            else:
+                common.write(
+                    code,
+                    1,
+                    f"{operand} <= resize({inputs[1][0]}, {self.bits + 1}) when is_add = '1' else not resize({inputs[1][0]}, {self.bits + 1});",
+                )
+                carry = "not is_add"
+            common.signal_declaration(declarations, f"cin{part}", "std_logic")
+            common.write(code, 1, f"cin{part} <= {carry};")
             common.write(
-                code, 1, f"tmp_res_shifted_comb <= tmp_res({self.bits + 1} downto 1);"
-            )
-            common.synchronous_process_prologue(code)
-            common.write(code, 3, "if en = '1' then")
-            common.write(code, 4, "tmp_res_shifted <= tmp_res_shifted_comb;")
-            common.write(code, 3, "end if;")
-            common.synchronous_process_epilogue(code)
-        else:
-            common.signal_declaration(
-                declarations,
-                "tmp_res_shifted",
-                f"{self.type_name}({self.bits} downto 0)",
-            )
-            common.write(
-                code, 1, f"tmp_res_shifted <= tmp_res({self.bits + 1} downto 1);"
-            )
-
-        if shift_output_entry.is_static:
-            so_val = int(shift_output_entry.get_static_value())
-            common.write(
-                code, 1, f"res_arith_0 <= shift_right(tmp_res_shifted, {so_val});"
-            )
-        else:
-            unique_so = sorted({int(v) for v in shift_output_entry.values.values()})
-            common.write(code, 1, "with shift_output select", start="\n")
-            common.write(code, 2, "res_arith_0 <=")
-            for sv in unique_so:
-                common.write(
-                    code,
-                    3,
-                    f'shift_right(tmp_res_shifted, {sv}) when b"{bin_str(sv, shift_output_entry.bits)}",',
-                )
-            common.write(code, 3, "(others => '-') when others;", end="\n\n")
-
-        wls = [(self.int_bits + 1, self.frac_bits)]
-        return wls, (declarations.getvalue(), code.getvalue())
-
-    def print_ShiftAddSub_fixed_point_complex(
-        self, pe: "ProcessingElement"
-    ) -> tuple[str, str]:
-        declarations, code = io.StringIO(), io.StringIO()
-        for part in "re", "im":
-            common.signal_declaration(
-                declarations,
-                f"op_a_{part}, op_b_{part}",
-                f"{self.scalar_type_name}({self.bits} downto 0)",
+                code,
+                1,
+                f"{total} <= (resize({inputs[0][part_index]}, {self.bits + 1}) & '1') + ({operand} & cin{part});",
             )
             common.signal_declaration(
                 declarations,
-                f"tmp_res_{part}",
-                f"{self.scalar_type_name}({self.bits + 1} downto 0)",
+                result,
+                self.get_scalar_type(self.bits + 1),
+                **({"default_value": "(others => '0')"} if register_sum else {}),
             )
-            common.signal_declaration(declarations, f"cin_{part}", "std_logic")
+            if register_sum:
+                common.synchronous_process_prologue(code)
+                common.write(code, 3, "if en = '1' then")
+                common.write(code, 4, f"{result} <= {total}({self.bits + 1} downto 1);")
+                common.write(code, 3, "end if;")
+                common.synchronous_process_epilogue(code)
+            else:
+                common.write(code, 1, f"{result} <= {total}({self.bits + 1} downto 1);")
+            results.append(result)
 
-        common.signal_declaration(
-            declarations,
-            "res_arith_0_re, res_arith_0_im",
-            f"{self.scalar_type_name}({self.bits} downto 0)",
+        scaled, (scale_declarations, scale_code) = self._print_scaled_value(
+            pe,
+            "out0_scale",
+            tuple(results),
+            (self.int_bits + 1, self.frac_bits),
+            "scaled_out0",
         )
-        # declare a select signal
-        common.signal_declaration(declarations, "sel", "std_logic_vector(1 downto 0)")
-        # assign the select signal
-        common.write(code, 1, "sel <= mul_j & is_add;")
-        # op_a_re and op_a_im
-        common.write(
-            code, 1, f"op_a_re <= resize(op_0.re, {self.bits + 1});", start="\n"
-        )
-        common.write(
-            code, 1, f"op_a_im <= resize(op_0.im, {self.bits + 1});", end="\n\n"
-        )
-        # op_b_re
-        common.write(code, 1, "with sel select")
-        common.write(code, 2, "op_b_re <=")
-        common.write(code, 2, f'not resize(op_1.re, {self.bits + 1}) when "00",')
-        common.write(code, 2, f'resize(op_1.re, {self.bits + 1}) when "01",')
-        common.write(code, 2, f'resize(op_1.im, {self.bits + 1}) when "10",')
-        common.write(code, 2, f'not resize(op_1.im, {self.bits + 1}) when "11",')
-        common.write(code, 2, "(others => '-') when others;", end="\n\n")
-        # op_b_im
-        common.write(code, 1, "with sel select")
-        common.write(code, 2, "op_b_im <=")
-        common.write(code, 2, f'not resize(op_1.im, {self.bits + 1}) when "00",')
-        common.write(code, 2, f'resize(op_1.im, {self.bits + 1}) when "01",')
-        common.write(code, 2, f'not resize(op_1.re, {self.bits + 1}) when "10",')
-        common.write(code, 2, f'resize(op_1.re, {self.bits + 1}) when "11",')
-        common.write(code, 2, "(others => '-') when others;", end="\n\n")
-        # cin_re
-        common.write(code, 1, "with sel select")
-        common.write(code, 2, "cin_re <=")
-        common.write(code, 2, "'1' when \"00\",")
-        common.write(code, 2, "'0' when \"01\",")
-        common.write(code, 2, "'0' when \"10\",")
-        common.write(code, 2, "'1' when \"11\",")
-        common.write(code, 2, "'-' when others;", end="\n\n")
-        # cin_im
-        common.write(code, 1, "with sel select")
-        common.write(code, 2, "cin_im <=")
-        common.write(code, 2, "'1' when \"00\",")
-        common.write(code, 2, "'0' when \"01\",")
-        common.write(code, 2, "'1' when \"10\",")
-        common.write(code, 2, "'0' when \"11\",")
-        common.write(code, 2, "'-' when others;", end="\n\n")
-
-        shift_entry = pe.control_table["shift"]
-        shift_output_entry = pe.control_table["shift_output"]
-
-        if shift_entry.is_static:
-            shift_val = int(shift_entry.get_static_value())
-            for part in "re", "im":
-                common.write(
-                    code,
-                    1,
-                    f"tmp_res_{part} <= (op_a_{part} & '1') + (shift_right(op_b_{part}, {shift_val}) & cin_{part});",
-                )
-        else:
-            unique_shifts = sorted({int(v) for v in shift_entry.values.values()})
-            for part in "re", "im":
-                common.signal_declaration(
-                    declarations,
-                    f"shifted_op_b_{part}",
-                    f"{self.scalar_type_name}({self.bits} downto 0)",
-                )
-            for part in "re", "im":
-                common.write(code, 1, "with shift select", start="\n")
-                common.write(code, 2, f"shifted_op_b_{part} <=")
-                for sv in unique_shifts:
-                    common.write(
-                        code,
-                        3,
-                        f'shift_right(op_b_{part}, {sv}) when b"{bin_str(sv, shift_entry.bits)}",',
-                    )
-                common.write(code, 3, "(others => '-') when others;", end="\n\n")
-            for part in "re", "im":
-                common.write(
-                    code,
-                    1,
-                    f"tmp_res_{part} <= (op_a_{part} & '1') + (shifted_op_b_{part} & cin_{part});",
-                )
-
-        n_in, n_out = self._register_split
-        reg_before_shift_output = n_out >= 1
-        if reg_before_shift_output:
-            self._register_split = (n_in, n_out - 1)
-            self._pe_control_cycle.setdefault(pe.entity_name, {}).setdefault(
-                "shift_output", n_in + 1
+        declarations.write(scale_declarations)
+        code.write(scale_code)
+        for source, part in zip(scaled, parts, strict=True):
+            common.signal_declaration(
+                declarations, f"res_arith_0{part}", self.scalar_type_str
             )
-            for part in "re", "im":
-                common.signal_declaration(
-                    declarations,
-                    f"{part}_tmp_res_shifted_comb",
-                    f"{self.scalar_type_name}({self.bits} downto 0)",
-                )
-                common.signal_declaration(
-                    declarations,
-                    f"{part}_tmp_res_shifted",
-                    f"{self.scalar_type_name}({self.bits} downto 0)",
-                    default_value="(others => '0')",
-                )
-            for part in "re", "im":
-                common.write(
-                    code,
-                    1,
-                    f"{part}_tmp_res_shifted_comb <= tmp_res_{part}({self.bits + 1} downto 1);",
-                )
-            common.synchronous_process_prologue(code)
-            common.write(code, 3, "if en = '1' then")
-            for part in "re", "im":
-                common.write(
-                    code, 4, f"{part}_tmp_res_shifted <= {part}_tmp_res_shifted_comb;"
-                )
-            common.write(code, 3, "end if;")
-            common.synchronous_process_epilogue(code)
-        else:
-            for part in "re", "im":
-                common.signal_declaration(
-                    declarations,
-                    f"{part}_tmp_res_shifted",
-                    f"{self.scalar_type_name}({self.bits} downto 0)",
-                )
-            for part in "re", "im":
-                common.write(
-                    code,
-                    1,
-                    f"{part}_tmp_res_shifted <= tmp_res_{part}({self.bits + 1} downto 1);",
-                )
-
-        if shift_output_entry.is_static:
-            so_val = int(shift_output_entry.get_static_value())
-            for part in "re", "im":
-                common.write(
-                    code,
-                    1,
-                    f"res_arith_0_{part} <= shift_right({part}_tmp_res_shifted, {so_val});",
-                )
-        else:
-            unique_so = sorted({int(v) for v in shift_output_entry.values.values()})
-            for part in "re", "im":
-                common.write(code, 1, "with shift_output select", start="\n")
-                common.write(code, 2, f"res_arith_0_{part} <=")
-                for sv in unique_so:
-                    common.write(
-                        code,
-                        3,
-                        f'shift_right({part}_tmp_res_shifted, {sv}) when b"{bin_str(sv, shift_output_entry.bits)}",',
-                    )
-                common.write(code, 3, "(others => '-') when others;", end="\n\n")
-
-        wls = [(self.int_bits + 1, self.frac_bits)]
-        return wls, (declarations.getvalue(), code.getvalue())
+            common.write(code, 1, f"res_arith_0{part} <= {source};")
+        return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
     def print_ConstantMultiplication_fixed_point_real(
         self, pe: "ProcessingElement"
@@ -1745,7 +1586,7 @@ class VhdlPrinter(Printer):
     # ------------------------------------------------------------------
 
     def print_cast(
-        self, wl: tuple[int, int], port_number: int, pe: "ProcessingElement"
+        self, wl: tuple[int, int], port_number: int | str, pe: "ProcessingElement"
     ) -> CODE:
         """Generate quantization and overflow code for a single output signal."""
         wl_out, quant_code = self._print_quantization_signal(wl, port_number, pe)
@@ -1753,7 +1594,7 @@ class VhdlPrinter(Printer):
         return tuple(q + o for q, o in zip(quant_code, overflow_code, strict=True))
 
     def _print_quantization_signal(
-        self, wl: tuple[int, int], port_number: int, pe: "ProcessingElement"
+        self, wl: tuple[int, int], port_number: int | str, pe: "ProcessingElement"
     ) -> tuple[tuple[int, int], CODE]:
         """Handle quantization for a single output signal."""
         declarations, code = io.StringIO(), io.StringIO()
@@ -1860,7 +1701,7 @@ class VhdlPrinter(Printer):
         return wl_out, (declarations.getvalue(), code.getvalue())
 
     def _print_overflow_signal(
-        self, wl: tuple[int, int], port_number: int, pe: "ProcessingElement"
+        self, wl: tuple[int, int], port_number: int | str, pe: "ProcessingElement"
     ) -> CODE:
         """Handle overflow for a single output signal."""
         declarations, code = io.StringIO(), io.StringIO()
@@ -2002,6 +1843,4 @@ class VhdlPrinter(Printer):
 
     @property
     def scalar_type_name(self) -> str:
-        if self.is_complex:
-            return self._dt.scalar_type_str.split("(")[0]
-        return self._dt.scalar_type_str
+        return self._dt.scalar_type_str.split("(")[0]

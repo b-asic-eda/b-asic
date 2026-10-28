@@ -155,15 +155,13 @@ simulation_state run_simulation(simulation_code const& code, span<number const> 
 				delays[instruction.index] = pop();
 				break;
 			case instruction_type::custom: {
-				using namespace pybind11::literals;
 				auto const& src = code.custom_sources[instruction.index];
 				auto const& op = code.custom_operations[src.custom_operation_index];
-				auto input_values = std::vector<number>{};
-				input_values.reserve(op.input_count);
-				for (auto i = std::size_t{0}; i < op.input_count; ++i) {
-					input_values.push_back(pop());
+				auto input_values = std::vector<number>(op.input_count);
+				for (auto input_index = op.input_count; input_index > 0; --input_index) {
+					input_values[input_index - 1] = pop();
 				}
-				push(op.evaluate_output(src.output_index, std::move(input_values), "quantize"_a = quantize).cast<number>());
+				push(op.evaluate_output(src.output_index, std::move(input_values)).cast<number>());
 				break;
 			}
 			case instruction_type::forward_value:
