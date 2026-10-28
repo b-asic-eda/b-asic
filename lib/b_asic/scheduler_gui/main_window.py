@@ -216,6 +216,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._increase_time_resolution
         )
         self.actionIncrease_time_resolution.setIcon(get_icon("increase-timeresolution"))
+        self._set_schedule_actions_enabled(False)
         # Setup event member functions
         self.closeEvent = self._close_event
 
@@ -294,6 +295,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def _increase_time_resolution(self) -> None:
         """Increasing the time resolution."""
+        schedule = self._schedule
+        if schedule is None:
+            return
         # Create dialog asking for int
         factor, ok = QInputDialog.getInt(
             self, "Increase time resolution", "Factor", 1, 1
@@ -301,7 +305,6 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # Check return value
         if ok:
             if factor > 1:
-                schedule = cast(Schedule, self._schedule)
                 schedule.increase_time_resolution(factor)
                 self._schedule = schedule
                 self.open(self._schedule)
@@ -313,7 +316,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def _decrease_time_resolution(self) -> None:
         """Decreasing the time resolution."""
-        schedule = cast(Schedule, self._schedule)
+        schedule = self._schedule
+        if schedule is None:
+            return
         # Get possible factors
         vals = [str(v) for v in schedule.get_possible_time_resolution_decrements()]
         # Create dialog
@@ -477,6 +482,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.menu_close_schedule.setEnabled(False)
             self.menu_save.setEnabled(False)
             self.menu_save_as.setEnabled(False)
+            self._set_schedule_actions_enabled(False)
 
             del self._graph
             self._graph = None
@@ -556,12 +562,25 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _open_schedule_file(self, abs_path_filename: str) -> None:
         """Open a saved schedule (*.bsc-file), which is a pickled Schedule."""
+        try:
+            with Path(abs_path_filename).open("rb") as f:
+                schedule = pickle.load(f)
+            if not isinstance(schedule, Schedule):
+                raise TypeError("File does not contain a Schedule")
+        except Exception as error:
+            log.exception("Could not load schedule file '%s'", abs_path_filename)
+            QMessageBox.warning(
+                self,
+                self.tr("Could not open schedule"),
+                self.tr("Could not load schedule file {}: {}").format(
+                    Path(abs_path_filename).name, error
+                ),
+            )
+            return
+
+        self.open(schedule)
         self._file_name = abs_path_filename
         self._add_recent_file(abs_path_filename)
-
-        with Path(self._file_name).open("rb") as f:
-            schedule = pickle.load(f)
-        self.open(schedule)
         settings = QSettings()
         settings.setValue("scheduler/last_opened_file", self._file_name)
         self._toggle_file_loaded(True)
@@ -592,6 +611,15 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def _toggle_file_loaded(self, enable: bool) -> None:
         self.menu_save.setEnabled(enable)
         self.menu_save_as.setEnabled(enable)
+
+    def _set_schedule_actions_enabled(self, enable: bool) -> None:
+        for action in (
+            self.action_incorrect_execution_time,
+            self.action_show_port_numbers,
+            self.actionIncrease_time_resolution,
+            self.actionDecrease_time_resolution,
+        ):
+            action.setEnabled(enable)
 
     @Slot(bool)
     def hide_exit_dialog(self, checked: bool) -> None:
@@ -739,6 +767,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.menu_close_schedule.setEnabled(True)
         self.menu_save.setEnabled(True)
         self.menu_save_as.setEnabled(True)
+        self._set_schedule_actions_enabled(True)
         self._scene.addItem(self._graph)
         self._graph.installSceneEventFilters(self._graph.event_items)
         self._graph._signals.component_selected.connect(
@@ -1264,6 +1293,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _toggle_execution_time_warning(self, event=None) -> None:
         """Toggle whether to show the execution time warning."""
+        if self._graph is None:
+            return
         self._show_incorrect_execution_time = (
             self.action_incorrect_execution_time.isChecked()
         )
@@ -1271,6 +1302,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _toggle_port_number(self, event=None) -> None:
         """Toggle whether to show port numbers."""
+        if self._graph is None:
+            return
         self._show_port_numbers = self.action_show_port_numbers.isChecked()
         self._graph.set_port_numbers(self._show_port_numbers)
 
