@@ -4,6 +4,7 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+from numpy import ndarray
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QDialog, QVBoxLayout
 
@@ -13,7 +14,9 @@ class MPLWindow(QDialog):
     Dialog for plotting Matplotlib things.
     """
 
-    def __init__(self, title: str = "B-ASIC", subplots=(1, 1)) -> None:
+    def __init__(
+        self, title: str = "B-ASIC", subplots: tuple[int, int] = (1, 1)
+    ) -> None:
         super().__init__()
         self.setWindowFlags(
             Qt.WindowTitleHint
@@ -36,7 +39,7 @@ class MPLWindow(QDialog):
         self._dialog_layout.addWidget(self._plot_canvas)
 
     @property
-    def axes(self) -> Axes | list[Axes]:
+    def axes(self) -> Axes | ndarray:
         return self._plot_axes
 
     def redraw(self) -> None:

@@ -4,8 +4,9 @@ B-ASIC GUI About Window Module.
 Contains a GUI class for the about window.
 """
 
-import pathlib
 import sys  # ONLY FOR DEBUG
+from importlib import resources
+from pathlib import Path
 
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QCursor, QPixmap
@@ -74,12 +75,10 @@ class AboutWindow(QDialog):
         label1.linkHovered.connect(self._hover_text)
 
         self.logo2 = QLabel(self)
-        self.logo2.setPixmap(
-            QPixmap(
-                str(pathlib.Path(__file__).parent.resolve())
-                + "/../../logos/small_logo.png"
-            ).scaledToWidth(100)
-        )
+        logo = resources.files("b_asic").joinpath("logos", "small_logo.png")
+        if not logo.is_file():
+            logo = Path(__file__).resolve().parents[3] / "logos" / "small_logo.png"
+        self.logo2.setPixmap(QPixmap(str(logo)).scaledToWidth(100))
         self.logo2.setFixedWidth(100)
 
         label3 = QLabel(

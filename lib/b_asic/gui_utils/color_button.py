@@ -19,8 +19,9 @@ class ColorButton(QPushButton):
         Additional arguments are passed to QPushButton.
     """
 
-    __slots__ = ("_color", "_default")
+    __slots__ = ("_color", "_default", "_text_color")
     _color: QColor | None
+    _text_color: QColor | None
     _color_changed = Signal(QColor)
 
     def __init__(self, color: QColor, *args, **kwargs) -> None:
@@ -28,6 +29,7 @@ class ColorButton(QPushButton):
 
         self._color = None
         self._default = color
+        self._text_color = None
 
         # Set the initial/default state.
         self.set_color(self._default)
@@ -38,14 +40,20 @@ class ColorButton(QPushButton):
             self._color = color
             self._color_changed.emit(color)
 
-        if self._color:
-            self.setStyleSheet(f"background-color: {self._color.name()};")
-        else:
-            self.setStyleSheet("")
+        self._update_style()
 
     def set_text_color(self, color: QColor) -> None:
         """Set text color."""
-        self.setStyleSheet(f"color: {color.name()};")
+        self._text_color = color
+        self._update_style()
+
+    def _update_style(self) -> None:
+        styles = []
+        if self._color:
+            styles.append(f"background-color: {self._color.name()};")
+        if self._text_color:
+            styles.append(f"color: {self._text_color.name()};")
+        self.setStyleSheet(" ".join(styles))
 
     @property
     def color(self) -> QColor | None:
