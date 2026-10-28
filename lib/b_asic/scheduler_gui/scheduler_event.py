@@ -7,6 +7,7 @@ handlers for SchedulerItem objects.
 """
 
 import math
+from collections.abc import Callable
 from typing import overload
 
 # QGraphics and QPainter imports
@@ -142,6 +143,15 @@ class SchedulerEvent:
     # Event Handlers: OperationItem #
     #################################
 
+    @staticmethod
+    def _drag_delta(delta: float, is_valid: Callable[[int], bool]) -> int:
+        """Snap a cursor movement and stop at the nearest permitted position."""
+        steps = round(delta) if abs(delta) > 0.505 else 0
+        direction = 1 if steps > 0 else -1
+        while steps and not is_valid(steps):
+            steps -= direction
+        return steps
+
     def operation_mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
         Set the position of the graphical element in the graphic scene.
@@ -149,32 +159,21 @@ class SchedulerEvent:
         This translates coordinates of the cursor within the graphic element in the
         coordinate system of the parent object.
         """
-
-        def update_pos(operation_item, dx, dy) -> None:
-            pos_x = operation_item.x() + dx
-            if self.is_component_valid_pos(operation_item, pos_x):
-                pos_y = operation_item.y() + dy * (OPERATION_GAP + OPERATION_HEIGHT)
-                operation_item.setX(pos_x)
-                operation_item.setY(pos_y)
-                self._current_pos.setX(self._current_pos.x() + dx)
-                self._current_pos.setY(self._current_pos.y() + dy)
-                self._redraw_lines(operation_item)
-                gid = operation_item.operation.graph_id
-                self._schedule.set_y_location(
-                    gid, dy + self._schedule.get_y_location(gid)
-                )
-
         item: OperationItem = self.scene().mouseGrabberItem()
-        delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
-        delta_y = (item.mapToParent(event.pos()) - self._current_pos).y()
-
-        delta_y_steps = round(2 * delta_y / (OPERATION_GAP + OPERATION_HEIGHT)) / 2
-        if delta_x > 0.505:
-            update_pos(item, 1, delta_y_steps)
-        elif delta_x < -0.505:
-            update_pos(item, -1, delta_y_steps)
-        elif delta_y_steps != 0:
-            update_pos(item, 0, delta_y_steps)
+        delta = item.mapToParent(event.pos()) - self._current_pos
+        dx = self._drag_delta(
+            delta.x(), lambda steps: self.is_component_valid_pos(item, item.x() + steps)
+        )
+        row_height = OPERATION_GAP + OPERATION_HEIGHT
+        dy = round(2 * delta.y() / row_height) / 2
+        if dx or dy:
+            movement = QPointF(dx, dy * row_height)
+            item.setPos(item.pos() + movement)
+            self._current_pos += movement
+            self._schedule.set_y_location(
+                item.graph_id, self._schedule.get_y_location(item.graph_id) + dy
+            )
+            self._redraw_lines(item)
 
     def operation_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
@@ -236,21 +235,16 @@ class SchedulerEvent:
         coordinate system of the parent object. The object can only move
         horizontally in x-axis scale steps.
         """
-
-        def update_pos(timeline_item, dx) -> None:
-            pos = timeline_item.x() + dx
-            if self.is_valid_delta_time(self._delta_time + dx):
-                timeline_item.setX(pos)
-                self._current_pos.setX(self._current_pos.x() + dx)
-                self._delta_time += dx
-                timeline_item.set_text(self._delta_time)
-
         item: TimelineItem = self.scene().mouseGrabberItem()
         delta_x = (item.mapToParent(event.pos()) - self._current_pos).x()
-        if delta_x > 0.505:
-            update_pos(item, 1)
-        elif delta_x < -0.505:
-            update_pos(item, -1)
+        dx = self._drag_delta(
+            delta_x, lambda steps: self.is_valid_delta_time(self._delta_time + steps)
+        )
+        if dx:
+            item.setX(item.x() + dx)
+            self._current_pos.setX(self._current_pos.x() + dx)
+            self._delta_time += dx
+            item.set_text(self._delta_time)
 
     def timeline_mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """
