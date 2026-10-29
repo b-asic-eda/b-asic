@@ -25,6 +25,7 @@ from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.signal import Signal
 
 if TYPE_CHECKING:
+    from b_asic.schedule import Schedule
     from b_asic.scheduler_gui.scheduler_item import SchedulerItem
 
 
@@ -68,9 +69,9 @@ class SignalItem(QGraphicsPathItem):
         self.set_inactive()
         self.update_path()
 
-    def update_path(self) -> None:
+    def update_path(self, schedule: "Schedule | None" = None) -> None:
         """
-        Create a new path after moving connected operations.
+        Create a new path after moving connected operations, using *schedule* if given.
         """
         source_point = self._src_operation.get_port_location(self._src_key)
         dest_point = self._dest_operation.get_port_location(self._dest_key)
@@ -80,8 +81,19 @@ class SignalItem(QGraphicsPathItem):
         source_y = source_point.y()
         dest_x = dest_point.x()
         dest_y = dest_point.y()
-        schedule = cast("SchedulerItem", self.parentItem()).schedule
-        if dest_x - source_x <= -0.1 or schedule._laps[self._signal.graph_id]:
+        wraps = dest_x - source_x <= -0.1
+        if schedule is None:
+            schedule = cast("SchedulerItem", self.parentItem()).schedule
+        else:
+            # A drag preview has the positions that will be committed on drop.
+            source_time = schedule.start_time_of_operation(
+                self._src_operation.graph_id
+            ) + cast(int, self._signal.source.latency_offset)
+            dest_time = schedule.start_time_of_operation(
+                self._dest_operation.graph_id
+            ) + cast(int, self._signal.destination.latency_offset)
+            wraps = dest_time < source_time
+        if wraps or schedule._laps[self._signal.graph_id]:
             offset = SCHEDULE_INDENT  # TODO: Get from parent/axes...
             path.lineTo(schedule.schedule_time + offset, source_y)
             path.moveTo(0 + offset, dest_y)

@@ -18,8 +18,6 @@ from b_asic.scheduler_gui._preferences import OPERATION_GAP, OPERATION_HEIGHT
 from b_asic.scheduler_gui.axes_item import AxesItem
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.timeline_item import TimelineItem
-from b_asic.special_operations import Output
-from b_asic.utility_operations import Sink
 
 
 class SchedulerEvent:
@@ -208,23 +206,6 @@ class SchedulerEvent:
         item: OperationItem = self.scene().mouseGrabberItem()
         self.set_new_start_time(item)
         self.set_item_inactive(item)
-        pos_x = item.x()
-        redraw = False
-        if (
-            math.floor(pos_x) == 0 and isinstance(item.operation, (Output, Sink))
-        ) or pos_x < 0:
-            pos_x += self._schedule.schedule_time
-            redraw = True
-        if (
-            pos_x > self._schedule.schedule_time
-            # If output or sink, keep operation at the edge
-            and (
-                pos_x > self._schedule.schedule_time + 1
-                or not isinstance(item.operation, (Output, Sink))
-            )
-        ):
-            pos_x = pos_x % self._schedule.schedule_time
-            redraw = True
         pos_y = self._schedule.get_y_location(item.operation.graph_id)
         # Check move in y-direction
         if pos_y != self._old_op_position:
@@ -240,10 +221,8 @@ class SchedulerEvent:
                 f" {pos_y}, {insert})"
             )
             self._signals.redraw_all.emit()
-        # Operation has been moved in x-direction
-        if redraw:
-            item.setX(pos_x)
-            self._redraw_lines(item)
+        self._set_position(item.graph_id)
+        self._redraw_lines(item)
         self._signals.component_moved.emit(item.graph_id)
 
     ###################################
