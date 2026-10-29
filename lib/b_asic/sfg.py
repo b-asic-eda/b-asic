@@ -1126,6 +1126,46 @@ class SFG(AbstractOperation):
         This is an algebraic transformation intended before scheduling;
         removed operators' timing and quantization are not preserved.
         """
+        return self._propagate("_constant_propagation", target)
+
+    def sink_propagation(
+        self,
+        target: type[Operation] | GraphID | Iterable[GraphID] | None = None,
+    ) -> "SFG":
+        """
+        Return a copy with unused results propagated backwards from Sink nodes.
+
+        An output is unused if it is unconnected or connected only to Sinks.
+        Operations whose results are all unused are replaced by Sinks on their
+        inputs. Operation-specific ``_sink_propagation`` hooks can simplify
+        partially used multi-output operations. Computations shared with a
+        required output are retained, including their delay state.
+
+        Parameters
+        ----------
+        target : type[Operation], GraphID, or iterable of GraphID, optional
+            Restrict operation replacements as in :meth:`constant_propagation`.
+            Dead branches that no longer feed a graph output are removed after
+            replacements, including unobservable feedback loops.
+
+        Notes
+        -----
+        Input/output ordering and names are preserved. Unused interface inputs
+        and unconnected outputs of retained operators are terminated by Sinks.
+        To discard a graph output, first replace its Output node with a Sink.
+        This is an algebraic transformation intended before scheduling.
+        """
+        return self._propagate("_sink_propagation", target)
+
+    def _propagate(
+        self,
+        method: Literal["_constant_propagation", "_sink_propagation"],
+        target: type[Operation] | GraphID | Iterable[GraphID] | None,
+    ) -> "SFG":
+        """Apply operation hooks and inline their replacements until stable."""
+        from b_asic.utility_operations import Sink  # noqa: PLC0415
+
+        sink_mode = method == "_sink_propagation"
         target_type = None
         target_ids = None
         if isinstance(target, type):
@@ -1176,23 +1216,21 @@ class SFG(AbstractOperation):
                 continue
             if target_ids is not None and operation.graph_id not in target_ids:
                 continue
-            if not any(port.signals for port in operation.outputs):
+            if not sink_mode and not any(port.signals for port in operation.outputs):
                 continue
             sources = [port.connected_source for port in operation.inputs]
             if any(source is None for source in sources):
                 continue
-            replacement = operation._constant_propagation()
+            replacement = getattr(operation, method)()
             if replacement is None:
                 continue
             if not isinstance(replacement, SFG):
-                raise TypeError("_constant_propagation must return an SFG or None")
+                raise TypeError(f"{method} must return an SFG or None")
             if (replacement.input_count, replacement.output_count) != (
                 operation.input_count,
                 operation.output_count,
             ):
-                raise ValueError(
-                    "Constant propagation replacement must preserve port counts"
-                )
+                raise ValueError("Propagation replacement must preserve port counts")
 
             # Inline the replacement's inputs and reconnect all original output
             # consumers without changing their signal names or properties.
@@ -1206,10 +1244,16 @@ class SFG(AbstractOperation):
             ):
                 source = output_op.input(0).connected_source
                 for signal in list(output.signals):
-                    pending.append(signal.destination.operation)
-                    signal.set_source(source)
+                    if sink_mode and isinstance(signal.destination.operation, Sink):
+                        signal.remove_source()
+                        signal.remove_destination()
+                    else:
+                        pending.append(signal.destination.operation)
+                        signal.set_source(source)
                 disconnect_inputs(output_op)
             disconnect_inputs(operation)
+            if sink_mode:
+                pending.extend(source.operation for source in sources)
 
             interface = {*replacement.input_operations, *replacement.output_operations}
             inner = [op for op in replacement.operations if op not in interface]
@@ -1223,7 +1267,7 @@ class SFG(AbstractOperation):
             pending.extend(inner)
             changed = True
 
-        if changed:
+        if changed or (sink_mode and target is None):
             # Inputs are explicit SFG interface nodes, so rebuilding alone can
             # retain dead branches reachable from them. Find output ancestors
             # first, including feedback through delays, and detach dead inputs.
@@ -1242,6 +1286,13 @@ class SFG(AbstractOperation):
             for operation in operations:
                 if operation not in live:
                     disconnect_inputs(operation)
+            if sink_mode:
+                # Keep explicit terminations for unused input channels and for
+                # discarded outputs of retained multi-output operations.
+                for operation in live | set(sfg_copy.input_operations):
+                    for output in operation.outputs:
+                        if not output.signals:
+                            Sink().input(0).connect(output)
             return sfg_copy()
         return sfg_copy
 

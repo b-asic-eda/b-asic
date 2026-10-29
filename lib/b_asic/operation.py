@@ -480,6 +480,34 @@ class Operation(GraphComponent, SignalSourceProvider):
             [Output(Constant(value)) for value in outputs],
         )
 
+    def _sink_propagation(self) -> "SFG | None":
+        """
+        Replace an operation whose outputs are all unused by sinks on its inputs.
+
+        Outputs are unused when unconnected or connected only to Sink nodes.
+        Return a replacement SFG with matching port counts, or None. DontCare
+        nodes fill discarded replacement outputs; the driver removes them.
+        Multi-output operations can override this to simplify partially used
+        results, falling back to this method when all results are unused.
+        """
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+        from b_asic.utility_operations import DontCare, Sink  # noqa: PLC0415
+
+        if not self.input_count or not self.output_count:
+            return None
+        if any(
+            signal.destination is None
+            or not isinstance(signal.destination.operation, Sink)
+            for output in self.outputs
+            for signal in output.signals
+        ):
+            return None
+        inputs = [Input() for _ in self.inputs]
+        for source in inputs:
+            Sink().input(0).connect(source)
+        return SFG(inputs, [Output(DontCare()) for _ in self.outputs])
+
 
 class AbstractOperation(Operation, AbstractGraphComponent):
     """
