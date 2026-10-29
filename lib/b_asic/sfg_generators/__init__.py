@@ -14,7 +14,7 @@ from .matrix_inversion import (
     ldlt_matrix_inverse,
     tile_ldlt_matrix_inverse,
 )
-from .matrix_operations import matrix_multiplication
+from .matrix_operations import matrix_multiplication, strassen_matrix_multiplication
 from .sorting import (
     bitonic_sort,
     bubble_sort,
@@ -43,6 +43,7 @@ __all__ = [
     "pairwise_sort",
     "radix_2_dif_fft",
     "shell_sort",
+    "strassen_matrix_multiplication",
     "tile_ldlt_matrix_inverse",
     "wdf_allpass",
 ]
