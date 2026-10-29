@@ -45,7 +45,11 @@ jobs:
         run: |
           git fetch --tags
           export CPPFLAGS='-O0 --coverage -fprofile-abs-path'
-          python -m pip install --no-deps --no-build-isolation -v --editable .
+          if [ "${{ matrix.optional-dependencies }}" = "true" ]; then
+            python -m pip install --no-build-isolation -v --editable '.[cp]'
+          else
+            python -m pip install --no-deps --no-build-isolation -v --editable .
+          fi
           unset CPPFLAGS
       - name: Test with pytest
         run: |

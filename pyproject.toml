@@ -50,6 +50,9 @@ classifiers = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
+# OR-Tools and highspy must share the HiGHS ABI:
+# https://github.com/google/or-tools/issues/5246
+cp = ["cpmpy>=1.1", "ortools>=9.15,<9.16", "highspy>=1.12,<1.13"]
 pyqt6 = ["PyQt6"]
 pyside6 = ["PySide6>=6.10"]
 test = [
