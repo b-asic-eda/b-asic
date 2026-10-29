@@ -9,6 +9,7 @@ from b_asic import (
     Absolute,
     Addition,
     AddSub,
+    Comparator,
     ComplexConjugate,
     Constant,
     ConstantMultiplication,
@@ -378,6 +379,54 @@ class TestMin:
             ValueError, match=r"core_operations.Min does not support complex numbers."
         ):
             test_operation.evaluate_output(0, [-1 - 1j, 2 + 2j])
+
+
+class TestComparator:
+    """Tests for Comparator class."""
+
+    @pytest.mark.parametrize(
+        ("inputs", "expected"),
+        [
+            ((3, 5), (3, 5)),
+            ((5, 3), (3, 5)),
+            ((-3, -5), (-5, -3)),
+            ((-3, 5), (-3, 5)),
+            ((0, 0), (0, 0)),
+            ((2.5, -1.25), (-1.25, 2.5)),
+        ],
+    )
+    def test_outputs(self, inputs, expected):
+        operation = Comparator()
+        assert operation.input_count == 2
+        assert operation.output_count == 2
+        assert operation.evaluate(*inputs) == expected
+        for index, value in enumerate(expected):
+            assert operation.evaluate_output(index, inputs) == value
+
+    @pytest.mark.parametrize("inputs", [(1j, 2), (1, 2j)])
+    def test_complex_inputs(self, inputs):
+        with pytest.raises(
+            ValueError, match="Comparator does not support complex numbers"
+        ):
+            Comparator().evaluate(*inputs)
+
+    def test_data_type(self):
+        data_type = DataType(wl=(4, 2))
+        smallest, largest = Comparator().evaluate(2.5, -1.25, data_type=data_type)
+        assert isinstance(smallest, apy.APyFixed)
+        assert isinstance(largest, apy.APyFixed)
+        assert smallest == apy.fx(-1.25, 4, 2)
+        assert largest == apy.fx(2.5, 4, 2)
+
+    def test_configuration(self):
+        first, second = Input(), Input()
+        operation = Comparator(first, second, name="sort", latency=3, execution_time=1)
+        assert operation.type_name() == "cmp"
+        assert operation.name == "sort"
+        assert operation.input(0).connected_source == first.output(0)
+        assert operation.input(1).connected_source == second.output(0)
+        assert operation.latency_offsets == {"in0": 0, "in1": 0, "out0": 3, "out1": 3}
+        assert operation.execution_time == 1
 
 
 class TestAbsolute:
