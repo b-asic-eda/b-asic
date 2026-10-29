@@ -57,7 +57,7 @@ resources = {
 
 scheduler = HybridScheduler(max_resources=resources)
 schedule = Schedule(sfg, scheduler=scheduler)
-print(schedule.schedule_time)
+schedule
 
 # %%
 # Derive an architecture with the minimal amount of PEs, memories, and minimal mux complexity

@@ -128,3 +128,6 @@ Digraph.gv.pdf
 *.spyproject
 *.wraplock
 *uv.lock
+
+# Generated VHDL code
+generated**
