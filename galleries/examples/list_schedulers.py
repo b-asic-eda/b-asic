@@ -1,7 +1,7 @@
 """
-===============================
-LDLT matrix inversion algorithm
-===============================
+=========================
+List Schedulers in B-ASIC
+=========================
 
 This provides some examples of the different list-based schedulers that are
 available in B-ASIC.
