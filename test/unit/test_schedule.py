@@ -453,6 +453,34 @@ class TestSlacks:
 
 
 class TestRescheduling:
+    @pytest.mark.parametrize("latency", [0, 1, 2, 3])
+    def test_wrap_boundary_start_time_preserves_slacks(self, latency):
+        input_item = Input()
+        operation = ConstantMultiplication(0.5, input_item, latency=latency)
+        sfg = SFG([input_item], [Output(operation)])
+        schedule = Schedule(
+            sfg,
+            cyclic=True,
+            schedule_time=2,
+            start_times={"in0": 0, "cmul0": 2, "out0": 2},
+            laps={"s0": 3, "s1": 3},
+        )
+        original_slacks = {
+            graph_id: schedule.slacks(graph_id) for graph_id in schedule.start_times
+        }
+
+        schedule.set_schedule_time(2, allow_cyclic_wrap=True)
+
+        assert schedule.start_times == {"in0": 0, "cmul0": 0, "out0": 2}
+        assert {
+            graph_id: schedule.slacks(graph_id) for graph_id in schedule.start_times
+        } == original_slacks
+        schedule._validate()
+
+        schedule.set_schedule_time(3, allow_cyclic_wrap=True)
+        assert schedule.start_times["cmul0"] == 0
+        schedule._validate()
+
     def test_move_operation(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 4)
         precedence_sfg_delays.set_latency_of_type_name(

@@ -9,6 +9,7 @@ import sys
 import tempfile
 from collections import defaultdict
 from collections.abc import Sequence
+from copy import copy
 from typing import cast
 
 import matplotlib.pyplot as plt
@@ -482,46 +483,114 @@ class Schedule:
         for r in res_str:
             print(f"{r[0]:8} | {r[1]} | {r[2]}")
 
-    def set_schedule_time(self, time: int) -> "Schedule":
+    def _can_set_schedule_time(
+        self, time: int, allow_cyclic_wrap: bool = False
+    ) -> bool:
+        """Return whether the schedule time can be changed to *time*."""
+        if time >= self.get_max_end_time():
+            return True
+        if not allow_cyclic_wrap or not self._cyclic or time <= 0:
+            return False
+
+        candidate = copy(self)
+        candidate._laps = self._laps.copy()
+        candidate._update_laps_for_schedule_time(time)
+        candidate._schedule_time = time
+
+        for graph_id, start_time in self._start_times.items():
+            operation = cast(Operation, self._sfg.find_by_id(graph_id))
+            if start_time > time and not isinstance(operation, DontCare):
+                return False
+            if (
+                any(
+                    start_time + cast(int, output_port.latency_offset) > time
+                    for output_port in operation.outputs
+                )
+                and candidate.forward_slack(graph_id) < 0
+            ):
+                return False
+        return True
+
+    def _update_laps_for_schedule_time(self, time: int) -> None:
+        if self._schedule_time is None:
+            return
+
+        for signal_id in self._laps:
+            port = self._sfg.find_by_id(signal_id).destination
+            source_port = port.signals[0].source
+            source_op = source_port.operation
+            source_end_time = (
+                self._start_times[source_op.graph_id]
+                + (source_op.latency_offsets[f"out{source_port.index}"])
+            )
+            if self._schedule_time < source_end_time <= time:
+                self._laps[signal_id] += 1
+            elif time < source_end_time <= self._schedule_time:
+                self._laps[signal_id] -= 1
+
+    def set_schedule_time(
+        self, time: int, *, allow_cyclic_wrap: bool = False
+    ) -> "Schedule":
         """
         Set a new schedule time.
 
         Parameters
         ----------
         time : int
-            The new schedule time. If it is too short, a ValueError will be raised.
+            The new schedule time. For cyclic schedules, a shorter time is allowed
+            when *allow_cyclic_wrap* is True and all operations wrapping around the
+            schedule edge have non-negative forward slack.
+        allow_cyclic_wrap : bool, default: False
+            Whether to allow a shorter cyclic schedule time when edge operations have
+            non-negative forward slack. Operations starting at the new boundary are
+            moved to time zero, except for Output and Sink operations.
 
         See Also
         --------
         get_max_time
         """
         max_end_time = self.get_max_end_time()
-        if time < max_end_time:
+        if not self._can_set_schedule_time(time, allow_cyclic_wrap):
+            if allow_cyclic_wrap and self._cyclic and 0 < time < max_end_time:
+                raise ValueError(
+                    f"New schedule time ({time}) would invalidate the cyclic schedule."
+                )
             raise ValueError(
                 f"New schedule time ({time}) too short, minimum: {max_end_time}."
             )
 
-        # if updating the scheduling time -> update laps due to operations
-        # reading and writing in different iterations (across the edge)
-        if self._schedule_time is not None:
-            for signal_id in self._laps:
-                port = self._sfg.find_by_id(signal_id).destination
-
-                source_port = port.signals[0].source
-                source_op = source_port.operation
-                source_port_start_time = self._start_times[source_op.graph_id]
-                source_port_latency_offset = source_op.latency_offsets[
-                    f"out{source_port.index}"
-                ]
-                if (
-                    source_port_start_time + source_port_latency_offset
-                    > self._schedule_time
-                    and source_port_start_time + source_port_latency_offset <= time
-                ):
-                    self._laps[signal_id] += 1
-
+        self._update_laps_for_schedule_time(time)
         self._schedule_time = time
+        if allow_cyclic_wrap and self._cyclic:
+            self._wrap_start_times()
         return self
+
+    def _wrap_start_times(self) -> None:
+        """Wrap boundary start times while preserving signal slacks."""
+        period = self.schedule_time
+        for graph_id, start_time in self._start_times.items():
+            if start_time != period:
+                continue
+            operation = cast(Operation, self._sfg.find_by_id(graph_id))
+            if isinstance(operation, Output | Sink):
+                continue
+
+            self._start_times[graph_id] = 0
+            # Input usage moves back by one period. Keep its signal slack.
+            for port in operation.inputs:
+                for signal in port.signals:
+                    self._laps[signal.graph_id] += 1
+            for port in operation.outputs:
+                offset = cast(int, port.latency_offset)
+                old_available = period + offset
+                if old_available > period:
+                    old_available -= period
+                new_available = offset
+                if new_available > period:
+                    new_available -= period
+                lap_delta = (new_available - old_available) // period
+                for signal in port.signals:
+                    self._laps[signal.graph_id] += lap_delta
 
     def swap_io_of_operation(self, operation_id: GraphID) -> None:
         """

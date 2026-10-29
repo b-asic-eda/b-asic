@@ -1,4 +1,5 @@
 import copy
+import itertools
 import pickle
 
 import pytest
@@ -6,10 +7,18 @@ import pytest
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
+from b_asic.sfg import SFG
+from b_asic.special_operations import Delay, Input, Output
+from b_asic.utility_operations import Sink
 
 try:
+    from qtpy.QtCore import QEvent, QPoint, QPointF, Qt
+    from qtpy.QtGui import QMouseEvent
+    from qtpy.QtWidgets import QApplication, QGraphicsScene, QGraphicsView
+
     from b_asic.scheduler_gui import main_window
     from b_asic.scheduler_gui.main_window import ScheduleMainWindow
+    from b_asic.scheduler_gui.scheduler_item import SchedulerItem
 except ImportError:
     pytestmark = pytest.mark.skip("Qt not setup")
 
@@ -19,6 +28,235 @@ def test_start(qtbot):
     qtbot.addWidget(widget)
 
     widget.exit_app()
+
+
+@pytest.mark.parametrize(("delay_count", "expected_valid"), [(1, False), (2, True)])
+def test_timeline_drag_wraps_only_with_nonnegative_forward_slack(
+    qtbot, delay_count, expected_valid
+):
+    input_item = Input()
+    delays = [Delay() for _ in range(delay_count)]
+    accumulator = (input_item + delays[0]) * 0.5
+    for current_delay, next_delay in itertools.pairwise(delays):
+        current_delay <<= next_delay
+    delays[-1] <<= accumulator
+    sfg = SFG([input_item], [Output(delays[0])])
+    sfg.set_latency_of_type_name(Addition.type_name(), 1)
+    sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 1)
+    schedule = Schedule(sfg, cyclic=True)
+    scheduler_item = SchedulerItem(schedule)
+
+    assert scheduler_item.is_valid_delta_time(-1) is expected_valid
+    assert not scheduler_item.is_valid_delta_time(-2)
+    if expected_valid:
+        scheduler_item.change_schedule_time(-1)
+        assert schedule.schedule_time == 1
+        assert schedule.forward_slack("cmul0") == 0
+    else:
+        with pytest.raises(ValueError, match="invalidate the cyclic schedule"):
+            schedule.set_schedule_time(1, allow_cyclic_wrap=True)
+
+
+@pytest.mark.parametrize("boundary", [1, 4])
+def test_timeline_drop_wraps_operations_that_remain_movable(qtbot, boundary):
+    input_item = Input()
+    first_delay = Delay()
+    second_delay = Delay()
+    third_delay = Delay()
+    accumulator = (input_item + first_delay) * 0.5
+    first_delay <<= second_delay
+    second_delay <<= third_delay
+    third_delay <<= accumulator
+    sfg = SFG([input_item], [Output(first_delay)])
+    sfg.set_latency_of_type_name(Addition.type_name(), 1)
+    sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 1)
+    schedule = Schedule(sfg, cyclic=True)
+    schedule.set_schedule_time(boundary + 1)
+    schedule.move_operation("cmul0", boundary - 1)
+    graph = SchedulerItem(schedule)
+    scene = QGraphicsScene()
+    scene.addItem(graph)
+    graph.installSceneEventFilters(graph.event_items)
+    view = QGraphicsView(scene)
+    qtbot.addWidget(view)
+    view.resize(900, 600)
+    view.scale(75, 75)
+    view.show()
+
+    def drag(start, end):
+        qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
+        QApplication.sendEvent(
+            view.viewport(),
+            QMouseEvent(
+                QEvent.Type.MouseMove,
+                QPointF(end),
+                Qt.MouseButton.NoButton,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+            ),
+        )
+        qtbot.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
+
+    timeline = graph.axes.event_items[0]
+    timeline_pos = view.mapFromScene(timeline.mapToScene(timeline.line().center()))
+    drag(timeline_pos, timeline_pos - QPoint(75, 0))
+
+    operation = graph._operation_items["cmul0"]
+    assert schedule.schedule_time == boundary
+    assert schedule.start_times["cmul0"] == 0
+    assert operation.x() == pytest.approx(graph._x_axis_indent)
+    assert schedule.forward_slack("cmul0") > 0
+
+    graph.change_schedule_time(1)
+    assert schedule.start_times["cmul0"] == 0
+    assert operation.x() == pytest.approx(graph._x_axis_indent)
+    graph.change_schedule_time(-1)
+
+    start_times = schedule.start_times.copy()
+    laps = schedule._laps.copy()
+    operation_pos = view.mapFromScene(
+        operation.mapToScene(operation._latency_item.boundingRect().center())
+    )
+    qtbot.mouseClick(view.viewport(), Qt.MouseButton.LeftButton, pos=operation_pos)
+    assert schedule.start_times == start_times
+    assert schedule._laps == laps
+
+    drag(operation_pos, operation_pos + QPoint(75, 0))
+    assert schedule.start_times["cmul0"] == 1 % boundary
+    assert operation.x() == pytest.approx(graph._x_axis_indent + 1 % boundary)
+
+
+@pytest.mark.parametrize(
+    ("source_start", "middle_laps", "dragged_id", "dx", "wrapped"),
+    [
+        (0, 0, "cmul0", -1, True),
+        (0, 0, "cmul1", 1, True),
+        (2, 1, "cmul0", 1, False),
+    ],
+)
+def test_signal_wraps_during_drag_before_drop(
+    qtbot, source_start, middle_laps, dragged_id, dx, wrapped
+):
+    input_item = Input()
+    source = ConstantMultiplication(0.5, input_item, latency=1)
+    destination = ConstantMultiplication(0.25, source, latency=0)
+    sfg = SFG([input_item], [Output(destination)])
+    schedule = Schedule(
+        sfg,
+        cyclic=True,
+        schedule_time=3,
+        start_times={"in0": 0, "cmul0": source_start, "cmul1": 2, "out0": 2},
+        laps={"s0": 1, "s1": 1, "s2": middle_laps},
+    )
+    graph = SchedulerItem(schedule)
+    scene = QGraphicsScene()
+    scene.addItem(graph)
+    graph.installSceneEventFilters(graph.event_items)
+    view = QGraphicsView(scene)
+    qtbot.addWidget(view)
+    view.resize(900, 600)
+    view.scale(75, 75)
+    view.show()
+    operation = graph._operation_items[dragged_id]
+    signal = next(
+        signal
+        for signal in graph._get_all_signals()
+        if signal._src_operation.graph_id == "cmul0"
+        and signal._dest_operation.graph_id == "cmul1"
+    )
+    original_start_times = schedule.start_times.copy()
+    original_laps = schedule.laps.copy()
+    start = view.mapFromScene(
+        operation.mapToScene(operation._latency_item.boundingRect().center())
+    )
+    end = start + QPoint(75 * dx, 0)
+    qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
+    QApplication.sendEvent(
+        view.viewport(),
+        QMouseEvent(
+            QEvent.Type.MouseMove,
+            QPointF(end),
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        ),
+    )
+
+    def assert_wrapped():
+        path = signal.path()
+        has_curve = any(
+            path.elementAt(index).isCurveTo() for index in range(path.elementCount())
+        )
+        assert has_curve is not wrapped
+
+    assert operation.x() == pytest.approx(
+        graph._x_axis_indent + original_start_times[dragged_id] + dx
+    )
+    assert_wrapped()
+    assert schedule.start_times == original_start_times
+    assert schedule.laps == original_laps
+    qtbot.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
+    assert_wrapped()
+
+
+@pytest.mark.parametrize("cyclic", [False, True])
+def test_timeline_drop_keeps_output_and_sink_at_right_boundary(qtbot, cyclic):
+    input_item = Input()
+    operation = ConstantMultiplication(0.5, input_item, latency=1)
+    sink = Sink()
+    sink <<= operation
+    sfg = SFG([input_item], [Output(operation)])
+    schedule = Schedule(sfg, cyclic=cyclic)
+    schedule.set_schedule_time(2)
+    graph = SchedulerItem(schedule)
+
+    graph.change_schedule_time(-1)
+
+    for graph_id in ("out0", "sink0"):
+        item = graph._operation_items[graph_id]
+        assert schedule.start_times[graph_id] == schedule.schedule_time
+        assert item.x() == pytest.approx(graph._x_axis_indent + schedule.schedule_time)
+        graph.set_new_start_time(item)
+        assert schedule.start_times[graph_id] == schedule.schedule_time
+
+
+@pytest.mark.parametrize("warnings", [False, True])
+def test_timeline_change_refreshes_warning_colors(qtbot, warnings):
+    input_item = Input()
+    feedback = Delay()
+    accumulator = (input_item + feedback) * 0.5
+    feedback <<= Delay(Delay(accumulator))
+    sfg = SFG([input_item], [Output(feedback)])
+    sfg.set_latency_of_type_name(Addition.type_name(), 1)
+    sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 1)
+    schedule = Schedule(sfg, cyclic=True)
+    graph = SchedulerItem(schedule, warnings=warnings)
+    feedback_signal = next(
+        signal
+        for signal in graph._get_all_signals()
+        if signal._dest_operation.graph_id == "add0"
+        and signal._src_operation.graph_id == "cmul0"
+    )
+
+    def assert_colors(warning):
+        assert feedback_signal.pen() == (
+            feedback_signal._warning_pen if warning else feedback_signal._inactive_pen
+        )
+        for operation, key in (
+            (feedback_signal._src_operation, feedback_signal._src_key),
+            (feedback_signal._dest_operation, feedback_signal._dest_key),
+        ):
+            assert operation._ports[key]["item"].brush() == (
+                operation._port_filling_brush_warning
+                if warning
+                else operation._port_filling_brush
+            )
+
+    assert_colors(warnings)
+    graph.change_schedule_time(-1)
+    assert_colors(False)
+    graph.change_schedule_time(1)
+    assert_colors(warnings)
 
 
 def test_load_schedule(qtbot, sfg_simple_filter):
