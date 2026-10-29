@@ -428,6 +428,28 @@ class TestComparator:
         assert operation.latency_offsets == {"in0": 0, "in1": 0, "out0": 3, "out1": 3}
         assert operation.execution_time == 1
 
+    @pytest.mark.parametrize("source", [Min, Max])
+    @pytest.mark.parametrize(
+        "offsets",
+        [None, {"in0": 1, "in1": 2, "out0": 4, "out1": 5}],
+    )
+    def test_rewrite(self, source, offsets):
+        comparator = Comparator(name="sort", latency_offsets=offsets, execution_time=2)
+        rewritten = getattr(comparator, f"_rewrite_{source.__name__}")()
+        assert rewritten.input_count == 2
+        assert rewritten.output_count == 2
+        assert not rewritten.find_by_type(Comparator)
+        for index, operation_type in enumerate((Min, Max)):
+            (operation,) = rewritten.find_by_type(operation_type)
+            assert operation.name == comparator.name
+            assert operation.execution_time == comparator.execution_time
+            assert operation.latency_offsets == {
+                "in0": comparator.input(0).latency_offset,
+                "in1": comparator.input(1).latency_offset,
+                "out0": comparator.output(index).latency_offset,
+            }
+        assert rewritten.evaluate_outputs([5, -3]) == [-3, 5]
+
 
 class TestAbsolute:
     """Tests for Absolute class."""
