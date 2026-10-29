@@ -445,6 +445,41 @@ class Operation(GraphComponent, SignalSourceProvider):
         """
         raise NotImplementedError
 
+    def _constant_propagation(self) -> "SFG | None":
+        """
+        Evaluate all-constant inputs and return a constant-output SFG, or None.
+
+        The replacement has matching input/output counts and port ordering.
+        Evaluation uses a copy of the operation and leaves the original graph
+        unchanged. Inputs without signals and zero-input/output operations are
+        not folded. Evaluation errors leave the operation unchanged.
+
+        Stateful operations must override this hook to determine whether their
+        outputs are constant over all iterations. Overrides for algebraic
+        identities can call this method before trying their additional rules.
+        """
+        from b_asic.core_operations import Constant  # noqa: PLC0415
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        if not self.input_count or not self.output_count:
+            return None
+        sources = [port.connected_source for port in self.inputs]
+        if any(
+            source is None or not isinstance(source.operation, Constant)
+            for source in sources
+        ):
+            return None
+        values = [source.operation.value for source in sources]
+        try:
+            outputs = cast(Operation, self.copy()).evaluate_outputs(values)
+        except (ArithmeticError, TypeError, ValueError):
+            return None
+        return SFG(
+            [Input() for _ in self.inputs],
+            [Output(Constant(value)) for value in outputs],
+        )
+
 
 class AbstractOperation(Operation, AbstractGraphComponent):
     """

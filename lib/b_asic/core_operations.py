@@ -22,6 +22,53 @@ if TYPE_CHECKING:
     from b_asic.sfg import SFG
 
 
+def _zero_inputs(operation: AbstractOperation) -> set[int]:
+    """Find inputs connected directly to a zero constant."""
+    return {
+        index
+        for index, port in enumerate(operation.inputs)
+        if port.connected_source is not None
+        and isinstance(port.connected_source.operation, Constant)
+        and port.connected_source.operation.value == 0
+    }
+
+
+def _simplified_sfg(operation: AbstractOperation, build) -> "SFG":
+    """Build an independent replacement with the original input port ordering."""
+    from b_asic.sfg import SFG  # noqa: PLC0415
+    from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+    inputs = [Input() for _ in operation.inputs]
+    return SFG(inputs, [Output(build(inputs))])
+
+
+def _simplify_add_sub(operation, is_add: bool) -> "SFG | None":
+    """Share zero-input arithmetic rules between the adder operation types."""
+    zeros = _zero_inputs(operation)
+    if not zeros:
+        return None
+    if len(zeros) == 2:
+        return _simplified_sfg(operation, lambda inputs: Constant(0))
+    index = 1 if 0 in zeros else 0
+
+    def build(inputs):
+        result = inputs[index]
+        scale = operation.in0_scale if index == 0 else operation.in1_scale
+        if scale:
+            shift = RightShift if scale > 0 else LeftShift
+            result = shift(abs(scale), result)
+        if index == 1 and operation.mul_j:
+            result = ImaginaryMultiplication(result)
+        if index == 1 and not is_add:
+            result = Negation(result, name=operation.name)
+        if operation.out0_scale:
+            shift = RightShift if operation.out0_scale > 0 else LeftShift
+            result = shift(abs(operation.out0_scale), result)
+        return result
+
+    return _simplified_sfg(operation, build)
+
+
 class Constant(AbstractOperation):
     r"""
     Constant value operation.
@@ -202,6 +249,14 @@ class Negation(AbstractOperation):
             elif data_type.num_repr == NumRepresentation.FIXED_POINT:
                 return apy.fx(-a, data_type.wl[0], data_type.wl[1])
         return -a
+
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        if _zero_inputs(self):
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        return None
 
 
 class Addition(AbstractOperation):
@@ -435,6 +490,12 @@ class Addition(AbstractOperation):
         out0 <<= addsub
         return SFG([in0, in1], [out0])
 
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        return _simplify_add_sub(self, is_add=True)
+
 
 class Subtraction(AbstractOperation):
     """
@@ -662,6 +723,12 @@ class Subtraction(AbstractOperation):
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
+
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        return _simplify_add_sub(self, is_add=False)
 
 
 class AddSub(AbstractOperation):
@@ -906,6 +973,12 @@ class AddSub(AbstractOperation):
     def is_swappable(self) -> bool:
         return self.is_add and self.in0_scale == self.in1_scale and not self.mul_j
 
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        return _simplify_add_sub(self, is_add=self.is_add)
+
 
 class Multiplication(AbstractOperation):
     r"""
@@ -992,6 +1065,14 @@ class Multiplication(AbstractOperation):
         return any(
             input_.connected_source.operation.is_constant for input_ in self.inputs
         )
+
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        if _zero_inputs(self):
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        return None
 
 
 class Division(AbstractOperation):
@@ -1652,6 +1733,14 @@ class ImaginaryMultiplication(AbstractOperation):
         out0 <<= op
         return SFG([in0, in1], [out0])
 
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        if _zero_inputs(self):
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        return None
+
 
 class ConstantMultiplication(AbstractOperation):
     r"""
@@ -1833,6 +1922,14 @@ class ConstantMultiplication(AbstractOperation):
 
         return SFG([in0], [out0])
 
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        if self.value == 0 or _zero_inputs(self):
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        return None
+
 
 class MAD(AbstractOperation):
     r"""
@@ -1951,6 +2048,22 @@ class MAD(AbstractOperation):
         for i, p in enumerate(self._input_ports):
             p._index = i
 
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        zeros = _zero_inputs(self)
+        if zeros & {0, 1}:
+            if self.do_add:
+                return _simplified_sfg(self, lambda inputs: inputs[2])
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        if 2 in zeros or not self.do_add:
+            return _simplified_sfg(
+                self,
+                lambda inputs: Multiplication(inputs[0], inputs[1], name=self.name),
+            )
+        return None
+
 
 class MADS(AbstractOperation):
     __slots__ = (
@@ -2054,6 +2167,24 @@ class MADS(AbstractOperation):
         ]
         for i, p in enumerate(self._input_ports):
             p._index = i
+
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        zeros = _zero_inputs(self)
+        if zeros & {1, 2}:
+            if self.do_addsub:
+                return _simplified_sfg(self, lambda inputs: inputs[0])
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        if 0 not in zeros and self.do_addsub:
+            return None
+
+        def build(inputs):
+            product = Multiplication(inputs[1], inputs[2], name=self.name)
+            return product if self.is_add else Negation(product)
+
+        return _simplified_sfg(self, build)
 
 
 class Reciprocal(AbstractOperation):
@@ -2299,6 +2430,14 @@ class RightShift(AbstractOperation):
             raise ValueError("value must be non-negative")
         self.set_param("value", value)
 
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        if _zero_inputs(self):
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        return None
+
 
 class LeftShift(AbstractOperation):
     r"""
@@ -2398,6 +2537,14 @@ class LeftShift(AbstractOperation):
         if value < 0:
             raise ValueError("value must be non-negative")
         self.set_param("value", value)
+
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        if _zero_inputs(self):
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        return None
 
 
 class Shift(AbstractOperation):
@@ -2539,3 +2686,11 @@ class Shift(AbstractOperation):
             in1_scale=scales[1],
             out0_scale=arithmetic.out0_scale,
         )
+
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        if _zero_inputs(self):
+            return _simplified_sfg(self, lambda inputs: Constant(0))
+        return None
