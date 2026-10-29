@@ -21,8 +21,9 @@ import b_asic.logger
 from b_asic._ilp_utils import _solve_ilp_problem
 from b_asic.architecture import Memory, ProcessingElement
 from b_asic.operation import Operation
+from b_asic.port import InputPort
 from b_asic.process import MemoryOutputPort, MemoryVariable, Process
-from b_asic.resources import ProcessCollection
+from b_asic.resources import ProcessCollection, _sanitize_port_option
 from b_asic.schedule import Schedule
 from b_asic.types import TypeName
 from b_asic.utility_operations import DontCare
@@ -36,6 +37,7 @@ def assign_processing_elements_and_memories(
     strategy: Literal[
         "ilp_graph_color",
         "ilp_min_mux",
+        "cp_min_mux",
         "greedy_graph_color",
         "left_edge",
     ] = "ilp_graph_color",
@@ -46,10 +48,10 @@ def assign_processing_elements_and_memories(
     memory_write_ports: int | None = None,
     memory_total_ports: int | None = None,
     memory_type: Literal["RAM", "register"] = "RAM",
-    solver: LpSolver | None = None,
+    solver: LpSolver | str | None = None,
 ) -> tuple[list[ProcessingElement], list[Memory], ProcessCollection]:
     """
-    Assign PEs and memories jointly using ILP.
+    Assign PEs and memories jointly using resource assignment strategies.
 
     Parameters
     ----------
@@ -62,13 +64,13 @@ def assign_processing_elements_and_memories(
 
         * "ilp_graph_color" - ILP-based optimal resource assignment.
         * "ilp_min_mux" - ILP-based optimal resource assignment with multiplexer minimization.
+        * "cp_min_mux" - CPMpy-based multiplexer minimization (requires the ``cp`` extra).
         * "greedy_graph_color" - Greedy graph coloring-based resource assignment.
         * "left_edge" - Left-edge coloring-based resource assignment.
 
     max_mux_size : int, optional
         The maximum fan-in size for any enabled multiplexer target in
-        strategy='ilp_min_mux'. Must be greater than or equal to 1.
-        Only valid with 'ilp_min_mux' strategy.
+        strategies 'ilp_min_mux' and 'cp_min_mux'. Must be at least 1.
 
     resources : dict[TypeName, int], optional
         The maximum amount of resources to assign to, used to limit the solution
@@ -93,8 +95,10 @@ def assign_processing_elements_and_memories(
     memory_type : {'RAM', 'register'}, default: 'RAM'
         The type of memory to assign to.
 
-    solver : :class:`~pulp.LpSolver`, optional
-        Solver to use. To see which solvers are available:
+    solver : pulp.LpSolver or str, optional
+        For ``cp_min_mux``, a CPMpy solver name, defaulting to ``"ortools"``.
+        For ILP strategies, a PuLP solver instance. To see which PuLP
+        solvers are available:
 
         .. code-block:: python
 
@@ -106,15 +110,25 @@ def assign_processing_elements_and_memories(
     -------
     A tuple containing one list of assigned PEs and one list of assigned memories.
     """
-    if max_mux_size is not None and strategy != "ilp_min_mux":
+    if max_mux_size is not None and strategy not in ("ilp_min_mux", "cp_min_mux"):
         raise ValueError(
-            "max_mux_size can only be specified with strategy='ilp_min_mux', "
+            "max_mux_size can only be specified with strategy='ilp_min_mux' or 'cp_min_mux', "
             f"not '{strategy}'"
         )
 
     if max_mux_size is not None and max_mux_size < 1:
         raise ValueError(
             f"max_mux_size must be greater than or equal to 1, got {max_mux_size}"
+        )
+
+    if strategy == "cp_min_mux":
+        if solver is not None and not isinstance(solver, str):
+            raise TypeError(
+                "cp_min_mux requires a CPMpy solver name, not a PuLP solver"
+            )
+    elif isinstance(solver, str):
+        raise TypeError(
+            "ILP strategies require a PuLP solver instance, not a solver name"
         )
 
     operations = schedule.get_operations()
@@ -159,6 +173,7 @@ def _split_operations_and_variables(
     strategy: Literal[
         "ilp_graph_color",
         "ilp_min_mux",
+        "cp_min_mux",
         "greedy_graph_color",
         "left_edge",
     ] = "ilp_graph_color",
@@ -169,7 +184,7 @@ def _split_operations_and_variables(
     memory_write_ports: int | None = None,
     memory_total_ports: int | None = None,
     memory_type: Literal["RAM", "register"] = "RAM",
-    solver: LpSolver | None = None,
+    solver: LpSolver | str | None = None,
 ) -> tuple[dict[TypeName, list[ProcessCollection]], list[ProcessCollection]]:
     log.info("Checking that operation execution times do not exceed schedule time")
     for group in op_groups.values():
@@ -247,6 +262,20 @@ def _split_operations_and_variables(
             solver,
             pe_greedy_colorings,
             mem_greedy_coloring,
+        )
+    elif strategy == "cp_min_mux":
+        _, _, total_ports = _sanitize_port_option(
+            memory_read_ports, memory_write_ports, memory_total_ports
+        )
+        pe_x, mem_x = _cp_min_mux(
+            op_groups,
+            mem_vars,
+            max_pes,
+            max_mems,
+            direct_variables,
+            memory_total_ports=total_ports,
+            max_mux_size=max_mux_size,
+            solver=cast(str | None, solver),
         )
     elif strategy == "greedy_graph_color":
         pe_x = {}
@@ -448,6 +477,177 @@ def _apply_warm_start(
                 _set(var, 1 if mem_idx in used_mem_colors else 0)
 
     log.info("Warm start applied from greedy coloring")
+
+
+def _cp_min_mux(
+    op_groups: dict[TypeName, ProcessCollection],
+    mem_vars: ProcessCollection,
+    max_pes: dict[TypeName, int],
+    max_mems: int,
+    direct: ProcessCollection,
+    *,
+    memory_total_ports: int = 2,
+    max_mux_size: int | None = None,
+    solver: str | None = None,
+) -> tuple[dict, dict]:
+    """
+    Minimize physical connections using CPMpy integer resource assignments.
+
+    Resource bounds have the same meaning as for ``_ilp_min_mux``. Memories
+    have one read and one write port, optionally sharing a single total port.
+    Connection variables are exact ORs of their logical uses, and are created
+    only for physical links that can be required by the dataflow graph.
+    """
+    try:
+        import cpmpy as cp  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError("cp_min_mux requires CPMpy; install b-asic[cp]") from exc
+
+    if memory_total_ports not in (1, 2):
+        raise ValueError("cp_min_mux supports one or two total memory ports")
+    if max_mux_size is not None and max_mux_size < 1:
+        raise ValueError("max_mux_size must be at least 1")
+    if (mem_vars and max_mems < 1) or any(
+        max_pes[op_type] < 1 for op_type in op_groups
+    ):
+        raise ValueError("Insufficient resources for cp_min_mux")
+
+    model = cp.Model()
+    assignments = {}
+    counts = {}
+    op_info = {}
+    for op_type, group in op_groups.items():
+        for proc_idx, proc in enumerate(group):
+            key = ("pe", op_type, proc)
+            assignments[key] = cp.intvar(
+                0, max_pes[op_type] - 1, name=f"pe_{op_type}_{proc_idx}"
+            )
+            counts[key] = max_pes[op_type]
+            op_info[proc.operation] = key
+    for var_idx, var in enumerate(mem_vars):
+        key = ("mem", var)
+        assignments[key] = cp.intvar(0, max_mems - 1, name=f"mem_{var_idx}")
+        counts[key] = max_mems
+
+    # Include even isolated, zero-duration processes in the solver model.
+    model += [assignment >= 0 for assignment in assignments.values()]
+
+    # Deduplicate time-slot cliques. Keeping these as global constraints gives
+    # CP solvers more information than separate pairwise inequalities.
+    Ts = mem_vars.schedule_time
+    families = []
+    for op_type, group in op_groups.items():
+        slots = defaultdict(set)
+        for proc in group:
+            for t in range(proc.start_time, proc.start_time + proc.execution_time):
+                slots[t % Ts].add(("pe", op_type, proc))
+        families.append(([("pe", op_type, proc) for proc in group], slots.values()))
+
+    reads = defaultdict(set)
+    writes = defaultdict(set)
+    for var in mem_vars:
+        key = ("mem", var)
+        writes[var.start_time % Ts].add(key)
+        for t in var.read_times:
+            reads[t % Ts].add(key)
+    if memory_total_ports == 1:
+        for t in writes.keys() & reads.keys():
+            if writes[t] & reads[t]:
+                raise ValueError(
+                    "Cannot read and write in same cycle with one memory port"
+                )
+        mem_slots = [writes[t] | reads[t] for t in writes.keys() | reads.keys()]
+    else:
+        mem_slots = [*writes.values(), *reads.values()]
+    families.append(([("mem", var) for var in mem_vars], mem_slots))
+
+    for keys, slots in families:
+        cliques = list(dict.fromkeys(frozenset(slot) for slot in slots if slot))
+        for clique in cliques:
+            if len(clique) > 1:
+                model += cp.AllDifferent([assignments[key] for key in clique])
+        # Pin a largest simultaneous set to distinct labels. Ordering it by
+        # process order makes the choice deterministic. Empty/zero-duration
+        # families still have interchangeable labels, so pin their first item.
+        anchor = max(cliques, key=len) if cliques else frozenset(keys[:1])
+        ordered = [key for key in keys if key in anchor]
+        if ordered and len(ordered) > counts[ordered[0]]:
+            raise ValueError("Insufficient resources for cp_min_mux")
+        for idx, key in enumerate(ordered):
+            model += assignments[key] == idx
+
+    # A physical endpoint includes its resource family, index, and port.
+    uses = defaultdict(list)
+
+    def add_connection(src, dst, src_port=0, dst_port=0):
+        for src_idx in range(counts[src]):
+            for dst_idx in range(counts[dst]):
+                physical_src = (*src[:-1], src_idx, src_port)
+                physical_dst = (*dst[:-1], dst_idx, dst_port)
+                uses[physical_src, physical_dst].append(
+                    (assignments[src] == src_idx) & (assignments[dst] == dst_idx)
+                )
+
+    for var in mem_vars:
+        dst = ("mem", var)
+        if isinstance(var.write_port, MemoryOutputPort):
+            add_connection(("mem", var.write_port.source_variable), dst)
+        elif not isinstance(var.write_port.operation, DontCare):
+            add_connection(op_info[var.write_port.operation], dst, var.write_port.index)
+        # Use the actual read port of each chain segment, rather than all
+        # consumers of its root producer. Relay reads are represented above.
+        for port in var.reads:
+            if isinstance(port, InputPort):
+                add_connection(dst, op_info[port.operation], dst_port=port.index)
+
+    for var in direct:
+        if isinstance(var.write_port.operation, DontCare):
+            continue
+        for port, offset in var.reads.items():
+            if offset == 0:
+                add_connection(
+                    op_info[var.write_port.operation],
+                    op_info[port.operation],
+                    var.write_port.index,
+                    port.index,
+                )
+
+    connections = []
+    incoming = defaultdict(list)
+    for idx, ((_, dst), witnesses) in enumerate(uses.items()):
+        connection = cp.boolvar(name=f"connection_{idx}")
+        model += connection == cp.any(witnesses)
+        connections.append(connection)
+        incoming[dst].append(connection)
+    if max_mux_size is not None:
+        for inputs in incoming.values():
+            model += cp.sum(inputs) <= max_mux_size
+    if connections:
+        model.minimize(cp.sum(connections))
+
+    log.info(
+        "CP model created with %d assignments and %d possible connections",
+        len(assignments),
+        len(connections),
+    )
+    solver = solver or "ortools"
+    kwargs = {"log_search_progress": True} if solver == "ortools" else {}
+    if not model.solve(solver=solver, **kwargs):
+        raise ValueError("Solution could not be found via CP, use another method.")
+    log.info(
+        "CP mux connection count: %s", model.objective_value() if connections else 0
+    )
+
+    def coloring(key):
+        assigned = int(assignments[key].value())
+        return {idx: int(idx == assigned) for idx in range(counts[key])}
+
+    pe_x = {
+        op_type: {proc: coloring(("pe", op_type, proc)) for proc in group}
+        for op_type, group in op_groups.items()
+    }
+    mem_x = {var: coloring(("mem", var)) for var in mem_vars}
+    return pe_x, mem_x
 
 
 def _ilp_min_mux(

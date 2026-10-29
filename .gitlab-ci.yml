@@ -86,7 +86,7 @@ run-vhdl-tests:
     - python -m pip install --upgrade pip
     - python --version
     - git fetch --tags
-    - pip install -v .[test,test_optional]
+    - pip install -v .[test,test_optional,cp]
     - pip uninstall -y pytest_qt
     - pip install vunit_hdl
     - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --cov-branch --color=yes test --timeout=40 --durations=10
@@ -104,7 +104,7 @@ run-vhdl-tests-no-simulator-installed:
     - python -m pip install --upgrade pip
     - python --version
     - git fetch --tags
-    - pip install -v .[test,test_optional]
+    - pip install -v .[test,test_optional,cp]
     - pip uninstall -y pytest_qt
     - pip install vunit_hdl
     - pytest --cov=b_asic --cov-report=xml:cov.xml --cov-report=term --cov-branch --color=yes test --timeout=40 --durations=10
