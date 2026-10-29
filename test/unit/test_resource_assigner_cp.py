@@ -1,4 +1,6 @@
-"""CP mux assignment tests, including physical interconnect costs."""
+"""Mux assignment tests, including physical interconnect costs."""
+
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -14,11 +16,11 @@ from b_asic.special_operations import Input, Output
 
 
 @pytest.fixture
-def cp_solver():
+def mux_assigner():
     """Skip CP cases if CPMpy or its default native solver cannot be imported."""
     pytest.importorskip("cpmpy", exc_type=ImportError)
     pytest.importorskip("ortools.sat.python.cp_model", exc_type=ImportError)
-    return "ortools"
+    return _cp_min_mux
 
 
 def _problem(read_times=(1, 2)):
@@ -70,11 +72,12 @@ def _architecture(groups, memories, direct, pe_x, mem_x, max_pes, max_mems):
 @pytest.mark.parametrize(
     ("total_ports", "expected_cost", "expected_memories"), [(1, 4, 2), (2, 2, 1)]
 )
-@pytest.mark.usefixtures("cp_solver")
-def test_cp_memory_port_capacity(total_ports, expected_cost, expected_memories):
+def test_mux_memory_port_capacity(
+    mux_assigner, total_ports, expected_cost, expected_memories
+):
     groups, memories, direct = _problem()
     max_pes = {"in": 1, "out": 1}
-    pe_x, mem_x = _cp_min_mux(
+    pe_x, mem_x = mux_assigner(
         groups, memories, max_pes, 2, direct, memory_total_ports=total_ports
     )
     arch = _architecture(groups, memories, direct, pe_x, mem_x, max_pes, 2)
@@ -82,38 +85,36 @@ def test_cp_memory_port_capacity(total_ports, expected_cost, expected_memories):
     assert arch.get_multiplexer_input_count() == expected_cost
 
 
-@pytest.mark.usefixtures("cp_solver")
-def test_cp_single_port_insufficient_memories():
+def test_mux_single_port_insufficient_memories(mux_assigner):
     groups, memories, direct = _problem()
     with pytest.raises(ValueError, match="Insufficient resources"):
-        _cp_min_mux(
+        mux_assigner(
             groups, memories, {"in": 1, "out": 1}, 1, direct, memory_total_ports=1
         )
 
 
-@pytest.mark.usefixtures("cp_solver")
-def test_cp_mux_bound_combines_direct_and_memory_sources():
+def test_mux_mux_bound_combines_direct_and_memory_sources(mux_assigner):
     groups, memories, direct = _problem(read_times=(2, 1))
     max_pes = {"in": 1, "out": 1}
-    with pytest.raises(ValueError, match="Solution could not be found"):
-        _cp_min_mux(groups, memories, max_pes, 1, direct, max_mux_size=1)
-    pe_x, mem_x = _cp_min_mux(groups, memories, max_pes, 1, direct, max_mux_size=2)
+    with pytest.raises(
+        ValueError, match=r"Solution could not be found|No feasible assignment"
+    ):
+        mux_assigner(groups, memories, max_pes, 1, direct, max_mux_size=1)
+    pe_x, mem_x = mux_assigner(groups, memories, max_pes, 1, direct, max_mux_size=2)
     arch = _architecture(groups, memories, direct, pe_x, mem_x, max_pes, 1)
     assert arch.get_multiplexer_input_count() == 3
 
 
-@pytest.mark.usefixtures("cp_solver")
-def test_cp_direct_only_and_empty_memories():
+def test_mux_direct_only_and_empty_memories(mux_assigner):
     groups, memories, direct = _problem(read_times=(0, 1))
     max_pes = {"in": 1, "out": 1}
-    pe_x, mem_x = _cp_min_mux(groups, memories, max_pes, 0, direct, max_mux_size=1)
+    pe_x, mem_x = mux_assigner(groups, memories, max_pes, 0, direct, max_mux_size=1)
     arch = _architecture(groups, memories, direct, pe_x, mem_x, max_pes, 0)
     assert not mem_x
     assert arch.get_multiplexer_input_count() == 1
 
 
-@pytest.mark.usefixtures("cp_solver")
-def test_cp_chained_memory_connections():
+def test_mux_chained_memory_connections(mux_assigner):
     groups, _, _ = _problem()
     source = next(iter(groups["in"]))
     dest = next(iter(groups["out"]))
@@ -131,7 +132,7 @@ def test_cp_chained_memory_connections():
     ).split_into_chains()
     direct = ProcessCollection([], 4)
     max_pes = {"in": 1, "out": 1}
-    pe_x, mem_x = _cp_min_mux(groups, memories, max_pes, 2, direct)
+    pe_x, mem_x = mux_assigner(groups, memories, max_pes, 2, direct)
     arch = _architecture(groups, memories, direct, pe_x, mem_x, max_pes, 2)
     assert arch.get_multiplexer_input_count() == 3
 
@@ -145,10 +146,78 @@ def test_cp_rejects_pulp_solver_before_building_model():
         )
 
 
-@pytest.mark.parametrize("strategy", ["ilp_min_mux", "cp_min_mux"])
-def test_public_mux_strategy_optimum(strategy, request):
+@pytest.mark.parametrize("read_times", [(1, 2), (0, 1)])
+@pytest.mark.parametrize("total_ports", [1, 2])
+def test_public_cp_solver_instance(mux_assigner, read_times, total_ports):
+    from cpmpy.solvers import CPM_ortools
+
+    groups, memories, direct = _problem(read_times)
+    schedule = Mock()
+    schedule.get_operations.return_value = ProcessCollection(
+        [process for group in groups.values() for process in group], 4
+    )
+    schedule.get_memory_variables.return_value = ProcessCollection(
+        [*memories, *direct], 4
+    )
+    solver = CPM_ortools()
+    solver.ort_solver.parameters.num_search_workers = 1
+    with patch.object(solver, "solve", wraps=solver.solve) as solve:
+        pes, mems, assigned_direct = assign_processing_elements_and_memories(
+            schedule,
+            strategy="cp_min_mux",
+            solver=solver,
+            memory_read_ports=1,
+            memory_write_ports=1,
+            memory_total_ports=total_ports,
+            time_limit=10,
+        )
+    solve.assert_called_once_with(time_limit=10)
+    assert solver.ort_solver.parameters.num_search_workers == 1
+    architecture = Architecture(pes, mems, direct_interconnects=assigned_direct)
+    expected_memories = (2 if total_ports == 1 else 1) if memories else 0
+    assert len(mems) == expected_memories
+    assert architecture.get_multiplexer_input_count() == (
+        2 * expected_memories if memories else 1
+    )
+
+
+@pytest.mark.parametrize("total_ports", [1, 2])
+def test_cp_named_solver_options(mux_assigner, total_ports):
+    import cpmpy as cp
+
+    groups, memories, direct = _problem()
+    with patch.object(
+        cp.Model, "solve", autospec=True, side_effect=cp.Model.solve
+    ) as solve:
+        pe_x, mem_x = mux_assigner(
+            groups,
+            memories,
+            {"in": 1, "out": 1},
+            2,
+            direct,
+            memory_total_ports=total_ports,
+            time_limit=10,
+            log_search_progress=False,
+        )
+    assert solve.call_args.kwargs == {
+        "solver": "ortools",
+        "time_limit": 10,
+        "log_search_progress": False,
+    }
+    architecture = _architecture(
+        groups, memories, direct, pe_x, mem_x, {"in": 1, "out": 1}, 2
+    )
+    assert len(architecture.memories) == (2 if total_ports == 1 else 1)
+    assert architecture.get_multiplexer_input_count() == (4 if total_ports == 1 else 2)
+
+
+@pytest.mark.parametrize(
+    ("strategy", "expected_cost"),
+    [("ilp_min_mux", 18), ("cp_min_mux", 18)],
+)
+def test_public_mux_strategy_cost(strategy, expected_cost, request):
     if strategy == "cp_min_mux":
-        request.getfixturevalue("cp_solver")
+        request.getfixturevalue("mux_assigner")
 
     from b_asic.list_schedulers import HybridScheduler
     from b_asic.schedule import Schedule
@@ -175,16 +244,45 @@ def test_public_mux_strategy_optimum(strategy, request):
         memory_total_ports=2,
     )
     arch = Architecture(pes, mems, direct_interconnects=direct)
-    assert arch.get_multiplexer_input_count() == 18
+    assert arch.get_multiplexer_input_count() == expected_cost
 
 
-@pytest.mark.usefixtures("cp_solver")
-def test_cp_zero_duration_isolated_processes():
+def test_mux_zero_duration_isolated_processes(mux_assigner):
     sources = [Input(), Input()]
     for source in sources:
         source.execution_time = 0
     group = ProcessCollection([OperatorProcess(0, source) for source in sources], 4)
     empty = ProcessCollection([], 4)
-    pe_x, mem_x = _cp_min_mux({"in": group}, empty, {"in": 2}, 0, empty)
+    pe_x, mem_x = mux_assigner({"in": group}, empty, {"in": 2}, 0, empty)
     assert all(sum(colors.values()) == 1 for colors in pe_x["in"].values())
     assert not mem_x
+
+
+def test_mux_periodic_memory_self_conflict(mux_assigner):
+    groups, _, direct = _problem()
+    source = next(iter(groups["in"]))
+    dest = next(iter(groups["out"]))
+    memories = ProcessCollection(
+        [MemoryVariable(0, source.operation.output(0), {dest.operation.input(0): 4})],
+        4,
+    )
+    with pytest.raises(ValueError, match="Cannot read and write in same cycle"):
+        mux_assigner(
+            groups, memories, {"in": 1, "out": 1}, 2, direct, memory_total_ports=1
+        )
+
+
+def test_mux_periodic_pe_conflicts(mux_assigner):
+    sources = [Input(), Input()]
+    for source in sources:
+        source.execution_time = 2
+    group = ProcessCollection(
+        [OperatorProcess(t, source) for t, source in zip((3, 0), sources, strict=True)],
+        4,
+    )
+    empty = ProcessCollection([], 4)
+    pe_x, _ = mux_assigner({"in": group}, empty, {"in": 2}, 0, empty)
+    first, second = group
+    assert pe_x["in"][first] != pe_x["in"][second]
+    with pytest.raises(ValueError, match="Insufficient resources"):
+        mux_assigner({"in": group}, empty, {"in": 1}, 0, empty)
