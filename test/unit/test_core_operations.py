@@ -27,11 +27,44 @@ from b_asic import (
     SquareRoot,
     Subtraction,
 )
-from b_asic.data_type import DataType
+from b_asic.data_type import DataType, NumRepresentation
 
 
 class TestConstant:
     """Tests for Constant class."""
+
+    @pytest.mark.parametrize(
+        "value", [0, 3, -3, 0.75, -3.25, 0.1, 2.0**-100, 3.25 + 0.125j]
+    )
+    def test_inferred_fixed_point(self, value):
+        operation = Constant(value)
+        narrow = operation.evaluate_output(0, [], data_type=DataType(wl=(1, 1)))
+        wide = operation.evaluate_output(0, [], data_type=DataType(wl=(8, 8)))
+        assert complex(narrow) == value
+        assert narrow.is_identical(wide)
+        assert operation.value == value
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            apy.fx(3.25, 5, 6),
+            apy.fx(3.25 + 0.125j, 5, 6),
+            apy.fp(3.25, 8, 23),
+            apy.fp(3.25 + 0.125j, 8, 23),
+        ],
+    )
+    def test_explicit_apy_format(self, value):
+        operation = Constant(value)
+        assert operation.evaluate(data_type=DataType(wl=(1, 1))) is value
+        ordinary = operation.evaluate_output(0, [])
+        assert type(ordinary) in (float, complex)
+        assert ordinary == complex(value)
+        assert operation.value is value
+
+    def test_floating_point(self):
+        data_type = DataType(wl=(8, 23), num_repr=NumRepresentation.FLOATING_POINT)
+        result = Constant(3.25).evaluate(data_type=data_type)
+        assert result.is_identical(apy.fp(3.25, 8, 23))
 
     def test_constant_positive(self):
         test_operation = Constant(3)

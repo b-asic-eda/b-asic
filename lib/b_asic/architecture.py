@@ -15,7 +15,6 @@ from typing import (
     cast,
 )
 
-import apytypes as apy
 import matplotlib.pyplot as plt
 import numpy as np
 from graphviz import Digraph
@@ -48,39 +47,12 @@ from b_asic.resources import (
 )
 from b_asic.special_operations import Input, Output
 from b_asic.utility_operations import DontCare
+from b_asic.utils import _fixed_point_bits
 
 
 def _interconnect_dict() -> int:
     # Needed as pickle does not support lambdas
     return 0
-
-
-def _signed_bit_length(num: int) -> int:
-    magnitude = num if num >= 0 else ~num
-    return magnitude.bit_length() + 1
-
-
-def _fixed_point_bits(num: float, is_signed: bool) -> tuple[int, int]:
-    if isinstance(num, (apy.APyFixed, apy.APyCFixed)):
-        return num.int_bits, num.frac_bits
-
-    if num == 0 or isinstance(num, bool):
-        return 1, 0
-
-    int_part = math.floor(num)
-    int_bits = _signed_bit_length(int_part) if is_signed else int_part.bit_length()
-
-    frac_part = abs(num) - abs(int(num))
-    if frac_part == 0:
-        return int_bits, 0
-
-    max_bits = 53
-    frac_bits = 0
-    while frac_part != int(frac_part) and frac_bits < max_bits:
-        frac_part *= 2
-        frac_bits += 1
-
-    return int_bits, frac_bits
 
 
 @dataclass

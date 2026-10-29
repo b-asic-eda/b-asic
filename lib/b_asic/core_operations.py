@@ -16,7 +16,7 @@ from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Num, ShapeCoordinates
-from b_asic.utils import float_to_csd
+from b_asic.utils import _fixed_point_bits, float_to_csd
 
 if TYPE_CHECKING:
     from b_asic.sfg import SFG
@@ -33,7 +33,9 @@ class Constant(AbstractOperation):
     Parameters
     ----------
     value : Number, default: 0
-        The constant value.
+        The constant value. APyTypes scalars preserve their format in finite wordlength
+        simulation and become Python numbers in ordinary simulation. For other values,
+        the fixed-point wordlength is inferred independently of the simulation data type.
     name : Name, optional
         Operation name.
     """
@@ -63,9 +65,21 @@ class Constant(AbstractOperation):
         return TypeName("c")
 
     def evaluate(self, data_type=None) -> Num:
-        if data_type is not None:
-            return apy.fx(self.param("value"), data_type.wl[0], data_type.wl[1])
-        return self.param("value")
+        value = self.value
+        if isinstance(value, (apy.APyFixed, apy.APyFloat)):
+            return value if data_type is not None else float(value)
+        if isinstance(value, (apy.APyCFixed, apy.APyCFloat)):
+            return value if data_type is not None else complex(value)
+        if data_type is None:
+            return value
+        if data_type.num_repr == NumRepresentation.FLOATING_POINT:
+            return self._cast_to_data_type(value, data_type)
+        int_bits, frac_bits = _fixed_point_bits(value.real, True)
+        if isinstance(value, complex):
+            imag_int_bits, imag_frac_bits = _fixed_point_bits(value.imag, True)
+            int_bits = max(int_bits, imag_int_bits)
+            frac_bits = max(frac_bits, imag_frac_bits)
+        return apy.fx(value, int_bits, frac_bits, force_complex=data_type.is_complex)
 
     @property
     def value(self) -> Num:
