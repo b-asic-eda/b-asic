@@ -250,6 +250,7 @@
     <addaction name="action_show_port_numbers"/>
     <addaction name="separator"/>
     <addaction name="actionPlot_schedule"/>
+    <addaction name="action_view_io_latency"/>
     <addaction name="action_view_variables"/>
     <addaction name="action_total_execution_times_of_variables"/>
     <addaction name="action_view_port_accesses"/>
@@ -490,6 +491,17 @@
    </property>
    <property name="toolTip">
     <string>Plot schedule</string>
+   </property>
+  </action>
+  <action name="action_view_io_latency">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>View I/O latency</string>
+   </property>
+   <property name="toolTip">
+    <string>View latency between input and output pairs</string>
    </property>
   </action>
   <action name="action_view_variables">

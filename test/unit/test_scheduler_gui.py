@@ -270,6 +270,32 @@ def test_load_schedule(qtbot, sfg_simple_filter):
     assert widget.statusbar.currentMessage() == "Schedule loaded successfully"
 
 
+def test_view_io_latency(qtbot, sfg_simple_filter):
+    sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
+    sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 4)
+    schedule = Schedule(sfg_simple_filter, ASAPScheduler())
+
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    assert not widget.action_view_io_latency.isEnabled()
+
+    widget.open(schedule)
+    assert widget.action_view_io_latency.isEnabled()
+
+    widget.action_view_io_latency.trigger()
+
+    assert widget._io_latency_window is not None
+    table = widget._io_latency_window.table
+    assert [table.horizontalHeaderItem(i).text() for i in range(2)] == [
+        "Input",
+        "out0",
+    ]
+    assert [table.item(0, i).text() for i in range(2)] == ["in0", "9"]
+
+    widget.close_schedule()
+    assert widget._io_latency_window is None
+
+
 def test_close_schedule_then_open_new_schedule(qtbot, sfg_simple_filter):
     sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
     sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 4)

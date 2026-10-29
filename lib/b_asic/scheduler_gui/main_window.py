@@ -63,6 +63,7 @@ from b_asic.scheduler_gui._preferences import (
     write_to_settings,
 )
 from b_asic.scheduler_gui.axes_item import AxesItem
+from b_asic.scheduler_gui.io_latency_window import IOLatencyWindow
 from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.preferences_dialog import PreferencesDialog
 from b_asic.scheduler_gui.scheduler_item import SchedulerItem
@@ -141,6 +142,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._execution_time_plot_dialogs = defaultdict(lambda: None)
         self._total_execution_time_plot_dialogs = defaultdict(lambda: None)
         self._ports_accesses_for_storage = None
+        self._io_latency_window: IOLatencyWindow | None = None
         self._color_changed_per_type = False
         self._changed_operation_colors = {}
 
@@ -184,6 +186,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_show_port_numbers.triggered.connect(self._toggle_port_number)
         self.actionPlot_schedule.setIcon(get_icon("plot-schedule"))
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
+        self.action_view_io_latency.triggered.connect(self._show_io_latency)
         self.action_view_variables.triggered.connect(
             self._show_execution_times_for_variables
         )
@@ -255,6 +258,23 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if self.schedule is None:
             return
         self.schedule.show()
+
+    @Slot()
+    def _show_io_latency(self) -> None:
+        """Show the calculated latency between input/output pairs."""
+        if self.schedule is None:
+            return
+        if self._io_latency_window is None:
+            self._io_latency_window = IOLatencyWindow(self)
+            self._io_latency_window.finished.connect(self._io_latency_window_closed)
+        self._io_latency_window.set_io_latency(self.schedule.get_io_latency())
+        self._io_latency_window.show()
+        self._io_latency_window.raise_()
+        self._io_latency_window.activateWindow()
+
+    @Slot(int)
+    def _io_latency_window_closed(self, _result: int) -> None:
+        self._io_latency_window = None
 
     @Slot()
     def _open_documentation(self) -> None:
@@ -461,6 +481,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         SLOT() for SIGNAL(menu_close_schedule.triggered)
         """
         if self._graph:
+            if self._io_latency_window is not None:
+                self._io_latency_window.close()
+                self._io_latency_window = None
             self._graph._signals.component_selected.disconnect(
                 self.info_table_update_component
             )
@@ -494,6 +517,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.action_view_variables.setEnabled(False)
             self.action_total_execution_times_of_variables.setEnabled(False)
             self.action_view_port_accesses.setEnabled(False)
+            self.action_view_io_latency.setEnabled(False)
             self.menu_view_execution_times.setEnabled(False)
             self.menu_view_total_execution_times_of_type.setEnabled(False)
             self.actionPreferences.setEnabled(False)
@@ -618,6 +642,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self.action_show_port_numbers,
             self.actionIncrease_time_resolution,
             self.actionDecrease_time_resolution,
+            self.action_view_io_latency,
         ):
             action.setEnabled(enable)
 
@@ -792,6 +817,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_view_variables.setEnabled(True)
         self.action_total_execution_times_of_variables.setEnabled(True)
         self.action_view_port_accesses.setEnabled(True)
+        self.action_view_io_latency.setEnabled(True)
         self.update_statusbar(self.tr("Schedule loaded successfully"))
 
     def _redraw_all(self) -> None:
@@ -1227,6 +1253,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     @Slot(str)
     def _schedule_changed(self, type_name: str | None = None) -> None:
+        if self._io_latency_window is not None and self.schedule is not None:
+            self._io_latency_window.set_io_latency(self.schedule.get_io_latency())
         self._update_execution_times_for_variables()
         self._update_total_execution_times_for_variables()
         self._update_ports_accesses_for_storage()
