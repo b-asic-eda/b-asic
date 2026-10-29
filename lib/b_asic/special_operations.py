@@ -5,6 +5,8 @@ Contains operations with special purposes that may be treated differently from
 normal operations in an SFG.
 """
 
+from typing import TYPE_CHECKING
+
 import apytypes as apy
 
 from b_asic.data_type import NumRepresentation
@@ -14,6 +16,9 @@ from b_asic.operation import (
 )
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Name, Num, ShapeCoordinates, TypeName
+
+if TYPE_CHECKING:
+    from b_asic.sfg import SFG
 
 
 class Input(AbstractOperation):
@@ -236,3 +241,19 @@ class Delay(AbstractOperation):
     def initial_value(self, value: Num) -> None:
         """Set the initial value of this delay."""
         self.set_param("initial_value", value)
+
+    def _constant_propagation(self) -> "SFG | None":
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Constant,
+            _simplified_sfg,
+        )
+
+        source = self.input(0).connected_source
+        if (
+            source is not None
+            and isinstance(source.operation, Constant)
+            and source.operation.value == self.initial_value
+        ):
+            value = source.operation.value
+            return _simplified_sfg(self, lambda inputs: Constant(value))
+        return None

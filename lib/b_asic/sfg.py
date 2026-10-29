@@ -297,11 +297,13 @@ class SFG(AbstractOperation):
             # Check if already added source.
             new_signal = cast(Signal, self._original_components_to_new[signal])
 
-            if new_signal.source in output_sources:
+            # Cloned signal sources may not be connected yet. Compare the
+            # original ports to avoid treating distinct constants as duplicates.
+            if signal.source in output_sources:
                 warnings.warn(
                     "Two signals connected to the same output port", stacklevel=2
                 )
-            output_sources.append(new_signal.source)
+            output_sources.append(signal.source)
 
             if new_signal.source is None:
                 if signal.source is None:
@@ -1068,21 +1070,55 @@ class SFG(AbstractOperation):
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
 
-    def constant_propagation(self) -> "SFG":
-        """
-        Return a copy with zero-valued arithmetic inputs propagated.
+    def _constant_propagation(self) -> "SFG | None":
+        # A nested graph with delays can have an initial transient even when
+        # all of its external inputs are constant.
+        pending = list(self.operations)
+        while pending:
+            operation = pending.pop()
+            if isinstance(operation, Delay):
+                return None
+            if isinstance(operation, SFG):
+                pending.extend(operation.operations)
+        return super()._constant_propagation()
 
-        Repeatedly simplify additions and subtractions with a constant zero
-        input and multiplications with a constant zero input or coefficient.
+    def constant_propagation(
+        self,
+        target: type[Operation] | GraphID | Iterable[GraphID] | None = None,
+    ) -> "SFG":
+        """
+        Return a copy with constant expressions evaluated and propagated.
+
+        Operations with all constant inputs are evaluated into one constant
+        per output. Additional algebraic rules repeatedly simplify additions
+        and subtractions with a constant zero input and multiplications with a
+        constant zero input or coefficient.
         ``x + 0``, ``0 + x``, and ``x - 0`` become ``x``; ``0 - x`` becomes
         a negation. A multiplication by zero becomes a constant zero.
         The rules also apply to AddSub and ConstantMultiplication operations.
+        MAD and MADS pass through their accumulator when the product is zero,
+        and become a multiplication (possibly negated) when the accumulator is
+        zero or disabled.
 
+        Parameters
+        ----------
+        target : type[Operation], GraphID, or iterable of GraphID, optional
+            Restrict simplification to an operator type (including subclasses),
+            one operation graph ID, or an iterable of operation graph IDs.
+            If omitted, simplify all supported operations. Iterators are consumed
+            once. Unknown IDs raise ValueError; invalid target values raise
+            TypeError. Dead branches are removed after simplification, including
+            unselected operations that no longer feed an output.
+
+        Notes
+        -----
         Input and output ordering and names are preserved, including inputs
         that become unused. Arithmetic branches that no longer feed an output
-        are removed. A zero-fed delay is replaced by zero only when its
-        initial value is also zero; other delay state is preserved. The rules
-        apply to operations directly inside this SFG.
+        are removed. A constant-fed delay is folded when its initial value
+        matches its input; delays with initial transients remain. The rules
+        apply to operations directly inside this SFG. Each operation supplies
+        its own private ``_constant_propagation`` method, returning a replacement
+        SFG with matching port counts or None when no simplification applies.
 
         Scaling of a surviving input is implemented with left/right shifts,
         preserving input and output scaling order. Imaginary factors are
@@ -1090,28 +1126,43 @@ class SFG(AbstractOperation):
         This is an algebraic transformation intended before scheduling;
         removed operators' timing and quantization are not preserved.
         """
-        from b_asic.core_operations import (  # noqa: PLC0415
-            Addition,
-            AddSub,
-            Constant,
-            ConstantMultiplication,
-            ImaginaryMultiplication,
-            LeftShift,
-            Multiplication,
-            Negation,
-            RightShift,
-            Subtraction,
-        )
+        target_type = None
+        target_ids = None
+        if isinstance(target, type):
+            if not issubclass(target, Operation):
+                raise TypeError(
+                    "target must be an Operation type, graph ID, or iterable of graph IDs"
+                )
+            target_type = target
+        elif target is not None:
+            if isinstance(target, str):
+                ids = [target]
+            else:
+                try:
+                    ids = list(target)
+                except TypeError as exc:
+                    raise TypeError(
+                        "target must be an Operation type, graph ID, or iterable of graph IDs"
+                    ) from exc
+            target_ids = set()
+            for graph_id in ids:
+                if not isinstance(graph_id, str):
+                    raise TypeError("target graph IDs must be strings")
+                component = self.find_by_id(graph_id)
+                if component is None:
+                    raise ValueError(
+                        f"No operation with graph ID {graph_id!r} found in the SFG"
+                    )
+                if not isinstance(component, Operation):
+                    raise TypeError(
+                        f"Graph ID {graph_id!r} does not identify an operation"
+                    )
+                target_ids.add(graph_id)
 
         sfg_copy = self()
         operations = sfg_copy.operations
         pending = deque(operations)
         changed = False
-
-        def is_zero(source):
-            return (
-                isinstance(source.operation, Constant) and source.operation.value == 0
-            )
 
         def disconnect_inputs(operation):
             for port in operation.inputs:
@@ -1119,83 +1170,57 @@ class SFG(AbstractOperation):
                     signal.remove_source()
                     signal.remove_destination()
 
-        def shift(source, scale):
-            if scale:
-                operation_type = RightShift if scale > 0 else LeftShift
-                operation = operation_type(abs(scale), source)
-                operations.append(operation)
-                return operation.output(0)
-            return source
-
         while pending:
             operation = pending.popleft()
-            if (
-                not isinstance(
-                    operation,
-                    (
-                        Addition,
-                        Subtraction,
-                        AddSub,
-                        Multiplication,
-                        ConstantMultiplication,
-                        Delay,
-                    ),
-                )
-                or not operation.output(0).signals
-            ):
+            if target_type is not None and not isinstance(operation, target_type):
+                continue
+            if target_ids is not None and operation.graph_id not in target_ids:
+                continue
+            if not any(port.signals for port in operation.outputs):
                 continue
             sources = [port.connected_source for port in operation.inputs]
             if any(source is None for source in sources):
                 continue
-            zeros = [is_zero(source) for source in sources]
-            replacement = None
-            if isinstance(operation, Delay):
-                if zeros[0] and operation.initial_value == 0:
-                    replacement = sources[0]
-            elif isinstance(operation, ConstantMultiplication):
-                if zeros[0]:
-                    replacement = sources[0]
-                elif operation.value == 0:
-                    zero = Constant(0)
-                    operations.append(zero)
-                    replacement = zero.output(0)
-            elif isinstance(operation, Multiplication):
-                if any(zeros):
-                    replacement = sources[zeros.index(True)]
-            elif all(zeros):
-                replacement = sources[0]
-            elif any(zeros):
-                index = zeros.index(False)
-                scale = operation.in0_scale if index == 0 else operation.in1_scale
-                replacement = shift(sources[index], scale)
-                if index == 1 and operation.mul_j:
-                    imaginary = ImaginaryMultiplication(replacement)
-                    operations.append(imaginary)
-                    replacement = imaginary.output(0)
-                subtract = isinstance(operation, Subtraction) or (
-                    isinstance(operation, AddSub) and not operation.is_add
-                )
-                if subtract and index == 1:
-                    negation = Negation(
-                        replacement,
-                        name=operation.name,
-                        latency_offsets={
-                            "in0": operation.input(1).latency_offset,
-                            "out0": operation.output(0).latency_offset,
-                        },
-                        execution_time=operation.execution_time,
-                    )
-                    operations.append(negation)
-                    replacement = negation.output(0)
-                replacement = shift(replacement, operation.out0_scale)
+            replacement = operation._constant_propagation()
             if replacement is None:
                 continue
+            if not isinstance(replacement, SFG):
+                raise TypeError("_constant_propagation must return an SFG or None")
+            if (replacement.input_count, replacement.output_count) != (
+                operation.input_count,
+                operation.output_count,
+            ):
+                raise ValueError(
+                    "Constant propagation replacement must preserve port counts"
+                )
 
-            # Reuse outgoing signals to preserve their names and properties.
-            for signal in list(operation.output(0).signals):
-                pending.append(signal.destination.operation)
-                signal.set_source(replacement)
+            # Inline the replacement's inputs and reconnect all original output
+            # consumers without changing their signal names or properties.
+            for source, input_op in zip(
+                sources, replacement.input_operations, strict=True
+            ):
+                for signal in list(input_op.output(0).signals):
+                    signal.set_source(source)
+            for output, output_op in zip(
+                operation.outputs, replacement.output_operations, strict=True
+            ):
+                source = output_op.input(0).connected_source
+                for signal in list(output.signals):
+                    pending.append(signal.destination.operation)
+                    signal.set_source(source)
+                disconnect_inputs(output_op)
             disconnect_inputs(operation)
+
+            interface = {*replacement.input_operations, *replacement.output_operations}
+            inner = [op for op in replacement.operations if op not in interface]
+            for op in inner:
+                # Fresh IDs prevent generated operators from accidentally
+                # matching graph IDs in a restricted target selection.
+                op.graph_id = sfg_copy._graph_id_generator.next_id(
+                    op.type_name(), sfg_copy._used_ids
+                )
+            operations.extend(inner)
+            pending.extend(inner)
             changed = True
 
         if changed:
