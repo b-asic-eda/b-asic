@@ -5,6 +5,7 @@ Contains functions for joint resource assignment of processing elements and memo
 """
 
 from collections import defaultdict
+from random import Random
 from typing import Literal, cast
 
 import networkx as nx
@@ -38,6 +39,7 @@ def assign_processing_elements_and_memories(
         "ilp_graph_color",
         "ilp_min_mux",
         "cp_min_mux",
+        "greedy_min_mux",
         "greedy_graph_color",
         "left_edge",
     ] = "ilp_graph_color",
@@ -65,12 +67,15 @@ def assign_processing_elements_and_memories(
         * "ilp_graph_color" - ILP-based optimal resource assignment.
         * "ilp_min_mux" - ILP-based optimal resource assignment with multiplexer minimization.
         * "cp_min_mux" - CPMpy-based multiplexer minimization (requires the ``cp`` extra).
+        * "greedy_min_mux" - Connection-aware coloring and local search (no CP solver).
         * "greedy_graph_color" - Greedy graph coloring-based resource assignment.
         * "left_edge" - Left-edge coloring-based resource assignment.
 
     max_mux_size : int, optional
         The maximum fan-in size for any enabled multiplexer target in
-        strategies 'ilp_min_mux' and 'cp_min_mux'. Must be at least 1.
+        strategies 'ilp_min_mux', 'cp_min_mux', and 'greedy_min_mux'. Must be
+        at least 1. The heuristic may fail to find a feasible assignment even
+        when one exists.
 
     resources : dict[TypeName, int], optional
         The maximum amount of resources to assign to, used to limit the solution
@@ -110,9 +115,14 @@ def assign_processing_elements_and_memories(
     -------
     A tuple containing one list of assigned PEs and one list of assigned memories.
     """
-    if max_mux_size is not None and strategy not in ("ilp_min_mux", "cp_min_mux"):
+    if max_mux_size is not None and strategy not in (
+        "ilp_min_mux",
+        "cp_min_mux",
+        "greedy_min_mux",
+    ):
         raise ValueError(
-            "max_mux_size can only be specified with strategy='ilp_min_mux' or 'cp_min_mux', "
+            "max_mux_size can only be specified with strategy='ilp_min_mux', "
+            "'cp_min_mux', or 'greedy_min_mux', "
             f"not '{strategy}'"
         )
 
@@ -174,6 +184,7 @@ def _split_operations_and_variables(
         "ilp_graph_color",
         "ilp_min_mux",
         "cp_min_mux",
+        "greedy_min_mux",
         "greedy_graph_color",
         "left_edge",
     ] = "ilp_graph_color",
@@ -276,6 +287,19 @@ def _split_operations_and_variables(
             memory_total_ports=total_ports,
             max_mux_size=max_mux_size,
             solver=cast(str | None, solver),
+        )
+    elif strategy == "greedy_min_mux":
+        _, _, total_ports = _sanitize_port_option(
+            memory_read_ports, memory_write_ports, memory_total_ports
+        )
+        pe_x, mem_x = _greedy_min_mux(
+            op_groups,
+            mem_vars,
+            max_pes,
+            max_mems,
+            direct_variables,
+            memory_total_ports=total_ports,
+            max_mux_size=max_mux_size,
         )
     elif strategy == "greedy_graph_color":
         pe_x = {}
@@ -479,61 +503,33 @@ def _apply_warm_start(
     log.info("Warm start applied from greedy coloring")
 
 
-def _cp_min_mux(
+def _mux_problem(
     op_groups: dict[TypeName, ProcessCollection],
     mem_vars: ProcessCollection,
     max_pes: dict[TypeName, int],
     max_mems: int,
     direct: ProcessCollection,
-    *,
-    memory_total_ports: int = 2,
-    max_mux_size: int | None = None,
-    solver: str | None = None,
-) -> tuple[dict, dict]:
-    """
-    Minimize physical connections using CPMpy integer resource assignments.
-
-    Resource bounds have the same meaning as for ``_ilp_min_mux``. Memories
-    have one read and one write port, optionally sharing a single total port.
-    Connection variables are exact ORs of their logical uses, and are created
-    only for physical links that can be required by the dataflow graph.
-    """
-    try:
-        import cpmpy as cp  # noqa: PLC0415
-    except ImportError as exc:
-        raise ImportError("cp_min_mux requires CPMpy; install b-asic[cp]") from exc
-
+    memory_total_ports: int,
+) -> tuple[dict, list, list]:
+    """Build shared resource families, conflict cliques, and logical port links."""
     if memory_total_ports not in (1, 2):
-        raise ValueError("cp_min_mux supports one or two total memory ports")
-    if max_mux_size is not None and max_mux_size < 1:
-        raise ValueError("max_mux_size must be at least 1")
+        raise ValueError("mux minimization supports one or two total memory ports")
     if (mem_vars and max_mems < 1) or any(
         max_pes[op_type] < 1 for op_type in op_groups
     ):
-        raise ValueError("Insufficient resources for cp_min_mux")
+        raise ValueError("Insufficient resources for mux minimization")
 
-    model = cp.Model()
-    assignments = {}
-    counts = {}
-    op_info = {}
-    for op_type, group in op_groups.items():
-        for proc_idx, proc in enumerate(group):
-            key = ("pe", op_type, proc)
-            assignments[key] = cp.intvar(
-                0, max_pes[op_type] - 1, name=f"pe_{op_type}_{proc_idx}"
-            )
-            counts[key] = max_pes[op_type]
-            op_info[proc.operation] = key
-    for var_idx, var in enumerate(mem_vars):
-        key = ("mem", var)
-        assignments[key] = cp.intvar(0, max_mems - 1, name=f"mem_{var_idx}")
-        counts[key] = max_mems
-
-    # Include even isolated, zero-duration processes in the solver model.
-    model += [assignment >= 0 for assignment in assignments.values()]
-
-    # Deduplicate time-slot cliques. Keeping these as global constraints gives
-    # CP solvers more information than separate pairwise inequalities.
+    counts = {
+        ("pe", op_type, proc): max_pes[op_type]
+        for op_type, group in op_groups.items()
+        for proc in group
+    }
+    counts.update({("mem", var): max_mems for var in mem_vars})
+    op_info = {
+        proc.operation: ("pe", op_type, proc)
+        for op_type, group in op_groups.items()
+        for proc in group
+    }
     Ts = mem_vars.schedule_time
     families = []
     for op_type, group in op_groups.items():
@@ -561,32 +557,20 @@ def _cp_min_mux(
         mem_slots = [*writes.values(), *reads.values()]
     families.append(([("mem", var) for var in mem_vars], mem_slots))
 
-    for keys, slots in families:
-        cliques = list(dict.fromkeys(frozenset(slot) for slot in slots if slot))
-        for clique in cliques:
-            if len(clique) > 1:
-                model += cp.AllDifferent([assignments[key] for key in clique])
-        # Pin a largest simultaneous set to distinct labels. Ordering it by
-        # process order makes the choice deterministic. Empty/zero-duration
-        # families still have interchangeable labels, so pin their first item.
-        anchor = max(cliques, key=len) if cliques else frozenset(keys[:1])
-        ordered = [key for key in keys if key in anchor]
-        if ordered and len(ordered) > counts[ordered[0]]:
-            raise ValueError("Insufficient resources for cp_min_mux")
-        for idx, key in enumerate(ordered):
-            model += assignments[key] == idx
-
-    # A physical endpoint includes its resource family, index, and port.
-    uses = defaultdict(list)
+    families = [
+        (keys, list(dict.fromkeys(frozenset(slot) for slot in slots if slot)))
+        for keys, slots in families
+    ]
+    if any(
+        len(clique) > counts[keys[0]]
+        for keys, cliques in families
+        for clique in cliques
+    ):
+        raise ValueError("Insufficient resources for mux minimization")
+    links = []
 
     def add_connection(src, dst, src_port=0, dst_port=0):
-        for src_idx in range(counts[src]):
-            for dst_idx in range(counts[dst]):
-                physical_src = (*src[:-1], src_idx, src_port)
-                physical_dst = (*dst[:-1], dst_idx, dst_port)
-                uses[physical_src, physical_dst].append(
-                    (assignments[src] == src_idx) & (assignments[dst] == dst_idx)
-                )
+        links.append((src, dst, src_port, dst_port))
 
     for var in mem_vars:
         dst = ("mem", var)
@@ -610,6 +594,219 @@ def _cp_min_mux(
                     op_info[port.operation],
                     var.write_port.index,
                     port.index,
+                )
+
+    return counts, families, list(dict.fromkeys(links))
+
+
+def _greedy_min_mux(
+    op_groups: dict[TypeName, ProcessCollection],
+    mem_vars: ProcessCollection,
+    max_pes: dict[TypeName, int],
+    max_mems: int,
+    direct: ProcessCollection,
+    *,
+    memory_total_ports: int = 2,
+    max_mux_size: int | None = None,
+    restarts: int = 8,
+    max_passes: int = 20,
+    seed: int = 0,
+) -> tuple[dict, dict]:
+    """
+    Heuristically minimize physical connections as in ``_cp_min_mux`` and ``_ilp_min_mux``.
+
+    Each start uses saturation coloring, preferring assignments that reuse
+    physical connections. Local search then recolors individual processes and
+    swaps pairs in the same resource family. Mux fan-in violations are minimized
+    before connection count, allowing initially overfull muxes to be repaired.
+    Execution and memory port conflicts are forbidden throughout the search.
+
+    The search is bounded by ``restarts`` and ``max_passes`` and reproducible for
+    a fixed process order and ``seed``. It requires no optional solver, provides
+    no optimality guarantee, and raises ValueError if no feasible assignment is
+    found; this does not prove infeasibility. Resource counts are upper bounds.
+    """
+    if max_mux_size is not None and max_mux_size < 1:
+        raise ValueError("max_mux_size must be at least 1")
+    if restarts < 1 or max_passes < 0:
+        raise ValueError("restarts must be positive and max_passes nonnegative")
+    counts, families, links = _mux_problem(
+        op_groups, mem_vars, max_pes, max_mems, direct, memory_total_ports
+    )
+    neighbors = {key: set() for key in counts}
+    peers = {}
+    for keys, cliques in families:
+        for key in keys:
+            peers[key] = keys
+        for clique in cliques:
+            for key in clique:
+                neighbors[key].update(clique - {key})
+
+    def score(assignment):
+        connections = {
+            (
+                (*src[:-1], assignment[src], src_port),
+                (*dst[:-1], assignment[dst], dst_port),
+            )
+            for src, dst, src_port, dst_port in links
+            if src in assignment and dst in assignment
+        }
+        excess = 0
+        if max_mux_size is not None:
+            incoming = defaultdict(int)
+            for _, dst in connections:
+                incoming[dst] += 1
+            excess = sum(max(0, size - max_mux_size) for size in incoming.values())
+        return excess, len(connections)
+
+    rng = Random(seed)
+    best = None
+    best_score = None
+    for _ in range(restarts):
+        assignment = {}
+        order = list(counts)
+        rng.shuffle(order)
+        # Stable tie breaking follows the shuffled order, never set iteration.
+        remaining = dict.fromkeys(order)
+        while remaining:
+            key = max(
+                remaining,
+                key=lambda k: (
+                    len({assignment[n] for n in neighbors[k] if n in assignment}),
+                    len(neighbors[k]),
+                ),
+            )
+            forbidden = {assignment[n] for n in neighbors[key] if n in assignment}
+            colors = [color for color in range(counts[key]) if color not in forbidden]
+            if not colors:
+                break
+            rng.shuffle(colors)
+            chosen = None
+            chosen_score = None
+            for color in colors:
+                assignment[key] = color
+                candidate_score = score(assignment)
+                if chosen_score is None or candidate_score < chosen_score:
+                    chosen, chosen_score = color, candidate_score
+            assignment[key] = chosen
+            del remaining[key]
+        if remaining:
+            continue
+
+        current_score = score(assignment)
+        for _ in range(max_passes):
+            improved = False
+            rng.shuffle(order)
+            for key in order:
+                if counts[key] == 1:
+                    continue
+                original = assignment[key]
+                chosen_move = None
+                chosen_score = current_score
+                # Swaps can escape colorings in which every resource is busy.
+                moves = [
+                    {key: color} for color in range(counts[key]) if color != original
+                ]
+                moves.extend(
+                    {key: assignment[other], other: original}
+                    for other in peers[key]
+                    if assignment[other] != original
+                )
+                for move in moves:
+                    if any(
+                        color == move.get(n, assignment[n])
+                        for node, color in move.items()
+                        for n in neighbors[node]
+                    ):
+                        continue
+                    previous = {node: assignment[node] for node in move}
+                    assignment.update(move)
+                    candidate_score = score(assignment)
+                    assignment.update(previous)
+                    if candidate_score < chosen_score:
+                        chosen_move, chosen_score = move, candidate_score
+                if chosen_move is not None:
+                    assignment.update(chosen_move)
+                    current_score = chosen_score
+                    improved = True
+            if not improved:
+                break
+        if current_score[0] == 0 and (best_score is None or current_score < best_score):
+            best, best_score = assignment.copy(), current_score
+
+    if best is None:
+        raise ValueError(
+            "No feasible assignment found by greedy_min_mux; "
+            "try more restarts or use cp_min_mux."
+        )
+    log.info("Greedy mux connection count: %d", best_score[1])
+
+    def coloring(key):
+        return {idx: int(idx == best[key]) for idx in range(counts[key])}
+
+    return (
+        {
+            op_type: {proc: coloring(("pe", op_type, proc)) for proc in group}
+            for op_type, group in op_groups.items()
+        },
+        {var: coloring(("mem", var)) for var in mem_vars},
+    )
+
+
+def _cp_min_mux(
+    op_groups: dict[TypeName, ProcessCollection],
+    mem_vars: ProcessCollection,
+    max_pes: dict[TypeName, int],
+    max_mems: int,
+    direct: ProcessCollection,
+    *,
+    memory_total_ports: int = 2,
+    max_mux_size: int | None = None,
+    solver: str | None = None,
+) -> tuple[dict, dict]:
+    """
+    Minimize physical connections using CPMpy integer resource assignments.
+
+    Resource bounds have the same meaning as for ``_ilp_min_mux``. Memories
+    have one read and one write port, optionally sharing a single total port.
+    Connection variables are exact ORs of their logical uses, and are created
+    only for physical links that can be required by the dataflow graph.
+    """
+    try:
+        import cpmpy as cp  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError("cp_min_mux requires CPMpy; install b-asic[cp]") from exc
+
+    if max_mux_size is not None and max_mux_size < 1:
+        raise ValueError("max_mux_size must be at least 1")
+    counts, families, links = _mux_problem(
+        op_groups, mem_vars, max_pes, max_mems, direct, memory_total_ports
+    )
+    model = cp.Model()
+    assignments = {
+        key: cp.intvar(0, count - 1, name=f"assignment_{idx}")
+        for idx, (key, count) in enumerate(counts.items())
+    }
+    # Include even isolated, zero-duration processes in the solver model.
+    model += [assignment >= 0 for assignment in assignments.values()]
+
+    for keys, cliques in families:
+        for clique in cliques:
+            if len(clique) > 1:
+                model += cp.AllDifferent([assignments[key] for key in clique])
+        anchor = max(cliques, key=len) if cliques else frozenset(keys[:1])
+        for idx, key in enumerate(key for key in keys if key in anchor):
+            model += assignments[key] == idx
+
+    # A physical endpoint includes its resource family, index, and port.
+    uses = defaultdict(list)
+    for src, dst, src_port, dst_port in links:
+        for src_idx in range(counts[src]):
+            for dst_idx in range(counts[dst]):
+                physical_src = (*src[:-1], src_idx, src_port)
+                physical_dst = (*dst[:-1], dst_idx, dst_port)
+                uses[physical_src, physical_dst].append(
+                    (assignments[src] == src_idx) & (assignments[dst] == dst_idx)
                 )
 
     connections = []
