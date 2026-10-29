@@ -24,7 +24,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13", "3.13t", "3.14", "3.14t"]
+        python-version:
+          ["3.12", "3.13", "3.13t", "3.14", "3.14t", "3.15", "3.15t"]
         os: [
             ubuntu-latest,
             ubuntu-24.04-arm,
@@ -34,12 +35,9 @@ jobs:
           ] # windows-11-arm,
         qt-version: ["pyqt6", "pyside6"]
         exclude:
-          - python-version: "3.13"
-            qt-version: "pyside6"
           - python-version: "3.13t"
-          - python-version: "3.14"
-            qt-version: "pyside6"
           - python-version: "3.14t"
+          - python-version: "3.15t"
 
     runs-on: ${{ matrix.os }}
 
