@@ -1319,11 +1319,7 @@ class Comparator(AbstractOperation):
             raise ValueError(
                 "core_operations.Comparator does not support complex numbers."
             )
-        smallest, largest = (a, b) if a <= b else (b, a)
-        return (
-            self._cast_to_data_type(smallest, data_type),
-            self._cast_to_data_type(largest, data_type),
-        )
+        return (a, b) if a <= b else (b, a)
 
     def _rewrite_Min(self) -> "SFG":
         """Split into parallel Min and Max operations, preserving output order."""
