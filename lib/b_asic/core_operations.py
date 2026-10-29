@@ -1239,6 +1239,93 @@ class Max(AbstractOperation):
         return self._cast_to_data_type(res, data_type)
 
 
+class Comparator(AbstractOperation):
+    r"""
+    Two-input compare-and-exchange operation.
+
+    Outputs the smaller input at output 0 and the larger input at output 1.
+
+    .. math::
+
+        y_0 & = \min\{x_0 , x_1\}\\
+        y_1 & = \max\{x_0 , x_1\}
+
+    .. note:: Only real-valued numbers are supported.
+
+    Parameters
+    ----------
+    in0, in1 : SignalSourceProvider, optional
+        The two signals to compare.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency (delay from input to output in time units).
+    latency_offsets : dict[str, int], optional
+        Used if inputs have different arrival times or if the inputs should arrive
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
+        corresponds to *in1* arriving one time unit later than *in0* and one time
+        unit later than the operator starts. If not provided and *latency* is provided,
+        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        only.
+    execution_time : int, optional
+        Operation execution time (time units before operator can be reused).
+
+    See Also
+    --------
+    Min, Max
+    """
+
+    __slots__ = (
+        "_execution_time",
+        "_in0",
+        "_in1",
+        "_latency",
+        "_latency_offsets",
+        "_name",
+    )
+    _in0: SignalSourceProvider | None
+    _in1: SignalSourceProvider | None
+    _name: Name
+    _latency: int | None
+    _latency_offsets: dict[str, int] | None
+    _execution_time: int | None
+
+    def __init__(
+        self,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """Construct a Comparator operation."""
+        super().__init__(
+            input_count=2,
+            output_count=2,
+            name=Name(name),
+            input_sources=[in0, in1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("cmp")
+
+    def evaluate(self, a, b, data_type=None) -> tuple[Num, Num]:
+        if isinstance(a, complex) or isinstance(b, complex):
+            raise ValueError(
+                "core_operations.Comparator does not support complex numbers."
+            )
+        smallest, largest = (a, b) if a <= b else (b, a)
+        return (
+            self._cast_to_data_type(smallest, data_type),
+            self._cast_to_data_type(largest, data_type),
+        )
+
+
 class SquareRoot(AbstractOperation):
     r"""
     Square root operation.
