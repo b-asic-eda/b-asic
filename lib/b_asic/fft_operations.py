@@ -5,11 +5,15 @@ Contains selected FFT butterfly operations.
 """
 
 import math
+from typing import TYPE_CHECKING
 
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Num
+
+if TYPE_CHECKING:
+    from b_asic.sfg import SFG
 
 
 class R2Butterfly(AbstractOperation):
@@ -90,6 +94,34 @@ class R2Butterfly(AbstractOperation):
             self._cast_to_data_type(res[0], data_type),
             self._cast_to_data_type(res[1], data_type),
         )
+
+    def _sink_propagation(self) -> "SFG | None":
+        from b_asic.core_operations import Addition, Subtraction  # noqa: PLC0415
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+        from b_asic.utility_operations import DontCare, Sink  # noqa: PLC0415
+
+        unused = [
+            all(
+                signal.destination is not None
+                and isinstance(signal.destination.operation, Sink)
+                for signal in output.signals
+            )
+            for output in self.outputs
+        ]
+        if all(unused):
+            return super()._sink_propagation()
+        if not any(unused):
+            return None
+        inputs = [Input(), Input()]
+        kept = 1 if unused[0] else 0
+        operation_type = Subtraction if kept else Addition
+        operation = operation_type(*inputs, name=self.name)
+        outputs = [
+            Output(DontCare()) if unused[index] else Output(operation)
+            for index in range(2)
+        ]
+        return SFG(inputs, outputs)
 
 
 class R2DIFButterfly(AbstractOperation):
