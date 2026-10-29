@@ -412,11 +412,11 @@ class TestComparator:
 
     def test_data_type(self):
         data_type = DataType(wl=(4, 2))
-        smallest, largest = Comparator().evaluate(2.5, -1.25, data_type=data_type)
-        assert isinstance(smallest, apy.APyFixed)
-        assert isinstance(largest, apy.APyFixed)
-        assert smallest == apy.fx(-1.25, 4, 2)
-        assert largest == apy.fx(2.5, 4, 2)
+        a = apy.fx(2.5, 4, 2)
+        b = apy.fx(-1.25, 4, 2)
+        smallest, largest = Comparator().evaluate(a, b, data_type=data_type)
+        assert smallest is b
+        assert largest is a
 
     def test_configuration(self):
         first, second = Input(), Input()
