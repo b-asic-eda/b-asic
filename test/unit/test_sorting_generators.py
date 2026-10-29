@@ -1,12 +1,12 @@
 """Correctness and topology checks for comparator-based sorting SFGs."""
 
 from functools import cache
-from itertools import product
+from itertools import permutations, product
 from random import Random
 
 import pytest
 
-from b_asic.core_operations import Comparator
+from b_asic.core_operations import Comparator, Max, Min
 from b_asic.sfg_generators import (
     bitonic_sort,
     bubble_sort,
@@ -94,3 +94,19 @@ def test_sorting_nonpositive_size(generator, size):
 def test_sorting_noninteger_size(generator, size):
     with pytest.raises(TypeError, match="size must be an integer"):
         generator(size)
+
+
+@pytest.mark.parametrize("source", [Min, Max])
+def test_sorting_rewrite_comparators(source):
+    original = bubble_sort(4)
+    comparator_count = len(original.find_by_type(Comparator))
+    rewritten = original.rewrite(source, Comparator)
+    assert rewritten.input_count == original.input_count
+    assert rewritten.output_count == original.output_count
+    assert not rewritten.find_by_type(Comparator)
+    assert len(rewritten.find_by_type(Min)) == comparator_count
+    assert len(rewritten.find_by_type(Max)) == comparator_count
+    assert len(original.find_by_type(Comparator)) == comparator_count
+    for inputs in (*permutations((-3, 0, 2, 7)), *product((0, 1), repeat=4)):
+        assert rewritten.evaluate_outputs(inputs) == original.evaluate_outputs(inputs)
+        assert rewritten.evaluate_outputs(inputs) == sorted(inputs)

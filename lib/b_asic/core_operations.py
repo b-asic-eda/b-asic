@@ -1325,6 +1325,34 @@ class Comparator(AbstractOperation):
             self._cast_to_data_type(largest, data_type),
         )
 
+    def _rewrite_Min(self) -> "SFG":
+        """Split into parallel Min and Max operations, preserving output order."""
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        inputs = [Input(), Input()]
+        outputs = []
+        for index, operation_type in enumerate((Min, Max)):
+            offsets = {
+                f"in{i}": port.latency_offset
+                for i, port in enumerate(self.inputs)
+                if port.latency_offset is not None
+            }
+            if self.output(index).latency_offset is not None:
+                offsets["out0"] = self.output(index).latency_offset
+            operation = operation_type(
+                *inputs,
+                name=self.name,
+                latency_offsets=offsets,
+                execution_time=self.execution_time,
+            )
+            outputs.append(Output(operation))
+        return SFG(inputs, outputs)
+
+    def _rewrite_Max(self) -> "SFG":
+        """Split into the same Min/Max network as :meth:`_rewrite_Min`."""
+        return self._rewrite_Min()
+
 
 class SquareRoot(AbstractOperation):
     r"""
