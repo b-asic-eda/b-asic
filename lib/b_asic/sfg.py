@@ -1068,6 +1068,158 @@ class SFG(AbstractOperation):
         # Recreate the newly coupled SFG so that all attributes are correct.
         return sfg_copy()
 
+    def constant_propagation(self) -> "SFG":
+        """
+        Return a copy with zero-valued arithmetic inputs propagated.
+
+        Repeatedly simplify additions and subtractions with a constant zero
+        input and multiplications with a constant zero input or coefficient.
+        ``x + 0``, ``0 + x``, and ``x - 0`` become ``x``; ``0 - x`` becomes
+        a negation. A multiplication by zero becomes a constant zero.
+        The rules also apply to AddSub and ConstantMultiplication operations.
+
+        Input and output ordering and names are preserved, including inputs
+        that become unused. Arithmetic branches that no longer feed an output
+        are removed. A zero-fed delay is replaced by zero only when its
+        initial value is also zero; other delay state is preserved. The rules
+        apply to operations directly inside this SFG.
+
+        Scaling of a surviving input is implemented with left/right shifts,
+        preserving input and output scaling order. Imaginary factors are
+        implemented with ImaginaryMultiplication.
+        This is an algebraic transformation intended before scheduling;
+        removed operators' timing and quantization are not preserved.
+        """
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Constant,
+            ConstantMultiplication,
+            ImaginaryMultiplication,
+            LeftShift,
+            Multiplication,
+            Negation,
+            RightShift,
+            Subtraction,
+        )
+
+        sfg_copy = self()
+        operations = sfg_copy.operations
+        pending = deque(operations)
+        changed = False
+
+        def is_zero(source):
+            return (
+                isinstance(source.operation, Constant) and source.operation.value == 0
+            )
+
+        def disconnect_inputs(operation):
+            for port in operation.inputs:
+                for signal in list(port.signals):
+                    signal.remove_source()
+                    signal.remove_destination()
+
+        def shift(source, scale):
+            if scale:
+                operation_type = RightShift if scale > 0 else LeftShift
+                operation = operation_type(abs(scale), source)
+                operations.append(operation)
+                return operation.output(0)
+            return source
+
+        while pending:
+            operation = pending.popleft()
+            if (
+                not isinstance(
+                    operation,
+                    (
+                        Addition,
+                        Subtraction,
+                        AddSub,
+                        Multiplication,
+                        ConstantMultiplication,
+                        Delay,
+                    ),
+                )
+                or not operation.output(0).signals
+            ):
+                continue
+            sources = [port.connected_source for port in operation.inputs]
+            if any(source is None for source in sources):
+                continue
+            zeros = [is_zero(source) for source in sources]
+            replacement = None
+            if isinstance(operation, Delay):
+                if zeros[0] and operation.initial_value == 0:
+                    replacement = sources[0]
+            elif isinstance(operation, ConstantMultiplication):
+                if zeros[0]:
+                    replacement = sources[0]
+                elif operation.value == 0:
+                    zero = Constant(0)
+                    operations.append(zero)
+                    replacement = zero.output(0)
+            elif isinstance(operation, Multiplication):
+                if any(zeros):
+                    replacement = sources[zeros.index(True)]
+            elif all(zeros):
+                replacement = sources[0]
+            elif any(zeros):
+                index = zeros.index(False)
+                scale = operation.in0_scale if index == 0 else operation.in1_scale
+                replacement = shift(sources[index], scale)
+                if index == 1 and operation.mul_j:
+                    imaginary = ImaginaryMultiplication(replacement)
+                    operations.append(imaginary)
+                    replacement = imaginary.output(0)
+                subtract = isinstance(operation, Subtraction) or (
+                    isinstance(operation, AddSub) and not operation.is_add
+                )
+                if subtract and index == 1:
+                    negation = Negation(
+                        replacement,
+                        name=operation.name,
+                        latency_offsets={
+                            "in0": operation.input(1).latency_offset,
+                            "out0": operation.output(0).latency_offset,
+                        },
+                        execution_time=operation.execution_time,
+                    )
+                    operations.append(negation)
+                    replacement = negation.output(0)
+                replacement = shift(replacement, operation.out0_scale)
+            if replacement is None:
+                continue
+
+            # Reuse outgoing signals to preserve their names and properties.
+            for signal in list(operation.output(0).signals):
+                pending.append(signal.destination.operation)
+                signal.set_source(replacement)
+            disconnect_inputs(operation)
+            changed = True
+
+        if changed:
+            # Inputs are explicit SFG interface nodes, so rebuilding alone can
+            # retain dead branches reachable from them. Find output ancestors
+            # first, including feedback through delays, and detach dead inputs.
+            live = set()
+            pending = deque(sfg_copy.output_operations)
+            while pending:
+                operation = pending.popleft()
+                if operation in live:
+                    continue
+                live.add(operation)
+                pending.extend(
+                    port.connected_source.operation
+                    for port in operation.inputs
+                    if port.connected_source is not None
+                )
+            for operation in operations:
+                if operation not in live:
+                    disconnect_inputs(operation)
+            return sfg_copy()
+        return sfg_copy
+
     def simplify_delay_element_placement(self) -> "SFG":
         """
         Simplify an SFG by removing redundant delay elements.
