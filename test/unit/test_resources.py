@@ -1,7 +1,9 @@
+import math
 import re
 
 import matplotlib.pyplot as plt
 import matplotlib.testing.decorators
+import networkx as nx
 import pytest
 
 from b_asic.core_operations import ConstantMultiplication
@@ -10,7 +12,12 @@ from b_asic.research.interleaver import (
     generate_matrix_transposer,
     generate_random_interleaver,
 )
-from b_asic.resources import ProcessCollection, _ForwardBackwardTable
+from b_asic.resources import (
+    ProcessCollection,
+    _exclusion_graph_layout,
+    _ForwardBackwardTable,
+    draw_exclusion_graph_coloring,
+)
 
 
 class TestProcessCollectionPlainMemoryVariable:
@@ -136,6 +143,65 @@ class TestProcessCollectionPlainMemoryVariable:
         )
         assert len(assignment_left_edge) == 18
         assert len(assignment_graph_color) == 16
+
+    @pytest.mark.parametrize("custom_layout", [False, True])
+    def test_draw_exclusion_graph_coloring(self, custom_layout, monkeypatch):
+        collection = generate_matrix_transposer(2, min_lifetime=0)
+        graph = collection.exclusion_graph_from_execution_time()
+        positions = nx.circular_layout(graph)
+
+        def default_layout(_graph):
+            assert not custom_layout
+            return positions
+
+        monkeypatch.setattr("b_asic.resources._exclusion_graph_layout", default_layout)
+        fig, ax = plt.subplots()
+        try:
+            draw_exclusion_graph_coloring(
+                graph,
+                color_dict=dict.fromkeys(graph, 0),
+                ax=ax,
+                **({"pos": positions} if custom_layout else {}),
+            )
+            for process, offset in zip(
+                graph, ax.collections[0].get_offsets(), strict=True
+            ):
+                assert list(offset) == pytest.approx(positions[process])
+        finally:
+            plt.close(fig)
+
+    @pytest.mark.parametrize("component_sizes", [(), (1,), (5,), (4, 3, 1), (1,) * 9])
+    def test_exclusion_graph_layout_retains_all_nodes(self, component_sizes):
+        graph = (
+            nx.disjoint_union_all(nx.path_graph(size) for size in component_sizes)
+            if component_sizes
+            else nx.Graph()
+        )
+        positions = _exclusion_graph_layout(graph)
+        assert set(positions) == set(graph)
+        assert all(
+            math.isfinite(coordinate)
+            for point in positions.values()
+            for coordinate in point
+        )
+        assert len({tuple(point) for point in positions.values()}) == len(graph)
+
+    def test_exclusion_graph_layout_uses_central_attraction(self, monkeypatch):
+        graph = generate_matrix_transposer(4).exclusion_graph_from_execution_time()
+        original_graph = graph.copy()
+        spring_layout = nx.spring_layout
+
+        def check_attraction(layout_graph, **kwargs):
+            anchors = set(layout_graph) - set(graph)
+            assert len(anchors) == 1
+            anchor = anchors.pop()
+            assert set(layout_graph[anchor]) == set(graph)
+            assert all(layout_graph[anchor][node]["weight"] > 0 for node in graph)
+            return spring_layout(layout_graph, **kwargs)
+
+        monkeypatch.setattr(nx, "spring_layout", check_attraction)
+        assert set(_exclusion_graph_layout(graph)) == set(graph)
+        assert nx.utils.graphs_equal(graph, original_graph)
 
     def test_generate_memory_based_vhdl(self):
         # fmt: off
