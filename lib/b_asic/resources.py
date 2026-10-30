@@ -141,6 +141,21 @@ def _get_destination_port(var: MemoryVariable, pes: list["ProcessingElement"]) -
     raise ValueError("Destination could not be found for the given variable.")
 
 
+def _exclusion_graph_layout(exclusion_graph: nx.Graph) -> dict:
+    """Keep disconnected nodes nearby with a layout-only central attraction."""
+    if not exclusion_graph:
+        return {}
+    layout_graph = exclusion_graph.copy()
+    anchor = object()
+    attraction = max(1.0, exclusion_graph.number_of_edges() / len(exclusion_graph))
+    layout_graph.add_weighted_edges_from(
+        (anchor, node, attraction) for node in exclusion_graph
+    )
+    positions = nx.spring_layout(layout_graph, seed=1, iterations=1000)
+    positions.pop(anchor)
+    return nx.rescale_layout_dict(positions)
+
+
 def draw_exclusion_graph_coloring(
     exclusion_graph: nx.Graph,
     color_dict: dict[Process, int],
@@ -182,7 +197,8 @@ def draw_exclusion_graph_coloring(
     color_list : iterable of color, optional
         A list of colors in Matplotlib format.
     **kwargs : Any
-        Named arguments passed on to :func:`networkx.draw_networkx`
+        Named arguments passed on to :func:`networkx.draw_networkx`.
+        If ``pos`` is omitted, a spring layout with central attraction is used.
     """
     COLOR_LIST = [
         "#aa0000",
@@ -209,11 +225,14 @@ def draw_exclusion_graph_coloring(
     else:
         node_color_dict = {k: color_list[v] for k, v in color_dict.items()}
     node_color_list = [node_color_dict[node] for node in exclusion_graph]
+    pos = kwargs.pop("pos", None)
+    if pos is None:
+        pos = _exclusion_graph_layout(exclusion_graph)
     nx.draw_networkx(
         exclusion_graph,
         node_color=node_color_list,
         ax=ax,
-        pos=nx.spring_layout(exclusion_graph, seed=1),
+        pos=pos,
         **kwargs,
     )
 
