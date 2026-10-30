@@ -17,6 +17,7 @@ try:
     from qtpy.QtWidgets import QApplication, QGraphicsScene, QGraphicsView
 
     from b_asic.scheduler_gui import main_window
+    from b_asic.scheduler_gui.io_latency_window import IOLatencyWindow
     from b_asic.scheduler_gui.main_window import ScheduleMainWindow
     from b_asic.scheduler_gui.scheduler_item import SchedulerItem
 except ImportError:
@@ -294,6 +295,54 @@ def test_view_io_latency(qtbot, sfg_simple_filter):
 
     widget.close_schedule()
     assert widget._io_latency_window is None
+
+
+@pytest.mark.parametrize(
+    "output_latencies",
+    [{"out10": 110, "out2": 12}, {"out2": 12, "out10": 110}],
+)
+def test_io_latency_columns_are_naturally_sorted(qtbot, output_latencies):
+    widget = IOLatencyWindow()
+    qtbot.addWidget(widget)
+    widget.set_io_latency({"in0": output_latencies, "in1": {"out1": 21, "out10": 210}})
+
+    table = widget.table
+    assert [
+        table.horizontalHeaderItem(column).text()
+        for column in range(table.columnCount())
+    ] == ["Input", "out1", "out2", "out10"]
+    assert [table.item(0, column).text() for column in range(4)] == [
+        "in0",
+        "-",
+        "12",
+        "110",
+    ]
+    assert [table.item(1, column).text() for column in range(4)] == [
+        "in1",
+        "21",
+        "-",
+        "210",
+    ]
+
+
+@pytest.mark.parametrize("user_resized", [False, True])
+def test_io_latency_updates_preserve_window_size(qtbot, user_resized):
+    widget = IOLatencyWindow()
+    qtbot.addWidget(widget)
+    widget.set_io_latency({"in0": {"out0": 9, "out1": 10}})
+    widget.show()
+    QApplication.processEvents()
+    if user_resized:
+        widget.resize(600, 300)
+        QApplication.processEvents()
+    initial_size = widget.size()
+
+    for latency in range(10, 15):
+        widget.set_io_latency({"in0": {"out0": latency, "out1": latency + 1}})
+        QApplication.processEvents()
+        assert widget.size() == initial_size
+        assert widget.table.item(0, 1).text() == str(latency)
+        assert widget.table.item(0, 2).text() == str(latency + 1)
 
 
 def test_close_schedule_then_open_new_schedule(qtbot, sfg_simple_filter):

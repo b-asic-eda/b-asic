@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 
+from natsort import natsorted
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QAbstractItemView,
@@ -36,7 +37,7 @@ class IOLatencyWindow(QDialog):
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self._table.setSizeAdjustPolicy(
-            QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents
+            QAbstractScrollArea.SizeAdjustPolicy.AdjustToContentsOnFirstShow
         )
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
@@ -57,7 +58,7 @@ class IOLatencyWindow(QDialog):
     ) -> None:
         """Replace the table contents with *io_latency*."""
         input_ids = list(io_latency)
-        output_ids = list(
+        output_ids = natsorted(
             dict.fromkeys(
                 output_id
                 for output_latencies in io_latency.values()
@@ -86,4 +87,3 @@ class IOLatencyWindow(QDialog):
                 self._table.setItem(row, column, latency_item)
 
         self._table.resizeRowsToContents()
-        self.adjustSize()
