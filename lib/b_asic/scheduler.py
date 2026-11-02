@@ -21,6 +21,8 @@ from b_asic.types import TypeName
 from b_asic.utility_operations import DontCare, Sink
 
 if TYPE_CHECKING:
+    from cpmpy.solvers.solver_interface import SolverInterface
+
     from b_asic.schedule import Schedule
     from b_asic.types import GraphID
 
@@ -1341,7 +1343,101 @@ class RecursiveListScheduler(ListScheduler):
         return True
 
 
-class ILPScheduler(Scheduler):
+class _OptimizationScheduler(Scheduler):
+    """Shared timing bounds and schedule extraction for optimizing schedulers."""
+
+    def _get_asap_start_times(
+        self,
+        schedule: "Schedule",
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+    ) -> tuple[dict["GraphID", int], int]:
+        asap_schedule = copy.copy(schedule)
+        asap_schedule._schedule_time = None
+        asap_scheduler = ASAPScheduler(
+            sort_y_location=False,
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+        )
+        asap_scheduler.apply_scheduling(asap_schedule)
+        for key in schedule._laps:
+            schedule._laps[key] = 0
+        return copy.copy(asap_schedule.start_times), asap_schedule.schedule_time
+
+    def _get_alap_start_times(
+        self,
+        schedule: "Schedule",
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+        max_time: int | None = None,
+    ) -> dict["GraphID", int]:
+        alap_schedule = copy.copy(schedule)
+        if max_time is not None:
+            alap_schedule._schedule_time = max_time
+        alap_scheduler = ALAPScheduler(
+            sort_y_location=False,
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+        )
+        alap_scheduler.apply_scheduling(alap_schedule)
+        for key in schedule._laps:
+            schedule._laps[key] = 0
+        upper_bounds = copy.copy(alap_schedule.start_times)
+        if output_delta_times:
+            # ALAP leaves the relative output group at its ASAP placement.
+            # Translate its bounds to use the available horizon. Only the
+            # specified outputs determine the group end; unspecified outputs
+            # may already be at the horizon.
+            horizon = alap_schedule.schedule_time
+            slack = horizon - max(upper_bounds[key] for key in output_delta_times)
+            for key, time in upper_bounds.items():
+                if not input_times or key not in input_times:
+                    upper_bounds[key] = min(time + slack, horizon)
+        return upper_bounds
+
+    def _finish_schedule(self, schedule: "Schedule", Ts: int) -> None:
+        self._handle_utility_operations()
+        schedule.remove_delays()
+
+        if self._max_time is not None and self._max_time > Ts:
+            schedule._schedule_time = self._max_time
+            diff = self._max_time - Ts
+            move_order = {
+                port.operation.graph_id: level
+                for level, step in enumerate(schedule.sfg.get_precedence_list())
+                for port in step
+            }
+            # Move operations ahead in time so that they wrap
+            for time in reversed(range(Ts, self._max_time + 1)):
+                ops_to_move = set()
+                # Find operations to move
+                for op_id, op_time in schedule.start_times.items():
+                    if op_time == time:
+                        ops_to_move.add(op_id)
+                # Move consumers first when operations share a start time,
+                # so moving their producers does not violate dependencies.
+                for op_id in sorted(
+                    ops_to_move,
+                    key=lambda op_id: move_order.get(op_id, len(move_order)),
+                    reverse=True,
+                ):
+                    schedule.move_operation(op_id, diff)
+            # Move any outputs at the schedule edge
+            for op_id, op_time in schedule.start_times.items():
+                # Any operations still at max_time will be Outputs or Sinks
+                # Move back to new schedule time
+                if op_time == self._max_time:
+                    schedule.move_operation(op_id, -diff)
+
+            # Folded operations may finish after the period boundary. Allow
+            # this when their cyclic dependencies remain valid.
+            schedule.set_schedule_time(Ts, allow_cyclic_wrap=schedule.cyclic)
+
+        if self._sort_y_location:
+            schedule.sort_y_locations_on_start_times()
+
+
+class ILPScheduler(_OptimizationScheduler):
     """
     ILP-based scheduler that minimizes the sum of per-type resource counts.
 
@@ -1647,91 +1743,263 @@ class ILPScheduler(Scheduler):
                     schedule.start_times[op.graph_id] = time
                     break
 
+        self._finish_schedule(schedule, Ts)
+
+
+class CPScheduler(_OptimizationScheduler):
+    """
+    Constraint programming scheduler minimizing concurrent operations and I/O.
+
+    Minimizes the sum of peak resource counts for each operation type, including
+    I/O. For cyclic schedules, resource constraints count overlap between
+    successive iterations.
+
+    Requires the optional ``cp`` dependencies (``pip install b-asic[cp]``).
+
+    Parameters
+    ----------
+    solver : str or :class:`~cpmpy.solvers.solver_interface.SolverInterface`, optional
+        CPMpy solver name (default: ``"ortools"``) or a fresh solver instance.
+        Constraints and the objective are added to supplied instances in place,
+        preserving native solver settings.
+    input_times : dict(GraphID, int), optional
+        The times when inputs arrive.
+    output_delta_times : dict(GraphID, int), optional
+        The relative times when outputs should be produced.
+    output_times : dict(GraphID, int), optional
+        The times when outputs should be produced. For cyclic schedules these
+        specify the time within the schedule period.
+    max_time : int, optional
+        The time horizon to schedule for in cyclic scheduling. The iteration
+        period is specified by the Schedule's ``schedule_time`` parameter.
+    sort_y_location : bool, default: True
+        If the y-location should be sorted based on start time of operations.
+    **kwargs : Any
+        Options passed to the CPMpy solver's ``solve()`` method, for example
+        ``time_limit=60`` or, for OR-Tools, ``num_search_workers=4``.
+
+    Examples
+    --------
+    Schedule an SFG with a given schedule time:
+
+    .. code-block:: python
+
+        from b_asic import CPScheduler, Schedule
+
+        schedule = Schedule(sfg, CPScheduler(), schedule_time=20)
+    """
+
+    def __init__(
+        self,
+        solver: "str | SolverInterface | None" = None,
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+        output_times: dict["GraphID", int] | None = None,
+        max_time: int | None = None,
+        sort_y_location: bool = True,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+            output_times=output_times,
+            sort_y_location=sort_y_location,
+        )
+        if max_time is not None and (not isinstance(max_time, int) or max_time <= 0):
+            raise ValueError("max_time must be a positive integer.")
+        self._solver = solver
+        self._max_time = max_time
+        self._solver_options = kwargs
+
+    def apply_scheduling(self, schedule: "Schedule") -> None:
+        # Keep CPMpy optional for users of the other schedulers.
+        try:
+            import cpmpy as cp  # noqa: PLC0415
+            from cpmpy.solvers.solver_interface import SolverInterface  # noqa: PLC0415
+        except ImportError as exc:
+            raise ImportError("CPScheduler requires CPMpy; install b-asic[cp]") from exc
+
+        if self._solver is not None and not isinstance(
+            self._solver, (str, SolverInterface)
+        ):
+            raise TypeError("CPScheduler requires a CPMpy solver name or instance")
+
+        self._schedule = schedule
+        lower, asap_time = self._get_asap_start_times(
+            schedule, self._input_times, self._output_delta_times
+        )
+        Ts = schedule.schedule_time
+        if Ts is None:
+            Ts = asap_time
+            schedule._schedule_time = Ts
+        if Ts <= 0:
+            raise ValueError("CPScheduler requires a positive schedule time.")
+        if not schedule.cyclic and asap_time > Ts:
+            raise ValueError(
+                f"Shortest possible schedule time, {asap_time}, is longer than requested schedule time {Ts}. Use cyclic scheduling or increase schedule time."
+            )
+        if self._max_time is not None and not schedule.cyclic:
+            raise ValueError("max_time is only supported for cyclic scheduling.")
+        horizon = max(Ts, self._max_time or Ts)
+        upper = self._get_alap_start_times(
+            schedule,
+            self._input_times,
+            self._output_delta_times,
+            max_time=horizon,
+        )
+        ops = [
+            op
+            for op in schedule._sfg.operations
+            if not isinstance(op, (Delay, DontCare, Sink))
+        ]
+        model = cp.Model()
+        starts = {}
+        groups = defaultdict(list)
+        for op in ops:
+            op_id = op.graph_id
+            if lower[op_id] > upper[op_id]:
+                raise ValueError(
+                    "Solution could not be found via CP, use another method."
+                )
+            if op.execution_time is None:
+                raise ValueError(f"Operation {op_id} has no execution time.")
+            starts[op_id] = cp.intvar(lower[op_id], upper[op_id], name=op_id)
+            # Include isolated and zero-duration operations in the solver model.
+            model += starts[op_id] >= lower[op_id]
+            groups[op.type_name()].append(op)
+
+        for op_id, time in self._input_times.items():
+            model += starts[op_id] == time
+        if self._output_delta_times:
+            output_base = cp.intvar(0, horizon, name="output_base")
+            for op_id, delta in self._output_delta_times.items():
+                model += starts[op_id] == output_base + delta
+        for op_id, time in self._output_times.items():
+            if schedule.cyclic:
+                model += starts[op_id] % Ts == time % Ts
+                model += time <= Ts
+                if time == Ts:
+                    model += starts[op_id] > 0
+            else:
+                model += starts[op_id] == time
+
+        stages = {
+            op.graph_id: (
+                cp.max([starts[op.graph_id] - 1, 0]) // Ts
+                if isinstance(op, Output)
+                else starts[op.graph_id] // Ts
+            )
+            for op in ops
+        }
+        # Follow each input separately: parallel edges may have different delays
+        # and different latency offsets even when their source operation agrees.
+        for op in ops:
+            for port in op.inputs:
+                source = port.connected_source
+                depth = 0
+                while isinstance(source.operation, Delay):
+                    source = source.operation.input(0).connected_source
+                    depth += 1
+                if isinstance(source.operation, DontCare):
+                    continue
+                model += (
+                    starts[source.operation.graph_id] + source.latency_offset
+                    <= starts[op.graph_id] + port.latency_offset + depth * Ts
+                )
+                if schedule.cyclic:
+                    source_id = source.operation.graph_id
+                    source_phase = starts[source_id] - stages[source_id] * Ts
+                    model += (
+                        depth
+                        + stages[op.graph_id]
+                        - stages[source_id]
+                        - (source_phase + source.latency_offset > Ts)
+                        >= 0
+                    )
+
+        capacities = []
+        for op_type, group in groups.items():
+            capacity = cp.intvar(
+                0,
+                sum(max(1, math.ceil(op.execution_time / Ts)) for op in group),
+                name=f"resources_{op_type}",
+            )
+            capacities.append(capacity)
+            if schedule.cyclic:
+                # Count busy instances from all iterations, including execution
+                # intervals that cross the period boundary or span full periods.
+                for time in range(Ts):
+                    model += (
+                        cp.sum(
+                            [
+                                op.execution_time // Ts
+                                + (
+                                    (
+                                        time
+                                        + (horizon // Ts + 1) * Ts
+                                        - starts[op.graph_id]
+                                    )
+                                    % Ts
+                                    < op.execution_time % Ts
+                                )
+                                for op in group
+                            ]
+                        )
+                        <= capacity
+                    )
+            else:
+                busy = [op for op in group if op.execution_time > 0]
+                if busy:
+                    model += cp.Cumulative(
+                        [starts[op.graph_id] for op in busy],
+                        [op.execution_time for op in busy],
+                        [starts[op.graph_id] + op.execution_time for op in busy],
+                        [1] * len(busy),
+                        capacity,
+                    )
+        objective = cp.sum(capacities)
+        model.minimize(objective)
+        solver = self._solver or "ortools"
+        if isinstance(solver, str):
+            solved = model.solve(solver=solver, **self._solver_options)
+        else:
+            solver += model.constraints
+            solver.minimize(objective)
+            solved = solver.solve(**self._solver_options)
+        if not solved:
+            raise ValueError("Solution could not be found via CP, use another method.")
+        for op_id, start in starts.items():
+            schedule.start_times[op_id] = int(start.value())
+        if schedule.cyclic:
+            self._finish_cyclic_schedule(schedule, Ts, horizon)
+        else:
+            self._finish_schedule(schedule, Ts)
+
+    def _finish_cyclic_schedule(
+        self, schedule: "Schedule", period: int, horizon: int
+    ) -> None:
+        # Place utility operations in absolute time before folding the schedule.
+        schedule._schedule_time = horizon
         self._handle_utility_operations()
         schedule.remove_delays()
-
-        if self._max_time is not None and self._max_time > Ts:
-            schedule._schedule_time = self._max_time
-            diff = self._max_time - Ts
-            move_order = {
-                port.operation.graph_id: level
-                for level, step in enumerate(schedule.sfg.get_precedence_list())
-                for port in step
-            }
-            # Move operations ahead in time so that they wrap
-            for time in reversed(range(Ts, self._max_time + 1)):
-                ops_to_move = set()
-                # Find operations to move
-                for op_id, op_time in schedule.start_times.items():
-                    if op_time == time:
-                        ops_to_move.add(op_id)
-                # Move consumers first when operations share a start time,
-                # so moving their producers does not violate dependencies.
-                for op_id in sorted(
-                    ops_to_move,
-                    key=lambda op_id: move_order.get(op_id, len(move_order)),
-                    reverse=True,
-                ):
-                    schedule.move_operation(op_id, diff)
-            # Move any outputs at the schedule edge
-            for op_id, op_time in schedule.start_times.items():
-                # Any operations still at max_time will be Outputs or Sinks
-                # Move back to new schedule time
-                if op_time == self._max_time:
-                    schedule.move_operation(op_id, -diff)
-
-            # Folded operations may finish after the period boundary. Allow
-            # this when their cyclic dependencies remain valid.
-            schedule.set_schedule_time(Ts, allow_cyclic_wrap=schedule.cyclic)
-
+        stages = {}
+        for op in schedule._sfg.operations:
+            time = schedule.start_times[op.graph_id]
+            phase = time % period
+            if phase == 0 and time > 0 and isinstance(op, (Output, Sink)):
+                phase = period
+            stages[op.graph_id] = (time - phase) // period
+            schedule.start_times[op.graph_id] = phase
+        for op in schedule._sfg.operations:
+            for port in op.inputs:
+                source = port.connected_source
+                source_id = source.operation.graph_id
+                wrapped = (
+                    schedule.start_times[source_id] + source.latency_offset > period
+                )
+                schedule.laps[port.signals[0].graph_id] += (
+                    stages[op.graph_id] - stages[source_id] - int(wrapped)
+                )
+        schedule._schedule_time = period
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
-
-    def _get_asap_start_times(
-        self,
-        schedule: "Schedule",
-        input_times: dict["GraphID", int] | None = None,
-        output_delta_times: dict["GraphID", int] | None = None,
-    ) -> tuple[dict["GraphID", int], int]:
-        asap_schedule = copy.copy(schedule)
-        asap_schedule._schedule_time = None
-        asap_scheduler = ASAPScheduler(
-            sort_y_location=False,
-            input_times=input_times,
-            output_delta_times=output_delta_times,
-        )
-        asap_scheduler.apply_scheduling(asap_schedule)
-        for key in schedule._laps:
-            schedule._laps[key] = 0
-        return copy.copy(asap_schedule.start_times), asap_schedule.schedule_time
-
-    def _get_alap_start_times(
-        self,
-        schedule: "Schedule",
-        input_times: dict["GraphID", int] | None = None,
-        output_delta_times: dict["GraphID", int] | None = None,
-        max_time: int | None = None,
-    ) -> dict["GraphID", int]:
-        alap_schedule = copy.copy(schedule)
-        if max_time is not None:
-            alap_schedule._schedule_time = max_time
-        alap_scheduler = ALAPScheduler(
-            sort_y_location=False,
-            input_times=input_times,
-            output_delta_times=output_delta_times,
-        )
-        alap_scheduler.apply_scheduling(alap_schedule)
-        for key in schedule._laps:
-            schedule._laps[key] = 0
-        upper_bounds = copy.copy(alap_schedule.start_times)
-        if output_delta_times:
-            # ALAP leaves the relative output group at its ASAP placement.
-            # Translate its bounds to use the available horizon. Only the
-            # specified outputs determine the group end; unspecified outputs
-            # may already be at the horizon.
-            horizon = alap_schedule.schedule_time
-            slack = horizon - max(upper_bounds[key] for key in output_delta_times)
-            for key, time in upper_bounds.items():
-                if not input_times or key not in input_times:
-                    upper_bounds[key] = min(time + slack, horizon)
-        return upper_bounds
