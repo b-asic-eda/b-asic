@@ -42,6 +42,8 @@ from b_asic.process import (
 from b_asic.types import TypeName
 
 if TYPE_CHECKING:
+    from cpmpy.solvers.solver_interface import SolverInterface
+
     from b_asic.architecture import ProcessingElement
 
 # Default latency coloring RGB tuple
@@ -973,6 +975,7 @@ class ProcessCollection:
             "left_edge_min_mux",
             "greedy_graph_color",
             "ilp_graph_color",
+            "cp_graph_color",
         ] = "left_edge",
         alg_params: dict | None = None,
     ) -> list["ProcessCollection"]:
@@ -981,8 +984,10 @@ class ProcessCollection:
 
         Parameters
         ----------
-        strategy : {'ilp_graph_color', 'greedy_graph_color', 'left_edge', 'left_edge_min_mux'}, default: 'left_edge'
+        strategy : {'ilp_graph_color', 'cp_graph_color', 'greedy_graph_color', 'left_edge', 'left_edge_min_mux'}, default: 'left_edge'
             The strategy used when splitting based on execution times.
+            ``'cp_graph_color'`` uses CPMpy to minimize the number of resources
+            and requires the optional ``cp`` dependencies (``pip install b-asic[cp]``).
 
         alg_params : dict, optional
             Algorithm-specific parameters. Valid keys depend on *strategy*:
@@ -1012,6 +1017,21 @@ class ProcessCollection:
 
                     print(pulp.listSolvers(onlyAvailable=True))
 
+            For ``'cp_graph_color'``:
+
+            max_colors : int, optional
+                The maximum number of colors (resources) to split into.
+                Defaults to an upper bound from greedy graph coloring.
+
+            solver : str or :class:`~cpmpy.solvers.solver_interface.SolverInterface`, optional
+                CPMpy solver name (default: ``'ortools'``) or a fresh solver
+                instance. Constraints and the objective are added to supplied
+                instances in place, preserving native solver settings.
+
+            solver_options : dict, optional
+                Options passed to the solver's ``solve()`` method, for example
+                ``{'time_limit': 60, 'num_search_workers': 4}`` for OR-Tools.
+
             For ``'left_edge_min_mux'``:
 
             direct_variables : :class:`~b_asic.resources.ProcessCollection`
@@ -1033,6 +1053,19 @@ class ProcessCollection:
         direct_variables = alg_params.get("direct_variables", None)
         if strategy == "ilp_graph_color":
             return self._ilp_graph_color_assignment(max_colors, solver)
+        elif strategy == "cp_graph_color":
+            for process in self:
+                if process.execution_time > self.schedule_time:
+                    raise ValueError(
+                        f"{process} has execution time greater than the schedule time."
+                        " Call ProcessCollection.split_into_chains() first"
+                    )
+            return self._cp_graph_color_assignment(
+                self.exclusion_graph_from_execution_time(),
+                max_colors,
+                solver,
+                alg_params.get("solver_options"),
+            )
         elif strategy == "greedy_graph_color":
             return self._greedy_graph_color_assignment(coloring_strategy)
         elif strategy == "left_edge":
@@ -1053,6 +1086,10 @@ class ProcessCollection:
             "ilp_min_input_mux",
             "ilp_min_output_mux",
             "ilp_min_mux",
+            "cp_graph_color",
+            "cp_min_input_mux",
+            "cp_min_output_mux",
+            "cp_min_mux",
             "greedy_graph_color",
             "equitable_graph_color",
             "left_edge",
@@ -1080,12 +1117,21 @@ class ProcessCollection:
             * ``'ilp_min_input_mux'`` - ILP-based optimal graph coloring reducing the number of PE -> memory multiplexers.
             * ``'ilp_min_output_mux'`` - ILP-based optimal graph coloring reducing the number of memory -> PE multiplexers.
             * ``'ilp_min_mux'`` - ILP-based optimal graph coloring reducing the number of total multiplexers.
+            * ``'cp_graph_color'`` - CP-based optimal graph coloring minimizing the number of memories.
+            * ``'cp_min_input_mux'`` - CP-based graph coloring minimizing PE -> memory connections.
+            * ``'cp_min_output_mux'`` - CP-based graph coloring minimizing memory -> PE connections.
+            * ``'cp_min_mux'`` - CP-based graph coloring minimizing connections in both directions.
             * ``'greedy_graph_color'`` - Greedy graph coloring based heuristic.
             * ``'equitable_graph_color'`` - Equitable graph coloring, attempting to divide the variables evenly.
             * ``'left_edge'`` - Greedy heuristic for assigning variables.
             * ``'left_edge_min_pe_to_mem'`` - Greedy heuristic for assigning variables, attempting to reduce the amount of PE -> memory connections.
             * ``'left_edge_min_mem_to_pe'`` - Greedy heuristic for assigning variables, attempting to reduce the amount of memory -> PE connections.
             * ``'left_edge_min_mux'`` - Greedy heuristic for assigning variables, attempting to reduce the total number of multiplexers.
+
+            CP strategies require the optional ``cp`` dependencies
+            (``pip install b-asic[cp]``). Like the ILP graph coloring strategies,
+            they support one read port, one write port, and one or two total
+            ports per memory.
 
         read_ports : int, optional
             The number of read ports per memory resource.
@@ -1114,13 +1160,34 @@ class ProcessCollection:
 
                     print(pulp.listSolvers(onlyAvailable=True))
 
+            For ``'cp_graph_color'``, ``'cp_min_input_mux'``,
+            ``'cp_min_output_mux'``, ``'cp_min_mux'``:
+
+            max_colors : int, optional
+                The maximum number of colors (memories) to split into.
+                Defaults to an upper bound from greedy graph coloring. The mux
+                strategies minimize connections within this resource bound.
+
+            solver : str or :class:`~cpmpy.solvers.solver_interface.SolverInterface`, optional
+                CPMpy solver name (default: ``'ortools'``) or a fresh solver
+                instance. Constraints and the objective are added to supplied
+                instances in place, preserving native solver settings.
+
+            solver_options : dict, optional
+                Options passed to the solver's ``solve()`` method, for example
+                ``{'time_limit': 60, 'num_search_workers': 4}`` for OR-Tools.
+
             For ``'ilp_min_input_mux'``, ``'ilp_min_output_mux'``,
-            ``'ilp_min_mux'``, ``'left_edge_min_pe_to_mem'``,
+            ``'ilp_min_mux'``, ``'cp_min_input_mux'``, ``'cp_min_output_mux'``,
+            ``'cp_min_mux'``, ``'left_edge_min_pe_to_mem'``,
             ``'left_edge_min_mem_to_pe'``:
 
             processing_elements : list of :class:`~b_asic.architecture.ProcessingElement`
                 The currently used processing elements.
                 Used to determine PE-memory connections when minimizing multiplexers.
+                CP mux strategies require :class:`~b_asic.process.MemoryVariable`
+                objects connected to these processing elements and count all
+                destination ports of each variable.
 
             For ``'left_edge_min_mux'``:
 
@@ -1143,7 +1210,27 @@ class ProcessCollection:
             read_ports, write_ports, total_ports
         )
 
-        if strategy == "ilp_graph_color":
+        if strategy in (
+            "cp_graph_color",
+            "cp_min_input_mux",
+            "cp_min_output_mux",
+            "cp_min_mux",
+        ):
+            if strategy != "cp_graph_color" and processing_elements is None:
+                raise ValueError(
+                    f"processing_elements must be provided if strategy = '{strategy}'"
+                )
+            return self._split_ports_cp_graph_color(
+                read_ports,
+                write_ports,
+                total_ports,
+                strategy,
+                processing_elements,
+                max_colors,
+                solver,
+                alg_params.get("solver_options"),
+            )
+        elif strategy == "ilp_graph_color":
             return self._split_ports_ilp_graph_color(
                 read_ports, write_ports, total_ports, max_colors, solver
             )
@@ -1573,6 +1660,134 @@ class ProcessCollection:
             exclusion_graph, num_colors=max_degree + 1
         )
         return self._split_from_graph_coloring(coloring)
+
+    def _split_ports_cp_graph_color(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        strategy: str,
+        processing_elements: list["ProcessingElement"] | None = None,
+        max_colors: int | None = None,
+        solver: "str | SolverInterface | None" = None,
+        solver_options: dict | None = None,
+    ) -> list["ProcessCollection"]:
+        """Color port conflicts, optionally minimizing physical PE-memory links."""
+        graph = self.exclusion_graph_from_ports(read_ports, write_ports, total_ports)
+        connection_groups = None
+        if strategy != "cp_graph_color":
+            pe_for_operation = {
+                process.operation.graph_id: index
+                for index, pe in enumerate(processing_elements)
+                for process in pe
+            }
+            endpoints = defaultdict(list)
+            for var in self:
+                if not isinstance(var, MemoryVariable):
+                    raise TypeError("CP mux splitting requires MemoryVariable objects.")
+                if strategy in ("cp_min_input_mux", "cp_min_mux"):
+                    if isinstance(var.write_port, MemoryOutputPort):
+                        raise ValueError(
+                            "CP mux splitting requires direct connections to processing elements."
+                        )
+                    source_id = var.write_port.operation.graph_id
+                    if source_id not in pe_for_operation:
+                        raise ValueError(
+                            "Source could not be found for the given variable."
+                        )
+                    endpoints[
+                        "out", pe_for_operation[source_id], var.write_port.index
+                    ].append(var)
+                if strategy in ("cp_min_output_mux", "cp_min_mux"):
+                    for port in var.read_ports:
+                        if isinstance(port, MemoryInputPort):
+                            raise ValueError(
+                                "CP mux splitting requires direct connections to processing elements."
+                            )
+                        destination_id = port.operation.graph_id
+                        if destination_id not in pe_for_operation:
+                            raise ValueError(
+                                "Destination could not be found for the given variable."
+                            )
+                        endpoints[
+                            "in", pe_for_operation[destination_id], port.index
+                        ].append(var)
+            connection_groups = list(endpoints.values())
+        return self._cp_graph_color_assignment(
+            graph, max_colors, solver, solver_options, connection_groups
+        )
+
+    def _cp_graph_color_assignment(
+        self,
+        graph: nx.Graph,
+        max_colors: int | None = None,
+        solver: "str | SolverInterface | None" = None,
+        solver_options: dict | None = None,
+        connection_groups: list[list[Process]] | None = None,
+    ) -> list["ProcessCollection"]:
+        """Minimize distinct resource assignments globally or per physical port."""
+        try:
+            import cpmpy as cp  # noqa: PLC0415
+            from cpmpy.solvers.solver_interface import SolverInterface  # noqa: PLC0415
+        except ImportError as exc:
+            raise ImportError(
+                "CP splitting requires CPMpy; install b-asic[cp]"
+            ) from exc
+        if solver is not None and not isinstance(solver, (str, SolverInterface)):
+            raise TypeError("CP splitting requires a CPMpy solver name or instance")
+        if max_colors is not None and (
+            not isinstance(max_colors, int) or max_colors <= 0
+        ):
+            raise ValueError("max_colors must be a positive integer.")
+        if not graph:
+            return []
+        if max_colors is None:
+            greedy = nx.coloring.greedy_color(
+                graph, strategy="saturation_largest_first"
+            )
+            max_colors = len(set(greedy.values()))
+        max_colors = min(max_colors, len(graph))
+        model = cp.Model()
+        assignments = {
+            node: cp.intvar(0, max_colors - 1, name=f"assignment_{idx}")
+            for idx, node in enumerate(graph)
+        }
+        # Isolated processes must also occur in the model and receive a value.
+        model += [assignment >= 0 for assignment in assignments.values()]
+        model += [assignments[u] != assignments[v] for u, v in graph.edges()]
+        # Fix a clique's labels to remove equivalent color permutations.
+        anchor = next(nx.find_cliques(graph))
+        for color, node in enumerate(anchor):
+            model += assignments[node] == color
+        if connection_groups is None:
+            objective = cp.NValue(list(assignments.values()))
+        else:
+            # Each distinct assigned memory adds one connection to a PE port.
+            # Shared ports and multiple consumers therefore count exactly once.
+            objective = cp.sum(
+                [
+                    cp.NValue([assignments[node] for node in group])
+                    for group in connection_groups
+                ]
+            )
+        model.minimize(objective)
+        solver = solver or "ortools"
+        solver_options = solver_options or {}
+        if isinstance(solver, str):
+            solved = model.solve(solver=solver, **solver_options)
+        else:
+            solver += model.constraints
+            solver.minimize(objective)
+            solved = solver.solve(**solver_options)
+        if not solved:
+            raise ValueError("Solution could not be found via CP, use another method.")
+        colors = {
+            node: int(assignment.value()) for node, assignment in assignments.items()
+        }
+        used = {color: idx for idx, color in enumerate(sorted(set(colors.values())))}
+        return self._split_from_graph_coloring(
+            {node: used[color] for node, color in colors.items()}
+        )
 
     def _split_ports_ilp_graph_color(
         self,
