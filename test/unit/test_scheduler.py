@@ -1,10 +1,14 @@
+import pulp
 import pytest
 
+import b_asic.scheduler as scheduler_module
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.fft_operations import R2Butterfly
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ALAPScheduler, ASAPScheduler, ILPScheduler
+from b_asic.sfg import SFG
 from b_asic.sfg_generators import direct_form_1_iir, radix_2_dif_fft
+from b_asic.special_operations import Input, Output
 
 
 class TestASAPScheduler:
@@ -268,6 +272,335 @@ class TestALAPScheduler:
 
 
 class TestILPScheduler:
+    def test_output_placement_once_per_bound_calculation(self, monkeypatch):
+        input_op = Input()
+        multiplications = [
+            ConstantMultiplication(value, input_op, latency=1, execution_time=1)
+            for value in (2, 3)
+        ]
+        sfg = SFG(inputs=[input_op], outputs=[Output(op) for op in multiplications])
+        placements = []
+        place_outputs = scheduler_module.Scheduler._place_outputs_on_given_times
+
+        def track_output_placement(scheduler):
+            placements.append(type(scheduler))
+            place_outputs(scheduler)
+
+        monkeypatch.setattr(
+            scheduler_module.Scheduler,
+            "_place_outputs_on_given_times",
+            track_output_placement,
+        )
+        Schedule(
+            sfg,
+            ILPScheduler(output_delta_times={"out0": 0, "out1": 1}),
+            schedule_time=5,
+        )
+        assert placements == [ASAPScheduler, ASAPScheduler]
+
+    @pytest.mark.parametrize("execution_time", [1, 11])
+    @pytest.mark.parametrize("cyclic", [False, True])
+    @pytest.mark.parametrize("complete", [False, True])
+    @pytest.mark.parametrize(
+        "timing_kind", ["input_times", "output_times", "output_delta_times"]
+    )
+    def test_io_resource_bounds_from_timing_constraints(
+        self, monkeypatch, cyclic, complete, timing_kind, execution_time
+    ):
+        inputs = [Input() for _ in range(3)]
+        multiplications = [
+            ConstantMultiplication(value, input_op, latency=1, execution_time=1)
+            for value, input_op in enumerate(inputs, start=2)
+        ]
+        sfg = SFG(inputs=inputs, outputs=[Output(op) for op in multiplications])
+        is_input = timing_kind == "input_times"
+        prefix = "in" if is_input else "out"
+        first_time = 5 if timing_kind == "output_times" else 0
+        timings = {f"{prefix}0": first_time, f"{prefix}1": first_time}
+        if complete:
+            timings[f"{prefix}2"] = first_time + 1
+        solve = scheduler_module._solve_ilp_problem
+        bounds = []
+        sfg.set_execution_time_of_type(Input if is_input else Output, execution_time)
+
+        def check_resource_bounds(problem, solver, *, warm_start):
+            resource = problem.variablesDict()[f"R_used_{prefix}"]
+            bounds.append((resource.lowBound, resource.upBound))
+            return solve(problem, solver, warm_start=warm_start)
+
+        monkeypatch.setattr(
+            scheduler_module, "_solve_ilp_problem", check_resource_bounds
+        )
+        Schedule(
+            sfg,
+            ILPScheduler(**{timing_kind: timings}),
+            schedule_time=10,
+            cyclic=cyclic,
+        )
+        required = 2
+        if execution_time > 1:
+            required = (4 if cyclic else 2) + int(complete)
+        assert bounds == [(required, required if complete else float("inf"))]
+
+    def test_warm_start_shifts_unspecified_outputs_with_output_group(self, monkeypatch):
+        input_op = Input()
+        multiplications = [
+            ConstantMultiplication(value, input_op, latency=latency, execution_time=1)
+            for value, latency in ((2, 3), (3, 3), (4, 1))
+        ]
+        sfg = SFG(inputs=[input_op], outputs=[Output(op) for op in multiplications])
+        solve = scheduler_module._solve_ilp_problem
+        candidates = []
+
+        def check_initial_solution(problem, solver, *, warm_start):
+            candidates.append(warm_start)
+            assert warm_start
+            assert problem.valid()
+            assert pulp.value(problem.variablesDict()["output_origin"]) == 9
+            assert pulp.value(problem.variablesDict()["R_used_out"]) == 1
+            return solve(problem, solver, warm_start=warm_start)
+
+        monkeypatch.setattr(
+            scheduler_module, "_solve_ilp_problem", check_initial_solution
+        )
+        Schedule(
+            sfg,
+            ILPScheduler(
+                input_times={"in0": 0},
+                output_delta_times={"out0": 0, "out1": 1},
+            ),
+            schedule_time=10,
+        )
+        assert candidates == [True]
+
+    @pytest.mark.parametrize("cyclic", [False, True])
+    @pytest.mark.parametrize("fixed_output_time", [None, 3])
+    def test_asap_warm_start_only_when_feasible(
+        self, monkeypatch, cyclic, fixed_output_time
+    ):
+        input_op = Input()
+        multiplications = [
+            ConstantMultiplication(value, input_op, latency=1, execution_time=7)
+            for value in (2, 3)
+        ]
+        sfg = SFG(inputs=[input_op], outputs=[Output(op) for op in multiplications])
+        solver = pulp.HiGHS(msg=False)
+        solve = scheduler_module._solve_ilp_problem
+        candidates = []
+
+        def check_initial_solution(problem, solver, *, warm_start):
+            candidates.append(warm_start)
+            if warm_start:
+                assert problem.valid()
+                assert pulp.value(problem.variablesDict()["R_used_cmul"]) == (
+                    4 if cyclic else 2
+                )
+                assert pulp.value(problem.variablesDict()["output_origin"]) == (
+                    1 if cyclic else 4
+                )
+            return solve(problem, solver, warm_start=warm_start)
+
+        monkeypatch.setattr(
+            scheduler_module, "_solve_ilp_problem", check_initial_solution
+        )
+        schedule = Schedule(
+            sfg,
+            ILPScheduler(
+                solver=solver,
+                input_times={"in0": 0},
+                output_delta_times={"out0": 0, "out1": 1},
+                output_times=(
+                    {"out0": fixed_output_time}
+                    if fixed_output_time is not None
+                    else None
+                ),
+            ),
+            schedule_time=5,
+            cyclic=cyclic,
+        )
+        assert candidates == [fixed_output_time is None]
+        assert solver.optionsDict.get("warmStart", False) == (fixed_output_time is None)
+        if fixed_output_time is not None:
+            assert schedule.start_times["out0"] == fixed_output_time
+
+    @pytest.mark.parametrize("cyclic", [False, True])
+    @pytest.mark.parametrize("execution_time", [1, 2, 7])
+    def test_resource_occupancy_at_period_boundary(
+        self, monkeypatch, cyclic, execution_time
+    ):
+        inputs = [Input(), Input()]
+        multiplications = [
+            ConstantMultiplication(
+                2, input_op, latency=1, execution_time=execution_time
+            )
+            for input_op in inputs
+        ]
+        sfg = SFG(inputs=inputs, outputs=[Output(op) for op in multiplications])
+        problems = []
+        solve = scheduler_module._solve_ilp_problem
+
+        def capture_problem(problem, solver, **kwargs):
+            problems.append(problem)
+            return solve(problem, solver, **kwargs)
+
+        monkeypatch.setattr(scheduler_module, "_solve_ilp_problem", capture_problem)
+        schedule = Schedule(
+            sfg,
+            ILPScheduler(
+                input_times={"in0": 0, "in1": 4},
+                output_times={"out0": 1, "out1": 0},
+            ),
+            schedule_time=5,
+            cyclic=cyclic,
+        )
+        # The deadlines force starts at 0 and 4. Check the resource count
+        # optimized by the ILP, including executions longer than one period.
+        counts = [0] * (5 if cyclic else 4 + execution_time)
+        for start in (0, 4):
+            for offset in range(execution_time):
+                time = (start + offset) % 5 if cyclic else start + offset
+                counts[time] += 1
+        resources = problems[0].variablesDict()["R_used_cmul"]
+        assert pulp.value(resources) == max(counts)
+        assert sorted(
+            schedule.start_times[op.graph_id]
+            for op in schedule.sfg.find_by_type(ConstantMultiplication)
+        ) == [0, 4]
+
+    @pytest.mark.parametrize(("schedule_time", "expected_resources"), [(3, 2), (10, 1)])
+    def test_relative_output_times_allow_resource_sharing(
+        self, schedule_time, expected_resources
+    ):
+        input_op = Input()
+        multiplications = [
+            ConstantMultiplication(value, input_op, latency=2, execution_time=1)
+            for value in range(2, 6)
+        ]
+        sfg = SFG(inputs=[input_op], outputs=[Output(op) for op in multiplications])
+        deltas = {"out0": 0, "out1": 0, "out2": 1, "out3": 1}
+        schedule = Schedule(
+            sfg,
+            ILPScheduler(input_times={"in0": 0}, output_delta_times=deltas),
+            schedule_time=schedule_time,
+        )
+        origin = schedule.start_times["out0"]
+        assert {key: schedule.start_times[key] - origin for key in deltas} == deltas
+        assert max(schedule.start_times.values()) <= schedule_time
+        assert (
+            schedule.get_operations()
+            .get_by_type_name("cmul")
+            .processing_element_bound()
+            == expected_resources
+        )
+
+    def test_resource_occupancy_across_multiple_periods(self, monkeypatch):
+        inputs = [Input(), Input()]
+        multiplications = [
+            ConstantMultiplication(2, inputs[0], latency=5, execution_time=1),
+            ConstantMultiplication(3, inputs[1], latency=1, execution_time=1),
+        ]
+        sfg = SFG(inputs=inputs, outputs=[Output(op) for op in multiplications])
+        problems = []
+        solve = scheduler_module._solve_ilp_problem
+
+        def capture_problem(problem, solver, **kwargs):
+            problems.append(problem)
+            return solve(problem, solver, **kwargs)
+
+        monkeypatch.setattr(scheduler_module, "_solve_ilp_problem", capture_problem)
+        schedule = Schedule(
+            sfg,
+            ILPScheduler(
+                input_times={"in0": 0, "in1": 5},
+                output_times={"out0": 0, "out1": 1},
+                max_time=7,
+            ),
+            schedule_time=5,
+            cyclic=True,
+        )
+        # The unwrapped starts are forced to 0 and 5. Even with execution
+        # time 1, these compete for the same slot in a periodic schedule.
+        assert pulp.value(problems[0].variablesDict()["R_used_cmul"]) == 2
+        assert (
+            schedule.get_operations()
+            .get_by_type_name("cmul")
+            .processing_element_bound()
+            == 2
+        )
+
+    @pytest.mark.parametrize("schedule_time", [5, 60])
+    def test_fold_schedule_with_operation_crossing_period(self, schedule_time):
+        input_op = Input()
+        first = ConstantMultiplication(2, input_op, latency=2, execution_time=1)
+        second = ConstantMultiplication(3, first, latency=1, execution_time=1)
+        sfg = SFG(inputs=[input_op], outputs=[Output(second)])
+
+        schedule = Schedule(
+            sfg,
+            ILPScheduler(
+                input_times={"in0": schedule_time - 1},
+                output_times={"out0": 2},
+                output_delta_times={"out0": 0},
+                max_time=2 * schedule_time,
+            ),
+            schedule_time=schedule_time,
+            cyclic=True,
+        )
+
+        assert schedule.schedule_time == schedule_time
+        assert schedule.start_times == {
+            "in0": schedule_time - 1,
+            "cmul0": schedule_time - 1,
+            "cmul1": 1,
+            "out0": 2,
+        }
+        assert schedule.get_max_end_time() == schedule_time + 1
+        assert all(lap == 0 for lap in schedule.laps.values())
+        for graph_id in schedule.start_times:
+            assert schedule.backward_slack(graph_id) >= 0
+            assert schedule.forward_slack(graph_id) >= 0
+        assert schedule.forward_slack("cmul0") == 0
+        assert schedule.forward_slack("cmul1") == 0
+
+    @pytest.mark.parametrize("max_time", [None, 10, 20])
+    def test_relative_output_upper_bounds_use_available_horizon(self, max_time):
+        input_op = Input()
+        multiplications = [
+            ConstantMultiplication(value, input_op, latency=2, execution_time=1)
+            for value in range(2, 5)
+        ]
+        sfg = SFG(inputs=[input_op], outputs=[Output(op) for op in multiplications])
+        schedule = Schedule(sfg, schedule_time=10)
+        scheduler = ILPScheduler()
+        upper_bounds = scheduler._get_alap_start_times(
+            schedule,
+            input_times={"in0": 0},
+            output_delta_times={"out0": 0, "out1": 1},
+            max_time=max_time,
+        )
+        horizon = max_time or 10
+        assert upper_bounds["in0"] == 0
+        assert upper_bounds["out0"] == horizon - 1
+        assert upper_bounds["out1"] == horizon
+        assert upper_bounds["out2"] == horizon
+        assert upper_bounds["cmul0"] == horizon - 3
+        assert upper_bounds["cmul1"] == horizon - 2
+        assert max(upper_bounds.values()) <= horizon
+
+    def test_relative_output_times_contribute_to_asap_schedule_time(self):
+        input_op = Input()
+        multiplications = [
+            ConstantMultiplication(value, input_op, latency=2, execution_time=1)
+            for value in (2, 3)
+        ]
+        sfg = SFG(inputs=[input_op], outputs=[Output(op) for op in multiplications])
+        with pytest.raises(ValueError, match=r"Shortest possible schedule time, 5"):
+            Schedule(
+                sfg,
+                ILPScheduler(output_delta_times={"out0": 0, "out1": 3}),
+                schedule_time=4,
+            )
+
     def test_empty_sfg(self, sfg_empty):
         with pytest.raises(
             ValueError, match=r"Empty signal flow graph cannot be scheduled."

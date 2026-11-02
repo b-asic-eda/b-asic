@@ -27,7 +27,7 @@ from pulp import (
     value,
 )
 
-from b_asic._ilp_utils import _resolve_solver
+from b_asic._ilp_utils import _solve_ilp_problem
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
 from b_asic.code_printer.vhdl.common import is_valid_vhdl_identifier
 from b_asic.process import (
@@ -1624,7 +1624,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(_resolve_solver(solver))
+        stats = _solve_ilp_problem(problem, solver)
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -1720,7 +1720,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(_resolve_solver(solver))
+        stats = _solve_ilp_problem(problem, solver)
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -1815,7 +1815,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(_resolve_solver(solver))
+        stats = _solve_ilp_problem(problem, solver)
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -1924,7 +1924,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(_resolve_solver(solver))
+        stats = _solve_ilp_problem(problem, solver)
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -2062,7 +2062,7 @@ class ProcessCollection:
         for color in colors[:-1]:
             problem += c[color + 1] <= c[color]
 
-        stats = problem.solve(_resolve_solver(solver))
+        stats = _solve_ilp_problem(problem, solver)
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")

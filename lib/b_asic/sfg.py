@@ -2751,9 +2751,9 @@ class SFG(AbstractOperation):
 
     def rewrite(
         self,
-        source: type[Operation],
+        substitute: type[Operation],
         target: OpSpecifier | Iterable[OpSpecifier],
-    ) -> None:
+    ) -> "SFG":
         """
         Return a new SFG with the specified operations rewritten.
 
@@ -2761,7 +2761,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        source : Type[Operation]
+        substitute : Type[Operation]
             The type of operation to replace the target(s) with.
         target : OpSpecifier | Iterable[OpSpecifier]
             The operation(s) to be replaced.
@@ -2772,8 +2772,8 @@ class SFG(AbstractOperation):
             target = [target]
 
         # Validate that the source is an Operation type
-        if not isinstance(source, type) or not issubclass(source, Operation):
-            raise TypeError("Source must be an Operation type")
+        if not isinstance(substitute, type) or not issubclass(substitute, Operation):
+            raise TypeError("Substitute must be an Operation type")
 
         new_sfg = self()
         for t in target:
@@ -2790,23 +2790,23 @@ class SFG(AbstractOperation):
             else:
                 raise TypeError("Target must be a GraphID or an Operation type")
 
-            func_name = f"_rewrite_{source.__name__}"
+            func_name = f"_rewrite_{substitute.__name__}"
             if hasattr(op, func_name):
                 sub_sfg = getattr(op, func_name)()
                 new_sfg = new_sfg.replace(op.graph_id, sub_sfg)
             else:
                 warnings.warn(
-                    f"No rewrite method found for target operation type {type(op).__name__} to source operation type {source.__name__}",
+                    f"No rewrite method found for target operation type {type(op).__name__} to substitute operation type {substitute.__name__}",
                     stacklevel=2,
                 )
                 # Try the other way around
                 func_name = f"_from_{type(op).__name__}"
-                if hasattr(source, func_name):
-                    sub_sfg = getattr(source, func_name)(op)
+                if hasattr(substitute, func_name):
+                    sub_sfg = getattr(substitute, func_name)(op)
                     new_sfg = new_sfg.replace(op.graph_id, sub_sfg)
                 else:
                     warnings.warn(
-                        f"No rewrite method found for target operation type {type(op).__name__} to source operation type {source.__name__}",
+                        f"No rewrite method found for target operation type {type(op).__name__} to substitute operation type {substitute.__name__}",
                         stacklevel=2,
                     )
                     return new_sfg()
