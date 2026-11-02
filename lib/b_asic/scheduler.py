@@ -7,13 +7,13 @@ Contains classes for automatic scheduling of SFGs.
 import copy
 import math
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import TYPE_CHECKING, cast
 
 import pulp
 
 import b_asic.logger
-from b_asic._ilp_utils import _resolve_solver
+from b_asic._ilp_utils import _solve_ilp_problem
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.special_operations import Delay, Input, Output
@@ -400,9 +400,6 @@ class ALAPScheduler(Scheduler):
             sort_y_location=False,
         ).apply_scheduling(schedule)
         self._op_laps = {}
-
-        if self._output_delta_times:
-            self._place_outputs_on_given_times()
 
         if self._output_times:
             for output_id, output_time in self._output_times.items():
@@ -1346,7 +1343,10 @@ class RecursiveListScheduler(ListScheduler):
 
 class ILPScheduler(Scheduler):
     """
-    ILP-based scheduler that minimizes the amount of concurrent operations.
+    ILP-based scheduler that minimizes the sum of per-type resource counts.
+
+    Resource occupancy is determined by execution time. For cyclic schedules,
+    occupancy includes overlap between successive iterations.
 
     Parameters
     ----------
@@ -1362,7 +1362,8 @@ class ILPScheduler(Scheduler):
     input_times : dict(GraphID, int), optional
         The times when inputs arrive.
     output_delta_times : dict(GraphID, int), optional
-        The relative times when outputs should be produced.
+        Output offsets relative to a common time chosen by the solver. The
+        outputs may move together within the scheduling horizon.
     output_times : dict(GraphID, int), optional
         The times when outputs should be produced.
     max_time : int, optional
@@ -1427,6 +1428,62 @@ class ILPScheduler(Scheduler):
         X = problem.add_variable_dicts("X", (ops, time_slots), cat=pulp.LpBinary)
         R_used = problem.add_variable_dicts("R_used", op_types, cat=pulp.LpInteger)
 
+        # I/O timing constraints already determine resource requirements.
+        # Partial timing maps give lower bounds; complete maps give exact
+        # counts. Relative output offsets have translation-invariant overlap.
+        fixed_output_times = self._output_times
+        if not schedule.cyclic:
+            fixed_output_times = {}
+            for output_id, output_time in self._output_times.items():
+                starts = [
+                    time
+                    for time in range(LB[output_id], UB[output_id] + 1)
+                    if time % Ts == output_time
+                ]
+                if len(starts) == 1:
+                    fixed_output_times[output_id] = starts[0]
+        for io_type, timing_maps in (
+            (Input, (self._input_times,)),
+            (Output, (fixed_output_times, self._output_delta_times)),
+        ):
+            io_ops = [op for op in ops if isinstance(op, io_type)]
+            if not io_ops:
+                continue
+            resource = R_used[io_type.type_name()]
+            for timings in timing_maps:
+                if not timings:
+                    continue
+                io_occupancy = Counter(
+                    (timings[op.graph_id] + offset) % Ts
+                    if schedule.cyclic
+                    else timings[op.graph_id] + offset
+                    for op in io_ops
+                    if op.graph_id in timings
+                    for offset in range(op.execution_time)
+                )
+                required = max(io_occupancy.values(), default=0)
+                resource.lowBound = max(resource.lowBound or 0, required)
+                if all(op.graph_id in timings for op in io_ops):
+                    resource.upBound = min(
+                        resource.upBound if resource.upBound is not None else required,
+                        required,
+                    )
+
+        initial_start_times = LB.copy()
+        if self._output_delta_times and not schedule.cyclic:
+            # Keep the computation ASAP but place outputs at the end of the
+            # horizon. Shift all outputs together, including unspecified ones,
+            # to preserve their spacing and avoid increasing output resources.
+            outputs = [op for op in ops if isinstance(op, Output)]
+            output_shift = min(UB[op.graph_id] - LB[op.graph_id] for op in outputs)
+            for op in outputs:
+                initial_start_times[op.graph_id] += output_shift
+        initial_values = {
+            X[op][time]: int(time == initial_start_times[op.graph_id])
+            for op in ops
+            for time in time_slots
+        }
+
         # w - Stage difference between operations (i.e. number of Delays between)
         W = {}
         for op in ops:
@@ -1445,12 +1502,37 @@ class ILPScheduler(Scheduler):
 
         # (1) - Each operation should have one and only one start time
         for op in ops:
+            # Variables outside the ASAP/ALAP window must not be selected when
+            # extracting start times, or contribute to resource constraints.
+            for time in time_slots:
+                if not LB[op.graph_id] <= time <= UB[op.graph_id]:
+                    X[op][time].upBound = 0
             problem += (
                 pulp.lpSum(
                     X[op][j] for j in range(LB[op.graph_id], UB[op.graph_id] + 1)
                 )
                 == 1
             )
+
+        if self._output_delta_times:
+            # Keep the output offsets relative to a movable common origin.
+            # Bounds alone do not enforce the relative output times.
+            output_origin = problem.add_variable(
+                "output_origin", lowBound=0, cat=pulp.LpInteger
+            )
+            output_id = next(iter(self._output_delta_times))
+            initial_values[output_origin] = (
+                initial_start_times[output_id] - self._output_delta_times[output_id]
+            )
+            for output_id, delta_time in self._output_delta_times.items():
+                output_op = schedule._sfg.find_by_id(output_id)
+                problem += (
+                    pulp.lpSum(
+                        time * X[output_op][time]
+                        for time in range(LB[output_id], UB[output_id] + 1)
+                    )
+                    == output_origin + delta_time
+                )
 
         if self._input_times:
             for input_id, input_time in self._input_times.items():
@@ -1467,19 +1549,31 @@ class ILPScheduler(Scheduler):
                         X[output_op][t].fixValue()
 
         # (2) - At most R_used[resource_type] can be used in each time slot for every resource type
+        resource_slots = range(Ts) if schedule.cyclic else time_slots
         for op_type in op_types:
-            for j in time_slots:
-                problem += (
-                    pulp.lpSum(
-                        X[op][start_time]
-                        for op in ops
-                        if op.type_name() == op_type
-                        for start_time in time_slots
-                        if X[op][start_time] == 1
-                        and start_time <= j < start_time + op.execution_time
-                    )
-                    <= R_used[op_type]
-                )
+            occupancy = {time: [] for time in resource_slots}
+            for op in ops:
+                if op.type_name() != op_type:
+                    continue
+                for start_time in range(LB[op.graph_id], UB[op.graph_id] + 1):
+                    # Count every occupied slot, including repeated visits if
+                    # execution_time exceeds the period. Latency determines
+                    # data availability, not resource occupancy.
+                    for offset in range(op.execution_time):
+                        time = start_time + offset
+                        if schedule.cyclic:
+                            time %= Ts
+                        if time in occupancy:
+                            occupancy[time].append(X[op][start_time])
+            for terms in occupancy.values():
+                problem += pulp.lpSum(terms) <= R_used[op_type]
+            initial_values[R_used[op_type]] = max(
+                (
+                    sum(initial_values[var] for var in terms)
+                    for terms in occupancy.values()
+                ),
+                default=0,
+            )
 
         # (3) - Ensure that all timing constraints are met
         for op in ops:
@@ -1521,13 +1615,36 @@ class ILPScheduler(Scheduler):
                         <= 1
                     )
 
-        stats = problem.solve(_resolve_solver(self._solver))
+        # Check the ASAP candidate against the complete model before passing
+        # it to the solver. Fixed output times or additional resource limits
+        # may rule it out even when its data dependencies are satisfied.
+        warm_start = all(
+            (var.lowBound is None or value >= var.lowBound)
+            and (var.upBound is None or value <= var.upBound)
+            for var, value in initial_values.items()
+        )
+        if warm_start:
+            for constraint in problem.constraints():
+                residual = constraint.constant + sum(
+                    coefficient * initial_values[var]
+                    for var, coefficient in constraint.items()
+                )
+                if (
+                    constraint.sense == pulp.LpConstraintEQ and residual != 0
+                ) or residual * constraint.sense < 0:
+                    warm_start = False
+                    break
+        if warm_start:
+            for var, value in initial_values.items():
+                var.setInitialValue(value)
+
+        stats = _solve_ilp_problem(problem, self._solver, warm_start=warm_start)
 
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         for op in ops:
-            for time in time_slots:
+            for time in range(LB[op.graph_id], UB[op.graph_id] + 1):
                 if round(pulp.value(X[op][time])) == 1:
                     schedule.start_times[op.graph_id] = time
                     break
@@ -1538,6 +1655,11 @@ class ILPScheduler(Scheduler):
         if self._max_time is not None and self._max_time > Ts:
             schedule._schedule_time = self._max_time
             diff = self._max_time - Ts
+            move_order = {
+                port.operation.graph_id: level
+                for level, step in enumerate(schedule.sfg.get_precedence_list())
+                for port in step
+            }
             # Move operations ahead in time so that they wrap
             for time in reversed(range(Ts, self._max_time + 1)):
                 ops_to_move = set()
@@ -1545,8 +1667,13 @@ class ILPScheduler(Scheduler):
                 for op_id, op_time in schedule.start_times.items():
                     if op_time == time:
                         ops_to_move.add(op_id)
-                # Do the move
-                for op_id in ops_to_move:
+                # Move consumers first when operations share a start time,
+                # so moving their producers does not violate dependencies.
+                for op_id in sorted(
+                    ops_to_move,
+                    key=lambda op_id: move_order.get(op_id, len(move_order)),
+                    reverse=True,
+                ):
                     schedule.move_operation(op_id, diff)
             # Move any outputs at the schedule edge
             for op_id, op_time in schedule.start_times.items():
@@ -1555,7 +1682,9 @@ class ILPScheduler(Scheduler):
                 if op_time == self._max_time:
                     schedule.move_operation(op_id, -diff)
 
-            schedule.set_schedule_time(Ts)
+            # Folded operations may finish after the period boundary. Allow
+            # this when their cyclic dependencies remain valid.
+            schedule.set_schedule_time(Ts, allow_cyclic_wrap=schedule.cyclic)
 
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
@@ -1596,4 +1725,15 @@ class ILPScheduler(Scheduler):
         alap_scheduler.apply_scheduling(alap_schedule)
         for key in schedule._laps:
             schedule._laps[key] = 0
-        return copy.copy(alap_schedule.start_times)
+        upper_bounds = copy.copy(alap_schedule.start_times)
+        if output_delta_times:
+            # ALAP leaves the relative output group at its ASAP placement.
+            # Translate its bounds to use the available horizon. Only the
+            # specified outputs determine the group end; unspecified outputs
+            # may already be at the horizon.
+            horizon = alap_schedule.schedule_time
+            slack = horizon - max(upper_bounds[key] for key in output_delta_times)
+            for key, time in upper_bounds.items():
+                if not input_times or key not in input_times:
+                    upper_bounds[key] = min(time + slack, horizon)
+        return upper_bounds

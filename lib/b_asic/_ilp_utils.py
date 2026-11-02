@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import cast
 from uuid import uuid4
 
-from pulp import HiGHS, LpProblem, LpSolver, LpSolveStatus, value
+from pulp import HiGHS, LpProblem, LpSolver, LpSolveStats, LpSolveStatus, value
 
 import b_asic.logger
 
@@ -31,8 +31,13 @@ def _solve_ilp_problem(
     problem: LpProblem,
     solver: LpSolver | None,
     warm_start: bool = False,
-) -> None:
+) -> LpSolveStats:
     solver = _resolve_solver(solver, warm_start=warm_start)
+    initial_solution = (
+        {var: var.varValue for var in problem.variables()}
+        if warm_start and _has_feasible_solution(problem)
+        else None
+    )
 
     recovery_state = _prepare_interrupted_recovery(problem, solver)
 
@@ -49,6 +54,12 @@ def _solve_ilp_problem(
             "ILP solver interrupted; attempting to keep best feasible solution."
         )
         status = _recover_interrupted_solution(problem, solver, recovery_state)
+        if not _has_feasible_solution(problem) and initial_solution is not None:
+            for var, initial_value in initial_solution.items():
+                var.varValue = initial_value
+            log.warning(
+                "Using feasible warm start after interrupted solution recovery."
+            )
     finally:
         _restore_interrupted_recovery(problem, solver, recovery_state)
 
@@ -57,7 +68,17 @@ def _solve_ilp_problem(
     ):
         if interrupted or status == LpSolveStatus.NotSolved:
             log.warning("Using best feasible ILP solution found before solver stopped.")
-        return
+        if stats is None:
+            stats = LpSolveStats(
+                solver=solver.name,
+                status=LpSolveStatus.Interrupted,
+                has_solution=True,
+                objective=value(problem.objective),
+                num_variables=len(problem.variables()),
+                num_constraints=len(problem.constraints()),
+                is_mip=bool(problem.isMIP()),
+            )
+        return stats
 
     if interrupted:
         raise ValueError(
@@ -183,8 +204,4 @@ def _recover_cmd_solution_file(
 
 
 def _has_feasible_solution(problem: LpProblem) -> bool:
-    if value(problem.objective) is not None:
-        return True
-
-    variables = problem.variables()
-    return bool(variables) and all(var.varValue is not None for var in variables)
+    return bool(problem.variables()) and problem.valid(1e-5)

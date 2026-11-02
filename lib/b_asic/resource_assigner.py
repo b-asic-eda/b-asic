@@ -701,6 +701,16 @@ def _greedy_min_mux(
     counts, families, links = _mux_problem(
         op_groups, mem_vars, max_pes, max_mems, direct, memory_total_ports
     )
+    log.debug(
+        "Greedy mux search starting: %d processes, %d logical connections, "
+        "%d restarts, up to %d passes per restart, seed=%d, max_mux_size=%s",
+        len(counts),
+        len(links),
+        restarts,
+        max_passes,
+        seed,
+        max_mux_size,
+    )
     neighbors = {key: set() for key in counts}
     peers = {}
     for keys, cliques in families:
@@ -730,7 +740,10 @@ def _greedy_min_mux(
     rng = Random(seed)
     best = None
     best_score = None
-    for _ in range(restarts):
+    for restart in range(1, restarts + 1):
+        log.debug(
+            "Greedy mux restart %d/%d: initial coloring starting", restart, restarts
+        )
         assignment = {}
         order = list(counts)
         rng.shuffle(order)
@@ -759,11 +772,34 @@ def _greedy_min_mux(
             assignment[key] = chosen
             del remaining[key]
         if remaining:
+            log.debug(
+                "Greedy mux restart %d/%d: initial coloring failed with "
+                "%d/%d processes assigned",
+                restart,
+                restarts,
+                len(assignment),
+                len(counts),
+            )
             continue
 
         current_score = score(assignment)
-        for _ in range(max_passes):
+        log.debug(
+            "Greedy mux restart %d/%d: initial coloring complete, "
+            "mux excess=%d, connections=%d",
+            restart,
+            restarts,
+            *current_score,
+        )
+        for search_pass in range(1, max_passes + 1):
+            log.debug(
+                "Greedy mux restart %d/%d, pass %d/%d starting",
+                restart,
+                restarts,
+                search_pass,
+                max_passes,
+            )
             improved = False
+            accepted_moves = 0
             rng.shuffle(order)
             for key in order:
                 if counts[key] == 1:
@@ -797,12 +833,46 @@ def _greedy_min_mux(
                     assignment.update(chosen_move)
                     current_score = chosen_score
                     improved = True
+                    accepted_moves += 1
+            log.debug(
+                "Greedy mux restart %d/%d, pass %d/%d complete: "
+                "%d improving moves, mux excess=%d, connections=%d",
+                restart,
+                restarts,
+                search_pass,
+                max_passes,
+                accepted_moves,
+                *current_score,
+            )
             if not improved:
+                log.debug(
+                    "Greedy mux restart %d/%d: stopping after pass %d "
+                    "because no improving move was found",
+                    restart,
+                    restarts,
+                    search_pass,
+                )
                 break
         if current_score[0] == 0 and (best_score is None or current_score < best_score):
             best, best_score = assignment.copy(), current_score
+            log.debug(
+                "Greedy mux restart %d/%d: new best feasible assignment, "
+                "connections=%d",
+                restart,
+                restarts,
+                best_score[1],
+            )
+        log.debug(
+            "Greedy mux restart %d/%d complete: mux excess=%d, connections=%d, "
+            "best feasible connections=%s",
+            restart,
+            restarts,
+            *current_score,
+            best_score[1] if best_score is not None else None,
+        )
 
     if best is None:
+        log.debug("Greedy mux search finished without a feasible assignment")
         raise ValueError(
             "No feasible assignment found by greedy_min_mux; "
             "try more restarts or use cp_min_mux."
