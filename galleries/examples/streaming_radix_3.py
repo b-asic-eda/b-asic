@@ -56,12 +56,12 @@ assert np.allclose(sim_res[2], fft_reference[2], atol=1e-3)
 sfg.display()
 
 # %%
-# Display the SFG with l1-norm values in all nodes
+# Display the SFG with l1-norm values for all signals
 
 sfg.display(info="l1-norm")
 
 # %%
-# Introduce scaling such that the l1-norm values do not exceed 1
+# Introduce scaling such that the l1-norm values do not exceed 1 (safe-scaling)
 
 from b_asic.core_operations import Subtraction
 
@@ -100,11 +100,14 @@ sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
 # %%
 # We want a streaming implementation using the minimal amount of operators, i.e.
-# One parallel input and one parallel operation -> the operations should be distributed over three clock cycles.
+# one input and one output value per clock cycle. The operations should be
+# distributed over three clock cycles. Let us use a scheduling algorithm for that.
 
 from b_asic import Schedule, HybridScheduler
 
+# We need one PE of each type
 resources={Addition: 1, Subtraction: 1, ConstantMultiplication: 1}
+# Specify the input and output timing constraints
 input_times = {f"in{i}": i for i in range(3)}
 output_delta_times = {f"out{i}": i for i in range(3)}
 
@@ -113,6 +116,8 @@ scheduler = HybridScheduler(
     input_times=input_times,
     output_delta_times=output_delta_times,
 )
+# Schedule over three cycles, enabling cyclic scheduling to allow operations
+# to wrap around the schedule edge
 schedule = Schedule(sfg, scheduler, schedule_time=3, cyclic=True)
 schedule
 
@@ -122,6 +127,7 @@ schedule
 from b_asic.resource_assigner import assign_processing_elements_and_memories
 from b_asic.architecture import Architecture
 
+# Automatic resource assignment
 pes, mems, direct = assign_processing_elements_and_memories(
     schedule,
     strategy="ilp_min_mux",
@@ -130,11 +136,12 @@ pes, mems, direct = assign_processing_elements_and_memories(
     memory_total_ports=2,
     memory_type="RAM",
 )
+# Create an architecture and display it
 arch = Architecture(pes, mems, "r3", direct)
 arch
 
 # %%
-# Generate VHDL
+# Generate VHDL for the created architecture
 
 from b_asic.data_type import DataType
 from b_asic.code_printer import VhdlPrinter
@@ -148,7 +155,7 @@ printer = VhdlPrinter(dt)
 printer.print(arch, path="generated_separate", io_registers=True)
 
 # %%
-# Simulate and generate a testbench
+# Simulate and generate a testbench for the design
 
 from b_asic.tb_printer import CocotbPrinter
 
@@ -166,8 +173,8 @@ def _rand_unit_disk(rng, n):
             out.append(re + 1j * im)
     return out
 
-#
 data = [_rand_unit_disk(rng, N) for _ in range(3)]
+# Run a simulation with the generated input data for N iterations
 sim = Simulation(schedule.sfg, data, dt)
 sim.run_for(N)
 
@@ -217,8 +224,10 @@ pes, mems, direct = assign_processing_elements_and_memories(
 )
 arch = Architecture(pes, mems, "r3", direct)
 arch
+
 # %%
 # Generate VHDL and a testbench for the new architecture
+
 printer.print(arch, path="generated_addsub", io_registers=True)
 
 sim = Simulation(schedule.sfg, data, dt)
@@ -239,7 +248,7 @@ tb_printer.print(
 
 # Start by propagating the imaginary multiplication into
 # the inputs of "addsub3" and "addsub4" as well as factoring the
-# constant into two smaller parts
+# constant into two smaller parts and rewriting them into addsubs with shifts.
 
 c310 = ConstantMultiplication(55/64)
 c311 = ConstantMultiplication(129/128)
@@ -339,7 +348,8 @@ schedule = Schedule(sfg, scheduler, schedule_time=6, cyclic=True)
 schedule
 
 # %%
-# Manual schedule optimization
+# Manual schedule optimization, using the moves printed by the scheduling GUI
+# when editing the schedule with schedule.edit()
 
 schedule.move_operation('addsub3_1', -1)
 schedule.move_operation('out0_0', -1)
@@ -367,8 +377,8 @@ pes, mems, direct = assign_processing_elements_and_memories(
 arch = Architecture(pes, mems, "r3", direct)
 arch
 
-# As seen, the architecture now only consists of three memories, which is
-# which is an improvement compared to the previous ones
+# The optimized architecture now only consists of three memories, which is an
+# improvement compared to the previous architecture.
 
 # %%
 # Finally, generate VHDL and a testbench for the optimized architecture
