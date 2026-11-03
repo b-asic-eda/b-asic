@@ -25,13 +25,13 @@ class Signal(AbstractGraphComponent):
 
     Parameters
     ----------
-    source : OutputPort, Signal, or Operation, optional
+    source : :class:`~b_asic.port.OutputPort`, :class:`~b_asic.signal.Signal`, or :class:`~b_asic.operation.Operation`, optional
         OutputPort, Signal, or Operation to connect as source to the signal.
-    destination : InputPort, Signal, or Operation, optional
+    destination : :class:`~b_asic.port.InputPort`, :class:`~b_asic.signal.Signal`, or :class:`~b_asic.operation.Operation`, optional
         InputPort, Signal, or Operation to connect as destination to the signal.
     bits : int, optional
         The word length of the signal.
-    name : Name, default: ""
+    name : :data:`~b_asic.types.Name`, default: ""
         The signal name.
 
     See Also
@@ -102,7 +102,7 @@ class Signal(AbstractGraphComponent):
 
         Parameters
         ----------
-        source : OutputPort, Signal, or Operation
+        source : :class:`~b_asic.port.OutputPort`, :class:`~b_asic.signal.Signal`, or :class:`~b_asic.operation.Operation`
             OutputPort, Signal, or Operation to connect as source to the signal.
             If Signal, it will connect to the source of the signal, so later on
             changing the source of the argument Signal will not affect this Signal.
@@ -136,7 +136,7 @@ class Signal(AbstractGraphComponent):
 
         Parameters
         ----------
-        destination : InputPort, Signal, or Operation
+        destination : :class:`~b_asic.port.InputPort`, :class:`~b_asic.signal.Signal`, or :class:`~b_asic.operation.Operation`
             InputPort, Signal, or Operation to connect as destination to the signal.
             If Signal, it will connect to the destination of the signal, so later on
             changing the destination of the argument Signal will not affect this Signal.

@@ -35,14 +35,14 @@ def matrix_multiplication(
         Number of columns in A (and rows in B).
     p : int
         Number of columns in B.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         The name of the SFG. If None, "Matrix-multiplication".
     mad_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.MAD`.
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     if name is None:
@@ -100,7 +100,7 @@ def strassen_matrix_multiplication(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Inputs are the elements of A followed by B, each in row-major order,
         named ``A[i,j]`` and ``B[i,j]`` with zero-based row and column indices.
         Outputs are the elements of C = A B in row-major order, named ``C[i,j]``.

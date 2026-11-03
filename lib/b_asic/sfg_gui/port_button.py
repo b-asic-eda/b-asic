@@ -22,7 +22,7 @@ class PortButton(QPushButton):
     ----------
     name : str
         The name of the button.
-    operation_button : :class:`~b_asic.GUI.drag_button.DragButton`
+    operation_button : :class:`~b_asic.sfg_gui.drag_button.DragButton`
         The parent DragButton.
     port : :class:`~b_asic.port.Port`
         The SFG Port.

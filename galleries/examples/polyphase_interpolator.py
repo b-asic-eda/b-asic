@@ -1,7 +1,7 @@
 """
-====================================
+=====================================
 Deriving a polyphase FIR interpolator
-====================================
+=====================================
 
 Unfold a six-tap FIR filter by three, set two input phases to zero, and
 propagate those zeros to obtain a three-phase interpolator. The three outputs

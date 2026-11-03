@@ -35,11 +35,11 @@ class Scheduler(ABC):
 
     Parameters
     ----------
-    input_times : dict(GraphID, int), optional
+    input_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when inputs arrive.
-    output_delta_times : dict(GraphID, int), optional
+    output_delta_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The relative times when outputs should be produced.
-    output_times : dict(GraphID, int), optional
+    output_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
@@ -125,7 +125,7 @@ class Scheduler(ABC):
 
         Parameters
         ----------
-        schedule : Schedule
+        schedule : :class:`~b_asic.schedule.Schedule`
             Schedule to apply the scheduling algorithm on.
         """
         raise NotImplementedError
@@ -284,11 +284,11 @@ class ASAPScheduler(Scheduler):
 
     Parameters
     ----------
-    input_times : dict(GraphID, int), optional
+    input_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when inputs arrive.
-    output_delta_times : dict(GraphID, int), optional
+    output_delta_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The relative times when outputs should be produced.
-    output_times : dict(GraphID, int), optional
+    output_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
@@ -381,11 +381,11 @@ class ALAPScheduler(Scheduler):
 
     Parameters
     ----------
-    input_times : dict(GraphID, int), optional
+    input_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when inputs arrive.
-    output_delta_times : dict(GraphID, int), optional
+    output_delta_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The relative times when outputs should be produced.
-    output_times : dict(GraphID, int), optional
+    output_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
@@ -473,17 +473,17 @@ class ListScheduler(Scheduler):
             3 - Fan-out, i.e., the number of operations reading from the output of the operation.
             4 - Memory reads, i.e., the number of memory reads required if operation is scheduled in the
                 current time slot.
-    max_resources : dict[TypeName, int], optional
+    max_resources : dict[:data:`~b_asic.types.TypeName`, int], optional
         Max resources available to realize the schedule.
     max_concurrent_reads : int, optional
-        Max number of conccurent reads.
+        Max number of concurrent reads.
     max_concurrent_writes : int, optional
-        Max number of conccurent writes.
-    input_times : dict(GraphID, int), optional
+        Max number of concurrent writes.
+    input_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when inputs arrive.
-    output_delta_times : dict(GraphID, int), optional
+    output_delta_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The relative times when outputs should be produced.
-    output_times : dict(GraphID, int), optional
+    output_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
@@ -1036,13 +1036,13 @@ class RecursiveListScheduler(ListScheduler):
             3 - Fan-out, i.e., the number of operations reading from the output of the operation.
             4 - Memory reads, i.e., the number of memory reads required if operation is scheduled in the
                 current time slot.
-    max_resources : dict[TypeName, int], optional
+    max_resources : dict[:data:`~b_asic.types.TypeName`, int], optional
         Max resources available to realize the schedule.
-    input_times : dict(GraphID, int), optional
+    input_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when inputs arrive.
-    output_delta_times : dict(GraphID, int), optional
+    output_delta_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The relative times when outputs should be produced.
-    output_times : dict(GraphID, int), optional
+    output_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when outputs should be produced.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
@@ -1351,20 +1351,18 @@ class ILPScheduler(Scheduler):
     Parameters
     ----------
     solver : :class:`~pulp.LpSolver`, optional
-        Only used if *strategy* is an ILP method. To see which solvers are available:
-
         .. code-block:: python
 
             import pulp
 
             print(pulp.listSolvers(onlyAvailable=True))
 
-    input_times : dict(GraphID, int), optional
+    input_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when inputs arrive.
-    output_delta_times : dict(GraphID, int), optional
+    output_delta_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         Output offsets relative to a common time chosen by the solver. The
         outputs may move together within the scheduling horizon.
-    output_times : dict(GraphID, int), optional
+    output_times : dict(:data:`~b_asic.types.GraphID`, int), optional
         The times when outputs should be produced.
     max_time : int, optional
         The time horizon to schedule for in cyclic scheduling.

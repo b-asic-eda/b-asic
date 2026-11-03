@@ -10,3 +10,8 @@
    :members:
    :undoc-members:
    :inherited-members:
+
+Internal VHDL data type
+-----------------------
+
+.. autoclass:: b_asic.data_type._VhdlDataType

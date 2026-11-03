@@ -30,15 +30,15 @@ class R2Butterfly(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to compute the 2-point DFT of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
         corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -141,15 +141,15 @@ class R2DIFButterfly(AbstractOperation):
     ----------
     w : complex
         Twiddle factor to multiply the second output with.
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to compute the 2-point DFT of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
         corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -238,15 +238,15 @@ class R2DITButterfly(AbstractOperation):
     ----------
     w : complex
         Twiddle factor to multiply the second input with.
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to compute the 2-point DFT of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
         corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -338,15 +338,15 @@ class R2TFButterfly(AbstractOperation):
         Twiddle factor to multiply the first output with.
     w1 : complex
         Twiddle factor to multiply the second output with.
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to compute the 2-point DFT of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
         corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -451,15 +451,15 @@ class R4Butterfly(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1, in2, in3 : SignalSourceProvider, optional
+    in0, in1, in2, in3 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The four signals to compute the 4-point DFT of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0}`` which
         corresponds to *in1* arriving one time unit later than the other inputs and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -557,15 +557,15 @@ class R3Winograd(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1, in2 : SignalSourceProvider, optional
+    in0, in1, in2 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The three signals to compute the 3-point DFT of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1, "in2": 0}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1, "in2": 0}`` which
         corresponds to *in1* arriving one time unit later than the other inputs and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -650,15 +650,15 @@ class R5Winograd(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1, in2, in3, in4 : SignalSourceProvider, optional
+    in0, in1, in2, in3, in4 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The five signals to compute the 5-point DFT of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared.
+        after the operator has started.
         For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0, "in4": 0,}`` which
         corresponds to *in1* arriving one time unit later than the other inputs and one time
         unit later than the operator starts. If not provided and *latency* is provided,
@@ -788,15 +788,15 @@ class R7Winograd(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1, in2, in3, in4, in5, in6 : SignalSourceProvider, optional
+    in0, in1, in2, in3, in4, in5, in6 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The seven signals to compute the 7-point DFT of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared.
+        after the operator has started.
         For example, ``{"in0": 0, "in1": 1, "in2": 0, "in3": 0, "in4": 0, "in5": 0, "in6": 0,}`` which
         corresponds to *in1* arriving one time unit later than the other inputs and one time
         unit later than the operator starts. If not provided and *latency* is provided,

@@ -196,7 +196,8 @@ class OperationItem(QGraphicsItemGroup):
 
         Returns
         -------
-        The location as a QPointF.
+        QPointF
+            Position of the port identified by *key*, in the parent item coordinate system.
         """
         return self.mapToParent(self._ports[key]["pos"])
 

@@ -29,9 +29,9 @@ def entity(
     ----------
     f : TextIO
         File object to write to.
-    mem : Memory
+    mem : :class:`~b_asic.architecture.Memory`
         Memory object to generate entity for.
-    dt : _VhdlDataType
+    dt : :class:`~b_asic.data_type._VhdlDataType`
         Data type information.
     external_schedule_counter : bool, default: True
         If True, schedule counter is an input port. If False, it's generated internally.
@@ -85,9 +85,9 @@ def architecture(
     ----------
     f : TextIO
         File object (or other TextIO object) to write the architecture onto.
-    memory : :class:`Memory`
+    memory : :class:`~b_asic.architecture.Memory`
         Memory object to generate code for.
-    dt : :class:`DataType`
+    dt : :class:`~b_asic.data_type.DataType`
         Meta information of data signals.
     output_sync : bool, default: True
         Add registers to the output signal.

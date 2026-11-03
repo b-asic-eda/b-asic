@@ -79,7 +79,7 @@ class Schedule:
     ----------
     sfg : :class:`~b_asic.sfg.SFG`
         The signal flow graph to schedule.
-    scheduler : :class:`Scheduler`, optional
+    scheduler : :class:`~b_asic.scheduler.Scheduler`, optional
         The automatic scheduler to be used.
     schedule_time : int, optional
         The schedule time. If not provided, it will be determined by the scheduling
@@ -236,7 +236,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The graph id of the operation to get the start time for.
         """
         if graph_id not in self._start_times:
@@ -278,7 +278,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The graph id of the operation.
 
         Returns
@@ -342,7 +342,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The graph id of the operation.
 
         Returns
@@ -419,7 +419,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The graph id of the operation.
 
         Returns
@@ -451,7 +451,7 @@ class Schedule:
             * 1: backward slack
             * 2: forward slack
 
-        type_name : TypeName, optional
+        type_name : :data:`~b_asic.types.TypeName`, optional
             If given, only the slack times for operations of this type will be printed.
         """
         if type_name is None:
@@ -598,7 +598,7 @@ class Schedule:
 
         Parameters
         ----------
-        operation_id : GraphID
+        operation_id : :data:`~b_asic.types.GraphID`
             The GraphID of the operation to swap.
         """
         self._sfg.swap_io_of_operation(operation_id)
@@ -747,7 +747,7 @@ class Schedule:
 
         Parameters
         ----------
-        type_name : TypeName
+        type_name : :data:`~b_asic.types.TypeName`
             The type name of the operation. For example, obtained as
             ``Addition.type_name()``.
         execution_time : int
@@ -763,7 +763,7 @@ class Schedule:
 
         Parameters
         ----------
-        operation_type : type of Operation
+        operation_type : type of :class:`~b_asic.operation.Operation`
             The operation type. For example, ``Addition``.
         execution_time : int
             The execution time of the operation.
@@ -778,7 +778,7 @@ class Schedule:
 
         Parameters
         ----------
-        type_name : TypeName or GraphID
+        type_name : :data:`~b_asic.types.TypeName` or :data:`~b_asic.types.GraphID`
             The type name of the operation, e.g., obtained as
             ``Addition.type_name()`` or a specific GraphID of an operation.
         latency : int
@@ -807,7 +807,7 @@ class Schedule:
 
         Parameters
         ----------
-        operation_type : type of Operation
+        operation_type : type of :class:`~b_asic.operation.Operation`
             The operation type. For example, ``Addition``.
         latency : int
             The latency of the operation.
@@ -835,7 +835,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The GraphID of the operation to move.
         new_y : int
             The new y-location of the operation.
@@ -869,7 +869,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The GraphID of the operation.
 
         Returns
@@ -885,7 +885,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The GraphID of the operation to move.
         y_location : int
             The new y-location of the operation.
@@ -908,12 +908,12 @@ class Schedule:
 
         Parameters
         ----------
-        op : Operation
+        op : :class:`~b_asic.operation.Operation`
             Operation to schedule.
         time : int
             Time slot to schedule the operation in.
             If time > schedule_time -> schedule cyclically.
-        op_laps : dict[GraphID, int]
+        op_laps : dict[:data:`~b_asic.types.GraphID`, int]
             Laps of all scheduled operations.
         """
         start = time % self._schedule_time if self._schedule_time else time
@@ -970,7 +970,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The graph id of the operation to move.
         time : int
             The time to move. If positive move forward, if negative move backward.
@@ -1071,7 +1071,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The graph id of the operation to move.
         """
         forward_slack = self.forward_slack(graph_id)
@@ -1096,7 +1096,7 @@ class Schedule:
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The graph id of the operation to move.
         """
         backward_slack = self.backward_slack(graph_id)
@@ -1277,6 +1277,8 @@ class Schedule:
         Returns
         -------
         :class:`~b_asic.resources.ProcessCollection`
+            Memory variables derived from the scheduled signal transfers, with the
+            same schedule time as this schedule.
         """
         return ProcessCollection(
             set(self._get_memory_variables_list()), self.schedule_time
@@ -1289,6 +1291,8 @@ class Schedule:
         Returns
         -------
         :class:`~b_asic.resources.ProcessCollection`
+            Scheduled operations as operator processes, excluding DontCare and Sink
+            operations, with the same schedule time and cyclic setting as this schedule.
         """
         return ProcessCollection(
             {
@@ -1735,7 +1739,8 @@ class Schedule:
 
         Returns
         -------
-        The Matplotlib Figure.
+        :class:`~matplotlib.figure.Figure`
+            Figure containing the plotted schedule.
         """
         rc_overrides: dict[str, object] = {}
         if fontname is not None:

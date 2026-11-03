@@ -48,7 +48,9 @@ def generate_random_interleaver(
 
     Returns
     -------
-    ProcessCollection
+    :class:`~b_asic.resources.ProcessCollection`
+        Memory variables implementing the random interleaving order, with the
+        corresponding schedule time and cyclic setting.
     """
     inputorders = list(product(range(size), range(parallelism)))
     outputorders = inputorders[:]
@@ -100,7 +102,9 @@ def generate_matrix_transposer(
 
     Returns
     -------
-    ProcessCollection
+    :class:`~b_asic.resources.ProcessCollection`
+        Memory variables implementing the matrix transposition, with the
+        corresponding schedule time and cyclic setting.
     """
     if cols is None:
         cols = rows

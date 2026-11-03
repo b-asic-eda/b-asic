@@ -26,7 +26,7 @@ pip install PyQt6
 ```python
 from b_asic import SFG, Delay, Input, Output
 
-# Build the signal flow graph of a 6-tap FIR filter
+# Build the signal flow graph of a 7-tap FIR filter
 x = Input(name="x")
 
 d0 = Delay(x)
@@ -41,7 +41,7 @@ y = Output(
     name="y",
 )
 
-fir = SFG([x], [y], name="6-tap FIR")
+fir = SFG([x], [y], name="7-tap FIR")
 fir.show()
 ```
 

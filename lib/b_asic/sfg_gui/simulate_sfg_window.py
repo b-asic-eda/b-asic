@@ -54,7 +54,7 @@ class SimulateSFGWindow(QDialog):
 
         Parameters
         ----------
-        sfg : :class:`SFG`
+        sfg : :class:`~b_asic.sfg.SFG`
             The signal flow graph to add.
         """
         sfg_layout = QVBoxLayout()

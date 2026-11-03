@@ -687,7 +687,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             GraphID of operation to fill information table with.
         """
         self.info_table_clear_component()
@@ -897,7 +897,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         Parameters
         ----------
-        schedule : Schedule
+        schedule : :class:`~b_asic.schedule.Schedule`
             The Schedule to get information from.
         """
         self.info_table.insertRow(1)
@@ -913,7 +913,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             The GraphID of the operator to get information from.
         """
         if self.schedule is None:
@@ -1363,12 +1363,12 @@ def start_scheduler(schedule: Schedule | None = None) -> Schedule | None:
 
     Parameters
     ----------
-    schedule : Schedule, optional
+    schedule : :class:`~b_asic.schedule.Schedule`, optional
         The schedule to start the editor with.
 
     Returns
     -------
-    Schedule
+    :class:`~b_asic.schedule.Schedule`
         The edited schedule.
     """
     if not QApplication.instance():

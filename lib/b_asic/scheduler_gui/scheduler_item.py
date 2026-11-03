@@ -114,7 +114,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
 
         Parameters
         ----------
-        item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
+        item : :class:`~b_asic.scheduler_gui.operation_item.OperationItem`
             The component.
         pos : float
             The x-position to check.
@@ -217,7 +217,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
 
         Parameters
         ----------
-        item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
+        item : :class:`~b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
         """
         item.set_active()
@@ -232,7 +232,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
 
         Parameters
         ----------
-        item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
+        item : :class:`~b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
         """
         item.set_inactive()
@@ -245,7 +245,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
 
         Parameters
         ----------
-        item : :class:`b_asic.scheduler_gui.operation_item.OperationItem`
+        item : :class:`~b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
         """
         pos = item.x()

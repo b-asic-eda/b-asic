@@ -246,9 +246,12 @@ class MemoryProcess(Process):
 
         Returns
         -------
-        Two-tuple where the first element is a :class:`MemoryProcess` consisting
-        of reads with read times smaller than or equal to ``length`` (or None if no such
-        reads exists), and vice-versa for the other tuple element.
+        short_process : :class:`~b_asic.process.MemoryProcess` or None
+            Process containing reads with lifetimes less than or equal to *length*,
+            or None if there are no such reads.
+        long_process : :class:`~b_asic.process.MemoryProcess` or None
+            Process containing reads with lifetimes greater than *length*,
+            or None if there are no such reads.
         """
         reads = self.reads
         short_reads = dict(filter(lambda t: t[1] <= length, reads.items()))
@@ -392,9 +395,12 @@ class MemoryVariable(MemoryProcess):
 
         Returns
         -------
-        Two-tuple where the first element is a :class:`MemoryVariable` consisting
-        of reads with read times smaller than or equal to ``length`` (or None if no such
-        reads exists), and vice-versa for the other tuple element.
+        short_process : :class:`~b_asic.process.MemoryVariable` or None
+            Process containing reads with lifetimes less than or equal to *length*,
+            or None if there are no such reads.
+        long_process : :class:`~b_asic.process.MemoryVariable` or None
+            Process containing reads with lifetimes greater than *length*,
+            or None if there are no such reads.
         """
         # This method exists only for documentation purposes and for generating correct
         # type annotations when calling it. Just call super().split_on_length() in here.
@@ -486,9 +492,12 @@ class PlainMemoryVariable(MemoryProcess):
 
         Returns
         -------
-        Two-tuple where the first element is a :class:`PlainMemoryVariable` consisting
-        of reads with read times smaller than or equal to ``length`` (or None if no such
-        reads exists), and vice-versa for the other tuple element.
+        short_process : :class:`~b_asic.process.PlainMemoryVariable` or None
+            Process containing reads with lifetimes less than or equal to *length*,
+            or None if there are no such reads.
+        long_process : :class:`~b_asic.process.PlainMemoryVariable` or None
+            Process containing reads with lifetimes greater than *length*,
+            or None if there are no such reads.
         """
         # This method exists only for documentation purposes and for generating correct
         # type annotations when calling it. Just call super().split_on_length() in here.

@@ -19,7 +19,7 @@ class DontCare(AbstractOperation):
 
     Parameters
     ----------
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     """
 
@@ -97,7 +97,7 @@ class Sink(AbstractOperation):
 
     Parameters
     ----------
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     """
 

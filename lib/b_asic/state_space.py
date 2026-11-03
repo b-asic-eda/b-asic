@@ -70,12 +70,13 @@ class StateSpace:
 
         Parameters
         ----------
-        sfg : SFG
+        sfg : :class:`~b_asic.sfg.SFG`
             Signal flow graph of a linear system.
 
         Returns
         -------
-        The State-space representation of the SFG.
+        :class:`~b_asic.state_space.StateSpace`
+            State-space representation of the linear SFG, with one state per delay.
         """
         from b_asic.special_operations import Delay  # noqa: PLC0415
 
@@ -149,7 +150,10 @@ class StateSpace:
 
         Returns
         -------
-        A tuple containing (state_equation, output_equation):
+        state_equation : sympy.Equality or None
+            Symbolic state-update equation, or None if the system has no states.
+        output_equation : sympy.Equality or None
+            Symbolic output equation, or None if the system has no outputs.
 
         Notes
         -----

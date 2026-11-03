@@ -61,15 +61,15 @@ class DataType:
         Number of bits for input data type.
     output_wl : int or (int, int), optional
         Number of bits for output data type.
-    num_repr : :class:`NumRepresentation`, default: :attr:`NumRepresentation.FIXED_POINT`
+    num_repr : :class:`~b_asic.data_type.NumRepresentation`, default: :attr:`~b_asic.data_type.NumRepresentation.FIXED_POINT`
         Type of number representation to use.
     is_signed : bool, default: True
         If the number representation is signed.
     is_complex : bool, default: False
         If the number representation is complex-valued.
-    quantization_mode : :class:`QuantizationMode`, default: :attr:`QuantizationMode.TRUNCATION`
+    quantization_mode : :class:`~b_asic.quantization.QuantizationMode`, default: :attr:`~b_asic.quantization.QuantizationMode.TRUNCATION`
         Type of quantization to use.
-    overflow_mode : :class:`OverflowMode`, default: :attr:`OverflowMode.WRAPPING`
+    overflow_mode : :class:`~b_asic.quantization.OverflowMode`, default: :attr:`~b_asic.quantization.OverflowMode.WRAPPING`
         Type of overflow to use.
     """
 
@@ -104,6 +104,7 @@ class DataType:
         Returns
         -------
         int
+            Total number of bits used for computations.
         """
         return _count_bits(self.wl, self.num_repr)
 
@@ -115,6 +116,7 @@ class DataType:
         Returns
         -------
         int
+            Zero-based index of the most significant computation bit.
         """
         return self.bits - 1
 
@@ -126,6 +128,7 @@ class DataType:
         Returns
         -------
         int
+            Zero-based index of the least significant bit, always 0.
         """
         return 0
 
@@ -137,6 +140,7 @@ class DataType:
         Returns
         -------
         int
+            Total number of bits used for input values.
         """
         return _count_bits(self.input_wl, self.num_repr)
 
@@ -148,6 +152,7 @@ class DataType:
         Returns
         -------
         int
+            Zero-based index of the most significant input bit.
         """
         return self.input_bits - 1
 
@@ -159,6 +164,7 @@ class DataType:
         Returns
         -------
         int
+            Total number of bits used for output values.
         """
         return _count_bits(self.output_wl, self.num_repr)
 
@@ -170,6 +176,7 @@ class DataType:
         Returns
         -------
         int
+            Zero-based index of the most significant output bit.
         """
         return self.output_bits - 1
 
@@ -181,6 +188,7 @@ class DataType:
         Returns
         -------
         int
+            Number of integer bits in the fixed-point representation.
         """
         if self.num_repr != NumRepresentation.FIXED_POINT:
             raise TypeError("Only fixed-point data types have integer bits")
@@ -194,6 +202,7 @@ class DataType:
         Returns
         -------
         int
+            Number of fractional bits in the fixed-point representation.
         """
         if self.num_repr != NumRepresentation.FIXED_POINT:
             raise TypeError("Only fixed-point data types have fractional bits")
@@ -207,6 +216,7 @@ class DataType:
         Returns
         -------
         int
+            Number of exponent bits in the floating-point representation.
         """
         if self.num_repr != NumRepresentation.FLOATING_POINT:
             raise TypeError("Only floating-point data types have exponent bits")
@@ -220,6 +230,7 @@ class DataType:
         Returns
         -------
         int
+            Number of mantissa bits in the floating-point representation.
         """
         if self.num_repr != NumRepresentation.FLOATING_POINT:
             raise TypeError("Only floating-point data types have mantissa bits")
@@ -232,7 +243,7 @@ class DataType:
 
         Parameters
         ----------
-        other : :class:`DataType`
+        other : :class:`~b_asic.data_type.DataType`
             The DataType to base new object on.
         """
         return cls(**other.__dict__)

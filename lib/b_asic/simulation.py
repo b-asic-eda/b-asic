@@ -32,13 +32,13 @@ class Simulation:
 
     Parameters
     ----------
-    sfg : SFG
+    sfg : :class:`~b_asic.sfg.SFG`
         The signal flow graph to simulate.
     input_providers : list, optional
         Input values, one list item per input. Each list item can be an array of values,
         a callable taking a time index and returning the value, or a
         number (constant input). If a value is not provided for an input, it will be 0.
-    data_type : :class:`DataType`, optional
+    data_type : :class:`~b_asic.data_type.DataType`, optional
         If provided, this finite arithmetic data type will be used for all operations.
     """
 
@@ -135,7 +135,8 @@ class Simulation:
 
         Returns
         -------
-        The result of the simulation.
+        list[:data:`~b_asic.types.Num`]
+            Output values for the simulated iteration, in SFG output order.
         """
         return self.run_for(1, save_results)
 
@@ -156,7 +157,8 @@ class Simulation:
 
         Returns
         -------
-        The result of the simulation.
+        list[:data:`~b_asic.types.Num`]
+            Output values of the last iteration, in SFG output order.
         """
 
         def get_input_values_for_op(op) -> list[Num]:
@@ -257,7 +259,8 @@ class Simulation:
 
         Returns
         -------
-        The result of the simulation.
+        list[:data:`~b_asic.types.Num`]
+            Output values of the last iteration, in SFG output order.
         """
         return self.run_until(self._iteration + iterations, save_results)
 
@@ -274,7 +277,8 @@ class Simulation:
 
         Returns
         -------
-        The result of the simulation.
+        list[:data:`~b_asic.types.Num`]
+            Output values of the last iteration, in SFG output order.
         """
         if self._input_length is None:
             raise IndexError("Tried to run unlimited simulation")

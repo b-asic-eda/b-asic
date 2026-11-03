@@ -8,3 +8,4 @@ Modules containing various utility functions.
 
     utils.rst
     save_load_structure.rst
+    types.rst

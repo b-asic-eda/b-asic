@@ -70,7 +70,7 @@ class ControlTable:
        Word length specification.
     values : dict(int, int)
         Dictionary with clock cycle and bit pattern.
-    is_signed: bool
+    is_signed : bool
         Whether the parameter is signed or unsigned.
     """
 
@@ -1230,7 +1230,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         Parameters
         ----------
-        mem : :class:`Memory` or str
+        mem : :class:`~b_asic.architecture.Memory` or str
             The memory or entity name to obtain information about.
 
         Returns
@@ -1271,7 +1271,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         Parameters
         ----------
-        pe : :class:`ProcessingElement` or str
+        pe : :class:`~b_asic.architecture.ProcessingElement` or str
             The processing element or entity name to get information for.
 
         Returns
@@ -1341,7 +1341,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         Returns
         -------
-        :class:`Resource`
+        :class:`~b_asic.architecture.Resource`
+            The memory or processing element with the given entity name.
         """
         re = {p.entity_name: p for p in chain(self.memories, self.processing_elements)}
         return re[name]
@@ -1942,7 +1943,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             column and the PE column.
         nodesep : float, default: 0.25
             Vertical distance (in inches) between nodes on the same rank.
-        wire_labels : bool, default: False
+        wire_labels : bool, default: True
             When True, PE output connections are shown as small named stubs at the
             destination instead of routed arrows, reducing visual clutter from
             feedback paths.
@@ -1952,7 +1953,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether to include labels on the multiplexer nodes.
         size : (float, float), optional
             Maximum drawing size in inches as ``(width, height)``.
-        show_edge_counts: bool = False,
+        show_edge_counts : bool, default: False
             Whether to display the number of times each connection is accessed
             as a label on the edge.
 

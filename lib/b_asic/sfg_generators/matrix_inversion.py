@@ -40,7 +40,7 @@ def ldlt_matrix_inverse(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     if name is None:
@@ -306,7 +306,7 @@ def cholesky_matrix_inverse(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     if name is None:
@@ -596,7 +596,7 @@ def block_ldlt_matrix_inverse(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     BLOCK_SIZE = 2
@@ -949,7 +949,7 @@ def block_cholesky_matrix_inverse(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     BLOCK_SIZE = 2
@@ -1311,7 +1311,7 @@ def tile_ldlt_matrix_inverse(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     TILE_SIZE = 2
@@ -1688,7 +1688,7 @@ def analytical_block_matrix_inverse(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     if name is None:

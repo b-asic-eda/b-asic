@@ -34,7 +34,7 @@ def wdf_allpass(
     ----------
     coefficients : 1D-array
         Coefficients to use for the allpass section.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         The name of the SFG. If None, "WDF allpass section".
     latency : int, optional
         Latency of the symmetric two-port adaptors.
@@ -50,7 +50,7 @@ def wdf_allpass(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
@@ -166,7 +166,7 @@ def lattice_wdf(
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal flow graph of the lattice WDF.
     """
     if not len(coefficients):

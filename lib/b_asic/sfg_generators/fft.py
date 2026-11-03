@@ -30,7 +30,7 @@ def radix_2_dif_fft(points: int) -> SFG:
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
     if points < 0:
