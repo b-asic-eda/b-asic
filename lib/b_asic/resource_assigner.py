@@ -21,6 +21,7 @@ from pulp import (
 )
 
 import b_asic.logger
+from b_asic._cp_utils import _solve_cp_problem
 from b_asic._ilp_utils import _solve_ilp_problem
 from b_asic.architecture import Memory, ProcessingElement
 from b_asic.operation import Operation
@@ -971,21 +972,8 @@ def _cp_min_mux(
         len(assignments),
         len(connections),
     )
-    solver = solver or "ortools"
-    if isinstance(solver, str):
-        if solver == "ortools":
-            kwargs.setdefault("log_search_progress", True)
-        solved = model.solve(solver=solver, **kwargs)
-        objective_value = model.objective_value
-    else:
-        solver += model.constraints
-        if connections:
-            solver.minimize(cp.sum(connections))
-        solved = solver.solve(**kwargs)
-        objective_value = solver.objective_value
-    if not solved:
-        raise ValueError("Solution could not be found via CP, use another method.")
-    log.info("CP mux connection count: %s", objective_value() if connections else 0)
+    stats = _solve_cp_problem(model, solver, **kwargs)
+    log.info("CP mux connection count: %s", stats.objective if connections else 0)
 
     def coloring(key):
         assigned = int(assignments[key].value())

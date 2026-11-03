@@ -8,12 +8,12 @@ import copy
 import math
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
-from contextlib import suppress
 from typing import TYPE_CHECKING, cast
 
 import pulp
 
 import b_asic.logger
+from b_asic._cp_utils import _solve_cp_problem
 from b_asic._ilp_utils import _solve_ilp_problem
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
@@ -2016,46 +2016,18 @@ class CPScheduler(_OptimizationScheduler):
                     )
         objective = cp.sum(capacities)
         model.minimize(objective)
-        solver = self._solver or "ortools"
-        if isinstance(solver, str):
-            solver = cp.SolverLookup.get(solver, model)
-        else:
-            solver += model.constraints
-            solver.minimize(objective)
-        self._hint_feasible_schedule(model, solver, initial_values)
-        solved = solver.solve(**self._solver_options)
-        if not solved:
-            raise ValueError("Solution could not be found via CP, use another method.")
+        _solve_cp_problem(
+            model,
+            self._solver,
+            initial_values=initial_values,
+            **self._solver_options,
+        )
         for op_id, start in starts.items():
             schedule.start_times[op_id] = int(start.value())
         if schedule.cyclic:
             self._finish_cyclic_schedule(schedule, Ts, horizon)
         else:
             self._finish_schedule(schedule, Ts)
-
-    @staticmethod
-    def _hint_feasible_schedule(model, solver, initial_values) -> None:
-        from cpmpy.expressions.utils import argval  # noqa: PLC0415
-
-        # Check the complete model: fixed outputs and cyclic stage constraints
-        # can invalidate a candidate that satisfies the ASAP bounds.
-        if not all(var.lb <= value <= var.ub for var, value in initial_values.items()):
-            return
-        try:
-            for var, value in initial_values.items():
-                var._value = value
-            feasible = all(argval(constraint) for constraint in model.constraints)
-        finally:
-            for var in initial_values:
-                var.clear()
-        if feasible:
-            from cpmpy.exceptions import NotSupportedError  # noqa: PLC0415
-
-            # Hints are optional; keep supporting solvers without them.
-            with suppress(NotSupportedError):
-                solver.solution_hint(
-                    list(initial_values), list(initial_values.values())
-                )
 
     def _finish_cyclic_schedule(
         self, schedule: "Schedule", period: int, horizon: int

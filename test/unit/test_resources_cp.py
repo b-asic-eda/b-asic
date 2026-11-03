@@ -262,3 +262,31 @@ def test_missing_cp_dependency(monkeypatch, simple_collection):
     monkeypatch.setattr(builtins, "__import__", without_cpmpy)
     with pytest.raises(ImportError, match=r"install b-asic\[cp\]"):
         simple_collection.split_on_execution_time("cp_graph_color")
+
+
+@pytest.mark.parametrize("method", ["split_on_execution_time", "split_on_ports"])
+def test_split_recovers_after_interruption(cp, simple_collection, monkeypatch, method):
+    solver = cp.SolverLookup.get("ortools")
+    solve = solver.solve
+
+    def interrupted_solve(**options):
+        assert solve(**options)
+        for var in solver.user_vars:
+            var.clear()
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(solver, "solve", interrupted_solve)
+    options = (
+        {"read_ports": 1, "write_ports": 1, "total_ports": 2}
+        if method == "split_on_ports"
+        else {}
+    )
+    groups = getattr(simple_collection, method)(
+        "cp_graph_color", alg_params={"solver": solver}, **options
+    )
+    graph = (
+        simple_collection.exclusion_graph_from_ports(**options)
+        if options
+        else simple_collection.exclusion_graph_from_execution_time()
+    )
+    _validate_split(simple_collection, groups, graph)
