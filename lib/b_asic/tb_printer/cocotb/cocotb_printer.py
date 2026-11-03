@@ -18,7 +18,7 @@ class CocotbPrinter:
 
     Parameters
     ----------
-    sim_results : ResultArrayMap
+    sim_results : :data:`~b_asic.simulation.ResultArrayMap`
         Simulation results mapping graph IDs to their output values over iterations.
         Must be obtained by simulating ``schedule.sfg``, not the original SFG.
     """
@@ -49,9 +49,9 @@ class CocotbPrinter:
 
         Parameters
         ----------
-        arch : Architecture
+        arch : :class:`~b_asic.architecture.Architecture`
             The architecture to generate the testbench for.
-        schedule : Schedule
+        schedule : :class:`~b_asic.schedule.Schedule`
             The schedule used to build the architecture.
             Required to determine the timing of inputs and outputs for the testbench.
         path : str or Path, default Path()

@@ -71,7 +71,7 @@ class TransferFunction:
 
         Parameters
         ----------
-        ss : StateSpace
+        ss : :class:`~b_asic.state_space.StateSpace`
             State-space representation of a linear system.
 
         Returns
@@ -99,7 +99,7 @@ class TransferFunction:
 
         Parameters
         ----------
-        sfg : SFG
+        sfg : :class:`~b_asic.sfg.SFG`
             Signal flow graph of a linear system.
 
         Returns

@@ -43,7 +43,7 @@ output_dir.mkdir(parents=True, exist_ok=True)
 
 # %%
 # Variable lifetimes
-# ---------------
+# ------------------
 # Samples arrive sequentially and leave in transposed order. Bars show how long
 # each value must remain in storage. Labels identify arrival order, and colours
 # stay consistent across all three diagrams.
@@ -64,7 +64,7 @@ ax_lifetimes = plot_lifetimes(
 
 # %%
 # Variable exclusion graph
-# -----------------------
+# ------------------------
 # Nodes represent values. An edge means their lifetimes overlap, so the pair
 # cannot share a memory cell.
 

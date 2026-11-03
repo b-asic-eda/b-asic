@@ -679,7 +679,7 @@ class SFGMainWindow(QMainWindow):
 
         Parameters
         ----------
-        op : Operation
+        op : :class:`~b_asic.operation.Operation`
             The operation to add.
         position : (float, float), optional
             (x, y)-position for operation.
@@ -824,9 +824,9 @@ class SFGMainWindow(QMainWindow):
 
         Parameters
         ----------
-        source : PortButton
+        source : :class:`~b_asic.sfg_gui.port_button.PortButton`
             The PortButton to start the signal at.
-        destination : PortButton
+        destination : :class:`~b_asic.sfg_gui.port_button.PortButton`
             The PortButton to end the signal at.
         """
         signal_exists = (
@@ -963,7 +963,7 @@ def start_editor(sfg: SFG | None = None) -> dict[str, SFG]:
 
     Parameters
     ----------
-    sfg : SFG, optional
+    sfg : :class:`~b_asic.sfg.SFG`, optional
         The SFG to start the editor with.
 
     Returns

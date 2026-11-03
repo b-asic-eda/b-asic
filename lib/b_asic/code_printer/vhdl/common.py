@@ -612,7 +612,8 @@ def is_valid_vhdl_identifier(identifier: str) -> bool:
 
     Returns
     -------
-    Returns True if identifier is a valid VHDL identifier, False otherwise.
+    bool
+        True if *identifier* is a valid VHDL identifier, False otherwise.
     """
     # IEEE STD 1076-2019:
     # Sec. 15.4.2, Basic identifiers:
@@ -635,7 +636,8 @@ def is_vhdl_reserved_keyword(identifier: str) -> bool:
 
     Returns
     -------
-    Returns True if identifier is reserved, False otherwise.
+    bool
+        True if *identifier* is a reserved VHDL keyword, False otherwise.
     """
     # List of reserved keyword in IEEE STD 1076-2019.
     # Sec. 15.10, Reserved words:

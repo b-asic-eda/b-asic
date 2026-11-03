@@ -83,7 +83,7 @@ class Constant(AbstractOperation):
         The constant value. APyTypes scalars preserve their format in finite wordlength
         simulation and become Python numbers in ordinary simulation. For other values,
         the fixed-point wordlength is inferred independently of the simulation data type.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     """
 
@@ -190,13 +190,13 @@ class Negation(AbstractOperation):
     ----------
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to negate.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be
@@ -269,9 +269,9 @@ class Addition(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to add.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
@@ -507,9 +507,9 @@ class Subtraction(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to subtract.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
@@ -750,9 +750,9 @@ class AddSub(AbstractOperation):
     ----------
     is_add : bool, default: True
         If True, the operation is an addition, if False, a subtraction.
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to add or subtract.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
@@ -990,15 +990,15 @@ class Multiplication(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to multiply.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
         corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -1085,15 +1085,15 @@ class Division(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to divide.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
         corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -1170,15 +1170,15 @@ class Min(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to determine the min of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
         corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -1251,15 +1251,15 @@ class Max(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to determine the min of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 1}`` which
+        after the operator has started. For example, ``{"in0": 0, "in1": 1}`` which
         corresponds to *in1* arriving one time unit later than *in0* and one time
         unit later than the operator starts. If not provided and *latency* is provided,
         set to zero. Hence, the previous example can be written as ``{"in1": 1}``
@@ -1335,9 +1335,9 @@ class Comparator(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1 : SignalSourceProvider, optional
+    in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to compare.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
@@ -1443,13 +1443,13 @@ class SquareRoot(AbstractOperation):
     ----------
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the square root of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -1506,13 +1506,13 @@ class ComplexConjugate(AbstractOperation):
     ----------
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the complex conjugate of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -1565,13 +1565,13 @@ class Absolute(AbstractOperation):
     ----------
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the absolute value of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -1623,13 +1623,13 @@ class ImaginaryMultiplication(AbstractOperation):
     ----------
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to multiply with the imaginary unit.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -1756,13 +1756,13 @@ class ConstantMultiplication(AbstractOperation):
         Value to multiply with.
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to multiply.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -1942,21 +1942,24 @@ class MAD(AbstractOperation):
 
     Parameters
     ----------
-    in0, in1, in2 : SignalSourceProvider, optional
+    in0, in1, in2 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The three signals to determine the multiply-add operation of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if inputs have different arrival times or if the inputs should arrive
-        after the operator has stared. For example, ``{"in0": 0, "in1": 0, "in2": 2}``
+        after the operator has started. For example, ``{"in0": 0, "in1": 0, "in2": 2}``
         which corresponds to *in2*, i.e., the term to be added, arriving two time
         units later than *in0* and *in1*. If not provided and *latency* is provided,
-        set to zero. Hence, the previous example can be written as ``{"in1": 1}``
+        set to zero. Hence, the previous example can be written as ``{"in2": 2}``
         only.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
+    do_add : bool, default: True
+        Whether to add *in2* to the product of *in0* and *in1*.
+        If False, *in2* is ignored.
 
     See Also
     --------
@@ -2199,13 +2202,13 @@ class Reciprocal(AbstractOperation):
     ----------
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the reciprocal of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -2265,16 +2268,19 @@ class ReciprocalSquareRoot(AbstractOperation):
     ----------
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to compute the reciprocal square root of.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
+    real_valued : bool or None, default: None
+        Whether to use only the real part of a complex input. If False or None,
+        use the full complex value. Real inputs are evaluated directly.
 
     See Also
     --------
@@ -2346,13 +2352,13 @@ class RightShift(AbstractOperation):
         Number of bits to shift right.
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to shift right.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -2454,13 +2460,13 @@ class LeftShift(AbstractOperation):
         Number of bits to shift left.
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to shift left.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
@@ -2563,13 +2569,13 @@ class Shift(AbstractOperation):
         Number of bits to shift. Positive *value* shifts to the left.
     in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal to shift.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     latency : int, optional
         Operation latency (delay from input to output in time units).
     latency_offsets : dict[str, int], optional
         Used if input arrives later than when the operator starts, e.g.,
-        ``{"in0": 0`` which corresponds to *in0* arriving one time unit after the
+        ``{"in0": 1}`` which corresponds to *in0* arriving one time unit after the
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).

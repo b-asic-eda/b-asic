@@ -40,7 +40,7 @@ def fir(
     ----------
     coefficients : 1D-array
         Coefficients to use for the FIR filter section.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         The name of the SFG. If None, "Direct-form FIR filter".
     symmetric : bool, optional
         Whether to generate a symmetric FIR structure.
@@ -53,7 +53,9 @@ def fir(
 
     Returns
     -------
-    Signal flow graph
+    :class:`~b_asic.sfg.SFG`
+        Signal flow graph implementing the FIR filter with the given coefficients
+        and structure options.
     """
     np_coefficients = np.atleast_1d(np.squeeze(np.asarray(coefficients)))
     taps = len(np_coefficients)

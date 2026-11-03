@@ -83,7 +83,7 @@ def assign_processing_elements_and_memories(
         at least 1. The heuristic may fail to find a feasible assignment even
         when one exists.
 
-    resources : dict[TypeName, int], optional
+    resources : dict[:data:`~b_asic.types.TypeName`, int], optional
         The maximum amount of resources to assign to, used to limit the solution
         space for performance gains.
 
@@ -169,7 +169,12 @@ def assign_processing_elements_and_memories(
 
     Returns
     -------
-    A tuple containing one list of assigned PEs and one list of assigned memories.
+    processing_elements : list[:class:`~b_asic.architecture.ProcessingElement`]
+        The assigned processing elements.
+    memories : list[:class:`~b_asic.architecture.Memory`]
+        The assigned memories.
+    direct : :class:`~b_asic.resources.ProcessCollection`
+        Zero-time memory variables used for direct interconnects.
     """
     if max_mux_size is not None and strategy not in (
         "ilp_min_mux",

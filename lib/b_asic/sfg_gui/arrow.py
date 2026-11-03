@@ -27,13 +27,13 @@ class Arrow(QGraphicsPathItem):
 
     Parameters
     ----------
-    source_port_button : :class:`~b_asic.GUI.port_button.PortButton`
+    source_port_button : :class:`~b_asic.sfg_gui.port_button.PortButton`
         Source port button.
-    destination_port_button : :class:`~b_asic.GUI.port_button.PortButton`
+    destination_port_button : :class:`~b_asic.sfg_gui.port_button.PortButton`
         Destination port button.
-    window : :class:`~b_asic.GUI.main_window.SFGMainWindow`
+    window : :class:`~b_asic.sfg_gui.main_window.SFGMainWindow`
         Window containing signal flow graph.
-    signal : Signal, optional
+    signal : :class:`~b_asic.signal.Signal`, optional
         Let arrow represent *signal*.
     parent : optional
         Parent.

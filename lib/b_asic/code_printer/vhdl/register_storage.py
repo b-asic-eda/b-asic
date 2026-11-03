@@ -25,9 +25,9 @@ def entity(
     ----------
     f : TextIO
         File object to write to.
-    memory : Memory
+    memory : :class:`~b_asic.architecture.Memory`
         Memory object to generate entity for.
-    dt : _VhdlDataType
+    dt : :class:`~b_asic.data_type._VhdlDataType`
         Data type information.
     std_logic_vector : bool, default: True
         If True, use std_logic_vector for data signals. If False, use dt.type_str.
@@ -59,11 +59,11 @@ def architecture(
     ----------
     f : TextIO
         File object to write to.
-    forward_backward_table : _ForwardBackwardTable
+    forward_backward_table : :class:`~b_asic.resources._ForwardBackwardTable`
         Forward-backward allocation table.
-    memory : Memory
+    memory : :class:`~b_asic.architecture.Memory`
         Memory object.
-    dt : _VhdlDataType
+    dt : :class:`~b_asic.data_type._VhdlDataType`
         Data type information.
     sync_rst : bool, default: False
         Enable synchronous reset.

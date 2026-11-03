@@ -78,7 +78,8 @@ def getLogger(
 
     Returns
     -------
-    Logger : 'logging.Logger' object.
+    logging.Logger
+        Logger configured with the requested console level and optional file output.
     """
     logger = logging.getLogger(__name__)
 

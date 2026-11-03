@@ -24,7 +24,7 @@ def bubble_sort(size: int) -> SFG:
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Sorting network with ``size * (size - 1) / 2`` comparators.
 
     See Also
@@ -49,7 +49,7 @@ def insertion_sort(size: int) -> SFG:
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         The same comparator network as :func:`bubble_sort`.
     """
     return bubble_sort(size)
@@ -67,7 +67,7 @@ def bitonic_sort(size: int) -> SFG:
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Sorting network built from :class:`~b_asic.core_operations.Comparator`.
     """
     width = _validate_size(size)
@@ -85,7 +85,7 @@ def shell_sort(size: int) -> SFG:
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Sorting network using descending gaps of the form ``2**p * 3**q``.
         Each gap uses two stages of disjoint compare-exchanges, giving
         ``O(size * log(size)**2)`` comparators and ``O(log(size)**2)`` depth.
@@ -129,7 +129,7 @@ def odd_even_merge_sort(size: int) -> SFG:
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Sorting network built from :class:`~b_asic.core_operations.Comparator`.
         This uses recursive odd-even merging, rather than odd-even transposition.
     """
@@ -149,7 +149,7 @@ def pairwise_sort(size: int) -> SFG:
 
     Returns
     -------
-    SFG
+    :class:`~b_asic.sfg.SFG`
         Sorting network built from :class:`~b_asic.core_operations.Comparator`.
 
     References

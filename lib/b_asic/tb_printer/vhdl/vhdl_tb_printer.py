@@ -18,7 +18,7 @@ class VhdlTbPrinter:
 
     Parameters
     ----------
-    sim_results : ResultArrayMap
+    sim_results : :data:`~b_asic.simulation.ResultArrayMap`
         Simulation results mapping graph IDs to their output values over iterations.
     """
 
@@ -47,9 +47,9 @@ class VhdlTbPrinter:
 
         Parameters
         ----------
-        arch : Architecture
+        arch : :class:`~b_asic.architecture.Architecture`
             The architecture to generate the testbench for.
-        dt : DataType
+        dt : :class:`~b_asic.data_type.DataType`
             The data type used for port widths in signal declarations.
         path : str or Path, default Path()
             The output directory path, defaults to the current directory.

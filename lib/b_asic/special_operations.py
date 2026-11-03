@@ -30,7 +30,7 @@ class Input(AbstractOperation):
 
     Parameters
     ----------
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     """
 
@@ -115,9 +115,9 @@ class Output(AbstractOperation):
 
     Parameters
     ----------
-    in0 : SignalSourceProvider, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The signal connected to the Output operation.
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
         Operation name.
     """
 
@@ -180,11 +180,11 @@ class Delay(AbstractOperation):
 
     Parameters
     ----------
-    in0 : SignalSourceProvider, optional
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The node to be delayed.
     initial_value : Number, default: 0
         Initial value of the delay.
-    name : Name, default ""
+    name : :data:`~b_asic.types.Name`, default ""
         Name.
     """
 

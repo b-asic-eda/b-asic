@@ -223,7 +223,7 @@ class PreferencesDialog(QWidget):
 
         Parameters
         ----------
-        color : ColorDataType
+        color : :class:`~b_asic.scheduler_gui._preferences.ColorDataType`
             The ColorDataType assigned to the butten to be created.
         """
         button = ColorButton(color.DEFAULT)
@@ -315,7 +315,7 @@ class PreferencesDialog(QWidget):
 
         Parameters
         ----------
-        color_type : ColorDataType
+        color_type : :class:`~b_asic.scheduler_gui._preferences.ColorDataType`
             The ColorDataType to be changed.
         """
         settings = QSettings()

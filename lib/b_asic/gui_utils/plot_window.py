@@ -39,8 +39,6 @@ class PlotWindow(QWidget):
         :attr:`~b_asic.simulation.Simulation.results`.
     sfg_name : str, optional
         The name of the SFG.
-    parent : optional
-        The parent window.
     """
 
     def __init__(

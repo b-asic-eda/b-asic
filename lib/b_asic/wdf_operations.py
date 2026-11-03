@@ -101,12 +101,15 @@ class SymmetricTwoportAdaptor(AbstractOperation):
 class SeriesTwoportAdaptor(AbstractOperation):
     r"""
     Wave digital filter series twoport-adaptor operation.
+
     .. math::
+
         \begin{eqnarray}
         y_0 & = & x_0 - \text{value}\times\left(x_0 + x_1\right)\\
         y_1 & = & x_1 - (2-\text{value})\times\left(x_0 + x_1\right)\\
             & = & -2x_0 - x_1  + \text{value}\times\left(x_0 + x_1\right)
         \end{eqnarray}
+
     Port 1 is the dependent port.
     """
 
@@ -177,13 +180,16 @@ class SeriesTwoportAdaptor(AbstractOperation):
 class ParallelTwoportAdaptor(AbstractOperation):
     r"""
     Wave digital filter parallel twoport-adaptor operation.
+
     .. math::
+
         \begin{eqnarray}
         y_0 & = & - x_0 + \text{value}\times x_0 + (2 - \text{value}) \times x_1\\
             & = & 2x_1 - x_0 + \text{value}\times \left(x_0 - x_1\right)
         y_1 & = & - x_1 + \text{value}\times x_0 + (2 - \text{value}) \times x_1\\
             & = & x_1 + \text{value}\times\left(x_0 - x_1\right)
         \end{eqnarray}
+
     Port 1 is the dependent port.
     """
 
@@ -254,13 +260,16 @@ class ParallelTwoportAdaptor(AbstractOperation):
 class SeriesThreeportAdaptor(AbstractOperation):
     r"""
     Wave digital filter series threeport-adaptor operation.
+
     .. math::
+
         \begin{eqnarray}
         y_0 & = & x_0 - \text{value}_0\times\left(x_0 + x_1 + x_2\right)\\
         y_1 & = & x_1 - \text{value}_1\times\left(x_0 + x_1 + x_2\right)\\
         y_2 & = & x_2 - \left(2 - \text{value}_0 - \text{value}_1\right)\times\left(x_0
                 + x_1 + x_2\right)
         \end{eqnarray}
+
     Port 2 is the dependent port.
     """
 
@@ -325,7 +334,9 @@ class SeriesThreeportAdaptor(AbstractOperation):
 class ReflectionFreeSeriesThreeportAdaptor(AbstractOperation):
     r"""
     Wave digital filter reflection free series threeport-adaptor operation.
+
     .. math::
+
         \begin{eqnarray}
         y_0 & = & x_0 - \text{value}\times\left(x_0 + x_1 + x_2\right)\\
         y_1 & = & -x_0 - x_2\\
@@ -334,6 +345,7 @@ class ReflectionFreeSeriesThreeportAdaptor(AbstractOperation):
             & = & -x_0 - x_1 + \text{value}\times\left(x_0
                     + x_1 + x_2\right)
         \end{eqnarray}
+
     Port 1 is the reflection-free port and port 2 is the dependent port.
     """
 

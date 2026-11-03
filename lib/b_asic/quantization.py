@@ -124,9 +124,9 @@ def quantize(
         Number of fractional bits, can be negative.
     integer_bits : int, default: 1
         Number of integer bits, can be negative.
-    quantization_mode : :class:`QuantizationMode`, default: :class:`QuantizationMode.TRUNCATION`
+    quantization_mode : :class:`~b_asic.quantization.QuantizationMode`, default: :attr:`~b_asic.quantization.QuantizationMode.TRUNCATION`
         Type of quantization to use.
-    overflow_mode : :class:`OverflowMode`, default: :class:`OverflowMode.WRAPPING`
+    overflow_mode : :class:`~b_asic.quantization.OverflowMode`, default: :attr:`~b_asic.quantization.OverflowMode.WRAPPING`
         Type of overflow to use.
 
     Returns

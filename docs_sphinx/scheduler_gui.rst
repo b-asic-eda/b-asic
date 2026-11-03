@@ -87,3 +87,8 @@ scheduler\_gui.compile module
    :members:
    :undoc-members:
    :show-inheritance:
+
+Preference types
+----------------
+
+.. autoclass:: b_asic.scheduler_gui._preferences.ColorDataType

@@ -347,7 +347,7 @@ class Delay(SignalGenerator):
 
     Parameters
     ----------
-    generator : SignalGenerator
+    generator : :class:`~b_asic.signal_generator.SignalGenerator`
         The signal generator to delay the output of.
     delay : int, default: 1
         The number of time units to delay the generated signal.
@@ -485,7 +485,7 @@ class Upsample(SignalGenerator):
 
     Parameters
     ----------
-    data : SignalGenerator or 1-D array
+    data : :class:`~b_asic.signal_generator.SignalGenerator` or 1-D array
         The signal generator or array to upsample.
     factor : int
         Upsampling factor.
@@ -530,7 +530,7 @@ class Downsample(SignalGenerator):
 
     Parameters
     ----------
-    data : SignalGenerator or 1-D array
+    data : :class:`~b_asic.signal_generator.SignalGenerator` or 1-D array
         The signal generator or array to downsample.
     factor : int
         Downsampling factor.

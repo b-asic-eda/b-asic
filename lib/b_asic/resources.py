@@ -86,10 +86,13 @@ def _sanitize_port_option(
 
     Returns
     -------
-    Returns a triple int tuple (read_ports, write_ports, total_ports) equal to the
-    input, or sanitized if one of the input equals None. If total_ports is set to None
-    at the input, it is set to read_ports+write_ports at the output. If read_ports or
-    write_ports is set to None at the input, it is set to total_ports at the output.
+    read_ports : int
+        Number of read ports, using *total_ports* if *read_ports* was None.
+    write_ports : int
+        Number of write ports, using *total_ports* if *write_ports* was None.
+    total_ports : int
+        Total number of ports, using the sum of *read_ports* and *write_ports*
+        if *total_ports* was None.
     """
     if total_ports is None:
         if read_ports is None or write_ports is None:
@@ -254,11 +257,11 @@ class _ForwardBackwardEntry:
 
         Parameters
         ----------
-        inputs : list of Process, optional
+        inputs : list of :class:`~b_asic.process.Process`, optional
             input
-        outputs : list of Process, optional
+        outputs : list of :class:`~b_asic.process.Process`, optional
             output
-        regs : list of Process, optional
+        regs : list of :class:`~b_asic.process.Process`, optional
             regs
         back_edge_to : dict, optional
             Dictionary containing back edges of this entry to registers in the next
@@ -289,7 +292,7 @@ class _ForwardBackwardTable:
 
         Parameters
         ----------
-        collection : ProcessCollection
+        collection : :class:`~b_asic.resources.ProcessCollection`
             ProcessCollection to apply forward-backward allocation on.
         """
         # Generate an alive variable list
@@ -905,6 +908,8 @@ class ProcessCollection:
         Returns
         -------
         :class:`networkx.Graph`
+            Graph whose nodes are processes and whose edges connect processes with
+            overlapping execution times.
         """
         exclusion_graph = nx.Graph()
         exclusion_graph.add_nodes_from(self._collection)
@@ -1009,13 +1014,15 @@ class ProcessCollection:
 
             For ``'left_edge_min_mux'``:
 
-            direct_variables : :class:`ProcessCollection`
+            direct_variables : :class:`~b_asic.resources.ProcessCollection`
                 Variables that are passed directly between operations without going
                 through memory. Used to inform mux-minimizing placement decisions.
 
         Returns
         -------
-        A list of new ProcessCollection objects with the process splitting.
+        list[:class:`~b_asic.resources.ProcessCollection`]
+            Collections grouping processes that can share a resource without
+            overlapping execution times.
         """
         alg_params = alg_params or {}
         coloring_strategy = alg_params.get(
@@ -1111,19 +1118,21 @@ class ProcessCollection:
             ``'ilp_min_mux'``, ``'left_edge_min_pe_to_mem'``,
             ``'left_edge_min_mem_to_pe'``:
 
-            processing_elements : list of :class:`ProcessingElement`
+            processing_elements : list of :class:`~b_asic.architecture.ProcessingElement`
                 The currently used processing elements.
                 Used to determine PE-memory connections when minimizing multiplexers.
 
             For ``'left_edge_min_mux'``:
 
-            direct_variables : :class:`ProcessCollection`
+            direct_variables : :class:`~b_asic.resources.ProcessCollection`
                 Variables that are passed directly between operations without going
                 through memory. Used to inform mux-minimizing placement decisions.
 
         Returns
         -------
-        A list of new ProcessCollection objects with the process splitting.
+        list[:class:`~b_asic.resources.ProcessCollection`]
+            Collections grouping processes whose concurrent accesses satisfy the
+            specified read, write, and total port limits.
         """
         alg_params = alg_params or {}
         processing_elements = alg_params.get("processing_elements", None)
@@ -1257,13 +1266,13 @@ class ProcessCollection:
         total_ports : int
             The total number of ports used when splitting process collection based on
             memory variable access.
-        sequence : list of :class:`Process`
+        sequence : list of :class:`~b_asic.process.Process`
             A list of the processes used to determine the order in which processes are
             assigned.
 
         Returns
         -------
-        list of :class:`ProcessCollection`
+        list of :class:`~b_asic.resources.ProcessCollection`
             A list of new :class:`ProcessCollection` objects with the process splitting.
         """
         if set(self.collection) != set(sequence):
@@ -1535,7 +1544,7 @@ class ProcessCollection:
 
         Returns
         -------
-        list of :class:`ProcessCollection`
+        list of :class:`~b_asic.resources.ProcessCollection`
             A list of new :class:`ProcessCollection` objects with the process splitting.
         """
         # create new exclusion graph. Nodes are Processes
@@ -1962,7 +1971,9 @@ class ProcessCollection:
 
         Returns
         -------
-        A set of new ProcessCollections.
+        list[:class:`~b_asic.resources.ProcessCollection`]
+            One collection per color, containing the processes assigned that color.
+            Each collection preserves the schedule time and cyclic setting.
         """
         process_collection_set_list: list[list[Process]] = [
             [] for _ in range(max(coloring.values()) + 1)
@@ -2108,7 +2119,9 @@ class ProcessCollection:
 
         Returns
         -------
-        List[ProcessCollection]
+        list[:class:`~b_asic.resources.ProcessCollection`]
+            Collections grouping processes assigned to the same resource by graph
+            coloring, with no overlapping execution times within each collection.
         """
         for process in self:
             if process.execution_time > self.schedule_time:
@@ -2142,7 +2155,9 @@ class ProcessCollection:
 
         Returns
         -------
-        List[ProcessCollection]
+        list[:class:`~b_asic.resources.ProcessCollection`]
+            Collections grouping processes assigned to the same resource by the
+            left-edge algorithm, with no overlapping execution times within each collection.
         """
         assignment: list[ProcessCollection] = []
         for next_process in sorted(self):
@@ -2407,7 +2422,7 @@ class ProcessCollection:
 
         Returns
         -------
-        tuple(ProcessCollection, ProcessCollection)
+        tuple(:class:`~b_asic.resources.ProcessCollection`, :class:`~b_asic.resources.ProcessCollection`)
             A tuple of two ProcessCollections, one with shorter than or equal execution
             times and one with longer execution times.
         """
@@ -2448,7 +2463,7 @@ class ProcessCollection:
 
         Returns
         -------
-        :class:`ProcessCollection`
+        :class:`~b_asic.resources.ProcessCollection`
             New collection with the same ``schedule_time`` and ``cyclic``
             settings, but all variables within ``max_length``.
         """
@@ -2601,12 +2616,14 @@ class ProcessCollection:
 
         Parameters
         ----------
-        type_name : TypeName
+        type_name : :data:`~b_asic.types.TypeName`
             The TypeName of the operation to extract.
 
         Returns
         -------
-        A new :class:`~b_asic.resources.ProcessCollection`.
+        :class:`~b_asic.resources.ProcessCollection`
+            Collection containing operator processes whose operations have the given
+            type name, preserving the schedule time and cyclic setting.
         """
         return ProcessCollection(
             {
@@ -2630,7 +2647,9 @@ class ProcessCollection:
 
         Returns
         -------
-        A new :class:`~b_asic.resources.ProcessCollection`.
+        :class:`~b_asic.resources.ProcessCollection`
+            Collection containing processes whose operations match *process_type*,
+            preserving the schedule time and cyclic setting.
         """
         return ProcessCollection(
             {

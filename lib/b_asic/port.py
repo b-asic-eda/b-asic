@@ -89,7 +89,7 @@ class Port(ABC):
 
         Parameters
         ----------
-        signal : Signal
+        signal : :class:`~b_asic.signal.Signal`
             Signal to add.
         """
         raise NotImplementedError
@@ -104,7 +104,7 @@ class Port(ABC):
 
         Parameters
         ----------
-        signal : Signal
+        signal : :class:`~b_asic.signal.Signal`
             Signal to remove.
         """
         raise NotImplementedError

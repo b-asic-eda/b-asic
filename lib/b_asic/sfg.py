@@ -107,17 +107,17 @@ class SFG(AbstractOperation):
 
     Parameters
     ----------
-    inputs : array of Input, optional
+    inputs : array of :class:`~b_asic.special_operations.Input`, optional
 
-    outputs : array of Output, optional
+    outputs : array of :class:`~b_asic.special_operations.Output`, optional
 
-    input_signals : array of Signal, optional
+    input_signals : array of :class:`~b_asic.signal.Signal`, optional
 
-    output_signals : array of Signal, optional
+    output_signals : array of :class:`~b_asic.signal.Signal`, optional
 
-    id_number_offset : GraphIDNumber, optional
+    id_number_offset : :data:`~b_asic.types.GraphIDNumber`, optional
 
-    name : Name, optional
+    name : :data:`~b_asic.types.Name`, optional
 
     input_sources :
     """
@@ -554,8 +554,8 @@ class SFG(AbstractOperation):
 
         Returns
         -------
-        A  list of inputs that are required to compute the output with the given
-        *output_index*.
+        list[int]
+            Indices of the SFG inputs required to compute the output at *output_index*.
         """
         if output_index < 0 or output_index >= self.output_count:
             raise IndexError(
@@ -623,7 +623,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        type_name : TypeName
+        type_name : :data:`~b_asic.types.TypeName`
             The TypeName of the desired components.
         """
         reg = f"{type_name}[0-9]+"
@@ -640,7 +640,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        component_type : type of GraphComponent
+        component_type : type of :class:`~b_asic.graph_component.GraphComponent`
             The TypeName of the desired components.
         """
         components = [
@@ -659,7 +659,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        graph_id : GraphID
+        graph_id : :data:`~b_asic.types.GraphID`
             Graph ID of the desired component.
         """
         return self._components_by_id.get(graph_id, None)
@@ -672,7 +672,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        name : Name
+        name : :data:`~b_asic.types.Name`
             Name of the desired component(s).
         """
         return self._components_by_name.get(name, [])
@@ -688,7 +688,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        name : Name
+        name : :data:`~b_asic.types.Name`
             Name of the desired component(s).
         output_index : int, default: 0
             The desired output index to get the result from.
@@ -825,9 +825,9 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        component : Operation
+        component : :class:`~b_asic.operation.Operation`
             The new component, e.g. Multiplication.
-        output_comp_id : GraphID
+        output_comp_id : :data:`~b_asic.types.GraphID`
             The source operation GraphID to connect from. Can use ``'id.port'``
             notation to specify a port, e.g. ``'sym2p4.1'``.
         port : int, optional
@@ -900,10 +900,10 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        output_comp_id : GraphID
+        output_comp_id : :data:`~b_asic.types.GraphID`
             The source operation GraphID to connect from. Can use ``'id.port'``
             notation to specify a port, e.g. ``'sym2p4.1'``.
-        new_operation : Operation
+        new_operation : :class:`~b_asic.operation.Operation`
             The new operation, e.g. Multiplication.
         port : int, optional
             The number of the OutputPort after which the new operation shall be
@@ -995,10 +995,10 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        input_comp_id : GraphID
+        input_comp_id : :data:`~b_asic.types.GraphID`
             The source operation GraphID to connect to. Can use ``'id.port'``
             notation to specify a port, e.g. ``'sym2p4.0'``.
-        new_operation : Operation
+        new_operation : :class:`~b_asic.operation.Operation`
             The new operation, e.g. Multiplication.
         port : int, optional
             The number of the InputPort before which the new operation shall be
@@ -1102,7 +1102,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        target : type[Operation], GraphID, or iterable of GraphID, optional
+        target : type[:class:`~b_asic.operation.Operation`], :data:`~b_asic.types.GraphID`, or iterable of :data:`~b_asic.types.GraphID`, optional
             Restrict simplification to an operator type (including subclasses),
             one operation graph ID, or an iterable of operation graph IDs.
             If omitted, simplify all supported operations. Iterators are consumed
@@ -1143,7 +1143,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        target : type[Operation], GraphID, or iterable of GraphID, optional
+        target : type[:class:`~b_asic.operation.Operation`], :data:`~b_asic.types.GraphID`, or iterable of :data:`~b_asic.types.GraphID`, optional
             Restrict operation replacements as in :meth:`constant_propagation`.
             Dead branches that no longer feed a graph output are removed after
             replacements, including unobservable feedback loops.
@@ -1367,7 +1367,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        operation_id : GraphID
+        operation_id : :data:`~b_asic.types.GraphID`
             The GraphID of the operation to swap.
         """
         operation = cast(Operation, self.find_by_id(operation_id))
@@ -1387,7 +1387,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        operation_id : GraphID
+        operation_id : :data:`~b_asic.types.GraphID`
             The GraphID of the operation to remove.
         """
         sfg_copy = self()
@@ -1661,7 +1661,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        type_name : TypeName
+        type_name : :data:`~b_asic.types.TypeName`
             The type name of the operation. For example, obtained as
             ``Addition.type_name()``.
         latency : int
@@ -1678,7 +1678,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        operation_type : type of Operation
+        operation_type : type of :class:`~b_asic.operation.Operation`
             The operation type. For example, ``Addition``.
         latency : int
             The latency of the operation.
@@ -1694,7 +1694,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        type_name : TypeName
+        type_name : :data:`~b_asic.types.TypeName`
             The type name of the operation. For example, obtained as
             ``Addition.type_name()``.
         execution_time : int
@@ -1711,7 +1711,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        operation_type : type of Operation
+        operation_type : type of :class:`~b_asic.operation.Operation`
             The operation type. For example, ``Addition``.
         execution_time : int
             The execution time of the operation.
@@ -1727,7 +1727,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        type_name : TypeName
+        type_name : :data:`~b_asic.types.TypeName`
             The type name of the operation. For example, obtained as
             ``Addition.type_name()``.
         latency_offsets : {"in1": int, ...}
@@ -1744,7 +1744,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        operation_type : type of Operation
+        operation_type : type of :class:`~b_asic.operation.Operation`
             The operation type. For example, ``Addition``.
         latency_offsets : {"in1": int, ...}
             The latency offsets of the inputs and outputs.
@@ -2109,10 +2109,10 @@ class SFG(AbstractOperation):
             more.
         splines : {"spline", "line", "ortho", "polyline", "curved"}, default: "spline"
             Spline style, see https://graphviz.org/docs/attrs/splines/ for more info.
-        input_order : list of GraphID or operation name, optional
+        input_order : list of :data:`~b_asic.types.GraphID` or operation name, optional
             Top-to-bottom ordering of input nodes.
             Defaults to the SFG's natural input order.
-        output_order : list of GraphID or operation name, optional
+        output_order : list of :data:`~b_asic.types.GraphID` or operation name, optional
             Top-to-bottom ordering of output nodes.
             Defaults to the SFG's natural output order.
         show_op_params : bool, default: False
@@ -2398,11 +2398,11 @@ class SFG(AbstractOperation):
                 - "id": Show the graph_id of each signal.
                 - "l1-norm": Show the L1 norm of the impulse response (worst-case magnitude for inputs bounded by 1).
                 - "l2-norm": Show the L2 norm of the impulse response (signal energy for unit-energy inputs).
-        input_order : list of GraphID or operation name, optional
+        input_order : list of :data:`~b_asic.types.GraphID` or operation name, optional
             Top-to-bottom ordering of input nodes.  Each entry may be a
             GraphID, an operation name, or a mix of both.
             See :meth:`display` for details.
-        output_order : list of GraphID or operation name, optional
+        output_order : list of :data:`~b_asic.types.GraphID` or operation name, optional
             Top-to-bottom ordering of output nodes.  Each entry may be a
             GraphID, an operation name, or a mix of both.
             See :meth:`display` for details.
@@ -2462,7 +2462,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        type_name : TypeName
+        type_name : :data:`~b_asic.types.TypeName`
             Type name of the given resource.
         schedule_time : int
             Scheduling time to evaluate for.
@@ -2491,7 +2491,8 @@ class SFG(AbstractOperation):
 
         Returns
         -------
-        The iteration period bound.
+        fractions.Fraction
+            Iteration period bound, or -1 if the SFG has no recursive loops.
         """
         loops = self.loops
         if not loops:
@@ -2528,7 +2529,9 @@ class SFG(AbstractOperation):
 
         Returns
         -------
-        A list of the recursive loops.
+        list[list[:data:`~b_asic.types.GraphID`]]
+            Recursive loops as sequences of operation graph IDs. Each sequence
+            repeats its first graph ID at the end to close the loop.
         """
         if not self.input_count:
             return []
@@ -2564,7 +2567,8 @@ class SFG(AbstractOperation):
 
         Returns
         -------
-        The state-space representation.
+        :class:`~b_asic.state_space.StateSpace`
+            State-space representation of the SFG.
         """
         return StateSpace.from_sfg(self)
 
@@ -2574,7 +2578,8 @@ class SFG(AbstractOperation):
 
         Returns
         -------
-        The transfer function representation.
+        :class:`~b_asic.transfer_function.TransferFunction`
+            Transfer function representation of the SFG.
         """
         from b_asic.transfer_function import TransferFunction  # noqa: PLC0415
 
@@ -2592,7 +2597,7 @@ class SFG(AbstractOperation):
         """
         return self.to_ss().to_zpk()
 
-    def find_all_paths(
+    def _find_all_paths(
         self, graph: dict, start: str, end: str, path: list | None = None
     ) -> list:
         """
@@ -2611,7 +2616,9 @@ class SFG(AbstractOperation):
 
         Returns
         -------
-        The state-space representation of the SFG.
+        list[list[str]]
+            Paths from *start* to *end*, each represented as a sequence of node keys.
+            Returns an empty list if no path exists.
         """
         if path is None:
             path = []
@@ -2624,7 +2631,7 @@ class SFG(AbstractOperation):
         paths = []
         for node in graph[start]:
             if node not in path:
-                paths.extend(self.find_all_paths(graph, node, end, path))
+                paths.extend(self._find_all_paths(graph, node, end, path))
         return paths
 
     def operation_counter(self) -> Counter:
@@ -2761,9 +2768,9 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        substitute : Type[Operation]
+        substitute : Type[:class:`~b_asic.operation.Operation`]
             The type of operation to replace the target(s) with.
-        target : OpSpecifier | Iterable[OpSpecifier]
+        target : :data:`~b_asic.sfg.OpSpecifier` | Iterable[:data:`~b_asic.sfg.OpSpecifier`]
             The operation(s) to be replaced.
         """
         if isinstance(target, type) and issubclass(target, Operation):
@@ -2892,7 +2899,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        target : GraphID
+        target : :data:`~b_asic.types.GraphID`
             The operation to be joined with its predecessor(s) or successor(s).
         direction : {"forward", "backward"}
             The direction to join. "forward" joins with the successor(s), "backward" with the predecessor(s).
@@ -3138,7 +3145,7 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        nodes : list[GraphID], optional
+        nodes : list[:data:`~b_asic.types.GraphID`], optional
             List of operation GraphIDs where impulses should be injected.
 
         threshold : float, default: 1e-12

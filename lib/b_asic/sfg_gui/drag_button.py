@@ -38,7 +38,7 @@ class DragButton(QPushButton):
         The operation that the drag button corresponds to.
     show_name : bool
         Whether to show the name.
-    window : SFGMainWindow
+    window : :class:`~b_asic.sfg_gui.main_window.SFGMainWindow`
         Parent MainWindow.
     parent : unknown, optional
         Passed to QPushButton.
