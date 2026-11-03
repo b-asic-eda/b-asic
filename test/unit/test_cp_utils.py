@@ -288,3 +288,55 @@ def test_import_does_not_require_cpmpy(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", without_cpmpy)
     namespace = runpy.run_path(cp_utils.__file__)
     assert callable(namespace["_solve_cp_problem"])
+
+
+@pytest.mark.parametrize("native_callback", [False, True])
+def test_interrupt_inside_user_callback_preserves_incumbent(native_callback):
+    model, x, y = _problem()
+
+    def interrupt():
+        raise KeyboardInterrupt
+
+    options = {"display": interrupt}
+    if native_callback:
+        from ortools.sat.python.cp_model import CpSolverSolutionCallback
+
+        class Interrupted(CpSolverSolutionCallback):
+            def on_solution_callback(self):
+                raise KeyboardInterrupt
+
+        callback = Interrupted()
+        original_callback = callback.OnSolutionCallback
+        options = {"solution_callback": callback}
+    stats = _solve_cp_problem(model, num_search_workers=1, **options)
+    assert stats.interrupted
+    assert stats.has_solution
+    assert stats.status == ExitStatus.FEASIBLE
+    assert x.value() + y.value() >= 2
+    if native_callback:
+        assert callback.OnSolutionCallback == original_callback
+        assert "OnSolutionCallback" not in callback.__dict__
+
+
+def test_native_assumption_outside_model_receives_value():
+    model, _, _ = _problem()
+    assumed = cp.boolvar(name="native_assumption")
+    stats = _solve_cp_problem(model, assumptions=[assumed])
+    assert stats.has_solution
+    assert assumed.value() is True
+
+
+def test_native_callback_restored_when_solver_errors():
+    from ortools.sat.python.cp_model import CpSolverSolutionCallback
+
+    class Callback(CpSolverSolutionCallback):
+        def on_solution_callback(self):
+            pass
+
+    callback = Callback()
+    callback.OnSolutionCallback = lambda: None
+    original_callback = callback.OnSolutionCallback
+    model, _, _ = _problem()
+    with pytest.raises(ValueError, match="positive"):
+        _solve_cp_problem(model, solution_callback=callback, time_limit=-1)
+    assert callback.OnSolutionCallback is original_callback
