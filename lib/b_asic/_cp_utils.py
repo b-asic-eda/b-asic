@@ -135,8 +135,10 @@ def _solve_cp_problem(
     else:
         assumptions = list(assumptions)
         solver_options["assumptions"] = assumptions
+        assumption_vars = get_variables(assumptions)
         seen = set(variables)
-        variables.extend(var for var in get_variables(assumptions) if var not in seen)
+        variables.extend(var for var in assumption_vars if var not in seen)
+        solver.user_vars.update(assumption_vars)
     # Values from a previous solve must never masquerade as a new incumbent.
     for var in variables:
         var.clear()
@@ -151,34 +153,51 @@ def _solve_cp_problem(
 
     incumbent = None
     incumbent_objective = None
+    callback = None
+    callback_override = None
+    callback_had_override = False
     if isinstance(solver, CPM_ortools):
         if named_solver:
             solver_options.setdefault(
                 "log_search_progress", log.isEnabledFor(b_asic.logger.logging.DEBUG)
             )
-        # Keep explicit native callbacks intact. Their final native response can
-        # still be recovered if CPMpy is interrupted before mapping the values.
-        if solver_options.get("solution_callback") is None:
-            display = solver_options.get("display")
+        callback = solver_options.get("solution_callback")
+        display = solver_options.get("display") if callback is None else None
 
-            def save_incumbent():
-                nonlocal incumbent, incumbent_objective
-                objective = model.objective_value()
-                if (
-                    incumbent is None
-                    or objective is None
-                    or (
-                        objective < incumbent_objective
-                        if model.objective_is_min
-                        else objective > incumbent_objective
-                    )
-                ):
-                    incumbent = {var: var.value() for var in variables}
-                    incumbent_objective = objective
-                if display is not None:
-                    solver.print_display(display)
+        def save_incumbent():
+            nonlocal incumbent, incumbent_objective
+            objective = model.objective_value()
+            if (
+                incumbent is None
+                or objective is None
+                or (
+                    objective < incumbent_objective
+                    if model.objective_is_min
+                    else objective > incumbent_objective
+                )
+            ):
+                incumbent = {var: var.value() for var in variables}
+                incumbent_objective = objective
+            if display is not None:
+                solver.print_display(display)
 
+        if callback is None:
             solver_options["display"] = save_incumbent
+        else:
+            # Keep the original callback object, including native StopSearch()
+            # behavior. Capture the incumbent before invoking user code, then
+            # restore its callback method after the solve, even on exceptions.
+            callback_had_override = "OnSolutionCallback" in callback.__dict__
+            callback_override = callback.OnSolutionCallback
+            native_vars = {var: solver.solver_var(var) for var in variables}
+
+            def capture_native_incumbent():
+                for var, native_var in native_vars.items():
+                    var._value = callback.Value(native_var)
+                save_incumbent()
+                callback_override()
+
+            callback.OnSolutionCallback = capture_native_incumbent
 
     interrupted = False
     try:
@@ -187,6 +206,12 @@ def _solve_cp_problem(
         interrupted = True
         solved = False
         log.warning("CP solver interrupted; attempting to keep best feasible solution.")
+    finally:
+        if callback is not None:
+            if callback_had_override:
+                callback.OnSolutionCallback = callback_override
+            else:
+                del callback.OnSolutionCallback
 
     if interrupted:
         solver.cpm_status = SolverStatus(solver.name)
