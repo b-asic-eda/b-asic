@@ -8,6 +8,7 @@ import copy
 import math
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
+from contextlib import suppress
 from typing import TYPE_CHECKING, cast
 
 import pulp
@@ -1752,7 +1753,9 @@ class CPScheduler(_OptimizationScheduler):
 
     Minimizes the sum of peak resource counts for each operation type, including
     I/O. For cyclic schedules, resource constraints count overlap between
-    successive iterations.
+    successive iterations. I/O timing constraints tighten resource bounds, and
+    a feasible ASAP schedule is supplied as a warm start when the solver supports
+    solution hints.
 
     Requires the optional ``cp`` dependencies (``pip install b-asic[cp]``).
 
@@ -1765,7 +1768,8 @@ class CPScheduler(_OptimizationScheduler):
     input_times : dict(GraphID, int), optional
         The times when inputs arrive.
     output_delta_times : dict(GraphID, int), optional
-        The relative times when outputs should be produced.
+        Output offsets relative to a common time chosen by the solver. The
+        outputs may move together within the scheduling horizon.
     output_times : dict(GraphID, int), optional
         The times when outputs should be produced. For cyclic schedules these
         specify the time within the schedule period.
@@ -1868,10 +1872,27 @@ class CPScheduler(_OptimizationScheduler):
             model += starts[op_id] >= lower[op_id]
             groups[op.type_name()].append(op)
 
+        initial_starts = lower.copy()
+        if self._output_delta_times and not schedule.cyclic:
+            # Shift every output together, including unspecified outputs, so
+            # their spacing and resource requirements are preserved.
+            outputs = [op for op in ops if isinstance(op, Output)]
+            shift = min(upper[op.graph_id] - lower[op.graph_id] for op in outputs)
+            for op in outputs:
+                initial_starts[op.graph_id] += shift
+        initial_values = {
+            starts[op_id]: time
+            for op_id, time in initial_starts.items()
+            if op_id in starts
+        }
         for op_id, time in self._input_times.items():
             model += starts[op_id] == time
         if self._output_delta_times:
             output_base = cp.intvar(0, horizon, name="output_base")
+            output_id = next(iter(self._output_delta_times))
+            initial_values[output_base] = (
+                initial_starts[output_id] - self._output_delta_times[output_id]
+            )
             for op_id, delta in self._output_delta_times.items():
                 model += starts[op_id] == output_base + delta
         for op_id, time in self._output_times.items():
@@ -1919,12 +1940,48 @@ class CPScheduler(_OptimizationScheduler):
 
         capacities = []
         for op_type, group in groups.items():
+            capacity_lower = 0
+            capacity_upper = sum(
+                max(1, math.ceil(op.execution_time / Ts)) for op in group
+            )
+            timing_maps = ()
+            if isinstance(group[0], Input):
+                timing_maps = (self._input_times,)
+            elif isinstance(group[0], Output):
+                timing_maps = (self._output_times, self._output_delta_times)
+            for timings in timing_maps:
+                if not timings:
+                    continue
+                # Relative offsets have translation-invariant overlap. Partial
+                # maps bound capacity below; complete maps determine it exactly.
+                occupancy = Counter(
+                    (timings[op.graph_id] + offset) % Ts
+                    if schedule.cyclic
+                    else timings[op.graph_id] + offset
+                    for op in group
+                    if op.graph_id in timings
+                    for offset in range(op.execution_time)
+                )
+                required = max(occupancy.values(), default=0)
+                capacity_lower = max(capacity_lower, required)
+                if all(op.graph_id in timings for op in group):
+                    capacity_upper = min(capacity_upper, required)
+            if capacity_lower > capacity_upper:
+                raise ValueError(
+                    "Solution could not be found via CP, use another method."
+                )
             capacity = cp.intvar(
-                0,
-                sum(max(1, math.ceil(op.execution_time / Ts)) for op in group),
-                name=f"resources_{op_type}",
+                capacity_lower, capacity_upper, name=f"resources_{op_type}"
             )
             capacities.append(capacity)
+            initial_occupancy = Counter(
+                (initial_starts[op.graph_id] + offset) % Ts
+                if schedule.cyclic
+                else initial_starts[op.graph_id] + offset
+                for op in group
+                for offset in range(op.execution_time)
+            )
+            initial_values[capacity] = max(initial_occupancy.values(), default=0)
             if schedule.cyclic:
                 # Count busy instances from all iterations, including execution
                 # intervals that cross the period boundary or span full periods.
@@ -1961,11 +2018,12 @@ class CPScheduler(_OptimizationScheduler):
         model.minimize(objective)
         solver = self._solver or "ortools"
         if isinstance(solver, str):
-            solved = model.solve(solver=solver, **self._solver_options)
+            solver = cp.SolverLookup.get(solver, model)
         else:
             solver += model.constraints
             solver.minimize(objective)
-            solved = solver.solve(**self._solver_options)
+        self._hint_feasible_schedule(model, solver, initial_values)
+        solved = solver.solve(**self._solver_options)
         if not solved:
             raise ValueError("Solution could not be found via CP, use another method.")
         for op_id, start in starts.items():
@@ -1974,6 +2032,30 @@ class CPScheduler(_OptimizationScheduler):
             self._finish_cyclic_schedule(schedule, Ts, horizon)
         else:
             self._finish_schedule(schedule, Ts)
+
+    @staticmethod
+    def _hint_feasible_schedule(model, solver, initial_values) -> None:
+        from cpmpy.expressions.utils import argval  # noqa: PLC0415
+
+        # Check the complete model: fixed outputs and cyclic stage constraints
+        # can invalidate a candidate that satisfies the ASAP bounds.
+        if not all(var.lb <= value <= var.ub for var, value in initial_values.items()):
+            return
+        try:
+            for var, value in initial_values.items():
+                var._value = value
+            feasible = all(argval(constraint) for constraint in model.constraints)
+        finally:
+            for var in initial_values:
+                var.clear()
+        if feasible:
+            from cpmpy.exceptions import NotSupportedError  # noqa: PLC0415
+
+            # Hints are optional; keep supporting solvers without them.
+            with suppress(NotSupportedError):
+                solver.solution_hint(
+                    list(initial_values), list(initial_values.values())
+                )
 
     def _finish_cyclic_schedule(
         self, schedule: "Schedule", period: int, horizon: int
