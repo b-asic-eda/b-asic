@@ -230,3 +230,244 @@ def test_invalid_max_time(max_time):
 def test_invalid_solver():
     with pytest.raises(TypeError, match="CPMpy solver name or instance"):
         Schedule(_chain(), CPScheduler(solver=object()), schedule_time=5)
+
+
+@pytest.mark.parametrize("execution_time", [0, 1, 11])
+@pytest.mark.parametrize("cyclic", [False, True])
+@pytest.mark.parametrize("complete", [False, True])
+@pytest.mark.parametrize(
+    "timing_kind", ["input_times", "output_times", "output_delta_times"]
+)
+def test_io_resource_bounds(monkeypatch, execution_time, cyclic, complete, timing_kind):
+    inputs = [Input() for _ in range(3)]
+    ops = [
+        ConstantMultiplication(value, source, latency=1, execution_time=1)
+        for value, source in enumerate(inputs, start=2)
+    ]
+    sfg = SFG(inputs=inputs, outputs=[Output(op) for op in ops])
+    io_type = Input if timing_kind == "input_times" else Output
+    prefix = "in" if io_type is Input else "out"
+    sfg.set_execution_time_of_type(io_type, execution_time)
+    first_time = 5 if timing_kind == "output_times" else 0
+    timings = {f"{prefix}0": first_time, f"{prefix}1": first_time}
+    if complete:
+        timings[f"{prefix}2"] = first_time + 1
+    bounds = []
+    intvar = cp.intvar
+
+    def capture_capacity(*args, **kwargs):
+        var = intvar(*args, **kwargs)
+        if kwargs.get("name") == f"resources_{prefix}":
+            bounds.append((var.lb, var.ub))
+        return var
+
+    monkeypatch.setattr(cp, "intvar", capture_capacity)
+    Schedule(
+        sfg,
+        CPScheduler(**{timing_kind: timings}),
+        schedule_time=10,
+        cyclic=cyclic,
+    )
+    occupancy = {}
+    for start in timings.values():
+        for offset in range(execution_time):
+            time = (start + offset) % 10 if cyclic else start + offset
+            occupancy[time] = occupancy.get(time, 0) + 1
+    required = max(occupancy.values(), default=0)
+    assert bounds[0][0] == required
+    if complete:
+        assert bounds[0][1] == required
+
+
+@pytest.mark.parametrize("solver_kind", ["ortools", "instance"])
+@pytest.mark.parametrize("cyclic", [False, True])
+@pytest.mark.parametrize("fixed_output_time", [None, 3])
+def test_feasible_warm_start(monkeypatch, solver_kind, cyclic, fixed_output_time):
+    source = Input()
+    ops = [
+        ConstantMultiplication(value, source, latency=1, execution_time=7)
+        for value in (2, 3)
+    ]
+    sfg = SFG(inputs=[source], outputs=[Output(op) for op in ops])
+    solver = cp.SolverLookup.get("ortools")
+    hints = []
+    solution_hint = type(solver).solution_hint
+
+    def capture_hint(instance, variables, values):
+        hints.append(
+            {var.name: value for var, value in zip(variables, values, strict=True)}
+        )
+        assert all(var.value() is None for var in variables)
+        solution_hint(instance, variables, values)
+
+    monkeypatch.setattr(type(solver), "solution_hint", capture_hint)
+    schedule = Schedule(
+        sfg,
+        CPScheduler(
+            solver=solver if solver_kind == "instance" else "ortools",
+            input_times={"in0": 0},
+            output_delta_times={"out0": 0, "out1": 1},
+            output_times={"out0": fixed_output_time}
+            if fixed_output_time is not None
+            else None,
+        ),
+        schedule_time=5,
+        cyclic=cyclic,
+    )
+    assert len(hints) == int(fixed_output_time is None)
+    if hints:
+        assert hints[0]["resources_cmul"] == (4 if cyclic else 2)
+        assert hints[0]["output_base"] == (1 if cyclic else 4)
+    if fixed_output_time is not None:
+        assert schedule.start_times["out0"] == fixed_output_time
+
+
+def test_warm_start_preserves_unspecified_output_spacing(monkeypatch):
+    source = Input()
+    ops = [
+        ConstantMultiplication(value, source, latency=latency, execution_time=1)
+        for value, latency in ((2, 3), (3, 3), (4, 1))
+    ]
+    solver = cp.SolverLookup.get("ortools")
+    hints = []
+    solution_hint = solver.solution_hint
+
+    def capture_hint(variables, values):
+        hints.append(
+            {var.name: value for var, value in zip(variables, values, strict=True)}
+        )
+        solution_hint(variables, values)
+
+    monkeypatch.setattr(solver, "solution_hint", capture_hint)
+    Schedule(
+        SFG(inputs=[source], outputs=[Output(op) for op in ops]),
+        CPScheduler(
+            solver=solver,
+            input_times={"in0": 0},
+            output_delta_times={"out0": 0, "out1": 1},
+        ),
+        schedule_time=10,
+    )
+    assert len(hints) == 1
+    assert hints[0]["output_base"] == 9
+    assert hints[0]["out2"] == 7
+    assert hints[0]["resources_out"] == 1
+
+
+def test_solver_without_solution_hints(monkeypatch):
+    from cpmpy.exceptions import NotSupportedError
+
+    solver = cp.SolverLookup.get("ortools")
+    attempts = []
+
+    def unsupported_hint(variables, values):
+        attempts.append(True)
+        raise NotSupportedError("Solution hints unavailable")
+
+    monkeypatch.setattr(solver, "solution_hint", unsupported_hint)
+    schedule = Schedule(_chain(), CPScheduler(solver=solver), schedule_time=5)
+    assert attempts == [True]
+    assert schedule.schedule_time == 5
+
+
+@pytest.mark.parametrize(("period", "resources"), [(3, 2), (10, 1)])
+def test_relative_outputs_allow_resource_sharing(period, resources):
+    source = Input()
+    ops = [
+        ConstantMultiplication(value, source, latency=2, execution_time=1)
+        for value in range(2, 6)
+    ]
+    deltas = {"out0": 0, "out1": 0, "out2": 1, "out3": 1}
+    schedule = Schedule(
+        SFG(inputs=[source], outputs=[Output(op) for op in ops]),
+        CPScheduler(input_times={"in0": 0}, output_delta_times=deltas),
+        schedule_time=period,
+    )
+    origin = schedule.start_times["out0"]
+    assert {key: schedule.start_times[key] - origin for key in deltas} == deltas
+    assert (
+        schedule.get_operations().get_by_type_name("cmul").processing_element_bound()
+        == resources
+    )
+
+
+@pytest.mark.parametrize("period", [5, 60])
+def test_fold_schedule_crossing_period(period):
+    source = Input()
+    first = ConstantMultiplication(2, source, latency=2, execution_time=1)
+    second = ConstantMultiplication(3, first, latency=1, execution_time=1)
+    schedule = Schedule(
+        SFG(inputs=[source], outputs=[Output(second)]),
+        CPScheduler(
+            input_times={"in0": period - 1},
+            output_times={"out0": 2},
+            output_delta_times={"out0": 0},
+            max_time=2 * period,
+        ),
+        schedule_time=period,
+        cyclic=True,
+    )
+    assert schedule.start_times == {
+        "in0": period - 1,
+        "cmul0": period - 1,
+        "cmul1": 1,
+        "out0": 2,
+    }
+    assert all(lap == 0 for lap in schedule.laps.values())
+    for graph_id in schedule.start_times:
+        assert schedule.backward_slack(graph_id) >= 0
+        assert schedule.forward_slack(graph_id) >= 0
+
+
+@pytest.mark.parametrize("scheduler_kind", ["cp", "ilp"])
+@pytest.mark.parametrize("cyclic", [False, True])
+@pytest.mark.parametrize(
+    ("execution_time", "cyclic_resources", "noncyclic_resources"),
+    [(0, 0, 0), (1, 1, 1), (2, 1, 1), (3, 2, 2), (10, 3, 2), (17, 5, 2)],
+)
+def test_resource_usage_covers_whole_execution(
+    monkeypatch,
+    scheduler_kind,
+    cyclic,
+    execution_time,
+    cyclic_resources,
+    noncyclic_resources,
+):
+    import pulp
+
+    import b_asic.scheduler as scheduler_module
+
+    inputs = [Input(), Input()]
+    ops = [
+        ConstantMultiplication(2, source, latency=1, execution_time=execution_time)
+        for source in inputs
+    ]
+    sfg = SFG(inputs=inputs, outputs=[Output(op) for op in ops])
+    timings = {
+        "input_times": {"in0": 1, "in1": 3},
+        "output_times": {"out0": 2, "out1": 4},
+    }
+    capacities = []
+    if scheduler_kind == "cp":
+        solver = cp.SolverLookup.get("ortools")
+        scheduler = CPScheduler(solver=solver, **timings)
+    else:
+        solve = scheduler_module._solve_ilp_problem
+
+        def capture_capacity(problem, solver, **kwargs):
+            result = solve(problem, solver, **kwargs)
+            capacities.append(pulp.value(problem.variablesDict()["R_used_cmul"]))
+            return result
+
+        monkeypatch.setattr(scheduler_module, "_solve_ilp_problem", capture_capacity)
+        scheduler = scheduler_module.ILPScheduler(**timings)
+    schedule = Schedule(sfg, scheduler, schedule_time=8, cyclic=cyclic)
+    assert [schedule.start_times[f"cmul{i}"] for i in range(2)] == [1, 3]
+    # Starts never coincide. Duration 2 just touches; duration 3 overlaps.
+    # Durations 10 and 17 additionally overlap successive cyclic iterations.
+    expected = cyclic_resources if cyclic else noncyclic_resources
+    if scheduler_kind == "cp":
+        # Distinct input and output times each require one additional resource.
+        assert solver.objective_value() == expected + 2
+    else:
+        assert capacities == [expected]
