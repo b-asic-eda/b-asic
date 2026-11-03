@@ -31,7 +31,8 @@ sfg.display()
 
 # %%
 # Schedule the operations from the SFG using a list-based scheduling heuristic
-# Use 2 addsub PEs, 2 mul PEs, 1 reciprocal PE, 1 negation PE, 1 input port, and 1 output port
+# Use 1 addsub PE, 1 mul PE, 1 reciprocal PE, 1 negation PE, 1 input port,
+# and 1 output port.
 
 from b_asic.list_schedulers import HybridScheduler
 from b_asic.schedule import Schedule
@@ -65,6 +66,7 @@ schedule
 from b_asic.resource_assigner import assign_processing_elements_and_memories
 from b_asic.architecture import Architecture
 
+# Resource assignment
 pes, mems, direct = assign_processing_elements_and_memories(
     schedule,
     strategy="ilp_min_mux",
@@ -75,6 +77,7 @@ pes, mems, direct = assign_processing_elements_and_memories(
     max_mux_size=4, # set the maximum number of multiplexer inputs
 )
 
+# Create an architecture
 arch = Architecture(pes, mems, "matinv", direct)
 arch
 
@@ -82,7 +85,7 @@ arch
 # Generate VHDL code, targeting single-precision floating-point arithmetic
 # and using AMD Floating-Point IP cores.
 # Some additional options are specified to demonstrate the configurability
-# the code generation.
+# of the code generation.
 
 from b_asic.code_printer import VhdlPrinter
 from b_asic.data_type import DataType, NumRepresentation
@@ -113,7 +116,7 @@ printer.print(
 )
 
 # %%
-# The VHDL code has been generated in the "generated" directory, with the PEs containing instantiated
-# AMD Floating-Point IP cores.
+# The VHDL code has been generated in the "generated" directory, with the PEs
+# containing instantiated AMD Floating-Point IP cores.
 
 # %%

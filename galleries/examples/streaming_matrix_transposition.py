@@ -84,6 +84,7 @@ draw_exclusion_graph_coloring(
 # Graph colouring groups non-overlapping values into collections, one per memory
 # cell. Each row now represents a physical cell.
 
+# Split the values into groups with non-overlapping lifetimes
 example_assignment = example_collection.split_on_execution_time(
     strategy="greedy_graph_color"
 )
@@ -98,8 +99,11 @@ ax_assignment = plot_lifetimes(
 
 SIZES = ((2, 2), (3, 3), (4, 4), (5, 5), (7, 7), (4, 8))
 for rows, cols in SIZES:
+    # Generate memory variables for a matrix transposer
     collection = generate_matrix_transposer(rows, cols)
+    # Split the collection into groups with non-overlapping lifetimes
     assignment = collection.split_on_execution_time(strategy="greedy_graph_color")
+    # Generate VHDL for the streaming transposer using memory-based storage
     entity_name = f"streaming_matrix_transposition_memory_{rows}x{cols}"
     collection.generate_memory_based_storage_vhdl(
         filename=str(output_dir / f"{entity_name}.vhdl"),
