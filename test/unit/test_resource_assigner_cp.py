@@ -1,6 +1,6 @@
 """Mux assignment tests, including physical interconnect costs."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 
@@ -148,7 +148,8 @@ def test_cp_rejects_pulp_solver_before_building_model():
 
 @pytest.mark.parametrize("read_times", [(1, 2), (0, 1)])
 @pytest.mark.parametrize("total_ports", [1, 2])
-def test_public_cp_solver_instance(mux_assigner, read_times, total_ports):
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_public_cp_solver_instance(mux_assigner, read_times, total_ports, interrupted):
     from cpmpy.solvers import CPM_ortools
 
     groups, memories, direct = _problem(read_times)
@@ -161,7 +162,19 @@ def test_public_cp_solver_instance(mux_assigner, read_times, total_ports):
     )
     solver = CPM_ortools()
     solver.ort_solver.parameters.num_search_workers = 1
-    with patch.object(solver, "solve", wraps=solver.solve) as solve:
+    original_solve = solver.solve
+
+    def solve_with_optional_interrupt(**options):
+        result = original_solve(**options)
+        if interrupted:
+            for var in solver.user_vars:
+                var.clear()
+            raise KeyboardInterrupt
+        return result
+
+    with patch.object(
+        solver, "solve", side_effect=solve_with_optional_interrupt
+    ) as solve:
         pes, mems, assigned_direct = assign_processing_elements_and_memories(
             schedule,
             strategy="cp_min_mux",
@@ -171,7 +184,7 @@ def test_public_cp_solver_instance(mux_assigner, read_times, total_ports):
             memory_total_ports=total_ports,
             time_limit=10,
         )
-    solve.assert_called_once_with(time_limit=10)
+    solve.assert_called_once_with(time_limit=10, display=ANY)
     assert solver.ort_solver.parameters.num_search_workers == 1
     architecture = Architecture(pes, mems, direct_interconnects=assigned_direct)
     expected_memories = (2 if total_ports == 1 else 1) if memories else 0
@@ -183,11 +196,11 @@ def test_public_cp_solver_instance(mux_assigner, read_times, total_ports):
 
 @pytest.mark.parametrize("total_ports", [1, 2])
 def test_cp_named_solver_options(mux_assigner, total_ports):
-    import cpmpy as cp
+    from cpmpy.solvers import CPM_ortools
 
     groups, memories, direct = _problem()
     with patch.object(
-        cp.Model, "solve", autospec=True, side_effect=cp.Model.solve
+        CPM_ortools, "solve", autospec=True, side_effect=CPM_ortools.solve
     ) as solve:
         pe_x, mem_x = mux_assigner(
             groups,
@@ -200,9 +213,9 @@ def test_cp_named_solver_options(mux_assigner, total_ports):
             log_search_progress=False,
         )
     assert solve.call_args.kwargs == {
-        "solver": "ortools",
         "time_limit": 10,
         "log_search_progress": False,
+        "display": ANY,
     }
     architecture = _architecture(
         groups, memories, direct, pe_x, mem_x, {"in": 1, "out": 1}, 2

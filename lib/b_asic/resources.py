@@ -27,6 +27,7 @@ from pulp import (
     value,
 )
 
+from b_asic._cp_utils import _solve_cp_problem
 from b_asic._ilp_utils import _solve_ilp_problem
 from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
 from b_asic.code_printer.vhdl.common import is_valid_vhdl_identifier
@@ -1771,16 +1772,7 @@ class ProcessCollection:
                 ]
             )
         model.minimize(objective)
-        solver = solver or "ortools"
-        solver_options = solver_options or {}
-        if isinstance(solver, str):
-            solved = model.solve(solver=solver, **solver_options)
-        else:
-            solver += model.constraints
-            solver.minimize(objective)
-            solved = solver.solve(**solver_options)
-        if not solved:
-            raise ValueError("Solution could not be found via CP, use another method.")
+        _solve_cp_problem(model, solver, **(solver_options or {}))
         colors = {
             node: int(assignment.value()) for node, assignment in assignments.items()
         }
