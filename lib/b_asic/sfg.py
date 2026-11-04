@@ -10,7 +10,7 @@ import math
 import re
 import warnings
 from collections import Counter, defaultdict, deque
-from collections.abc import Iterable, MutableSet, Sequence
+from collections.abc import Iterable, Iterator, MutableSet, Sequence
 from copy import copy, deepcopy
 from fractions import Fraction
 from io import StringIO
@@ -36,7 +36,7 @@ from b_asic.port import InputPort, OutputPort, Port, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.state_space import StateSpace
-from b_asic.types import GraphID, GraphIDNumber, Name, Num, TypeName
+from b_asic.types import GraphID, GraphIDNumber, LoopElement, Name, Num, TypeName
 
 if TYPE_CHECKING:
     from b_asic.simulation import Simulation
@@ -2545,54 +2545,68 @@ class SFG(AbstractOperation):
         Return the iteration period bound of the SFG.
 
         If -1, the SFG does not have any loops and therefore no iteration period bound.
+        Each loop uses the output offset minus the input offset of the ports
+        traversed at each operation, divided by its number of delays.
 
         Returns
         -------
         fractions.Fraction
             Iteration period bound, or -1 if the SFG has no recursive loops.
         """
-        loops = self.loops
-        if not loops:
-            return Fraction(-1)
-
-        op_and_latency = {}
-        for op in self.operations:
-            for loop in loops:
-                for _ in loop:
-                    if op.type_name() not in op_and_latency:
-                        op_and_latency[op.type_name()] = op.latency
-        t_l_values = []
-
-        for loop in loops:
-            loop.pop()
+        bound = Fraction(-1)
+        loop_operations: dict[LoopElement, tuple[int, bool]] = {}
+        for loop in self._iter_loops():
             time_of_loop = 0
-            number_of_t_in_loop = 0
+            delays = 0
             for element in loop:
-                if isinstance(self.find_by_id(element), Delay):
-                    number_of_t_in_loop += 1
-                for key, item in op_and_latency.items():
-                    if key in element:
-                        time_of_loop += item
-            if number_of_t_in_loop in (0, 1):
-                t_l_values.append(Fraction(time_of_loop, 1))
-            else:
-                t_l_values.append(Fraction(time_of_loop, number_of_t_in_loop))
-        return max(t_l_values)
+                if element not in loop_operations:
+                    op = cast(Operation, self._components_by_id[element.graph_id])
+                    input_offset = op.input(element.input_index).latency_offset
+                    output_offset = op.output(element.output_index).latency_offset
+                    if input_offset is None or output_offset is None:
+                        raise ValueError(
+                            "All native offsets have to set to a non-negative value to"
+                            " calculate the latency."
+                        )
+                    loop_operations[element] = (
+                        output_offset - input_offset,
+                        isinstance(op, Delay),
+                    )
+                latency, is_delay = loop_operations[element]
+                time_of_loop += latency
+                delays += is_delay
+            bound = max(bound, Fraction(time_of_loop, max(delays, 1)))
+        return bound
 
     @property
-    def loops(self) -> list[list[GraphID]]:
+    def loops(self) -> list[list[LoopElement]]:
         """
         Return the recursive loops found in the SFG.
 
         Returns
         -------
-        list[list[:data:`~b_asic.types.GraphID`]]
-            Recursive loops as sequences of operation graph IDs. Each sequence
-            repeats its first graph ID at the end to close the loop.
+        list[list[:class:`~b_asic.types.LoopElement`]]
+            Recursive loops as sequences of ``(graph_id, input_index,
+            output_index)`` triples. Each sequence repeats its first entry at
+            the end to close the loop. Parallel connections produce separate
+            loops. Loops are rotated to their smallest entry and sorted.
         """
+        cycles = []
+        for cycle in self._iter_loops():
+            min_idx = cycle.index(min(cycle))
+            normalized = cycle[min_idx:] + cycle[:min_idx]
+            cycles.append([*normalized, normalized[0]])
+        cycles.sort()
+        return cycles
+
+    def _iter_loops(self) -> Iterator[list[LoopElement]]:
+        """Yield recursive loops without sorting or repeating the closing node."""
         if not self.input_count:
-            return []
+            return
         graph: nx.DiGraph = nx.DiGraph()
+        edge_ports: defaultdict[tuple[GraphID, GraphID], list[tuple[int, int]]] = (
+            defaultdict(list)
+        )
         queue: deque[Operation] = deque(self._input_operations)
         visited: set[Operation] = set(self._input_operations)
         while queue:
@@ -2605,18 +2619,26 @@ class SFG(AbstractOperation):
                             new_op, Output
                         ):
                             graph.add_edge(op.graph_id, new_op.graph_id)
+                            edge_ports[op.graph_id, new_op.graph_id].append(
+                                (output_port.index, signal.destination.index)
+                            )
                         if new_op not in visited:
                             queue.append(new_op)
                             visited.add(new_op)
                     else:
                         raise ValueError("Destination for {signal!r} does not exist")
-        cycles = []
         for cycle in nx.simple_cycles(graph):
-            min_idx = cycle.index(min(cycle))
-            normalized = cycle[min_idx:] + cycle[:min_idx]
-            cycles.append([*normalized, normalized[0]])
-        cycles.sort()
-        return cycles
+            connections = [
+                edge_ports[source, destination]
+                for source, destination in zip(
+                    cycle, [*cycle[1:], cycle[0]], strict=True
+                )
+            ]
+            for ports in itertools.product(*connections):
+                yield [
+                    LoopElement(op_id, ports[index - 1][1], ports[index][0])
+                    for index, op_id in enumerate(cycle)
+                ]
 
     def to_ss(self) -> StateSpace:
         """
