@@ -26,6 +26,21 @@ except ImportError:
     pytestmark = pytest.mark.skip("Qt not setup")
 
 
+def _mouse_move_with_left_button(view, pos):
+    viewport = view.viewport()
+    QApplication.sendEvent(
+        viewport,
+        QMouseEvent(
+            QEvent.Type.MouseMove,
+            QPointF(pos),
+            QPointF(viewport.mapToGlobal(pos)),
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        ),
+    )
+
+
 def test_start(qtbot):
     widget = ScheduleMainWindow()
     qtbot.addWidget(widget)
@@ -88,16 +103,7 @@ def test_timeline_drop_wraps_operations_that_remain_movable(qtbot, boundary):
 
     def drag(start, end):
         qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
-        QApplication.sendEvent(
-            view.viewport(),
-            QMouseEvent(
-                QEvent.Type.MouseMove,
-                QPointF(end),
-                Qt.MouseButton.NoButton,
-                Qt.MouseButton.LeftButton,
-                Qt.KeyboardModifier.NoModifier,
-            ),
-        )
+        _mouse_move_with_left_button(view, end)
         qtbot.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
 
     timeline = graph.axes.event_items[0]
@@ -174,16 +180,7 @@ def test_signal_wraps_during_drag_before_drop(
     )
     end = start + QPoint(75 * dx, 0)
     qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
-    QApplication.sendEvent(
-        view.viewport(),
-        QMouseEvent(
-            QEvent.Type.MouseMove,
-            QPointF(end),
-            Qt.MouseButton.NoButton,
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-        ),
-    )
+    _mouse_move_with_left_button(view, end)
 
     def assert_wrapped():
         path = signal.path()
@@ -249,16 +246,7 @@ def test_drag_wrapped_operation_fragment(
 
     qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
     assert scene.mouseGrabberItem() is item
-    QApplication.sendEvent(
-        view.viewport(),
-        QMouseEvent(
-            QEvent.Type.MouseMove,
-            QPointF(end),
-            Qt.MouseButton.NoButton,
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-        ),
-    )
+    _mouse_move_with_left_button(view, end)
     assert item.x() == pytest.approx(graph._x_axis_indent + 4)
     assert_direct()
     qtbot.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
@@ -383,16 +371,7 @@ def test_drag_paths_match_drop_at_cycle_boundaries(
     qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
     assert scene.mouseGrabberItem() is item
     original_x = item.x()
-    QApplication.sendEvent(
-        view.viewport(),
-        QMouseEvent(
-            QEvent.Type.MouseMove,
-            QPointF(end),
-            Qt.MouseButton.NoButton,
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-        ),
-    )
+    _mouse_move_with_left_button(view, end)
     expected_dx = max(dx, -1) if dragged_id == "in0" else dx
     assert item.x() == pytest.approx(original_x + expected_dx)
     assert schedule.start_times == original_times
@@ -461,6 +440,8 @@ def drag_view(qtbot, monkeypatch):
     scene.addItem(graph)
     graph.installSceneEventFilters(graph.event_items)
     view = QGraphicsView(scene)
+    # QGraphicsView does not own its scene. Keep it alive after this fixture returns.
+    scene.setParent(view)
     qtbot.addWidget(view)
     view.resize(1200, 600)
     view.scale(75, 75)
@@ -484,16 +465,7 @@ def test_fast_operation_drag_stops_at_slack_limits(
     end = start + QPoint(75 * dx, 75 * dy)
     qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
     assert view.scene().mouseGrabberItem() is item
-    QApplication.sendEvent(
-        view.viewport(),
-        QMouseEvent(
-            QEvent.Type.MouseMove,
-            QPointF(end),
-            Qt.MouseButton.NoButton,
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-        ),
-    )
+    _mouse_move_with_left_button(view, end)
     assert item.x() == pytest.approx(graph._x_axis_indent + expected_start)
     assert graph.schedule.start_times[item.graph_id] == 3
     assert graph.schedule.get_y_location(item.graph_id) == old_row + dy
@@ -510,16 +482,7 @@ def test_fast_timeline_drag_stops_at_minimum_time(qtbot, drag_view, dx, expected
     end = start + QPoint(75 * dx, 0)
     qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
     assert view.scene().mouseGrabberItem() is item
-    QApplication.sendEvent(
-        view.viewport(),
-        QMouseEvent(
-            QEvent.Type.MouseMove,
-            QPointF(end),
-            Qt.MouseButton.NoButton,
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-        ),
-    )
+    _mouse_move_with_left_button(view, end)
     assert item.x() == pytest.approx(original_x + expected_time - 10)
     assert graph.schedule.schedule_time == 10
     qtbot.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
