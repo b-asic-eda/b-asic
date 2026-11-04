@@ -973,6 +973,42 @@ class AddSub(AbstractOperation):
     def is_swappable(self) -> bool:
         return self.is_add and self.in0_scale == self.in1_scale and not self.mul_j
 
+    def _expand_parameters(self, operation_type=None) -> "SFG":
+        """Extract input/output shifts and the imaginary factor into nodes."""
+
+        def build(inputs):
+            a, b = inputs
+            if self.in0_scale:
+                a = RightShift(self.in0_scale, a)
+            if self.in1_scale:
+                b = RightShift(self.in1_scale, b)
+            if self.mul_j:
+                b = ImaginaryMultiplication(b)
+            if operation_type is None:
+                result = AddSub(self.is_add, a, b, name=self.name)
+            else:
+                wants_add = operation_type is Addition
+                if wants_add != self.is_add:
+                    b = Negation(b)
+                result = operation_type(a, b, name=self.name)
+            if self.out0_scale:
+                result = RightShift(self.out0_scale, result)
+            return result
+
+        return _simplified_sfg(self, build)
+
+    def _rewrite_Addition(self) -> "SFG":
+        return self._expand_parameters(Addition)
+
+    def _rewrite_Subtraction(self) -> "SFG":
+        return self._expand_parameters(Subtraction)
+
+    def _rewrite_Shift(self) -> "SFG":
+        return self._expand_parameters()
+
+    def _rewrite_ImaginaryMultiplication(self) -> "SFG":
+        return self._expand_parameters()
+
     def _constant_propagation(self) -> "SFG | None":
         folded = super()._constant_propagation()
         if folded is not None:
@@ -2051,6 +2087,34 @@ class MAD(AbstractOperation):
         for i, p in enumerate(self._input_ports):
             p._index = i
 
+    def _rewrite_Multiplication(self) -> "SFG":
+        def build(inputs):
+            product = Multiplication(inputs[0], inputs[1])
+            return (
+                Addition(product, inputs[2], name=self.name) if self.do_add else product
+            )
+
+        return _simplified_sfg(self, build)
+
+    def _rewrite_Addition(self) -> "SFG":
+        return self._rewrite_Multiplication()
+
+    def _rewrite_AddSub(self) -> "SFG":
+        return self._rewrite_Multiplication().rewrite(AddSub, Addition)
+
+    def _rewrite_MADS(self) -> "SFG":
+        return _simplified_sfg(
+            self,
+            lambda inputs: MADS(
+                True,
+                inputs[2],
+                inputs[0],
+                inputs[1],
+                do_addsub=self.do_add,
+                name=self.name,
+            ),
+        )
+
     def _constant_propagation(self) -> "SFG | None":
         folded = super()._constant_propagation()
         if folded is not None:
@@ -2170,6 +2234,34 @@ class MADS(AbstractOperation):
         ]
         for i, p in enumerate(self._input_ports):
             p._index = i
+
+    def _rewrite_Multiplication(self) -> "SFG":
+        def build(inputs):
+            product = Multiplication(inputs[1], inputs[2])
+            if not self.do_addsub:
+                return product if self.is_add else Negation(product)
+            arithmetic = Addition if self.is_add else Subtraction
+            return arithmetic(inputs[0], product, name=self.name)
+
+        return _simplified_sfg(self, build)
+
+    def _rewrite_Addition(self) -> "SFG":
+        return self._rewrite_Multiplication()
+
+    def _rewrite_Subtraction(self) -> "SFG":
+        return self._rewrite_Multiplication()
+
+    def _rewrite_AddSub(self) -> "SFG":
+        return self._rewrite_Multiplication().rewrite(AddSub, [Addition, Subtraction])
+
+    def _rewrite_MAD(self) -> "SFG":
+        def build(inputs):
+            a, b, c = inputs
+            if not self.is_add:
+                b = Negation(b)
+            return MAD(b, c, a, do_add=self.do_addsub, name=self.name)
+
+        return _simplified_sfg(self, build)
 
     def _constant_propagation(self) -> "SFG | None":
         folded = super()._constant_propagation()
