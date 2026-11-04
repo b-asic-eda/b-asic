@@ -10,6 +10,8 @@ import shutil
 import sys
 import os
 
+from qtpy.QtCore import Signal
+
 sys.path.insert(0, os.path.dirname(__file__))
 from _scraper import ReprScraper
 
@@ -106,6 +108,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": "FileNameSortKey",
     "plot_gallery": "True",  # sphinx-gallery/913
     "filename_pattern": ".",
+    "ignore_pattern": r"^(?:__init__|tb)\.py$",
     "doc_module": ("b_asic",),
     "reference_url": {"b_asic": None},
     "image_scrapers": (
@@ -118,3 +121,12 @@ sphinx_gallery_conf = {
         "matplotlib",
     ),
 }
+
+
+def fix_qt_signal_docstring(app, what, name, obj, options, lines):
+    if isinstance(obj, Signal):
+        lines[:] = [line.replace("*types", r"\*types") for line in lines]
+
+
+def setup(app):
+    app.connect("autodoc-process-docstring", fix_qt_signal_docstring)
