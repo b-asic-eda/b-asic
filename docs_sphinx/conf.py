@@ -105,6 +105,14 @@ sphinx_gallery_conf = {
     ],
     "gallery_dirs": ["examples", "tutorial"],
     "capture_repr": (),
+    "subsection_order": [
+        "../galleries/examples/design_examples",
+        "../galleries/examples/creating_and_transforming_sfgs",
+        "../galleries/examples/simulation_and_analysis",
+        "../galleries/examples/scheduling",
+        "../galleries/examples/architecture",
+        "*",
+    ],
     "within_subsection_order": "FileNameSortKey",
     "plot_gallery": "True",  # sphinx-gallery/913
     "filename_pattern": ".",

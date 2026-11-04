@@ -63,8 +63,6 @@ sfg.display(info="l1-norm")
 # %%
 # Introduce scaling such that the l1-norm values do not exceed 1 (safe-scaling)
 
-from b_asic.core_operations import Subtraction
-
 sfg["add1"].out0_scale = 1
 sfg["sub2"].out0_scale = 1
 sfg["add0"].out0_scale = 1
@@ -100,12 +98,14 @@ sfg.set_execution_time_of_type(ConstantMultiplication, 1)
 
 # %%
 # We want a streaming implementation using the minimal amount of operators, i.e.
-# one input and one output value per clock cycle. The operations should be
-# distributed over three clock cycles. Let us use a scheduling algorithm for that.
+# one parallel input and one parallel operation -> the operations should be
+# distributed over three clock cycles.
+#
+# Let us use a scheduling algorithm for that.
 
 from b_asic import Schedule, HybridScheduler
 
-# We need one PE of each type
+# We need 1 PE of each type
 resources={Addition: 1, Subtraction: 1, ConstantMultiplication: 1}
 # Specify the input and output timing constraints
 input_times = {f"in{i}": i for i in range(3)}
@@ -116,13 +116,12 @@ scheduler = HybridScheduler(
     input_times=input_times,
     output_delta_times=output_delta_times,
 )
-# Schedule over three cycles, enabling cyclic scheduling to allow operations
-# to wrap around the schedule edge
+# Schedule over three cycles, enable cyclic scheduling to allow wrapping around the schedule edge
 schedule = Schedule(sfg, scheduler, schedule_time=3, cyclic=True)
 schedule
 
 # %%
-# Map to an architecture with the desired number of PEs and the minimal amount of memories and multiplexing
+# Map to an architecture with the desired number of PEs and the minimal amount of memories and multiplexing.
 
 from b_asic.resource_assigner import assign_processing_elements_and_memories
 from b_asic.architecture import Architecture
@@ -141,7 +140,7 @@ arch = Architecture(pes, mems, "r3", direct)
 arch
 
 # %%
-# Generate VHDL for the created architecture
+# Generate VHDL for the created architecture.
 
 from b_asic.data_type import DataType
 from b_asic.code_printer import VhdlPrinter
@@ -155,7 +154,7 @@ printer = VhdlPrinter(dt)
 printer.print(arch, path="generated_separate", io_registers=True)
 
 # %%
-# Simulate and generate a testbench for the design
+# Simulate and generate a testbench for the design.
 
 from b_asic.tb_printer import CocotbPrinter
 
@@ -191,7 +190,7 @@ tb_printer.print(
 
 # %%
 # Let us now model the algorithm using "AddSub" operations
-# i.e. an operation that adds or subtracts based on a control signal
+# i.e. an operation that adds or subtracts based on a control signal.
 
 from b_asic.core_operations import AddSub
 
@@ -200,7 +199,7 @@ sfg = sfg.rewrite(AddSub, Subtraction)
 sfg
 
 # %%
-# Do the same scheduling and mapping to an architecture again
+# Do the same scheduling and mapping to an architecture again.
 
 sfg.set_latency_of_type(AddSub, 1)
 sfg.set_execution_time_of_type(AddSub, 1)
@@ -226,7 +225,7 @@ arch = Architecture(pes, mems, "r3", direct)
 arch
 
 # %%
-# Generate VHDL and a testbench for the new architecture
+# Generate VHDL and a testbench for the new architecture.
 
 printer.print(arch, path="generated_addsub", io_registers=True)
 
@@ -244,8 +243,16 @@ tb_printer.print(
 )
 
 # %%
-# We can convert "cmul1" into addsubs with shifts on the inputs
-
+# We can convert "cmul1" into addsubs with shifts on the inputs.
+#
+# If we use 3 addsub PEs we have three addsub operations to spare on the constant multiplication,
+# since the algorithm contains 6 addsub operations to compute over 3 cycles.
+# 7095/8192 is the best approximation using three addsubs so let us use that one.
+#
+# Factorize the constant multiplication into smaller parts.
+# This is done since the CSD representation of these constants is optimal,
+# which is not the case for 7095/8192.
+#
 # Start by propagating the imaginary multiplication into
 # the inputs of "addsub3" and "addsub4" as well as factoring the
 # constant into two smaller parts and rewriting them into addsubs with shifts.
@@ -274,7 +281,7 @@ sfg
 # %%
 # Now we can proceed with scheduling and mapping to an architecture
 # consisting of 3 addsub PEs, because we now have 9 addsub operations
-# to compute over 3 cycles
+# to compute over 3 cycles.
 
 sfg.set_latency_of_type(AddSub, 1)
 sfg.set_execution_time_of_type(AddSub, 1)
@@ -319,14 +326,13 @@ tb_printer.print(
 )
 
 # %%
-# Finally, by unfolding the schedule, it is possible to achieve
-# a schedule with a latency of one less clock cycle
+# Finally, by unfolding the schedule, the schedule can be further optimized due to increased flexibility.
 
 sfg = sfg.unfold(2)
 sfg.display()
 
 # %%
-# Scheduling, now 2 iterations of the algorithm (6 cycles)
+# We then schedule the unfolded SFG, i.e. scheduling 2 iterations of the algorithm over 6 cycles.
 
 from b_asic import Schedule, HybridScheduler, AddSub
 
@@ -348,8 +354,9 @@ schedule = Schedule(sfg, scheduler, schedule_time=6, cyclic=True)
 schedule
 
 # %%
-# Manual schedule optimization, using the moves printed by the scheduling GUI
-# when editing the schedule with schedule.edit()
+# Manual schedule optimization, written out to the terminal when using the scheduling GUI, "schedule.edit()".
+# We achieve a schedule with a latency of one less clock cycle and reduce the number of concurrent reads/writes to memory.
+# Thus we also expect this optimization to reduce the number of memories by one.
 
 schedule.move_operation('addsub3_1', -1)
 schedule.move_operation('out0_0', -1)
@@ -364,7 +371,7 @@ schedule.move_operation('addsub0_0', 1)
 schedule
 
 # %%
-# Generating an architecture for the optimized schedule
+# Generating an architecture for the optimized schedule.
 
 pes, mems, direct = assign_processing_elements_and_memories(
     schedule,
@@ -377,11 +384,10 @@ pes, mems, direct = assign_processing_elements_and_memories(
 arch = Architecture(pes, mems, "r3", direct)
 arch
 
-# The optimized architecture now only consists of three memories, which is an
-# improvement compared to the previous architecture.
-
 # %%
-# Finally, generate VHDL and a testbench for the optimized architecture
+# As seen, the architecture now only consists of three memories, which is an improvement compared to the previous one.
+#
+# Finally, generate VHDL and a testbench for the optimized architecture.
 
 printer.print(arch, path="generated_optimized", io_registers=True)
 
