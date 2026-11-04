@@ -34,7 +34,7 @@ add3 = b + d
 T1 <<= add1
 out1 = Output(add1 + add3, "OUT")
 
-sfg = SFG(inputs=[in1], outputs=[out1], name="Bi-quad folding example")
+sfg = SFG(in1, out1, name="Bi-quad folding example")
 
 # %%
 # The SFG looks like:

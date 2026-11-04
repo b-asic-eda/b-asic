@@ -25,7 +25,7 @@ out_lwdf = Output((allpass1(in_lwdf) + allpass2(in_lwdf)) * 0.5)
 
 # Create SFG of LWDF with two internal SFGs
 sfg_with_sfgs = SFG(
-    [in_lwdf], [out_lwdf], name="LWDF with separate internals SFGs for allpass branches"
+    in_lwdf, out_lwdf, name="LWDF with separate internals SFGs for allpass branches"
 )
 
 # %%

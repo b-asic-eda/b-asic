@@ -21,6 +21,6 @@ adaptor0 = SymmetricTwoportAdaptor(
 d0 <<= adaptor0.output(1)
 out0 = Output(adaptor0.output(0))
 adaptor0.execution_time = 2
-sfg = SFG([in0], [out0])
+sfg = SFG(in0, out0)
 schedule = Schedule(sfg)
 schedule

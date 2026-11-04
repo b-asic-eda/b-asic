@@ -26,7 +26,7 @@ D1 <<= s.output(1)
 a = s.output(0) + D0
 out0 = Output(a, "y")
 
-sfg = SFG(inputs=[in0], outputs=[out0], name="Third-order BLWDF")
+sfg = SFG(in0, out0, name="Third-order BLWDF")
 # %%
 # The SFG looks like
 sfg

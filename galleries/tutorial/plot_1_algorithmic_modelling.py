@@ -65,7 +65,7 @@ y = Output(
 # %%
 # The SFG is then constructed by passing its inputs and outputs.
 
-fir = SFG([x], [y], name="6-tap FIR")
+fir = SFG(x, y, name="6-tap FIR")
 
 # %%
 # As possible for most objects in B-ASIC, the SFG can be rendered in an enriched shell,

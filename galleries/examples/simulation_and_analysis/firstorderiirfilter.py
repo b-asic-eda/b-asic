@@ -61,7 +61,7 @@ from b_asic.sfg import SFG  # noqa: E402
 # provided. As, in general, there can be multiple inputs and outputs, there should
 # be provided as a list or a tuple.
 
-firstorderiir = SFG([input], [output])
+firstorderiir = SFG(input, output)
 
 # %%
 # If this is executed in an enriched terminal, such as a Jupyter Notebook, Jupyter
