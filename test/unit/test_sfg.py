@@ -6,6 +6,7 @@ import string
 import sys
 from collections import Counter
 from copy import deepcopy
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -2492,6 +2493,81 @@ class TestResourceLowerBound:
 
 
 class TestIterationPeriodBound:
+    def test_feedback_input_offset(self):
+        source = Input()
+        delay = Delay()
+        addition = Addition(
+            source,
+            delay,
+            latency_offsets={"in0": 0, "in1": 3, "out0": 5},
+        )
+        delay.input(0).connect(addition)
+        sfg = SFG([source], [Output(addition)])
+
+        assert sfg.iteration_period_bound() == 2
+
+    def test_feedback_output_offset(self):
+        source = Input()
+        delay = Delay()
+        butterfly = R2Butterfly(
+            source,
+            delay,
+            latency_offsets={"in0": 0, "in1": 2, "out0": 9, "out1": 5},
+        )
+        delay.input(0).connect(butterfly.output(1))
+        sfg = SFG([source], [Output(butterfly.output(0))])
+
+        assert sfg.iteration_period_bound() == 3
+
+    @pytest.mark.parametrize("offsets", [(1, 3), (3, 1)])
+    def test_parallel_feedback_connections(self, offsets):
+        source = Input()
+        delay = Delay()
+        first = Addition(source, delay, latency=2)
+        second = Addition(
+            first,
+            first,
+            latency_offsets={"in0": offsets[0], "in1": offsets[1], "out0": 5},
+        )
+        delay.input(0).connect(second)
+        sfg = SFG([source], [Output(second)])
+
+        assert sfg.iteration_period_bound() == 6
+
+    def test_fractional_port_offsets(self):
+        source = Input()
+        delay = Delay()
+        addition = Addition(
+            source,
+            Delay(delay),
+            latency_offsets={"in0": 0, "in1": 2, "out0": 5},
+        )
+        delay.input(0).connect(addition)
+        sfg = SFG([source], [Output(addition)])
+
+        assert sfg.iteration_period_bound() == Fraction(3, 2)
+
+    def test_individual_latencies(self):
+        source = Input()
+        delay = Delay()
+        first = Addition(source, delay, latency=2)
+        second = Addition(first, source, latency=5)
+        delay.input(0).connect(second)
+        sfg = SFG([source], [Output(second)])
+
+        assert sfg.iteration_period_bound() == 7
+
+    def test_overlapping_type_names(self):
+        source = Input()
+        delay = Delay()
+        addition = Addition(source, delay, latency=2)
+        constant_mul = ConstantMultiplication(0.5, addition, latency=3)
+        multiplication = Multiplication(constant_mul, source, latency=7)
+        delay.input(0).connect(multiplication)
+        sfg = SFG([source], [Output(multiplication)])
+
+        assert sfg.iteration_period_bound() == 12
+
     def test_accumulator(self, sfg_simple_accumulator):
         sfg_simple_accumulator.set_latency_of_type_name("add", 2)
         assert sfg_simple_accumulator.iteration_period_bound() == 2
@@ -2529,7 +2605,7 @@ class TestIterationPeriodBound:
         sfg.set_latency_of_type_name(ConstantMultiplication.type_name(), 1)
         assert sfg.iteration_period_bound() == 4 / 2
 
-        sfg = sfg.insert_operation_before("t0", ConstantMultiplication(10))
+        sfg = sfg.insert_operation_before("t0", ConstantMultiplication(10, latency=1))
         assert sfg.iteration_period_bound() == 5 / 2
 
     def test_no_delays(self, sfg_two_inputs_two_outputs):
@@ -2539,18 +2615,81 @@ class TestIterationPeriodBound:
 class TestLoops:
     def test_accumulator(self, sfg_simple_accumulator):
         loops = sfg_simple_accumulator.loops
-        assert loops == [["add0", "t0", "add0"]]
+        assert loops == [[("add0", 1, 0), ("t0", 0, 0), ("add0", 1, 0)]]
+        assert loops[0][0].graph_id == "add0"
+        assert loops[0][0].input_index == 1
+        assert loops[0][0].output_index == 0
 
     def test_simple_filter(self, sfg_simple_filter):
         loops = sfg_simple_filter.loops
-        assert loops == [["add0", "t0", "cmul0", "add0"]]
+        assert loops == [
+            [("add0", 1, 0), ("t0", 0, 0), ("cmul0", 0, 0), ("add0", 1, 0)]
+        ]
 
     def test_direct_form_iir_filter(self, sfg_direct_form_iir_lp_filter):
         loops = sfg_direct_form_iir_lp_filter.loops
         assert loops == [
-            ["add0", "t0", "cmul4", "add1", "add0"],
-            ["add0", "t0", "t1", "cmul3", "add1", "add0"],
+            [
+                ("add0", 0, 0),
+                ("t0", 0, 0),
+                ("cmul4", 0, 0),
+                ("add1", 0, 0),
+                ("add0", 0, 0),
+            ],
+            [
+                ("add0", 0, 0),
+                ("t0", 0, 0),
+                ("t1", 0, 0),
+                ("cmul3", 0, 0),
+                ("add1", 1, 0),
+                ("add0", 0, 0),
+            ],
         ]
+
+    def test_parallel_connections(self):
+        source = Input()
+        delay = Delay()
+        first = Addition(source, delay)
+        second = Addition(first, first)
+        delay.input(0).connect(second)
+        sfg = SFG([source], [Output(second)])
+
+        assert sfg.loops == [
+            [("add0", 1, 0), ("add1", 0, 0), ("t0", 0, 0), ("add0", 1, 0)],
+            [("add0", 1, 0), ("add1", 1, 0), ("t0", 0, 0), ("add0", 1, 0)],
+        ]
+
+    def test_parallel_outputs(self):
+        source = Input()
+        delay = Delay()
+        butterfly = R2Butterfly(
+            source,
+            delay,
+            latency_offsets={"in0": 0, "in1": 2, "out0": 9, "out1": 5},
+        )
+        addition = Addition(butterfly.output(0), butterfly.output(1), latency=1)
+        delay.input(0).connect(addition)
+        sfg = SFG([source], [Output(addition)])
+        butterfly_id = sfg.find_by_type(R2Butterfly)[0].graph_id
+
+        loops = sfg.loops
+        assert len(loops) == 2
+        assert {
+            (element.input_index, element.output_index)
+            for loop in loops
+            for element in loop[:-1]
+            if element.graph_id == butterfly_id
+        } == {(1, 0), (1, 1)}
+        assert sfg.iteration_period_bound() == 8
+
+    def test_self_loop(self):
+        source = Input()
+        addition = Addition(source, None, latency=2)
+        addition.input(1).connect(addition)
+        sfg = SFG([source], [Output(addition)])
+
+        assert sfg.loops == [[("add0", 1, 0), ("add0", 1, 0)]]
+        assert sfg.iteration_period_bound() == 2
 
     def test_empty_sfg(self):
         loops = SFG([], []).loops

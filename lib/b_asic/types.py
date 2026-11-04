@@ -4,7 +4,7 @@ B-ASIC Typing Module.
 Contains custom types used in the library.
 """
 
-from typing import NewType
+from typing import NamedTuple, NewType
 
 from apytypes.typing import APyScalar
 from numpy.typing import DTypeLike
@@ -29,5 +29,14 @@ Name = str
 TypeName = NewType("TypeName", str)
 GraphID = NewType("GraphID", str)
 GraphIDNumber = NewType("GraphIDNumber", int)
+
+
+class LoopElement(NamedTuple):
+    """An operation and the input/output port indices traversed by a loop."""
+
+    graph_id: GraphID
+    input_index: int
+    output_index: int
+
 
 ShapeCoordinates = tuple[tuple[float, float], ...]
