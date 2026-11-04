@@ -15,6 +15,9 @@ It provides a path from algorithm to RTL code while giving the designer full con
 pip install git+https://github.com/b-asic-eda/b-asic.git
 ```
 
+Rendering graphs requires [Graphviz](https://graphviz.org/download/) to be
+installed separately.
+
 A Qt binding is required for GUIs (optional feature) — install either `PyQt6` or `PySide6`:
 
 ```bash

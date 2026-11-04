@@ -17,6 +17,10 @@ It provides a path from algorithm to RTL code while giving the designer full con
 
 .. note::
 
+   Graph rendering requires `Graphviz <https://graphviz.org/download/>`_ to be installed separately.
+
+.. note::
+
    A Qt binding is required for GUIs.
    This is not installed automatically, so you need to install either `PyQt6
    <https://pypi.org/project/PyQt6/>`_ or `PySide6
