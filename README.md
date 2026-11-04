@@ -44,7 +44,7 @@ y = Output(
     name="y",
 )
 
-fir = SFG([x], [y], name="7-tap FIR")
+fir = SFG(x, y, name="7-tap FIR")
 fir.show()
 ```
 

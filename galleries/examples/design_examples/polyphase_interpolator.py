@@ -40,8 +40,8 @@ zero_stuffed = unfolded
 for input_operation in unfolded.input_operations[1:]:
     zero_stuffed = zero_stuffed.replace(input_operation.graph_id, Constant(0))
 zero_stuffed = SFG(
-    inputs=[zero_stuffed.input_operations[0]],
-    outputs=zero_stuffed.output_operations,
+    zero_stuffed.input_operations[0],
+    zero_stuffed.output_operations,
     name="Zero-stuffed unfolded FIR",
 )
 zero_stuffed

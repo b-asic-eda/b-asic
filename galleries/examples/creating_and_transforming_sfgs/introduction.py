@@ -15,7 +15,7 @@ c = ConstantMultiplication(0.5, d)
 a = Addition(i, c)
 d.input(0).connect(a)
 
-sfg = SFG([i], [o])
+sfg = SFG(i, o)
 
 # %%
 # The SFG looks like:

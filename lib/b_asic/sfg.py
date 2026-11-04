@@ -108,9 +108,9 @@ class SFG(AbstractOperation):
 
     Parameters
     ----------
-    inputs : array of :class:`~b_asic.special_operations.Input`, optional
+    inputs : :class:`~b_asic.special_operations.Input` or sequence of Input, optional
 
-    outputs : array of :class:`~b_asic.special_operations.Output`, optional
+    outputs : :class:`~b_asic.special_operations.Output` or sequence of Output, optional
 
     input_signals : array of :class:`~b_asic.signal.Signal`, optional
 
@@ -139,14 +139,19 @@ class SFG(AbstractOperation):
 
     def __init__(
         self,
-        inputs: Sequence[Input] | None = None,
-        outputs: Sequence[Output] | None = None,
+        inputs: Input | Sequence[Input] | None = None,
+        outputs: Output | Sequence[Output] | None = None,
         input_signals: Sequence[Signal] | None = None,
         output_signals: Sequence[Signal] | None = None,
         id_number_offset: GraphIDNumber = GraphIDNumber(0),
         name: Name = Name(""),
         input_sources: Sequence[SignalSourceProvider | None] | None = None,
     ) -> None:
+        if isinstance(inputs, Input):
+            inputs = [inputs]
+        if isinstance(outputs, Output):
+            outputs = [outputs]
+
         input_signal_count = 0 if input_signals is None else len(input_signals)
         input_operation_count = 0 if inputs is None else len(inputs)
         output_signal_count = 0 if output_signals is None else len(output_signals)

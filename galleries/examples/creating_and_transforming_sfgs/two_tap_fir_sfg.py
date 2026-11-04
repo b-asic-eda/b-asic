@@ -15,5 +15,5 @@ y = Output(
     name="y",
 )
 
-fir = SFG(inputs=[x], outputs=[y], name='fir')
+fir = SFG(x, y, name='fir')
 fir

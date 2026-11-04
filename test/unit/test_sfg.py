@@ -59,6 +59,33 @@ def test_deepcopy_nested_sfg_with_fanout():
 
 
 class TestInit:
+    @pytest.mark.parametrize("single_input", [False, True])
+    @pytest.mark.parametrize("single_output", [False, True])
+    def test_single_or_sequence_boundaries(self, single_input, single_output):
+        source = Input("source")
+        output = Output(source + 1, "output")
+        sfg = SFG(
+            source if single_input else [source],
+            output if single_output else [output],
+        )
+
+        assert sfg.input_count == 1
+        assert sfg.output_count == 1
+        assert sfg.evaluate(2) == 3
+        assert sfg.input_operations[0] is not source
+        assert sfg.output_operations[0] is not output
+
+    def test_mixed_single_and_multiple_boundaries(self):
+        first = Input("first")
+        second = Input("second")
+        combined = Output(first + second)
+        two_inputs = SFG([first, second], combined)
+        assert two_inputs.evaluate(2, 3) == 5
+
+        source = Input("source")
+        two_outputs = SFG(source, [Output(source), Output(source + 1)])
+        assert two_outputs.evaluate(2) == [2, 3]
+
     def test_direct_input_to_output_sfg_construction(self):
         in1 = Input("IN1")
         out1 = Output(None, "OUT1")
