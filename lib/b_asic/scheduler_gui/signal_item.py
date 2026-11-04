@@ -62,17 +62,17 @@ class SignalItem(QGraphicsPathItem):
         self._src_operation = src_operation
         self._dest_operation = dest_operation
         self._signal = signal
-        self._src_key = f"out{self._signal.source.index}"
-        self._dest_key = f"in{self._signal.destination.index}"
         self._refresh_pens()
         self._parent = parent
-        self.set_inactive()
         self.update_path()
+        self.set_inactive()
 
     def update_path(self, schedule: "Schedule | None" = None) -> None:
         """
         Create a new path after moving connected operations, using *schedule* if given.
         """
+        self._src_key = f"out{self._signal.source.index}"
+        self._dest_key = f"in{self._signal.destination.index}"
         source_point = self._src_operation.get_port_location(self._src_key)
         dest_point = self._dest_operation.get_port_location(self._dest_key)
         path = QPainterPath(source_point)

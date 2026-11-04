@@ -179,6 +179,7 @@ class AxesItem(QGraphicsItemGroup):
             for _ in range(abs(delta_width)):
                 self._pop_x_tick()
                 self._width -= 1
+        self._x_ledger[-1].setX(self._width_indent + self._width)
 
     def _pop_x_tick(self) -> None:
         # TODO: docstring

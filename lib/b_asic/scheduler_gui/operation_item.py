@@ -140,10 +140,33 @@ class OperationItem(QGraphicsItemGroup):
         return super().boundingRect().united(self.childrenBoundingRect())
 
     def clear(self) -> None:
-        """Set all children's parent to None and delete the axis."""
+        """Remove the child graphics from both the group and its scene."""
         for item in self.childItems():
+            scene = item.scene()
             item.setParentItem(None)
-            del item
+            if scene is not None:
+                scene.removeItem(item)
+
+    def refresh(self) -> None:
+        """Rebuild child graphics only when operation geometry has changed."""
+        coordinates = (
+            *self._operation.get_plot_coordinates(),
+            self._operation.get_input_coordinates(),
+            self._operation.get_output_coordinates(),
+        )
+        if coordinates == self._plot_coordinates:
+            return
+        font = self._label_item.font()
+        label_brush = self._label_item.brush()
+        background = self._latency_item.brush()
+        show_numbers = any(port["number"].isVisible() for port in self._ports.values())
+        self.clear()
+        self._execution_time_path = None
+        self._make_component()
+        self.set_font(font)
+        self._label_item.setBrush(label_brush)
+        self._latency_item.setBrush(background)
+        self.set_show_port_numbers(show_numbers)
 
     @property
     def graph_id(self) -> GraphID:
@@ -299,6 +322,14 @@ class OperationItem(QGraphicsItemGroup):
             return path
 
         latency, execution_time = self._operation.get_plot_coordinates()
+        input_coordinates = self._operation.get_input_coordinates()
+        output_coordinates = self._operation.get_output_coordinates()
+        self._plot_coordinates = (
+            latency,
+            execution_time,
+            input_coordinates,
+            output_coordinates,
+        )
         latency_path = generate_path(latency)
         self._latency_path = latency_path
         self._latency_item = QGraphicsPathItem(latency_path)
@@ -329,8 +360,8 @@ class OperationItem(QGraphicsItemGroup):
                 port_item.setScale(port_item.scale() / self._scale)
                 self._ports[key] = {"pos": pos, "item": new_port, "number": port_item}
 
-        create_ports(self._operation.get_input_coordinates(), "in")
-        create_ports(self._operation.get_output_coordinates(), "out")
+        create_ports(input_coordinates, "in")
+        create_ports(output_coordinates, "out")
 
         # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)

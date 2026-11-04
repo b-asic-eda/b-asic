@@ -7,7 +7,6 @@ Contains the scheduler_gui MainWindow class for scheduling operations in an SFG.
 Start main-window with ``start_gui()``.
 """
 
-import copy
 import inspect
 import os
 import pickle
@@ -128,6 +127,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self._schedule = None
         self._graph = None
+        self._selected_graph_id: GraphID | None = None
         self._scale = 75.0
         self._debug_rectangles = None
 
@@ -297,7 +297,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
         if self._graph is not None:
             self._schedule = self._schedule.rotate_forward()
-            self.open(self._schedule)
+            self._reopen_schedule()
             print("schedule.rotate_forward()")
             self.update_statusbar("Scheduled rotated forward.")
 
@@ -308,7 +308,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
         if self._graph is not None:
             self._schedule = self._schedule.rotate_backward()
-            self.open(self._schedule)
+            self._reopen_schedule()
             print("schedule.rotate_backward()")
             self.update_statusbar("Scheduled rotated backward.")
 
@@ -327,7 +327,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if factor > 1:
                 schedule.increase_time_resolution(factor)
                 self._schedule = schedule
-                self.open(self._schedule)
+                self._reopen_schedule()
                 print(f"schedule.increase_time_resolution({factor})")
                 self.update_statusbar(f"Time resolution increased by a factor {factor}")
         else:  # Cancelled
@@ -350,7 +350,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             if int(factor) > 1:
                 schedule.decrease_time_resolution(int(factor))
                 self._schedule = schedule
-                self.open(self._schedule)
+                self._reopen_schedule()
                 print(f"schedule.decrease_time_resolution({factor})")
                 self.update_statusbar(f"Time resolution decreased by a factor {factor}")
         else:  # Cancelled
@@ -511,6 +511,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._graph = None
             del self._schedule
             self._schedule = None
+            self._selected_graph_id = None
             self.info_table_clear()
             self.update_statusbar("Closed schedule")
             self._toggle_file_loaded(False)
@@ -690,6 +691,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         graph_id : :data:`~b_asic.types.GraphID`
             GraphID of operation to fill information table with.
         """
+        self._selected_graph_id = graph_id
         self.info_table_clear_component()
         self._info_table_fill_component(graph_id)
 
@@ -786,7 +788,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     def open(self, schedule: Schedule) -> None:
         """Take a Schedule and create a SchedulerItem object."""
         self.close_schedule()
-        self._schedule = copy.deepcopy(schedule)
+        self._schedule = schedule.copy()
         self._graph = SchedulerItem(self._schedule)
         self._graph.setPos(1 / self._scale, 1 / self._scale)
         self.menu_close_schedule.setEnabled(True)
@@ -825,7 +827,14 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def _reopen_schedule(self) -> None:
-        self.open(cast(Schedule, self._schedule))
+        """Refresh internal edits without cloning or replacing the current graph."""
+        if self._graph is None:
+            return
+        self._graph.refresh()
+        self.info_table_update_schedule()
+        if self._selected_graph_id is not None:
+            self.info_table_update_component(self._selected_graph_id)
+        self._schedule_changed()
 
     def update_statusbar(self, msg: str) -> None:
         """

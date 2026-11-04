@@ -352,6 +352,12 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
             signal.set_inactive()
         self._update_axes()
 
+    def refresh(self) -> None:
+        """Refresh the existing items after timing or port-order changes."""
+        for item in self.components:
+            item.refresh()
+        self._redraw_all()
+
     def _update_axes(self, build=False) -> None:
         # build axes
         schedule_time = self.schedule.schedule_time
@@ -360,6 +366,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
             self._axes = AxesItem(schedule_time, y_pos_min + 0.5)
             self._event_items += self._axes.event_items
         else:
+            self._axes.set_width(schedule_time)
             self._axes.set_height(y_pos_min + 0.5)
         self._axes.setPos(0, y_pos_min + OPERATION_HEIGHT + OPERATION_GAP)
 
