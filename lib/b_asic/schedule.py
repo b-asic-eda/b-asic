@@ -9,7 +9,7 @@ import sys
 import tempfile
 from collections import defaultdict
 from collections.abc import Sequence
-from copy import copy
+from copy import copy, deepcopy
 from typing import cast
 
 import matplotlib.pyplot as plt
@@ -141,6 +141,10 @@ class Schedule:
             self._schedule_time = max_end_time
 
         self._validate()
+
+    def copy(self) -> "Schedule":
+        """Return an independent copy, including the SFG and scheduler state."""
+        return deepcopy(self)
 
     def __str__(self) -> str:
         """Return a string representation of this Schedule."""

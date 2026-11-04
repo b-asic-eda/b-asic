@@ -11,10 +11,11 @@ import re
 import warnings
 from collections import Counter, defaultdict, deque
 from collections.abc import Iterable, MutableSet, Sequence
+from copy import copy, deepcopy
 from fractions import Fraction
 from io import StringIO
 from queue import PriorityQueue
-from typing import TYPE_CHECKING, Literal, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Union, cast
 
 import networkx as nx
 import numpy as np
@@ -30,7 +31,7 @@ from b_asic.operation import (
     Operation,
     ResultKey,
 )
-from b_asic.port import InputPort, OutputPort, SignalSourceProvider
+from b_asic.port import InputPort, OutputPort, Port, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Delay, Input, Output
 from b_asic.state_space import StateSpace
@@ -595,6 +596,52 @@ class SFG(AbstractOperation):
             id_number_offset=self.id_number_offset,
             name=self.name,
         )
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "SFG":
+        """Copy graph objects in two passes without recursing along signal paths."""
+        pending: list[GraphComponent | Port] = [self]
+        originals = []
+        while pending:
+            original = pending.pop()
+            if id(original) in memo:
+                continue
+            # Allocate every graph object before copying any of its state. Cycles,
+            # fan-out and nested SFGs then resolve through the shared memo.
+            memo[id(original)] = copy(original)
+            originals.append(original)
+            if isinstance(original, SFG):
+                pending.extend(original._components_by_id.values())
+                # Preserve construction provenance without recursively copying
+                # the original graph through the keys of these dictionaries.
+                pending.extend(original._original_components_to_new)
+                pending.extend(original._original_components_to_new.values())
+            if isinstance(original, Operation):
+                pending.extend(original.inputs)
+                pending.extend(original.outputs)
+            elif isinstance(original, Port):
+                pending.append(original.operation)
+                pending.extend(original.signals)
+            elif isinstance(original, Signal):
+                pending.extend(
+                    port
+                    for port in (original.source, original.destination)
+                    if port is not None
+                )
+
+        for original in originals:
+            cloned = memo[id(original)]
+            state = deepcopy(original.__getstate__(), memo)
+            if hasattr(cloned, "__setstate__"):
+                cloned.__setstate__(state)
+                continue
+            # Python's default object state includes both __dict__ and inherited
+            # slots, which are used by operations and ports.
+            attributes, slots = state if isinstance(state, tuple) else (state, {})
+            if attributes is not None:
+                cloned.__dict__.update(attributes)
+            for name, value in slots.items():
+                setattr(cloned, name, value)
+        return memo[id(self)]
 
     @property
     def id_number_offset(self) -> GraphIDNumber:

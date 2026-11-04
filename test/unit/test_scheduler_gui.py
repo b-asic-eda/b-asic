@@ -954,23 +954,109 @@ def test_signal_wraps_port_immediately_after_schedule_time(
     assert signal_item.path().elementAt(0).x == pytest.approx(indent + 0.5)
 
 
+def test_open_long_chain(qtbot):
+    source = Input()
+    end = source
+    for _ in range(250):
+        end = ConstantMultiplication(0.5, end, latency=1)
+    original = Schedule(SFG([source], [Output(end)]))
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+
+    widget.open(original)
+
+    assert widget.schedule is not original
+    assert widget.schedule.start_times == original.start_times
+    assert len(widget._graph.components) == 252
+
+
+@pytest.mark.parametrize(
+    "action", ["asap", "alap", "swap", "rotate_forward", "rotate_backward"]
+)
+def test_internal_edits_preserve_schedule_and_items(qtbot, monkeypatch, action):
+    left, right = Input(), Input()
+    addition = Addition(left, right, latency=1)
+    product = ConstantMultiplication(0.5, addition, latency=2)
+    original = Schedule(SFG([left, right], [Output(product)]), cyclic=True)
+    original.set_schedule_time(8)
+    original.move_operation("out0", 8 - original.start_times["out0"])
+    original.move_operation("cmul0", 1)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(original)
+    schedule, graph = widget.schedule, widget._graph
+    items = graph.components.copy()
+    signals = graph._get_all_signals()
+    item = graph._operation_items["cmul0"]
+    widget.info_table_update_component("cmul0")
+    scene_item_count = len(widget._scene.items())
+
+    def unexpected_copy(_schedule):
+        pytest.fail("An internal edit must not clone the schedule")
+
+    monkeypatch.setattr(Schedule, "copy", unexpected_copy)
+    if action == "asap":
+        item._move_asap()
+        assert schedule.start_times["cmul0"] == 1
+    elif action == "alap":
+        item._move_alap()
+        assert schedule.start_times["cmul0"] == 6
+    elif action == "swap":
+        graph._swap_io_of_operation("add0")
+    else:
+        getattr(widget, f"_{action}")()
+
+    assert widget.schedule is schedule
+    assert widget._graph is graph
+    assert graph.components == items
+    assert graph._get_all_signals() == signals
+    assert widget._selected_graph_id == "cmul0"
+    assert len(widget._scene.items()) == scene_item_count
+    for signal in signals:
+        assert signal._src_key == f"out{signal._signal.source.index}"
+        assert signal._dest_key == f"in{signal._signal.destination.index}"
+        assert (
+            signal.path().currentPosition()
+            == signal._dest_operation.get_port_location(signal._dest_key)
+        )
+
+
 def test_increase_time_resolution(qtbot, monkeypatch, sfg_simple_filter):
     sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
     sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 4)
     schedule = Schedule(sfg_simple_filter, ASAPScheduler())
     original_schedule_time = schedule.schedule_time
-    opened_schedules = []
-
     widget = ScheduleMainWindow()
     qtbot.addWidget(widget)
-    widget._schedule = schedule
-    monkeypatch.setattr(widget, "open", opened_schedules.append)
+    widget.open(schedule)
+    graph = widget._graph
+    gui_schedule = widget.schedule
+    operation = graph._operation_items["cmul0"]
+    old_width = operation._latency_path.boundingRect().width()
+    child_count = len(operation.childItems())
+    top_level_items = {
+        item for item in widget._scene.items() if item.parentItem() is None
+    }
     monkeypatch.setattr(main_window.QInputDialog, "getInt", lambda *args: (2, True))
 
     widget._increase_time_resolution()
 
-    assert schedule.schedule_time == original_schedule_time * 2
-    assert opened_schedules == [schedule]
+    assert gui_schedule.schedule_time == original_schedule_time * 2
+    assert widget.schedule is gui_schedule
+    assert widget._graph is graph
+    assert graph._operation_items["cmul0"] is operation
+    assert operation._latency_path.boundingRect().width() == pytest.approx(
+        old_width * 2
+    )
+    assert graph.axes.width == gui_schedule.schedule_time
+    assert len(operation.childItems()) == child_count
+    assert {
+        item for item in widget._scene.items() if item.parentItem() is None
+    } == top_level_items
+    assert graph.axes.event_items[0].x() == pytest.approx(
+        graph._x_axis_indent + gui_schedule.schedule_time
+    )
+    assert schedule.schedule_time == original_schedule_time
     assert (
         widget.statusbar.currentMessage() == "Time resolution increased by a factor 2"
     )
@@ -982,12 +1068,17 @@ def test_decrease_time_resolution(qtbot, monkeypatch, sfg_simple_filter):
     schedule = Schedule(sfg_simple_filter, ASAPScheduler())
     schedule.increase_time_resolution(2)
     increased_schedule_time = schedule.schedule_time
-    opened_schedules = []
-
     widget = ScheduleMainWindow()
     qtbot.addWidget(widget)
-    widget._schedule = schedule
-    monkeypatch.setattr(widget, "open", opened_schedules.append)
+    widget.open(schedule)
+    graph = widget._graph
+    gui_schedule = widget.schedule
+    operation = graph._operation_items["cmul0"]
+    old_width = operation._latency_path.boundingRect().width()
+    child_count = len(operation.childItems())
+    top_level_items = {
+        item for item in widget._scene.items() if item.parentItem() is None
+    }
     monkeypatch.setattr(
         main_window.QInputDialog,
         "getItem",
@@ -996,8 +1087,22 @@ def test_decrease_time_resolution(qtbot, monkeypatch, sfg_simple_filter):
 
     widget._decrease_time_resolution()
 
-    assert schedule.schedule_time * 2 == increased_schedule_time
-    assert opened_schedules == [schedule]
+    assert gui_schedule.schedule_time * 2 == increased_schedule_time
+    assert widget.schedule is gui_schedule
+    assert widget._graph is graph
+    assert graph._operation_items["cmul0"] is operation
+    assert operation._latency_path.boundingRect().width() == pytest.approx(
+        old_width / 2
+    )
+    assert graph.axes.width == gui_schedule.schedule_time
+    assert len(operation.childItems()) == child_count
+    assert {
+        item for item in widget._scene.items() if item.parentItem() is None
+    } == top_level_items
+    assert graph.axes.event_items[0].x() == pytest.approx(
+        graph._x_axis_indent + gui_schedule.schedule_time
+    )
+    assert schedule.schedule_time == increased_schedule_time
     assert (
         widget.statusbar.currentMessage() == "Time resolution decreased by a factor 2"
     )

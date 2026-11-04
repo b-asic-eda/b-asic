@@ -5,6 +5,7 @@ import re
 import string
 import sys
 from collections import Counter
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -36,6 +37,25 @@ from b_asic.sfg_generators import wdf_allpass
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
 from b_asic.wdf_operations import SymmetricTwoportAdaptor
+
+
+def test_deepcopy_nested_sfg_with_fanout():
+    source = Input()
+    inner = SFG([source], [Output(ConstantMultiplication(0.5, source, latency=1))])
+    for _ in range(3):
+        source = Input()
+        inner = SFG([source], [Output(inner(source))])
+    source = Input()
+    nested = inner(source)
+    original = SFG([source], [Output(nested + nested)])
+
+    cloned = deepcopy(original)
+
+    assert cloned.evaluate(4) == original.evaluate(4) == 4
+    addition = cloned.find_by_type(Addition)[0]
+    assert addition.input(0).signals[0].source is addition.input(1).signals[0].source
+    assert addition.input(0).signals[0].source.operation in cloned.operations
+    assert addition.input(0).signals[0].source.operation not in original.operations
 
 
 class TestInit:

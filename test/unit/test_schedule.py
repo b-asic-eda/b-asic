@@ -5,6 +5,8 @@ B-ASIC test suite for the schedule module and Schedule class.
 import io
 import pickle
 import re
+import sys
+from copy import deepcopy
 
 import matplotlib.testing.decorators
 import pytest
@@ -17,6 +19,78 @@ from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg import SFG
 from b_asic.sfg_generators import direct_form_1_iir, fir
 from b_asic.special_operations import Delay, Input, Output
+
+
+def test_copy_long_chain_without_recursion_limit_change():
+    limit = sys.getrecursionlimit()
+    source = Input()
+    end = source
+    for _ in range(limit + 25):
+        end = ConstantMultiplication(0.5, end, latency=1)
+    schedule = Schedule(SFG([source], [Output(end)]))
+
+    cloned = schedule.copy()
+
+    assert sys.getrecursionlimit() == limit
+    assert cloned.start_times == schedule.start_times
+    assert cloned.laps == schedule.laps
+    assert cloned.schedule_time == schedule.schedule_time
+    assert cloned._sfg is not schedule._sfg
+    assert cloned._scheduler is not schedule._scheduler
+    assert cloned._scheduler._schedule is cloned
+    cloned.start_times["in0"] = 1
+    assert schedule.start_times["in0"] == 0
+
+
+@pytest.mark.parametrize("clone", [deepcopy, Schedule.copy])
+def test_copy_preserves_graph_and_isolates_edits(clone, precedence_sfg_delays):
+    precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type_name(
+        ConstantMultiplication.type_name(), 3
+    )
+    schedule = Schedule(precedence_sfg_delays, cyclic=True)
+    schedule._sfg._input_operations[0].value = 0.75
+    operation = schedule._sfg.find_by_type(ConstantMultiplication)[0]
+    shared = [1, 2]
+    operation.set_param("metadata", [shared, shared])
+    schedule.set_y_location(operation.graph_id, 5)
+    # Populate caches containing graph objects before cloning.
+    schedule._sfg.get_precedence_list()
+    schedule._sfg.get_operations_topological_order()
+
+    cloned = clone(schedule)
+
+    assert cloned.start_times == schedule.start_times
+    assert cloned.laps == schedule.laps
+    assert cloned._y_locations == schedule._y_locations
+    assert cloned._sfg._input_operations[0].value == 0.75
+    for original in schedule._sfg.operations:
+        copied = cloned._sfg.find_by_id(original.graph_id)
+        assert copied is not original
+        assert type(copied) is type(original)
+        assert copied.name == original.name
+        assert copied.latency_offsets == original.latency_offsets
+        assert copied.execution_time == original.execution_time
+        for port in copied.inputs:
+            assert port.operation is copied
+            for signal in port.signals:
+                assert signal.destination is port
+                source = cloned._sfg.find_by_id(signal.source.operation.graph_id)
+                assert signal.source is source.output(signal.source.index)
+                assert signal in signal.source.signals
+    assert cloned._scheduler._schedule is cloned
+    copied_operation = cloned._sfg.find_by_id(operation.graph_id)
+    metadata = copied_operation.param("metadata")
+    assert metadata[0] is metadata[1]
+    assert metadata[0] is not shared
+    metadata[0].append(3)
+    copied_operation.set_latency(7)
+    cloned.laps[next(iter(cloned.laps))] += 1
+    cloned.set_y_location(operation.graph_id, 0)
+    assert shared == [1, 2]
+    assert operation.latency == 3
+    assert schedule.get_y_location(operation.graph_id) == 5
+    assert schedule.laps != cloned.laps
 
 
 class TestInit:
