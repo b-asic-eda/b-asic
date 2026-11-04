@@ -17,6 +17,7 @@ sfg_gui.main\_window module
 
 .. automodule:: b_asic.sfg_gui.main_window
    :members:
+   :exclude-members: deque
    :undoc-members:
    :show-inheritance:
 

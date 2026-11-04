@@ -8,5 +8,6 @@
 
 .. automodule:: b_asic.graph_component
    :members:
+   :exclude-members: deque
    :undoc-members:
    :show-inheritance:
