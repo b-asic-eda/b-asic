@@ -1,5 +1,23 @@
+from collections.abc import Callable
+from functools import wraps
+
+import matplotlib as mpl
+
+
+def _with_default_plot_font[**Params, Result](
+    function: Callable[Params, Result],
+) -> Callable[Params, Result]:
+    @wraps(function)
+    def wrapped(*args: Params.args, **kwargs: Params.kwargs) -> Result:
+        with mpl.rc_context({"font.family": DEFAULT_FONT_FAMILY}):
+            return function(*args, **kwargs)
+
+    return wrapped
+
+
 LATENCY_COLOR = (0, 185, 231)
 EXECUTION_TIME_COLOR = (255, 100, 66, 200)
+DEFAULT_FONT_FAMILY = "DejaVu Serif"
 SIGNAL_COLOR = (0, 0, 0)
 WARNING_COLOR = (255, 0, 0)
 

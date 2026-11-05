@@ -1542,7 +1542,9 @@ class TestGetComponentsOfType:
 class TestPrecedenceGraph:
     def test_precedence_graph(self, sfg_simple_filter):
         res = (
-            'digraph {\n\trankdir=LR\n\tsubgraph cluster_0 {\n\t\tlabel=N0\n\t\t"in0.0"'
+            'digraph {\n\tfontname="DejaVu Serif" rankdir=LR\n'
+            '\tnode [fontname="DejaVu Serif"]\n\tedge [fontname="DejaVu Serif"]\n'
+            '\tsubgraph cluster_0 {\n\t\tlabel=N0\n\t\t"in0.0"'
             ' [label=in0 height=0.1 shape=rectangle width=0.1]\n\t\t"t0.0" [label=t0'
             " height=0.1 shape=rectangle width=0.1]\n\t}\n\tsubgraph cluster_1"
             ' {\n\t\tlabel=N1\n\t\t"cmul0.0" [label=cmul0 height=0.1 shape=rectangle'
@@ -1582,7 +1584,7 @@ class TestSFGGraph:
 (t0)" shape=square]
 	"t0.0" -> cmul0
 }"""
-        assert sfg_simple_filter.display().source in (
+        assert sfg_simple_filter.display(fontname=None).source in (
             res,
             res + "\n",
         )
@@ -1609,7 +1611,7 @@ class TestSFGGraph:
 	"t0.0" -> cmul0 [label=s4]
 }"""
 
-        assert sfg_simple_filter.display(info="id").source in (
+        assert sfg_simple_filter.display(info="id", fontname=None).source in (
             res,
             res + "\n",
         )
@@ -1633,7 +1635,7 @@ class TestSFGGraph:
 (t0)" shape=square]
 	t0 -> cmul0
 }"""
-        assert sfg_simple_filter.display(branch_node=False).source in (
+        assert sfg_simple_filter.display(branch_node=False, fontname=None).source in (
             res,
             res + "\n",
         )
@@ -1660,10 +1662,26 @@ class TestSFGGraph:
 	"t0.0" -> cmul0
 }"""
 
-        assert sfg_simple_filter.display(port_numbering=False).source in (
+        assert sfg_simple_filter.display(
+            port_numbering=False, fontname=None
+        ).source in (
             res,
             res + "\n",
         )
+
+    @pytest.mark.parametrize("fontname", [None, "DejaVu Sans"])
+    def test_show_font(self, sfg_simple_filter, monkeypatch, fontname):
+        graphs = []
+
+        def capture_graph(graph):
+            graphs.append(graph)
+
+        monkeypatch.setattr("graphviz.Digraph.view", capture_graph)
+        kwargs = {} if fontname is None else {"fontname": fontname}
+        sfg_simple_filter.show(**kwargs)
+        expected = fontname or "DejaVu Serif"
+        assert f'fontname="{expected}"' in graphs[0].source
+        assert 'fontname="DejaVu Serif"' in sfg_simple_filter.display().source
 
     def test_show_sfg_invalid_format(self, sfg_simple_filter):
         with pytest.raises(ValueError, match=r"unknown format: 'ppddff'"):

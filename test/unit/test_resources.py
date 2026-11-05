@@ -170,6 +170,32 @@ class TestProcessCollectionPlainMemoryVariable:
         finally:
             plt.close(fig)
 
+    @pytest.mark.parametrize("fontname", [None, "DejaVu Sans"])
+    def test_exclusion_graph_font(self, fontname):
+        graph = nx.path_graph(2)
+        fig, ax = plt.subplots()
+        try:
+            kwargs = {} if fontname is None else {"font_family": fontname}
+            draw_exclusion_graph_coloring(graph, dict.fromkeys(graph, 0), ax, **kwargs)
+            assert all(
+                text.get_fontfamily() == [fontname or "DejaVu Serif"]
+                for text in ax.texts
+            )
+        finally:
+            plt.close(fig)
+
+    def test_plot_default_font(self, simple_collection):
+        with plt.rc_context({"font.family": "DejaVu Sans"}):
+            ax = simple_collection.plot()
+            try:
+                assert ax.xaxis.label.get_fontfamily() == ["DejaVu Serif"]
+                assert all(
+                    text.get_fontfamily() == ["DejaVu Serif"] for text in ax.texts
+                )
+                assert plt.rcParams["font.family"] == ["DejaVu Sans"]
+            finally:
+                plt.close(ax.figure)
+
     @pytest.mark.parametrize("component_sizes", [(), (1,), (5,), (4, 3, 1), (1,) * 9])
     def test_exclusion_graph_layout_retains_all_nodes(self, component_sizes):
         graph = (
@@ -316,6 +342,28 @@ class TestProcessCollectionPlainMemoryVariable:
 
     def test_show_total_execution_times(self, simple_collection: ProcessCollection):
         simple_collection.show_total_execution_times()
+
+    @pytest.mark.parametrize(
+        "method", ["show", "show_port_accesses", "show_total_execution_times"]
+    )
+    def test_show_uses_default_font(self, simple_collection, monkeypatch, method):
+        figures = []
+
+        def capture_figure(fig):
+            figures.append(fig)
+
+        monkeypatch.setattr("matplotlib.figure.Figure.show", capture_figure)
+        with plt.rc_context({"font.family": "DejaVu Sans"}):
+            getattr(simple_collection, method)(title="Test")
+            try:
+                assert figures[0]._suptitle.get_fontfamily() == ["DejaVu Serif"]
+                assert all(
+                    ax.xaxis.label.get_fontfamily() == ["DejaVu Serif"]
+                    for ax in figures[0].axes
+                )
+                assert plt.rcParams["font.family"] == ["DejaVu Sans"]
+            finally:
+                plt.close(figures[0])
 
     def test_add_remove_process(self, simple_collection: ProcessCollection):
         new_proc = PlainMemoryVariable(1, 0, {0: 3})

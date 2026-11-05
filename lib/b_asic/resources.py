@@ -29,7 +29,12 @@ from pulp import (
 
 from b_asic._cp_utils import _solve_cp_problem
 from b_asic._ilp_utils import _solve_ilp_problem
-from b_asic._preferences import LATENCY_COLOR, WARNING_COLOR
+from b_asic._preferences import (
+    DEFAULT_FONT_FAMILY,
+    LATENCY_COLOR,
+    WARNING_COLOR,
+    _with_default_plot_font,
+)
 from b_asic.code_printer.vhdl.common import is_valid_vhdl_identifier
 from b_asic.process import (
     MemoryInputPort,
@@ -234,6 +239,7 @@ def draw_exclusion_graph_coloring(
     pos = kwargs.pop("pos", None)
     if pos is None:
         pos = _exclusion_graph_layout(exclusion_graph)
+    kwargs.setdefault("font_family", DEFAULT_FONT_FAMILY)
     nx.draw_networkx(
         exclusion_graph,
         node_color=node_color_list,
@@ -684,7 +690,19 @@ class ProcessCollection:
         """
         # Set up the Axes object
         if ax is None:
-            _, _ax = plt.subplots(layout="constrained")
+            with plt.rc_context({"font.family": DEFAULT_FONT_FAMILY}):
+                _, axes = plt.subplots(layout="constrained")
+                return self.plot(
+                    ax=axes,
+                    show_name=show_name,
+                    bar_color=bar_color,
+                    marker_color=marker_color,
+                    marker_read=marker_read,
+                    marker_write=marker_write,
+                    show_markers=show_markers,
+                    row=row,
+                    allow_excessive_lifetimes=allow_excessive_lifetimes,
+                )
         else:
             _ax = ax
 
@@ -778,6 +796,7 @@ class ProcessCollection:
             pass
         return _ax
 
+    @_with_default_plot_font
     def show(
         self,
         *,
@@ -2192,6 +2211,7 @@ class ProcessCollection:
             for process_collection_set in process_collection_set_list
         ]
 
+    @_with_default_plot_font
     def _repr_svg_(self) -> str:
         """
         Generate an SVG_ of the resource collection.
@@ -2938,6 +2958,7 @@ class ProcessCollection:
 
         return dict(sorted(Counter(accesses).items()))
 
+    @_with_default_plot_font
     def show_port_accesses(self, title: str = "") -> None:
         """
         Show read, write, and total accesses.
@@ -3005,6 +3026,7 @@ class ProcessCollection:
 
         return dict(sorted(c.items()))
 
+    @_with_default_plot_font
     def show_total_execution_times(self, title: str = "") -> None:
         """
         Show total execution time for each time slot.

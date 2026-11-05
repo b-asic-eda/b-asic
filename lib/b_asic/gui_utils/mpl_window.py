@@ -8,12 +8,15 @@ from numpy import ndarray
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QDialog, QVBoxLayout
 
+from b_asic._preferences import _with_default_plot_font
+
 
 class MPLWindow(QDialog):
     """
     Dialog for plotting Matplotlib things.
     """
 
+    @_with_default_plot_font
     def __init__(
         self, title: str = "B-ASIC", subplots: tuple[int, int] = (1, 1)
     ) -> None:

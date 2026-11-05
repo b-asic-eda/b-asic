@@ -15,7 +15,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread, Slot
-from qtpy.QtGui import QCursor, QIcon, QKeySequence, QPainter
+from qtpy.QtGui import QCursor, QFont, QIcon, QKeySequence, QPainter
 from qtpy.QtWidgets import (
     QAction,
     QApplication,
@@ -35,6 +35,7 @@ from qtpy.QtWidgets import (
 
 import b_asic.core_operations
 import b_asic.special_operations
+from b_asic._preferences import DEFAULT_FONT_FAMILY
 from b_asic._version import version
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.decorators import decorate_class, handle_error
@@ -735,6 +736,7 @@ class SFGMainWindow(QMainWindow):
                 )
             attr_button_scene.setFlag(QGraphicsItem.ItemIsSelectable, True)
             operation_label = QGraphicsTextItem(op.name, attr_button_scene)
+            operation_label.setFont(QFont(DEFAULT_FONT_FAMILY))
             if not self._show_names:
                 operation_label.setOpacity(0)
             operation_label.setTransformOriginPoint(

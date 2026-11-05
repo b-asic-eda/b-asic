@@ -355,7 +355,7 @@ class PreferencesDialog(QWidget):
         """
         Reset the font settings.
         """
-        FONT.current_font = QFont("Times", 12)
+        FONT.current_font = QFont(FONT.DEFAULT)
         FONT.changed = False
         FONT.color = FONT.DEFAULT_COLOR
         FONT.size = int(FONT.DEFAULT.pointSizeF())

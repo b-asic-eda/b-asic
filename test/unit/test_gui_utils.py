@@ -35,3 +35,4 @@ def test_mpl_window_axes_shapes(qtbot):
 
     assert single_axes.axes.__class__.__name__ == "Axes"
     assert multiple_axes.axes.shape == (3,)
+    assert single_axes.axes.xaxis.label.get_fontfamily() == ["DejaVu Serif"]
