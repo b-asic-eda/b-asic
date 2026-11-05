@@ -213,7 +213,7 @@ def test_general_constant_value_propagated():
 def test_preserves_delay_initial_state():
     delay = Delay(Constant(0), initial_value=7)
     original = SFG(outputs=[Output(Addition(delay, Constant(0)))])
-    simplified = original.constant_propagation()
+    simplified = original.constant_propagation(assume_zero_initial_state=False)
     assert len(simplified.find_by_type(Delay)) == 1
     simulation = Simulation(simplified)
     simulation.run_for(3)
@@ -226,7 +226,7 @@ def test_propagation_with_feedback():
     add = Addition(source, delay)
     delay <<= add
     original = SFG([source], [Output(Addition(add, Constant(0)))])
-    simplified = original.constant_propagation()
+    simplified = original.constant_propagation(assume_zero_initial_state=False)
     assert len(simplified.find_by_type(Addition)) == 1
     simulation = Simulation(simplified, [[1, 2, 3]])
     simulation.run_for(3)
@@ -512,7 +512,7 @@ def test_all_constant_chain_and_partial_selection():
 @pytest.mark.parametrize("value", [5, 2 + 3j])
 def test_constant_delay_output(value):
     original = SFG(outputs=[Output(Delay(Constant(value), initial_value=value))])
-    simplified = original.constant_propagation()
+    simplified = original.constant_propagation(assume_zero_initial_state=False)
     assert not simplified.find_by_type(Delay)
     assert simplified.evaluate_outputs([]) == [value]
 

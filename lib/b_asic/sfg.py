@@ -349,13 +349,27 @@ class SFG(AbstractOperation):
         """
         Return a new SFG identical without any of its external connections.
         """
-        return SFG(
+        result = SFG(
             inputs=self._input_operations,
             outputs=self._output_operations,
             id_number_offset=self.id_number_offset,
             name=self.name if name is None else Name(name),
             input_sources=src or None,
         )
+        self._copy_sink_roots_to(result)
+        return result
+
+    def _copy_sink_roots_to(self, result: "SFG") -> None:
+        """Retain sink branches disconnected from the graph interface."""
+        from b_asic.utility_operations import Sink  # noqa: PLC0415
+
+        for operation in self.operations:
+            if (
+                isinstance(operation, Sink)
+                and operation.input(0).connected_source is not None
+                and operation not in result._original_components_to_new
+            ):
+                result._add_operation_connected_tree_copy(operation)
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -506,6 +520,8 @@ class SFG(AbstractOperation):
         Any operation in this SFG that is itself an SFG will have its internal
         operations merged into the returned SFG. This is applied recursively
         until no nested SFGs remain.
+        Sinks and their feeding branches are retained, including branches
+        disconnected from the graph interface.
 
         Parameters
         ----------
@@ -515,6 +531,8 @@ class SFG(AbstractOperation):
             Operations whose ``to_sfg()`` only wraps themselves (i.e. primitives)
             are left unchanged.
         """
+        from b_asic.utility_operations import Sink  # noqa: PLC0415
+
         sfg_copy = self()
 
         changed = True
@@ -522,15 +540,36 @@ class SFG(AbstractOperation):
             changed = False
             for op in sfg_copy.operations:
                 if isinstance(op, SFG):
-                    op.connect_external_signals_to_components()
-                    sfg_copy = SFG(
-                        inputs=sfg_copy._input_operations,
-                        outputs=sfg_copy._output_operations,
-                        name=sfg_copy.name,
-                    )
+                    # Inline interfaces even when an input is unused, or the
+                    # subgraph has no outputs and only terminates at sinks.
+                    for port, input_op in zip(
+                        op.inputs, op.input_operations, strict=True
+                    ):
+                        source = port.connected_source
+                        if source is None:
+                            raise ValueError("Missing source in signal.")
+                        for signal in list(input_op.output(0).signals):
+                            signal.set_source(source)
+                        for signal in list(port.signals):
+                            signal.remove_source()
+                            signal.remove_destination()
+                    for port, output_op in zip(
+                        op.outputs, op.output_operations, strict=True
+                    ):
+                        source = output_op.input(0).connected_source
+                        if source is None:
+                            raise ValueError("Missing source in signal.")
+                        for signal in list(port.signals):
+                            signal.set_source(source)
+                        for signal in list(output_op.input(0).signals):
+                            signal.remove_source()
+                            signal.remove_destination()
+                    flattened = sfg_copy()
+                    op._copy_sink_roots_to(flattened)
+                    sfg_copy = flattened
                     changed = True
                     break
-                if expand and not isinstance(op, (Input, Output)):
+                if expand and not isinstance(op, (Input, Output, Sink)):
                     op_sfg = op.to_sfg()
                     inner = [
                         o
@@ -588,7 +627,7 @@ class SFG(AbstractOperation):
         return input_indexes_required
 
     def copy(self, *args, **kwargs) -> GraphComponent:
-        return super().copy(
+        result = super().copy(
             *args,
             **kwargs,
             inputs=self._input_operations,
@@ -596,6 +635,8 @@ class SFG(AbstractOperation):
             id_number_offset=self.id_number_offset,
             name=self.name,
         )
+        self._copy_sink_roots_to(cast(SFG, result))
+        return result
 
     def __deepcopy__(self, memo: dict[int, Any]) -> "SFG":
         """Copy graph objects in two passes without recursing along signal paths."""
@@ -1132,6 +1173,8 @@ class SFG(AbstractOperation):
     def constant_propagation(
         self,
         target: type[Operation] | GraphID | Iterable[GraphID] | None = None,
+        *,
+        assume_zero_initial_state: bool = True,
     ) -> "SFG":
         """
         Return a copy with constant expressions evaluated and propagated.
@@ -1146,6 +1189,8 @@ class SFG(AbstractOperation):
         MAD and MADS pass through their accumulator when the product is zero,
         and become a multiplication (possibly negated) when the accumulator is
         zero or disabled.
+        WDF adaptors with zero inputs reduce to arithmetic on the remaining
+        inputs, sharing coefficient multiplications between outputs.
 
         Parameters
         ----------
@@ -1155,13 +1200,23 @@ class SFG(AbstractOperation):
             If omitted, simplify all supported operations. Iterators are consumed
             once. Unknown IDs raise ValueError; invalid target values raise
             TypeError. Dead branches are removed after simplification, including
-            unselected operations that no longer feed an output.
+            unselected operations that no longer feed an output or an explicit
+            Sink.
+        assume_zero_initial_state : bool, default: True
+            Assume all delays start at zero, overriding their initial values in
+            the returned copy. Prove which feedback signals remain zero and
+            propagate them through all supported operations. A delay driven by
+            a nonzero or time-varying signal is not treated as constant. Set to
+            False to preserve configured initial states and disable this
+            feedback analysis.
 
         Notes
         -----
         Input and output ordering and names are preserved, including inputs
         that become unused. Arithmetic branches that no longer feed an output
-        are removed. A constant-fed delay is folded when its initial value
+        or an explicit Sink are removed. Sinks and the branches feeding them
+        are retained; use :meth:`sink_propagation` to remove terminated branches.
+        A constant-fed delay is folded when its initial value
         matches its input; delays with initial transients remain. The rules
         apply to operations directly inside this SFG. Each operation supplies
         its own private ``_constant_propagation`` method, returning a replacement
@@ -1173,11 +1228,17 @@ class SFG(AbstractOperation):
         This is an algebraic transformation intended before scheduling;
         removed operators' timing and quantization are not preserved.
         """
-        return self._propagate("_constant_propagation", target)
+        return self._propagate(
+            "_constant_propagation",
+            target,
+            assume_zero_initial_state=assume_zero_initial_state,
+        )
 
     def sink_propagation(
         self,
         target: type[Operation] | GraphID | Iterable[GraphID] | None = None,
+        *,
+        assume_zero_initial_state: bool = True,
     ) -> "SFG":
         """
         Return a copy with unused results propagated backwards from Sink nodes.
@@ -1187,6 +1248,8 @@ class SFG(AbstractOperation):
         inputs. Operation-specific ``_sink_propagation`` hooks can simplify
         partially used multi-output operations. Computations shared with a
         required output are retained, including their delay state.
+        WDF adaptor outputs are expanded into only the arithmetic needed for
+        the retained results.
 
         Parameters
         ----------
@@ -1194,6 +1257,10 @@ class SFG(AbstractOperation):
             Restrict operation replacements as in :meth:`constant_propagation`.
             Dead branches that no longer feed a graph output are removed after
             replacements, including unobservable feedback loops.
+        assume_zero_initial_state : bool, default: True
+            Use zero initial delay states and proven zero feedback signals as
+            in :meth:`constant_propagation`. Set to False to preserve configured
+            initial states and disable this feedback analysis.
 
         Notes
         -----
@@ -1202,12 +1269,18 @@ class SFG(AbstractOperation):
         To discard a graph output, first replace its Output node with a Sink.
         This is an algebraic transformation intended before scheduling.
         """
-        return self._propagate("_sink_propagation", target)
+        return self._propagate(
+            "_sink_propagation",
+            target,
+            assume_zero_initial_state=assume_zero_initial_state,
+        )
 
     def _propagate(
         self,
         method: Literal["_constant_propagation", "_sink_propagation"],
         target: type[Operation] | GraphID | Iterable[GraphID] | None,
+        *,
+        assume_zero_initial_state: bool = True,
     ) -> "SFG":
         """Apply operation hooks and inline their replacements until stable."""
         from b_asic.utility_operations import Sink  # noqa: PLC0415
@@ -1248,6 +1321,90 @@ class SFG(AbstractOperation):
 
         sfg_copy = self()
         operations = sfg_copy.operations
+        zero_outputs: set[OutputPort] = set()
+
+        def replacement_with_zeros(
+            operation: Operation,
+            hook: Literal["_constant_propagation", "_sink_propagation"],
+            zeros: set[OutputPort],
+        ) -> "SFG | None":
+            """Expose proven zeros to existing hooks without changing their API."""
+            from b_asic.core_operations import Constant  # noqa: PLC0415
+
+            changed_sources: list[tuple[Signal, OutputPort]] = []
+            try:
+                for port in operation.inputs:
+                    source = port.connected_source
+                    if source is not None and source in zeros:
+                        for signal in list(port.signals):
+                            changed_sources.append((signal, source))
+                            signal.set_source(Constant(0).output(0))
+                return getattr(operation, hook)()
+            finally:
+                for signal, source in changed_sources:
+                    signal.set_source(source)
+
+        if assume_zero_initial_state:
+            from b_asic.core_operations import Constant  # noqa: PLC0415
+
+            state_ops = list(operations)
+            while state_ops:
+                operation = state_ops.pop()
+                if isinstance(operation, Delay):
+                    operation.initial_value = 0
+                elif isinstance(operation, SFG):
+                    state_ops.extend(operation.operations)
+
+            candidates = {op.output(0) for op in operations if isinstance(op, Delay)}
+            constant_zeros = {
+                op.output(0)
+                for op in operations
+                if isinstance(op, Constant) and op.value == 0
+            }
+            # Assume candidate delay outputs are zero, propagate forwards, then
+            # reject any delay whose input cannot be proved zero. Repeating
+            # this computes a self-consistent invariant for the zero state.
+            while candidates:
+                zeros = candidates | constant_zeros
+                growing = True
+                while growing:
+                    growing = False
+                    for operation in operations:
+                        if (
+                            isinstance(operation, Delay)
+                            or not operation.output_count
+                            or all(port in zeros for port in operation.outputs)
+                            or any(
+                                port.connected_source is None
+                                for port in operation.inputs
+                            )
+                        ):
+                            continue
+                        replacement = replacement_with_zeros(
+                            operation, "_constant_propagation", zeros
+                        )
+                        if replacement is None:
+                            continue
+                        for index, output in enumerate(replacement.output_operations):
+                            source = output.input(0).connected_source
+                            port = operation.output(index)
+                            if (
+                                source is not None
+                                and isinstance(source.operation, Constant)
+                                and source.operation.value == 0
+                                and port not in zeros
+                            ):
+                                zeros.add(port)
+                                growing = True
+                retained = {
+                    port
+                    for port in candidates
+                    if port.operation.input(0).connected_source in zeros
+                }
+                if retained == candidates:
+                    zero_outputs = zeros
+                    break
+                candidates = retained
         pending = deque(operations)
         changed = False
 
@@ -1268,7 +1425,7 @@ class SFG(AbstractOperation):
             sources = [port.connected_source for port in operation.inputs]
             if any(source is None for source in sources):
                 continue
-            replacement = getattr(operation, method)()
+            replacement = replacement_with_zeros(operation, method, zero_outputs)
             if replacement is None:
                 continue
             if not isinstance(replacement, SFG):
@@ -1316,10 +1473,13 @@ class SFG(AbstractOperation):
 
         if changed or (sink_mode and target is None):
             # Inputs are explicit SFG interface nodes, so rebuilding alone can
-            # retain dead branches reachable from them. Find output ancestors
-            # first, including feedback through delays, and detach dead inputs.
+            # retain dead branches reachable from them. Find ancestors of the
+            # retained roots, including feedback through delays. In constant
+            # propagation explicit sinks are roots alongside graph outputs.
             live = set()
             pending = deque(sfg_copy.output_operations)
+            if not sink_mode:
+                pending.extend(op for op in operations if isinstance(op, Sink))
             while pending:
                 operation = pending.popleft()
                 if operation in live:
