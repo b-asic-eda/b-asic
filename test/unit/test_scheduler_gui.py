@@ -1168,3 +1168,36 @@ def test_open_preferences_dialog(qtbot):
     widget.open_preferences_dialog()
     widget._preferences_dialog.close()
     widget.exit_app()
+
+
+def test_execution_time_plot_font(qtbot, secondorder_iir_schedule):
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(secondorder_iir_schedule)
+    widget._show_execution_times_for_variables()
+    axes = widget._execution_time_for_variables.axes
+    assert axes.xaxis.label.get_fontfamily() == ["DejaVu Serif"]
+    assert all(text.get_fontfamily() == ["DejaVu Serif"] for text in axes.texts)
+    widget._update_execution_times_for_variables()
+    assert axes.xaxis.label.get_fontfamily() == ["DejaVu Serif"]
+    widget._execution_time_for_variables.close()
+    widget.exit_app()
+
+
+def test_reset_font_uses_default(qtbot, monkeypatch):
+    from b_asic.scheduler_gui._preferences import FONT
+
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open_preferences_dialog()
+    dialog = widget._preferences_dialog
+    for attribute in ("current_font", "changed", "color", "size", "bold", "italic"):
+        monkeypatch.setattr(FONT, attribute, getattr(FONT, attribute))
+    monkeypatch.setattr(dialog, "update_font", lambda: None)
+    monkeypatch.setattr(widget, "load_preferences", lambda: None)
+    monkeypatch.setattr(dialog, "match_dialog_font", lambda: None)
+    dialog.reset_font_clicked()
+    assert FONT.current_font.family() == "DejaVu Serif"
+    assert not FONT.changed
+    dialog.close()
+    widget.exit_app()

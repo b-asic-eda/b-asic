@@ -22,6 +22,7 @@ import numpy as np
 import numpy.typing as npt
 from graphviz import Digraph
 
+from b_asic._preferences import DEFAULT_FONT_FAMILY
 from b_asic.data_type import DataType
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
@@ -1514,7 +1515,9 @@ class SFG(AbstractOperation):
         """
         p_list = self.get_precedence_list()
         pg = Digraph()
-        pg.attr(rankdir="LR")
+        pg.attr(rankdir="LR", fontname=DEFAULT_FONT_FAMILY)
+        pg.attr("node", fontname=DEFAULT_FONT_FAMILY)
+        pg.attr("edge", fontname=DEFAULT_FONT_FAMILY)
 
         # Creates nodes for each output port in the precedence list
         for i, ports in enumerate(p_list):
@@ -2135,7 +2138,7 @@ class SFG(AbstractOperation):
         nodesep: float | None = None,
         size: tuple[float, float] | None = None,
         force_size: bool = False,
-        fontname: str | None = None,
+        fontname: str | None = DEFAULT_FONT_FAMILY,
         fontsize: float | None = None,
     ) -> Digraph:
         """
@@ -2186,7 +2189,8 @@ class SFG(AbstractOperation):
             and graphviz scales the entire drawing (including fonts) to fill
             it.
         fontname : str, optional
-            Font name for all node and edge labels, e.g. ``"Times New Roman"``.
+            Font name for all node and edge labels. Defaults to
+            ``b_asic._preferences.DEFAULT_FONT_FAMILY``, None uses Graphviz's default.
         fontsize : float, optional
             Font size (in points) for all node and edge labels.
             Note: if ``force_size=True``, graphviz will scale fonts
@@ -2421,7 +2425,7 @@ class SFG(AbstractOperation):
         nodesep: float | None = None,
         size: tuple[float, float] | None = None,
         force_size: bool = False,
-        fontname: str | None = "Times New Roman",
+        fontname: str | None = DEFAULT_FONT_FAMILY,
         fontsize: float | None = None,
     ) -> None:
         """
@@ -2474,8 +2478,9 @@ class SFG(AbstractOperation):
         force_size : bool, default: False
             When True, the ``size`` bounding box is treated as an exact target
             and graphviz scales the entire drawing (including fonts) to fill it.
-        fontname : str, default: "Times New Roman"
-            Font name for all node and edge labels.
+        fontname : str, optional
+            Font name for all node and edge labels. Defaults to
+            ``b_asic._preferences.DEFAULT_FONT_FAMILY``, None uses Graphviz's default.
         fontsize : float, optional
             Font size (in points) for all node and edge labels.
         """

@@ -28,6 +28,10 @@ def test_start_with_data(qtbot):
 
     assert widget._checklist.count() == 6
     assert len(widget._plot_axes.lines) == 1
+    assert widget._plot_axes.xaxis.label.get_fontfamily() == ["DejaVu Serif"]
+    assert widget._legend.get_texts()[0].get_fontfamily() == ["DejaVu Serif"]
+    widget._update_legend()
+    assert widget._legend.get_texts()[0].get_fontfamily() == ["DejaVu Serif"]
 
 
 @pytest.mark.filterwarnings("ignore:No artists with labels found to put in legend")

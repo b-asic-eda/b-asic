@@ -25,6 +25,7 @@ from natsort import natsorted
 
 from b_asic import Signal
 from b_asic._preferences import (
+    DEFAULT_FONT_FAMILY,
     EXECUTION_TIME_COLOR,
     LATENCY_COLOR,
     OPERATION_GAP,
@@ -1681,7 +1682,7 @@ class Schedule:
         fmt: str = "pdf",
         operation_gap: float = OPERATION_GAP,
         title: str | None = None,
-        fontname: str | None = "Times New Roman",
+        fontname: str | None = DEFAULT_FONT_FAMILY,
         fontsize: int | None = None,
         figsize: tuple[float, float] | None = None,
     ) -> None:
@@ -1697,8 +1698,9 @@ class Schedule:
             the operation is always 1.
         title : str, optional
             Figure title.
-        fontname : str, default: "Times New Roman"
-            Font to use for all text in the figure.
+        fontname : str, optional
+            Font to use for all text in the figure. Defaults to
+            ``b_asic._preferences.DEFAULT_FONT_FAMILY``, None uses Matplotlib's default.
         fontsize : int, optional
             Base font size for all text in the figure.
         figsize : (float, float), optional
@@ -1712,7 +1714,7 @@ class Schedule:
             figsize=figsize,
         )
         if title:
-            fig.suptitle(title)
+            fig.suptitle(title, fontfamily=fontname)
         with tempfile.NamedTemporaryFile(suffix=f".{fmt}", delete=False) as f:
             tmp_path = f.name
         fig.savefig(tmp_path, format=fmt)
@@ -1722,7 +1724,7 @@ class Schedule:
     def _get_figure(
         self,
         operation_gap: float = OPERATION_GAP,
-        fontname: str | None = None,
+        fontname: str | None = DEFAULT_FONT_FAMILY,
         fontsize: int | None = None,
         figsize: tuple[float, float] | None = None,
     ) -> Figure:
@@ -1735,7 +1737,8 @@ class Schedule:
             The vertical distance between operations in the schedule. The height of
             the operation is always 1.
         fontname : str, optional
-            Font family for all text in the figure.
+            Font family for all text in the figure. Defaults to
+            ``b_asic._preferences.DEFAULT_FONT_FAMILY``, None uses Matplotlib's default.
         fontsize : int, optional
             Base font size for all text in the figure.
         figsize : (float, float), optional

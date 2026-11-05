@@ -23,6 +23,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from b_asic._preferences import _with_default_plot_font
 from b_asic.gui_utils.icons import get_icon
 from b_asic.operation import ResultKey
 from b_asic.types import Num
@@ -41,6 +42,7 @@ class PlotWindow(QWidget):
         The name of the SFG.
     """
 
+    @_with_default_plot_font
     def __init__(
         self,
         sim_result: Mapping[ResultKey, Sequence[Num]],
@@ -192,6 +194,7 @@ class PlotWindow(QWidget):
         # self.plotcanvas.draw()
         self._auto_redraw = True
 
+    @_with_default_plot_font
     def _legend_checkbox_change(self, check_state) -> None:
         self._legend.set(visible=(check_state == Qt.CheckState.Checked))
         if self._auto_redraw:
@@ -206,6 +209,7 @@ class PlotWindow(QWidget):
         self._auto_redraw = True
         self._update_legend()
 
+    @_with_default_plot_font
     def _update_legend(self) -> None:
         self._legend = self._plot_axes.legend()
         self._plot_canvas.draw()

@@ -49,6 +49,7 @@ from qtpy.QtWidgets import (
 
 # B-ASIC
 import b_asic.logger
+from b_asic._preferences import _with_default_plot_font
 from b_asic._version import version
 from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow
@@ -1159,6 +1160,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_execution_times_for_type(type_name)
         self._execution_time_plot_dialogs[type_name].show()
 
+    @_with_default_plot_font
     def _update_execution_times_for_type(self, type_name) -> None:
         if self._execution_time_plot_dialogs[type_name]:
             self._execution_time_plot_dialogs[type_name].axes.clear()
@@ -1184,6 +1186,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_total_execution_times_for_type(type_name)
         self._total_execution_time_plot_dialogs[type_name].show()
 
+    @_with_default_plot_font
     def _update_total_execution_times_for_type(self, type_name) -> None:
         if self._total_execution_time_plot_dialogs[type_name]:
             self._total_execution_time_plot_dialogs[type_name].axes.clear()
@@ -1202,6 +1205,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_execution_times_for_variables()
         self._execution_time_for_variables.show()
 
+    @_with_default_plot_font
     def _update_execution_times_for_variables(self) -> None:
         if self._execution_time_for_variables:
             self._execution_time_for_variables.axes.clear()
@@ -1224,6 +1228,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_total_execution_times_for_variables()
         self._total_execution_time_for_variables.show()
 
+    @_with_default_plot_font
     def _update_total_execution_times_for_variables(self) -> None:
         if self._total_execution_time_for_variables:
             self._total_execution_time_for_variables.axes.clear()
@@ -1246,6 +1251,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._update_ports_accesses_for_storage()
         self._ports_accesses_for_storage.show()
 
+    @_with_default_plot_font
     def _update_ports_accesses_for_storage(self) -> None:
         if self._ports_accesses_for_storage:
             for ax in self._ports_accesses_for_storage.axes:

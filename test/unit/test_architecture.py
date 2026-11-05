@@ -108,6 +108,23 @@ def test_memory_exceptions(schedule_direct_form_iir_lp_filter: Schedule):
     Memory(mvs)
 
 
+@pytest.mark.parametrize("fontname", [None, "DejaVu Sans"])
+def test_architecture_show_font(monkeypatch, fontname):
+    interconnects = ProcessCollection(collection=set(), schedule_time=5)
+    architecture = Architecture([], [], direct_interconnects=interconnects)
+    graphs = []
+
+    def capture_graph(graph):
+        graphs.append(graph)
+
+    monkeypatch.setattr("graphviz.Digraph.view", capture_graph)
+    kwargs = {} if fontname is None else {"fontname": fontname}
+    architecture.show(**kwargs)
+    expected = fontname or "DejaVu Serif"
+    assert f'fontname="{expected}"' in graphs[0].source
+    assert 'fontname="DejaVu Serif"' in architecture._digraph().source
+
+
 def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     # Extract memory variables and operations
     mvs = schedule_direct_form_iir_lp_filter.get_memory_variables()
@@ -152,7 +169,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
         + '<TD ROWSPAN="2"><B>adder</B></TD>'
         + '<TD ROWSPAN="2" PORT="out0">0</TD></TR>'
         + '<TR><TD PORT="in1">1</TD></TR>'
-        + '</TABLE>> fillcolor="#00B9E7" fontname="Times New Roman" style=filled]\n}'
+        + '</TABLE>> fillcolor="#00B9E7" fontname="DejaVu Serif" style=filled]\n}'
     )
     assert adder._digraph().source in (s, s + "\n")
 
@@ -174,7 +191,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
             + '<TR><TD PORT="in0">0</TD>'
             + "<TD><B>MEM0</B></TD>"
             + '<TD PORT="out0">0</TD></TR>'
-            + '</TABLE>> fillcolor="#00CFB5" fontname="Times New Roman" '
+            + '</TABLE>> fillcolor="#00CFB5" fontname="DejaVu Serif" '
             + "style=filled]\n}"
         )
         assert memory._digraph().source in (s, s + "\n")

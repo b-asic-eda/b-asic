@@ -38,6 +38,7 @@ def test_flip(qtbot, datadir):
     sfg = widget._sfg_dict["twotapfir"]
     op = sfg.find_by_name("cmul2")
     dragbutton = widget._drag_buttons[op[0]]
+    assert dragbutton.label.font().family() == "DejaVu Serif"
     assert not dragbutton.is_flipped()
     dragbutton._flip()
     assert dragbutton.is_flipped()

@@ -20,6 +20,7 @@ import numpy as np
 from graphviz import Digraph
 
 from b_asic._preferences import (
+    DEFAULT_FONT_FAMILY,
     IO_CLUSTER_COLOR,
     IO_COLOR,
     MEMORY_CLUSTER_COLOR,
@@ -27,6 +28,7 @@ from b_asic._preferences import (
     MUX_COLOR,
     PE_CLUSTER_COLOR,
     PE_COLOR,
+    _with_default_plot_font,
 )
 from b_asic.code_printer.vhdl import common
 from b_asic.code_printer.vhdl.util import schedule_time_type
@@ -231,12 +233,12 @@ class Resource(HardwareBlock, ABC):
     def __iter__(self) -> Iterator[ProcessCollection]:
         return iter(self._collection)
 
-    def _digraph(self, fontname: str = "Times New Roman") -> Digraph:
+    def _digraph(self, fontname: str = DEFAULT_FONT_FAMILY) -> Digraph:
         """
         Parameters
         ----------
-        fontname : str, default: "Times New Roman"
-            Font to use.
+        fontname : str, optional
+            Font to use. Defaults to ``b_asic._preferences.DEFAULT_FONT_FAMILY``, None uses Graphviz's default.
         """
         dg = Digraph(node_attr={"shape": "box"})
         dg.node(
@@ -369,6 +371,7 @@ class Resource(HardwareBlock, ABC):
             for i, pc in enumerate(self._assignment):  # type: ignore
                 pc.plot(ax=ax, row=i, **kwargs)
 
+    @_with_default_plot_font
     def show_content(self, title=None, **kwargs) -> None:
         """
         Display the content of the resource.
@@ -412,6 +415,7 @@ class Resource(HardwareBlock, ABC):
         raise NotImplementedError()
 
     @property
+    @_with_default_plot_font
     def content(self) -> plt.Figure:
         """
         Return a graphical representation of the content.
@@ -1818,7 +1822,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         wire_labels: bool = True,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         mux_label: bool = True,
-        fontname: str = "Times New Roman",
+        fontname: str = DEFAULT_FONT_FAMILY,
         fontsize: int = 14,
         size: tuple[float, float] | None = None,
         show_edge_counts: bool = False,
@@ -1861,8 +1865,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Rendering orientation of the graph.
         mux_label : bool, default: True
             Whether to include labels on the multiplexer nodes.
-        fontname : str, default: "Times New Roman"
-            Font to use for node labels.
+        fontname : str, optional
+            Font to use for node labels. Defaults to
+            ``b_asic._preferences.DEFAULT_FONT_FAMILY``.
         fontsize : int, default: 14
             Font size to use for node labels.
         size : (float, float), optional
@@ -1901,7 +1906,7 @@ of :class:`~b_asic.architecture.ProcessingElement`
         io_cluster: bool = True,
         multiplexers: bool = True,
         colored: bool = True,
-        fontname: str = "Times New Roman",
+        fontname: str = DEFAULT_FONT_FAMILY,
         fontsize: int = 14,
         engine: str = "dot",
         ranksep: float = 0.5,
@@ -1932,8 +1937,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
             Whether input multiplexers are included.
         colored : bool, default: True
             Whether to color the nodes.
-        fontname : str, default: "Times New Roman"
-            Font to use.
+        fontname : str, optional
+            Font to use. Defaults to ``b_asic._preferences.DEFAULT_FONT_FAMILY``.
         fontsize : int, default: 14
             Font size to use.
         engine : str, default: "dot"

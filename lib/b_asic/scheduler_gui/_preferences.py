@@ -1,7 +1,12 @@
 from qtpy.QtCore import QSettings
 from qtpy.QtGui import QColor, QFont
 
-from b_asic._preferences import EXECUTION_TIME_COLOR, LATENCY_COLOR, SIGNAL_COLOR
+from b_asic._preferences import (
+    DEFAULT_FONT_FAMILY,
+    EXECUTION_TIME_COLOR,
+    LATENCY_COLOR,
+    SIGNAL_COLOR,
+)
 
 SIGNAL_INACTIVE = QColor(*SIGNAL_COLOR)
 SIGNAL_ACTIVE = QColor(0, 207, 181)
@@ -19,7 +24,7 @@ OPERATION_HEIGHT = 0.75
 OPERATION_GAP = 1 - OPERATION_HEIGHT  # TODO: For now, should really fix the bug
 
 SCHEDULE_INDENT = 0.2
-DEFAULT_FONT = QFont("Times", 12)
+DEFAULT_FONT = QFont(DEFAULT_FONT_FAMILY, 12)
 DEFAULT_FONT_COLOR = QColor(*SIGNAL_COLOR)
 
 
