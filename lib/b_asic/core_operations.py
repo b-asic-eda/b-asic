@@ -1928,6 +1928,8 @@ class ConstantMultiplication(AbstractOperation):
             return folded
         if self.value == 0 or _zero_inputs(self):
             return _simplified_sfg(self, lambda inputs: Constant(0))
+        if self.value == 1:
+            return _simplified_sfg(self, lambda inputs: inputs[0])
         return None
 
 
