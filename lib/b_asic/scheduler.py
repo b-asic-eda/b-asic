@@ -1347,6 +1347,109 @@ class RecursiveListScheduler(ListScheduler):
 class _OptimizationScheduler(Scheduler):
     """Shared timing bounds and schedule extraction for optimizing schedulers."""
 
+    def _compact_recursive_io(self, schedule: "Schedule", period: int) -> None:
+        """Remove boundary slack in absolute time, before folding cyclic laps."""
+        if self._output_times:
+            return
+        starts = schedule.start_times
+        inputs = list(schedule._sfg.find_by_type(Input))
+        outputs = list(schedule._sfg.find_by_type(Output))
+
+        # Resolve each connection independently, retaining its delay count.
+        connections: list[tuple[OutputPort, InputPort, int]] = []
+        for op in schedule._sfg.operations:
+            if op.graph_id not in starts or isinstance(op, Delay):
+                continue
+            for port in op.inputs:
+                source = cast(OutputPort, port.connected_source)
+                depth = 0
+                while isinstance(source.operation, Delay):
+                    source = cast(
+                        OutputPort, source.operation.input(0).connected_source
+                    )
+                    depth += 1
+                if not isinstance(source.operation, DontCare):
+                    connections.append((source, port, depth))
+
+        for op in inputs:
+            if op.graph_id not in self._input_times:
+                starts[op.graph_id] = 0
+
+        slack = [
+            starts[port.operation.graph_id]
+            + cast(int, port.latency_offset)
+            + depth * period
+            - starts[source.operation.graph_id]
+            - cast(int, source.latency_offset)
+            for source, port, depth in connections
+            if isinstance(source.operation, Input)
+            and not isinstance(port.operation, Output)
+        ]
+        moving = starts.keys() - {op.graph_id for op in (*inputs, *outputs)}
+        shift = min(slack, default=0)
+        if not schedule.cyclic:
+            shift = min(shift, min((starts[op_id] for op_id in moving), default=0))
+        else:
+            # A rotation must also preserve non-negative laps after folding.
+            # Port offsets can make some phases infeasible despite positive slack.
+            def valid_rotation(amount: int) -> bool:
+                for source, port, depth in connections:
+                    # Outputs are placed independently below.
+                    if isinstance(port.operation, Output):
+                        continue
+                    source_time = starts[source.operation.graph_id] - (
+                        amount if source.operation.graph_id in moving else 0
+                    )
+                    dest_time = starts[port.operation.graph_id] - amount
+                    phase = source_time % period
+                    source_stage = source_time // period
+                    dest_stage = dest_time // period
+                    if (
+                        depth
+                        + dest_stage
+                        - source_stage
+                        - int(phase + cast(int, source.latency_offset) > period)
+                        < 0
+                    ):
+                        return False
+                return True
+
+            shift = next(
+                amount for amount in range(shift, -1, -1) if valid_rotation(amount)
+            )
+        for op_id in moving:
+            starts[op_id] -= shift
+
+        earliest = {output.graph_id: 0 for output in outputs}
+        for source, port, depth in connections:
+            op_id = port.operation.graph_id
+            if op_id in earliest:
+                earliest[op_id] = max(
+                    earliest[op_id],
+                    starts[source.operation.graph_id]
+                    + cast(int, source.latency_offset)
+                    - cast(int, port.latency_offset)
+                    - depth * period,
+                )
+        # Specified deltas share one base; other outputs can move independently.
+        base = max(
+            (
+                earliest[op_id] - delta
+                for op_id, delta in self._output_delta_times.items()
+            ),
+            default=0,
+        )
+        for output in outputs:
+            op_id = output.graph_id
+            starts[op_id] = (
+                max(0, base) + self._output_delta_times[op_id]
+                if op_id in self._output_delta_times
+                else earliest[op_id]
+            )
+
+    def _prepare_start_times(self, schedule: "Schedule", period: int) -> None:
+        """Postprocess solver start times before utility placement and folding."""
+
     def _validate_iteration_period(self, schedule: "Schedule", period: int) -> None:
         """Reject periods below the feedback bound before building a model."""
         bound = schedule._sfg.iteration_period_bound()
@@ -1800,6 +1903,9 @@ class ILPRecursiveScheduler(ILPScheduler):
     operations to span several iterations before folding into the period.
     Without ``schedule_time``, use the ASAP schedule length as the period.
     Output delta times are relative to a common time chosen by the solver.
+    Unless output times are fixed, compact I/O slack after solving. Unspecified
+    inputs start at zero; the other operations rotate together to remove input
+    slack, and outputs move earlier while preserving specified output deltas.
 
     Examples
     --------
@@ -1946,6 +2052,7 @@ class ILPRecursiveScheduler(ILPScheduler):
             schedule.start_times[op_id] = next(
                 time for time, var in variables.items() if round(pulp.value(var)) == 1
             )
+        self._compact_recursive_io(schedule, period)
         if schedule.cyclic:
             self._finish_cyclic_schedule(schedule, period, horizon)
         else:
@@ -2236,6 +2343,7 @@ class CPScheduler(_OptimizationScheduler):
         )
         for op_id, start in starts.items():
             schedule.start_times[op_id] = int(start.value())
+        self._prepare_start_times(schedule, Ts)
         if schedule.cyclic:
             self._finish_cyclic_schedule(schedule, Ts, horizon)
         else:
@@ -2258,6 +2366,10 @@ class CPRecursiveScheduler(CPScheduler):
     explicit period, use the ASAP schedule length. Requires the optional
     ``cp`` dependencies (``pip install b-asic[cp]``).
 
+    Compact I/O slack after solving as in :class:`ILPRecursiveScheduler`,
+    preserving fixed input times and relative output offsets. Fixed output
+    times disable this compaction.
+
     Examples
     --------
     .. code-block:: python
@@ -2269,6 +2381,9 @@ class CPRecursiveScheduler(CPScheduler):
             schedule_time=10, cyclic=True,
         )
     """
+
+    def _prepare_start_times(self, schedule: "Schedule", period: int) -> None:
+        self._compact_recursive_io(schedule, period)
 
     def _get_timing_bounds(
         self, schedule: "Schedule"

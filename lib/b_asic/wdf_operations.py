@@ -7,6 +7,14 @@ Contains wave digital filter adaptors.
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+from b_asic.core_operations import (
+    Addition,
+    Constant,
+    ConstantMultiplication,
+    Negation,
+    Subtraction,
+    _zero_inputs,
+)
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
@@ -16,7 +24,76 @@ if TYPE_CHECKING:
     from b_asic.sfg import SFG
 
 
-class SymmetricTwoportAdaptor(AbstractOperation):
+class _Adaptor(AbstractOperation):
+    """Shared propagation hooks for stateless WDF adaptors."""
+
+    __slots__ = ()
+
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        zeros = _zero_inputs(self)
+        return self._arithmetic_sfg(zeros, set()) if zeros else None
+
+    def _sink_propagation(self) -> "SFG | None":
+        from b_asic.utility_operations import Sink  # noqa: PLC0415
+
+        unused = {
+            index
+            for index, output in enumerate(self.outputs)
+            if all(
+                signal.destination is not None
+                and isinstance(signal.destination.operation, Sink)
+                for signal in output.signals
+            )
+        }
+        if len(unused) == self.output_count:
+            return super()._sink_propagation()
+        return self._arithmetic_sfg(_zero_inputs(self), unused) if unused else None
+
+    def _arithmetic_sfg(self, zeros: set[int], unused: set[int]) -> "SFG":
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+        from b_asic.utility_operations import DontCare  # noqa: PLC0415
+
+        inputs = [Input() for _ in self.inputs]
+        sources = [
+            Constant(0) if i in zeros else source for i, source in enumerate(inputs)
+        ]
+        results = self._arithmetic_outputs(sources, zeros, unused)
+        replacement = SFG(
+            inputs,
+            [
+                Output(DontCare() if index in unused else result)
+                for index, result in enumerate(results)
+            ],
+        )
+        # Simplify the generated arithmetic even for a target restricted to
+        # adaptor operations, and discard computations for unused outputs.
+        return replacement.constant_propagation()
+
+    def _arithmetic_outputs(
+        self,
+        inputs: list[SignalSourceProvider],
+        zeros: set[int],
+        unused: set[int],
+    ) -> list[SignalSourceProvider]:
+        raise NotImplementedError
+
+
+def _scale(value: Num, source: SignalSourceProvider) -> SignalSourceProvider:
+    """Avoid adding a multiplier for trivial coefficients."""
+    if value == 0:
+        return Constant(0)
+    if value == 1:
+        return source
+    if value == -1:
+        return Negation(source)
+    return ConstantMultiplication(value, source)
+
+
+class SymmetricTwoportAdaptor(_Adaptor):
     r"""
     Wave digital filter symmetric twoport-adaptor operation.
 
@@ -113,8 +190,18 @@ class SymmetricTwoportAdaptor(AbstractOperation):
             return SFG(inputs, [Output(inputs[1]), Output(inputs[0])])
         return None
 
+    def _arithmetic_outputs(self, inputs, zeros, unused):
+        a, b = inputs
+        if 0 in zeros:
+            tmp = _scale(self.value, b)
+        elif 1 in zeros:
+            tmp = _scale(-self.value, a)
+        else:
+            tmp = _scale(self.value, Subtraction(b, a))
+        return [Addition(b, tmp), Addition(a, tmp)]
 
-class SeriesTwoportAdaptor(AbstractOperation):
+
+class SeriesTwoportAdaptor(_Adaptor):
     r"""
     Wave digital filter series twoport-adaptor operation.
 
@@ -169,6 +256,16 @@ class SeriesTwoportAdaptor(AbstractOperation):
             self._cast_to_data_type(y1, data_type),
         )
 
+    def _arithmetic_outputs(self, inputs, zeros, unused):
+        a, b = inputs
+        y0 = _scale(1 - self.value, a)
+        y1 = (
+            Subtraction(_scale(self.value - 2, a), b)
+            if 0 in unused
+            else Negation(Addition(Addition(a, b), y0))
+        )
+        return [y0, y1]
+
     @property
     def value(self) -> Num:
         """Get the constant value of this operation."""
@@ -193,7 +290,7 @@ class SeriesTwoportAdaptor(AbstractOperation):
         self.set_param("value", 2 - self.value)
 
 
-class ParallelTwoportAdaptor(AbstractOperation):
+class ParallelTwoportAdaptor(_Adaptor):
     r"""
     Wave digital filter parallel twoport-adaptor operation.
 
@@ -249,6 +346,20 @@ class ParallelTwoportAdaptor(AbstractOperation):
             self._cast_to_data_type(y1, data_type),
         )
 
+    def _arithmetic_outputs(self, inputs, zeros, unused):
+        a, b = inputs
+        if 0 in zeros:
+            y1 = _scale(1 - self.value, b)
+            y0 = Addition(y1, b)
+        elif 1 in zeros:
+            y1 = _scale(self.value, a)
+            y0 = Subtraction(y1, a)
+        else:
+            difference = Subtraction(b, a)
+            y1 = Subtraction(b, _scale(self.value, difference))
+            y0 = Addition(y1, difference)
+        return [y0, y1]
+
     @property
     def value(self) -> Num:
         """Get the constant value of this operation."""
@@ -273,7 +384,7 @@ class ParallelTwoportAdaptor(AbstractOperation):
         self.set_param("value", 2 - self.value)
 
 
-class SeriesThreeportAdaptor(AbstractOperation):
+class SeriesThreeportAdaptor(_Adaptor):
     r"""
     Wave digital filter series threeport-adaptor operation.
 
@@ -331,6 +442,19 @@ class SeriesThreeportAdaptor(AbstractOperation):
             self._cast_to_data_type(y2, data_type),
         )
 
+    def _arithmetic_outputs(self, inputs, zeros, unused):
+        a, b, c = inputs
+        total = Addition(Addition(a, b), c)
+        val0, val1 = self.value
+        y0 = Subtraction(a, _scale(val0, total))
+        y1 = Subtraction(b, _scale(val1, total))
+        y2 = (
+            Subtraction(_scale(val0 + val1 - 1, total), Addition(a, b))
+            if {0, 1} <= unused
+            else Negation(Addition(Addition(y0, y1), total))
+        )
+        return [y0, y1, y2]
+
     @property
     def value(self) -> tuple[Num, Num]:
         """Get the constant value of this operation."""
@@ -347,7 +471,7 @@ class SeriesThreeportAdaptor(AbstractOperation):
             raise ValueError("sum of values must be between 0 and 2 (inclusive)")
 
 
-class ReflectionFreeSeriesThreeportAdaptor(AbstractOperation):
+class ReflectionFreeSeriesThreeportAdaptor(_Adaptor):
     r"""
     Wave digital filter reflection free series threeport-adaptor operation.
 
@@ -405,6 +529,19 @@ class ReflectionFreeSeriesThreeportAdaptor(AbstractOperation):
             self._cast_to_data_type(y1, data_type),
             self._cast_to_data_type(y2, data_type),
         )
+
+    def _arithmetic_outputs(self, inputs, zeros, unused):
+        a, b, c = inputs
+        total = Addition(a, c)
+        y1 = Negation(total)
+        product = _scale(self.value, Addition(b, total))
+        y0 = Subtraction(a, product)
+        y2 = (
+            Subtraction(product, Addition(a, b))
+            if 0 in unused
+            else Negation(Addition(y0, b))
+        )
+        return [y0, y1, y2]
 
     @property
     def value(self) -> Num:
