@@ -8,6 +8,7 @@ import random
 
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
+from b_asic.port import SignalSourceProvider
 from b_asic.types import ShapeCoordinates
 
 
@@ -97,6 +98,9 @@ class Sink(AbstractOperation):
 
     Parameters
     ----------
+    in0 : SignalSourceProvider, optional
+        Source of the unused output. A string is accepted as a positional name
+        for compatibility with earlier versions.
     name : :data:`~b_asic.types.Name`, optional
         Operation name.
     """
@@ -106,12 +110,19 @@ class Sink(AbstractOperation):
 
     is_linear = True
 
-    def __init__(self, name: Name = "") -> None:
+    def __init__(
+        self,
+        in0: SignalSourceProvider | Name | None = None,
+        name: Name = "",
+    ) -> None:
         """Construct a Sink operation."""
+        if isinstance(in0, str):
+            name, in0 = in0, None
         super().__init__(
             input_count=1,
             output_count=0,
             name=name,
+            input_sources=[in0],
             latency_offsets={"in0": 0},
             execution_time=0,
         )

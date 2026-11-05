@@ -48,7 +48,7 @@ from b_asic.resources import (
     _sanitize_port_option,
 )
 from b_asic.special_operations import Input, Output
-from b_asic.utility_operations import DontCare
+from b_asic.utility_operations import DontCare, Sink
 from b_asic.utils import _fixed_point_bits
 
 
@@ -1138,7 +1138,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
                         continue
                     pe_input_ports.add(input_port)
                 for output_port in operator.operation.outputs:
-                    if output_port.signals:
+                    if any(
+                        not isinstance(signal.destination_operation, Sink)
+                        for signal in output_port.signals
+                    ):
                         pe_output_ports.add(output_port)
 
         # Make sure all inputs and outputs in the architecture are in use

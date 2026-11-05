@@ -23,7 +23,7 @@ from .sorting import (
     pairwise_sort,
     shell_sort,
 )
-from .wave_digital_filters import lattice_wdf, wdf_allpass
+from .wave_digital_filters import lattice_wdf, richards, wdf_allpass
 
 __all__ = [
     "analytical_block_matrix_inverse",
@@ -42,6 +42,7 @@ __all__ = [
     "odd_even_merge_sort",
     "pairwise_sort",
     "radix_2_dif_fft",
+    "richards",
     "shell_sort",
     "strassen_matrix_multiplication",
     "tile_ldlt_matrix_inverse",

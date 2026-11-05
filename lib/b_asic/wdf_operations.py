@@ -5,11 +5,15 @@ Contains wave digital filter adaptors.
 """
 
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from b_asic.graph_component import Name, TypeName
 from b_asic.operation import AbstractOperation
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Num
+
+if TYPE_CHECKING:
+    from b_asic.sfg import SFG
 
 
 class SymmetricTwoportAdaptor(AbstractOperation):
@@ -96,6 +100,18 @@ class SymmetricTwoportAdaptor(AbstractOperation):
         for i, op in enumerate(self._output_ports):
             op._index = i
         self.set_param("value", -self.value)
+
+    def _constant_propagation(self) -> "SFG | None":
+        folded = super()._constant_propagation()
+        if folded is not None:
+            return folded
+        if self.value == 0:
+            from b_asic.sfg import SFG  # noqa: PLC0415
+            from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+            inputs = [Input(), Input()]
+            return SFG(inputs, [Output(inputs[1]), Output(inputs[0])])
+        return None
 
 
 class SeriesTwoportAdaptor(AbstractOperation):

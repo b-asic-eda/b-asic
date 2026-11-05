@@ -1256,11 +1256,14 @@ class Schedule:
     def _get_memory_variables_list(self) -> list[MemoryVariable]:
         ret: list[MemoryVariable] = []
         for graph_id, start_time in self._start_times.items():
+            if isinstance(self._sfg.find_by_id(graph_id), DontCare | Sink):
+                continue
             slacks = self._forward_slacks(graph_id)
             for outport, signals in slacks.items():
                 reads = {
                     cast(InputPort, signal.destination): slack
                     for signal, slack in signals.items()
+                    if not isinstance(signal.destination_operation, Sink)
                 }
                 if not reads:
                     continue
@@ -1283,7 +1286,8 @@ class Schedule:
         -------
         :class:`~b_asic.resources.ProcessCollection`
             Memory variables derived from the scheduled signal transfers, with the
-            same schedule time as this schedule.
+            same schedule time as this schedule. Transfers from DontCare or to
+            Sink placeholders are excluded.
         """
         return ProcessCollection(
             set(self._get_memory_variables_list()), self.schedule_time
