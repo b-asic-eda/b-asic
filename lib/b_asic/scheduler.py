@@ -1785,7 +1785,7 @@ class ILPScheduler(_OptimizationScheduler):
         self._finish_schedule(schedule, Ts)
 
 
-class ILPRecursiveSchedule(ILPScheduler):
+class ILPRecursiveScheduler(ILPScheduler):
     """
     ILP scheduler for algorithms with feedback through delays.
 
@@ -1805,10 +1805,10 @@ class ILPRecursiveSchedule(ILPScheduler):
     --------
     .. code-block:: python
 
-        from b_asic import ILPRecursiveSchedule, Schedule
+        from b_asic import ILPRecursiveScheduler, Schedule
 
         schedule = Schedule(
-            sfg, ILPRecursiveSchedule(), schedule_time=10, cyclic=True
+            sfg, ILPRecursiveScheduler(), schedule_time=10, cyclic=True
         )
     """
 
@@ -1826,7 +1826,7 @@ class ILPRecursiveSchedule(ILPScheduler):
             _, period = self._get_asap_start_times(schedule, self._input_times)
             schedule._schedule_time = period
         if not isinstance(period, int) or period <= 0:
-            raise ValueError("ILPRecursiveSchedule requires a positive schedule time.")
+            raise ValueError("ILPRecursiveScheduler requires a positive schedule time.")
         self._validate_iteration_period(schedule, period)
         horizon = max(period, self._max_time or period)
         ops = [
@@ -2247,7 +2247,7 @@ class CPRecursiveScheduler(CPScheduler):
     Constraint programming scheduler for algorithms with feedback through delays.
 
     Minimize the sum of peak resource counts, including I/O, using the same
-    per-connection feedback constraints as :class:`ILPRecursiveSchedule`.
+    per-connection feedback constraints as :class:`ILPRecursiveScheduler`.
     Search the full scheduling horizon rather than restricting start times to
     ASAP/ALAP bounds, so iterations may overlap even when the period is shorter
     than the ASAP schedule length.
