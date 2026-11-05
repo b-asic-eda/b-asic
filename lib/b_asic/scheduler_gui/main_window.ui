@@ -361,11 +361,6 @@
    <property name="checked">
     <bool>true</bool>
    </property>
-   <property name="icon">
-    <iconset>
-     <normaloff>:/icons/misc/right_panel.svg</normaloff>
-     <normalon>:/icons/misc/right_filled_panel.svg</normalon>:/icons/misc/right_panel.svg</iconset>
-   </property>
    <property name="text">
     <string>&amp;Node info</string>
    </property>
