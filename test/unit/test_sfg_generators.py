@@ -20,6 +20,7 @@ from b_asic.sfg_generators import (
     ldlt_matrix_inverse,
     matrix_multiplication,
     radix_2_dif_fft,
+    richards,
     tile_ldlt_matrix_inverse,
     wdf_allpass,
 )
@@ -27,6 +28,95 @@ from b_asic.signal_generator import Constant, Impulse, ZeroPad
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay
 from b_asic.wdf_operations import SymmetricTwoportAdaptor
+
+
+@pytest.mark.parametrize(
+    "coefficients",
+    [
+        0.3,
+        -0.4,
+        0.0,
+        [0.3, 0.5],
+        [-0.4, 0.6],
+        [0.0, 0.5],
+        [0.3, 0.0],
+        [0.0, 0.0],
+        [0.3, -0.4, 0.5],
+        [0.2, -0.3, 0.1, 0.4, -0.5, 0.6],
+        [0.0, 0.2, 0.0, -0.4, 0.5],
+        [0.0] * 7,
+    ],
+)
+def test_richards(coefficients):
+    coefficients = np.atleast_1d(coefficients)
+    denominator = np.array([1.0])
+    for coefficient in reversed(coefficients):
+        denominator = np.pad(denominator, (0, 1)) - coefficient * np.pad(
+            denominator[::-1], (1, 0)
+        )
+    numerator = denominator[::-1]
+    expected = np.zeros(32)
+    for n in range(len(expected)):
+        expected[n] = numerator[n] if n < len(numerator) else 0.0
+        for k in range(1, min(n + 1, len(denominator))):
+            expected[n] -= denominator[k] * expected[n - k]
+
+    sfg = richards(coefficients)
+    assert sfg.name == "Richards structure"
+    assert len(sfg.find_by_type_name(Delay.type_name())) == len(coefficients)
+    assert len(
+        sfg.find_by_type_name(SymmetricTwoportAdaptor.type_name())
+    ) == np.count_nonzero(coefficients)
+    sim = Simulation(sfg, Impulse())
+    sim.run_for(len(expected))
+    np.testing.assert_allclose(sim.results["out0"], expected, atol=1e-14)
+
+
+@pytest.mark.parametrize("generator", [richards, wdf_allpass])
+def test_richards_adaptor_properties(generator):
+    offsets = {"in0": 0, "in1": 0, "out0": 3, "out1": 3}
+    sfg = generator(
+        [0.3, 0.5],
+        name="custom",
+        adaptor_names=["left", "right"],
+        latency=3,
+        latency_offsets=offsets,
+        execution_time=2,
+    )
+    assert sfg.name == "custom"
+    adaptors = sfg.find_by_type_name(SymmetricTwoportAdaptor.type_name())
+    assert {op.name for op in adaptors} == {"left", "right"}
+    assert all(op.latency_offsets == offsets for op in adaptors)
+    assert all(op.execution_time == 2 for op in adaptors)
+
+
+@pytest.mark.parametrize("generator", [richards, wdf_allpass])
+def test_richards_invalid_coefficients(generator):
+    with pytest.raises(ValueError, match="cannot be empty"):
+        generator([])
+    with pytest.raises(TypeError, match="1D-array"):
+        generator([[0.1, 0.2], [0.3, 0.4]])
+    with pytest.raises(ValueError, match="between -1 and 1"):
+        generator([1.1])
+
+
+@pytest.mark.parametrize(
+    "coefficients", [[0.3, 0.0, 0.5], [0.0, 0.5, 0.3, 0.0], [0.3, 0.5, 0.7, 0.9]]
+)
+def test_wdf_allpass_cascade(coefficients):
+    first_order = len(coefficients) % 2
+    sections = ([coefficients[:1]] if first_order else []) + [
+        coefficients[i : i + 2] for i in range(first_order, len(coefficients), 2)
+    ]
+    expected = np.array([1.0])
+    for section in sections:
+        sim = Simulation(richards(section), Impulse())
+        sim.run_for(64)
+        expected = np.convolve(expected, sim.results["out0"])[:64]
+    sfg = wdf_allpass(coefficients)
+    sim = Simulation(sfg, Impulse())
+    sim.run_for(64)
+    np.testing.assert_allclose(sim.results["out0"], expected, atol=1e-14)
 
 
 def test_wdf_allpass():
@@ -110,9 +200,10 @@ def test_wdf_allpass():
     assert len([comp for comp in sfg.components if isinstance(comp, Delay)]) == 2
 
 
-def test_wdf_allpass_adaptor_names():
+@pytest.mark.parametrize("generator", [richards, wdf_allpass])
+def test_wdf_allpass_adaptor_names(generator):
     # Sequence of names, parallel to coefficients
-    sfg = wdf_allpass([0.3, 0.5, 0.7], adaptor_names=["x0", "x1", "x2"])
+    sfg = generator([0.3, 0.5, 0.7], adaptor_names=["x0", "x1", "x2"])
     assert {
         comp.name
         for comp in sfg.components
@@ -125,7 +216,7 @@ def test_wdf_allpass_adaptor_names():
     }
 
     # String prefix, expanded based on coefficient position
-    sfg = wdf_allpass([0.3, 0.5, 0.7], adaptor_names="pfx")
+    sfg = generator([0.3, 0.5, 0.7], adaptor_names="pfx")
     assert {
         comp.name
         for comp in sfg.components
@@ -136,6 +227,9 @@ def test_wdf_allpass_adaptor_names():
         "pfx1_T",
         "pfx2_T",
     }
+
+    sfg = generator([0.3, 0.5, 0.7], adaptor_names=[None, "", None])
+    assert {op.name for op in sfg.find_by_type(Delay)} == {"T0", "T1", "T2"}
 
 
 class TestFIR:

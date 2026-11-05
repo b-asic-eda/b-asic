@@ -31,6 +31,7 @@ from b_asic.sfg import SFG
 from b_asic.sfg_generators import strassen_matrix_multiplication
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 ARITHMETIC = [
     (Addition, {}),
@@ -38,6 +39,17 @@ ARITHMETIC = [
     (AddSub, {"is_add": True}),
     (AddSub, {"is_add": False}),
 ]
+
+
+def test_zero_symmetric_twoport_adaptor():
+    inputs = [Input("x"), Input("y")]
+    adaptor = SymmetricTwoportAdaptor(0, *inputs)
+    original = SFG(inputs, [Output(adaptor.output(i)) for i in range(2)])
+    simplified = original.constant_propagation()
+    assert not simplified.find_by_type(SymmetricTwoportAdaptor)
+    assert original.find_by_type(SymmetricTwoportAdaptor)
+    for values in [[2, 3], [-1, 4], [1 + 2j, 3 - 4j]]:
+        assert simplified.evaluate_outputs(values) == values[::-1]
 
 
 def _arithmetic_sfg(operation_type, zero_index, **properties):
