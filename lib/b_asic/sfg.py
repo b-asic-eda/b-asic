@@ -1509,6 +1509,92 @@ class SFG(AbstractOperation):
             return sfg_copy()
         return sfg_copy
 
+    def noble_transform(self, n: int) -> "SFG":
+        """
+        Return a copy with every Delay replaced by a chain of *n* Delays.
+
+        This substitutes ``z**(-n)`` for each unit delay, applying recursively
+        to nested SFGs and connected upstream stages while retaining their
+        hierarchy. Each shared upstream operation is transformed once per
+        call. Other operations and the graph interface are preserved.
+        External input and output signals are transferred to the returned
+        replacement, allowing transformed
+        instances to be cascaded without retaining the untransformed instances.
+
+        Parameters
+        ----------
+        n : int
+            Positive number of delays replacing each original delay. Each
+            delay in a replacement chain has the original delay's initial
+            value. A factor of one preserves the internal graph.
+
+        Returns
+        -------
+        SFG
+            The transformed graph. The original internal graph is unchanged,
+            but its external connections are moved to the returned graph.
+        """
+        if not isinstance(n, int) or isinstance(n, bool):
+            raise TypeError("n must be an integer.")
+        if n <= 0:
+            raise ValueError("n must be positive.")
+
+        def transfer_wiring(original: Operation, replacement: Operation) -> None:
+            for old_port, new_port in zip(
+                original.inputs, replacement.inputs, strict=True
+            ):
+                for signal in list(old_port.signals):
+                    signal.set_destination(new_port)
+            for old_output, new_output in zip(
+                original.outputs, replacement.outputs, strict=True
+            ):
+                for signal in list(old_output.signals):
+                    signal.set_source(new_output)
+
+        def expand_delay(operation: Delay) -> None:
+            tail = operation
+            for _ in range(n - 1):
+                delay = Delay(initial_value=operation.initial_value)
+                self._insert_operation_after_outputport(tail.output(0), delay)
+                tail = delay
+
+        def expand_delays(graph: "SFG") -> "SFG":
+            for operation in graph.operations:
+                if isinstance(operation, Delay):
+                    expand_delay(operation)
+                elif isinstance(operation, SFG):
+                    replacement = expand_delays(operation())
+                    replacement.graph_id = operation.graph_id
+                    transfer_wiring(operation, replacement)
+            return graph()
+
+        # Snapshot the upstream cone before rewiring or adding delays. This
+        # avoids revisiting replacements or expanding shared stages twice.
+        upstream: list[Operation] = []
+        visited: set[Operation] = {self}
+        pending: list[Operation] = [self]
+        while pending:
+            operation = pending.pop()
+            for port in operation.inputs:
+                source = port.connected_source
+                if source is not None and source.operation not in visited:
+                    visited.add(source.operation)
+                    upstream.append(source.operation)
+                    pending.append(source.operation)
+        for operation in upstream:
+            if isinstance(operation, SFG):
+                replacement = expand_delays(operation())
+                replacement.graph_id = operation.graph_id
+                transfer_wiring(operation, replacement)
+            elif isinstance(operation, Delay):
+                expand_delay(operation)
+
+        transformed = expand_delays(self())
+        # Transfer wiring only after all internal copies have been rebuilt.
+        # Copying connections would retain the old instance as an extra branch.
+        transfer_wiring(self, transformed)
+        return transformed
+
     def simplify_delay_element_placement(self) -> "SFG":
         """
         Simplify an SFG by removing redundant delay elements.
