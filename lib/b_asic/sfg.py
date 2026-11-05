@@ -357,6 +357,7 @@ class SFG(AbstractOperation):
             input_sources=src or None,
         )
         self._copy_sink_roots_to(result)
+        self._copy_dontcare_roots_to(result)
         return result
 
     def _copy_sink_roots_to(self, result: "SFG") -> None:
@@ -367,6 +368,18 @@ class SFG(AbstractOperation):
             if (
                 isinstance(operation, Sink)
                 and operation.input(0).connected_source is not None
+                and operation not in result._original_components_to_new
+            ):
+                result._add_operation_connected_tree_copy(operation)
+
+    def _copy_dontcare_roots_to(self, result: "SFG") -> None:
+        """Retain DontCare-fed branches disconnected from the interface."""
+        from b_asic.utility_operations import DontCare  # noqa: PLC0415
+
+        for operation in self.operations:
+            if (
+                isinstance(operation, DontCare)
+                and operation.output(0).signals
                 and operation not in result._original_components_to_new
             ):
                 result._add_operation_connected_tree_copy(operation)
@@ -566,6 +579,7 @@ class SFG(AbstractOperation):
                             signal.remove_destination()
                     flattened = sfg_copy()
                     op._copy_sink_roots_to(flattened)
+                    op._copy_dontcare_roots_to(flattened)
                     sfg_copy = flattened
                     changed = True
                     break
@@ -636,6 +650,7 @@ class SFG(AbstractOperation):
             name=self.name,
         )
         self._copy_sink_roots_to(cast(SFG, result))
+        self._copy_dontcare_roots_to(cast(SFG, result))
         return result
 
     def __deepcopy__(self, memo: dict[int, Any]) -> "SFG":
@@ -1175,6 +1190,7 @@ class SFG(AbstractOperation):
         target: type[Operation] | GraphID | Iterable[GraphID] | None = None,
         *,
         assume_zero_initial_state: bool = True,
+        decompose: bool = True,
     ) -> "SFG":
         """
         Return a copy with constant expressions evaluated and propagated.
@@ -1191,6 +1207,8 @@ class SFG(AbstractOperation):
         zero or disabled.
         WDF adaptors with zero inputs reduce to arithmetic on the remaining
         inputs, sharing coefficient multiplications between outputs.
+        Cascaded ConstantMultiplications merge by multiplying their coefficients;
+        a resulting coefficient of one is replaced by direct wiring.
 
         Parameters
         ----------
@@ -1209,6 +1227,12 @@ class SFG(AbstractOperation):
             a nonzero or time-varying signal is not treated as constant. Set to
             False to preserve configured initial states and disable this
             feedback analysis.
+        decompose : bool, default: True
+            Allow partially simplified operations to become smaller arithmetic
+            networks. If False, only replace operations by constants or direct
+            wiring; retain operations that still require arithmetic, including
+            partially constant WDF adaptors. ConstantMultiplication chains still
+            merge, and identity multipliers are removed, in either mode.
 
         Notes
         -----
@@ -1232,6 +1256,7 @@ class SFG(AbstractOperation):
             "_constant_propagation",
             target,
             assume_zero_initial_state=assume_zero_initial_state,
+            decompose=decompose,
         )
 
     def sink_propagation(
@@ -1281,8 +1306,10 @@ class SFG(AbstractOperation):
         target: type[Operation] | GraphID | Iterable[GraphID] | None,
         *,
         assume_zero_initial_state: bool = True,
+        decompose: bool = True,
     ) -> "SFG":
         """Apply operation hooks and inline their replacements until stable."""
+        from b_asic.core_operations import Constant, ConstantMultiplication  # noqa: PLC0415
         from b_asic.utility_operations import Sink  # noqa: PLC0415
 
         sink_mode = method == "_sink_propagation"
@@ -1422,6 +1449,25 @@ class SFG(AbstractOperation):
                 continue
             if not sink_mode and not any(port.signals for port in operation.outputs):
                 continue
+            if not sink_mode and isinstance(operation, ConstantMultiplication):
+                # Bypass predecessors only for this consumer. Shared producers
+                # remain for other consumers and explicit sinks.
+                merged = {operation}
+                source = operation.input(0).connected_source
+                while (
+                    source is not None
+                    and isinstance(source.operation, ConstantMultiplication)
+                    and source.operation not in merged
+                ):
+                    parent = source.operation
+                    upstream = parent.input(0).connected_source
+                    if upstream is None:
+                        break
+                    merged.add(parent)
+                    operation.value *= parent.value
+                    operation.input(0).signals[0].set_source(upstream)
+                    source = upstream
+                    changed = True
             sources = [port.connected_source for port in operation.inputs]
             if any(source is None for source in sources):
                 continue
@@ -1435,6 +1481,16 @@ class SFG(AbstractOperation):
                 operation.output_count,
             ):
                 raise ValueError("Propagation replacement must preserve port counts")
+
+            if (
+                not sink_mode
+                and not decompose
+                and any(
+                    not isinstance(op, (Input, Output, Constant, Sink))
+                    for op in replacement.operations
+                )
+            ):
+                continue
 
             # Inline the replacement's inputs and reconnect all original output
             # consumers without changing their signal names or properties.
