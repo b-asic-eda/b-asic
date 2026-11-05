@@ -7,7 +7,7 @@ from b_asic import (
     Addition,
     ConstantMultiplication,
     Delay,
-    ILPRecursiveSchedule,
+    ILPRecursiveScheduler,
     ILPScheduler,
     Input,
     Output,
@@ -27,7 +27,7 @@ def _feedback(latency=2, delays=1):
 
 
 def test_public_scheduler():
-    assert isinstance(ILPRecursiveSchedule(), ILPScheduler)
+    assert isinstance(ILPRecursiveScheduler(), ILPScheduler)
 
 
 @pytest.mark.parametrize("cyclic", [False, True])
@@ -37,7 +37,7 @@ def test_recursive_dependencies(sfg_direct_form_iir_lp_filter, cyclic):
     sfg.set_latency_of_type(ConstantMultiplication, 3)
     sfg.set_execution_time_of_type(Addition, 1)
     sfg.set_execution_time_of_type(ConstantMultiplication, 1)
-    schedule = Schedule(sfg, ILPRecursiveSchedule(), schedule_time=15, cyclic=cyclic)
+    schedule = Schedule(sfg, ILPRecursiveScheduler(), schedule_time=15, cyclic=cyclic)
     assert schedule.schedule_time == 15
     assert not schedule._sfg.find_by_type(Delay)
     assert any(schedule.laps.values())
@@ -48,7 +48,7 @@ def test_feedback_period_below_asap_length():
     # though a single iteration's ASAP schedule takes four units.
     schedule = Schedule(
         _feedback(latency=4, delays=2),
-        ILPRecursiveSchedule(max_time=4, input_times={"in0": 0}),
+        ILPRecursiveScheduler(max_time=4, input_times={"in0": 0}),
         schedule_time=2,
         cyclic=True,
     )
@@ -68,7 +68,7 @@ def test_infeasible_feedback_period(monkeypatch, cyclic, latency, delays, bound)
     with pytest.raises(ValueError, match=f"iteration period bound: {bound}"):
         Schedule(
             _feedback(latency=latency, delays=delays),
-            ILPRecursiveSchedule(),
+            ILPRecursiveScheduler(),
             schedule_time=2,
             cyclic=cyclic,
         )
@@ -79,7 +79,7 @@ def test_parallel_connections_retain_delay_counts():
     op = Addition(source, Delay(source), latency=2, execution_time=1)
     schedule = Schedule(
         SFG(inputs=[source], outputs=[Output(op)]),
-        ILPRecursiveSchedule(input_times={"in0": 3}, output_times={"out0": 5}),
+        ILPRecursiveScheduler(input_times={"in0": 3}, output_times={"out0": 5}),
         schedule_time=8,
         cyclic=True,
     )
@@ -107,7 +107,7 @@ def test_resource_occupancy(monkeypatch, execution_time, resources):
     op = ConstantMultiplication(2, source, latency=1, execution_time=execution_time)
     Schedule(
         SFG(inputs=[source], outputs=[Output(op)]),
-        ILPRecursiveSchedule(),
+        ILPRecursiveScheduler(),
         schedule_time=3,
         cyclic=True,
     )
@@ -120,7 +120,7 @@ def test_relative_output_times():
     other = ConstantMultiplication(3, source, latency=2, execution_time=1)
     schedule = Schedule(
         SFG(inputs=[source], outputs=[Output(op), Output(other)]),
-        ILPRecursiveSchedule(output_delta_times={"out0": 0, "out1": 2}),
+        ILPRecursiveScheduler(output_delta_times={"out0": 0, "out1": 2}),
         schedule_time=8,
     )
     assert schedule.start_times["out1"] - schedule.start_times["out0"] == 2
@@ -138,7 +138,7 @@ def test_input_latency_offsets():
     state.input(0).connect(op)
     schedule = Schedule(
         SFG(inputs=[source], outputs=[Output(op)]),
-        ILPRecursiveSchedule(input_times={"in0": 2}, output_times={"out0": 3}),
+        ILPRecursiveScheduler(input_times={"in0": 2}, output_times={"out0": 3}),
         schedule_time=4,
         cyclic=True,
     )
@@ -155,7 +155,7 @@ def test_utility_operations(cyclic):
     sink.input(0).connect(op)
     schedule = Schedule(
         SFG(inputs=[source], outputs=[Output(op)]),
-        ILPRecursiveSchedule(),
+        ILPRecursiveScheduler(),
         schedule_time=8,
         cyclic=cyclic,
     )
@@ -165,7 +165,7 @@ def test_utility_operations(cyclic):
 def test_output_at_period_boundary():
     schedule = Schedule(
         _feedback(),
-        ILPRecursiveSchedule(output_times={"out0": 4}),
+        ILPRecursiveScheduler(output_times={"out0": 4}),
         schedule_time=4,
         cyclic=True,
     )
@@ -173,22 +173,22 @@ def test_output_at_period_boundary():
 
 
 def test_default_period():
-    schedule = Schedule(_feedback(), ILPRecursiveSchedule())
+    schedule = Schedule(_feedback(), ILPRecursiveScheduler())
     assert schedule.schedule_time == 2
 
 
 def test_empty_sfg(sfg_empty):
     with pytest.raises(ValueError, match="Empty signal flow graph"):
-        Schedule(sfg_empty, ILPRecursiveSchedule())
+        Schedule(sfg_empty, ILPRecursiveScheduler())
 
 
 @pytest.mark.parametrize("period", [0, -1, 1.5])
 def test_invalid_period(period):
     with pytest.raises(ValueError, match="positive schedule time"):
-        Schedule(_feedback(), ILPRecursiveSchedule(), schedule_time=period)
+        Schedule(_feedback(), ILPRecursiveScheduler(), schedule_time=period)
 
 
 @pytest.mark.parametrize("horizon", [0, -1, 1.5])
 def test_invalid_horizon(horizon):
     with pytest.raises(ValueError, match="max_time must be a positive integer"):
-        Schedule(_feedback(), ILPRecursiveSchedule(max_time=horizon), cyclic=True)
+        Schedule(_feedback(), ILPRecursiveScheduler(max_time=horizon), cyclic=True)
