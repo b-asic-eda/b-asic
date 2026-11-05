@@ -248,7 +248,7 @@ class SeriesTwoportAdaptor(_Adaptor):
     def evaluate(self, a, b, data_type=None):
         s = a + b
         val = self.value
-        t = val * a
+        t = val * s
         y0 = a - t
         y1 = -(s + y0)
         return (
@@ -258,12 +258,21 @@ class SeriesTwoportAdaptor(_Adaptor):
 
     def _arithmetic_outputs(self, inputs, zeros, unused):
         a, b = inputs
-        y0 = _scale(1 - self.value, a)
-        y1 = (
-            Subtraction(_scale(self.value - 2, a), b)
-            if 0 in unused
-            else Negation(Addition(Addition(a, b), y0))
-        )
+        total = Addition(a, b)
+        if 0 in zeros:
+            y0 = _scale(-self.value, b)
+        elif 1 in zeros:
+            y0 = _scale(1 - self.value, a)
+        else:
+            y0 = Subtraction(a, _scale(self.value, total))
+        if 0 not in unused:
+            y1 = Negation(Addition(total, y0))
+        elif 0 in zeros:
+            y1 = _scale(self.value - 1, b)
+        elif 1 in zeros:
+            y1 = _scale(self.value - 2, a)
+        else:
+            y1 = Subtraction(b, _scale(2 - self.value, total))
         return [y0, y1]
 
     @property

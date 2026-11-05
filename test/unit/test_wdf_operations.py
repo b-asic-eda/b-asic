@@ -47,19 +47,36 @@ class TestSeriesTwoportAdaptor:
 
     def test_seriestwoportadaptor_positive(self):
         test_operation = SeriesTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [2, 3]) == 1.0
-        assert test_operation.evaluate_output(1, [2, 3]) == -6.0
+        assert test_operation.evaluate_output(0, [2, 3]) == -0.5
+        assert test_operation.evaluate_output(1, [2, 3]) == -4.5
         assert test_operation.value == 0.5
 
     def test_seriestwoportadaptor_negative(self):
         test_operation = SeriesTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [-2, -3]) == -1.0
-        assert test_operation.evaluate_output(1, [-2, -3]) == 6.0
+        assert test_operation.evaluate_output(0, [-2, -3]) == 0.5
+        assert test_operation.evaluate_output(1, [-2, -3]) == 4.5
 
     def test_seriestwoportadaptor_complex(self):
         test_operation = SeriesTwoportAdaptor(0.5)
-        assert test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == 1 + 0.5j
-        assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == -6 + 0.5j
+        assert test_operation.evaluate_output(0, [2 + 1j, 3 - 2j]) == -0.5 + 1.5j
+        assert test_operation.evaluate_output(1, [2 + 1j, 3 - 2j]) == -4.5 - 0.5j
+
+    @pytest.mark.parametrize("coefficient", [0, 0.25, 0.5, 1, 1.75, 2])
+    @pytest.mark.parametrize("values", [[2, 3], [-2, -3], [2 + 1j, 3 - 2j]])
+    def test_equivalent_to_threeport_with_zero_third_input(self, coefficient, values):
+        twoport = SeriesTwoportAdaptor(coefficient)
+        threeport = SeriesThreeportAdaptor((coefficient, 2 - coefficient))
+        assert twoport.evaluate_outputs(values) == pytest.approx(
+            threeport.evaluate_outputs([*values, 0])[:2]
+        )
+
+    @pytest.mark.parametrize("coefficient", [0.25, 0.5, 1, 1.75])
+    def test_applying_adaptor_twice_restores_incident_waves(self, coefficient):
+        adaptor = SeriesTwoportAdaptor(coefficient)
+        values = [2 + 1j, 3 - 2j]
+        assert adaptor.evaluate_outputs(
+            adaptor.evaluate_outputs(values)
+        ) == pytest.approx(values)
 
     def test_seriestwoportadaptor_swap_io(self):
         test_operation = SeriesTwoportAdaptor(0.5)

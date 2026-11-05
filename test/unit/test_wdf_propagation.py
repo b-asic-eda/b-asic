@@ -23,7 +23,7 @@ ADAPTORS = [
     (SeriesThreeportAdaptor, (0.25, 1.25), 3),
     (ReflectionFreeSeriesThreeportAdaptor, 0.25, 3),
 ]
-VALUES = [2.5, -3.75, 1 + 2j]
+VALUES = [[2.5, -3.75, 5], [-3.75, 0, 1], [1 + 2j, 3 - 4j, -2 + 0.5j]]
 
 
 @pytest.mark.parametrize(("adaptor_type", "coefficient", "ports"), ADAPTORS)
@@ -48,10 +48,9 @@ def test_zero_inputs(adaptor_type, coefficient, ports):
             assert [op.name for op in simplified.output_operations] == [
                 f"y{i}" for i in range(ports)
             ]
-            for value in VALUES:
-                values = [value * (i + 1) for i in range(ports)]
-                assert simplified.evaluate_outputs(values) == pytest.approx(
-                    original.evaluate_outputs(values)
+            for values in VALUES:
+                assert simplified.evaluate_outputs(values[:ports]) == pytest.approx(
+                    original.evaluate_outputs(values[:ports])
                 )
             multiplier_bound = 2 if adaptor_type is SeriesThreeportAdaptor else 1
             assert (
@@ -78,10 +77,9 @@ def test_partial_outputs(adaptor_type, coefficient, ports, explicit_sink):
                 f"y{i}" for i in kept
             ]
             assert len(original.find_by_type(adaptor_type)) == 1
-            for value in VALUES:
-                values = [value * (i + 1) for i in range(ports)]
-                assert simplified.evaluate_outputs(values) == pytest.approx(
-                    original.evaluate_outputs(values)
+            for values in VALUES:
+                assert simplified.evaluate_outputs(values[:ports]) == pytest.approx(
+                    original.evaluate_outputs(values[:ports])
                 )
 
 
@@ -111,3 +109,84 @@ def test_nonzero_constant_input_unchanged(adaptor_type, coefficient, ports):
     adaptor = adaptor_type(coefficient, Constant(2), *inputs)
     original = SFG(inputs, [Output(port) for port in adaptor.outputs])
     assert original.find_by_type(adaptor_type)[0]._constant_propagation() is None
+
+
+@pytest.mark.parametrize(("adaptor_type", "coefficient", "ports"), ADAPTORS)
+@pytest.mark.parametrize("zero", [False, True])
+def test_all_constants(adaptor_type, coefficient, ports, zero):
+    values = [0] * ports if zero else VALUES[-1][:ports]
+    adaptor = adaptor_type(coefficient, *(Constant(value) for value in values))
+    original = SFG([], [Output(port) for port in adaptor.outputs])
+    simplified = original.constant_propagation()
+    assert not simplified.find_by_type(adaptor_type)
+    assert simplified.evaluate_outputs([]) == pytest.approx(
+        original.evaluate_outputs([])
+    )
+    assert len(simplified.find_by_type(Constant)) == ports
+
+
+@pytest.mark.parametrize(
+    ("adaptor_type", "coefficient", "ports"),
+    [
+        (SymmetricTwoportAdaptor, -1, 2),
+        (SymmetricTwoportAdaptor, 0, 2),
+        (SymmetricTwoportAdaptor, 1, 2),
+        (SeriesTwoportAdaptor, 0, 2),
+        (SeriesTwoportAdaptor, 1, 2),
+        (SeriesTwoportAdaptor, 2, 2),
+        (ParallelTwoportAdaptor, 0, 2),
+        (ParallelTwoportAdaptor, 1, 2),
+        (ParallelTwoportAdaptor, 2, 2),
+        (SeriesThreeportAdaptor, (0, 0), 3),
+        (SeriesThreeportAdaptor, (0, 2), 3),
+        (SeriesThreeportAdaptor, (2, 0), 3),
+        (ReflectionFreeSeriesThreeportAdaptor, 0, 3),
+        (ReflectionFreeSeriesThreeportAdaptor, 1, 3),
+    ],
+)
+def test_zero_input_boundary_coefficients(adaptor_type, coefficient, ports):
+    test_zero_inputs(adaptor_type, coefficient, ports)
+
+
+@pytest.mark.parametrize(("adaptor_type", "coefficient", "ports"), ADAPTORS)
+@pytest.mark.parametrize("propagation", ["constant_propagation", "sink_propagation"])
+def test_restricted_target(adaptor_type, coefficient, ports, propagation):
+    inputs = [Input() for _ in range(ports)]
+    sources = [Constant(0), *inputs[1:]]
+    adaptor = adaptor_type(coefficient, *sources)
+    original = SFG(inputs, [Output(adaptor.output(0))])
+    simplified = getattr(original, propagation)(adaptor_type)
+    assert not simplified.find_by_type(adaptor_type)
+    assert simplified.evaluate_outputs(VALUES[-1][:ports]) == pytest.approx(
+        original.evaluate_outputs(VALUES[-1][:ports])
+    )
+
+
+def test_reflection_free_output_needs_no_multiplier():
+    inputs = [Input() for _ in range(3)]
+    adaptor = ReflectionFreeSeriesThreeportAdaptor(0.25, *inputs)
+    simplified = SFG(inputs, [Output(adaptor.output(1))]).sink_propagation()
+    assert not simplified.find_by_type(ConstantMultiplication)
+    assert len(simplified.find_by_type(Sink)) == 1
+    assert simplified.evaluate_outputs([2, 3, 4]) == [-6]
+
+
+def test_dependent_series_output_needs_one_multiplier():
+    inputs = [Input() for _ in range(3)]
+    adaptor = SeriesThreeportAdaptor((0.25, 1.25), *inputs)
+    simplified = SFG(inputs, [Output(adaptor.output(2))]).sink_propagation()
+    assert len(simplified.find_by_type(ConstantMultiplication)) == 1
+    assert simplified.evaluate_outputs([2, 3, 4]) == [-0.5]
+
+
+@pytest.mark.parametrize(("adaptor_type", "coefficient", "ports"), ADAPTORS)
+def test_sink_does_not_discard_shared_live_output(adaptor_type, coefficient, ports):
+    inputs = [Input() for _ in range(ports)]
+    adaptor = adaptor_type(coefficient, *inputs)
+    Sink().input(0).connect(adaptor.output(0))
+    original = SFG(inputs, [Output(adaptor.output(0))])
+    simplified = original.sink_propagation()
+    assert simplified.evaluate_outputs(VALUES[-1][:ports]) == pytest.approx(
+        original.evaluate_outputs(VALUES[-1][:ports])
+    )
+    assert not simplified.find_by_type(adaptor_type)

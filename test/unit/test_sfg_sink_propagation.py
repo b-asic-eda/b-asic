@@ -99,7 +99,7 @@ def test_required_feedback_state_retained():
     delay <<= accumulator
     _sink(Negation(accumulator))
     original = SFG([source], [Output(accumulator)])
-    simplified = original.sink_propagation()
+    simplified = original.sink_propagation(assume_zero_initial_state=False)
     assert not simplified.find_by_type(Negation)
     assert len(simplified.find_by_type(Delay)) == 1
     simulation = Simulation(simplified, [[1, 2, 3]])
