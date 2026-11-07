@@ -3145,7 +3145,17 @@ class SFG(AbstractOperation):
         """
         Return a new SFG with the specified operations rewritten.
 
-        The operations specified by *target* are replaced by the operations specified by *substitute*.
+        The operations specified by *target* are replaced by networks using
+        *substitute*. Input/output ordering and existing output signal metadata
+        are preserved. Unsupported target types produce a warning.
+
+        In addition to add/subtract and constant-multiplier conversions,
+        supported expansions include MAD/MADS into Multiplication plus
+        addition/subtraction, and radix-2 butterflies into arithmetic or a plain
+        R2Butterfly with explicit coefficients. Rewriting AddSub to Addition or
+        Subtraction extracts all shifts and imaginary multiplication; rewriting
+        it to Shift extracts those parameters while retaining a plain AddSub.
+        These algebraic transformations may change intermediate quantization.
 
         Parameters
         ----------
@@ -3154,58 +3164,85 @@ class SFG(AbstractOperation):
         target : :data:`~b_asic.sfg.OpSpecifier` | Iterable[:data:`~b_asic.sfg.OpSpecifier`]
             The operation(s) to be replaced.
         """
-        if isinstance(target, type) and issubclass(target, Operation):
-            target = self.find_by_type(target)
-        elif not isinstance(target, (list, tuple, set)):
-            target = [target]
+        from b_asic._sfg_join import finish  # noqa: PLC0415
 
-        # Validate that the source is an Operation type
         if not isinstance(substitute, type) or not issubclass(substitute, Operation):
             raise TypeError("Substitute must be an Operation type")
-
-        new_sfg = self()
-        for t in target:
-            if isinstance(t, str):
-                op = self.find_by_id(t)
-                if op is None:
-                    raise ValueError(
-                        f"Graph ID {t} not found in SFG and cannot be replaced"
-                    )
-            elif isinstance(t, Operation):
-                op = t
-            elif isinstance(t, type) and issubclass(t, Operation):
-                op = self.find_by_type(t)
+        if isinstance(target, str | Operation | type):
+            target = [target]
+        targets = []
+        for item in target:
+            if isinstance(item, type) and issubclass(item, Operation):
+                targets.extend(op.graph_id for op in self.find_by_type(item))
+            elif isinstance(item, Operation):
+                targets.append(item.graph_id)
+            elif isinstance(item, str):
+                targets.append(item)
             else:
                 raise TypeError("Target must be a GraphID or an Operation type")
 
-            func_name = f"_rewrite_{substitute.__name__}"
-            if hasattr(op, func_name):
-                sub_sfg = getattr(op, func_name)()
-                new_sfg = new_sfg.replace(op.graph_id, sub_sfg)
-            else:
-                warnings.warn(
-                    f"No rewrite method found for target operation type {type(op).__name__} to substitute operation type {substitute.__name__}",
-                    stacklevel=2,
+        new_sfg = self()
+        for graph_id in dict.fromkeys(targets):
+            op = new_sfg.find_by_id(graph_id)
+            if not isinstance(op, Operation):
+                raise ValueError(
+                    f"Graph ID {graph_id} not found in SFG and cannot be replaced"
                 )
-                # Try the other way around
-                func_name = f"_from_{type(op).__name__}"
-                if hasattr(substitute, func_name):
-                    sub_sfg = getattr(substitute, func_name)(op)
-                    new_sfg = new_sfg.replace(op.graph_id, sub_sfg)
-                else:
+            hook = getattr(op, f"_rewrite_{substitute.__name__}", None)
+            if hook is not None:
+                replacement = hook()
+            else:
+                factory = getattr(substitute, f"_from_{type(op).__name__}", None)
+                if factory is None:
                     warnings.warn(
                         f"No rewrite method found for target operation type {type(op).__name__} to substitute operation type {substitute.__name__}",
                         stacklevel=2,
                     )
-                    return new_sfg()
-
-            if not isinstance(sub_sfg, SFG):
+                    continue
+                replacement = factory(op)
+            if not isinstance(replacement, Operation):
+                raise TypeError("Rewrite hooks must return an Operation")
+            if (replacement.input_count, replacement.output_count) != (
+                op.input_count,
+                op.output_count,
+            ):
+                raise ValueError("Rewrite replacement must preserve port counts")
+            if not isinstance(replacement, SFG):
+                new_sfg = new_sfg.replace(graph_id, replacement)
                 continue
 
-            new_sfg.find_by_id("sfg0").connect_external_signals_to_components()
-            new_sfg = new_sfg()
-
-        return new_sfg()
+            # Inline using explicit port maps instead of relying on generated
+            # nested-SFG IDs. Keep the original signals and their metadata.
+            for port, input_op in zip(
+                op.inputs, replacement.input_operations, strict=True
+            ):
+                for signal in list(input_op.output(0).signals):
+                    signal.set_source(port.connected_source)
+            for port, output_op in zip(
+                op.outputs, replacement.output_operations, strict=True
+            ):
+                source = output_op.input(0).connected_source
+                for signal in list(port.signals):
+                    signal.set_source(source)
+                for signal in list(output_op.input(0).signals):
+                    signal.remove_source()
+                    signal.remove_destination()
+            for port in op.inputs:
+                for signal in list(port.signals):
+                    signal.remove_source()
+                    signal.remove_destination()
+            # Reserve IDs before rebuilding, so later requested targets cannot
+            # accidentally select a freshly generated node.
+            interface = {*replacement.input_operations, *replacement.output_operations}
+            for inner in replacement.operations:
+                if inner not in interface:
+                    inner.graph_id = new_sfg._graph_id_generator.next_id(
+                        inner.type_name(),
+                        new_sfg._used_ids,
+                    )
+                    new_sfg._used_ids.add(inner.graph_id)
+            new_sfg = finish(new_sfg)
+        return new_sfg
 
     def _rewrite_AddSub(self) -> "SFG":
         from b_asic.core_operations import (  # noqa: PLC0415
@@ -3276,7 +3313,15 @@ class SFG(AbstractOperation):
 
     def join(self, target: GraphID, direction: Literal["forward", "backward"]) -> "SFG":
         """
-        Return a new SFG with the specified operation joined with its predecessor or successor.
+        Return a copy with local algebraic patterns joined around *target*.
+
+        Supported patterns include coefficient/sign/shift chains, scales and
+        imaginary factors in add/subtract operations, multiply-add/subtract,
+        radix-2 butterflies, and parallel Min/Max operations. Parallel branches
+        can be recognized from either branch. Forward joins consider consumers;
+        backward joins consider producers. Unsupported patterns are unchanged.
+        Shared intermediate results and graph interface ordering are preserved.
+        These algebraic transformations may change intermediate quantization.
 
         Parameters
         ----------
@@ -3285,30 +3330,9 @@ class SFG(AbstractOperation):
         direction : {"forward", "backward"}
             The direction to join. "forward" joins with the successor(s), "backward" with the predecessor(s).
         """
-        new_sfg = self()
-        op = new_sfg.find_by_id(target)
-        if not isinstance(op, Operation):
-            raise ValueError(f"Operation {target} not found in SFG")
+        from b_asic._sfg_join import join  # noqa: PLC0415
 
-        if direction not in ["forward", "backward"]:
-            raise ValueError("Direction must be 'forward' or 'backward'")
-
-        if direction == "forward":
-            if len(op.outputs) != 1:
-                raise ValueError(
-                    "Can only join forward if the operation has exactly one output"
-                )
-            for sig in op.output(0).signals:
-                dest_op = sig.destination_operation
-                if hasattr(op, "_join"):
-                    joined_op = op._join(dest_op)
-                    new_sfg = new_sfg.replace(dest_op.graph_id, joined_op)
-                    new_sfg.find_by_id("sfg0").connect_external_signals_to_components()
-                    new_sfg = new_sfg()
-            new_sfg = new_sfg.remove_operation(target)
-        elif direction == "backward":
-            raise NotImplementedError("Joining backward is not implemented yet")
-        return new_sfg
+        return join(self, target, direction)
 
     @property
     def is_linear(self) -> bool:
