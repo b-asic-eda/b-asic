@@ -137,6 +137,16 @@ class Ui_main_window:
         self.utility_operations_list.setGeometry(QtCore.QRect(10, 0, 141, 211))
         self.utility_operations_list.setObjectName("utility_operations_list")
         self.operation_list.addItem(self.utility_operations_page, "")
+        self.wdf_operations_page = QtWidgets.QWidget()
+        self.wdf_operations_list = QtWidgets.QListWidget(self.wdf_operations_page)
+        self.wdf_operations_page.setObjectName("wdf_operations_page")
+        self.wdf_operations_list.setObjectName("wdf_operations_list")
+        self.operation_list.addItem(self.wdf_operations_page, "")
+        self.fft_operations_page = QtWidgets.QWidget()
+        self.fft_operations_list = QtWidgets.QListWidget(self.fft_operations_page)
+        self.fft_operations_page.setObjectName("fft_operations_page")
+        self.fft_operations_list.setObjectName("fft_operations_list")
+        self.operation_list.addItem(self.fft_operations_page, "")
         self.custom_operations_page = QtWidgets.QWidget()
         self.custom_operations_page.setGeometry(QtCore.QRect(0, 0, 171, 217))
         self.custom_operations_page.setObjectName("custom_operations_page")
@@ -144,6 +154,19 @@ class Ui_main_window:
         self.custom_operations_list.setGeometry(QtCore.QRect(10, 0, 141, 211))
         self.custom_operations_list.setObjectName("custom_operations_list")
         self.operation_list.addItem(self.custom_operations_page, "")
+        operation_layout = QtWidgets.QVBoxLayout(self.operation_box)
+        operation_layout.addWidget(self.operation_list)
+        for page, operation_list in (
+            (self.core_operations_page, self.core_operations_list),
+            (self.special_operations_page, self.special_operations_list),
+            (self.utility_operations_page, self.utility_operations_list),
+            (self.custom_operations_page, self.custom_operations_list),
+            (self.wdf_operations_page, self.wdf_operations_list),
+            (self.fft_operations_page, self.fft_operations_list),
+        ):
+            page_layout = QtWidgets.QVBoxLayout(page)
+            page_layout.setContentsMargins(0, 0, 0, 0)
+            page_layout.addWidget(operation_list)
         main_window.setCentralWidget(self.centralwidget)
         self.menu_bar = QtWidgets.QMenuBar(main_window)
         self.menu_bar.setGeometry(QtCore.QRect(0, 0, 897, 21))
@@ -247,6 +270,14 @@ class Ui_main_window:
         self.operation_list.setItemText(
             self.operation_list.indexOf(self.custom_operations_page),
             _translate("main_window", "Custom operation"),
+        )
+        self.operation_list.setItemText(
+            self.operation_list.indexOf(self.wdf_operations_page),
+            _translate("main_window", "WDF operations"),
+        )
+        self.operation_list.setItemText(
+            self.operation_list.indexOf(self.fft_operations_page),
+            _translate("main_window", "FFT operations"),
         )
         self.file_menu.setTitle(_translate("main_window", "&File"))
         self.edit_menu.setTitle(_translate("main_window", "&Edit"))
