@@ -1,6 +1,29 @@
 SFG GUI
 =================
 
+Editing graphs
+--------------
+
+Ports appear as connection points outside each operation box. Click a port to
+start a wire, then click a compatible port to connect it, or drag between ports.
+To branch an existing signal, start at an unconnected input and click or release
+on the signal. Press Escape or right-click to cancel. Each input accepts one
+signal; an output can feed several inputs.
+
+Choose **Automatic layout** from the toolbar or Edit menu, or press **Ctrl+L**,
+to arrange operations in signal-flow order. Feedback loops and disconnected
+operations are supported. Graphs without saved positions are arranged when
+loaded; saved positions are preserved. Newly added operations use free space.
+Signals follow orthogonal routes around operation boxes and reroute when any
+operation moves, flips, or rotates. Wires from the same output can share trunks of any length. Filled dots mark
+where they branch. Wires from unrelated outputs use separate lanes where possible;
+crossings between unrelated wires have no junction dot.
+
+Select operations and press **R** to rotate clockwise by 90 degrees, or
+**Shift+R** to rotate counterclockwise. Rotation is also available in the Edit
+menu and an operation's context menu. Labels stay upright, and saved graphs
+retain rotation as well as position and flip state.
+
 Module contents
 ---------------
 

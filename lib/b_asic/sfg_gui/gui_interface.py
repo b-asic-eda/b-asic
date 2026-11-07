@@ -144,6 +144,17 @@ class Ui_main_window:
         self.custom_operations_list.setGeometry(QtCore.QRect(10, 0, 141, 211))
         self.custom_operations_list.setObjectName("custom_operations_list")
         self.operation_list.addItem(self.custom_operations_page, "")
+        operation_layout = QtWidgets.QVBoxLayout(self.operation_box)
+        operation_layout.addWidget(self.operation_list)
+        for page, operation_list in (
+            (self.core_operations_page, self.core_operations_list),
+            (self.special_operations_page, self.special_operations_list),
+            (self.utility_operations_page, self.utility_operations_list),
+            (self.custom_operations_page, self.custom_operations_list),
+        ):
+            page_layout = QtWidgets.QVBoxLayout(page)
+            page_layout.setContentsMargins(0, 0, 0, 0)
+            page_layout.addWidget(operation_list)
         main_window.setCentralWidget(self.centralwidget)
         self.menu_bar = QtWidgets.QMenuBar(main_window)
         self.menu_bar.setGeometry(QtCore.QRect(0, 0, 897, 21))

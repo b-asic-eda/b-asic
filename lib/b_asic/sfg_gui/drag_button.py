@@ -7,14 +7,14 @@ Contains a GUI class for drag buttons.
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from qtpy.QtCore import QSize, Qt, Signal
+from qtpy.QtCore import QPointF, QSize, Qt, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QAction, QMenu, QPushButton
 
 from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.operation import Operation
 from b_asic.port import InputPort
-from b_asic.sfg_gui._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT, PORTWIDTH
+from b_asic.sfg_gui._preferences import GRID, MINBUTTONSIZE
 from b_asic.sfg_gui.port_button import PortButton
 from b_asic.sfg_gui.properties_window import PropertiesWindow
 from b_asic.types import TypeName
@@ -67,6 +67,7 @@ class DragButton(QPushButton):
         self._mouse_press_pos = None
         self._mouse_move_pos = None
         self._flipped = False
+        self._rotation = 0
         self._properties_window = None
         self.label = None
         super().__init__(parent)
@@ -84,6 +85,8 @@ class DragButton(QPushButton):
         flip = QAction("Flip horizontal")
         menu.addAction(flip)
         flip.triggered.connect(self._flip)
+        menu.addAction("Rotate 90° clockwise", self.rotate_clockwise)
+        menu.addAction("Rotate 90° counterclockwise", self.rotate_counterclockwise)
         menu.exec_(self.cursor().pos())
 
     def show_properties_window(self, event=None) -> None:
@@ -105,6 +108,7 @@ class DragButton(QPushButton):
             The label to add.
         """
         self.label = label
+        self._position_label()
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -123,13 +127,18 @@ class DragButton(QPushButton):
     def mouseMoveEvent(self, event) -> None:
         if event.buttons() == Qt.MouseButton.LeftButton and self._m_press:
             self._m_drag = True
-            self.move(self.mapToParent(event.pos() - self._mouse_press_pos))
-            if self in self._window._pressed_operations:
-                for button in self._window._pressed_operations:
-                    if button is self:
-                        continue
-
-                    button.move(button.mapToParent(event.pos() - self._mouse_press_pos))
+            proxy = self.graphicsProxyWidget()
+            delta = proxy.mapToScene(QPointF(event.pos())) - proxy.mapToScene(
+                QPointF(self._mouse_press_pos)
+            )
+            buttons = (
+                self._window._pressed_operations
+                if self in self._window._pressed_operations
+                else [self]
+            )
+            for button in buttons:
+                item = button.graphicsProxyWidget()
+                item.setPos(item.pos() + delta)
 
         self._window._update()
         super().mouseMoveEvent(event)
@@ -159,16 +168,43 @@ class DragButton(QPushButton):
 
     def _flip(self, event=None) -> None:
         self._flipped = not self._flipped
-        for pb in self._ports:
-            if isinstance(pb.port, InputPort):
-                newx = MINBUTTONSIZE - PORTWIDTH if self._flipped else 0
-            else:
-                newx = 0 if self._flipped else MINBUTTONSIZE - PORTWIDTH
-            text = "<" if self._flipped else ">"
-            pb.move(newx, pb.pos().y())
-            pb.setText(text)
+        self._position_ports()
 
         self._window._update()
+
+    def rotation_angle(self) -> int:
+        """Return the clockwise rotation in degrees."""
+        return self._rotation
+
+    def set_rotation(self, angle: int) -> None:
+        """Rotate the operation and its terminals in quarter turns."""
+        if angle % 90:
+            raise ValueError("Operation rotation must be a multiple of 90 degrees")
+        self._rotation = angle % 360
+        proxy = self.graphicsProxyWidget()
+        proxy.setTransformOriginPoint(proxy.boundingRect().center())
+        proxy.setRotation(self._rotation)
+        self._position_label()
+        self._window._update()
+
+    def rotate_clockwise(self, event=None) -> None:
+        self.set_rotation(self._rotation + 90)
+
+    def rotate_counterclockwise(self, event=None) -> None:
+        self.set_rotation(self._rotation - 90)
+
+    def _position_label(self) -> None:
+        if self.label is None:
+            return
+        proxy = self.graphicsProxyWidget()
+        self.label.setTransformOriginPoint(QPointF())
+        self.label.setRotation(-self._rotation)
+        rect = proxy.sceneBoundingRect()
+        position = QPointF(
+            rect.center().x() - self.label.boundingRect().width() / 2,
+            rect.top() - self.label.boundingRect().height(),
+        )
+        self.label.setPos(proxy.mapFromScene(position))
 
     def _toggle_button(self, pressed=False) -> None:
         self.pressed = not pressed
@@ -220,6 +256,7 @@ class DragButton(QPushButton):
         self._window._logger.info(
             "Removing operation with name %s", self.operation.name
         )
+        self._window._cancel_connection()
         self._window._scene.removeItem(self._window._drag_operation_scenes[self])
 
         _signals = []
@@ -235,18 +272,7 @@ class DragButton(QPushButton):
         for signal in _signals:
             signal.remove()
 
-        if self in self._window._operation_to_sfg:
-            self._window._logger.info(
-                "Operation detected in existing SFG, removing SFG with name: %s",
-                self._window._operation_to_sfg[self].name,
-            )
-            del self._window._sfg_dict[self._window._operation_to_sfg[self].name]
-            self._window._operation_to_sfg = {
-                op: self._window._operation_to_sfg[op]
-                for op in self._window._operation_to_sfg
-                if self._window._operation_to_sfg[op]
-                is not self._window._operation_to_sfg[self]
-            }
+        self._window._invalidate_sfg(self)
 
         for port in self._ports:
             if port in self._window._pressed_ports:
@@ -258,37 +284,26 @@ class DragButton(QPushButton):
         if self in self._window._drag_operation_scenes:
             del self._window._drag_operation_scenes[self]
 
+        self._window._ports.pop(self, None)
+        self._window._update()
+
         if self.operation in self._window._drag_buttons:
             del self._window._drag_buttons[self.operation]
 
     def add_ports(self) -> None:
-        """Add ports to button."""
+        """Add external terminals as children of the operation's scene proxy."""
+        for port in (*self.operation.inputs, *self.operation.outputs):
+            self._ports.append(PortButton("", self, port))
+        self._position_ports()
 
-        def _determine_port_distance(opheight, ports: int) -> list[float]:
-            """
-            Determine the distance between each port on the side of an operation.
-            The method returns the distance that each port should have from 0.
-            """
-            return (
-                [(opheight - PORTHEIGHT) // 2]
-                if ports == 1
-                else [(PORTHEIGHT + GAP) * no for no in range(ports)]
+    def _position_ports(self) -> None:
+        for port in self._ports:
+            ports = (
+                self.operation.inputs
+                if isinstance(port.port, InputPort)
+                else self.operation.outputs
             )
-
-        op = self.operation
-        height = self.height()
-        output_ports_dist = _determine_port_distance(height, op.output_count)
-        input_ports_dist = _determine_port_distance(height, op.input_count)
-        for i, dist in enumerate(input_ports_dist):
-            port = PortButton(">", self, op.input(i))
-            port.setFixedSize(PORTWIDTH, PORTHEIGHT)
-            port.move(0, dist)
-            port.show()
-            self._ports.append(port)
-
-        for i, dist in enumerate(output_ports_dist):
-            port = PortButton(">", self, op.output(i))
-            port.setFixedSize(PORTWIDTH, PORTHEIGHT)
-            port.move(MINBUTTONSIZE - PORTWIDTH, dist)
-            port.show()
-            self._ports.append(port)
+            y = self.height() * (port.port.index + 1) / (len(ports) + 1)
+            x = -12 if port.direction < 0 else self.width() + 12
+            port.setPos(x, y)
+            port.moved.emit()

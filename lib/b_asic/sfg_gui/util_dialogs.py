@@ -43,10 +43,20 @@ _QUESTIONS = {
         "and press 'Delete' on your keyboard."
     ),
     "Connecting operations": (
-        "To connect operations, select the ports on the operation to connect "
-        "from, \nthen select the next port by pressing 'Ctrl+LMouseButton' on "
-        "the destination port. Tip: You can chain connection by selecting the "
-        "ports in the order they should be connected."
+        "Click an external port to start a wire, then click the destination port. "
+        "You can also drag between ports. To branch a signal, start at an input "
+        "port and click or release on the existing signal. Escape or right-click "
+        "cancels the wire. Inputs accept one signal; outputs can feed multiple inputs."
+    ),
+    "Rotating operations": (
+        "Select operations and press R to rotate clockwise by 90 degrees, or "
+        "Shift+R to rotate counterclockwise. You can also use the Edit menu or "
+        "an operation's context menu. Saved graphs retain their rotation."
+    ),
+    "Automatic layout": (
+        "Press Ctrl+L or choose Automatic layout in the toolbar or Edit menu. "
+        "Operations are arranged from left to right, with space for feedback loops. "
+        "Signals route around operation boxes and update when boxes move."
     ),
     "Creating a signal-flow-graph": (
         "To create a signal-flow-graph (SFG), \ncouple together the "
@@ -96,6 +106,9 @@ class KeybindingsWindow(QDialog):
             "'Ctrl+R' - Reload the operation list to add any new operations "
             "created.\n"
             "'Ctrl+Q' - Quit the application.\n"
+            "'Ctrl+L' - Arrange operations automatically.\n"
+            "'R' / 'Shift+R' - Rotate selected operations by 90 degrees.\n"
+            "'Escape' - Cancel a connection.\n"
             "'Ctrl+LMouseButton' - On a operation will select the operation, "
             "without deselecting the other operations.\n"
             "'Ctrl+S' (Plot) - Save the plot if a plot is visible.\n"

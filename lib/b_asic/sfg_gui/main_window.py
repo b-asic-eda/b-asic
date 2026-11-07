@@ -10,18 +10,30 @@ import sys
 import webbrowser
 from collections import deque
 from collections.abc import Sequence
+from itertools import pairwise
+from math import ceil
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, cast
 
-from qtpy.QtCore import QCoreApplication, QFileInfo, QSettings, QSize, Qt, QThread, Slot
-from qtpy.QtGui import QCursor, QFont, QIcon, QKeySequence, QPainter
+import networkx as nx
+from qtpy.QtCore import (
+    QCoreApplication,
+    QFileInfo,
+    QRectF,
+    QSettings,
+    QSize,
+    Qt,
+    QThread,
+    Slot,
+)
+from qtpy.QtGui import QCursor, QFont, QIcon, QKeySequence, QPainter, QPainterPath, QPen
 from qtpy.QtWidgets import (
     QAction,
     QApplication,
     QFileDialog,
     QGraphicsItem,
-    QGraphicsScene,
+    QGraphicsPathItem,
     QGraphicsTextItem,
     QGraphicsView,
     QInputDialog,
@@ -45,12 +57,14 @@ from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
 from b_asic.sfg import SFG
-from b_asic.sfg_gui._preferences import GAP, GRID, MINBUTTONSIZE, PORTHEIGHT
+from b_asic.sfg_gui._preferences import GAP, GRID, LINECOLOR, MINBUTTONSIZE, PORTHEIGHT
 from b_asic.sfg_gui.arrow import Arrow
 from b_asic.sfg_gui.drag_button import DragButton
 from b_asic.sfg_gui.gui_interface import Ui_main_window
 from b_asic.sfg_gui.port_button import PortButton
 from b_asic.sfg_gui.precedence_graph_window import PrecedenceGraphWindow
+from b_asic.sfg_gui.routing import junction_points
+from b_asic.sfg_gui.scene import ConnectionScene
 from b_asic.sfg_gui.select_sfg_window import SelectSFGWindow
 from b_asic.sfg_gui.simulate_sfg_window import SimulateSFGWindow
 from b_asic.sfg_gui.simulation_worker import SimulationWorker
@@ -79,15 +93,16 @@ class SFGMainWindow(QMainWindow):
         self._ui = Ui_main_window()
         self._ui.setupUi(self)
         self.setWindowIcon(QIcon("small_logo.png"))
-        self._scene = QGraphicsScene(self._ui.splitter)
+        self._scene = ConnectionScene(self, self._ui.splitter)
         self._operations_from_name: dict[str, Operation] = {}
         self._zoom = 1
         self._drag_operation_scenes: dict[DragButton, QGraphicsProxyWidget] = {}
         self._drag_buttons: dict[Operation, DragButton] = {}
-        self._mouse_pressed = False
-        self._mouse_dragging = False
-        self._starting_port = None
+        self._starting_port: PortButton | None = None
+        self._connection_preview: QGraphicsPathItem | None = None
         self._pressed_operations: list[DragButton] = []
+        self._routing_key = None
+        self._junction_item: QGraphicsPathItem | None = None
         self._arrow_ports: dict[Arrow, list[tuple[PortButton, PortButton]]] = {}
         self._operation_to_sfg: dict[DragButton, SFG] = {}
         self._pressed_ports: list[PortButton] = []
@@ -98,9 +113,12 @@ class SFGMainWindow(QMainWindow):
         # Create Graphics View
         self._graphics_view = QGraphicsView(self._scene, self._ui.splitter)
         self._graphics_view.setRenderHint(QPainter.Antialiasing)
-        self._graphics_view.setGeometry(
-            self._ui.operation_box.width(), 20, self.width(), self.height()
-        )
+        self._ui.operation_box.setMinimumWidth(200)
+        self._ui.splitter.setStretchFactor(0, 0)
+        self._ui.splitter.setStretchFactor(1, 1)
+        self._ui.splitter.setSizes([200, 697])
+        self._graphics_view.setMouseTracking(True)
+        self._scene.changed.connect(self._reroute_arrows)
         self._graphics_view.setDragMode(QGraphicsView.RubberBandDrag)
 
         # Create toolbar
@@ -191,6 +209,25 @@ class SFGMainWindow(QMainWindow):
         self._shortcut_signal.activated.connect(self._connect_callback)
         self._create_recent_file_actions_and_menus()
 
+        self._auto_layout_action = QAction("Automatic layout", self)
+        self._auto_layout_action.setShortcut(QKeySequence("Ctrl+L"))
+        self._auto_layout_action.triggered.connect(self.auto_layout)
+        self._ui.edit_menu.addAction(self._auto_layout_action)
+        self._toolbar.addAction(self._auto_layout_action)
+
+        self._rotate_clockwise_action = QAction("Rotate 90° clockwise", self)
+        self._rotate_clockwise_action.setShortcut(QKeySequence("R"))
+        self._rotate_clockwise_action.triggered.connect(self._rotate_selected)
+        self._rotate_counterclockwise_action = QAction(
+            "Rotate 90° counterclockwise", self
+        )
+        self._rotate_counterclockwise_action.setShortcut(QKeySequence("Shift+R"))
+        self._rotate_counterclockwise_action.triggered.connect(
+            lambda: self._rotate_selected(clockwise=False)
+        )
+        self._ui.edit_menu.addAction(self._rotate_clockwise_action)
+        self._ui.edit_menu.addAction(self._rotate_counterclockwise_action)
+
         # View menu
 
         # Operation names
@@ -241,17 +278,6 @@ class SFGMainWindow(QMainWindow):
 
         self.cursor = QCursor()
 
-    def resizeEvent(self, event) -> None:
-        ui_width = self._ui.operation_box.width()
-        self._ui.operation_box.setGeometry(10, 10, ui_width, self.height())
-        self._graphics_view.setGeometry(
-            ui_width + 20,
-            60,
-            self.width() - ui_width - 20,
-            self.height() - 30,
-        )
-        super().resizeEvent(event)
-
     def wheelEvent(self, event) -> None:
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             old_zoom = self._zoom
@@ -269,6 +295,7 @@ class SFGMainWindow(QMainWindow):
     def _save_work(self) -> None:
         if not self.sfg_widget.sfg:
             self.update_statusbar("No SFG selected - saving cancelled")
+            return
         sfg = cast(SFG, self.sfg_widget.sfg)
         file_dialog = QFileDialog()
         file_dialog.setDefaultSuffix(".py")
@@ -283,6 +310,7 @@ class SFGMainWindow(QMainWindow):
                 int(op_scene.x()),
                 int(op_scene.y()),
                 op_drag.is_flipped(),
+                op_drag.rotation_angle(),
             )
 
         try:
@@ -347,11 +375,21 @@ class SFGMainWindow(QMainWindow):
         if positions is None:
             positions = {}
 
-        for op in sfg.split():
+        operations = list(sfg.split())
+        for op in operations:
             self.add_operation(
                 op,
                 positions[op.graph_id][0:2] if op.graph_id in positions else None,
-                positions[op.graph_id][-1] if op.graph_id in positions else None,
+                (
+                    positions[op.graph_id][2]
+                    if op.graph_id in positions
+                    and len(positions[op.graph_id]) >= 3
+                    and isinstance(positions[op.graph_id][2], bool)
+                    else False
+                ),
+                positions[op.graph_id][3]
+                if op.graph_id in positions and len(positions[op.graph_id]) >= 4
+                else 0,
             )
 
         def connect_ports(ports: Sequence[InputPort]) -> None:
@@ -386,7 +424,9 @@ class SFGMainWindow(QMainWindow):
             self._operation_to_sfg[self._drag_buttons[op]] = sfg
 
         self._sfg_dict[sfg.name] = sfg
-        self.update()
+        if not positions:
+            self.auto_layout()
+        self._update()
 
     def _create_recent_file_actions_and_menus(self) -> None:
         for _ in range(self._max_recent_files):
@@ -459,6 +499,8 @@ class SFGMainWindow(QMainWindow):
 
     def _clear_workspace(self) -> None:
         self._logger.info("Clearing workspace from operations and SFGs.")
+        self._cancel_connection()
+        self._operation_to_sfg.clear()
         self._pressed_operations.clear()
         self._pressed_ports.clear()
         self._drag_buttons.clear()
@@ -466,6 +508,8 @@ class SFGMainWindow(QMainWindow):
         self._arrow_ports.clear()
         self._ports.clear()
         self._sfg_dict.clear()
+        self._junction_item = None
+        self._routing_key = None
         self._scene.clear()
         self._logger.info("Workspace cleared.")
         self.update_statusbar("Workspace cleared.")
@@ -496,97 +540,29 @@ class SFGMainWindow(QMainWindow):
         self._logger.info("Created SFG with name: %s from selected operations.", name)
         self.update_statusbar(f"Created SFG: {name}")
 
-        def check_equality(signal: Signal, signal_2: Signal) -> bool:
-            source_operation = cast(Operation, signal.source_operation)
-            source_operation2 = cast(Operation, signal_2.source_operation)
-            dest_operation = cast(Operation, signal.destination_operation)
-            dest_operation2 = cast(Operation, signal_2.destination_operation)
-            if not (
-                source_operation.type_name() == source_operation2.type_name()
-                and dest_operation.type_name() == dest_operation2.type_name()
-            ):
-                return False
-
-            if (
-                hasattr(source_operation, "value")
-                and hasattr(source_operation2, "value")
-                and hasattr(dest_operation, "value")
-                and hasattr(dest_operation2, "value")
-                and not (
-                    source_operation.value == source_operation2.value
-                    and dest_operation.value == dest_operation2.value
+        # The SFG constructor copies its components. Rebind by identity using
+        # its exact copy map, so equal-looking operations cannot be confused.
+        copies = sfg._original_components_to_new
+        for original, button in list(self._drag_buttons.items()):
+            replacement = copies.get(original)
+            if not isinstance(replacement, Operation):
+                continue
+            del self._drag_buttons[original]
+            self._drag_buttons[replacement] = button
+            button.operation = replacement
+            for terminal in button.port_list:
+                index = terminal.port.index
+                terminal.port = (
+                    replacement.input(index)
+                    if isinstance(terminal.port, InputPort)
+                    else replacement.output(index)
                 )
-            ):
-                return False
-
-            if (
-                hasattr(source_operation, "name")
-                and hasattr(source_operation2, "name")
-                and hasattr(dest_operation, "name")
-                and hasattr(dest_operation2, "name")
-                and not (
-                    source_operation.name == source_operation2.name
-                    and dest_operation.name == dest_operation2.name
-                )
-            ):
-                return False
-
-            try:
-                signal_source_index = [
-                    source_operation.outputs.index(port)
-                    for port in source_operation.outputs
-                    if signal in port.signals
-                ]
-                signal_2_source_index = [
-                    source_operation2.outputs.index(port)
-                    for port in source_operation2.outputs
-                    if signal_2 in port.signals
-                ]
-            except ValueError:
-                return False  # Signal output connections not matching
-
-            try:
-                signal_destination_index = [
-                    dest_operation.inputs.index(port)
-                    for port in dest_operation.inputs
-                    if signal in port.signals
-                ]
-                signal_2_destination_index = [
-                    dest_operation2.inputs.index(port)
-                    for port in dest_operation2.inputs
-                    if signal_2 in port.signals
-                ]
-            except ValueError:
-                return False  # Signal input connections not matching
-
-            return (
-                signal_source_index == signal_2_source_index
-                and signal_destination_index == signal_2_destination_index
-            )
-
-        for _ in self._pressed_operations:
-            for operation in sfg.operations:
-                for input_ in operation.inputs:
-                    for signal in input_.signals:
-                        for arrow in self._arrow_ports:
-                            if check_equality(arrow.signal, signal):
-                                arrow.set_source_operation(signal.source_operation)
-                                arrow.set_destination_operation(
-                                    signal.destination_operation
-                                )
-
-                for output_ in operation.outputs:
-                    for signal in output_.signals:
-                        for arrow in self._arrow_ports:
-                            if check_equality(arrow.signal, signal):
-                                arrow.set_source_operation(signal.source_operation)
-                                arrow.set_destination_operation(
-                                    signal.destination_operation
-                                )
-
-        for pressed_op in self._pressed_operations:
-            pressed_op.setToolTip(sfg.name)
-            self._operation_to_sfg[pressed_op] = sfg
+            button.setToolTip(sfg.name)
+            self._operation_to_sfg[button] = sfg
+        for arrow in self._arrow_ports:
+            replacement = copies.get(arrow.signal)
+            if isinstance(replacement, Signal):
+                arrow.signal = replacement
 
         self._sfg_dict[sfg.name] = sfg
 
@@ -666,6 +642,7 @@ class SFGMainWindow(QMainWindow):
         self.add_operations_from_namespace(namespace, self._ui.custom_operations_list)
 
     def _update(self) -> None:
+        self._reroute_arrows()
         self._scene.update()
         self._graphics_view.update()
 
@@ -674,6 +651,7 @@ class SFGMainWindow(QMainWindow):
         op: Operation,
         position: tuple[float, float] | None = None,
         is_flipped: bool = False,
+        rotation: int = 0,
     ) -> None:
         """
         Add operation to GUI.
@@ -686,6 +664,8 @@ class SFGMainWindow(QMainWindow):
             (x, y)-position for operation.
         is_flipped : bool, default: False
             Whether the operation is flipped.
+        rotation : int, default: 0
+            Clockwise rotation in degrees, in steps of 90.
         """
         try:
             if op in self._drag_buttons:
@@ -693,10 +673,6 @@ class SFGMainWindow(QMainWindow):
                 return
 
             attr_button = DragButton(op, True, window=self)
-            if position is None:
-                attr_button.move(GRID * 3, GRID * 2)
-            else:
-                attr_button.move(*position)
 
             max_ports = max(op.input_count, op.output_count)
             button_height = max(
@@ -705,11 +681,9 @@ class SFGMainWindow(QMainWindow):
 
             attr_button.setFixedSize(MINBUTTONSIZE, button_height)
             attr_button.setStyleSheet(
-                "background-color: white; border-style: solid;"
-                "border-color: black; border-width: 2px"
+                "QPushButton { background-color: white; border: 2px solid black; }"
+                "QToolTip { background-color: white; color: black; }"
             )
-            attr_button.add_ports()
-            self._ports[attr_button] = attr_button.port_list
 
             icon_path = (
                 Path(__file__).parent
@@ -717,7 +691,6 @@ class SFGMainWindow(QMainWindow):
                 / f"{op.type_name().lower()}.png"
             )
 
-            print(icon_path)
             if not Path(icon_path).exists():
                 icon_path = (
                     Path(__file__).parent / "operation_icons" / "custom_operation.png"
@@ -725,15 +698,27 @@ class SFGMainWindow(QMainWindow):
             attr_button.setIcon(QIcon(str(icon_path)))
             attr_button.setIconSize(QSize(MINBUTTONSIZE, MINBUTTONSIZE))
             attr_button.setToolTip("No SFG")
-            attr_button.setStyleSheet(
-                "QToolTip { background-color: white; color: black }"
-            )
             attr_button.setParent(None)
             attr_button_scene = self._scene.addWidget(attr_button)
+            attr_button.add_ports()
+            self._ports[attr_button] = attr_button.port_list
             if position is None:
-                attr_button_scene.moveBy(
-                    int(self._scene.width() / 4), int(self._scene.height() / 4)
-                )
+                x, y = GRID * 3, GRID * 3
+                while any(
+                    QRectF(
+                        x - 2 * GRID,
+                        y - GRID,
+                        MINBUTTONSIZE + 4 * GRID,
+                        button_height + 2 * GRID,
+                    ).intersects(proxy.sceneBoundingRect())
+                    for proxy in self._drag_operation_scenes.values()
+                ):
+                    y += button_height + 3 * GRID
+                    if y > max(400, self._graphics_view.height()):
+                        x += MINBUTTONSIZE + 6 * GRID
+                        y = GRID * 3
+                position = (x, y)
+            attr_button_scene.setPos(*position)
             attr_button_scene.setFlag(QGraphicsItem.ItemIsSelectable, True)
             operation_label = QGraphicsTextItem(op.name, attr_button_scene)
             operation_label.setFont(QFont(DEFAULT_FONT_FAMILY))
@@ -750,6 +735,8 @@ class SFGMainWindow(QMainWindow):
 
             self._drag_buttons[op] = attr_button
             self._drag_operation_scenes[attr_button] = attr_button_scene
+            attr_button.set_rotation(rotation)
+            self._update()
 
         except Exception as e:
             self._logger.error(
@@ -784,8 +771,10 @@ class SFGMainWindow(QMainWindow):
         self._create_operation_item(item)
 
     def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self._cancel_connection()
         if event.key() == Qt.Key.Key_Delete:
-            for pressed_op in self._pressed_operations:
+            for pressed_op in list(self._pressed_operations):
                 pressed_op.remove()
                 self.move_button_index -= 1
             self._pressed_operations.clear()
@@ -811,14 +800,17 @@ class SFGMainWindow(QMainWindow):
         ]
 
         if len(pressed_op_outports) != 1:
-            raise ValueError("Exactly one output port must be selected!")
+            self.update_statusbar("Select exactly one output and one or more inputs")
+            return
 
         pressed_op_outport = pressed_op_outports[0]
         for pressed_op_input_port in pressed_op_inports:
             self._connect_button(pressed_op_outport, pressed_op_input_port)
 
+        self._cancel_connection()
         for port in self._pressed_ports:
-            port.select_port()
+            port._toggle_port(True)
+        self._pressed_ports.clear()
 
     def _connect_button(self, source: PortButton, destination: PortButton) -> None:
         """
@@ -831,6 +823,21 @@ class SFGMainWindow(QMainWindow):
         destination : :class:`~b_asic.sfg_gui.port_button.PortButton`
             The PortButton to end the signal at.
         """
+        if not isinstance(source.port, OutputPort) or not isinstance(
+            destination.port, InputPort
+        ):
+            self.update_statusbar("Connect an output to an input")
+            return
+        if any(
+            a.source_port_button is source and a.destination_port_button is destination
+            for a in self._arrow_ports
+        ):
+            return
+        if any(signal.source is not source.port for signal in destination.port.signals):
+            self.update_statusbar(
+                "This input already has a signal; delete it before reconnecting"
+            )
+            return
         signal_exists = (
             signal
             for signal in source.port.signals
@@ -845,6 +852,8 @@ class SFGMainWindow(QMainWindow):
             arrow = Arrow(source, destination, self, signal=next(signal_exists))
         except StopIteration:
             arrow = Arrow(source, destination, self)
+            self._invalidate_sfg(source._operation_button)
+            self._invalidate_sfg(destination._operation_button)
 
         if arrow not in self._arrow_ports:
             self._arrow_ports[arrow] = []
@@ -852,15 +861,211 @@ class SFGMainWindow(QMainWindow):
         self._arrow_ports[arrow].append((source, destination))
         self._scene.addItem(arrow)
 
+        self._reroute_arrows()
         self.update()
 
-    def paintEvent(self, event) -> None:
+    def auto_layout(self, event=None) -> None:
+        """Arrange operations in signal-flow layers, including feedback graphs."""
+        if not self._drag_buttons:
+            return
+        graph = nx.DiGraph()
+        graph.add_nodes_from(self._drag_buttons)
+        graph.add_edges_from(
+            (arrow.source_operation, arrow.destination_operation)
+            for arrow in self._arrow_ports
+        )
+        condensed = nx.condensation(graph)
+        ranks = {}
+        for node in nx.topological_sort(condensed):
+            ranks[node] = max(
+                (ranks[p] + 1 for p in condensed.predecessors(node)), default=0
+            )
+        layers = {}
+        for operation in graph:
+            rank = ranks[condensed.graph["mapping"][operation]]
+            layers.setdefault(rank, []).append(operation)
+        # Stable barycenter ordering reduces crossings between neighboring layers.
+        order = {op: i for ops in layers.values() for i, op in enumerate(ops)}
+        for _ in range(4):
+            for reverse in (False, True):
+                for rank in sorted(layers, reverse=reverse):
+
+                    def barycenter(op, reverse=reverse):
+                        neighbors = list(
+                            graph.successors(op) if reverse else graph.predecessors(op)
+                        )
+                        return (
+                            sum(order[n] for n in neighbors) / len(neighbors)
+                            if neighbors
+                            else order[op]
+                        )
+
+                    layers[rank].sort(key=barycenter)
+                    order.update((op, i) for i, op in enumerate(layers[rank]))
+        x = 3 * GRID
+        for rank in sorted(layers):
+            y = 3 * GRID
+            for operation in layers[rank]:
+                button = self._drag_buttons[operation]
+                if button.is_flipped():
+                    button._flip()
+                proxy = self._drag_operation_scenes[button]
+                rect = proxy.mapRectToParent(proxy.boundingRect())
+                offset = rect.topLeft() - proxy.pos()
+                proxy.setPos(x - offset.x(), y - offset.y())
+                y += GRID * ceil((rect.height() + 4 * GRID) / GRID)
+            x += (
+                max(
+                    self._drag_operation_scenes[self._drag_buttons[op]]
+                    .sceneBoundingRect()
+                    .width()
+                    for op in layers[rank]
+                )
+                + 6 * GRID
+            )
+        self._update()
+        self._zoom_to_fit()
+        self.update_statusbar("Automatic layout applied")
+
+    def _port_clicked(self, port: PortButton) -> None:
+        if self._starting_port is not None:
+            if port is self._starting_port:
+                self._cancel_connection()
+            else:
+                self._complete_connection(port)
+            return
+        port.select_port()
+        self._starting_port = port
+        self._connection_preview = QGraphicsPathItem()
+        self._connection_preview.setPen(QPen(Qt.darkGray, 2, Qt.DashLine))
+        self._connection_preview.setZValue(-0.5)
+        self._connection_preview.setAcceptedMouseButtons(Qt.NoButton)
+        self._scene.addItem(self._connection_preview)
+        self.update_statusbar("Choose a port or signal; Escape cancels")
+
+    def _preview_connection(self, position) -> None:
+        if self._starting_port is None or self._connection_preview is None:
+            return
+        start = self._starting_port.anchor()
+        path = QPainterPath(start)
+        mid = (start.x() + position.x()) / 2
+        path.lineTo(mid, start.y())
+        path.lineTo(mid, position.y())
+        path.lineTo(position)
+        self._connection_preview.setPath(path)
+
+    def _finish_connection_at(self, position, ignore=None) -> None:
+        for item in self._scene.items(position):
+            if item is ignore:
+                continue
+            if isinstance(item, PortButton | Arrow):
+                self._complete_connection(item)
+                return
+
+    def _complete_connection(self, target) -> None:
+        start = self._starting_port
+        if start is None:
+            return
+        if isinstance(target, Arrow):
+            if not isinstance(start.port, InputPort):
+                self.update_statusbar("Branch a signal to an input port")
+                return
+            source, destination = target.source_port_button, start
+        elif isinstance(start.port, OutputPort) and isinstance(target.port, InputPort):
+            source, destination = start, target
+        elif isinstance(start.port, InputPort) and isinstance(target.port, OutputPort):
+            source, destination = target, start
+        else:
+            self.update_statusbar("Connect an output to an input")
+            return
+        self._cancel_connection()
+        self._connect_button(source, destination)
+
+    def _cancel_connection(self) -> None:
+        if self._starting_port is not None:
+            self._starting_port._toggle_port(True)
+            if self._starting_port in self._pressed_ports:
+                self._pressed_ports.remove(self._starting_port)
+        self._starting_port = None
+        if self._connection_preview is not None:
+            self._scene.removeItem(self._connection_preview)
+            self._connection_preview = None
+
+    def _invalidate_sfg(self, button: DragButton) -> None:
+        """Discard a cached graph after its connections or operations change."""
+        sfg = self._operation_to_sfg.get(button)
+        if sfg is None:
+            return
+        self._sfg_dict.pop(sfg.name, None)
+        for operation, graph in list(self._operation_to_sfg.items()):
+            if graph is sfg:
+                operation.setToolTip("No SFG")
+                del self._operation_to_sfg[operation]
+
+    def _rotate_selected(self, event=None, clockwise: bool = True) -> None:
+        for button in list(self._pressed_operations):
+            button.set_rotation(button.rotation_angle() + (90 if clockwise else -90))
+
+    def _reroute_arrows(self, *args) -> None:
+        obstacles = []
+        for proxy in self._drag_operation_scenes.values():
+            rect = proxy.sceneBoundingRect().adjusted(-6, -6, 6, 6)
+            obstacles.append((rect.left(), rect.top(), rect.right(), rect.bottom()))
+        terminals = []
         for arrow in self._arrow_ports:
-            arrow.update_arrow()
+            ports = (arrow.source_port_button, arrow.destination_port_button)
+            terminals.append(
+                (
+                    id(arrow),
+                    tuple(
+                        (p.anchor().x(), p.anchor().y(), p.scene_direction())
+                        for p in ports
+                    ),
+                )
+            )
+        key = (tuple(obstacles), tuple(terminals))
+        if key == self._routing_key:
+            return
+        self._routing_key = key
+        routed = {}
+        for arrow in self._arrow_ports:
+            source = arrow.source_port_button
+            occupied = [
+                segment
+                for port, paths in routed.items()
+                if port is not source
+                for path in paths
+                for segment in pairwise(path)
+            ]
+            shared = [
+                segment for path in routed.get(source, []) for segment in pairwise(path)
+            ]
+            points = arrow.route(obstacles, occupied, shared)
+            routed.setdefault(source, []).append(points)
+        junctions = set()
+        for paths in routed.values():
+            if len(paths) > 1:
+                junctions.update(junction_points(paths))
+        dots = QPainterPath()
+        for x, y in sorted(junctions):
+            dots.addEllipse(QRectF(x - 3.5, y - 3.5, 7, 7))
+        if self._junction_item is None:
+            self._junction_item = QGraphicsPathItem()
+            self._junction_item.setPen(QPen(Qt.NoPen))
+            self._junction_item.setBrush(LINECOLOR)
+            self._junction_item.setZValue(-0.25)
+            self._junction_item.setAcceptedMouseButtons(Qt.NoButton)
+            self._scene.addItem(self._junction_item)
+        if self._junction_item.path() != dots:
+            self._junction_item.setPath(dots)
 
     def _select_operations(self) -> None:
         """Select an operation button."""
-        selected = [button.widget() for button in self._scene.selectedItems()]
+        selected = [
+            item.widget()
+            for item in self._scene.selectedItems()
+            if hasattr(item, "widget") and isinstance(item.widget(), DragButton)
+        ]
         for button in selected:
             button._toggle_button(pressed=False)
 
@@ -878,6 +1083,7 @@ class SFGMainWindow(QMainWindow):
 
         for operation in self._drag_buttons.values():
             operation._toggle_button(pressed=False)
+        self._pressed_operations = list(self._drag_buttons.values())
         self.update_statusbar("Selected all operations")
 
     def _unselect_all(self, event=None) -> None:
@@ -888,12 +1094,14 @@ class SFGMainWindow(QMainWindow):
 
         for operation in self._drag_buttons.values():
             operation._toggle_button(pressed=True)
+        self._pressed_operations.clear()
         self.update_statusbar("Unselected all operations")
 
     def _zoom_to_fit(self, event=None) -> None:
         """Zoom to fit SFGs in window."""
         self._graphics_view.fitInView(
-            self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio
+            self._scene.itemsBoundingRect().adjusted(-30, -30, 30, 30),
+            Qt.AspectRatioMode.KeepAspectRatio,
         )
 
     def _simulate_sfg(self) -> None:
