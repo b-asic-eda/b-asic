@@ -6,11 +6,11 @@ Contains a GUI class for arrows.
 
 from typing import TYPE_CHECKING, cast
 
-from qtpy.QtCore import QPointF
-from qtpy.QtGui import QPainterPath, QPen
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QPainterPath, QPainterPathStroker, QPen
 from qtpy.QtWidgets import QGraphicsPathItem, QMenu
 
-from b_asic.sfg_gui._preferences import GRID, LINECOLOR, PORTHEIGHT, PORTWIDTH
+from b_asic.sfg_gui._preferences import LINECOLOR
 from b_asic.signal import Signal
 
 if TYPE_CHECKING:
@@ -54,7 +54,9 @@ class Arrow(QGraphicsPathItem):
         self.signal = signal
         self._destination_port_button = destination_port_button
         self._window = window
-        self.update_arrow()
+        self.branch_parent = None
+        self.branch_fraction = 0.0
+        self.setZValue(-1)
         self._source_port_button.moved.connect(self.update_arrow)
         self._destination_port_button.moved.connect(self.update_arrow)
 
@@ -69,7 +71,7 @@ class Arrow(QGraphicsPathItem):
         """
         menu = QMenu()
         menu.addAction("Delete", self.remove)
-        menu.exec_(self.cursor().pos())
+        menu.exec_(event.screenPos())
 
     @property
     def source_operation_button(self) -> "DragButton":
@@ -135,153 +137,106 @@ class Arrow(QGraphicsPathItem):
 
     def remove(self) -> None:
         """Remove line and connections to signals etc."""
+        self._window._cancel_connection()
+        self._source_port_button.moved.disconnect(self.update_arrow)
+        self._destination_port_button.moved.disconnect(self.update_arrow)
         self.signal.remove_destination()
         self.signal.remove_source()
         self._window._scene.removeItem(self)
 
-        if self in self._window._arrow_ports:
-            for port1, port2 in self._window._arrow_ports[self]:
-                for (
-                    operation,
-                    operation_ports,
-                ) in self._window._ports.items():
-                    if (
-                        port1 in operation_ports or port2 in operation_ports
-                    ) and operation in self._window._operation_to_sfg:
-                        self._window._logger.info(
-                            "Operation detected in existing SFG, removing SFG"
-                            " with name: %s",
-                            self._window._operation_to_sfg[operation].name,
-                        )
-                        del self._window._sfg_dict[
-                            self._window._operation_to_sfg[operation].name
-                        ]
-                        self._window._operation_to_sfg = {
-                            op: self._window._operation_to_sfg[op]
-                            for op in self._window._operation_to_sfg
-                            if self._window._operation_to_sfg[op]
-                            is not self._window._operation_to_sfg[operation]
-                        }
+        self._window._invalidate_sfg(self.source_operation_button)
+        self._window._invalidate_sfg(self.destination_operation_button)
+        for arrow in self._window._arrow_ports:
+            if arrow.branch_parent is self:
+                arrow.branch_parent = None
+        self._window._arrow_ports.pop(self, None)
+        self._window._reroute_arrows()
 
-        del self._window._arrow_ports[self]
+    def shape(self) -> QPainterPath:
+        """Make thin signals easy to target when branching or deleting."""
+        stroker = QPainterPathStroker()
+        stroker.setWidth(12)
+        return stroker.createStroke(self.path())
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            if self._window._starting_port is not None:
+                self._window._complete_connection(self, event.scenePos())
+            else:
+                self._window._signal_clicked(self, event.scenePos())
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if event.button() == Qt.LeftButton and self._window._starting_port is not None:
+            self._window._finish_connection_at(event.scenePos(), ignore=self)
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
+
+    def fraction_at(self, position) -> float:
+        """Project a scene position onto this wire and return its length fraction."""
+        path = self.path()
+        traveled = 0.0
+        closest = (float("inf"), 0.0)
+        for i in range(1, path.elementCount()):
+            a, b = path.elementAt(i - 1), path.elementAt(i)
+            dx, dy = b.x - a.x, b.y - a.y
+            squared = dx * dx + dy * dy
+            if not squared:
+                continue
+            t = max(
+                0,
+                min(
+                    1, ((position.x() - a.x) * dx + (position.y() - a.y) * dy) / squared
+                ),
+            )
+            distance = (position.x() - a.x - t * dx) ** 2 + (
+                position.y() - a.y - t * dy
+            ) ** 2
+            if distance < closest[0]:
+                closest = (distance, traveled + t * squared**0.5)
+            traveled += squared**0.5
+        return closest[1] / traveled if traveled else 0.0
+
+    def branch_prefix(self, fraction):
+        """Return the shared trunk up to a relative distance along this wire."""
+        path = self.path()
+        remaining = fraction * path.length()
+        points = []
+        for i in range(path.elementCount()):
+            element = path.elementAt(i)
+            point = (element.x, element.y)
+            if points:
+                a = points[-1]
+                length = abs(point[0] - a[0]) + abs(point[1] - a[1])
+                if length > remaining:
+                    t = remaining / length
+                    points.append(
+                        (a[0] + t * (point[0] - a[0]), a[1] + t * (point[1] - a[1]))
+                    )
+                    break
+                remaining -= length
+            points.append(point)
+        return points
 
     def update_arrow(self) -> None:
-        """
-        Update coordinates for arrow.
+        """Request coordinated routing so connections reserve separate lanes."""
+        self._window._reroute_arrows()
 
-        Used as callback when moving operations.
-        """
-        ORTHOGONAL = True
-        OFFSET = 2 * PORTWIDTH
-        self.setPen(QPen(LINECOLOR, 3))
-        source_flipped = self.source_operation_button.is_flipped()
-        destination_flipped = self.destination_operation_button.is_flipped()
-        x0 = (
-            self.source_operation_button.x()
-            + self.source_port_button.x()
-            + (PORTWIDTH if not source_flipped else 0)
+    def apply_route(self, points, blocked):
+        """Paint a changed path returned by the persistent native engine."""
+        start = self.source_port_button.anchor()
+        path = QPainterPath(start)
+        for x, y in points[1:]:
+            path.lineTo(x, y)
+        self.setPen(QPen(LINECOLOR, 2, Qt.DashLine if blocked else Qt.SolidLine))
+        self.setZValue(0.5 if blocked else -1)
+        self.setToolTip(
+            "Route blocked by an operation; move the overlapping operations"
+            if blocked
+            else ""
         )
-        y0 = (
-            self.source_operation_button.y()
-            + self.source_port_button.y()
-            + PORTHEIGHT / 2
-        )
-        x1 = (
-            self.destination_operation_button.x()
-            + self.destination_port_button.x()
-            + (0 if not destination_flipped else PORTWIDTH)
-        )
-        y1 = (
-            self.destination_operation_button.y()
-            + self._destination_port_button.y()
-            + PORTHEIGHT / 2
-        )
-        xmid = (x0 + x1) / 2
-        ymid = (y0 + y1) / 2
-        both_flipped = source_flipped and destination_flipped
-        any_flipped = source_flipped or destination_flipped
-        p = QPainterPath(QPointF(x0, y0))
-        # TODO: Simplify or create a better router
-        if not ORTHOGONAL:
-            pass
-        elif y0 == y1:
-            if not any_flipped:
-                if x0 <= x1:
-                    pass
-                else:
-                    p.lineTo(QPointF(x0 + OFFSET, y0))
-                    p.lineTo(QPointF(x0 + OFFSET, y0 + OFFSET))
-                    p.lineTo(QPointF(x1 - OFFSET, y0 + OFFSET))
-                    p.lineTo(QPointF(x1 - OFFSET, y0))
-            elif both_flipped:
-                if x1 <= x0:
-                    pass
-                else:
-                    p.lineTo(QPointF(x0 + OFFSET, y0))
-                    p.lineTo(QPointF(x0 + OFFSET, y0 + OFFSET))
-                    p.lineTo(QPointF(x1 - OFFSET, y0 + OFFSET))
-                    p.lineTo(QPointF(x1 - OFFSET, y0))
-            elif source_flipped:
-                if x0 <= x1:
-                    p.lineTo(QPointF(x0 - OFFSET, y0))
-                    p.lineTo(QPointF(x0 - OFFSET, y0 + OFFSET))
-                    p.lineTo(QPointF(xmid, y0 + OFFSET))
-                    p.lineTo(QPointF(xmid, y0))
-                else:
-                    p.lineTo(QPointF(x0 + OFFSET, y0))
-                    p.lineTo(QPointF(x0 + OFFSET, y0 + OFFSET))
-                    p.lineTo(QPointF(xmid, y0 + OFFSET))
-                    p.lineTo(QPointF(xmid, y0))
-            else:
-                if x1 <= x0:
-                    p.lineTo(QPointF(x0 + OFFSET, y0))
-                    p.lineTo(QPointF(x0 + OFFSET, y0 + OFFSET))
-                    p.lineTo(QPointF(xmid, y0 + OFFSET))
-                    p.lineTo(QPointF(xmid, y0))
-                else:
-                    p.lineTo(QPointF(xmid, y0))
-                    p.lineTo(QPointF(xmid, y0 + OFFSET))
-                    p.lineTo(QPointF(x1 + OFFSET, y0 + OFFSET))
-                    p.lineTo(QPointF(x1 + OFFSET, y0))
-
-        elif abs(x0 - x1) <= GRID:
-            if both_flipped or not any_flipped:
-                offset = -OFFSET if both_flipped else OFFSET
-                p.lineTo(QPointF(x0 + offset, y0))
-                p.lineTo(QPointF(x0 + offset, ymid))
-                p.lineTo(QPointF(x0 - offset, ymid))
-                p.lineTo(QPointF(x0 - offset, y1))
-            else:
-                offset = -OFFSET
-                p.lineTo(QPointF(x0 + offset, y0))
-                p.lineTo(QPointF(x0 + offset, y1))
-        else:
-            if not any_flipped:
-                if x0 <= x1:
-                    p.lineTo(QPointF(xmid, y0))
-                    p.lineTo(QPointF(xmid, y1))
-                else:
-                    p.lineTo(x0 + OFFSET, y0)
-                    p.lineTo(x0 + OFFSET, ymid)
-                    p.lineTo(x1 - OFFSET, ymid)
-                    p.lineTo(x1 - OFFSET, y1)
-            elif both_flipped:
-                if x0 >= x1:
-                    p.lineTo(QPointF(xmid, y0))
-                    p.lineTo(QPointF(xmid, y1))
-                else:
-                    p.lineTo(x0 - OFFSET, y0)
-                    p.lineTo(x0 - OFFSET, ymid)
-                    p.lineTo(x1 + OFFSET, ymid)
-                    p.lineTo(x1 + OFFSET, y1)
-            elif source_flipped:
-                xmin = min(x0, x1) - OFFSET
-                p.lineTo(QPointF(xmin, y0))
-                p.lineTo(QPointF(xmin, y1))
-            else:
-                xmax = max(x0, x1) + OFFSET
-                p.lineTo(QPointF(xmax, y0))
-                p.lineTo(QPointF(xmax, y1))
-
-        p.lineTo(QPointF(x1, y1))
-        self.setPath(p)
+        if path != self.path():
+            self.setPath(path)
