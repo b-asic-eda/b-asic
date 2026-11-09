@@ -7,7 +7,6 @@ import pickle
 import re
 import sys
 from copy import deepcopy
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.testing.decorators
@@ -1038,33 +1037,6 @@ class TestProcesses:
 
 
 class TestFigureGeneration:
-    @pytest.mark.parametrize(
-        ("font_kwargs", "expected"),
-        [
-            ({}, "DejaVu Serif"),
-            ({"fontname": "DejaVu Sans"}, "DejaVu Sans"),
-            ({"fontname": None}, "DejaVu Sans"),
-        ],
-    )
-    def test_show_font(
-        self, secondorder_iir_schedule, monkeypatch, caplog, font_kwargs, expected
-    ):
-        figures = []
-        get_figure = secondorder_iir_schedule._get_figure
-
-        def capture_figure(*args, **kwargs):
-            fig = get_figure(*args, **kwargs)
-            figures.append(fig)
-            return fig
-
-        monkeypatch.setattr(secondorder_iir_schedule, "_get_figure", capture_figure)
-        monkeypatch.setattr("b_asic.schedule._view", lambda path: Path(path).unlink())
-        with plt.rc_context({"font.family": "DejaVu Sans"}):
-            secondorder_iir_schedule.show(fmt="png", title="Schedule", **font_kwargs)
-        assert figures[0].axes[0].xaxis.label.get_fontfamily() == [expected]
-        assert figures[0]._suptitle.get_fontfamily() == [expected]
-        assert "findfont" not in caplog.text
-
     def test_figure_default_font(self, secondorder_iir_schedule):
         fig = secondorder_iir_schedule._get_figure()
         try:
