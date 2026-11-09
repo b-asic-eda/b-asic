@@ -268,7 +268,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if self._io_latency_window is None:
             self._io_latency_window = IOLatencyWindow(self)
             self._io_latency_window.finished.connect(self._io_latency_window_closed)
-        self._io_latency_window.set_io_latency(self.schedule.get_io_latency())
+        self._update_io_latency_window()
         self._io_latency_window.show()
         self._io_latency_window.raise_()
         self._io_latency_window.activateWindow()
@@ -1269,7 +1269,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot(str)
     def _schedule_changed(self, type_name: str | None = None) -> None:
         if self._io_latency_window is not None and self.schedule is not None:
-            self._io_latency_window.set_io_latency(self.schedule.get_io_latency())
+            self._update_io_latency_window()
         self._update_execution_times_for_variables()
         self._update_total_execution_times_for_variables()
         self._update_ports_accesses_for_storage()
@@ -1280,6 +1280,16 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         for key, dialog in self._total_execution_time_plot_dialogs.items():
             if dialog:
                 self._update_total_execution_times_for_type(key)
+
+    def _update_io_latency_window(self) -> None:
+        if self._io_latency_window is None or self.schedule is None:
+            return
+        names = {
+            operation.graph_id: operation.name
+            for operation in self.schedule.sfg.operations
+            if operation.name
+        }
+        self._io_latency_window.set_io_latency(self.schedule.get_io_latency(), names)
 
     def _update_recent_file_list(self) -> None:
         settings = QSettings()

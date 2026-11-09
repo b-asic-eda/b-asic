@@ -576,11 +576,9 @@ def test_view_io_latency(qtbot, sfg_simple_filter):
 
     assert widget._io_latency_window is not None
     table = widget._io_latency_window.table
-    assert [table.horizontalHeaderItem(i).text() for i in range(2)] == [
-        "Input",
-        "out0",
-    ]
-    assert [table.item(0, i).text() for i in range(2)] == ["in0", "9"]
+    assert table.horizontalHeaderItem(0).text() == "OUT"
+    assert table.verticalHeaderItem(0).text() == "IN"
+    assert table.item(0, 0).text() == "9"
 
     widget.close_schedule()
     assert widget._io_latency_window is None
@@ -599,19 +597,162 @@ def test_io_latency_columns_are_naturally_sorted(qtbot, output_latencies):
     assert [
         table.horizontalHeaderItem(column).text()
         for column in range(table.columnCount())
-    ] == ["Input", "out1", "out2", "out10"]
-    assert [table.item(0, column).text() for column in range(4)] == [
-        "in0",
+    ] == ["out1", "out2", "out10"]
+    assert [table.verticalHeaderItem(row).text() for row in range(2)] == ["in0", "in1"]
+    assert [table.item(0, column).text() for column in range(3)] == [
         "-",
         "12",
         "110",
     ]
-    assert [table.item(1, column).text() for column in range(4)] == [
-        "in1",
+    assert [table.item(1, column).text() for column in range(3)] == [
         "21",
         "-",
         "210",
     ]
+
+
+def test_io_latency_rows_are_naturally_sorted(qtbot):
+    widget = IOLatencyWindow()
+    qtbot.addWidget(widget)
+    widget.set_io_latency(
+        {
+            "in10": {"out1": 101},
+            "in2": {"out2": 22},
+            "in11": {"out2": 112},
+            "in1": {"out1": 11},
+            "in0": {"out1": 1},
+        }
+    )
+
+    table = widget.table
+    assert [
+        table.verticalHeaderItem(row).text() for row in range(table.rowCount())
+    ] == ["in0", "in1", "in2", "in10", "in11"]
+    assert [
+        [table.item(row, column).text() for column in range(2)]
+        for row in range(table.rowCount())
+    ] == [
+        ["1", "-"],
+        ["11", "-"],
+        ["-", "22"],
+        ["101", "-"],
+        ["-", "112"],
+    ]
+
+
+def test_io_latency_uses_names_without_merging_duplicate_names(qtbot):
+    widget = IOLatencyWindow()
+    qtbot.addWidget(widget)
+    widget.set_io_latency(
+        {"in0": {"out0": 1}, "in1": {"out1": 2}, "in2": {"out2": 3}},
+        {"in0": "A[0,10]", "in1": "A[0,2]", "out0": "result", "out1": "result"},
+    )
+    table = widget.table
+    assert [table.horizontalHeaderItem(i).text() for i in range(3)] == [
+        "out2",
+        "result",
+        "result",
+    ]
+    assert [
+        table.verticalHeaderItem(row).text() for row in range(table.rowCount())
+    ] == ["A[0,2]", "A[0,10]", "in2"]
+    assert [
+        [table.item(row, column).text() for column in range(3)]
+        for row in range(table.rowCount())
+    ] == [
+        ["-", "-", "2"],
+        ["-", "1", "-"],
+        ["3", "-", "-"],
+    ]
+
+
+def test_view_io_latency_uses_and_refreshes_operation_names(qtbot):
+    source = Input(name="A[0,0]")
+    operation = ConstantMultiplication(0.5, source, latency=1)
+    output = Output(operation, name="result")
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(Schedule(SFG([source], [output])))
+    widget.action_view_io_latency.trigger()
+
+    table = widget._io_latency_window.table
+    assert table.verticalHeaderItem(0).text() == "A[0,0]"
+    assert table.horizontalHeaderItem(0).text() == "result"
+    widget.schedule._sfg.find_by_id("in0").name = "A[0,1]"
+    widget._schedule_changed()
+    assert table.verticalHeaderItem(0).text() == "A[0,1]"
+
+
+def test_io_latency_input_header_stays_visible_when_scrolling(qtbot):
+    widget = IOLatencyWindow()
+    qtbot.addWidget(widget)
+    widget.set_io_latency({"in0": {f"out{index}": index for index in range(20)}})
+    widget.resize(300, 200)
+    widget.show()
+    QApplication.processEvents()
+    table = widget.table
+    header = table.verticalHeader()
+    scrollbar = table.horizontalScrollBar()
+    assert header.isVisible()
+    assert scrollbar.maximum() > 0
+    position = header.pos()
+    scrollbar.setValue(scrollbar.maximum())
+    QApplication.processEvents()
+    assert header.pos() == position
+    assert table.verticalHeaderItem(0).text() == "in0"
+
+
+def test_io_latency_selects_rows_and_columns_from_headers(qtbot):
+    widget = IOLatencyWindow()
+    qtbot.addWidget(widget)
+    widget.set_io_latency(
+        {"in0": {"out0": 1, "out1": 2}, "in1": {"out0": 3, "out1": 4}}
+    )
+    widget.show()
+    QApplication.processEvents()
+    table = widget.table
+
+    def selected_cells():
+        return {(item.row(), item.column()) for item in table.selectedItems()}
+
+    row_header = table.verticalHeader()
+    row_pos = QPoint(
+        row_header.viewport().width() // 2,
+        row_header.sectionViewportPosition(1) + row_header.sectionSize(1) // 2,
+    )
+    qtbot.mouseClick(row_header.viewport(), Qt.MouseButton.LeftButton, pos=row_pos)
+    assert selected_cells() == {(1, 0), (1, 1)}
+
+    column_header = table.horizontalHeader()
+    column_pos = QPoint(
+        column_header.sectionViewportPosition(0) + column_header.sectionSize(0) // 2,
+        column_header.viewport().height() // 2,
+    )
+    qtbot.mouseClick(
+        column_header.viewport(), Qt.MouseButton.LeftButton, pos=column_pos
+    )
+    assert selected_cells() == {(0, 0), (1, 0)}
+
+    qtbot.mouseClick(
+        table.viewport(),
+        Qt.MouseButton.LeftButton,
+        pos=table.visualItemRect(table.item(0, 1)).center(),
+    )
+    assert selected_cells() == {(0, 1)}
+
+
+@pytest.mark.parametrize("empty_latency", [{}, {"in0": {}}])
+def test_io_latency_empty_table_can_be_refreshed(qtbot, empty_latency):
+    widget = IOLatencyWindow()
+    qtbot.addWidget(widget)
+    widget.set_io_latency({"in0": {"out0": 1}})
+    widget.set_io_latency(empty_latency)
+    assert widget.table.item(0, 0).text() == "No input/output paths"
+    assert widget.table.verticalHeaderItem(0).text() == ""
+    widget.set_io_latency({"in1": {"out1": 2}})
+    assert widget.table.verticalHeaderItem(0).text() == "in1"
+    assert widget.table.horizontalHeaderItem(0).text() == "out1"
+    assert widget.table.item(0, 0).text() == "2"
 
 
 @pytest.mark.parametrize("user_resized", [False, True])
@@ -630,8 +771,8 @@ def test_io_latency_updates_preserve_window_size(qtbot, user_resized):
         widget.set_io_latency({"in0": {"out0": latency, "out1": latency + 1}})
         QApplication.processEvents()
         assert widget.size() == initial_size
-        assert widget.table.item(0, 1).text() == str(latency)
-        assert widget.table.item(0, 2).text() == str(latency + 1)
+        assert widget.table.item(0, 0).text() == str(latency)
+        assert widget.table.item(0, 1).text() == str(latency + 1)
 
 
 def test_close_schedule_then_open_new_schedule(qtbot, sfg_simple_filter):
