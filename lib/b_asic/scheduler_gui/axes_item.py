@@ -239,9 +239,10 @@ class AxesItem(QGraphicsItemGroup):
         self._x_scale_labels[index].setPos(pos)
         self.addToGroup(self._x_scale_labels[index])
 
+        line_type = TimelineItem if is_timeline else QGraphicsLineItem
         self._x_ledger.insert(
             index,
-            TimelineItem(
+            line_type(
                 0,
                 0,
                 0,
@@ -255,6 +256,7 @@ class AxesItem(QGraphicsItemGroup):
             self._register_event_item(self._x_ledger[index])
         else:
             self._x_ledger[index].setPen(self._ledger_pen)
+            self._x_ledger[index].setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         pos = self.mapToScene(QPointF(self._width_indent + index, 0))
         self._x_ledger[index].setPos(pos)
         self.addToGroup(self._x_ledger[index])
