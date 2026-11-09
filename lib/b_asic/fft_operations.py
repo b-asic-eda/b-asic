@@ -5,6 +5,7 @@ Contains selected FFT butterfly operations.
 """
 
 import math
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from b_asic.graph_component import Name, TypeName
@@ -87,6 +88,10 @@ class R2Butterfly(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("r2bfly")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        operator = "+" if output_index == 0 else "-"
+        return f"({inputs[0]} {operator} {inputs[1]})"
 
     def evaluate(self, a, b, data_type=None) -> Num:
         res = a + b, a - b
