@@ -49,6 +49,19 @@ class Operation(GraphComponent, SignalSourceProvider):
     Operations may specify how to quantize inputs through quantize_input().
     """
 
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        """
+        Return a Lean real expression for one output using rendered input terms.
+
+        Override in operations that support Lean export. The SFG exporter handles
+        traversal, shared bindings, inputs, and delay state; this method renders
+        only the operation applied to *inputs* in port order. *output_index*
+        selects the output for operations with multiple outputs.
+        """
+        raise NotImplementedError(
+            f"Lean export does not support {type(self).__name__} ({self.graph_id})."
+        )
+
     @abstractmethod
     def __ilshift__(self, src: SignalSourceProvider) -> "Operation":
         """
@@ -911,7 +924,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
                 operation_copy.input(i).connect(input_)
                 inputs.append(input_)
 
-            outputs = [Output(operation_copy)]
+            outputs = [Output(port) for port in operation_copy.outputs]
 
         return SFG(inputs=inputs, outputs=outputs)
 

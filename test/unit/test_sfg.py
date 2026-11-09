@@ -1679,7 +1679,7 @@ class TestSFGGraph:
 
         monkeypatch.setattr("graphviz.Digraph.view", capture_graph)
         kwargs = {} if fontname is None else {"fontname": fontname}
-        sfg_simple_filter.show(**kwargs)
+        sfg_simple_filter.show(fmt="pdf", **kwargs)
         expected = fontname or "DejaVu Serif"
         assert f'fontname="{expected}"' in graphs[0].source
         assert 'fontname="DejaVu Serif"' in sfg_simple_filter.display().source

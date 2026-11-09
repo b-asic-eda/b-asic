@@ -4,7 +4,9 @@ B-ASIC Core Operations Module.
 Contains some of the most commonly used mathematical operations.
 """
 
+import math
 import numbers
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Union
 
 import apytypes as apy
@@ -69,6 +71,42 @@ def _simplify_add_sub(operation, is_add: bool) -> "SFG | None":
     return _simplified_sfg(operation, build)
 
 
+def _lean_literal(value: Num) -> str:
+    """Render a finite real constant as an exact Lean real literal."""
+    if not isinstance(value, numbers.Real):
+        raise NotImplementedError(
+            f"Lean export requires real constants, got {value!r}."
+        )
+    if isinstance(value, numbers.Rational):
+        numerator, denominator = value.numerator, value.denominator
+    else:
+        if not math.isfinite(value):
+            raise ValueError("Lean export requires finite constants.")
+        numerator, denominator = value.as_integer_ratio()
+    if denominator == 1:
+        return f"({numerator} : Real)"
+    return f"({numerator} / {denominator} : Real)"
+
+
+def _lean_add_sub(
+    inputs: Sequence[str],
+    operator: str,
+    in0_scale: int,
+    in1_scale: int,
+    out0_scale: int,
+) -> str:
+    """Render real addition/subtraction with power-of-two scaling."""
+    left, right = inputs
+    if in0_scale:
+        left = f"({left} / (2 : Real) ^ ({in0_scale} : Int))"
+    if in1_scale:
+        right = f"({right} / (2 : Real) ^ ({in1_scale} : Int))"
+    result = f"({left} {operator} {right})"
+    if out0_scale:
+        result = f"({result} / (2 : Real) ^ ({out0_scale} : Int))"
+    return result
+
+
 class Constant(AbstractOperation):
     r"""
     Constant value operation.
@@ -110,6 +148,9 @@ class Constant(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("c")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return _lean_literal(self.value)
 
     def evaluate(self, data_type=None) -> Num:
         value = self.value
@@ -238,6 +279,9 @@ class Negation(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("neg")
 
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"(-{inputs[0]})"
+
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
         return f"-{inputs[0]}"
@@ -354,6 +398,13 @@ class Addition(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("add")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        if self.mul_j:
+            return super()._lean(inputs, output_index)
+        return _lean_add_sub(
+            inputs, "+", self.in0_scale, self.in1_scale, self.out0_scale
+        )
 
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
@@ -592,6 +643,13 @@ class Subtraction(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("sub")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        if self.mul_j:
+            return super()._lean(inputs, output_index)
+        return _lean_add_sub(
+            inputs, "-", self.in0_scale, self.in1_scale, self.out0_scale
+        )
 
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
@@ -840,6 +898,17 @@ class AddSub(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("addsub")
 
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        if self.mul_j:
+            return super()._lean(inputs, output_index)
+        return _lean_add_sub(
+            inputs,
+            "+" if self.is_add else "-",
+            self.in0_scale,
+            self.in1_scale,
+            self.out0_scale,
+        )
+
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
         op = "+" if self.is_add else "-"
@@ -1052,6 +1121,9 @@ class Multiplication(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("mul")
 
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"({inputs[0]} * {inputs[1]})"
+
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
         return f"{inputs[0]} * {inputs[1]}"
@@ -1145,6 +1217,9 @@ class Division(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("div")
 
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"({inputs[0]} / {inputs[1]})"
+
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
         return f"{inputs[0]} / {inputs[1]}"
@@ -1232,6 +1307,9 @@ class Min(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("min")
 
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"(min {inputs[0]} {inputs[1]})"
+
     def evaluate(self, a, b, data_type=None) -> Num:
         if isinstance(a, complex) or isinstance(b, complex):
             raise ValueError("core_operations.Min does not support complex numbers.")
@@ -1312,6 +1390,9 @@ class Max(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("max")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"(max {inputs[0]} {inputs[1]})"
 
     def evaluate(self, a, b, data_type=None) -> Num:
         if isinstance(a, complex) or isinstance(b, complex):
@@ -1394,6 +1475,10 @@ class Comparator(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("cmp")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        function = "min" if output_index == 0 else "max"
+        return f"({function} {inputs[0]} {inputs[1]})"
 
     def evaluate(self, a, b, data_type=None) -> tuple[Num, Num]:
         if isinstance(a, complex) or isinstance(b, complex):
@@ -1488,6 +1573,9 @@ class SquareRoot(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("sqrt")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"(Real.sqrt {inputs[0]})"
 
     def evaluate(self, a, data_type=None) -> Num:
         res = sqrt(complex(a))
@@ -1606,6 +1694,9 @@ class Absolute(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("abs")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"(abs {inputs[0]})"
 
     def evaluate(self, a, data_type=None) -> Num:
         return self._cast_to_data_type(np_abs(a), data_type)
@@ -1813,6 +1904,9 @@ class ConstantMultiplication(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("cmul")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"({_lean_literal(self.value)} * {inputs[0]})"
 
     def _expr(self, recursive: bool = False) -> str:
         inputs = self._get_input_representations(recursive)
@@ -2249,6 +2343,9 @@ class Reciprocal(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("rec")
+
+    def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
+        return f"(1 / {inputs[0]})"
 
     def _operation_str(self, input_ids: list[str]) -> str:
         return f"{self.graph_id} = 1 / {input_ids[0]}"

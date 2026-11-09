@@ -2442,6 +2442,8 @@ class SFG(AbstractOperation):
         force_size: bool = False,
         fontname: str | None = DEFAULT_FONT_FAMILY,
         fontsize: float | None = None,
+        *,
+        _interactive: bool = False,
     ) -> Digraph:
         """
         Return a Digraph of the SFG.
@@ -2588,6 +2590,7 @@ class SFG(AbstractOperation):
                     label=label,
                     taillabel=taillabel,
                     headlabel=headlabel,
+                    **({"id": f"sfg-signal-{op.graph_id}"} if _interactive else {}),
                 )
                 if (
                     branch_node
@@ -2595,7 +2598,11 @@ class SFG(AbstractOperation):
                     and source_name not in branch_nodes
                 ):
                     branch_nodes.add(source_name)
-                    dg.node(source_name, shape="point")
+                    dg.node(
+                        source_name,
+                        shape="point",
+                        **({"id": f"sfg-branch-{source_name}"} if _interactive else {}),
+                    )
                     taillabel = (
                         str(source.index)
                         if source.operation.output_count > 1 and port_numbering
@@ -2608,6 +2615,7 @@ class SFG(AbstractOperation):
                         source_name,
                         arrowhead="none",
                         taillabel=taillabel,
+                        **({"id": f"sfg-trunk-{source_name}"} if _interactive else {}),
                     )
             else:
                 _param_str = ""
@@ -2638,6 +2646,7 @@ class SFG(AbstractOperation):
                         if _param_str or op.name
                         else None,
                         margin="0.05,0.02",
+                        **({"id": f"sfg-op-{op.graph_id}"} if _interactive else {}),
                     )
                 else:
                     _shape = _OPERATION_SHAPE[op.type_name()]
@@ -2647,6 +2656,7 @@ class SFG(AbstractOperation):
                         label=_base_label + _param_str
                         if _param_str or op.name
                         else None,
+                        **({"id": f"sfg-op-{op.graph_id}"} if _interactive else {}),
                     )
         _input_order = (
             [self._resolve_graph_id_or_name(x) for x in input_order]
@@ -2731,15 +2741,21 @@ class SFG(AbstractOperation):
         fontsize: float | None = None,
     ) -> None:
         """
-        Display a visual representation of the SFG using the default system viewer.
+        Open an interactive SVG of the SFG in the default web browser.
+
+        The SVG is stored in a temporary directory. Clicking a signal highlights
+        all branches from the same output port and their connected operations.
+        Clicking an operation highlights it in orange, its connected signals in
+        magenta, and operations on those signals in blue. Click the background
+        or press Escape to clear the selection.
 
         Parameters
         ----------
         fmt : str, optional
             File format of the generated graph. Output formats can be found at
             https://www.graphviz.org/doc/info/output.html
-            Most common are "pdf", "eps", "png", and "svg". Default is None which
-            leads to PDF.
+            Defaults to an interactive SVG. Explicit "svg" also enables
+            interaction. Other formats use the default system viewer.
         engine : str, optional
             Graphviz layout engine to be used, see https://graphviz.org/documentation/.
             Most common are "dot" and "neato". Default is None leading to dot.
@@ -2802,7 +2818,23 @@ class SFG(AbstractOperation):
             force_size=force_size,
             fontname=fontname,
             fontsize=fontsize,
+            _interactive=fmt in (None, "svg"),
         )
+        if fmt in (None, "svg"):
+            import tempfile  # noqa: PLC0415
+            import webbrowser  # noqa: PLC0415
+            from pathlib import Path  # noqa: PLC0415
+
+            from b_asic._sfg_svg import interactive_svg  # noqa: PLC0415
+
+            svg = interactive_svg(self, dg.pipe(format="svg"), branch_node)
+            with tempfile.NamedTemporaryFile(
+                prefix="b-asic-sfg-", suffix=".svg", delete=False
+            ) as file:
+                file.write(svg)
+                path = Path(file.name)
+            webbrowser.open(path.as_uri())
+            return
         if fmt is not None:
             dg.format = fmt
         dg.view()
@@ -2941,6 +2973,149 @@ class SFG(AbstractOperation):
                     LoopElement(op_id, ports[index - 1][1], ports[index][0])
                     for index, op_id in enumerate(cycle)
                 ]
+
+    def to_lean(self) -> str:
+        r"""
+        Return Lean 4 code for evaluating the graph over the real numbers.
+
+        The code requires ``import Mathlib``. Inputs are curried arguments
+        ``x0``, ``x1``, ... in interface order. A single output is a scalar;
+        multiple outputs form a tuple in interface order, and no outputs give
+        ``()``. Shared intermediate results use ``let`` bindings.
+
+        For a stateful graph, emit a ``structure State`` with one ``Real``
+        field per delay, an ``initialState : State`` definition, and a
+        ``step (state : State) (x0 : Real) ...`` definition returning
+        ``Prod Outputs State``. Fields ``s0``, ``s1``, ... follow graph ID order
+        in the flattened graph. Delay updates are simultaneous: all expressions
+        read the current state and the returned record contains the next state.
+        A stateless graph produces just an expression as described above.
+        Nested SFGs are flattened without modifying this graph. Place generated
+        declarations in separate Lean namespaces when exporting multiple graphs.
+
+        Supported operations are constants, addition, subtraction,
+        multiplication, division, constant multiplication, negation, absolute
+        value, square root, reciprocal, min/max, comparators, radix-2 butterflies,
+        and real AddSub operations (including their power-of-two scaling).
+        Composite operations without a Lean hook are expanded via ``to_sfg()``;
+        all output ports and any delays inside the expansion are retained.
+
+        This models exact real arithmetic, ignoring quantization and scheduling.
+        Finite floats are represented by their exact integer ratios. Division
+        and square root use Mathlib's total real operations (in particular,
+        division by zero is zero and square root of a negative real is zero).
+        Complex values and operations without a supported real interpretation
+        raise ``NotImplementedError``; non-finite constants and combinational
+        cycles raise ``ValueError``.
+
+        Examples
+        --------
+        >>> x = Input()
+        >>> SFG(x, Output(x + 1)).to_lean()
+        'fun (x0 : Real) =>\n  let v0 : Real := (1 : Real)\n  let v1 : Real := (x0 + v0)\n  v1'
+        """
+        from b_asic.core_operations import _lean_literal  # noqa: PLC0415
+
+        graph = self.flatten()
+        while True:
+            for op in graph.operations:
+                if (
+                    isinstance(op, (Input, Output, Delay))
+                    or type(op)._lean is not Operation._lean
+                ):
+                    continue
+                expanded = op.to_sfg()
+                inner = [
+                    component
+                    for component in expanded.operations
+                    if not isinstance(component, (Input, Output))
+                ]
+                # A primitive's default to_sfg() simply wraps a copy of itself.
+                if len(inner) == 1 and type(inner[0]) is type(op):
+                    continue
+                graph = graph.replace(op.graph_id, expanded).flatten()
+                break
+            else:
+                break
+        delays = sorted(graph.find_by_type(Delay), key=lambda op: op.graph_id)
+        values = {
+            op.output(0): f"x{index}" for index, op in enumerate(graph.input_operations)
+        }
+        arguments = list(values.values())
+        values.update(
+            {op.output(0): f"state.s{index}" for index, op in enumerate(delays)}
+        )
+        bindings: list[str] = []
+        visiting: set[OutputPort] = set()
+
+        def source(port: InputPort) -> str:
+            if port.connected_source is None:
+                raise ValueError("Missing source in signal.")
+            return expression(port.connected_source)
+
+        def expression(port: OutputPort) -> str:
+            if port in values:
+                return values[port]
+            if port in visiting:
+                raise ValueError("Lean export does not support combinational cycles.")
+            visiting.add(port)
+            op = port.operation
+            inputs = [source(input_port) for input_port in op.inputs]
+            result = op._lean(inputs, port.index)
+            name = f"v{len(bindings)}"
+            bindings.append(f"  let {name} : Real := {result}")
+            values[port] = name
+            visiting.remove(port)
+            return name
+
+        def pack(items: list[str]) -> str:
+            return items[0] if len(items) == 1 else f"({', '.join(items)})"
+
+        outputs = pack([source(op.input(0)) for op in graph.output_operations])
+        if delays:
+            updates = [source(op.input(0)) for op in delays]
+            next_state = (
+                "{ "
+                + ", ".join(
+                    f"s{index} := {value}" for index, value in enumerate(updates)
+                )
+                + " }"
+            )
+            fields = "\n".join(f"  s{index} : Real" for index in range(len(delays)))
+            initial_state = (
+                "{ "
+                + ", ".join(
+                    f"s{index} := {_lean_literal(op.initial_value)}"
+                    for index, op in enumerate(delays)
+                )
+                + " }"
+            )
+            output_type = " \u00d7 ".join(["Real"] * graph.output_count) or "Unit"
+            if graph.output_count > 1:
+                output_type = f"({output_type})"
+            parameters = "".join(f" ({arg} : Real)" for arg in arguments)
+            header = (
+                f"def step (state : State){parameters} : {output_type} \u00d7 State :="
+            )
+            return "\n".join(
+                [
+                    "structure State where",
+                    fields,
+                    "",
+                    "def initialState : State :=",
+                    f"  {initial_state}",
+                    "",
+                    header,
+                    *bindings,
+                    f"  ({outputs}, {next_state})",
+                ]
+            )
+        if arguments:
+            header = "fun " + " ".join(f"({arg} : Real)" for arg in arguments) + " =>"
+            return "\n".join([header, *bindings, f"  {outputs}"])
+        if bindings:
+            return "\n".join(line[2:] for line in [*bindings, f"  {outputs}"])
+        return outputs
 
     def to_ss(self) -> StateSpace:
         """
