@@ -584,6 +584,90 @@ def test_view_io_latency(qtbot, sfg_simple_filter):
     assert widget._io_latency_window is None
 
 
+def test_io_latency_shortcut(qtbot, sfg_simple_filter):
+    sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
+    sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 4)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.show()
+    qtbot.waitExposed(widget)
+    widget.activateWindow()
+    qtbot.waitActive(widget)
+
+    qtbot.keyClick(widget, Qt.Key.Key_L, Qt.KeyboardModifier.ControlModifier)
+    assert widget._io_latency_window is None
+
+    widget.open(Schedule(sfg_simple_filter, ASAPScheduler()))
+    QApplication.processEvents()
+    qtbot.keyClick(widget, Qt.Key.Key_L, Qt.KeyboardModifier.ControlModifier)
+    assert widget._io_latency_window is not None
+    assert widget._io_latency_window.isVisible()
+
+
+def test_plot_schedule_shortcut(qtbot, monkeypatch, sfg_simple_filter):
+    sfg_simple_filter.set_latency_of_type_name(Addition.type_name(), 5)
+    sfg_simple_filter.set_latency_of_type_name(ConstantMultiplication.type_name(), 4)
+    plotted = []
+
+    def record_plot(schedule):
+        plotted.append(schedule)
+
+    monkeypatch.setattr(Schedule, "show", record_plot)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.show()
+    qtbot.waitExposed(widget)
+    widget.activateWindow()
+    qtbot.waitActive(widget)
+    qtbot.keyClick(widget, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    assert not plotted
+
+    widget.open(Schedule(sfg_simple_filter, ASAPScheduler()))
+    QApplication.processEvents()
+    qtbot.keyClick(widget, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    assert plotted == [widget.schedule]
+
+
+@pytest.mark.parametrize(
+    ("action_name", "key_name", "control", "shift"),
+    [
+        ("actionZoom_to_fit", "F", True, False),
+        ("actionZoom_to_fit_ignore_aspect_ratio", "F", True, True),
+        ("actionRestore_aspect_ratio", "0", True, False),
+        ("actionRotateForward", "Right", True, False),
+        ("actionRotateBackward", "Left", True, False),
+        ("actionIncrease_time_resolution", "Up", True, True),
+        ("actionDecrease_time_resolution", "Down", True, True),
+        ("action_show_port_numbers", "N", True, True),
+        ("action_view_port_accesses", "A", True, True),
+        ("action_view_variables", "E", True, False),
+        ("action_total_execution_times_of_variables", "E", True, True),
+        ("actionDocumentation", "F1", False, False),
+    ],
+)
+def test_scheduler_action_shortcuts(qtbot, action_name, key_name, control, shift):
+    source = Input()
+    operation = ConstantMultiplication(0.5, source, latency=1)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.show()
+    qtbot.waitExposed(widget)
+    widget.activateWindow()
+    qtbot.waitActive(widget)
+    widget.open(Schedule(SFG([source], [Output(operation)])))
+    QApplication.processEvents()
+
+    action = getattr(widget, action_name)
+    action.triggered.disconnect()
+    modifiers = Qt.KeyboardModifier.NoModifier
+    if control:
+        modifiers |= Qt.KeyboardModifier.ControlModifier
+    if shift:
+        modifiers |= Qt.KeyboardModifier.ShiftModifier
+    with qtbot.waitSignal(action.triggered):
+        qtbot.keyClick(widget, getattr(Qt.Key, f"Key_{key_name}"), modifiers)
+
+
 @pytest.mark.parametrize(
     "output_latencies",
     [{"out10": 110, "out2": 12}, {"out2": 12, "out10": 110}],
