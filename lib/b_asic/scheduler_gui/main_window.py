@@ -176,7 +176,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.menu_exit_dialog.triggered.connect(self.hide_exit_dialog)
         self.actionReorder.triggered.connect(self._action_reorder)
         self.actionReorder.setIcon(get_icon("reorder"))
+        self.actionRotateForward.setShortcut("Ctrl+Right")
         self.actionRotateForward.triggered.connect(self._rotate_forward)
+        self.actionRotateBackward.setShortcut("Ctrl+Left")
         self.actionRotateBackward.triggered.connect(self._rotate_backward)
         self.actionStatus_bar.triggered.connect(self._toggle_statusbar)
         self.action_incorrect_execution_time.setIcon(get_icon("warning"))
@@ -184,38 +186,50 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._toggle_execution_time_warning
         )
         self.action_show_port_numbers.setIcon(get_icon("port-numbers"))
+        self.action_show_port_numbers.setShortcut("Ctrl+Shift+N")
         self.action_show_port_numbers.triggered.connect(self._toggle_port_number)
         self.actionPlot_schedule.setIcon(get_icon("plot-schedule"))
+        self.actionPlot_schedule.setShortcut("Ctrl+P")
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
+        self.action_view_io_latency.setShortcut("Ctrl+L")
         self.action_view_io_latency.triggered.connect(self._show_io_latency)
+        self.action_view_variables.setShortcut("Ctrl+E")
         self.action_view_variables.triggered.connect(
             self._show_execution_times_for_variables
         )
+        self.action_total_execution_times_of_variables.setShortcut("Ctrl+Shift+E")
         self.action_total_execution_times_of_variables.triggered.connect(
             self._show_total_execution_times_for_variables
         )
+        self.action_view_port_accesses.setShortcut("Ctrl+Shift+A")
         self.action_view_port_accesses.triggered.connect(
             self._show_ports_accesses_for_storage
         )
         self.actionZoom_to_fit.setIcon(get_icon("zoom-to-fit"))
+        self.actionZoom_to_fit.setShortcut("Ctrl+F")
         self.actionZoom_to_fit.triggered.connect(self._zoom_to_fit)
+        self.actionZoom_to_fit_ignore_aspect_ratio.setShortcut("Ctrl+Shift+F")
         self.actionZoom_to_fit_ignore_aspect_ratio.triggered.connect(
             self._zoom_to_fit_no_aspect
         )
+        self.actionRestore_aspect_ratio.setShortcut("Ctrl+0")
         self.actionRestore_aspect_ratio.triggered.connect(self._reset_aspect_ratio)
         self.actionToggle_full_screen.setIcon(get_icon("full-screen"))
         self.actionToggle_full_screen.triggered.connect(self._toggle_fullscreen)
         self.actionUndo.setIcon(get_icon("undo"))
         self.actionRedo.setIcon(get_icon("redo"))
         self.splitter.splitterMoved.connect(self._splitter_moved)
+        self.actionDocumentation.setShortcut("F1")
         self.actionDocumentation.triggered.connect(self._open_documentation)
         self.actionDocumentation.setIcon(get_icon("docs"))
         self.actionAbout.triggered.connect(self._open_about_window)
         self.actionAbout.setIcon(get_icon("about"))
+        self.actionDecrease_time_resolution.setShortcut("Ctrl+Shift+Down")
         self.actionDecrease_time_resolution.triggered.connect(
             self._decrease_time_resolution
         )
         self.actionDecrease_time_resolution.setIcon(get_icon("decrease-timeresolution"))
+        self.actionIncrease_time_resolution.setShortcut("Ctrl+Shift+Up")
         self.actionIncrease_time_resolution.triggered.connect(
             self._increase_time_resolution
         )
