@@ -10,7 +10,9 @@ from b_asic.architecture import (
     ProcessingElement,
     _fixed_point_bits,
 )
+from b_asic.code_printer.vhdl.vhdl_printer import VhdlPrinter
 from b_asic.core_operations import Addition, ConstantMultiplication
+from b_asic.data_type import DataType
 from b_asic.process import MemoryProcess, OperatorProcess, PlainMemoryVariable
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
@@ -108,6 +110,113 @@ def test_memory_exceptions(schedule_direct_form_iir_lp_filter: Schedule):
     Memory(mvs)
 
 
+def test_unassigned_memory_cells(schedule_direct_form_iir_lp_filter: Schedule):
+    _, variables = (
+        schedule_direct_form_iir_lp_filter.get_memory_variables().split_on_length()
+    )
+    variables = ProcessCollection(variables, variables.schedule_time, cyclic=True)
+    memory = Memory(variables)
+
+    assert not memory.is_assigned
+    cells = memory.assignment
+    assert cells is not None
+    assert [cell.collection for cell in cells] == [[variable] for variable in variables]
+    assert all(cell.schedule_time == variables.schedule_time for cell in cells)
+    assert all(cell._cyclic for cell in cells)
+    assert f"(RAM, {len(cells)} cells)" in memory._digraph().source
+
+    memory.assign()
+    assert memory.is_assigned
+    assert memory.assignment is memory._assignment
+    assert len(memory.assignment) == 4
+
+    variable = next(iter(variables))
+    memory.remove_process(variable)
+    assert not memory.is_assigned
+    assert memory.assignment is not None
+    assert len(memory.assignment) == len(variables)
+    memory.add_process(variable)
+    assert memory.assignment is not None
+    assert len(memory.assignment) == len(variables)
+
+    single_variable = ProcessCollection([variable], variables.schedule_time)
+    assert "(RAM, 1 cell)" in Memory(single_variable)._digraph().source
+    register = Memory(single_variable, memory_type="register")
+    assert register.assignment is not None
+    assert [cell.collection for cell in register.assignment] == [[variable]]
+    assert not register.is_assigned
+    assert "(register, 1 cell)" in register._digraph().source
+
+
+def test_register_memory_default_and_allocated_cells():
+    variables = ProcessCollection(
+        [
+            PlainMemoryVariable(0, 0, {0: 2}, "first"),
+            PlainMemoryVariable(2, 0, {0: 2}, "second"),
+        ],
+        schedule_time=6,
+    )
+    memory = Memory(variables, memory_type="register", entity_name="memory")
+    assert [cell.collection for cell in memory.assignment] == [
+        [var] for var in variables
+    ]
+    assert "(register, 2 cells)" in memory._digraph().source
+    with pytest.raises(ValueError, match="Memory assignment must be performed"):
+        VhdlPrinter(DataType(8)).print_Memory(memory)
+
+    memory.assign()
+    assert memory.is_assigned
+    assert "(register, 1 cell)" in memory._digraph().source
+    assert VhdlPrinter(DataType(8)).print_Memory(memory) is not None
+
+    memory.remove_process(variables.collection[0])
+    assert not memory.is_assigned
+    assert len(memory.assignment) == 1
+    assert "(register, 1 cell)" in memory._digraph().source
+    with pytest.raises(ValueError, match="Memory assignment must be performed"):
+        VhdlPrinter(DataType(8)).print_Memory(memory)
+
+
+def test_unassigned_memory_vhdl(schedule_direct_form_iir_lp_filter: Schedule):
+    _, variables = (
+        schedule_direct_form_iir_lp_filter.get_memory_variables().split_on_length()
+    )
+    memory = Memory(variables, entity_name="memory")
+
+    vhdl = VhdlPrinter(DataType(8)).print_Memory(memory)
+
+    assert vhdl is not None
+    assert f"array(0 to {len(variables) - 1})" in vhdl
+    assert not memory.is_assigned
+
+
+@pytest.mark.parametrize("assign", [False, True])
+def test_memory_vhdl_cell_addresses(assign):
+    variables = ProcessCollection(
+        [
+            PlainMemoryVariable(0, 0, {0: 2}, "first"),
+            PlainMemoryVariable(2, 0, {0: 2}, "second"),
+        ],
+        schedule_time=6,
+    )
+    memory = Memory(variables, entity_name="memory", assign=assign)
+    vhdl = VhdlPrinter(DataType(8)).print_Memory(memory, output_sync=False)
+
+    assert vhdl is not None
+    assert f"array(0 to {0 if assign else 1})" in vhdl
+    for variable, address in zip(variables, [0, 0 if assign else 1], strict=True):
+        assert re.search(
+            rf"-- {re.escape(repr(variable))}\s+when \"[01]+\" =>\s+"
+            rf"write_adr_0_0_0 <= to_unsigned\({address},",
+            vhdl,
+        )
+        assert re.search(
+            rf"-- {re.escape(repr(variable))}\s+when \"[01]+\" =>\s+"
+            rf"read_adr_0_0_0 <= to_unsigned\({address},",
+            vhdl,
+        )
+
+
 @pytest.mark.parametrize("fontname", [None, "DejaVu Sans"])
 def test_architecture_show_font(monkeypatch, fontname):
     interconnects = ProcessCollection(collection=set(), schedule_time=5)
@@ -189,19 +298,24 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
             + ' [label=<<TABLE BORDER="0" CELLBORDER="1"'
             + ' CELLSPACING="0" CELLPADDING="4">'
             + '<TR><TD PORT="in0">0</TD>'
-            + "<TD><B>MEM0</B></TD>"
+            + f"<TD><B>MEM0</B><BR/>: (RAM, {len(mvs)} cells)</TD>"
             + '<TD PORT="out0">0</TD></TR>'
             + '</TABLE>> fillcolor="#00CFB5" fontname="DejaVu Serif" '
             + "style=filled]\n}"
         )
         assert memory._digraph().source in (s, s + "\n")
         assert memory.schedule_time == 18
+        unassigned_architecture = Architecture(
+            processing_elements, memories, direct_interconnects=direct_conn
+        )
+        assert f": (RAM, {len(mvs)} cells)" in unassigned_architecture._digraph().source
         # Smoke test
         memory.show_content()
         assert not memory.is_assigned
         memory.assign()
         assert memory.is_assigned
         assert len(memory._assignment) == 4
+        assert ": (RAM, 4 cells)" in memory._digraph().source
 
         # Smoke test
         memory.show_content()
@@ -227,6 +341,7 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     s = "digraph {\n\tnode [shape=box]\n\t"
     assert architecture._digraph().source.startswith(s)
     assert architecture._digraph(cluster=False).source.startswith(s)
+    assert ": (RAM, 4 cells)" in architecture._digraph().source
     assert architecture.schedule_time == 18
 
     for pe in processing_elements:
