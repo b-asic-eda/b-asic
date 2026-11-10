@@ -119,7 +119,7 @@ def test_wdf_placeholder_resources(graph_name, period):
         scheduler=ILPRecursiveScheduler(max_time=24),
     )
     if period == 4:
-        schedule.move_operation("in0", 5)
+        schedule.move_operation("in0", -5)
         schedule.rotate_backward()
     pes, memories, direct = assign_processing_elements_and_memories(
         schedule,
