@@ -16,6 +16,35 @@ if TYPE_CHECKING:
     from b_asic.sfg import SFG
 
 
+def _expand_radix2(operation, use_butterfly=False) -> "SFG":
+    """Build the arithmetic definition of a radix-2 butterfly."""
+    from b_asic.core_operations import (  # noqa: PLC0415
+        Addition,
+        ConstantMultiplication,
+        Subtraction,
+    )
+    from b_asic.sfg import SFG  # noqa: PLC0415
+    from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+    inputs = [Input(), Input()]
+    a, b = inputs
+    if isinstance(operation, R2DITButterfly):
+        b = ConstantMultiplication(operation.w, b)
+    if use_butterfly:
+        butterfly = R2Butterfly(a, b, name=operation.name)
+        results = [butterfly.output(0), butterfly.output(1)]
+    else:
+        results = [Addition(a, b), Subtraction(a, b)]
+    if isinstance(operation, R2DIFButterfly):
+        results[1] = ConstantMultiplication(operation.w, results[1])
+    elif isinstance(operation, R2TFButterfly):
+        results = [
+            ConstantMultiplication(w, result)
+            for w, result in zip((operation.w0, operation.w1), results, strict=True)
+        ]
+    return SFG(inputs, [Output(result) for result in results])
+
+
 class R2Butterfly(AbstractOperation):
     r"""
     Radix-2 butterfly operation for FFTs.
@@ -88,6 +117,21 @@ class R2Butterfly(AbstractOperation):
     def type_name(cls) -> TypeName:
         return TypeName("r2bfly")
 
+    def _rewrite_Addition(self) -> "SFG":
+        return _expand_radix2(self)
+
+    def _rewrite_Subtraction(self) -> "SFG":
+        return _expand_radix2(self)
+
+    def _rewrite_AddSub(self) -> "SFG":
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Subtraction,
+        )
+
+        return _expand_radix2(self).rewrite(AddSub, [Addition, Subtraction])
+
     def evaluate(self, a, b, data_type=None) -> Num:
         res = a + b, a - b
         return (
@@ -139,7 +183,7 @@ class R2DIFButterfly(AbstractOperation):
 
     Parameters
     ----------
-    w : complex
+    w : complex, default: 1
         Twiddle factor to multiply the second output with.
     in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to compute the 2-point DFT of.
@@ -179,7 +223,7 @@ class R2DIFButterfly(AbstractOperation):
 
     def __init__(
         self,
-        w: complex,
+        w: complex = 1,
         in0: SignalSourceProvider | None = None,
         in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
@@ -202,6 +246,27 @@ class R2DIFButterfly(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("r2difbfly")
+
+    def _rewrite_Addition(self) -> "SFG":
+        return _expand_radix2(self)
+
+    def _rewrite_Subtraction(self) -> "SFG":
+        return _expand_radix2(self)
+
+    def _rewrite_AddSub(self) -> "SFG":
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Subtraction,
+        )
+
+        return _expand_radix2(self).rewrite(AddSub, [Addition, Subtraction])
+
+    def _rewrite_R2Butterfly(self) -> "SFG":
+        return _expand_radix2(self, use_butterfly=True)
+
+    def _rewrite_ConstantMultiplication(self) -> "SFG":
+        return self._rewrite_R2Butterfly()
 
     def evaluate(self, a, b, data_type=None) -> Num:
         res = a + b, self.w * (a - b)
@@ -236,7 +301,7 @@ class R2DITButterfly(AbstractOperation):
 
     Parameters
     ----------
-    w : complex
+    w : complex, default: 1
         Twiddle factor to multiply the second input with.
     in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to compute the 2-point DFT of.
@@ -276,7 +341,7 @@ class R2DITButterfly(AbstractOperation):
 
     def __init__(
         self,
-        w: complex,
+        w: complex = 1,
         in0: SignalSourceProvider | None = None,
         in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
@@ -299,6 +364,27 @@ class R2DITButterfly(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("r2ditbfly")
+
+    def _rewrite_Addition(self) -> "SFG":
+        return _expand_radix2(self)
+
+    def _rewrite_Subtraction(self) -> "SFG":
+        return _expand_radix2(self)
+
+    def _rewrite_AddSub(self) -> "SFG":
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Subtraction,
+        )
+
+        return _expand_radix2(self).rewrite(AddSub, [Addition, Subtraction])
+
+    def _rewrite_R2Butterfly(self) -> "SFG":
+        return _expand_radix2(self, use_butterfly=True)
+
+    def _rewrite_ConstantMultiplication(self) -> "SFG":
+        return self._rewrite_R2Butterfly()
 
     def evaluate(self, a, b, data_type=None) -> Num:
         tmp_b = self.w * b
@@ -334,9 +420,9 @@ class R2TFButterfly(AbstractOperation):
 
     Parameters
     ----------
-    w0 : complex
+    w0 : complex, default: 1
         Twiddle factor to multiply the first output with.
-    w1 : complex
+    w1 : complex, default: 1
         Twiddle factor to multiply the second output with.
     in0, in1 : :class:`~b_asic.port.SignalSourceProvider`, optional
         The two signals to compute the 2-point DFT of.
@@ -378,8 +464,8 @@ class R2TFButterfly(AbstractOperation):
 
     def __init__(
         self,
-        w0: complex,
-        w1: complex,
+        w0: complex = 1,
+        w1: complex = 1,
         in0: SignalSourceProvider | None = None,
         in1: SignalSourceProvider | None = None,
         name: Name = Name(""),
@@ -403,6 +489,27 @@ class R2TFButterfly(AbstractOperation):
     @classmethod
     def type_name(cls) -> TypeName:
         return TypeName("r2tfbfly")
+
+    def _rewrite_Addition(self) -> "SFG":
+        return _expand_radix2(self)
+
+    def _rewrite_Subtraction(self) -> "SFG":
+        return _expand_radix2(self)
+
+    def _rewrite_AddSub(self) -> "SFG":
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Subtraction,
+        )
+
+        return _expand_radix2(self).rewrite(AddSub, [Addition, Subtraction])
+
+    def _rewrite_R2Butterfly(self) -> "SFG":
+        return _expand_radix2(self, use_butterfly=True)
+
+    def _rewrite_ConstantMultiplication(self) -> "SFG":
+        return self._rewrite_R2Butterfly()
 
     def evaluate(self, a, b, data_type=None) -> Num:
         res = self.w0 * (a + b), self.w1 * (a - b)
