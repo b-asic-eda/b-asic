@@ -22,7 +22,12 @@ import numpy as np
 import numpy.typing as npt
 from graphviz import Digraph
 
-from b_asic._preferences import DEFAULT_FONT_FAMILY
+from b_asic._preferences import (
+    DEFAULT_FONT_FAMILY,
+    IO_CLUSTER_COLOR,
+    MEMORY_CLUSTER_COLOR,
+    PE_CLUSTER_COLOR,
+)
 from b_asic.data_type import DataType
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
@@ -2444,6 +2449,8 @@ class SFG(AbstractOperation):
         fontsize: float | None = None,
         *,
         _interactive: bool = False,
+        colored: bool = False,
+        show_ids: bool = True,
     ) -> Digraph:
         """
         Return a Digraph of the SFG.
@@ -2499,6 +2506,11 @@ class SFG(AbstractOperation):
             Font size (in points) for all node and edge labels.
             Note: if ``force_size=True``, graphviz will scale fonts
             along with the rest of the drawing to meet the exact size target.
+        colored : bool, default: False
+            Fill input/output, delay, and other operation nodes with distinct colors.
+        show_ids : bool, default: True
+            Show graph IDs alongside operation names. Unnamed operations always show
+            their graph ID.
         """
         dg = Digraph()
         _graph_attrs: dict[str, str] = {"rankdir": direction, "splines": splines}
@@ -2636,7 +2648,24 @@ class SFG(AbstractOperation):
                         _param_str = "\n" + ", ".join(
                             f"{k}={v}" for k, v in _nontrivial.items()
                         )
-                _base_label = f"{op.name}\n({op.graph_id})" if op.name else op.graph_id
+                _base_label = (
+                    f"{op.name}\n({op.graph_id})"
+                    if op.name and show_ids
+                    else op.name or op.graph_id
+                )
+                _node_style = {}
+                if colored:
+                    _color = (
+                        IO_CLUSTER_COLOR
+                        if isinstance(op, (Input, Output))
+                        else MEMORY_CLUSTER_COLOR
+                        if isinstance(op, Delay)
+                        else PE_CLUSTER_COLOR
+                    )
+                    _node_style = {
+                        "style": "filled",
+                        "fillcolor": f"#{''.join(f'{value:02X}' for value in _color)}",
+                    }
                 if direction == "TB" and isinstance(op, (Input, Output)):
                     _shape = "invhouse"
                     dg.node(
@@ -2647,6 +2676,7 @@ class SFG(AbstractOperation):
                         else None,
                         margin="0.05,0.02",
                         **({"id": f"sfg-op-{op.graph_id}"} if _interactive else {}),
+                        **_node_style,
                     )
                 else:
                     _shape = _OPERATION_SHAPE[op.type_name()]
@@ -2657,6 +2687,7 @@ class SFG(AbstractOperation):
                         if _param_str or op.name
                         else None,
                         **({"id": f"sfg-op-{op.graph_id}"} if _interactive else {}),
+                        **_node_style,
                     )
         _input_order = (
             [self._resolve_graph_id_or_name(x) for x in input_order]
@@ -2739,6 +2770,8 @@ class SFG(AbstractOperation):
         force_size: bool = False,
         fontname: str | None = DEFAULT_FONT_FAMILY,
         fontsize: float | None = None,
+        colored: bool = False,
+        show_ids: bool = True,
     ) -> None:
         """
         Open an interactive SVG of the SFG in the default web browser.
@@ -2801,6 +2834,11 @@ class SFG(AbstractOperation):
             ``b_asic._preferences.DEFAULT_FONT_FAMILY``, None uses Graphviz's default.
         fontsize : float, optional
             Font size (in points) for all node and edge labels.
+        colored : bool, default: False
+            Fill input/output, delay, and other operation nodes with distinct colors.
+        show_ids : bool, default: True
+            Show graph IDs alongside operation names. Unnamed operations always show
+            their graph ID.
         """
         dg = self.display(
             info=info,
@@ -2819,6 +2857,8 @@ class SFG(AbstractOperation):
             fontname=fontname,
             fontsize=fontsize,
             _interactive=fmt in (None, "svg"),
+            colored=colored,
+            show_ids=show_ids,
         )
         if fmt in (None, "svg"):
             import tempfile  # noqa: PLC0415

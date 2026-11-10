@@ -1564,6 +1564,57 @@ class TestPrecedenceGraph:
 
 
 class TestSFGGraph:
+    def test_sfg_colored(self, sfg_simple_filter):
+        graph = sfg_simple_filter.display(colored=True, fontname=None)
+        assert 'fillcolor="#D7EFF2"' in graph.source
+        assert 'fillcolor="#D5F1EB"' in graph.source
+        assert 'fillcolor="#D2EEF9"' in graph.source
+        assert '"t0.0" [shape=point]' in graph.source
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            ({"colored": True}, 'fillcolor="#D5F1EB"'),
+            ({"show_ids": False}, 'in0 [label=IN id="sfg-op-in0" shape=cds]'),
+        ],
+    )
+    def test_show_sfg_options(
+        self, sfg_simple_filter, monkeypatch, tmp_path, kwargs, expected
+    ):
+        graphs = []
+
+        def capture_graph(graph, **kwargs):
+            graphs.append(graph)
+            return b""
+
+        monkeypatch.setattr("graphviz.Digraph.pipe", capture_graph)
+        monkeypatch.setattr("b_asic._sfg_svg.interactive_svg", lambda *args: b"<svg/>")
+        monkeypatch.setattr("tempfile.tempdir", str(tmp_path))
+        monkeypatch.setattr("webbrowser.open", lambda url: None)
+        sfg_simple_filter.show(**kwargs)
+        assert len(graphs) == 1
+        assert expected in graphs[0].source
+
+    def test_sfg_hide_ids_for_named_operations(self, sfg_simple_filter):
+        source = sfg_simple_filter.display(show_ids=False, fontname=None).source
+        assert "in0 [label=IN shape=cds]" in source
+        assert "add0 [label=ADD shape=ellipse]" in source
+        assert "(in0)" not in source
+
+    def test_sfg_hide_ids_keeps_unnamed_operations(self):
+        input_op = Input()
+        graph = SFG([input_op], [Output(input_op)])
+        source = graph.display(show_ids=False, fontname=None).source
+        assert "in0 [shape=cds]" in source
+        assert "out0 [shape=cds]" in source
+
+    def test_sfg_colored_vertical(self, sfg_simple_filter):
+        source = sfg_simple_filter.display(
+            colored=True, show_ids=False, direction="TB", fontname=None
+        ).source
+        assert 'in0 [label=IN fillcolor="#D7EFF2"' in source
+        assert "shape=invhouse style=filled" in source
+
     def test_sfg(self, sfg_simple_filter):
         res = """digraph {
 	rankdir=LR splines=spline
