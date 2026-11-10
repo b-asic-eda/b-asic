@@ -274,7 +274,7 @@ class VhdlPrinter(Printer):
             )
             memory_storage.architecture(f, mem, self._dt, **memory_kwargs)
         elif mem._memory_type == "register":
-            if mem._forward_backward_table is None:
+            if not mem.is_assigned or mem._forward_backward_table is None:
                 raise ValueError(
                     "Memory assignment must be performed before generating register-based code. "
                     "Call memory.assign() first."
