@@ -845,13 +845,26 @@ class Memory(Resource):
         self._total_ports = total_ports
 
     def _info(self) -> str:
-        if self.is_assigned:
-            if self._memory_type == "RAM":
-                plural_s = "s" if len(self._assignment) >= 2 else ""
-                return f": (RAM, {len(self._assignment)} cell{plural_s})"
-            else:
-                pass
-        return ""
+        if (
+            self._memory_type == "register"
+            and self._forward_backward_table is not None
+            and self.is_assigned
+        ):
+            cell_count = len(self._forward_backward_table[0].regs)
+        else:
+            cell_count = len(self.assignment)
+        plural_s = "s" if cell_count != 1 else ""
+        return f": ({self._memory_type}, {cell_count} cell{plural_s})"
+
+    @property
+    def assignment(self) -> list[ProcessCollection]:
+        """Return the cell assignment."""
+        if self._assignment is not None:
+            return self._assignment
+        return [
+            ProcessCollection([process], self.schedule_time, self._collection._cyclic)
+            for process in self._collection
+        ]
 
     def assign(
         self,
