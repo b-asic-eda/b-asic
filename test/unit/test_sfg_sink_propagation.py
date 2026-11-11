@@ -109,20 +109,21 @@ def test_required_feedback_state_retained():
     )
 
 
+@pytest.mark.parametrize("decompose", [False, True])
 @pytest.mark.parametrize("kept", [0, 1])
 @pytest.mark.parametrize("explicit_sink", [False, True])
-def test_partially_used_butterfly(kept, explicit_sink):
+def test_partially_used_butterfly(kept, explicit_sink, decompose):
     first, second = Input(), Input()
     butterfly = R2Butterfly(first, second, name="butterfly")
     if explicit_sink:
         _sink(butterfly.output(1 - kept))
     original = SFG([first, second], [Output(butterfly.output(kept))])
-    simplified = original.sink_propagation()
+    simplified = original.sink_propagation(decompose=decompose)
     operation_type = Addition if kept == 0 else Subtraction
-    assert not simplified.find_by_type(R2Butterfly)
-    assert len(simplified.find_by_type(operation_type)) == 1
+    assert len(simplified.find_by_type(R2Butterfly)) == (0 if decompose else 1)
+    assert len(simplified.find_by_type(operation_type)) == (1 if decompose else 0)
     assert not simplified.find_by_type(DontCare)
-    assert not simplified.find_by_type(Sink)
+    assert len(simplified.find_by_type(Sink)) == (0 if decompose else 1)
     values = [2 + 1j, 3 - 2j]
     assert simplified.evaluate_outputs(values) == original.evaluate_outputs(values)
     assert len(original.find_by_type(R2Butterfly)) == 1
@@ -199,3 +200,16 @@ def test_polyphase_fir_decimator(phase):
         expected,
         atol=1e-14,
     )
+
+
+@pytest.mark.parametrize("decompose", [False, True])
+def test_fully_unused_butterfly_removed_with_restricted_target(decompose):
+    first, second = Input(), Input()
+    butterfly = R2Butterfly(first, second)
+    for output in butterfly.outputs:
+        _sink(output)
+    original = SFG([first, second], [])
+    simplified = original.sink_propagation(R2Butterfly, decompose=decompose)
+    assert not simplified.find_by_type(R2Butterfly)
+    assert len(simplified.find_by_type(Sink)) == 2
+    assert len(original.find_by_type(R2Butterfly)) == 1

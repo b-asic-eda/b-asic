@@ -60,7 +60,8 @@ def test_zero_inputs(adaptor_type, coefficient, ports):
 
 @pytest.mark.parametrize(("adaptor_type", "coefficient", "ports"), ADAPTORS)
 @pytest.mark.parametrize("explicit_sink", [False, True])
-def test_partial_outputs(adaptor_type, coefficient, ports, explicit_sink):
+@pytest.mark.parametrize("decompose", [False, True])
+def test_partial_outputs(adaptor_type, coefficient, ports, explicit_sink, decompose):
     for count in range(1, ports):
         for kept in combinations(range(ports), count):
             inputs = [Input(f"x{i}") for i in range(ports)]
@@ -70,8 +71,8 @@ def test_partial_outputs(adaptor_type, coefficient, ports, explicit_sink):
                     if i not in kept:
                         Sink().input(0).connect(adaptor.output(i))
             original = SFG(inputs, [Output(adaptor.output(i), f"y{i}") for i in kept])
-            simplified = original.sink_propagation()
-            assert not simplified.find_by_type(adaptor_type)
+            simplified = original.sink_propagation(decompose=decompose)
+            assert len(simplified.find_by_type(adaptor_type)) == (0 if decompose else 1)
             assert not simplified.find_by_type(DontCare)
             assert [op.name for op in simplified.output_operations] == [
                 f"y{i}" for i in kept
@@ -93,12 +94,13 @@ def test_live_outputs_unchanged(adaptor_type, coefficient, ports):
 
 
 @pytest.mark.parametrize(("adaptor_type", "coefficient", "ports"), ADAPTORS)
-def test_all_unused_outputs(adaptor_type, coefficient, ports):
+@pytest.mark.parametrize("decompose", [False, True])
+def test_all_unused_outputs(adaptor_type, coefficient, ports, decompose):
     inputs = [Input() for _ in range(ports)]
     adaptor = adaptor_type(coefficient, *inputs)
     for port in adaptor.outputs:
         Sink().input(0).connect(port)
-    simplified = SFG(inputs, []).sink_propagation()
+    simplified = SFG(inputs, []).sink_propagation(adaptor_type, decompose=decompose)
     assert not simplified.find_by_type(adaptor_type)
     assert len(simplified.find_by_type(Sink)) == ports
 
@@ -190,3 +192,18 @@ def test_sink_does_not_discard_shared_live_output(adaptor_type, coefficient, por
         original.evaluate_outputs(VALUES[-1][:ports])
     )
     assert not simplified.find_by_type(adaptor_type)
+
+
+@pytest.mark.parametrize("kept", [0, 1])
+def test_sink_without_decomposition_allows_direct_wiring(kept):
+    first, second = Input("x0"), Input("x1")
+    adaptor = SymmetricTwoportAdaptor(0, first, second)
+    Sink(adaptor.output(1 - kept))
+    original = SFG([first, second], [Output(adaptor.output(kept), "y")])
+    simplified = original.sink_propagation(SymmetricTwoportAdaptor, decompose=False)
+    assert not simplified.find_by_type(SymmetricTwoportAdaptor)
+    assert not simplified.find_by_type(DontCare)
+    assert len(simplified.find_by_type(Sink)) == 1
+    assert [op.name for op in simplified.input_operations] == ["x0", "x1"]
+    assert [op.name for op in simplified.output_operations] == ["y"]
+    assert simplified.evaluate_outputs([2, 3]) == original.evaluate_outputs([2, 3])
