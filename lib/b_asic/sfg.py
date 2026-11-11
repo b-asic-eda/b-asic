@@ -1275,6 +1275,7 @@ class SFG(AbstractOperation):
         target: type[Operation] | GraphID | Iterable[GraphID] | None = None,
         *,
         assume_zero_initial_state: bool = True,
+        decompose: bool = True,
     ) -> "SFG":
         """
         Return a copy with unused results propagated backwards from Sink nodes.
@@ -1297,6 +1298,12 @@ class SFG(AbstractOperation):
             Use zero initial delay states and proven zero feedback signals as
             in :meth:`constant_propagation`. Set to False to preserve configured
             initial states and disable this feedback analysis.
+        decompose : bool, default: True
+            Allow partially used operations to become smaller arithmetic
+            networks. If False, retain operations whose remaining outputs
+            still require arithmetic, including butterflies and WDF adaptors.
+            Replacements by constants or direct wiring and removal of fully
+            unused operations are allowed in either mode.
 
         Notes
         -----
@@ -1309,6 +1316,7 @@ class SFG(AbstractOperation):
             "_sink_propagation",
             target,
             assume_zero_initial_state=assume_zero_initial_state,
+            decompose=decompose,
         )
 
     def _propagate(
@@ -1321,9 +1329,16 @@ class SFG(AbstractOperation):
     ) -> "SFG":
         """Apply operation hooks and inline their replacements until stable."""
         from b_asic.core_operations import Constant, ConstantMultiplication  # noqa: PLC0415
-        from b_asic.utility_operations import Sink  # noqa: PLC0415
+        from b_asic.utility_operations import DontCare, Sink  # noqa: PLC0415
 
         sink_mode = method == "_sink_propagation"
+        # Discarded sink outputs use DontCare placeholders; they are not
+        # arithmetic decomposition and must not prevent dead-code removal.
+        primitive_operations = (
+            (Input, Output, Constant, Sink, DontCare)
+            if sink_mode
+            else (Input, Output, Constant, Sink)
+        )
         target_type = None
         target_ids = None
         if isinstance(target, type):
@@ -1493,13 +1508,9 @@ class SFG(AbstractOperation):
             ):
                 raise ValueError("Propagation replacement must preserve port counts")
 
-            if (
-                not sink_mode
-                and not decompose
-                and any(
-                    not isinstance(op, (Input, Output, Constant, Sink))
-                    for op in replacement.operations
-                )
+            if not decompose and any(
+                not isinstance(op, primitive_operations)
+                for op in replacement.operations
             ):
                 continue
 
