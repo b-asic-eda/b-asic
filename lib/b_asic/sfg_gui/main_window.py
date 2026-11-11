@@ -460,35 +460,34 @@ class SFGMainWindow(QMainWindow):
             self.showFullScreen()
             self._fullscreen_action.setIcon(get_icon("full-screen-exit"))
 
-    def _update_recent_file_list(self) -> None:
-        settings = QSettings()
-        rfp = cast(deque, settings.value("SFG/recentFiles"))
-        if rfp:
-            dequelen = len(rfp)
-            if dequelen > 0:
-                for i in range(dequelen):
-                    action = self._recent_files_actions[i]
-                    action.setText(str(rfp[i]))
-                    action.setData(QFileInfo(str(rfp[i])))
-                    action.setVisible(True)
+    def _read_recent_files(self, settings: QSettings) -> deque[str]:
+        try:
+            paths = settings.value("SFG/recentFiles", [])
+        except RuntimeError:
+            # PySide6 cannot deserialize a deque saved by an older version.
+            self._logger.warning("Discarding unreadable recent-file history")
+            settings.remove("SFG/recentFiles")
+            paths = []
+        return deque(paths or [], maxlen=self._max_recent_files)
 
-                for i in range(dequelen, self._max_recent_files):
-                    self._recent_files_actions[i].setVisible(False)
+    def _update_recent_file_list(self) -> None:
+        rfp = self._read_recent_files(QSettings())
+        for i, action in enumerate(self._recent_files_actions):
+            action.setVisible(i < len(rfp))
+            if i < len(rfp):
+                action.setText(str(rfp[i]))
+                action.setData(QFileInfo(str(rfp[i])))
 
     def _open_recent_file(self, action) -> None:
         self._load_from_file(action.data().filePath())
 
     def _add_recent_file(self, module) -> None:
         settings = QSettings()
-        rfp = cast(deque, settings.value("SFG/recentFiles"))
-        if rfp:
-            if module not in rfp:
-                rfp.append(module)
-        else:
-            rfp = deque(maxlen=self._max_recent_files)
+        rfp = self._read_recent_files(settings)
+        if module not in rfp:
             rfp.append(module)
 
-        settings.setValue("SFG/recentFiles", rfp)
+        settings.setValue("SFG/recentFiles", list(rfp))
 
         self._update_recent_file_list()
 

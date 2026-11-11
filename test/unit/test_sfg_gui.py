@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 
 try:
@@ -6,7 +8,7 @@ try:
 
     from b_asic.sfg_gui.main_window import SFGMainWindow
 except ImportError:
-    pytestmark = pytest.mark.skip("Qt not setup")
+    pytest.skip("Qt not setup", allow_module_level=True)
 
 from b_asic.core_operations import SquareRoot
 from b_asic.special_operations import Input, Output
@@ -17,6 +19,57 @@ def test_start(qtbot):
     qtbot.addWidget(widget)
 
     widget.exit_app()
+
+
+@pytest.mark.parametrize("initial", [[], ["first.py", "second.py"]])
+def test_recent_files_use_builtin_settings_values(
+    qtbot, monkeypatch, tmp_path, initial
+):
+    from b_asic.sfg_gui import main_window
+
+    settings = QtCore.QSettings(
+        str(tmp_path / "recent.ini"), QtCore.QSettings.IniFormat
+    )
+    settings.setValue("SFG/recentFiles", initial)
+    monkeypatch.setattr(main_window, "QSettings", lambda: settings)
+    window = SFGMainWindow()
+    qtbot.addWidget(window)
+    for path in ("third.py", "fourth.py", "fifth.py", "fifth.py"):
+        window._add_recent_file(path)
+    settings.sync()
+    restored = QtCore.QSettings(settings.fileName(), QtCore.QSettings.IniFormat)
+    expected = [*initial, "third.py", "fourth.py", "fifth.py"][-4:]
+    assert restored.value("SFG/recentFiles") == expected
+    assert [
+        action.text() for action in window._recent_files_actions if action.isVisible()
+    ] == expected
+
+
+def test_recent_files_recover_from_unreadable_history(qtbot, monkeypatch, tmp_path):
+    from b_asic.sfg_gui import main_window
+
+    settings = QtCore.QSettings(
+        str(tmp_path / "recent.ini"), QtCore.QSettings.IniFormat
+    )
+    settings.setValue("SFG/recentFiles", "unreadable legacy object")
+    settings.setValue("unrelated", 42)
+    read_value = settings.value
+
+    def read(key, default=None):
+        if key == "SFG/recentFiles" and settings.contains(key):
+            raise RuntimeError("Failed to deserialize Python object from QDataStream")
+        return read_value(key, default)
+
+    monkeypatch.setattr(settings, "value", read)
+    monkeypatch.setattr(main_window, "QSettings", lambda: settings)
+    window = SFGMainWindow()
+    qtbot.addWidget(window)
+    assert not settings.contains("SFG/recentFiles")
+    assert settings.value("unrelated") == 42
+    assert all(not action.isVisible() for action in window._recent_files_actions)
+    monkeypatch.setattr(settings, "value", read_value)
+    window._add_recent_file("new.py")
+    assert settings.value("SFG/recentFiles") == ["new.py"]
 
 
 def test_load(qtbot, datadir):
@@ -336,6 +389,34 @@ def make_connected_window(qtbot):
     return window, source, destination, branch
 
 
+def activate_test_window(qtbot, window):
+    from qtpy.QtWidgets import QApplication
+
+    window.raise_()
+    window.windowHandle().requestActivate()
+    # Drain native activation events before setting the widget shortcut context.
+    # Headless window managers may ignore the native activation request.
+    QApplication.processEvents()
+    # Qt 6 deprecates this application API, but it lets these widget tests set
+    # Qt's active window without requiring native window-manager activation.
+    with warnings.catch_warnings(action="ignore", category=DeprecationWarning):
+        QApplication.setActiveWindow(window)
+    qtbot.waitUntil(window.isActiveWindow)
+
+
+def press_canvas_shortcut(qtbot, window, key, modifiers=QtCore.Qt.NoModifier):
+    # QTest injects Qt events rather than Cocoa menu key equivalents. Keep
+    # menu shortcuts in the widget event path, including on macOS/PySide6.
+    window.menuBar().setNativeMenuBar(False)
+    activate_test_window(qtbot, window)
+    view = window._graphics_view
+    view.setFocus()
+    qtbot.waitUntil(view.hasFocus)
+    # The QWindow overload includes Qt's macOS shortcut-processing step in
+    # qt_handleKeyEvent; the QWidget overload directly notifies the widget.
+    qtbot.keyClick(window.windowHandle(), key, modifiers)
+
+
 @pytest.mark.parametrize("start_at", ["background", "operation", "port", "wire"])
 @pytest.mark.parametrize("zoom", [0.5, 1.5])
 def test_middle_drag_pans_without_editing_graph(qtbot, start_at, zoom):
@@ -468,13 +549,26 @@ def test_pan_stops_when_middle_button_is_no_longer_held(qtbot):
 
 
 def test_click_connect_preview_and_cancel(qtbot):
+    from qtpy.QtGui import QMouseEvent
+    from qtpy.QtWidgets import QApplication
+
     window, source, _, branch = make_connected_window(qtbot)
     output = window._drag_buttons[source].port_list[0]
     target = window._drag_buttons[branch].port_list[0]
     click_port(qtbot, window, output)
     assert window._starting_port is output
     view = window._graphics_view
-    qtbot.mouseMove(view.viewport(), view.mapFromScene(target.anchor()))
+    position = view.mapFromScene(target.anchor())
+    # QTest.mouseMove can depend on asynchronous native cursor delivery.
+    event = QMouseEvent(
+        QtCore.QEvent.MouseMove,
+        QtCore.QPointF(position),
+        QtCore.QPointF(view.viewport().mapToGlobal(position)),
+        QtCore.Qt.NoButton,
+        QtCore.Qt.NoButton,
+        QtCore.Qt.NoModifier,
+    )
+    QApplication.sendEvent(view.viewport(), event)
     assert not window._connection_preview.path().isEmpty()
     click_port(qtbot, window, target)
     assert len(window._arrow_ports) == 2
@@ -717,13 +811,24 @@ def test_rotation_ports_and_routing(qtbot, angle, flipped):
     assert button.rotation_angle() == angle
 
 
-def test_rotation_shortcuts(qtbot):
+@pytest.mark.parametrize("other_window_active", [False, True])
+def test_rotation_shortcuts(qtbot, monkeypatch, other_window_active):
     window, source, _, _ = make_connected_window(qtbot)
     button = window._drag_buttons[source]
     button.select_button()
-    qtbot.keyClick(window, QtCore.Qt.Key_R)
+    if other_window_active:
+        from qtpy.QtWidgets import QWidget
+
+        other = QWidget()
+        qtbot.addWidget(other)
+        other.show()
+        activate_test_window(qtbot, other)
+        assert not window.isActiveWindow()
+        # Model a backend that cannot grant native activation to the editor.
+        monkeypatch.setattr(window, "activateWindow", lambda: None)
+    press_canvas_shortcut(qtbot, window, QtCore.Qt.Key_R)
     assert button.rotation_angle() == 90
-    qtbot.keyClick(window, QtCore.Qt.Key_R, QtCore.Qt.ShiftModifier)
+    press_canvas_shortcut(qtbot, window, QtCore.Qt.Key_R, QtCore.Qt.ShiftModifier)
     assert button.rotation_angle() == 0
     for _ in range(4):
         button.rotate_clockwise()
@@ -743,7 +848,9 @@ def test_flip_menu_actions_and_shortcuts(qtbot, vertical):
     original = [(b.rotation_angle(), b.is_flipped()) for b in selected]
     action.trigger()
     assert [(b.rotation_angle(), b.is_flipped()) for b in selected] != original
-    qtbot.keyClick(window, QtCore.Qt.Key_V if vertical else QtCore.Qt.Key_H)
+    press_canvas_shortcut(
+        qtbot, window, QtCore.Qt.Key_V if vertical else QtCore.Qt.Key_H
+    )
     assert [(b.rotation_angle(), b.is_flipped()) for b in selected] == original
     assert (untouched.rotation_angle(), untouched.is_flipped()) == (0, False)
 
@@ -784,7 +891,7 @@ def test_zoom_to_fit_shortcut(qtbot):
     view = window._graphics_view
     view.scale(0.25, 0.25)
     previous_zoom = view.transform().m11()
-    qtbot.keyClick(window, QtCore.Qt.Key_F)
+    press_canvas_shortcut(qtbot, window, QtCore.Qt.Key_F)
     assert view.transform().m11() > previous_zoom * 3
     visible = view.mapToScene(view.viewport().rect()).boundingRect()
     assert visible.contains(window._scene.itemsBoundingRect())
@@ -799,7 +906,7 @@ def test_grid_menu_and_shortcut(qtbot):
     assert not action.isChecked()
     button = window._drag_buttons[source]
     position = button.graphicsProxyWidget().pos()
-    qtbot.keyClick(window, QtCore.Qt.Key_G)
+    press_canvas_shortcut(qtbot, window, QtCore.Qt.Key_G)
     assert action.isChecked()
     assert view._grid_visible
     action.trigger()
