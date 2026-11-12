@@ -1667,6 +1667,36 @@ class SFG(AbstractOperation):
         transfer_wiring(self, transformed)
         return transformed
 
+    def split_constant_fanout(self) -> "SFG":
+        """
+        Return a copy with a separate Constant operation for each connection.
+
+        This reduces fanout to one connection per operation.
+        """
+        from b_asic.core_operations import Constant  # noqa: PLC0415
+
+        graph = cast(SFG, self.copy())
+        for operation in graph.operations:
+            if isinstance(operation, Constant):
+                for signal in list(operation.output(0).signals)[1:]:
+                    duplicate = cast(Constant, operation.copy())
+                    duplicate.graph_id = GraphID("")
+                    signal.set_source(duplicate.output(0))
+            elif isinstance(operation, SFG):
+                replacement = operation.split_constant_fanout()
+                replacement.graph_id = operation.graph_id
+                for old_port, new_port in zip(
+                    operation.inputs, replacement.inputs, strict=True
+                ):
+                    for signal in list(old_port.signals):
+                        signal.set_destination(new_port)
+                for old_port, new_port in zip(
+                    operation.outputs, replacement.outputs, strict=True
+                ):
+                    for signal in list(old_port.signals):
+                        signal.set_source(new_port)
+        return cast(SFG, graph.copy())
+
     def simplify_delay_element_placement(self) -> "SFG":
         """
         Simplify an SFG by removing redundant delay elements.

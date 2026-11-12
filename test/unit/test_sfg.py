@@ -40,6 +40,70 @@ from b_asic.special_operations import Delay
 from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
+def test_split_constant_fanout():
+    constant = Constant(3, "shared")
+    addition = Addition(constant, constant)
+    addition.input(0).signals[0].name = "first"
+    addition.input(0).signals[0].set_param("bits", 8)
+    graph = SFG(outputs=[Output(addition), Output(constant)])
+    original_constant = graph.find_by_type(Constant)[0]
+    original_constant.execution_time = 2
+    original_constant.output(0).latency_offset = 1
+
+    transformed = graph.split_constant_fanout()
+    constants = transformed.find_by_type(Constant)
+
+    assert len(constants) == 3
+    assert all(len(item.output(0).signals) == 1 for item in constants)
+    assert all(item.value == 3 and item.name == "shared" for item in constants)
+    assert all(item.execution_time == 2 for item in constants)
+    assert all(item.output(0).latency_offset == 1 for item in constants)
+    signal = transformed.find_by_name("first")[0]
+    assert signal.param("bits") == 8
+    assert transformed.evaluate() == graph.evaluate() == [6, 3]
+    assert len(original_constant.output(0).signals) == 3
+    assert len(transformed.split_constant_fanout().find_by_type(Constant)) == 3
+
+
+def test_split_constant_fanout_nested_sfg():
+    constant = Constant(5)
+    source = Input()
+    inner = SFG(
+        inputs=[source],
+        outputs=[Output(Addition(source, Addition(constant, constant)))],
+        name="inner",
+    )
+    outer_source = Input()
+    graph = SFG(inputs=[outer_source], outputs=[Output(inner(outer_source))])
+    original_inner = graph.find_by_type(SFG)[0]
+    original_inner.execution_time = 3
+    original_inner.input(0).latency_offset = 1
+
+    transformed = graph.split_constant_fanout()
+    transformed_inner = transformed.find_by_type(SFG)[0]
+
+    assert len(transformed_inner.find_by_type(Constant)) == 2
+    assert all(
+        len(item.output(0).signals) == 1
+        for item in transformed_inner.find_by_type(Constant)
+    )
+    assert len(original_inner.find_by_type(Constant)) == 1
+    assert transformed_inner.execution_time == 3
+    assert transformed_inner.input(0).latency_offset == 1
+    assert transformed.evaluate(2) == graph.evaluate(2) == 12
+
+
+def test_split_constant_fanout_without_shared_constants():
+    source = Input()
+    graph = SFG(inputs=[source], outputs=[Output(Addition(source, Constant(4)))])
+
+    transformed = graph.split_constant_fanout()
+
+    assert transformed is not graph
+    assert len(transformed.find_by_type(Constant)) == 1
+    assert transformed.evaluate(3) == graph.evaluate(3) == 7
+
+
 def test_deepcopy_nested_sfg_with_fanout():
     source = Input()
     inner = SFG([source], [Output(ConstantMultiplication(0.5, source, latency=1))])
