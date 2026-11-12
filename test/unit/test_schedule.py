@@ -59,7 +59,9 @@ def test_copy_preserves_graph_and_isolates_edits(clone, precedence_sfg_delays):
     schedule.set_y_location(operation.graph_id, 5)
     # Populate caches containing graph objects before cloning.
     schedule._sfg.get_precedence_list()
-    schedule._sfg.get_operations_topological_order()
+    # Scheduling removes delays, so the remaining feedback has no valid order.
+    with pytest.raises(RuntimeError, match="Direct feedback loop"):
+        schedule._sfg.get_operations_topological_order()
 
     cloned = clone(schedule)
 

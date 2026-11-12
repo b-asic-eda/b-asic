@@ -347,7 +347,12 @@ class SFG(AbstractOperation):
         line = "-" * 100 + "\n"
         string_io.write(line)
 
-        for operation in self.get_operations_topological_order():
+        try:
+            operations = self.get_operations_topological_order()
+        except RuntimeError:
+            # Schedule graphs can have their delays removed and retain cycles.
+            operations = self.operations
+        for operation in operations:
             string_io.write(f"{operation._graph_str()}\n")
 
         string_io.write(line)
@@ -1957,103 +1962,48 @@ class SFG(AbstractOperation):
 
     def get_operations_topological_order(self) -> Iterable[Operation]:
         """
-        Return an Iterable of the Operations in the SFG in topological order.
+        Return operations in evaluation order, treating delays as state sources.
 
-        Feedback loops makes an absolutely correct topological order impossible,
-        so an approximate topological Order is returned in such cases in this
-        implementation.
+        Inputs to delays belong to the next iteration and do not constrain this
+        order. All other operations follow their input sources. Delay states must
+        be updated after evaluating the entire graph. Flatten nested SFGs first
+        when feedback passes through delays inside them.
+
+        A cycle without a delay raises RuntimeError. The order is cached.
         """
-        if self._operations_topological_order:
+        if self._operations_topological_order or not self.operations:
             return self._operations_topological_order
 
-        no_inputs_queue = deque(
-            list(filter(lambda op: op.input_count == 0, self.operations))
-        )
-        remaining_inports_per_operation = {op: op.input_count for op in self.operations}
-
-        # Maps number of input counts to a queue of seen objects with such a size.
-        seen_with_inputs_dict: dict[int, deque] = defaultdict(deque)
-        seen = set()
+        remaining_inputs = {
+            op: 0 if isinstance(op, Delay) else op.input_count for op in self.operations
+        }
+        roots = deque(op for op, count in remaining_inputs.items() if count == 0)
         top_order = []
-
-        if len(no_inputs_queue) == 0:
-            raise ValueError("Illegal SFG state, dangling signals in SFG.")
-
-        first_op = no_inputs_queue.popleft()
-        visited = {first_op}
         p_queue = PriorityQueue()
         p_queue_entry_num = itertools.count()
-        # Negative priority as max-heap popping is wanted
-        p_queue.put((-first_op.output_count, -next(p_queue_entry_num), first_op))
 
-        operations_left = len(self.operations) - 1
-
-        seen_but_not_visited_count = 0
-
-        while operations_left > 0:
-            while not p_queue.empty():
-                op = p_queue.get()[2]
-
-                operations_left -= 1
-                top_order.append(op)
-                visited.add(op)
-
-                for neighbor_op in op.subsequent_operations:
-                    if neighbor_op not in visited:
-                        remaining_inports_per_operation[neighbor_op] -= 1
-                        remaining_inports = remaining_inports_per_operation[neighbor_op]
-
-                        if remaining_inports == 0:
-                            p_queue.put(
-                                (
-                                    -neighbor_op.output_count,
-                                    -next(p_queue_entry_num),
-                                    neighbor_op,
-                                )
-                            )
-
-                        elif remaining_inports > 0:
-                            if neighbor_op in seen:
-                                seen_with_inputs_dict[remaining_inports + 1].remove(
-                                    neighbor_op
-                                )
-                            else:
-                                seen.add(neighbor_op)
-                                seen_but_not_visited_count += 1
-
-                            seen_with_inputs_dict[remaining_inports].append(neighbor_op)
-
-            # Check if have to fetch Operations from somewhere else since p_queue
-            # is empty
-            if operations_left > 0:
-                # First check if can fetch from Operations with no input ports
-                if no_inputs_queue:
-                    new_op = no_inputs_queue.popleft()
-                    p_queue.put(
-                        (
-                            -new_op.output_count,
-                            -next(p_queue_entry_num),
-                            new_op,
+        while roots or not p_queue.empty():
+            op = roots.popleft() if p_queue.empty() else p_queue.get()[2]
+            top_order.append(op)
+            # Count signal destinations, including repeated uses of one source.
+            for port in op.outputs:
+                for signal in port.signals:
+                    destination = signal.destination
+                    if destination is None:
+                        raise ValueError("Missing destination in signal.")
+                    neighbor = destination.operation
+                    if isinstance(neighbor, Delay):
+                        continue
+                    remaining_inputs[neighbor] -= 1
+                    if remaining_inputs[neighbor] == 0:
+                        p_queue.put(
+                            (-neighbor.output_count, -next(p_queue_entry_num), neighbor)
                         )
-                    )
 
-                # Else fetch operation with the lowest input count that is not zero
-                elif seen_but_not_visited_count > 0:
-                    for i in itertools.count(start=1):
-                        seen_inputs_queue = seen_with_inputs_dict[i]
-                        if seen_inputs_queue:
-                            new_op = seen_inputs_queue.popleft()
-                            p_queue.put(
-                                (
-                                    -new_op.output_count,
-                                    -next(p_queue_entry_num),
-                                    new_op,
-                                )
-                            )
-                            seen_but_not_visited_count -= 1
-                            break
-                else:
-                    raise RuntimeError("Disallowed structure in SFG detected")
+        if len(top_order) != len(self.operations):
+            raise RuntimeError(
+                "Direct feedback loop detected when ordering operations."
+            )
 
         self._operations_topological_order = top_order
         return self._operations_topological_order

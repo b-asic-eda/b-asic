@@ -287,11 +287,11 @@ class TestPrintSfg:
             + "--------------------------------\n"
             + sfg_simple_filter.find_by_name("IN")[0]._graph_str()
             + "\n"
-            + sfg_simple_filter.find_by_name("ADD")[0]._graph_str()
-            + "\n"
             + sfg_simple_filter.find_by_name("T")[0]._graph_str()
             + "\n"
             + sfg_simple_filter.find_by_name("CMUL")[0]._graph_str()
+            + "\n"
+            + sfg_simple_filter.find_by_name("ADD")[0]._graph_str()
             + "\n"
             + sfg_simple_filter.find_by_name("OUT")[0]._graph_str()
             + "\n"
@@ -1322,16 +1322,23 @@ class TestConnectExternalSignalsToComponentsMultipleComp:
 
 
 class TestTopologicalOrderOperations:
-    def test_feedback_sfg(self, sfg_simple_filter):
-        topological_order = sfg_simple_filter.get_operations_topological_order()
+    @staticmethod
+    def assert_valid_order(sfg):
+        order = list(sfg.get_operations_topological_order())
+        positions = {op: index for index, op in enumerate(order)}
+        assert len(order) == len(positions) == len(sfg.operations)
+        assert set(order) == set(sfg.operations)
+        for op in order:
+            if not isinstance(op, Delay):
+                for port in op.inputs:
+                    assert positions[port.connected_source.operation] < positions[op]
+        assert (
+            sfg.get_operations_topological_order()
+            is sfg.get_operations_topological_order()
+        )
 
-        assert [comp.name for comp in topological_order] == [
-            "IN",
-            "ADD",
-            "T",
-            "CMUL",
-            "OUT",
-        ]
+    def test_feedback_sfg(self, sfg_simple_filter):
+        self.assert_valid_order(sfg_simple_filter)
 
     def test_multiple_independent_inputs(self, sfg_two_inputs_two_outputs_independent):
         topological_order = (
@@ -1348,25 +1355,36 @@ class TestTopologicalOrderOperations:
         ]
 
     def test_complex_graph(self, precedence_sfg_delays):
-        topological_order = precedence_sfg_delays.get_operations_topological_order()
+        self.assert_valid_order(precedence_sfg_delays)
 
-        assert [comp.name for comp in topological_order] == [
-            "IN1",
-            "C0",
-            "ADD1",
-            "Q1",
-            "A0",
-            "T1",
-            "B1",
-            "A1",
-            "T2",
-            "B2",
-            "ADD2",
-            "A2",
-            "ADD3",
-            "ADD4",
-            "OUT1",
-        ]
+    def test_repeated_source(self):
+        source = Input()
+        self.assert_valid_order(SFG([source], [Output(source + source)]))
+
+    def test_multiple_outputs_to_same_operation(self):
+        source = Input()
+        butterfly = R2Butterfly(source, source)
+        self.assert_valid_order(
+            SFG([source], [Output(butterfly.output(0) + butterfly.output(1))])
+        )
+
+    def test_delay_only_feedback(self):
+        first = Delay()
+        second = Delay(first)
+        first <<= second
+        self.assert_valid_order(SFG([], [Output(first), Output(second)]))
+
+    def test_empty_graph(self):
+        self.assert_valid_order(SFG([], []))
+
+    def test_combinational_cycle(self):
+        source = Input()
+        add = Addition(source)
+        add.input(1).connect(add)
+        graph = SFG([source], [Output(add)])
+        with pytest.raises(RuntimeError, match="Direct feedback loop"):
+            graph.get_operations_topological_order()
+        assert "add0" in str(graph)
 
 
 class TestRemove:

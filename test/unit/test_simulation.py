@@ -271,6 +271,114 @@ class TestRun:
         assert all(simulation.results["out1"] == np.array([2, 4, 8, 16, 32]))
 
 
+class TestTopologicalEvaluation:
+    def test_reuses_sfg_topological_order(self, sfg_delay, monkeypatch):
+        from b_asic import SFG
+
+        get_order = SFG.get_operations_topological_order
+        calls = []
+
+        def counted_get_order(self):
+            calls.append(self)
+            return get_order(self)
+
+        monkeypatch.setattr(SFG, "get_operations_topological_order", counted_get_order)
+        simulation = Simulation(sfg_delay, [1])
+        assert simulation.run_for(3) == [1]
+        assert len(calls) == 1
+
+    def test_deep_graph(self):
+        import sys
+
+        from b_asic import SFG, Input, Output
+
+        source = Input()
+        value = source
+        depth = sys.getrecursionlimit() + 100
+        for _ in range(depth):
+            value = value + 1
+        simulation = Simulation(SFG([source], [Output(value)]), [2])
+        assert simulation.step() == [depth + 2]
+
+    def test_nested_without_recursive_evaluation(self, sfg_nested, monkeypatch):
+        from b_asic import SFG
+
+        def recursive_evaluation(*args, **kwargs):
+            pytest.fail("Simulation must not call the recursive SFG evaluator")
+
+        monkeypatch.setattr(SFG, "evaluate_output", recursive_evaluation)
+        monkeypatch.setattr(SFG, "_evaluate_source", recursive_evaluation)
+        simulation = Simulation(sfg_nested, [5, 7])
+        assert simulation.step() == [11405]
+
+    def test_nested_feedback(self):
+        from b_asic import SFG, Delay, Input, Output
+
+        inner_input = Input()
+        inner = SFG([inner_input], [Output(Delay(inner_input, initial_value=3))])
+        source = Input()
+        inner <<= source + inner
+        simulation = Simulation(SFG([source], [Output(inner)]), [[1, 2, 3]])
+        assert simulation.run() == [6]
+        np.testing.assert_array_equal(simulation.results["out0"], [3, 4, 6])
+        np.testing.assert_array_equal(simulation.results["sfg0.t0"], [3, 4, 6])
+
+    def test_nested_delay_states_are_independent(self):
+        from b_asic import SFG, Delay, Input, Output
+
+        inner_input = Input()
+        inner = SFG([inner_input], [Output(Delay(inner_input))])
+        source = Input()
+        graph = SFG([source], [Output(inner(source) + inner(source * 2))])
+        simulation = Simulation(graph, [[1, 2, 3]])
+        simulation.run()
+        np.testing.assert_array_equal(simulation.results["out0"], [0, 3, 6])
+        assert "sfg0.t0" in simulation.results
+        assert "sfg1.t0" in simulation.results
+
+    def test_nested_finite_word_length(self, sfg_nested_sfg):
+        simulation = Simulation(
+            sfg_nested_sfg, [[0.25, 0.5, 0.75]], DataType(wl=(2, 4))
+        )
+        simulation.run()
+        assert [float(v) for v in simulation.results["out0"]] == [0, 0.25, 0.5]
+
+    def test_simultaneous_delay_updates_and_clear_state(self):
+        from b_asic import SFG, Delay, Output
+
+        first = Delay(initial_value=3)
+        second = Delay(first, initial_value=7)
+        first <<= second
+        simulation = Simulation(SFG([], [Output(first), Output(second)]))
+        assert simulation.step() == [3, 7]
+        assert simulation.step() == [7, 3]
+        simulation.clear_state()
+        assert simulation.step() == [3, 7]
+
+    def test_multi_output_evaluated_once(self, sfg_custom_operation, monkeypatch):
+        operation = sfg_custom_operation.find_by_id("custom0")
+        evaluate = type(operation).evaluate
+        calls = []
+
+        def counted_evaluate(self, *args, **kwargs):
+            calls.append(args)
+            return evaluate(self, *args, **kwargs)
+
+        monkeypatch.setattr(type(operation), "evaluate", counted_evaluate)
+        simulation = Simulation(sfg_custom_operation, [lambda n: n + 1])
+        assert simulation.run_for(3) == [6, 8]
+        assert len(calls) == 3
+
+    def test_combinational_cycle(self):
+        from b_asic import SFG, Addition, Input, Output
+
+        source = Input()
+        add = Addition(source)
+        add.input(1).connect(add)
+        with pytest.raises(RuntimeError, match="Direct feedback loop"):
+            Simulation(SFG([source], [Output(add)]))
+
+
 class TestFiniteWordLength:
     def test_accumulator_overflow(self):
         from b_asic import SFG, Delay, Input, Output
