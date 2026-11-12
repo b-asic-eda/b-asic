@@ -889,6 +889,225 @@ def test_close_schedule_then_open_new_schedule(qtbot, sfg_simple_filter):
     assert widget.statusbar.currentMessage() == "Schedule loaded successfully"
 
 
+def test_undo_redo_rotation(qtbot, precedence_sfg_delays):
+    precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
+    precedence_sfg_delays.set_latency_of_type_name(
+        ConstantMultiplication.type_name(), 3
+    )
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(Schedule(precedence_sfg_delays, cyclic=True))
+    original = widget.schedule.start_times.copy()
+
+    assert not widget.actionUndo.isEnabled()
+    assert not widget.actionRedo.isEnabled()
+    widget.actionRotateForward.trigger()
+    rotated = widget.schedule.start_times.copy()
+    assert rotated != original
+    assert widget.actionUndo.isEnabled()
+    assert not widget.actionRedo.isEnabled()
+
+    widget.actionUndo.trigger()
+    assert widget.schedule.start_times == original
+    assert not widget.actionUndo.isEnabled()
+    assert widget.actionRedo.isEnabled()
+    widget.actionRedo.trigger()
+    assert widget.schedule.start_times == rotated
+    assert widget.actionUndo.isEnabled()
+    assert not widget.actionRedo.isEnabled()
+
+
+def test_undo_redo_drag_and_shortcuts(qtbot):
+    source = Input()
+    product = ConstantMultiplication(0.5, source, latency=1)
+    schedule = Schedule(SFG([source], [Output(product)]), schedule_time=5)
+    schedule.move_operation("out0", 3)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.resize(1000, 700)
+    widget.show()
+    qtbot.waitExposed(widget)
+    widget.activateWindow()
+    qtbot.waitActive(widget)
+    widget.open(schedule)
+    widget.action_view_io_latency.trigger()
+    latency_window = widget._io_latency_window
+    graph = widget._graph
+    item = graph._operation_items["cmul0"]
+    viewport = widget.view.viewport()
+    start = widget.view.mapFromScene(
+        item.mapToScene(item._latency_item.boundingRect().center())
+    )
+    end = start + QPoint(75, 0)
+    qtbot.mouseClick(viewport, Qt.MouseButton.LeftButton, pos=start)
+    assert not widget.actionUndo.isEnabled()
+    qtbot.mousePress(viewport, Qt.MouseButton.LeftButton, pos=start)
+    _mouse_move_with_left_button(widget.view, end)
+    qtbot.mouseRelease(viewport, Qt.MouseButton.LeftButton, pos=end)
+    assert widget.schedule.start_times["cmul0"] == 1
+    assert widget.actionUndo.isEnabled()
+
+    QApplication.setActiveWindow(widget)
+    qtbot.waitActive(widget)
+    widget.view.setFocus()
+    qtbot.waitUntil(lambda: QApplication.focusWidget() is widget.view)
+    qtbot.keyClick(widget.view, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    assert widget.schedule.start_times["cmul0"] == 0
+    assert widget._io_latency_window is latency_window
+    assert widget._graph._operation_items["cmul0"].x() == pytest.approx(
+        widget._graph._x_axis_indent
+    )
+    qtbot.keyClick(
+        widget.view,
+        Qt.Key.Key_Z,
+        Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier,
+    )
+    assert widget.schedule.start_times["cmul0"] == 1
+    assert widget._io_latency_window is latency_window
+    qtbot.keyClick(widget.view, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    widget._graph._operation_items["cmul0"]._move_asap()
+    assert widget.actionRedo.isEnabled()
+    qtbot.keyClick(widget.view, Qt.Key.Key_Y, Qt.KeyboardModifier.ControlModifier)
+    assert widget.schedule.start_times["cmul0"] == 1
+
+
+def test_undo_redo_timeline_and_branch(qtbot):
+    source = Input()
+    product = ConstantMultiplication(0.5, source, latency=1)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.resize(1000, 700)
+    widget.show()
+    qtbot.waitExposed(widget)
+    widget.open(Schedule(SFG([source], [Output(product)]), schedule_time=5))
+    graph = widget._graph
+    timeline = graph.axes.event_items[0]
+    start = widget.view.mapFromScene(timeline.mapToScene(timeline.line().center()))
+    end = start + QPoint(75, 0)
+    viewport = widget.view.viewport()
+    qtbot.mousePress(viewport, Qt.MouseButton.LeftButton, pos=start)
+    _mouse_move_with_left_button(widget.view, end)
+    qtbot.mouseRelease(viewport, Qt.MouseButton.LeftButton, pos=end)
+    assert widget.schedule.schedule_time == 6
+    widget.actionUndo.trigger()
+    assert widget.schedule.schedule_time == 5
+    assert widget._graph.axes.width == 5
+    widget.actionRedo.trigger()
+    assert widget.schedule.schedule_time == 6
+    widget.actionUndo.trigger()
+    widget._graph._operation_items["out0"]._move_alap()
+    assert not widget.actionRedo.isEnabled()
+    widget.actionUndo.trigger()
+    assert widget.schedule.start_times["out0"] == 1
+    widget.close_schedule()
+    assert not widget.actionUndo.isEnabled()
+    assert not widget.actionRedo.isEnabled()
+
+
+def test_undo_redo_swap_and_resolution(qtbot, monkeypatch):
+    left, right = Input(), Input()
+    addition = Addition(left, right, latency=2)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(Schedule(SFG([left, right], [Output(addition)])))
+    widget.info_table_update_component("add0")
+
+    def input_signals():
+        operation = widget.schedule._sfg.find_by_id("add0")
+        return tuple(port.signals[0].graph_id for port in operation.inputs)
+
+    initial_inputs = input_signals()
+    widget._graph._swap_io_of_operation("add0")
+    swapped_inputs = input_signals()
+    assert swapped_inputs == initial_inputs[::-1]
+    monkeypatch.setattr(main_window.QInputDialog, "getInt", lambda *args: (2, True))
+    widget._increase_time_resolution()
+    assert widget.schedule.schedule_time == 4
+    widget.actionUndo.trigger()
+    assert widget.schedule.schedule_time == 2
+    assert input_signals() == swapped_inputs
+    assert widget._selected_graph_id == "add0"
+    widget.actionUndo.trigger()
+    assert input_signals() == initial_inputs
+    widget.actionRedo.trigger()
+    assert input_signals() == swapped_inputs
+    widget.actionRedo.trigger()
+    assert widget.schedule.schedule_time == 4
+
+
+def test_undo_redo_vertical_drag_and_reorder(qtbot):
+    source = Input()
+    product = ConstantMultiplication(0.5, source, latency=1)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.resize(1000, 700)
+    widget.show()
+    qtbot.waitExposed(widget)
+    widget.open(Schedule(SFG([source], [Output(product)]), schedule_time=5))
+    graph = widget._graph
+    initial = dict(widget.schedule._y_locations)
+    item = graph._operation_items["cmul0"]
+    start = widget.view.mapFromScene(
+        item.mapToScene(item._latency_item.boundingRect().center())
+    )
+    end = start + QPoint(0, 100)
+    viewport = widget.view.viewport()
+    qtbot.mousePress(viewport, Qt.MouseButton.LeftButton, pos=start)
+    _mouse_move_with_left_button(widget.view, end)
+    qtbot.mouseRelease(viewport, Qt.MouseButton.LeftButton, pos=end)
+    moved = dict(widget.schedule._y_locations)
+    assert moved != initial
+    widget._action_reorder()
+    reordered = dict(widget.schedule._y_locations)
+    assert reordered != moved
+    widget.actionUndo.trigger()
+    assert dict(widget.schedule._y_locations) == moved
+    widget.actionUndo.trigger()
+    assert dict(widget.schedule._y_locations) == initial
+    widget.actionRedo.trigger()
+    assert dict(widget.schedule._y_locations) == moved
+
+
+def test_undo_redo_cyclic_wrap(qtbot):
+    source = Input()
+    first = ConstantMultiplication(0.5, source, latency=1)
+    second = ConstantMultiplication(0.25, first, latency=0)
+    schedule = Schedule(
+        SFG([source], [Output(second)]),
+        cyclic=True,
+        schedule_time=3,
+        start_times={"in0": 0, "cmul0": 0, "cmul1": 2, "out0": 2},
+        laps={"s0": 1, "s1": 1, "s2": 0},
+    )
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.resize(1000, 700)
+    widget.show()
+    qtbot.waitExposed(widget)
+    widget.open(schedule)
+    initial_times = dict(widget.schedule.start_times)
+    initial_laps = dict(widget.schedule.laps)
+    item = widget._graph._operation_items["cmul0"]
+    start = widget.view.mapFromScene(
+        item.mapToScene(item._latency_item.boundingRect().center())
+    )
+    end = start - QPoint(75, 0)
+    viewport = widget.view.viewport()
+    qtbot.mousePress(viewport, Qt.MouseButton.LeftButton, pos=start)
+    _mouse_move_with_left_button(widget.view, end)
+    qtbot.mouseRelease(viewport, Qt.MouseButton.LeftButton, pos=end)
+    moved_times = dict(widget.schedule.start_times)
+    moved_laps = dict(widget.schedule.laps)
+    assert moved_times != initial_times
+    assert moved_laps != initial_laps
+    widget.actionUndo.trigger()
+    assert widget.schedule.start_times == initial_times
+    assert widget.schedule.laps == initial_laps
+    widget.actionRedo.trigger()
+    assert widget.schedule.start_times == moved_times
+    assert widget.schedule.laps == moved_laps
+
+
 def test_rotate_forward(qtbot, precedence_sfg_delays):
     precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
     precedence_sfg_delays.set_latency_of_type_name(
@@ -1198,7 +1417,7 @@ def test_open_long_chain(qtbot):
 @pytest.mark.parametrize(
     "action", ["asap", "alap", "swap", "rotate_forward", "rotate_backward"]
 )
-def test_internal_edits_preserve_schedule_and_items(qtbot, monkeypatch, action):
+def test_internal_edits_preserve_schedule_and_items(qtbot, action):
     left, right = Input(), Input()
     addition = Addition(left, right, latency=1)
     product = ConstantMultiplication(0.5, addition, latency=2)
@@ -1216,10 +1435,6 @@ def test_internal_edits_preserve_schedule_and_items(qtbot, monkeypatch, action):
     widget.info_table_update_component("cmul0")
     scene_item_count = len(widget._scene.items())
 
-    def unexpected_copy(_schedule):
-        pytest.fail("An internal edit must not clone the schedule")
-
-    monkeypatch.setattr(Schedule, "copy", unexpected_copy)
     if action == "asap":
         item._move_asap()
         assert schedule.start_times["cmul0"] == 1
