@@ -25,9 +25,8 @@ namespace asic {
 	return number{static_cast<number::value_type>(static_cast<std::int64_t>(value.real()) & bit_mask)};
 }
 
-[[nodiscard]] static std::int64_t setup_truncation_parameters(bool& quantize, std::optional<std::uint8_t>& bits_override) {
+[[nodiscard]] static std::int64_t setup_truncation_parameters(bool quantize, std::optional<std::uint8_t>& bits_override) {
 	if (quantize && bits_override) {
-		quantize = false; // Ignore quantize instructions, they will be quantized using bits_override instead.
 		if (*bits_override > 64) {
 			throw py::value_error{"Cannot quantize to more than 64 bits"};
 		}
@@ -91,11 +90,6 @@ simulation_state run_simulation(simulation_code const& code, span<number const> 
 				break;
 			case instruction_type::push_constant:
 				push(instruction.value);
-				break;
-			case instruction_type::quantize:
-				if (quantize) {
-					push(quantize_value(pop(), instruction.bit_mask));
-				}
 				break;
 			case instruction_type::addition: {
 				auto const rhs = pop();

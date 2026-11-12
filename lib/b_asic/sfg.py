@@ -1672,6 +1672,139 @@ class SFG(AbstractOperation):
         transfer_wiring(self, transformed)
         return transformed
 
+    def rebalance_summation_trees(self) -> "SFG":
+        """Return a copy with ordinary addition and subtraction trees balanced."""
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Subtraction,
+        )
+
+        graph = cast(SFG, self.copy())
+
+        def ordinary(operation: Operation) -> bool:
+            return (
+                type(operation) in (Addition, Subtraction, AddSub)
+                and not operation.mul_j
+                and operation.in0_scale == 0
+                and operation.in1_scale == 0
+                and operation.out0_scale == 0
+            )
+
+        def subtracts(operation: Operation) -> bool:
+            return isinstance(operation, Subtraction) or (
+                isinstance(operation, AddSub) and not operation.is_add
+            )
+
+        def with_sign(operation: Operation, subtract: bool) -> Operation:
+            if isinstance(operation, AddSub):
+                operation.is_add = not subtract
+                return operation
+            if subtracts(operation) == subtract:
+                return operation
+            replacement = (Subtraction if subtract else Addition)(
+                name=operation.name, execution_time=operation.execution_time
+            )
+            replacement.graph_id = graph._graph_id_generator.next_id(
+                replacement.type_name(), graph._used_ids
+            )
+            for name, value in operation.params.items():
+                replacement.set_param(name, deepcopy(value))
+            for old_port, new_port in zip(
+                [*operation.inputs, *operation.outputs],
+                [*replacement.inputs, *replacement.outputs],
+                strict=True,
+            ):
+                if old_port.latency_offset is not None:
+                    new_port.latency_offset = old_port.latency_offset
+            for signal in list(operation.output(0).signals):
+                signal.set_source(replacement.output(0))
+            return replacement
+
+        for operation in graph.operations:
+            if isinstance(operation, SFG):
+                replacement = operation.rebalance_summation_trees()
+                replacement.graph_id = operation.graph_id
+                for old_port, new_port in zip(
+                    operation.inputs, replacement.inputs, strict=True
+                ):
+                    for signal in list(old_port.signals):
+                        signal.set_destination(new_port)
+                for old_port, new_port in zip(
+                    operation.outputs, replacement.outputs, strict=True
+                ):
+                    for signal in list(old_port.signals):
+                        signal.set_source(new_port)
+
+        roots = []
+        for operation in graph.operations:
+            if not ordinary(operation):
+                continue
+            signals = operation.output(0).signals
+            if (
+                len(signals) != 1
+                or signals[0].destination is None
+                or not ordinary(signals[0].destination.operation)
+            ):
+                roots.append(operation)
+
+        for root in roots:
+            additions = []
+            leaves = []
+            internal_signals = []
+            pending: list[tuple[Operation | Signal, bool]] = [(root, False)]
+            while pending:
+                item, negative = pending.pop()
+                if isinstance(item, Signal):
+                    leaves.append((item, negative))
+                    continue
+                operation = item
+                additions.append(operation)
+                for port in reversed(operation.inputs):
+                    if not port.signals or port.connected_source is None:
+                        break
+                    signal = port.signals[0]
+                    source = port.connected_source.operation
+                    input_negative = negative ^ (
+                        port.index == 1 and subtracts(operation)
+                    )
+                    if ordinary(source) and len(source.output(0).signals) == 1:
+                        internal_signals.append(signal)
+                        pending.append((source, input_negative))
+                    else:
+                        pending.append((signal, input_negative))
+                else:
+                    continue
+                break
+            else:
+                if len(additions) < 2:
+                    continue
+                for signal in [signal for signal, _ in leaves] + internal_signals:
+                    signal.remove_destination()
+                available_additions = iter([*additions[:0:-1], root])
+                available_signals = iter(internal_signals)
+                while len(leaves) > 1:
+                    next_level = []
+                    for index in range(0, len(leaves) - 1, 2):
+                        operation = next(available_additions)
+                        is_root = operation is root
+                        left, left_negative = leaves[index]
+                        right, right_negative = leaves[index + 1]
+                        operation = with_sign(
+                            operation, left_negative != right_negative
+                        )
+                        left.set_destination(operation.input(0))
+                        right.set_destination(operation.input(1))
+                        if not is_root:
+                            signal = next(available_signals)
+                            signal.set_source(operation.output(0))
+                            next_level.append((signal, left_negative))
+                    if len(leaves) % 2:
+                        next_level.append(leaves[-1])
+                    leaves = next_level
+
+        return cast(SFG, graph.copy())
+
     def split_constant_fanout(self) -> "SFG":
         """
         Return a copy with a separate Constant operation for each connection.

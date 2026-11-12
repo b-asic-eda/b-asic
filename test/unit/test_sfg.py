@@ -40,11 +40,252 @@ from b_asic.special_operations import Delay
 from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
+def test_rebalance_subtraction_tree():
+    inputs = [Input() for _ in range(4)]
+    total = Subtraction(Subtraction(Subtraction(*inputs[:2]), inputs[2]), inputs[3])
+    graph = SFG(inputs, [Output(total)])
+
+    transformed = graph.rebalance_summation_trees()
+    root = transformed.output_operations[0].input(0).connected_source.operation
+
+    assert all(
+        isinstance(port.connected_source.operation, (Addition, Subtraction, AddSub))
+        for port in root.inputs
+    )
+    assert transformed.evaluate(17, 3, 5, 7) == graph.evaluate(17, 3, 5, 7) == 2
+
+
+@pytest.mark.parametrize("right_associative", [False, True])
+def test_rebalance_mixed_add_sub_trees(right_associative):
+    def make_operation(kind, left, right):
+        if kind == 0:
+            return Addition(left, right)
+        if kind == 1:
+            return Subtraction(left, right)
+        return AddSub(is_add=kind == 2, in0=left, in1=right)
+
+    def depth(operation):
+        if not isinstance(operation, (Addition, Subtraction, AddSub)):
+            return 0
+        return 1 + max(
+            depth(port.connected_source.operation) for port in operation.inputs
+        )
+
+    for kinds in itertools.product(range(4), repeat=4):
+        inputs = [Input() for _ in range(5)]
+        if right_associative:
+            total = inputs[-1]
+            for kind, source in zip(
+                reversed(kinds), reversed(inputs[:-1]), strict=True
+            ):
+                total = make_operation(kind, source, total)
+        else:
+            total = inputs[0]
+            for kind, source in zip(kinds, inputs[1:], strict=True):
+                total = make_operation(kind, total, source)
+        graph = SFG(inputs, [Output(total)])
+        transformed = graph.rebalance_summation_trees()
+        root = transformed.output_operations[0].input(0).connected_source.operation
+
+        assert depth(root) == 3
+        assert transformed.evaluate(1, 2, 4, 8, 16) == graph.evaluate(1, 2, 4, 8, 16)
+        for operation in transformed.operations:
+            if isinstance(operation, (Addition, Subtraction, AddSub)):
+                assert operation in transformed.find_by_type_name(operation.type_name())
+
+
+def test_rebalance_subtraction_preserves_replaced_operation_metadata():
+    inputs = [Input() for _ in range(4)]
+    first = Subtraction(*inputs[:2])
+    middle = Subtraction(first, inputs[2], name="middle", execution_time=3)
+    middle.input(0).latency_offset = 1
+    middle.output(0).latency_offset = 4
+    middle.set_param("custom", [1, 2])
+    graph = SFG(inputs, [Output(Subtraction(middle, inputs[3]))])
+
+    transformed = graph.rebalance_summation_trees()
+    replacement = transformed.find_by_name("middle")[0]
+
+    assert isinstance(replacement, Addition)
+    assert replacement.execution_time == 3
+    assert replacement.input(0).latency_offset == 1
+    assert replacement.input(1).latency_offset is None
+    assert replacement.output(0).latency_offset == 4
+    assert replacement.param("custom") == [1, 2]
+    assert replacement in transformed.find_by_type_name("add")
+    assert isinstance(graph.find_by_name("middle")[0], Subtraction)
+
+
+def test_rebalance_replaced_root_with_shared_outputs():
+    inputs = [Input() for _ in range(5)]
+    partial = Addition(
+        Subtraction(Subtraction(inputs[0], inputs[1]), inputs[2]),
+        inputs[3],
+        name="shared",
+    )
+    graph = SFG(inputs, [Output(partial), Output(Addition(partial, inputs[4]))])
+
+    transformed = graph.rebalance_summation_trees()
+    shared = transformed.find_by_name("shared")[0]
+
+    assert isinstance(shared, Subtraction)
+    assert len(shared.output(0).signals) == 2
+    assert transformed.evaluate(13, 2, 3, 5, 7) == graph.evaluate(13, 2, 3, 5, 7)
+    assert shared in transformed.find_by_type_name("sub")
+
+
+def test_rebalance_mixed_tree_in_nested_feedback():
+    inputs = [Input() for _ in range(4)]
+    total = AddSub(
+        is_add=False,
+        in0=Subtraction(Subtraction(inputs[0], inputs[1]), inputs[2]),
+        in1=inputs[3],
+    )
+    inner = SFG(inputs, [Output(total)])
+    source = Input()
+    delay = Delay(initial_value=2)
+    result = inner(source, source, source, delay)
+    delay.input(0).connect(result)
+    graph = SFG([source], [Output(result)])
+
+    transformed = graph.rebalance_summation_trees()
+    inner_copy = transformed.find_by_type(SFG)[0]
+    root = inner_copy.output_operations[0].input(0).connected_source.operation
+    assert all(
+        isinstance(port.connected_source.operation, (Addition, Subtraction, AddSub))
+        for port in root.inputs
+    )
+    original_simulation = Simulation(graph, [lambda iteration: iteration])
+    transformed_simulation = Simulation(transformed, [lambda iteration: iteration])
+    original_simulation.run_for(6, save_results=True)
+    transformed_simulation.run_for(6, save_results=True)
+
+    assert list(transformed_simulation.results["out0"]) == list(
+        original_simulation.results["out0"]
+    )
+    fast_simulation = FastSimulation(transformed, [lambda iteration: iteration])
+    fast_simulation.run_for(6, save_results=True)
+    assert list(fast_simulation.results["out0"]) == list(
+        original_simulation.results["out0"]
+    )
+
+
+@pytest.mark.parametrize("count", range(2, 11))
+def test_rebalance_summation_tree(count):
+    inputs = [Input() for _ in range(count)]
+    total = inputs[0]
+    for source in inputs[1:]:
+        total = Addition(total, source)
+    graph = SFG(inputs=inputs, outputs=[Output(total)])
+
+    def addition_depth(operation):
+        if not isinstance(operation, Addition):
+            return 0
+        return 1 + max(
+            addition_depth(port.connected_source.operation) for port in operation.inputs
+        )
+
+    def input_order(operation):
+        if not isinstance(operation, Addition):
+            return [operation.graph_id]
+        return [
+            graph_id
+            for port in operation.inputs
+            for graph_id in input_order(port.connected_source.operation)
+        ]
+
+    transformed = graph.rebalance_summation_trees()
+
+    original_root = graph.output_operations[0].input(0).connected_source.operation
+    transformed_root = (
+        transformed.output_operations[0].input(0).connected_source.operation
+    )
+    assert addition_depth(original_root) == count - 1
+    assert addition_depth(transformed_root) == (count - 1).bit_length()
+    assert input_order(transformed_root) == input_order(original_root)
+    assert (
+        transformed.evaluate(*range(count))
+        == graph.evaluate(*range(count))
+        == sum(range(count))
+    )
+    assert len(transformed.find_by_type(Addition)) == count - 1
+
+
+@pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
+@pytest.mark.parametrize("boundary", ["fanout", "scale", "mul_j"])
+def test_rebalance_summation_tree_boundaries(boundary, operation_type):
+    inputs = [Input() for _ in range(6)]
+    partial = operation_type(
+        in0=Addition(inputs[0], inputs[1]), in1=inputs[2], name="partial"
+    )
+    if boundary == "scale":
+        partial.out0_scale = 1
+    elif boundary == "mul_j":
+        partial.mul_j = True
+    total = Addition(Addition(Addition(partial, inputs[3]), inputs[4]), inputs[5])
+    outputs = [Output(total)]
+    if boundary == "fanout":
+        outputs.append(Output(partial))
+    graph = SFG(inputs, outputs)
+
+    transformed = graph.rebalance_summation_trees()
+    transformed_partial = transformed.find_by_name("partial")[0]
+    assert transformed.evaluate(*range(6)) == graph.evaluate(*range(6))
+    assert len(transformed_partial.output(0).signals) == (
+        2 if boundary == "fanout" else 1
+    )
+    assert transformed_partial.mul_j == (boundary == "mul_j")
+    assert transformed_partial.out0_scale == (1 if boundary == "scale" else 0)
+
+
+def test_rebalance_summation_tree_nested_sfg():
+    inputs = [Input() for _ in range(4)]
+    total = Addition(Addition(Addition(*inputs[:2]), inputs[2]), inputs[3])
+    inner = SFG(inputs, [Output(total)], name="inner")
+    outer_inputs = [Input() for _ in inputs]
+    graph = SFG(outer_inputs, [Output(inner(*outer_inputs))])
+
+    transformed = graph.rebalance_summation_trees()
+    inner_copy = transformed.find_by_type(SFG)[0]
+    root = inner_copy.output_operations[0].input(0).connected_source.operation
+    assert all(
+        isinstance(port.connected_source.operation, Addition) for port in root.inputs
+    )
+    assert transformed.evaluate(*range(4)) == graph.evaluate(*range(4)) == 6
+
+
+def test_rebalance_summation_tree_feedback_and_metadata():
+    source = Input()
+    delay = Delay(initial_value=2)
+    first = Addition(source, delay, name="first", latency=2, execution_time=3)
+    first.input(0).signals[0].name = "operand"
+    total = Addition(Addition(first, source), source, name="total")
+    delay.input(0).connect(total)
+    graph = SFG([source], [Output(total)])
+
+    transformed = graph.rebalance_summation_trees()
+    original_simulation = Simulation(graph, [lambda iteration: iteration])
+    transformed_simulation = Simulation(transformed, [lambda iteration: iteration])
+    original_simulation.run_for(6, save_results=True)
+    transformed_simulation.run_for(6, save_results=True)
+
+    assert list(transformed_simulation.results["out0"]) == list(
+        original_simulation.results["out0"]
+    )
+    assert transformed.find_by_name("operand")
+    addition = transformed.find_by_name("first")[0]
+    assert addition.execution_time == 3
+    assert addition.latency == 2
+    assert (
+        transformed.find_by_name("total")[0].graph_id
+        == graph.find_by_name("total")[0].graph_id
+    )
+
+
 def test_split_constant_fanout():
     constant = Constant(3, "shared")
     addition = Addition(constant, constant)
     addition.input(0).signals[0].name = "first"
-    addition.input(0).signals[0].set_param("bits", 8)
     graph = SFG(outputs=[Output(addition), Output(constant)])
     original_constant = graph.find_by_type(Constant)[0]
     original_constant.execution_time = 2
@@ -58,8 +299,7 @@ def test_split_constant_fanout():
     assert all(item.value == 3 and item.name == "shared" for item in constants)
     assert all(item.execution_time == 2 for item in constants)
     assert all(item.output(0).latency_offset == 1 for item in constants)
-    signal = transformed.find_by_name("first")[0]
-    assert signal.param("bits") == 8
+    assert transformed.find_by_name("first")
     assert transformed.evaluate() == graph.evaluate() == [6, 3]
     assert len(original_constant.output(0).signals) == 3
     assert len(transformed.split_constant_fanout().find_by_type(Constant)) == 3
