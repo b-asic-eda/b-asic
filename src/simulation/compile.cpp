@@ -200,14 +200,6 @@ private:
 		auto const operation = py::handle{src.attr("operation")};
 		auto const index = src.attr("index").cast<std::size_t>();
 		this->add_operation_output(operation, index, prefix, sfg_stack, deferred_delays);
-		if (!signal.attr("bits").is_none()) {
-			auto const bits = signal.attr("bits").cast<std::size_t>();
-			if (bits > 64) {
-				throw py::value_error{"Cannot quantize to more than 64 bits"};
-			}
-			this->add_instruction(instruction_type::quantize, no_result_index, 0).bit_mask = static_cast<std::int64_t>(
-				(std::int64_t{1} << bits) - 1);
-		}
 	}
 
 	void add_unary_operation_output(py::handle op, result_index_type result_index, std::string_view prefix, sfg_info_stack const& sfg_stack,

@@ -270,11 +270,10 @@ def test_outgoing_signal_metadata_preserved():
     source = Input()
     addition = Addition(source, Constant(0))
     output = Output()
-    Signal(addition, output, bits=12, name="result_signal")
+    Signal(addition, output, name="result_signal")
     simplified = SFG([source], [output]).constant_propagation()
     signal = simplified.output_operations[0].input(0).signals[0]
     assert signal.name == "result_signal"
-    assert signal.bits == 12
     assert signal.source.operation is simplified.input_operations[0]
 
 

@@ -15,6 +15,15 @@ from b_asic import (
 from b_asic.simulation import Simulation
 
 
+@pytest.mark.parametrize(("quantize", "expected"), [(True, 2), (False, 18)])
+def test_global_quantization_override(quantize, expected):
+    source = Input()
+    graph = SFG([source], [Output(Addition(source, source))])
+    simulation = FastSimulation(graph, [[9]])
+
+    assert simulation.run(bits_override=3, quantize=quantize) == [expected]
+
+
 @pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])
 @pytest.mark.parametrize("mul_j", [False, True])
 @pytest.mark.parametrize(

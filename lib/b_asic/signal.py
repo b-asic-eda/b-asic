@@ -29,8 +29,6 @@ class Signal(AbstractGraphComponent):
         OutputPort, Signal, or Operation to connect as source to the signal.
     destination : :class:`~b_asic.port.InputPort`, :class:`~b_asic.signal.Signal`, or :class:`~b_asic.operation.Operation`, optional
         InputPort, Signal, or Operation to connect as destination to the signal.
-    bits : int, optional
-        The word length of the signal.
     name : :data:`~b_asic.types.Name`, default: ""
         The signal name.
 
@@ -46,7 +44,6 @@ class Signal(AbstractGraphComponent):
         self,
         source: Union["OutputPort", "Signal", "Operation"] | None = None,
         destination: Union["InputPort", "Signal", "Operation"] | None = None,
-        bits: int | None = None,
         name: Name = Name(""),
     ) -> None:
         """Construct a Signal."""
@@ -57,7 +54,6 @@ class Signal(AbstractGraphComponent):
             self.set_source(source)
         if destination is not None:
             self.set_destination(destination)
-        self.set_param("bits", bits)
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -184,29 +180,6 @@ class Signal(AbstractGraphComponent):
         Return True if the signal is missing either a source or a destination.
         """
         return self._source is None or self._destination is None
-
-    @property
-    def bits(self) -> int | None:
-        """
-        Get the number of bits that this operation using this signal as an
-        input should quantize received values to.
-        None = unlimited.
-        """
-        return self.param("bits")
-
-    @bits.setter
-    def bits(self, bits: int | None) -> None:
-        """
-        Set the number of bits that operations using this signal as an input
-        should quantize received values to.
-        None = unlimited.
-        """
-        if bits is not None:
-            if not isinstance(bits, int):
-                raise TypeError(f"Bits must be an int, not {type(bits)}: {bits!r}")
-            if bits < 0:
-                raise ValueError("Bits cannot be negative")
-        self.set_param("bits", bits)
 
     @property
     def is_constant(self) -> bool:

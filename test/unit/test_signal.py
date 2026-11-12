@@ -70,33 +70,6 @@ def test_signal_creation_and_disconnection_and_connection_changing():
     assert s.destination is in_port
 
 
-class TestBits:
-    def test_pos_int(self, signal):
-        signal.bits = 10
-        assert signal.bits == 10
-
-    def test_bits_zero(self, signal):
-        signal.bits = 0
-        assert signal.bits == 0
-
-    def test_bits_neg_int(self, signal):
-        with pytest.raises(ValueError, match=r"Bits cannot be negative"):
-            signal.bits = -10
-
-    def test_bits_complex(self, signal):
-        with pytest.raises(TypeError):
-            signal.bits = 2 + 4j
-
-    def test_bits_float(self, signal):
-        with pytest.raises(TypeError):
-            signal.bits = 3.2
-
-    def test_bits_pos_then_none(self, signal):
-        signal.bits = 10
-        signal.bits = None
-        assert signal.bits is None
-
-
 def test_create_from_single_input_single_output():
     cm1 = ConstantMultiplication(0.5, name="Foo")
     cm2 = ConstantMultiplication(1.5, name="Bar")
