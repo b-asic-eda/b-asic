@@ -143,6 +143,35 @@ def test_native_junctions_find_long_shared_trunk_branches():
     assert {tuple(p) for p in native.junction_points(paths)} == {(80, 0), (240, 0)}
 
 
+@pytest.mark.parametrize("transpose", [False, True])
+def test_maze_route_avoids_extra_bends_along_operation_contours(transpose):
+    obstacles = [
+        (-10, -20, 30, -10),
+        (-10, 10, 30, 20),
+        (-20, -20, -10, 20),
+        (70, -20, 110, -10),
+        (70, 10, 110, 20),
+        (110, -20, 120, 20),
+        (40, -30, 60, 30),
+    ]
+    start, end = (0, 0), (100, 0)
+    simpler = [(0, 0), (30, 0), (30, 30), (70, 30), (70, 0), (100, 0)]
+    if transpose:
+        obstacles = [
+            (top, left, bottom, right) for left, top, right, bottom in obstacles
+        ]
+        end = end[::-1]
+        simpler = [p[::-1] for p in simpler]
+    assert route_is_clear(simpler, obstacles)
+    path = native.route_orthogonal(start, end, obstacles, [], [], 8)
+    assert path[0] == list(start)
+    assert path[-1] == list(end)
+    assert route_is_clear(path, obstacles)
+    assert all(a[0] == b[0] or a[1] == b[1] for a, b in pairwise(path))
+    assert len(path) <= len(simpler)
+    assert native.route_cost(path, [], [], 8) <= native.route_cost(simpler, [], [], 8)
+
+
 def test_native_placement_balances_heights_and_feedback():
     result = native.place_graph(
         3, [(0, 1), (1, 2)], [(64, 32), (64, 64), (64, 32)], [False] * 3, 24, 8
