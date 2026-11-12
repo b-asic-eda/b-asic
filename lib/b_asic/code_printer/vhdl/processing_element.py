@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from b_asic.architecture import ProcessingElement
 
 
-def entity(f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType) -> None:
+def entity(f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType, controls=()) -> None:
     if not all(isinstance(process, OperatorProcess) for process in pe.collection):
         raise ValueError(
             "HDL can only be generated for ProcessCollection of OperatorProcesses"
@@ -29,6 +29,7 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType) -> None:
         "en : in std_logic",
         f"schedule_cnt : in {schedule_time_type(pe.schedule_time)}",
     ]
+    ports += [f"{item.port} : in {item.vhdl_type}" for item in controls]
     ports += [f"p_{count}_in : in {dt.type_str}" for count in range(pe.input_count)]
     if pe.operation_type == Input:
         ports.extend(dt.get_input_port_declaration("p"))
@@ -48,10 +49,13 @@ def architecture(
     register_split: tuple[int, int],
     control_cycle: dict[str, int] | None = None,
     pipeline_control_signals: bool = False,
+    external_control: bool = False,
 ) -> None:
     common.write(f, 0, f"architecture rtl of {pe.entity_name} is")
     n_in, n_out = register_split
-    _declarative_region_common(f, pe, dt, n_in, n_out, pipeline_control_signals)
+    _declarative_region_common(
+        f, pe, dt, n_in, n_out, pipeline_control_signals, external_control
+    )
     common.write(f, 0, core_code[0])
     common.write(f, 0, "begin")
     _statement_region_common(
@@ -62,6 +66,7 @@ def architecture(
         n_out,
         control_cycle,
         pipeline_control_signals,
+        external_control,
     )
     common.write(f, 0, core_code[1])
     common.write(f, 0, "end architecture rtl;")
@@ -74,6 +79,7 @@ def _declarative_region_common(
     n_in: int,
     n_out: int,
     pipeline_control_signals: bool,
+    external_control: bool,
 ) -> None:
     # Define output pipeline registers
     for k in range(n_out):
@@ -110,8 +116,9 @@ def _declarative_region_common(
         else:
             vhdl_type = f"unsigned({entry.bits - 1} downto 0)"
             default_value = "(others => '0')"
-        common.signal_declaration(f, name, vhdl_type, default_value=default_value)
-        if pipeline_control_signals:
+        if not external_control:
+            common.signal_declaration(f, name, vhdl_type, default_value=default_value)
+        if pipeline_control_signals and not external_control:
             common.signal_declaration(f, f"{name}_comb", vhdl_type)
 
     # Define integer bits for control signals
@@ -129,9 +136,14 @@ def _statement_region_common(
     n_out: int,
     control_cycle: dict[str, int] | None,
     pipeline_control_signals: bool,
+    external_control: bool,
 ) -> None:
     # Generate pipeline registers
-    if n_in > 0 or n_out > 0 or pipeline_control_signals:
+    if (
+        n_in > 0
+        or n_out > 0
+        or (pipeline_control_signals and not external_control and pe.control_table)
+    ):
         common.synchronous_process_prologue(f)
         common.write(f, 3, "if en = '1' then")
 
@@ -161,7 +173,7 @@ def _statement_region_common(
                         f"p_{count}_in_reg_{k} <= p_{count}_in_reg_{k - 1};",
                     )
 
-        if pipeline_control_signals:
+        if pipeline_control_signals and not external_control:
             for name in pe.control_table:
                 common.write(f, 4, f"{name} <= {name}_comb;")
 
@@ -181,7 +193,7 @@ def _statement_region_common(
 
     # Generate control signals
     control_cycle = {} if control_cycle is None else control_cycle
-    for name, entry in pe.control_table.items():
+    for name, entry in () if external_control else pe.control_table.items():
         ctrl_target = f"{name}_comb" if pipeline_control_signals else name
         if entry.is_static:
             val = entry.get_static_value()

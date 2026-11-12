@@ -642,13 +642,14 @@ class ProcessingElement(Resource):
             raise ValueError("Cannot map ProcessCollection to single ProcessingElement")
 
     def write_component_declaration(
-        self, f: TextIO, dt: _VhdlDataType, indent: int = 1
+        self, f: TextIO, dt: _VhdlDataType, indent: int = 1, control_ports=()
     ) -> None:
         ports = [
             "clk : in std_logic",
             "en : in std_logic",
             f"schedule_cnt : in {schedule_time_type(self.schedule_time)}",
         ]
+        ports += [f"{port} : in {vhdl_type}" for port, vhdl_type in control_ports]
         ports += [
             f"p_{count}_in : in {dt.type_str}" for count in range(self.input_count)
         ]
@@ -694,12 +695,14 @@ class ProcessingElement(Resource):
         en_sig: str = "en",
         input_register: bool = False,
         output_register: bool = False,
+        control_ports=(),
     ) -> None:
         port_mappings = [
             "clk => clk",
             f"en => {en_sig}",
             "schedule_cnt => schedule_cnt",
         ]
+        port_mappings += [f"{port} => {signal}" for port, signal in control_ports]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)
@@ -918,13 +921,20 @@ class Memory(Resource):
             self._assignment = [self._collection]
 
     def write_component_declaration(
-        self, f: TextIO, dt: DataType, indent: int = 1
+        self,
+        f: TextIO,
+        dt: DataType,
+        indent: int = 1,
+        control_ports=(),
+        include_schedule_counter: bool = True,
     ) -> None:
         ports = [
             "clk : in std_logic",
             "en : in std_logic",
-            f"schedule_cnt : in {schedule_time_type(self.schedule_time)}",
         ]
+        if include_schedule_counter:
+            ports.append(f"schedule_cnt : in {schedule_time_type(self.schedule_time)}")
+        ports += [f"{port} : in {vhdl_type}" for port, vhdl_type in control_ports]
         ports += [
             f"p_{port_number}_in : in {dt.type_str}"
             for port_number in range(self.input_count)
@@ -957,13 +967,20 @@ class Memory(Resource):
         common.blank(f)
 
     def write_component_instantiation(
-        self, f: TextIO, indent: int = 1, en_sig: str = "en"
+        self,
+        f: TextIO,
+        indent: int = 1,
+        en_sig: str = "en",
+        control_ports=(),
+        include_schedule_counter: bool = True,
     ) -> None:
         port_mappings = [
             "clk => clk",
             f"en => {en_sig}",
-            "schedule_cnt => schedule_cnt",
         ]
+        if include_schedule_counter:
+            port_mappings.append("schedule_cnt => schedule_cnt")
+        port_mappings += [f"{port} => {signal}" for port, signal in control_ports]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
             for port_number in range(self.input_count)

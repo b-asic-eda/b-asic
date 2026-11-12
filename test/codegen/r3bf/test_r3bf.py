@@ -1,13 +1,16 @@
+import pytest
+
 from b_asic.code_printer import VhdlPrinter
 from b_asic.code_printer.test import cocotb_test, get_runner
 from b_asic.data_type import DataType
 
 
-def test_r3bf_compile(tmp_path, arch_r3bf):
+@pytest.mark.parametrize("centralize_control", [False, True])
+def test_r3bf_compile(tmp_path, arch_r3bf, centralize_control):
     runner = get_runner()
     dt = DataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
-    printer.print(arch_r3bf, path=tmp_path)
+    printer.print(arch_r3bf, path=tmp_path, centralize_control=centralize_control)
 
     sources = [tmp_path / filename for filename in printer.get_compile_order(arch_r3bf)]
 
@@ -18,11 +21,12 @@ def test_r3bf_compile(tmp_path, arch_r3bf):
     )
 
 
-def test_r3bf_simulate(tmp_path, arch_r3bf):
+@pytest.mark.parametrize("centralize_control", [False, True])
+def test_r3bf_simulate(tmp_path, arch_r3bf, centralize_control):
     runner = get_runner()
     dt = DataType(16, is_complex=True)
     printer = VhdlPrinter(dt)
-    printer.print(arch_r3bf, path=tmp_path)
+    printer.print(arch_r3bf, path=tmp_path, centralize_control=centralize_control)
 
     sources = [tmp_path / filename for filename in printer.get_compile_order(arch_r3bf)]
 
