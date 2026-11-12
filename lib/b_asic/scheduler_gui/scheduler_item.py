@@ -29,6 +29,7 @@ from b_asic.scheduler_gui.operation_item import OperationItem
 from b_asic.scheduler_gui.scheduler_event import SchedulerEvent
 from b_asic.scheduler_gui.signal_item import SignalItem
 from b_asic.types import GraphID
+from b_asic.utility_operations import DontCare, Sink
 
 
 class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
@@ -333,10 +334,22 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     def _redraw_from_start(self) -> None:
         self.schedule.reset_y_locations()
         self.schedule.sort_y_locations_on_start_times()
-        for graph_id in self.schedule.start_times:
+        self._compact_y_locations()
+        for graph_id in self._operation_items:
             self._set_position(graph_id)
         self._redraw_all_lines()
         self._update_axes()
+
+    def _compact_y_locations(self) -> None:
+        locations = self.schedule._y_locations
+        for graph_id in list(locations):
+            if graph_id not in self._operation_items:
+                del locations[graph_id]
+        rows = sorted({row for row in locations.values() if row is not None})
+        remapping = {row: index for index, row in enumerate(rows)}
+        for graph_id, row in locations.items():
+            if row is not None:
+                locations[graph_id] = remapping[row]
 
     def _execution_time_plot(self, type_name: str) -> None:
         self._signals.execution_time_plot.emit(type_name)
@@ -361,7 +374,11 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
     def _update_axes(self, build=False) -> None:
         # build axes
         schedule_time = self.schedule.schedule_time
-        y_pos_min = self.schedule._get_minimum_height(OPERATION_HEIGHT, OPERATION_GAP)
+        y_pos_min = (
+            self.schedule._get_minimum_height(OPERATION_HEIGHT, OPERATION_GAP)
+            if self._operation_items
+            else 0
+        )
         if self._axes is None or build:
             self._axes = AxesItem(schedule_time, y_pos_min + 0.5)
             self._event_items += self._axes.event_items
@@ -375,8 +392,12 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         # build components
         for graph_id in self.schedule.start_times:
             operation = cast(Operation, self.schedule._sfg.find_by_id(graph_id))
+            if isinstance(operation, (DontCare, Sink)):
+                continue
             component = OperationItem(operation, height=OPERATION_HEIGHT, parent=self)
             self._operation_items[graph_id] = component
+        self._compact_y_locations()
+        for graph_id, component in self._operation_items.items():
             self._set_position(graph_id)
             self._event_items += component.event_items
 

@@ -4,7 +4,7 @@ import pickle
 
 import pytest
 
-from b_asic.core_operations import Addition, ConstantMultiplication
+from b_asic.core_operations import Addition, ConstantMultiplication, Subtraction
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
 from b_asic.sfg import SFG
@@ -46,6 +46,106 @@ def test_start(qtbot):
     qtbot.addWidget(widget)
 
     widget.exit_app()
+
+
+@pytest.mark.parametrize("cyclic", [False, True])
+def test_unused_ports_are_marked_without_placeholder_operations(qtbot, cyclic):
+    source = Input()
+    operation = Addition(source, DontCare(), latency=1)
+    Sink(operation)
+    schedule = Schedule(SFG([source], [Output(operation)]), cyclic=cyclic)
+    start_times = schedule.start_times.copy()
+    laps = schedule.laps.copy()
+    graph = SchedulerItem(schedule)
+
+    assert set(graph._operation_items) == {"in0", "add0", "out0"}
+    assert len(graph._get_all_signals()) == 2
+    item = graph._operation_items["add0"]
+    assert item._ports["in1"]["item"].toolTip() == "DontCare"
+    assert item._ports["out0"]["item"].toolTip() == "Sink"
+    assert not item._ports["in0"]["item"].toolTip()
+    assert len(item._ports["in1"]["item"].childItems()) == 1
+    assert len(item._ports["out0"]["item"].childItems()) == 1
+    assert not item._ports["in0"]["item"].childItems()
+    assert set(schedule._y_locations) == set(graph._operation_items)
+    assert set(schedule._y_locations.values()) == {0, 1, 2}
+    assert schedule.start_times == start_times
+    assert schedule.laps == laps
+
+    graph._redraw_from_start()
+    graph.refresh()
+    assert set(schedule._y_locations) == set(graph._operation_items)
+    assert item._ports["in1"]["item"].toolTip() == "DontCare"
+    assert item._ports["out0"]["item"].toolTip() == "Sink"
+    assert schedule.start_times == start_times
+    assert schedule.laps == laps
+
+    schedule.swap_io_of_operation("add0")
+    graph.refresh()
+    assert item._ports["in0"]["item"].toolTip() == "DontCare"
+    assert not item._ports["in1"]["item"].toolTip()
+    assert item._ports["out0"]["item"].toolTip() == "Sink"
+
+
+@pytest.mark.parametrize("cyclic", [False, True])
+def test_operation_with_sink_can_move_into_available_slack(qtbot, monkeypatch, cyclic):
+    monkeypatch.setattr(OperationItem, "_scale", 75)
+    monkeypatch.setattr(AxesItem, "_scale", 75)
+    source = Input()
+    unused = Subtraction(source, source, latency=1)
+    Sink(unused)
+    used = ConstantMultiplication(0.5, source, latency=4)
+    schedule = Schedule(SFG([source], [Output(used)]), cyclic=cyclic)
+    graph = SchedulerItem(schedule)
+    scene = QGraphicsScene()
+    scene.addItem(graph)
+    graph.installSceneEventFilters(graph.event_items)
+    view = QGraphicsView(scene)
+    qtbot.addWidget(view)
+    view.resize(900, 600)
+    view.scale(75, 75)
+    view.show()
+    item = graph._operation_items["sub0"]
+
+    assert graph.is_component_valid_pos(item, item.x() + 2)
+    start = view.mapFromScene(
+        item.mapToScene(item._latency_item.boundingRect().center())
+    )
+    end = start + QPoint(150, 0)
+    qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
+    _mouse_move_with_left_button(view, end)
+    qtbot.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
+    assert schedule.start_times["sub0"] == 2
+    schedule._validate_slacks()
+    schedule._validate_laps()
+
+
+def test_dontcare_input_allows_cyclic_backward_drag(qtbot, monkeypatch):
+    monkeypatch.setattr(OperationItem, "_scale", 75)
+    monkeypatch.setattr(AxesItem, "_scale", 75)
+    operation = ConstantMultiplication(0.5, DontCare(), latency=1)
+    schedule = Schedule(SFG([], [Output(operation)]), cyclic=True, schedule_time=4)
+    graph = SchedulerItem(schedule)
+    scene = QGraphicsScene()
+    scene.addItem(graph)
+    graph.installSceneEventFilters(graph.event_items)
+    view = QGraphicsView(scene)
+    qtbot.addWidget(view)
+    view.resize(900, 600)
+    view.scale(75, 75)
+    view.show()
+    item = graph._operation_items["cmul0"]
+    start = view.mapFromScene(
+        item.mapToScene(item._latency_item.boundingRect().center())
+    )
+    end = start - QPoint(75, 0)
+    qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
+    _mouse_move_with_left_button(view, end)
+    qtbot.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
+
+    assert schedule.start_times["cmul0"] == 3
+    schedule._validate_slacks()
+    schedule._validate_laps()
 
 
 @pytest.mark.parametrize(("delay_count", "expected_valid"), [(1, False), (2, True)])
@@ -133,6 +233,52 @@ def test_timeline_drop_wraps_operations_that_remain_movable(qtbot, boundary):
     drag(operation_pos, operation_pos + QPoint(75, 0))
     assert schedule.start_times["cmul0"] == 1 % boundary
     assert operation.x() == pytest.approx(graph._x_axis_indent + 1 % boundary)
+
+
+@pytest.mark.parametrize(
+    ("start_time", "latency", "expected_start"), [(3, 1, 0), (2, 2, 2)]
+)
+def test_timeline_drag_wraps_sink_terminated_operation(
+    qtbot, monkeypatch, start_time, latency, expected_start
+):
+    monkeypatch.setattr(OperationItem, "_scale", 75)
+    monkeypatch.setattr(AxesItem, "_scale", 75)
+    source = Input()
+    unused = Subtraction(source, source, latency=latency)
+    Sink(unused)
+    used = ConstantMultiplication(0.5, source, latency=1)
+    schedule = Schedule(SFG([source], [Output(used)]), cyclic=True, schedule_time=4)
+    schedule.move_operation("sub0", start_time)
+    graph = SchedulerItem(schedule)
+    scene = QGraphicsScene()
+    scene.addItem(graph)
+    graph.installSceneEventFilters(graph.event_items)
+    view = QGraphicsView(scene)
+    qtbot.addWidget(view)
+    view.resize(900, 600)
+    view.scale(75, 75)
+    view.show()
+    start_times = schedule.start_times.copy()
+    laps = schedule.laps.copy()
+
+    assert graph.is_valid_delta_time(-1)
+    assert schedule.start_times == start_times
+    assert schedule.laps == laps
+    timeline = graph.axes.event_items[0]
+    start = view.mapFromScene(timeline.mapToScene(timeline.line().center()))
+    end = start - QPoint(75, 0)
+    qtbot.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
+    _mouse_move_with_left_button(view, end)
+    qtbot.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
+
+    assert schedule.schedule_time == 3
+    assert schedule.start_times["sub0"] == expected_start
+    assert schedule.start_times["sink0"] == 1
+    schedule._validate()
+    graph.change_schedule_time(1)
+    schedule._validate()
+    graph.change_schedule_time(-1)
+    schedule._validate()
 
 
 @pytest.mark.parametrize(
@@ -502,12 +648,12 @@ def test_timeline_drop_keeps_output_and_sink_at_right_boundary(qtbot, cyclic):
 
     graph.change_schedule_time(-1)
 
-    for graph_id in ("out0", "sink0"):
-        item = graph._operation_items[graph_id]
-        assert schedule.start_times[graph_id] == schedule.schedule_time
-        assert item.x() == pytest.approx(graph._x_axis_indent + schedule.schedule_time)
-        graph.set_new_start_time(item)
-        assert schedule.start_times[graph_id] == schedule.schedule_time
+    assert schedule.start_times["sink0"] == schedule.schedule_time
+    item = graph._operation_items["out0"]
+    assert schedule.start_times["out0"] == schedule.schedule_time
+    assert item.x() == pytest.approx(graph._x_axis_indent + schedule.schedule_time)
+    graph.set_new_start_time(item)
+    assert schedule.start_times["out0"] == schedule.schedule_time
 
 
 @pytest.mark.parametrize("warnings", [False, True])
@@ -1198,9 +1344,14 @@ def test_cyclic_operation_at_schedule_time_draws_on_expected_side(
     schedule = Schedule(SFG([source], [Output(operation)]), cyclic=True)
     schedule.set_schedule_time(4)
     graph = SchedulerItem(schedule)
-    item = next(
-        item for item in graph.components if isinstance(item.operation, operation_type)
-    )
+    if operation_type is Sink:
+        item = OperationItem(schedule._sfg.find_by_id("sink0"), graph)
+    else:
+        item = next(
+            item
+            for item in graph.components
+            if isinstance(item.operation, operation_type)
+        )
     period = schedule.schedule_time
     item.setX(graph._x_axis_indent + period)
     offset = 0 if operation_type in (Output, Sink) else -period
@@ -1265,7 +1416,11 @@ def test_input_like_boundary_shapes(qtbot, source_type, start_time):
         laps={signal_id: int(start_time == 5)},
     )
     graph = SchedulerItem(schedule)
-    item = graph._operation_items[source_id]
+    if source_type is DontCare:
+        item = OperationItem(schedule._sfg.find_by_id(source_id), graph)
+        item.setX(graph._x_axis_indent)
+    else:
+        item = graph._operation_items[source_id]
     assert item.x() == pytest.approx(graph._x_axis_indent)
 
     for drag_time in (0, 5):

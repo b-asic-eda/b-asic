@@ -153,6 +153,7 @@ class OperationItem(QGraphicsItemGroup):
             *self._operation.get_plot_coordinates(),
             self._operation.get_input_coordinates(),
             self._operation.get_output_coordinates(),
+            self._placeholder_port_keys(),
         )
         if coordinates == self._plot_coordinates:
             return
@@ -293,6 +294,21 @@ class OperationItem(QGraphicsItemGroup):
         brush = QBrush(color)
         self._latency_item.setBrush(brush)
 
+    def _placeholder_port_keys(self) -> dict[str, str]:
+        markers = {}
+        for port in self._operation.inputs:
+            if any(
+                isinstance(signal.source.operation, DontCare) for signal in port.signals
+            ):
+                markers[f"in{port.index}"] = "DontCare"
+        for port in self._operation.outputs:
+            if any(
+                isinstance(signal.destination.operation, Sink)
+                for signal in port.signals
+            ):
+                markers[f"out{port.index}"] = "Sink"
+        return markers
+
     def _make_component(self) -> None:
         """Make a new component out of the stored attributes."""
         self._ports.clear()
@@ -324,11 +340,13 @@ class OperationItem(QGraphicsItemGroup):
         latency, execution_time = self._operation.get_plot_coordinates()
         input_coordinates = self._operation.get_input_coordinates()
         output_coordinates = self._operation.get_output_coordinates()
+        placeholder_ports = self._placeholder_port_keys()
         self._plot_coordinates = (
             latency,
             execution_time,
             input_coordinates,
             output_coordinates,
+            placeholder_ports,
         )
         latency_path = generate_path(latency)
         self._latency_path = latency_path
@@ -355,6 +373,15 @@ class OperationItem(QGraphicsItemGroup):
                 new_port.setPen(self._port_outline_pen)
                 new_port.setBrush(self._port_filling_brush)
                 new_port.setPos(pos)
+                if key in placeholder_ports:
+                    new_port.setToolTip(placeholder_ports[key])
+                    marker_path = QPainterPath()
+                    marker_path.moveTo(-port_size, -port_size)
+                    marker_path.lineTo(port_size, port_size)
+                    marker_path.moveTo(-port_size, port_size)
+                    marker_path.lineTo(port_size, -port_size)
+                    marker = QGraphicsPathItem(marker_path, new_port)
+                    marker.setPen(self._port_outline_pen)
                 # Add port numbers
                 port_item = QGraphicsSimpleTextItem(str(i))
                 port_item.setScale(port_item.scale() / self._scale)
