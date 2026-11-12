@@ -66,6 +66,7 @@ PYBIND11_MODULE(_sfg_gui, module) {
 		.def("reset", &Engine::reset, py::call_guard<py::gil_scoped_release>())
 		.def("statistics", &Engine::statistics, py::call_guard<py::gil_scoped_release>())
 		.def("wire_path", &Engine::wire_path, py::call_guard<py::gil_scoped_release>())
+		.def("crossing_updates", &Engine::crossing_updates, py::call_guard<py::gil_scoped_release>())
 		.def("routed_ids", &Engine::routed_ids, py::call_guard<py::gil_scoped_release>());
 	module.def(
 		"place_graph",

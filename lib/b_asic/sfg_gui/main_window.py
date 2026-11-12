@@ -21,6 +21,7 @@ from qtpy.QtCore import (
     QSettings,
     Qt,
     QThread,
+    QTimer,
     Slot,
 )
 from qtpy.QtGui import QCursor, QFont, QIcon, QKeySequence, QPainter, QPainterPath, QPen
@@ -110,6 +111,9 @@ class SFGMainWindow(QMainWindow):
         self._pressed_operations: list[DragButton] = []
         self._routing_suspended = False
         self._native = NativeDesign()
+        self._routing_timer = QTimer(self)
+        self._routing_timer.setSingleShot(True)
+        self._routing_timer.timeout.connect(self._reroute_pending_arrows)
         self._junction_item: QGraphicsPathItem | None = None
         self._arrow_ports: dict[Arrow, list[tuple[PortButton, PortButton]]] = {}
         self._operation_to_sfg: dict[DragButton, SFG] = {}
@@ -126,7 +130,7 @@ class SFGMainWindow(QMainWindow):
         self._ui.splitter.setStretchFactor(1, 1)
         self._ui.splitter.setSizes([200, 697])
         self._graphics_view.setMouseTracking(True)
-        self._scene.changed.connect(self._reroute_arrows)
+        self._scene.changed.connect(self._schedule_reroute_arrows)
         self._graphics_view.setDragMode(QGraphicsView.RubberBandDrag)
 
         # Create toolbar
@@ -508,6 +512,7 @@ class SFGMainWindow(QMainWindow):
         self._statusbar.showMessage(msg)
 
     def _clear_workspace(self) -> None:
+        self._routing_timer.stop()
         self._logger.info("Clearing workspace from operations and SFGs.")
         self._cancel_connection()
         self._operation_to_sfg.clear()
@@ -761,6 +766,19 @@ class SFGMainWindow(QMainWindow):
 
             self._drag_buttons[op] = attr_button
             self._drag_operation_scenes[attr_button] = attr_button_scene
+            # Bound QObject methods let Qt track receiver lifetime. A partial
+            # would keep the embedded widget alive through scene destruction.
+            geometry_changed = attr_button._geometry_changed
+            for notification in (
+                attr_button_scene.xChanged,
+                attr_button_scene.yChanged,
+                attr_button_scene.rotationChanged,
+                attr_button_scene.scaleChanged,
+                attr_button_scene.geometryChanged,
+            ):
+                notification.connect(geometry_changed)
+            for port in attr_button.port_list:
+                port.moved.connect(geometry_changed)
             attr_button.set_rotation(rotation)
             if automatic_position:
                 rect = attr_button_scene.sceneBoundingRect()
@@ -1029,16 +1047,35 @@ class SFGMainWindow(QMainWindow):
             else:
                 button.flip_horizontal()
 
-    def _reroute_arrows(self, *args, force: bool = False) -> None:
+    def _operation_geometry_changed(self, button: DragButton) -> None:
+        """Collect moved operations once, including obstacles without wires."""
+        self._native.mark_dirty(button)
+        self._schedule_reroute_arrows()
+
+    def _schedule_reroute_arrows(self, *args) -> None:
+        """Combine scene and terminal notifications into one queued update."""
+        if not self._routing_suspended and not self._routing_timer.isActive():
+            self._routing_timer.start(0)
+
+    def _reroute_pending_arrows(self) -> None:
+        """Flush queued geometry changes using a QObject-bound callback."""
+        self._reroute_arrows(incremental_sync=True)
+
+    def _reroute_arrows(
+        self, *args, force: bool = False, incremental_sync: bool = False
+    ) -> None:
         if self._routing_suspended:
             return
-        self._native.sync(self)
+        self._routing_timer.stop()
+        self._native.sync(self, incremental=incremental_sync)
         dragging = any(button._m_drag for button in self._drag_buttons.values())
         updates, junctions = self._native.engine.route(
             incremental=dragging, force=force
         )
         for identity, points, blocked in updates:
             self._native.arrows[identity].apply_route(points, blocked)
+        for identity, points in self._native.engine.crossing_updates():
+            self._native.arrows[identity].set_crossings(points)
         if junctions is None and self._junction_item is not None:
             return
         dots = QPainterPath()

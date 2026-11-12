@@ -92,6 +92,10 @@ class DragButton(QPushButton):
         self.setIcon(operation_icon(operation.type_name()))
         self.setIconSize(QSize(MINBUTTONSIZE - 8, MINBUTTONSIZE - 8))
 
+    def _geometry_changed(self) -> None:
+        """Notify the window without retaining this widget in a signal closure."""
+        self._window._operation_geometry_changed(self)
+
     def paintEvent(self, event) -> None:
         """Paint the box; the SVG glyph is rendered separately by the scene."""
         if self.is_circular() or self.is_road_sign():
@@ -185,7 +189,7 @@ class DragButton(QPushButton):
                 item = button.graphicsProxyWidget()
                 item.setPos(item.pos() + delta)
 
-        self._window._update()
+        self._window._schedule_reroute_arrows()
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:
@@ -370,10 +374,9 @@ class DragButton(QPushButton):
             del self._window._drag_operation_scenes[self]
 
         self._window._ports.pop(self, None)
-        self._window._update()
-
         if self.operation in self._window._drag_buttons:
             del self._window._drag_buttons[self.operation]
+        self._window._update()
 
     def add_ports(self) -> None:
         """Add external terminals as children of the operation's scene proxy."""

@@ -411,33 +411,46 @@ std::vector<Point> place(const Graph& g, const std::vector<Point>& sizes, const 
 	std::vector<Signature> signatures(nc);
 	for (auto fork : order)
 		if (dag.next[fork].size() > 1) {
-			std::vector<std::vector<Index>> owners(nc);
-			for (Index branch = 0; branch < dag.next[fork].size(); ++branch) {
-				std::vector<Index> pending{dag.next[fork][branch]};
-				std::vector<bool> seen(nc);
-				while (!pending.empty()) {
-					auto n = pending.back();
-					pending.pop_back();
-					if (seen[n])
-						continue;
-					seen[n] = true;
-					owners[n].push_back(branch);
-					pending.insert(pending.end(), dag.next[n].begin(), dag.next[n].end());
-				}
+			// Propagate sole/multiple ownership once through the DAG, rather
+			// than traversing every descendant separately for each fork arm.
+			std::vector<Index> owners(nc, nc), branches(nc, nc);
+			for (Index branch = 0; branch < dag.next[fork].size(); ++branch)
+				branches[dag.next[fork][branch]] = branch;
+			for (auto n : order) {
+				auto merge = [&](Index owner) {
+					if (owner != nc)
+						owners[n] = owners[n] == nc ? owner : (owners[n] == owner ? owner : nc + 1);
+				};
+				merge(branches[n]);
+				for (auto p : dag.previous[n])
+					merge(owners[p]);
 			}
 			for (Index n = 0; n < nc; ++n)
-				if (owners[n].size() == 1)
-					signatures[n].push_back({indices[fork], owners[n][0]});
+				if (owners[n] < nc)
+					signatures[n].push_back({indices[fork], owners[n]});
 		}
+	Index layer_count = *std::max_element(ranks.begin(), ranks.end()) + 1;
+	std::vector<double> widths(layer_count);
+	std::vector<long> lane_delta(layer_count + 1);
+	for (auto n : order) {
+		widths[ranks[n]] = std::max(widths[ranks[n]], blocks[n].size[0]);
+		Index last = ranks[n];
+		for (auto m : dag.next[n])
+			last = std::max(last, ranks[m]);
+		if (last > ranks[n]) {
+			++lane_delta[ranks[n]];
+			--lane_delta[last];
+		}
+	}
 	std::map<Index, double> xs;
 	double x = 3 * spacing;
-	for (Index rank = 0; rank <= *std::max_element(ranks.begin(), ranks.end()); ++rank) {
-		double width = 0;
+	long lanes = 0;
+	for (Index rank = 0; rank < layer_count; ++rank) {
+		lanes += lane_delta[rank];
 		xs[rank] = x;
-		for (auto n : order)
-			if (ranks[n] == rank)
-				width = std::max(width, blocks[n].size[0]);
-		x += width + 3 * spacing;
+		// Reserve separate vertical tracks for signals crossing each column
+		// boundary, including long wires that skip intermediate operations.
+		x += widths[rank] + std::max(3 * spacing, 2 * spacing + (lanes + 1) * grid);
 	}
 	std::vector<bool> seen(nc);
 	std::vector<Point> result(count);
