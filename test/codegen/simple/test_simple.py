@@ -6,6 +6,33 @@ from b_asic.code_printer.test import cocotb_test, get_runner
 from b_asic.data_type import DataType
 
 
+@pytest.mark.parametrize("is_complex", [False, True])
+@pytest.mark.parametrize("centralize_control", [False, True])
+def test_generated_vhdl_ends_with_one_newline(
+    tmp_path, arch_simple, is_complex, centralize_control
+):
+    printer = VhdlPrinter(DataType(7, is_complex=is_complex))
+    printer.print(arch_simple, path=tmp_path, centralize_control=centralize_control)
+    for filename in printer.get_compile_order(arch_simple):
+        code = (tmp_path / filename).read_text()
+        assert code.endswith(";\n")
+        assert not code.endswith("\n\n")
+
+    code = printer.print_Architecture(
+        arch_simple, centralize_control=centralize_control
+    )
+    assert code.endswith(";\n")
+    assert not code.endswith("\n\n")
+    for component in arch_simple.processing_elements:
+        code = printer.print_ProcessingElement(component)
+        assert code.endswith(";\n")
+        assert not code.endswith("\n\n")
+    for memory in arch_simple.memories:
+        code = printer.print_Memory(memory)
+        assert code.endswith(";\n")
+        assert not code.endswith("\n\n")
+
+
 def test_simple_centralized_control(tmp_path, arch_simple):
     printer = VhdlPrinter(DataType(7))
     printer.print(arch_simple, path=tmp_path, io_registers=True)
@@ -15,6 +42,9 @@ def test_simple_centralized_control(tmp_path, arch_simple):
     assert "control_rom" in printer.print_Architecture(arch_simple).lower()
     assert "    -- Control signals\n    type control_rom_type" in top_level
     assert "\n\n    -- Internal signals for pipelined I/O" in top_level
+    assert "\n\n    -- Component declaration" in top_level
+    assert "-- Component interconnect and schedule counter signals" in top_level
+    assert "\n\n    -- Centralized control" in top_level
     assert "alias mem0_ctrl_write_en_0 : std_logic is control_word(" in top_level
     assert "alias mem0_ctrl_write_adr_0 : std_logic_vector(" in top_level
     assert "ctrl_write_adr_0 => unsigned(mem0_ctrl_write_adr_0)" in top_level
@@ -26,6 +56,9 @@ def test_simple_centralized_control(tmp_path, arch_simple):
     for memory in arch_simple.memories:
         code = (tmp_path / f"{memory.entity_name}.vhdl").read_text()
         assert "schedule_cnt" not in code.lower()
+        assert "signal read_adr_0_0_0" not in code
+        assert "signal write_adr_0_0_0" not in code
+        assert "signal write_en_0_0_0" not in code
         declaration = top_level.split(f"component {memory.entity_name}\n", 1)[1].split(
             "end component;", 1
         )[0]

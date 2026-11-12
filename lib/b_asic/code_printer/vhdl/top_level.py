@@ -58,7 +58,7 @@ def architecture(
         en_sig = "en_internal"
     else:
         en_sig = "en"
-    common.write(f, 0, f"architecture rtl of {arch.entity_name} is")
+    common.write(f, 0, f"architecture rtl of {arch.entity_name} is", end="\n\n")
 
     common.write(f, 1, "-- Component declaration")
     for pe in arch.processing_elements:
@@ -79,6 +79,7 @@ def architecture(
                 for item in controls.get(mem.entity_name, [])
             ],
         )
+    common.write(f, 1, "-- Component interconnect and schedule counter signals")
     arch.write_signal_declarations(f, dt)
     all_controls = [item for items in controls.values() for item in items]
     control.declarations(f, all_controls, arch.schedule_time)
@@ -95,7 +96,7 @@ def architecture(
             f, pe_mux_info, mem_mux_info, multiplexer_control_registered
         )
 
-    common.write(f, 0, "begin")
+    common.write(f, 0, "begin", end="\n\n")
 
     if input_register or output_register:
         _write_io_registers(f, arch, dt, input_register, output_register, enable_pin)
@@ -125,7 +126,11 @@ def architecture(
         )
 
     _write_schedule_counter(f, arch, en_sig, enable_pin)
+    if all_controls:
+        common.write(f, 1, "-- Centralized control")
     control.statements(f, all_controls, en_sig, arch.schedule_time)
+    if all_controls:
+        common.blank(f)
 
     # Generate control signals for multiplexers and then connect the top-level
     if not controls:
@@ -140,7 +145,7 @@ def architecture(
         )
     _write_interconnect(f, dt, pe_mux_info, mem_mux_info)
 
-    common.write(f, 0, "end architecture rtl;", start="", end="\n\n")
+    common.write(f, 0, "end architecture rtl;")
 
 
 def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:

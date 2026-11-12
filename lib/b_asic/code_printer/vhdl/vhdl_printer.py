@@ -161,6 +161,7 @@ class VhdlPrinter(Printer):
                         _external_control=bool(kwargs.get("centralize_control", True)),
                         **kwargs,
                     ),
+                    end="",
                 )
 
         for mem in arch.memories:
@@ -173,10 +174,11 @@ class VhdlPrinter(Printer):
                         _external_control=bool(kwargs.get("centralize_control", True)),
                         **kwargs,
                     ),
+                    end="",
                 )
 
         with (dir_path / f"{arch.entity_name}.vhdl").open("w") as f:
-            common.write(f, 0, self.print_Architecture(arch, **kwargs))
+            common.write(f, 0, self.print_Architecture(arch, **kwargs), end="")
 
         if vhdl_ls:
             self.print_vhdl_ls_toml(arch, path=dir_path)
@@ -617,6 +619,8 @@ class VhdlPrinter(Printer):
         declarations, code = io.StringIO(), io.StringIO()
         parts = ("_re", "_im") if self.is_complex else ("",)
         bits = sum(wl) + max_shift
+        port_label = control_name.removesuffix("_scale")
+        common.write(code, 1, f"-- Arithmetic: scaling {port_label}", start="\n")
         for source, part in zip(sources, parts, strict=True):
             target = f"res_arith_{port_name}{part}"
             common.signal_declaration(declarations, target, self.get_scalar_type(bits))
@@ -664,6 +668,7 @@ class VhdlPrinter(Printer):
                     f"res_overflow_{unshifted_port}{part}" for part in parts
                 )
             selected = []
+            common.write(code, 1, f"-- Select scaled {port_label}", start="\n")
             for source, shifted, part in zip(unshifted, scaled, parts, strict=True):
                 target = f"scaled_{port_name}{part}"
                 common.signal_declaration(declarations, target, self.scalar_type_str)
@@ -694,6 +699,7 @@ class VhdlPrinter(Printer):
             code.write(scale_code)
             inputs.append(scaled[0])
 
+        common.write(code, 1, "-- Arithmetic: addition", start="\n")
         common.signal_declaration(declarations, "tmp_res", signed_type(self.bits + 1))
         common.write(
             code,
@@ -710,6 +716,7 @@ class VhdlPrinter(Printer):
         declarations.write(scale_declarations)
         code.write(scale_code)
         common.signal_declaration(declarations, "res_arith_0", self.scalar_type_str)
+        common.write(code, 1, "-- Arithmetic result", start="\n")
         common.write(code, 1, f"res_arith_0 <= {scaled[0]};")
         return [self._dt.wl], (declarations.getvalue(), code.getvalue())
 
@@ -761,6 +768,10 @@ class VhdlPrinter(Printer):
             code.write(scale_code)
             inputs.append(scaled)
 
+        operation = {"'1'": "addition", "'0'": "subtraction"}.get(
+            is_add, "addition/subtraction"
+        )
+        common.write(code, 1, f"-- Arithmetic: {operation}", start="\n")
         if self.is_complex:
             common.signal_declaration(
                 declarations, "sel", "std_logic_vector(1 downto 0)"
@@ -777,6 +788,8 @@ class VhdlPrinter(Printer):
 
         results = []
         for part_index, part in enumerate(parts):
+            if part_index:
+                common.blank(code)
             operand = f"op_b{part}"
             total = f"tmp_res{part}"
             result = f"tmp_res_shifted{part}"
@@ -841,6 +854,7 @@ class VhdlPrinter(Printer):
         )
         declarations.write(scale_declarations)
         code.write(scale_code)
+        common.write(code, 1, "-- Arithmetic result", start="\n")
         for source, part in zip(scaled, parts, strict=True):
             common.signal_declaration(
                 declarations, f"res_arith_0{part}", self.scalar_type_str
@@ -1742,6 +1756,17 @@ class VhdlPrinter(Printer):
                 f"{self.type_name}({new_high - new_low} downto 0)",
             )
 
+        mode = self._dt.quantization_mode.name.lower().replace("_", " ")
+        if frac_diff <= 0:
+            mode += ", no fractional bits removed"
+        label = f"out{port_number}" if isinstance(port_number, int) else port_number
+        common.write(
+            code,
+            1,
+            f"-- Quantization of {label}: {mode}",
+            start="\n",
+        )
+
         # Mode-specific assignments
         if frac_diff > 0:
             if self._dt.quantization_mode == QuantizationMode.TRUNCATION:
@@ -1844,6 +1869,15 @@ class VhdlPrinter(Printer):
                 f"res_overflow_{port_number}",
                 f"{self.type_name}({target_bits - 1} downto 0)",
             )
+
+        mode = self._dt.overflow_mode.name.lower().replace("_", " ")
+        label = f"out{port_number}" if isinstance(port_number, int) else port_number
+        common.write(
+            code,
+            1,
+            f"-- Overflow handling of {label}: {mode}",
+            start="\n",
+        )
 
         # Mode-specific assignments
         if self._dt.overflow_mode == OverflowMode.WRAPPING:
