@@ -5,7 +5,8 @@ Module for VHDL code generation of top level designs.
 from typing import TYPE_CHECKING, TextIO
 
 from b_asic.code_printer.util import selector_bits, time_bin_str
-from b_asic.code_printer.vhdl import common
+from b_asic.code_printer.vhdl import common, control
+from b_asic.code_printer.vhdl.control import unique_sources as _unique_sources
 from b_asic.data_type import _VhdlDataType
 from b_asic.process import MemoryOutputPort
 from b_asic.special_operations import Input, Output
@@ -13,14 +14,6 @@ from b_asic.utility_operations import DontCare
 
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture
-
-
-def _unique_sources(assignments: list[tuple[int, str]]) -> list[str]:
-    seen = []
-    for _, signal in assignments:
-        if signal not in seen:
-            seen.append(signal)
-    return seen
 
 
 def entity(
@@ -56,7 +49,9 @@ def architecture(
     output_register: bool = False,
     multiplexer_control_registered: bool = True,
     enable_pin: bool = True,
+    controls: dict[str, list[control.Control]] | None = None,
 ) -> None:
+    controls = controls or {}
     if not enable_pin:
         en_sig = "'1'"
     elif input_register:
@@ -67,10 +62,26 @@ def architecture(
 
     common.write(f, 1, "-- Component declaration")
     for pe in arch.processing_elements:
-        pe.write_component_declaration(f, dt)
+        pe.write_component_declaration(
+            f,
+            dt,
+            control_ports=[
+                (item.port, item.vhdl_type) for item in controls.get(pe.entity_name, [])
+            ],
+        )
     for mem in arch.memories:
-        mem.write_component_declaration(f, dt)
+        mem.write_component_declaration(
+            f,
+            dt,
+            include_schedule_counter=mem.entity_name not in controls,
+            control_ports=[
+                (item.port, item.vhdl_type)
+                for item in controls.get(mem.entity_name, [])
+            ],
+        )
     arch.write_signal_declarations(f, dt)
+    all_controls = [item for items in controls.values() for item in items]
+    control.declarations(f, all_controls, arch.schedule_time)
 
     if input_register or output_register:
         _write_io_register_signal_declarations(
@@ -79,9 +90,10 @@ def architecture(
 
     # Fetch information about multiplexers needed and declare control signals for them
     pe_mux_info, mem_mux_info = _collect_mux_info(arch)
-    _write_mux_control_signal_declarations(
-        f, pe_mux_info, mem_mux_info, multiplexer_control_registered
-    )
+    if not controls:
+        _write_mux_control_signal_declarations(
+            f, pe_mux_info, mem_mux_info, multiplexer_control_registered
+        )
 
     common.write(f, 0, "begin")
 
@@ -96,22 +108,36 @@ def architecture(
             en_sig=en_sig,
             input_register=input_register,
             output_register=output_register,
+            control_ports=[
+                (item.port, control.port_signal(item))
+                for item in controls.get(pe.entity_name, [])
+            ],
         )
     for mem in arch.memories:
-        mem.write_component_instantiation(f, en_sig=en_sig)
+        mem.write_component_instantiation(
+            f,
+            en_sig=en_sig,
+            include_schedule_counter=mem.entity_name not in controls,
+            control_ports=[
+                (item.port, control.port_signal(item))
+                for item in controls.get(mem.entity_name, [])
+            ],
+        )
 
     _write_schedule_counter(f, arch, en_sig, enable_pin)
+    control.statements(f, all_controls, en_sig, arch.schedule_time)
 
     # Generate control signals for multiplexers and then connect the top-level
-    _write_mux_control_signals(
-        f,
-        arch.schedule_time,
-        pe_mux_info,
-        mem_mux_info,
-        multiplexer_control_registered,
-        en_sig,
-        enable_pin,
-    )
+    if not controls:
+        _write_mux_control_signals(
+            f,
+            arch.schedule_time,
+            pe_mux_info,
+            mem_mux_info,
+            multiplexer_control_registered,
+            en_sig,
+            enable_pin,
+        )
     _write_interconnect(f, dt, pe_mux_info, mem_mux_info)
 
     common.write(f, 0, "end architecture rtl;", start="", end="\n\n")

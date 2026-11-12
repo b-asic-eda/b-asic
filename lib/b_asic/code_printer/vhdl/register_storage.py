@@ -17,6 +17,8 @@ def entity(
     memory: "Memory",
     dt: _VhdlDataType,
     std_logic_vector: bool = True,
+    controls=(),
+    external_control: bool = False,
 ) -> None:
     """
     Generate entity for register-based storage.
@@ -31,6 +33,10 @@ def entity(
         Data type information.
     std_logic_vector : bool, default: True
         If True, use std_logic_vector for data signals. If False, use dt.type_str.
+    controls : sequence
+        Control ports supplied by the enclosing architecture.
+    external_control : bool, default: False
+        Receive control signals from the enclosing architecture or generate them internally.
     """
     memory_storage.entity(
         f,
@@ -38,6 +44,8 @@ def entity(
         dt,
         external_schedule_counter=True,
         std_logic_vector=std_logic_vector,
+        controls=controls,
+        external_control=external_control,
     )
 
 
@@ -51,6 +59,7 @@ def architecture(
     std_logic_vector: bool = True,
     pipeline_output_mux: bool = False,
     pipeline_back_edge_mux: bool = False,
+    external_control: bool = False,
 ) -> None:
     """
     Generate architecture for register-based storage.
@@ -77,6 +86,8 @@ def architecture(
     pipeline_back_edge_mux : bool, default: False
         If True, register the back-edge multiplexer select signal, decoding it
         one clock cycle earlier to compensate for the added register stage.
+    external_control : bool, default: False
+        Receive control signals from the enclosing architecture or generate them locally.
     """
     schedule_time = len(forward_backward_table)
 
@@ -110,13 +121,14 @@ def architecture(
     common.write(f, 0, f"architecture rtl of {memory.entity_name} is", end="\n\n")
 
     # Schedule time counter
-    common.write(f, 1, "-- Schedule counter")
-    common.signal_declaration(
-        f,
-        name="schedule_cnt_int",
-        signal_type=f"integer range 0 to {schedule_time - 1}",
-        name_pad=18,
-    )
+    if not external_control:
+        common.write(f, 1, "-- Schedule counter")
+        common.signal_declaration(
+            f,
+            name="schedule_cnt_int",
+            signal_type=f"integer range 0 to {schedule_time - 1}",
+            name_pad=18,
+        )
 
     # Shift register
     common.write(f, 1, "-- Shift register", start="\n")
@@ -161,12 +173,17 @@ def architecture(
 
     # Schedule counter logic
     # Convert external unsigned schedule_cnt to integer
-    common.write(f, 1, "-- Convert unsigned schedule counter to integer", start="\n")
-    common.write(f, 1, "schedule_cnt_int <= to_integer(schedule_cnt);")
+    if not external_control:
+        common.write(
+            f, 1, "-- Convert unsigned schedule counter to integer", start="\n"
+        )
+        common.write(f, 1, "schedule_cnt_int <= to_integer(schedule_cnt);")
 
     # Shift register back-edge decoding
     common.write(f, 1, "-- Shift register back-edge decoding", start="\n")
-    if pipeline_back_edge_mux:
+    if external_control:
+        common.write(f, 1, "back_edge_mux_sel <= to_integer(ctrl_back_edge);")
+    elif pipeline_back_edge_mux:
         common.synchronous_process_prologue(
             f, clk="clk", name="shift_reg_back_edge_decode_proc"
         )
@@ -260,7 +277,9 @@ def architecture(
 
     # Output multiplexer decoding logic
     common.write(f, 1, "-- Output multiplexer decoding logic", start="\n")
-    if pipeline_output_mux:
+    if external_control:
+        common.write(f, 1, "out_mux_sel <= to_integer(ctrl_output);")
+    elif pipeline_output_mux:
         decode_entries = [
             ((i - 1) % schedule_time, output_mux_table[entry.outputs_from])
             for i, entry in enumerate(forward_backward_table)

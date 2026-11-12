@@ -110,9 +110,7 @@ printer.print(
         "rec0": "amd",
     },
     io_registers=True, # add registers to input and output ports
-    multiplexer_control_registered = True, # pipeline mux control signals
-    pipeline_pe_control = True, # pipeline processing element control signals
-    pipeline_mem_control = True, # pipeline memory control signals
+    pipeline_control=True, # pipeline control signals
 )
 
 # %%

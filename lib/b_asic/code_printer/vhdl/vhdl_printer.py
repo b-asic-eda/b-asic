@@ -11,6 +11,7 @@ from b_asic.code_printer.printer import CODE, WLS, Printer
 from b_asic.code_printer.util import bin_str
 from b_asic.code_printer.vhdl import (
     common,
+    control,
     memory_storage,
     processing_element,
     register_storage,
@@ -96,6 +97,13 @@ class VhdlPrinter(Printer):
                 Register multiplexer control signals in generated top-level.
             enable_pin : :class:`bool`, default ``True``
                 Whether to include an enable pin on the top-level entity.
+            centralize_control : :class:`bool`, default ``True``
+                Generate a shared schedule-indexed control ROM in the top-level
+                architecture instead of distributed control generation.
+            pipeline_control : :class:`bool`, default ``False``
+                Register all outputs of the centralized control ROM. Component
+                control pipeline options must agree with this setting when supplied.
+                This option requires centralized control.
 
         **Processing elements**
 
@@ -118,6 +126,7 @@ class VhdlPrinter(Printer):
                 Place output registers after memory read.
             **external_schedule_counter** : :class:`bool`, default ``True``
                 Use an external schedule counter signal.
+                Ignored when `centralize_control` is ``True`` since no counter is needed.
             **std_logic_vector** : :class:`bool`, default ``False``
                 Use ``std_logic_vector`` data instead of ``signed``/``unsigned``.
             **pipeline_mem_control** : :class:`bool`, default ``False``
@@ -134,6 +143,7 @@ class VhdlPrinter(Printer):
             **pipeline_back_edge_mux** : :class:`bool`, default ``False``
                 Register the back-edge multiplexer select signal.
         """
+        kwargs = self._control_options(kwargs)
         dir_path = Path(path)
         dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -143,11 +153,27 @@ class VhdlPrinter(Printer):
 
         for pe in arch.processing_elements:
             with (dir_path / f"{pe.entity_name}.vhdl").open("w") as f:
-                common.write(f, 0, self.print_ProcessingElement(pe, **kwargs))
+                common.write(
+                    f,
+                    0,
+                    self.print_ProcessingElement(
+                        pe,
+                        _external_control=bool(kwargs.get("centralize_control", True)),
+                        **kwargs,
+                    ),
+                )
 
         for mem in arch.memories:
             with (dir_path / f"{mem.entity_name}.vhdl").open("w") as f:
-                common.write(f, 0, self.print_Memory(mem, **kwargs))
+                common.write(
+                    f,
+                    0,
+                    self.print_Memory(
+                        mem,
+                        _external_control=bool(kwargs.get("centralize_control", True)),
+                        **kwargs,
+                    ),
+                )
 
         with (dir_path / f"{arch.entity_name}.vhdl").open("w") as f:
             common.write(f, 0, self.print_Architecture(arch, **kwargs))
@@ -221,7 +247,35 @@ class VhdlPrinter(Printer):
 
         return f.getvalue()
 
+    @staticmethod
+    def _control_options(options: dict) -> dict:
+        options = dict(options)
+        centralized = bool(options.get("centralize_control", True))
+        registered = bool(options.get("pipeline_control", False))
+        if not centralized:
+            if registered:
+                raise ValueError("pipeline_control requires centralize_control=True")
+            return options
+
+        if "pipeline_control" not in options:
+            return options
+
+        for name in (
+            "pipeline_pe_control",
+            "pipeline_mem_control",
+            "pipeline_output_mux",
+            "pipeline_back_edge_mux",
+            "multiplexer_control_registered",
+        ):
+            if name in options and bool(options[name]) != registered:
+                raise ValueError(
+                    f"{name} conflicts with pipeline_control in centralized control mode"
+                )
+            options[name] = registered
+        return options
+
     def print_Architecture(self, arch: "Architecture", **kwargs) -> str | None:
+        kwargs = self._control_options(kwargs)
         io_registers = bool(kwargs.get("io_registers", False))
         input_register = bool(kwargs.get("input_register", False)) or io_registers
         output_register = bool(kwargs.get("output_register", False)) or io_registers
@@ -229,6 +283,25 @@ class VhdlPrinter(Printer):
             kwargs.get("multiplexer_control_registered", False)
         )
         enable_pin = bool(kwargs.get("enable_pin", True))
+        controls = {}
+        if kwargs.get("centralize_control", True):
+            for pe in arch.processing_elements:
+                split = self._resolve_pe_registers(pe, kwargs.get("pe_registers", {}))
+                cycles = self._resolve_control_cycle(
+                    pe, kwargs.get("control_cycle", {})
+                )
+                controls[pe.entity_name] = control.pe_controls(
+                    pe, split[0], cycles, bool(kwargs.get("pipeline_pe_control", False))
+                )
+            for mem in arch.memories:
+                controls[mem.entity_name] = control.memory_controls(mem, kwargs)
+            pe_mux_info, mem_mux_info = top_level._collect_mux_info(arch)
+            controls[""] = control.mux_controls(
+                arch.schedule_time,
+                pe_mux_info,
+                mem_mux_info,
+                multiplexer_control_registered,
+            )
         f = io.StringIO()
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self.vhdl_2008)
@@ -244,6 +317,7 @@ class VhdlPrinter(Printer):
             output_register,
             multiplexer_control_registered,
             enable_pin=enable_pin,
+            controls=controls,
         )
         return f.getvalue()
 
@@ -254,6 +328,9 @@ class VhdlPrinter(Printer):
         if self.is_complex:
             common.package_header(f, "types")
 
+        external_control = bool(kwargs.get("_external_control", False))
+        controls = control.memory_controls(mem, kwargs) if external_control else []
+
         if mem._memory_type == "RAM":
             # Extract known kwargs for memory_storage, pass through others
             memory_kwargs = {
@@ -263,6 +340,7 @@ class VhdlPrinter(Printer):
                 ),
                 "std_logic_vector": kwargs.get("std_logic_vector", False),
                 "pipeline_control_signals": kwargs.get("pipeline_mem_control", False),
+                "external_control": external_control,
             }
 
             memory_storage.entity(
@@ -271,6 +349,8 @@ class VhdlPrinter(Printer):
                 self._dt,
                 external_schedule_counter=memory_kwargs["external_schedule_counter"],
                 std_logic_vector=memory_kwargs["std_logic_vector"],
+                controls=controls,
+                external_control=external_control,
             )
             memory_storage.architecture(f, mem, self._dt, **memory_kwargs)
         elif mem._memory_type == "register":
@@ -283,12 +363,15 @@ class VhdlPrinter(Printer):
                 "std_logic_vector": kwargs.get("std_logic_vector", False),
                 "pipeline_output_mux": kwargs.get("pipeline_output_mux", False),
                 "pipeline_back_edge_mux": kwargs.get("pipeline_back_edge_mux", False),
+                "external_control": external_control,
             }
             register_storage.entity(
                 f,
                 mem,
                 self._dt,
                 std_logic_vector=register_kwargs["std_logic_vector"],
+                controls=controls,
+                external_control=external_control,
             )
             register_storage.architecture(
                 f, mem._forward_backward_table, mem, self._dt, **register_kwargs
@@ -321,9 +404,20 @@ class VhdlPrinter(Printer):
         common.ieee_header(f, fixed_pkg=self.vhdl_2008)
         if self.is_complex:
             common.package_header(f, "types")
-        processing_element.entity(f, pe, self._dt)
-        core_code = self.print_operation(pe)
         pe_control_cycle = self._resolve_control_cycle(pe, self._pe_control_cycle)
+        external_control = bool(kwargs.get("_external_control", False))
+        controls = (
+            control.pe_controls(
+                pe,
+                self._register_split[0],
+                pe_control_cycle,
+                pipeline_pe_control_signals,
+            )
+            if external_control
+            else []
+        )
+        processing_element.entity(f, pe, self._dt, controls=controls)
+        core_code = self.print_operation(pe)
         processing_element.architecture(
             f,
             pe,
@@ -332,6 +426,7 @@ class VhdlPrinter(Printer):
             register_split=self._register_split,
             control_cycle=pe_control_cycle,
             pipeline_control_signals=pipeline_pe_control_signals,
+            external_control=external_control,
         )
         return f.getvalue()
 
