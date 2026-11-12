@@ -459,9 +459,8 @@ def test_middle_drag_pans_without_editing_graph(qtbot, start_at, zoom):
     # New content must remain reachable after the view acquires a pan area.
     distant = Output()
     window.add_operation(distant, (10000, 10000))
-    qtbot.wait(10)
     rect = window._drag_buttons[distant].graphicsProxyWidget().sceneBoundingRect()
-    assert view.sceneRect().contains(rect)
+    qtbot.waitUntil(lambda: view.sceneRect().contains(rect))
 
 
 def test_pan_many_small_moves_does_not_drift(qtbot):

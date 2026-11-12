@@ -11,8 +11,9 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import matplotlib.testing.decorators
 import pytest
+from matplotlib.patches import PathPatch
 
-from b_asic.core_operations import Addition, ConstantMultiplication
+from b_asic.core_operations import Addition, ConstantMultiplication, Subtraction
 from b_asic.fft_operations import R2Butterfly
 from b_asic.process import OperatorProcess
 from b_asic.schedule import Schedule
@@ -20,6 +21,7 @@ from b_asic.scheduler import ALAPScheduler, ASAPScheduler
 from b_asic.sfg import SFG
 from b_asic.sfg_generators import direct_form_1_iir, fir
 from b_asic.special_operations import Delay, Input, Output
+from b_asic.utility_operations import DontCare, Sink
 
 
 def test_copy_long_chain_without_recursion_limit_change():
@@ -383,6 +385,79 @@ class TestInit:
 
 
 class TestSlacks:
+    @pytest.mark.parametrize("cyclic", [False, True])
+    def test_sink_does_not_limit_real_consumer_slack(self, cyclic):
+        source = Input()
+        operation = ConstantMultiplication(0.5, source, latency=1)
+        Sink(operation)
+        schedule = Schedule(SFG([source], [Output(operation)]), cyclic=cyclic)
+        schedule.set_schedule_time(4)
+        schedule.move_operation("out0", 1)
+
+        assert schedule.forward_slack("cmul0") == 1
+        with pytest.raises(ValueError, match="incorrect move"):
+            schedule.move_operation("cmul0", 2)
+        schedule.move_operation("cmul0", 1)
+        assert schedule.start_times["sink0"] == 2
+        assert schedule.forward_slack("cmul0") == 0
+        schedule._validate_slacks()
+        schedule._validate_laps()
+
+    def test_sink_follows_source_across_cyclic_boundary(self):
+        source = Input()
+        operation = Subtraction(source, source, latency=1)
+        Sink(operation)
+        used = ConstantMultiplication(0.5, source, latency=5)
+        schedule = Schedule(SFG([source], [Output(used)]), cyclic=True)
+
+        schedule.move_operation("sub0", 4)
+        assert schedule.start_times["sink0"] == 5
+        schedule.move_operation("sub0", 2)
+        assert schedule.start_times["sub0"] == 1
+        assert schedule.start_times["sink0"] == 2
+        schedule._validate_slacks()
+        schedule._validate_laps()
+
+    def test_dontcare_does_not_block_cyclic_backward_wrap(self):
+        operation = ConstantMultiplication(0.5, DontCare(), latency=1)
+        schedule = Schedule(SFG([], [Output(operation)]), cyclic=True, schedule_time=4)
+
+        schedule.move_operation("cmul0", -1)
+
+        assert schedule.start_times["cmul0"] == 3
+        schedule._validate_slacks()
+        schedule._validate_laps()
+
+    def test_dontcare_remains_valid_when_consumer_moves_earlier(self):
+        operation = ConstantMultiplication(0.5, DontCare(), latency=1)
+        schedule = Schedule(SFG([], [Output(operation)]), cyclic=True, schedule_time=4)
+        schedule.move_operation("out0", 2)
+        schedule.move_operation("cmul0", 2)
+        schedule.move_operation_alap("dontcare0")
+
+        schedule.move_operation("cmul0", -1)
+
+        schedule._validate_slacks()
+        schedule._validate_laps()
+
+    @pytest.mark.parametrize("cyclic", [False, True])
+    def test_sink_only_operation_moves_alap_within_schedule(self, cyclic):
+        source = Input()
+        unused = ConstantMultiplication(0.5, source, latency=1)
+        Sink(unused)
+        used = ConstantMultiplication(0.25, source, latency=4)
+        schedule = Schedule(SFG([source], [Output(used)]), cyclic=cyclic)
+        unused_id = next(
+            signal.source_operation.graph_id
+            for signal in schedule._sfg.find_by_id("sink0").input(0).signals
+        )
+
+        schedule.move_operation_alap(unused_id)
+        assert schedule.start_times[unused_id] == 3
+        assert schedule.start_times["sink0"] == 4
+        schedule._validate_slacks()
+        schedule._validate_laps()
+
     def test_forward_backward_slack_normal_latency(self, precedence_sfg_delays):
         precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
         precedence_sfg_delays.set_latency_of_type_name(
@@ -528,6 +603,40 @@ class TestSlacks:
 
 
 class TestRescheduling:
+    @pytest.mark.parametrize("cyclic", [False, True])
+    def test_schedule_time_ignores_late_sink_placeholder(self, cyclic):
+        source = Input()
+        operation = ConstantMultiplication(0.5, source, latency=1)
+        Sink(operation)
+        schedule = Schedule(SFG([source], [Output(operation)]), cyclic=cyclic)
+        schedule.set_schedule_time(5)
+        schedule.move_operation("sink0", 3)
+        assert schedule.start_times["sink0"] == 4
+
+        schedule.set_schedule_time(3)
+
+        assert schedule.schedule_time == 3
+        assert schedule.start_times["sink0"] == 1
+        schedule._validate()
+
+    def test_real_output_still_blocks_cyclic_boundary_reduction(self):
+        source = Input()
+        operation = ConstantMultiplication(0.5, source, latency=1)
+        Sink(operation)
+        schedule = Schedule(SFG([source], [Output(operation)]), cyclic=True)
+        schedule.set_schedule_time(4)
+        schedule.move_operation("out0", 3)
+        schedule.move_operation("cmul0", 3)
+        start_times = schedule.start_times.copy()
+        laps = schedule.laps.copy()
+
+        with pytest.raises(ValueError, match="invalidate the cyclic schedule"):
+            schedule.set_schedule_time(3, allow_cyclic_wrap=True)
+
+        assert schedule.start_times == start_times
+        assert schedule.laps == laps
+        schedule._validate()
+
     @pytest.mark.parametrize("latency", [0, 1, 2, 3])
     def test_wrap_boundary_start_time_preserves_slacks(self, latency):
         input_item = Input()
@@ -1037,6 +1146,48 @@ class TestProcesses:
 
 
 class TestFigureGeneration:
+    @pytest.mark.parametrize("cyclic", [False, True])
+    def test_placeholder_ports_are_crossed_without_placeholder_rows(self, cyclic):
+        source = Input()
+        operation = Addition(source, DontCare(), latency=1)
+        Sink(operation)
+        schedule = Schedule(SFG([source], [Output(operation)]), cyclic=cyclic)
+        schedule.sort_y_locations_on_start_times()
+        start_times = schedule.start_times.copy()
+        laps = schedule.laps.copy()
+
+        fig = schedule._get_figure()
+        try:
+            ax = fig.axes[0]
+            assert {text.get_text() for text in ax.texts} == {"in0", "add0", "out0"}
+            markers = [line for line in ax.lines if line.get_marker() == "x"]
+            assert len(markers) == 2
+            plotted_operation = schedule._sfg.find_by_id("add0")
+            operation_label = next(
+                text for text in ax.texts if text.get_text() == "add0"
+            )
+            operation_y = operation_label.get_position()[1] - 0.7
+            expected = {
+                (
+                    schedule.start_times["add0"] + coordinates[index][0],
+                    operation_y + coordinates[index][1],
+                )
+                for coordinates, index in (
+                    (plotted_operation.get_input_coordinates(), 1),
+                    (plotted_operation.get_output_coordinates(), 0),
+                )
+            }
+            assert {
+                (line.get_xdata()[0], line.get_ydata()[0]) for line in markers
+            } == expected
+            assert sum(isinstance(patch, PathPatch) for patch in ax.patches) == 2
+            assert len(ax.get_yticks()) == 3
+            assert fig.get_figheight() == pytest.approx(1.6)
+            assert schedule.start_times == start_times
+            assert schedule.laps == laps
+        finally:
+            plt.close(fig)
+
     def test_figure_default_font(self, secondorder_iir_schedule):
         fig = secondorder_iir_schedule._get_figure()
         try:

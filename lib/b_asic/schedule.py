@@ -250,9 +250,14 @@ class Schedule:
 
     def get_max_end_time(self) -> int:
         """Return the current maximum end time among all operations."""
+        return self._get_max_end_time()
+
+    def _get_max_end_time(self, *, ignore_sinks: bool = False) -> int:
         max_end_time = 0
         for graph_id, op_start_time in self._start_times.items():
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
+            if ignore_sinks and isinstance(operation, Sink):
+                continue
             if isinstance(operation, (Output, Sink)):
                 max_end_time = max(max_end_time, op_start_time)
             else:
@@ -304,7 +309,11 @@ class Schedule:
             min(
                 sum(
                     (
-                        list(signal_slacks.values())
+                        [
+                            slack
+                            for signal, slack in signal_slacks.items()
+                            if not isinstance(signal.destination_operation, Sink)
+                        ]
                         for signal_slacks in output_slacks.values()
                     ),
                     [sys.maxsize],
@@ -371,7 +380,11 @@ class Schedule:
             min(
                 sum(
                     (
-                        list(signal_slacks.values())
+                        [
+                            slack
+                            for signal, slack in signal_slacks.items()
+                            if not isinstance(signal.source_operation, DontCare)
+                        ]
                         for signal_slacks in input_slacks.values()
                     ),
                     [sys.maxsize],
@@ -492,7 +505,7 @@ class Schedule:
         self, time: int, allow_cyclic_wrap: bool = False
     ) -> bool:
         """Return whether the schedule time can be changed to *time*."""
-        if time >= self.get_max_end_time():
+        if time >= self._get_max_end_time(ignore_sinks=True):
             return True
         if not allow_cyclic_wrap or not self._cyclic or time <= 0:
             return False
@@ -504,7 +517,7 @@ class Schedule:
 
         for graph_id, start_time in self._start_times.items():
             operation = cast(Operation, self._sfg.find_by_id(graph_id))
-            if start_time > time and not isinstance(operation, DontCare):
+            if start_time > time and not isinstance(operation, (DontCare, Sink)):
                 return False
             if (
                 any(
@@ -554,7 +567,7 @@ class Schedule:
         --------
         get_max_time
         """
-        max_end_time = self.get_max_end_time()
+        max_end_time = self._get_max_end_time(ignore_sinks=True)
         if not self._can_set_schedule_time(time, allow_cyclic_wrap):
             if allow_cyclic_wrap and self._cyclic and 0 < time < max_end_time:
                 raise ValueError(
@@ -564,10 +577,14 @@ class Schedule:
                 f"New schedule time ({time}) too short, minimum: {max_end_time}."
             )
 
+        old_schedule_time = self._schedule_time
         self._update_laps_for_schedule_time(time)
         self._schedule_time = time
         if allow_cyclic_wrap and self._cyclic:
             self._wrap_start_times()
+        if old_schedule_time is not None and time < old_schedule_time:
+            for graph_id in self._start_times:
+                self._synchronize_sinks(cast(Operation, self._sfg.find_by_id(graph_id)))
         return self
 
     def _wrap_start_times(self) -> None:
@@ -1002,6 +1019,10 @@ class Schedule:
             tmp_usage = tmp_start + cast(int, in_port.latency_offset)
             new_usage = tmp_usage % self._schedule_time
             for signal, signal_slack in signal_slacks.items():
+                if isinstance(signal.source_operation, DontCare):
+                    self._start_times[signal.source_operation.graph_id] = 0
+                    self._laps[signal.graph_id] = 0
+                    continue
                 # New slack
                 new_slack = signal_slack + time
                 # Compute a lower limit on laps
@@ -1026,6 +1047,8 @@ class Schedule:
             tmp_available = tmp_start + cast(int, out_port.latency_offset)
             new_available = tmp_available % self._schedule_time
             for signal, signal_slack in signal_slacks.items():
+                if isinstance(signal.destination_operation, Sink):
+                    continue
                 # New slack
                 new_slack = signal_slack - time
                 # Compute a lower limit on laps
@@ -1061,7 +1084,29 @@ class Schedule:
                     self._laps[signal.graph_id] -= 1
         # Set new start time
         self._start_times[graph_id] = new_start
+        self._synchronize_sinks(cast(Operation, op))
         return self
+
+    def _synchronize_sinks(self, operation: Operation) -> None:
+        for out_port in operation.outputs:
+            available_time = self._start_times[operation.graph_id] + cast(
+                int, out_port.latency_offset
+            )
+            if available_time > self._schedule_time:
+                available_time -= self._schedule_time
+            for signal in out_port.signals:
+                if isinstance(signal.destination_operation, Sink):
+                    sink_start = min(available_time, self._schedule_time)
+                    laps = 0
+                    if available_time > self._schedule_time:
+                        sink_start = (
+                            available_time % self._schedule_time or self._schedule_time
+                        )
+                        laps = (available_time - sink_start) // self._schedule_time
+                    self._start_times[signal.destination_operation.graph_id] = (
+                        sink_start
+                    )
+                    self._laps[signal.graph_id] = laps
 
     def move_operation_alap(self, graph_id: GraphID) -> "Schedule":
         """
@@ -1071,8 +1116,8 @@ class Schedule:
 
             schedule.move_operation(graph_id, schedule.forward_slack(graph_id))
 
-        but operations with no succeeding operation (Outputs) will only move to the end
-        of the schedule.
+        but operations with no real succeeding operation will only move as late as
+        their latency allows within the schedule.
 
         Parameters
         ----------
@@ -1081,8 +1126,15 @@ class Schedule:
         """
         forward_slack = self.forward_slack(graph_id)
         if forward_slack == sys.maxsize:
+            operation = cast(Operation, self._sfg.find_by_id(graph_id))
             self.move_operation(
-                graph_id, self.schedule_time - self._start_times[graph_id]
+                graph_id,
+                max(
+                    0,
+                    self.schedule_time
+                    - operation.latency
+                    - self._start_times[graph_id],
+                ),
             )
         else:
             self.move_operation(graph_id, forward_slack)
@@ -1551,9 +1603,31 @@ class Schedule:
         yticklabels = []
         ax.set_axisbelow(True)
         ax.grid()
-        for graph_id, op_start_time in self._start_times.items():
-            y_pos = self._get_y_plot_location(graph_id, operation_gap=operation_gap)
-            operation = cast(Operation, self._sfg.find_by_id(graph_id))
+        operations = {
+            graph_id: cast(Operation, self._sfg.find_by_id(graph_id))
+            for graph_id in self._start_times
+            if not isinstance(self._sfg.find_by_id(graph_id), (DontCare, Sink))
+        }
+        for graph_id in operations:
+            self._get_y_plot_location(graph_id, operation_gap=operation_gap)
+        visible_rows = {self._y_locations[graph_id] for graph_id in operations}
+        hidden_rows = {
+            row
+            for graph_id, row in self._y_locations.items()
+            if graph_id not in operations
+            and row is not None
+            and row not in visible_rows
+        }
+        y_positions = {
+            graph_id: operation_gap
+            + (row - sum(hidden_row < row for hidden_row in hidden_rows))
+            * (1 + operation_gap)
+            for graph_id in operations
+            if (row := self._y_locations[graph_id]) is not None
+        }
+        for graph_id, operation in operations.items():
+            op_start_time = self._start_times[graph_id]
+            y_pos = y_positions[graph_id]
             # Rewrite to make better use of NumPy
             (
                 latency_coordinates,
@@ -1569,9 +1643,7 @@ class Schedule:
                 xy = np.stack((xvalues - self.schedule_time, y + y_pos))
                 ax.add_patch(Polygon(xy.T, fc=_LATENCY_COLOR))
             _label_size = (
-                fontsize
-                if fontsize is not None
-                else 10 - (0.05 * len(self._start_times))
+                fontsize if fontsize is not None else 10 - (0.05 * len(operations))
             )
             if isinstance(operation, Input):
                 ax.annotate(
@@ -1609,25 +1681,53 @@ class Schedule:
                     )
 
             ytickpositions.append(y_pos + 0.5)
-            yticklabels.append(cast(Operation, self._sfg.find_by_id(graph_id)).name)
+            yticklabels.append(operation.name)
 
-        for graph_id, op_start_time in self._start_times.items():
-            operation = cast(Operation, self._sfg.find_by_id(graph_id))
+            for ports, coordinates, placeholder_type in (
+                (operation.inputs, operation.get_input_coordinates(), DontCare),
+                (operation.outputs, operation.get_output_coordinates(), Sink),
+            ):
+                for port in ports:
+                    if any(
+                        isinstance(
+                            signal.source_operation
+                            if placeholder_type is DontCare
+                            else signal.destination_operation,
+                            placeholder_type,
+                        )
+                        for signal in port.signals
+                    ):
+                        x, y = coordinates[port.index]
+                        x += op_start_time
+                        if (
+                            self.cyclic
+                            and self.schedule_time
+                            and (x < 0 or x > self.schedule_time)
+                        ):
+                            x %= self.schedule_time
+                        ax.plot(
+                            x,
+                            y_pos + y,
+                            marker="x",
+                            markersize=10,
+                            markeredgewidth=1,
+                            color=_SIGNAL_COLOR,
+                            zorder=11,
+                        )
+
+        for graph_id, operation in operations.items():
+            op_start_time = self._start_times[graph_id]
             out_coordinates = operation.get_output_coordinates()
-            source_y_pos = self._get_y_plot_location(
-                graph_id, operation_gap=operation_gap
-            )
+            source_y_pos = y_positions[graph_id]
 
             for output_port in operation.outputs:
                 for output_signal in output_port.signals:
                     destination = cast(InputPort, output_signal.destination)
                     destination_op = destination.operation
-                    if destination_op.graph_id not in self._start_times:
+                    if destination_op.graph_id not in operations:
                         continue
                     destination_start_time = self._start_times[destination_op.graph_id]
-                    destination_y_pos = self._get_y_plot_location(
-                        destination_op.graph_id, operation_gap=operation_gap
-                    )
+                    destination_y_pos = y_positions[destination_op.graph_id]
                     destination_in_coordinates = (
                         destination.operation.get_input_coordinates()
                     )
@@ -1644,12 +1744,7 @@ class Schedule:
         ax.set_yticklabels(yticklabels)
 
         # Get operation with maximum position
-        max_pos_graph_id = max(self._y_locations, key=self._y_locations.get)
-        y_position_max = (
-            self._get_y_plot_location(max_pos_graph_id, operation_gap=operation_gap)
-            + 1
-            + (OPERATION_GAP if operation_gap is None else operation_gap)
-        )
+        y_position_max = max(y_positions.values(), default=0) + 1 + operation_gap
         ax.axis([-0.8, self._schedule_time + 0.8, y_position_max, 0])  # Inverted y-axis
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=1))
         ax.axvline(
@@ -1760,7 +1855,11 @@ class Schedule:
             rc_overrides["font.size"] = fontsize
         if figsize is None:
             scale = fontsize / 10 if fontsize is not None else 1.0
-            figsize = (12 * scale, (len(self._start_times) * 0.3 + 0.7) * scale)
+            visible_count = sum(
+                not isinstance(self._sfg.find_by_id(graph_id), (DontCare, Sink))
+                for graph_id in self._start_times
+            )
+            figsize = (12 * scale, (visible_count * 0.3 + 0.7) * scale)
         with plt.rc_context(rc_overrides):
             fig, ax = plt.subplots(figsize=figsize, layout="constrained")
             self._plot_schedule(ax, operation_gap=operation_gap, fontsize=fontsize)
