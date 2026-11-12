@@ -206,12 +206,12 @@ def test_memory_vhdl_cell_addresses(assign):
     assert f"array(0 to {0 if assign else 1})" in vhdl
     for variable, address in zip(variables, [0, 0 if assign else 1], strict=True):
         assert re.search(
-            rf"-- {re.escape(repr(variable))}\s+when \"[01]+\" =>\s+"
+            rf"-- Variable {re.escape(repr(variable.name))}, start time {variable.start_time}\s+when \"[01]+\" =>\s+"
             rf"write_adr_0_0_0 <= to_unsigned\({address},",
             vhdl,
         )
         assert re.search(
-            rf"-- {re.escape(repr(variable))}\s+when \"[01]+\" =>\s+"
+            rf"-- Variable {re.escape(repr(variable.name))}, start time {variable.start_time}\s+when \"[01]+\" =>\s+"
             rf"read_adr_0_0_0 <= to_unsigned\({address},",
             vhdl,
         )

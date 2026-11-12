@@ -51,13 +51,16 @@ def architecture(
     pipeline_control_signals: bool = False,
     external_control: bool = False,
 ) -> None:
-    common.write(f, 0, f"architecture rtl of {pe.entity_name} is")
+    common.write(f, 0, f"architecture rtl of {pe.entity_name} is", end="\n\n")
+    common.write(f, 1, "-- Pipeline, operand, and control signals")
     n_in, n_out = register_split
     _declarative_region_common(
         f, pe, dt, n_in, n_out, pipeline_control_signals, external_control
     )
+    common.write(f, 1, "-- Arithmetic core signals", start="\n")
     common.write(f, 0, core_code[0])
-    common.write(f, 0, "begin")
+    common.write(f, 0, "begin", end="\n\n")
+    common.write(f, 1, "-- Pipeline registers, operands, and control")
     _statement_region_common(
         f,
         pe,
@@ -68,7 +71,8 @@ def architecture(
         pipeline_control_signals,
         external_control,
     )
-    common.write(f, 0, core_code[1])
+    common.write(f, 1, "-- Arithmetic core", start="\n")
+    common.write(f, 0, core_code[1].removeprefix("\n"))
     common.write(f, 0, "end architecture rtl;")
 
 
@@ -120,12 +124,6 @@ def _declarative_region_common(
             common.signal_declaration(f, name, vhdl_type, default_value=default_value)
         if pipeline_control_signals and not external_control:
             common.signal_declaration(f, f"{name}_comb", vhdl_type)
-
-    # Define integer bits for control signals
-    for name, entry in pe.control_table.items():
-        common.constant_declaration(
-            f, f"WL_{name.upper()}_INT", "integer", entry.int_bits
-        )
 
 
 def _statement_region_common(

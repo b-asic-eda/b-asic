@@ -165,25 +165,26 @@ def architecture(
         common.signal_declaration(f, f"write_en_{i}", "std_logic")
 
     # Address generation signals (single ROM instance)
-    common.write(f, 1, "-- Address generation multiplexing signals", start="\n")
-    for write_port_idx in range(memory.output_count):
-        common.signal_declaration(
-            f,
-            f"write_adr_{write_port_idx}_0_0",
-            unsigned_type(mem_adress_bits),
-        )
-    for write_port_idx in range(memory.output_count):
-        common.signal_declaration(
-            f,
-            f"write_en_{write_port_idx}_0_0",
-            signal_type="std_logic",
-        )
-    for read_port_idx in range(memory.input_count):
-        common.signal_declaration(
-            f,
-            f"read_adr_{read_port_idx}_0_0",
-            unsigned_type(mem_adress_bits),
-        )
+    if not external_control:
+        common.write(f, 1, "-- Address generation multiplexing signals", start="\n")
+        for write_port_idx in range(memory.output_count):
+            common.signal_declaration(
+                f,
+                f"write_adr_{write_port_idx}_0_0",
+                unsigned_type(mem_adress_bits),
+            )
+        for write_port_idx in range(memory.output_count):
+            common.signal_declaration(
+                f,
+                f"write_en_{write_port_idx}_0_0",
+                signal_type="std_logic",
+            )
+        for read_port_idx in range(memory.input_count):
+            common.signal_declaration(
+                f,
+                f"read_adr_{read_port_idx}_0_0",
+                unsigned_type(mem_adress_bits),
+            )
 
     # Type conversion signals for interface
     common.write(f, 1, "-- Type conversion for interface", start="\n")
@@ -372,7 +373,10 @@ def architecture(
         common.write_lines(
             f,
             [
-                (4 + indent_offset, f"-- {mv!r}"),
+                (
+                    4 + indent_offset,
+                    f"-- Variable {mv.name!r}, start time {mv.start_time}",
+                ),
                 (4 + indent_offset, (f'when "{bin_time}" =>')),
                 (
                     5 + indent_offset,
@@ -431,7 +435,10 @@ def architecture(
             common.write_lines(
                 f,
                 [
-                    (4 + indent_offset, f"-- {mv!r}"),
+                    (
+                        4 + indent_offset,
+                        f"-- Variable {mv.name!r}, start time {mv.start_time}",
+                    ),
                     (
                         4 + indent_offset,
                         f'when "{bin_str(time, ADR_LEN)}" =>',

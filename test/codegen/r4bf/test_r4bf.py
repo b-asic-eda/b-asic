@@ -58,6 +58,8 @@ def test_r4bf_register_memory_simulate(tmp_path, arch_r4bf, pipeline_control):
     printer.print(arch, path=tmp_path, pipeline_control=pipeline_control)
     for memory in memories:
         code = (tmp_path / f"{memory.entity_name}.vhdl").read_text()
+        assert code.endswith(";\n")
+        assert not code.endswith("\n\n")
         assert "shift_reg_type" in code
         assert "schedule_cnt" not in code
         assert "ctrl_back_edge" in code
