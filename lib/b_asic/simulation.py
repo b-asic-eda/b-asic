@@ -7,12 +7,14 @@ Contains a class for simulating the result of an SFG given a set of input values
 from collections import defaultdict
 from collections.abc import Callable, Mapping, MutableMapping, MutableSequence, Sequence
 from numbers import Number
+from typing import NamedTuple
 
 import apytypes as apy
 import numpy as np
 
 from b_asic.data_type import DataType, NumRepresentation
-from b_asic.operation import MutableDelayMap, ResultKey
+from b_asic.operation import MutableDelayMap, Operation, ResultKey
+from b_asic.port import InputPort
 from b_asic.sfg import SFG
 from b_asic.special_operations import Delay
 from b_asic.types import Num
@@ -23,9 +25,20 @@ InputFunction = Callable[[int], Num]
 InputProvider = Num | Sequence[Num] | InputFunction
 
 
+class _EvaluationStep(NamedTuple):
+    key: ResultKey
+    operation: Operation
+    index: int
+    input_keys: tuple[ResultKey, ...]
+    prefix: str
+
+
 class Simulation:
     """
     Simulation of an SFG.
+
+    Build a topological evaluation order once, including nested SFGs, and reuse
+    it for each iteration. Delay states are updated after all outputs are computed.
 
     Use FastSimulation (from the C++ extension module) for a more effective
     simulation when running many iterations.
@@ -70,6 +83,83 @@ class Simulation:
         if input_providers is not None:
             self.set_inputs(input_providers)
         self._data_type = data_type
+        self._evaluation_order, self._delay_updates, self._result_aliases = (
+            self._build_evaluation_order()
+        )
+
+    def _build_evaluation_order(
+        self,
+    ) -> tuple[
+        list[_EvaluationStep], dict[ResultKey, ResultKey], dict[ResultKey, ResultKey]
+    ]:
+        """Use the flattened SFG's topological order for evaluation."""
+        graph = self._sfg()
+        aliases: dict[ResultKey, ResultKey] = {}
+        graphs = [(graph, "")]
+        operations = []
+
+        def source_key(port: InputPort, prefix: str) -> ResultKey:
+            source = port.connected_source
+            if source is None:
+                raise ValueError("Missing source in signal.")
+            return source.operation.key(
+                source.index, prefix + source.operation.graph_id
+            )
+
+        while graphs:
+            current_graph, prefix = graphs.pop()
+            for op in current_graph.operations:
+                key_base = prefix + op.graph_id
+                operations.append((op, key_base))
+                if isinstance(op, SFG):
+                    inner_prefix = key_base + "."
+                    graphs.append((op, inner_prefix))
+                    for port, input_op in zip(
+                        op.inputs, op.input_operations, strict=True
+                    ):
+                        aliases[input_op.key(0, inner_prefix + input_op.graph_id)] = (
+                            source_key(port, prefix)
+                        )
+                    for index, output in enumerate(op.output_operations):
+                        aliases[op.key(index, key_base)] = source_key(
+                            output.input(0), inner_prefix
+                        )
+
+        for output in graph.output_operations:
+            aliases[output.graph_id] = source_key(output.input(0), "")
+
+        # Keep hierarchical IDs unique when flattening removes SFG interfaces.
+        for op, key_base in operations:
+            op.graph_id = key_base
+        self._evaluation_sfg = graph.flatten()
+        ports = [
+            port
+            for op in self._evaluation_sfg.get_operations_topological_order()
+            for port in op.outputs
+        ]
+        steps = [
+            _EvaluationStep(
+                port.operation.key(port.index, port.operation.graph_id),
+                port.operation,
+                port.index,
+                ()
+                if isinstance(port.operation, Delay)
+                else tuple(
+                    source_key(input_port, "") for input_port in port.operation.inputs
+                ),
+                port.operation.graph_id,
+            )
+            for port in ports
+        ]
+        delay_updates = {
+            op.key(0, op.graph_id): source_key(op.input(0), "")
+            for op in self._evaluation_sfg.find_by_type(Delay)
+        }
+        for key, source in aliases.items():
+            while source in aliases:
+                source = aliases[source]
+            aliases[key] = source
+        return steps, delay_updates, aliases
 
     def set_input(self, index: int, input_provider: InputProvider) -> None:
         """
@@ -160,31 +250,9 @@ class Simulation:
         list[:data:`~b_asic.types.Num`]
             Output values of the last iteration, in SFG output order.
         """
-
-        def get_input_values_for_op(op) -> list[Num]:
-            input_vals = []
-            for in_port in op.inputs:
-                # Find the source port
-                sig = in_port.signals[0]
-                src_port = sig.source
-                src_op = src_port.operation
-
-                if src_op in self._sfg.input_operations:
-                    val = src_op.evaluate(self._data_type)
-                    input_vals.append(val)
-                else:
-                    src_key = src_op.key(src_port.index, src_op.graph_id)
-                    if src_key in results:
-                        input_vals.append(results[src_key])
-                    else:
-                        val = src_op.current_output(
-                            src_port.index, self._delays, src_op.graph_id
-                        )
-                        input_vals.append(val)
-            return input_vals
-
+        results: dict[ResultKey, Num] = {}
         while self._iteration < iteration:
-            results: dict[ResultKey, Num] = {}
+            results = {}
             # Fetch the input values for this iteration
             input_values = [
                 self._input_functions[i](self._iteration)
@@ -194,48 +262,37 @@ class Simulation:
             # Set the input operation outputs to the fetched input values
             for i, input_op in enumerate(self._sfg.input_operations):
                 input_op.value = input_values[i]
+                self._evaluation_sfg.input_operations[i].value = input_values[i]
 
-            # Evaluate the SFG for this iteration level-per-level using the precedence list
-            prec_list = self._sfg.get_precedence_list()
-            for level in prec_list:
-                for out_port in level:
-                    # If the operation is a Delay, handle it specially
-                    if isinstance(out_port.operation, Delay):
-                        val = out_port.operation.evaluate(
-                            None, self._data_type, self._delays
-                        )
-                        results[
-                            out_port.operation.key(0, out_port.operation.graph_id)
-                        ] = val
-                        continue
-
-                    # Build input values for the operation feeding this source
-                    input_vals = get_input_values_for_op(out_port.operation)
-
-                    # Evaluate the output port
-                    val = out_port.operation.evaluate_output(
-                        out_port.index,
+            for step in self._evaluation_order:
+                # Evaluating one output normally also populates the other outputs.
+                if step.key in results:
+                    continue
+                op = step.operation
+                input_vals = [results[key] for key in step.input_keys]
+                if isinstance(op, Delay):
+                    results[step.key] = op.evaluate(
+                        None,
+                        self._data_type,
+                        self._delays,
+                    )
+                else:
+                    results[step.key] = op.evaluate_output(
+                        step.index,
                         input_vals,
                         results,
                         self._delays,
-                        out_port.operation.graph_id,
+                        step.prefix,
                         data_type=self._data_type,
                     )
-                    results[
-                        out_port.operation.key(
-                            out_port.index, out_port.operation.graph_id
-                        )
-                    ] = val
 
-            # Update the value of the delay elements
-            for delay_op in self._sfg.find_by_type(Delay):
-                input_val = get_input_values_for_op(delay_op)[0]
-                self._delays[delay_op.key(0, delay_op.graph_id)] = input_val
-
-            # Update the output values
-            for output_op in self._sfg.output_operations:
-                val = get_input_values_for_op(output_op)[0]
-                results[output_op.graph_id] = val
+            # All delay inputs read this iteration's values before state advances.
+            self._delays.update(
+                {key: results[source] for key, source in self._delay_updates.items()}
+            )
+            results.update(
+                {key: results[source] for key, source in self._result_aliases.items()}
+            )
 
             if save_results:
                 for key, value in results.items():
