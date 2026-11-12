@@ -1294,6 +1294,50 @@ def test_rotate_backward(qtbot, precedence_sfg_delays):
     assert widget.statusbar.currentMessage() == "Scheduled rotated backward."
 
 
+@pytest.mark.parametrize("direction", ["forward", "backward"])
+def test_invalid_noncyclic_rotation_does_nothing(qtbot, monkeypatch, direction):
+    source = Input()
+    operation = ConstantMultiplication(2, source, latency=2)
+    schedule = Schedule(SFG([source], [Output(operation)]), schedule_time=2)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(schedule)
+    original_times = widget.schedule.start_times.copy()
+    original_laps = widget.schedule.laps.copy()
+    history_index = widget._history_index
+    original_message = widget.statusbar.currentMessage()
+    warnings = []
+    monkeypatch.setattr(
+        main_window.QMessageBox, "warning", lambda *args: warnings.append(args)
+    )
+
+    getattr(widget, f"_rotate_{direction}")()
+
+    assert not warnings
+    assert widget.schedule.start_times == original_times
+    assert widget.schedule.laps == original_laps
+    assert widget._history_index == history_index
+    assert widget.statusbar.currentMessage() == original_message
+
+
+def test_noncyclic_rotation_undo_redo(qtbot):
+    source = Input()
+    operation = ConstantMultiplication(2, source, latency=1)
+    schedule = Schedule(SFG([source], [Output(operation)]), schedule_time=5)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(schedule)
+    original_times = widget.schedule.start_times.copy()
+
+    widget.actionRotateForward.trigger()
+    rotated_times = widget.schedule.start_times.copy()
+    assert rotated_times != original_times
+    widget.actionUndo.trigger()
+    assert widget.schedule.start_times == original_times
+    widget.actionRedo.trigger()
+    assert widget.schedule.start_times == rotated_times
+
+
 def test_cyclic_operation_item_drawing_wraps_at_end(qtbot, precedence_sfg_delays):
     precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
     precedence_sfg_delays.set_latency_of_type_name(

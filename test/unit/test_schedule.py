@@ -993,17 +993,85 @@ class TestRescheduling:
             sfg.find_by_id("out0").input_signals[0].graph_id: 0,
         }
 
-    def test_rotate_noncyclic_schedule(self, precedence_sfg_delays):
-        precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
-        precedence_sfg_delays.set_latency_of_type_name(
-            ConstantMultiplication.type_name(), 3
-        )
+    def test_rotate_noncyclic_schedule(self):
+        source = Input()
+        operation = ConstantMultiplication(2, source, latency=2)
+        schedule = Schedule(SFG([source], [Output(operation)]), schedule_time=5)
+        original_times = schedule.start_times.copy()
+        original_laps = schedule.laps.copy()
 
-        schedule = Schedule(precedence_sfg_delays)
-        with pytest.raises(ValueError, match=r"Cannot rotate non-cyclic schedule."):
-            schedule.rotate_forward()
-        with pytest.raises(ValueError, match=r"Cannot rotate non-cyclic schedule."):
+        assert schedule.rotate_forward() is schedule
+        assert schedule.start_times == {
+            graph_id: time + 1 for graph_id, time in original_times.items()
+        }
+        schedule._validate()
+        assert schedule.rotate_backward() is schedule
+        assert schedule.start_times == original_times
+        assert schedule.laps == original_laps
+
+    @pytest.mark.parametrize("latency", [0, 1])
+    def test_rotate_noncyclic_schedule_stops_at_boundaries(self, latency):
+        source = Input()
+        operation = ConstantMultiplication(2, source, latency=latency, execution_time=1)
+        schedule = Schedule(SFG([source], [Output(operation)]), schedule_time=5)
+        original_times = schedule.start_times.copy()
+        original_laps = schedule.laps.copy()
+        steps = 5 - max(latency, 1)
+
+        with pytest.raises(ValueError, match="Cannot rotate non-cyclic schedule"):
             schedule.rotate_backward()
+        assert schedule.start_times == original_times
+        assert schedule.laps == original_laps
+        for _ in range(steps):
+            schedule.rotate_forward()
+        boundary_times = schedule.start_times.copy()
+        with pytest.raises(ValueError, match="Cannot rotate non-cyclic schedule"):
+            schedule.rotate_forward()
+        assert schedule.start_times == boundary_times
+        assert schedule.laps == original_laps
+        for _ in range(steps):
+            schedule.rotate_backward()
+        assert schedule.start_times == original_times
+        assert schedule.laps == original_laps
+
+    def test_noncyclic_rotation_rejects_execution_time_wrap(self):
+        source = Input()
+        operation = ConstantMultiplication(2, source, latency=1, execution_time=3)
+        schedule = Schedule(SFG([source], [Output(operation)]), schedule_time=5)
+        original_times = schedule.start_times.copy()
+        original_laps = schedule.laps.copy()
+
+        for _ in range(2):
+            schedule.rotate_forward()
+        original_times = schedule.start_times.copy()
+        with pytest.raises(ValueError, match="crosses the schedule boundary"):
+            schedule.rotate_forward()
+        assert schedule.start_times == original_times
+        assert schedule.laps == original_laps
+
+    @pytest.mark.parametrize("cyclic", [False, True])
+    @pytest.mark.parametrize("direction", ["forward", "backward"])
+    def test_rotate_zero_duration_schedule(self, cyclic, direction):
+        source = Input()
+        operation = ConstantMultiplication(2, source, latency=0)
+        schedule = Schedule(SFG([source], [Output(operation)]), cyclic=cyclic)
+        assert schedule.schedule_time == 0
+
+        with pytest.raises(ValueError, match="zero duration"):
+            getattr(schedule, f"rotate_{direction}")()
+
+    @pytest.mark.parametrize("direction", ["forward", "backward"])
+    def test_invalid_noncyclic_rotation_is_atomic(self, direction):
+        source = Input()
+        operation = ConstantMultiplication(2, source, latency=2)
+        schedule = Schedule(SFG([source], [Output(operation)]), schedule_time=2)
+        original_times = schedule.start_times.copy()
+        original_laps = schedule.laps.copy()
+
+        with pytest.raises(ValueError, match="Cannot rotate non-cyclic schedule"):
+            getattr(schedule, f"rotate_{direction}")()
+        assert schedule.start_times == original_times
+        assert schedule.laps == original_laps
 
 
 class TestTimeResolution:
