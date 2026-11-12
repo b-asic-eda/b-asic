@@ -327,7 +327,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if self.schedule is None:
             return
         if self._graph is not None:
-            self._schedule = self._schedule.rotate_forward()
+            try:
+                self._schedule = self._schedule.rotate_forward()
+            except ValueError:
+                return
             self._reopen_schedule()
             print("schedule.rotate_forward()")
             self.update_statusbar("Scheduled rotated forward.")
@@ -338,7 +341,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if self.schedule is None:
             return
         if self._graph is not None:
-            self._schedule = self._schedule.rotate_backward()
+            try:
+                self._schedule = self._schedule.rotate_backward()
+            except ValueError:
+                return
             self._reopen_schedule()
             print("schedule.rotate_backward()")
             self.update_statusbar("Scheduled rotated backward.")

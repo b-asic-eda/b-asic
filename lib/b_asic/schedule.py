@@ -1165,8 +1165,10 @@ class Schedule:
 
     def rotate_forward(self) -> "Schedule":
         """Rotate the schedule one cycle forward."""
+        if self._schedule_time <= 0:
+            raise ValueError("Cannot rotate a schedule with zero duration.")
         if not self._cyclic:
-            raise ValueError("Cannot rotate non-cyclic schedule.")
+            return self._rotate_noncyclic(forward=True)
 
         for graph_id, start_time in self._start_times.items():
             op = cast(Operation, self._sfg.find_by_id(graph_id))
@@ -1212,9 +1214,11 @@ class Schedule:
         return self
 
     def rotate_backward(self) -> "Schedule":
-        """Rotate the schedule one cycle backward."""
+        """Rotate one cycle backward, rejecting invalid non-cyclic results."""
+        if self._schedule_time <= 0:
+            raise ValueError("Cannot rotate a schedule with zero duration.")
         if not self._cyclic:
-            raise ValueError("Cannot rotate non-cyclic schedule.")
+            return self._rotate_noncyclic(forward=False)
 
         for graph_id, start_time in self._start_times.items():
             op = cast(Operation, self._sfg.find_by_id(graph_id))
@@ -1253,6 +1257,33 @@ class Schedule:
                     self._laps[input_signal.graph_id] -= 1
             else:
                 self._start_times[graph_id] = new_time
+        return self
+
+    def _rotate_noncyclic(self, *, forward: bool) -> "Schedule":
+        candidate = copy(self)
+        step = 1 if forward else -1
+        candidate._start_times = {
+            graph_id: start_time + step
+            for graph_id, start_time in self._start_times.items()
+        }
+        candidate._laps = self._laps.copy()
+        try:
+            if candidate._get_max_end_time(ignore_sinks=True) > self._schedule_time:
+                raise ValueError("An operation crosses the schedule boundary.")
+            for operation in candidate._sfg.operations:
+                if isinstance(operation, (Output, Sink, DontCare)):
+                    continue
+                if (
+                    operation.execution_time is not None
+                    and candidate._start_times[operation.graph_id]
+                    + operation.execution_time
+                    > self._schedule_time
+                ):
+                    raise ValueError("An operation crosses the schedule boundary.")
+            candidate._validate()
+        except ValueError as error:
+            raise ValueError(f"Cannot rotate non-cyclic schedule: {error}") from error
+        self._start_times.update(candidate._start_times)
         return self
 
     def _remove_delays_no_laps(self) -> None:
