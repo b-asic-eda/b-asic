@@ -32,7 +32,14 @@ from qtpy.QtCore import (
     Qt,
     Slot,
 )
-from qtpy.QtGui import QCloseEvent, QColor, QPalette, QTransform, QWheelEvent
+from qtpy.QtGui import (
+    QCloseEvent,
+    QColor,
+    QKeySequence,
+    QPalette,
+    QTransform,
+    QWheelEvent,
+)
 from qtpy.QtWidgets import (
     QAbstractButton,
     QAction,
@@ -128,6 +135,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self._schedule = None
         self._graph = None
+        self._history: list[Schedule] = []
+        self._history_index = -1
         self._selected_graph_id: GraphID | None = None
         self._scale = 75.0
         self._debug_rectangles = None
@@ -218,6 +227,12 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.actionToggle_full_screen.triggered.connect(self._toggle_fullscreen)
         self.actionUndo.setIcon(get_icon("undo"))
         self.actionRedo.setIcon(get_icon("redo"))
+        self.actionUndo.setShortcut(QKeySequence("Ctrl+Z"))
+        self.actionRedo.setShortcuts(
+            [QKeySequence("Ctrl+Shift+Z"), QKeySequence("Ctrl+Y")]
+        )
+        self.actionUndo.triggered.connect(self._undo)
+        self.actionRedo.triggered.connect(self._redo)
         self.splitter.splitterMoved.connect(self._splitter_moved)
         self.actionDocumentation.setShortcut("F1")
         self.actionDocumentation.triggered.connect(self._open_documentation)
@@ -303,6 +318,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
         if self._graph is not None:
             self._graph._redraw_from_start()
+            self._record_schedule_change()
             self.update_statusbar("Operations reordered based on start time")
 
     @Slot()
@@ -526,6 +542,9 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._graph = None
             del self._schedule
             self._schedule = None
+            self._history.clear()
+            self._history_index = -1
+            self._update_history_actions()
             self._selected_graph_id = None
             self.info_table_clear()
             self.update_statusbar("Closed schedule")
@@ -804,6 +823,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         """Take a Schedule and create a SchedulerItem object."""
         self.close_schedule()
         self._schedule = schedule.copy()
+        self._install_graph()
+        self._history = [self._schedule.copy()]
+        self._history_index = 0
+        self._update_history_actions()
+
+    def _install_graph(self) -> None:
+        assert self._schedule is not None
         self._graph = SchedulerItem(self._schedule)
         self._graph.setPos(1 / self._scale, 1 / self._scale)
         self.menu_close_schedule.setEnabled(True)
@@ -836,6 +862,70 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_view_port_accesses.setEnabled(True)
         self.action_view_io_latency.setEnabled(True)
         self.update_statusbar(self.tr("Schedule loaded successfully"))
+
+    @staticmethod
+    def _schedule_state(schedule: Schedule) -> tuple:
+        return (
+            schedule.schedule_time,
+            dict(schedule.start_times),
+            dict(schedule.laps),
+            dict(schedule._y_locations),
+            tuple(
+                (
+                    operation.graph_id,
+                    operation.execution_time,
+                    operation.latency_offsets,
+                    tuple(
+                        tuple(signal.graph_id for signal in port.signals)
+                        for port in operation.inputs
+                    ),
+                    tuple(
+                        tuple(signal.graph_id for signal in port.signals)
+                        for port in operation.outputs
+                    ),
+                )
+                for operation in schedule._sfg.operations
+            ),
+        )
+
+    def _update_history_actions(self) -> None:
+        self.actionUndo.setEnabled(self._history_index > 0)
+        self.actionRedo.setEnabled(0 <= self._history_index < len(self._history) - 1)
+
+    def _record_schedule_change(self) -> None:
+        if self._schedule is None or self._history_index < 0:
+            return
+        if self._schedule_state(self._schedule) == self._schedule_state(
+            self._history[self._history_index]
+        ):
+            return
+        del self._history[self._history_index + 1 :]
+        self._history.append(self._schedule.copy())
+        self._history_index += 1
+        self._update_history_actions()
+
+    def _restore_history(self, index: int) -> None:
+        if self._graph is None or not 0 <= index < len(self._history):
+            return
+        self._graph.removeSceneEventFilters(self._graph.event_items)
+        self._scene.removeItem(self._graph)
+        self._schedule = self._history[index].copy()
+        self._history_index = index
+        self._install_graph()
+        if self._selected_graph_id is not None:
+            self.info_table_update_component(self._selected_graph_id)
+        self._update_history_actions()
+        self._schedule_changed()
+
+    @Slot()
+    def _undo(self) -> None:
+        self._restore_history(self._history_index - 1)
+        self.update_statusbar(self.tr("Undo"))
+
+    @Slot()
+    def _redo(self) -> None:
+        self._restore_history(self._history_index + 1)
+        self.update_statusbar(self.tr("Redo"))
 
     def _redraw_all(self) -> None:
         cast(SchedulerItem, self._graph)._redraw_all()
@@ -924,6 +1014,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         schedule : :class:`~b_asic.schedule.Schedule`
             The Schedule to get information from.
         """
+        self.info_table_clear_schedule()
         self.info_table.insertRow(1)
         self.info_table.insertRow(1)
         self.info_table.setItem(1, 0, QTableWidgetItem("Schedule Time"))
@@ -1282,6 +1373,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     @Slot(str)
     def _schedule_changed(self, type_name: str | None = None) -> None:
+        self._record_schedule_change()
         if self._io_latency_window is not None and self.schedule is not None:
             self._update_io_latency_window()
         self._update_execution_times_for_variables()
