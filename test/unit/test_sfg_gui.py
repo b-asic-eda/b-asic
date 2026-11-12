@@ -1267,7 +1267,79 @@ def test_drag_reuses_remote_routes_and_finishes_with_full_routing(qtbot):
     assert [arrow.path() for arrow in arrows] == final
 
 
-def test_dragging_unconnected_obstacle_reroutes_intersecting_wire(qtbot):
+def test_routing_notifications_are_coalesced(qtbot, monkeypatch):
+    window, *_ = make_connected_window(qtbot)
+    qtbot.wait(30)
+    calls = []
+    sync = window._native.sync
+
+    def record_sync(*args, **kwargs):
+        calls.append(kwargs)
+        return sync(*args, **kwargs)
+
+    monkeypatch.setattr(window._native, "sync", record_sync)
+    for _ in range(20):
+        window._schedule_reroute_arrows()
+    assert calls == []
+    qtbot.waitUntil(lambda: bool(calls))
+    qtbot.wait(10)
+    assert calls == [{"incremental": True}]
+
+
+def test_queued_drag_sync_reads_only_changed_operations(qtbot, monkeypatch):
+    from b_asic.sfg_gui import native
+
+    window, source, *_ = make_connected_window(qtbot)
+    qtbot.wait(30)
+    button = window._drag_buttons[source]
+    arrow = next(iter(window._arrow_ports))
+    old_path = arrow.path()
+    reads = []
+    node_record = native._node_record
+
+    def record_node(changed):
+        reads.append(changed)
+        return node_record(changed)
+
+    monkeypatch.setattr(native, "_node_record", record_node)
+    button._m_drag = True
+    for _ in range(10):
+        button.graphicsProxyWidget().moveBy(0, 8)
+    assert reads == []
+    assert arrow.path() == old_path
+    qtbot.waitUntil(
+        lambda: arrow.path().pointAtPercent(0) == button.port_list[0].anchor()
+    )
+    qtbot.wait(10)
+    assert reads == [button]
+    button._m_drag = False
+    window._update()
+
+
+def test_explicit_routing_flushes_pending_geometry(qtbot):
+    window, source, *_ = make_connected_window(qtbot)
+    button = window._drag_buttons[source]
+    button.graphicsProxyWidget().moveBy(0, 32)
+    assert window._routing_timer.isActive()
+    window._reroute_arrows(force=True)
+    assert not window._routing_timer.isActive()
+    arrow = next(iter(window._arrow_ports))
+    assert arrow.path().pointAtPercent(0) == button.port_list[0].anchor()
+
+
+def test_clearing_workspace_cancels_pending_routing(qtbot):
+    window, source, *_ = make_connected_window(qtbot)
+    window._drag_buttons[source].graphicsProxyWidget().moveBy(0, 32)
+    assert window._routing_timer.isActive()
+    window._clear_workspace()
+    assert not window._routing_timer.isActive()
+    qtbot.wait(20)
+    assert window._native.engine.statistics()["nodes"] == 0
+    assert not window._native._dirty_nodes
+
+
+@pytest.mark.parametrize("queued", [False, True])
+def test_dragging_unconnected_obstacle_reroutes_intersecting_wire(qtbot, queued):
     from test.sfg_gui_helpers import route_is_clear
 
     window = SFGMainWindow()
@@ -1288,7 +1360,10 @@ def test_dragging_unconnected_obstacle_reroutes_intersecting_wire(qtbot):
     button = window._drag_buttons[obstacle]
     button._m_drag = True
     button.graphicsProxyWidget().setPos(200, -16)
-    window._update()
+    if queued:
+        qtbot.waitUntil(lambda: arrow.path() != before)
+    else:
+        window._update()
     path = arrow.path()
     assert path != before
     assert path.length() > 0
@@ -1489,6 +1564,42 @@ def test_unrelated_wires_have_no_junctions(qtbot):
         window._drag_buttons[branch].port_list[0],
     )
     assert window._junction_item.path().isEmpty()
+
+
+@pytest.mark.parametrize("vertical", [False, True])
+def test_crossing_gap_is_painted_without_changing_branch_geometry(qtbot, vertical):
+    from qtpy.QtCore import Qt
+    from qtpy.QtGui import QImage, QPainter, QPainterPath
+
+    window, *_ = make_connected_window(qtbot)
+    arrow = next(iter(window._arrow_ports))
+
+    def point(position):
+        return (
+            QtCore.QPointF(20, position) if vertical else QtCore.QPointF(position, 20)
+        )
+
+    path = QPainterPath(point(10))
+    path.lineTo(point(90))
+    arrow.setPath(path)
+    crossing = point(50)
+    arrow.set_crossings([(crossing.x(), crossing.y())])
+    assert arrow.path() == path
+    assert arrow.fraction_at(crossing) == 0.5
+    assert not arrow.shape().contains(crossing)
+    image = QImage(100, 100, QImage.Format_ARGB32)
+    image.fill(Qt.transparent)
+    painter = QPainter(image)
+    arrow.paint(painter, None)
+    painter.end()
+    assert image.pixelColor(point(40).toPoint()).alpha()
+    assert not image.pixelColor(crossing.toPoint()).alpha()
+    assert image.pixelColor(point(60).toPoint()).alpha()
+    arrow.set_crossings([])
+    painter = QPainter(image)
+    arrow.paint(painter, None)
+    painter.end()
+    assert image.pixelColor(crossing.toPoint()).alpha()
 
 
 @pytest.mark.parametrize(

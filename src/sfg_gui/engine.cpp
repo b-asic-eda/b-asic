@@ -170,13 +170,15 @@ void Engine::update(const std::vector<NodeRecord>& nodes, const std::vector<Port
 }
 RouteResult Engine::route(bool incremental, bool force) {
 	std::lock_guard<std::mutex> lock(mutex_);
+	crossing_updates_.clear();
 	if (!force && !topology_dirty_ && dirty_regions_.empty() && dirty_wires_.empty() && incremental == last_incremental_)
 		return {};
 	std::set<Id> dirty_sources;
 	bool full = force || !incremental || topology_dirty_;
 	for (const auto& [id, w] : wires_) {
+		auto path_bounds = bounds(w.path, grid_);
 		if (full || dirty_wires_.count(id) || w.path.empty() ||
-			std::any_of(dirty_regions_.begin(), dirty_regions_.end(), [&](auto r) { return intersects(bounds(w.path, grid_), r); }))
+			std::any_of(dirty_regions_.begin(), dirty_regions_.end(), [&](auto r) { return intersects(path_bounds, r); }))
 			dirty_sources.insert(w.source);
 	}
 	std::vector<Rect> boxes;
@@ -257,6 +259,45 @@ RouteResult Engine::route(bool incremental, bool force) {
 		result.second = Path(dots.begin(), dots.end());
 		last_junctions_ = std::move(dots);
 	}
+	// Sweep vertical segments through horizontal rows. Only unrelated nets
+	// receive crossing gaps; shared trunks keep their junction dots intact.
+	using Track = std::tuple<Id, Id, double, double>;
+	std::map<double, std::vector<Track>> horizontal;
+	for (const auto& [id, w] : wires_)
+		for (std::size_t i = 1; i < w.path.size(); ++i) {
+			auto a = w.path[i - 1], b = w.path[i];
+			if (a[1] == b[1] && a[0] != b[0])
+				horizontal[a[1]].emplace_back(id, w.source, std::min(a[0], b[0]), std::max(a[0], b[0]));
+		}
+	std::map<Id, Path> crossings;
+	std::map<Id, std::set<Point>> crossing_points;
+	for (const auto& [id, w] : wires_) {
+		for (std::size_t i = 1; i < w.path.size(); ++i) {
+			auto a = w.path[i - 1], b = w.path[i];
+			if (a[0] != b[0] || a[1] == b[1])
+				continue;
+			for (auto row = horizontal.lower_bound(std::min(a[1], b[1]));
+				 row != horizontal.end() && row->first <= std::max(a[1], b[1]); ++row)
+				for (const auto& [other, source, left, right] : row->second)
+					if (source != w.source && left <= a[0] && a[0] <= right) {
+						Point p{a[0], row->first};
+						// Keep actual branch dots and corners continuous. Break
+						// the other wire when the vertical net owns the junction.
+						bool vertical_junction = junctions_.count(w.source) && junctions_.at(w.source).count(p);
+						crossing_points[vertical_junction || p == a || p == b ? other : id].insert(p);
+					}
+		}
+	}
+	for (const auto& [id, points] : crossing_points)
+		crossings[id] = Path(points.begin(), points.end());
+	for (const auto& [id, w] : wires_) {
+		auto old = crossings_.find(id), next = crossings.find(id);
+		if (old == crossings_.end() && next == crossings.end())
+			continue;
+		if (old == crossings_.end() || next == crossings.end() || old->second != next->second)
+			crossing_updates_.emplace_back(id, next == crossings.end() ? Path{} : next->second);
+	}
+	crossings_ = std::move(crossings);
 	dirty_regions_.clear();
 	dirty_wires_.clear();
 	topology_dirty_ = false;
@@ -322,6 +363,7 @@ std::vector<LayoutUpdate> Engine::layout() {
 	auto initial = place(core_graph, core_sizes, core_delays, spacing_, grid_, core_heads);
 	auto angles = orient(core_graph, initial, core_sizes, core_delays, spacing_);
 	std::vector<std::pair<int, bool>> orientations(count, {0, false});
+	bool sizes_changed = false;
 	for (std::size_t i = 0; i < core.size(); ++i) {
 		auto n = core[i];
 		auto angle = nodes_.at(node_order_[n]).default_rotation;
@@ -330,11 +372,13 @@ std::vector<LayoutUpdate> Engine::layout() {
 		else if (angle)
 			angles[i] = {angle, false};
 		orientations[n] = angles[i];
-		if (angles[i].first % 180)
+		if (angles[i].first % 180) {
+			sizes_changed |= core_sizes[i][0] != core_sizes[i][1];
 			std::swap(core_sizes[i][0], core_sizes[i][1]);
+		}
 		sizes[n] = core_sizes[i];
 	}
-	auto placed_core = place(core_graph, core_sizes, core_delays, spacing_, grid_, core_heads);
+	auto placed_core = sizes_changed ? place(core_graph, core_sizes, core_delays, spacing_, grid_, core_heads) : std::move(initial);
 	std::vector<bool> placed(count);
 	double bottom = 3 * spacing_;
 	for (std::size_t i = 0; i < core.size(); ++i) {
@@ -478,6 +522,8 @@ void Engine::reset() {
 	dirty_wires_.clear();
 	junctions_.clear();
 	last_junctions_.clear();
+	crossings_.clear();
+	crossing_updates_.clear();
 	routed_ids_.clear();
 	routed_last_ = updated_last_ = 0;
 	topology_dirty_ = true;
@@ -504,5 +550,9 @@ Path Engine::wire_path(Id id) const {
 std::vector<Id> Engine::routed_ids() const {
 	std::lock_guard<std::mutex> lock(mutex_);
 	return routed_ids_;
+}
+std::vector<std::pair<Id, Path>> Engine::crossing_updates() const {
+	std::lock_guard<std::mutex> lock(mutex_);
+	return crossing_updates_;
 }
 } // namespace asic::gui

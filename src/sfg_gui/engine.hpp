@@ -91,6 +91,7 @@ public:
 	std::map<std::string, std::size_t> statistics() const;
 	Path wire_path(Id id) const;
 	std::vector<Id> routed_ids() const;
+	std::vector<std::pair<Id, Path>> crossing_updates() const;
 
 private:
 	double grid_, spacing_;
@@ -103,6 +104,8 @@ private:
 	std::set<Id> dirty_wires_;
 	std::map<Id, std::set<Point>> junctions_;
 	std::set<Point> last_junctions_;
+	std::map<Id, Path> crossings_;
+	std::vector<std::pair<Id, Path>> crossing_updates_;
 	bool topology_dirty_ = true, last_incremental_ = false;
 	std::size_t routed_last_ = 0, updated_last_ = 0;
 	std::vector<Id> routed_ids_;

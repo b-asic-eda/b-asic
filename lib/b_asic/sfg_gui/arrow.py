@@ -56,6 +56,8 @@ class Arrow(QGraphicsPathItem):
         self._window = window
         self.branch_parent = None
         self.branch_fraction = 0.0
+        self._crossings = []
+        self._paint_path = QPainterPath()
         self.setZValue(-1)
         self._source_port_button.moved.connect(self.update_arrow)
         self._destination_port_button.moved.connect(self.update_arrow)
@@ -156,7 +158,8 @@ class Arrow(QGraphicsPathItem):
         """Make thin signals easy to target when branching or deleting."""
         stroker = QPainterPathStroker()
         stroker.setWidth(12)
-        return stroker.createStroke(self.path())
+        stroker.setCapStyle(Qt.FlatCap)
+        return stroker.createStroke(self._paint_path)
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
@@ -223,7 +226,7 @@ class Arrow(QGraphicsPathItem):
 
     def update_arrow(self) -> None:
         """Request coordinated routing so connections reserve separate lanes."""
-        self._window._reroute_arrows()
+        self._window._schedule_reroute_arrows()
 
     def apply_route(self, points, blocked):
         """Paint a changed path returned by the persistent native engine."""
@@ -240,3 +243,53 @@ class Arrow(QGraphicsPathItem):
         )
         if path != self.path():
             self.setPath(path)
+            self._update_paint_path()
+
+    def set_crossings(self, points) -> None:
+        """Leave a visible gap under unrelated crossing wires."""
+        self._crossings = points
+        self._update_paint_path()
+        self.update()
+
+    def _update_paint_path(self) -> None:
+        # Keep the full logical path for branching and length. Crossing gaps
+        # also keep clicks on the upper wire from targeting the lower wire.
+        path = self.path()
+        if not self._crossings:
+            self._paint_path = QPainterPath(path)
+            return
+        painted = QPainterPath()
+        for i in range(1, path.elementCount()):
+            a, b = path.elementAt(i - 1), path.elementAt(i)
+            painted.moveTo(a.x, a.y)
+            if (a.x == b.x) != (a.y == b.y):
+                vertical = a.x == b.x
+                lane = a.x if vertical else a.y
+                low, high = sorted((a.y, b.y) if vertical else (a.x, b.x))
+                gaps = sorted(
+                    (max(low, position - 5), min(high, position + 5))
+                    for x, y in self._crossings
+                    for position, offset in [(y, x) if vertical else (x, y)]
+                    if offset == lane and low <= position <= high
+                )
+
+                def point(position, lane=lane, vertical=vertical):
+                    return (lane, position) if vertical else (position, lane)
+
+                cursor = low
+                painted.moveTo(*point(low))
+                for start, end in gaps:
+                    if start > cursor:
+                        painted.lineTo(*point(start))
+                    cursor = max(cursor, end)
+                    painted.moveTo(*point(cursor))
+                painted.lineTo(*point(high))
+            else:
+                painted.lineTo(b.x, b.y)
+        self._paint_path = painted
+
+    def paint(self, painter, option, widget=None) -> None:
+        """Distinguish unconnected crossings without obscuring branch dots."""
+        painter.setPen(self.pen())
+        painter.setBrush(Qt.NoBrush)
+        painter.drawPath(self._paint_path)

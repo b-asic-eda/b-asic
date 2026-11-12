@@ -1,9 +1,10 @@
 #include "engine.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
+#include <functional>
 #include <limits>
-#include <queue>
 
 namespace asic::gui {
 namespace {
@@ -66,75 +67,250 @@ Cost segment_cost(Point a, Point b, const Segments& occupied, const Segments& sh
 		reuse += overlap({a, b}, s);
 	return {congestion, distance - 0.75 * std::min(distance, reuse)};
 }
+// Index parallel wire lanes and cache the merged obstacle intervals on each
+// visibility row/column. Candidate routes and search reuse the same queries.
+class RouteGeometry {
+	const std::vector<Rect>& obstacles_;
+	double grid_;
+	std::array<std::map<double, Segments>, 2> occupied_, shared_;
+	std::array<std::map<double, std::vector<Point>>, 2> blocked_;
+
+public:
+	RouteGeometry(const std::vector<Rect>& obstacles, const Segments& occupied, const Segments& shared, double grid)
+		: obstacles_(obstacles), grid_(grid) {
+		auto index = [](const Segments& segments, auto& lanes) {
+			for (const auto& s : segments) {
+				if (s[0][0] != s[1][0] && s[0][1] != s[1][1])
+					continue;
+				int axis = s[0][1] == s[1][1] ? 0 : 1;
+				lanes[axis][s[0][1 - axis]].push_back(s);
+			}
+		};
+		index(occupied, occupied_);
+		index(shared, shared_);
+	}
+	bool blocked(Point a, Point b) {
+		int axis = a[1] == b[1] ? 0 : 1;
+		double lane = a[1 - axis];
+		auto& rows = blocked_[axis];
+		auto [it, inserted] = rows.try_emplace(lane);
+		if (inserted) {
+			auto& intervals = it->second;
+			for (auto r : obstacles_)
+				if (r[1 - axis] < lane && lane < r[3 - axis] && r[axis] < r[axis + 2])
+					intervals.push_back({r[axis], r[axis + 2]});
+			std::sort(intervals.begin(), intervals.end());
+			std::vector<Point> merged;
+			for (auto p : intervals) {
+				if (!merged.empty() && p[0] <= merged.back()[1])
+					merged.back()[1] = std::max(merged.back()[1], p[1]);
+				else
+					merged.push_back(p);
+			}
+			intervals = std::move(merged);
+		}
+		const auto& intervals = it->second;
+		double low = std::min(a[axis], b[axis]), high = std::max(a[axis], b[axis]);
+		auto hit = std::upper_bound(intervals.begin(), intervals.end(), low, [](double x, Point p) { return x < p[1]; });
+		return low < high && hit != intervals.end() && (*hit)[0] < high;
+	}
+	bool clear(const Path& path) {
+		for (std::size_t i = 1; i < path.size(); ++i)
+			if (blocked(path[i - 1], path[i]))
+				return false;
+		return !path.empty();
+	}
+	Cost cost(Point a, Point b) const {
+		int axis = a[1] == b[1] ? 0 : 1;
+		double lane = a[1 - axis], congestion = 0, reuse = 0, distance = length(a, b);
+		const auto& lanes = occupied_[axis];
+		for (auto it = lanes.upper_bound(lane - grid_); it != lanes.end() && it->first < lane + grid_; ++it)
+			for (const auto& s : it->second) {
+				auto c = s[0], d = s[1];
+				c[1 - axis] = d[1 - axis] = lane;
+				congestion += overlap({a, b}, {c, d}) * (1 - std::abs(lane - it->first) / grid_);
+			}
+		auto shared = shared_[axis].find(lane);
+		if (shared != shared_[axis].end())
+			for (const auto& s : shared->second)
+				reuse += overlap({a, b}, s);
+		return {congestion, distance - 0.75 * std::min(distance, reuse)};
+	}
+	Cost cost(const Path& path) const {
+		Cost result{0, path.size() > 2 ? bend_penalty * (path.size() - 2) : 0};
+		for (std::size_t i = 1; i < path.size(); ++i) {
+			auto c = cost(path[i - 1], path[i]);
+			result.first += c.first;
+			result.second += c.second;
+		}
+		return result;
+	}
+};
+// State and edge storage follows the expansion budget, never xs.size() *
+// ys.size(). Compact IDs address contiguous records; open addressing locates
+// the few visibility cells actually visited, without one allocation per state.
+constexpr std::size_t search_limit = 1024;
+using SearchId = std::uint32_t;
+constexpr SearchId no_search_id = std::numeric_limits<SearchId>::max();
+using SearchCell = std::array<std::size_t, 2>;
+using SearchEntry = std::tuple<Cost, std::size_t, SearchId>;
+
+struct SearchState {
+	Cost distance{std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
+	SearchId previous = no_search_id;
+	bool settled = false;
+};
+struct SearchEdge {
+	Cost cost{0, 0};
+	SearchId neighbor = no_search_id;
+	unsigned char status = 0; // Unknown, blocked, clear.
+};
+struct SearchCellRecord {
+	SearchCell coordinates;
+	std::array<SearchState, 3> states; // Origin, horizontal arrival, vertical arrival.
+	std::array<SearchEdge, 4> edges;
+};
+struct SearchWorkspace {
+	static constexpr std::size_t max_cells = 1 + 4 * search_limit;
+	static constexpr std::size_t slot_count = 16384;
+	static_assert(slot_count >= 2 * max_cells && (slot_count & (slot_count - 1)) == 0);
+	static_assert(3 * max_cells < no_search_id);
+	std::array<SearchId, slot_count> slots;
+	std::vector<SearchCellRecord> cells;
+	std::vector<SearchEntry> queue;
+	std::vector<double> xs, ys;
+
+	SearchWorkspace() {
+		// Each expansion discovers at most four neighbors. Reserving that
+		// bound also keeps cell references stable during neighbor insertion.
+		cells.reserve(max_cells);
+		queue.reserve(max_cells);
+	}
+	void reset() {
+		slots.fill(no_search_id);
+		cells.clear();
+		queue.clear();
+		xs.clear();
+		ys.clear();
+	}
+	SearchId cell(SearchCell coordinates) {
+		std::uint64_t hash = coordinates[0] * UINT64_C(0x9e3779b97f4a7c15) ^ coordinates[1] * UINT64_C(0xc2b2ae3d27d4eb4f);
+		hash ^= hash >> 32;
+		std::size_t slot = hash & (slots.size() - 1);
+		while (slots[slot] != no_search_id) {
+			if (cells[slots[slot]].coordinates == coordinates)
+				return slots[slot];
+			slot = (slot + 1) & (slots.size() - 1);
+		}
+		assert(cells.size() < max_cells);
+		auto id = static_cast<SearchId>(cells.size());
+		cells.push_back({coordinates, {}, {}});
+		slots[slot] = id;
+		return id;
+	}
+	void push(SearchEntry entry) {
+		queue.push_back(entry);
+		std::push_heap(queue.begin(), queue.end(), std::greater<SearchEntry>{});
+	}
+	SearchEntry pop() {
+		std::pop_heap(queue.begin(), queue.end(), std::greater<SearchEntry>{});
+		auto entry = queue.back();
+		queue.pop_back();
+		return entry;
+	}
+};
 // Build visibility coordinates lazily and cap expansion for interactive dragging.
-Path search(Point start, Point end, const std::vector<Rect>& obstacles, const Segments& occupied, const Segments& shared, double grid) {
-	std::set<double> xx{start[0], end[0]}, yy{start[1], end[1]};
+Path search(Point start, Point end, const std::vector<Rect>& obstacles, const Segments& occupied, const Segments& shared, double grid,
+			RouteGeometry& geometry) {
+	// Standalone bindings may run concurrently with the GIL released. Each
+	// thread reuses its own arena, with no shared mutable search state.
+	thread_local SearchWorkspace workspace;
+	workspace.reset();
+	auto& xs = workspace.xs;
+	auto& ys = workspace.ys;
+	xs.insert(xs.end(), {start[0], end[0]});
+	ys.insert(ys.end(), {start[1], end[1]});
 	for (const auto& r : obstacles) {
-		xx.insert(r[0]);
-		xx.insert(r[2]);
-		yy.insert(r[1]);
-		yy.insert(r[3]);
+		xs.insert(xs.end(), {r[0], r[2]});
+		ys.insert(ys.end(), {r[1], r[3]});
 	}
 	for (const auto& s : occupied)
 		for (auto p : s)
 			for (double offset : {-grid, 0.0, grid}) {
-				xx.insert(p[0] + offset);
-				yy.insert(p[1] + offset);
+				xs.push_back(p[0] + offset);
+				ys.push_back(p[1] + offset);
 			}
-	std::vector<double> xs(xx.begin(), xx.end()), ys(yy.begin(), yy.end());
-	using Cell = std::pair<std::size_t, std::size_t>;
-	Cell origin{std::lower_bound(xs.begin(), xs.end(), start[0]) - xs.begin(),
-				std::lower_bound(ys.begin(), ys.end(), start[1]) - ys.begin()};
-	Cell target{std::lower_bound(xs.begin(), xs.end(), end[0]) - xs.begin(), std::lower_bound(ys.begin(), ys.end(), end[1]) - ys.begin()};
+	for (auto coordinates : {&xs, &ys}) {
+		std::sort(coordinates->begin(), coordinates->end());
+		coordinates->erase(std::unique(coordinates->begin(), coordinates->end()), coordinates->end());
+	}
+	SearchCell origin{static_cast<std::size_t>(std::lower_bound(xs.begin(), xs.end(), start[0]) - xs.begin()),
+					  static_cast<std::size_t>(std::lower_bound(ys.begin(), ys.end(), start[1]) - ys.begin())};
+	SearchCell target{static_cast<std::size_t>(std::lower_bound(xs.begin(), xs.end(), end[0]) - xs.begin()),
+					  static_cast<std::size_t>(std::lower_bound(ys.begin(), ys.end(), end[1]) - ys.begin())};
 	// Reaching a cell horizontally or vertically can have different future bend
 	// costs. Keep both arrivals rather than discarding one based on length alone.
-	using State = std::pair<Cell, int>; // Incoming axis: 0 at origin, 1 horizontal, 2 vertical.
-	State initial{origin, 0};
-	using Entry = std::tuple<Cost, std::size_t, State>;
-	std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> queue;
+	SearchId initial = workspace.cell(origin) * 3;
 	std::size_t serial = 0;
-	queue.push({{0, 0}, serial++, initial});
-	std::map<State, Cost> distances{{initial, {0, 0}}};
-	std::map<State, State> previous;
-	std::set<State> settled;
-	std::map<Segment, Cost> cache;
+	workspace.push({{0, 0}, serial++, initial});
+	workspace.cells[initial / 3].states[initial % 3].distance = {0, 0};
+	std::size_t settled = 0;
 	// Allow two arrival axes for the previous budget of 512 visibility cells.
-	while (!queue.empty() && settled.size() < 1024) {
-		auto state = std::get<2>(queue.top());
-		auto node = state.first;
-		queue.pop();
-		if (!settled.insert(state).second)
+	while (!workspace.queue.empty() && settled < search_limit) {
+		auto state = std::get<2>(workspace.pop());
+		auto cell_id = state / 3;
+		auto& cell = workspace.cells[cell_id];
+		auto& record = cell.states[state % 3];
+		auto node = cell.coordinates;
+		if (record.settled)
 			continue;
+		record.settled = true;
+		++settled;
 		if (node == target) {
-			Path path{{xs[node.first], ys[node.second]}};
-			while (previous.count(state)) {
-				state = previous.at(state);
-				node = state.first;
-				path.push_back({xs[node.first], ys[node.second]});
+			Path path;
+			while (state != no_search_id) {
+				const auto& previous_cell = workspace.cells[state / 3];
+				auto coordinates = previous_cell.coordinates;
+				path.push_back({xs[coordinates[0]], ys[coordinates[1]]});
+				state = previous_cell.states[state % 3].previous;
 			}
 			std::reverse(path.begin(), path.end());
 			return simplify(path);
 		}
-		Point point{xs[node.first], ys[node.second]};
-		for (auto offset : {std::array<int, 2>{-1, 0}, {1, 0}, {0, 1}, {0, -1}}) {
-			auto i = static_cast<long>(node.first) + offset[0], j = static_cast<long>(node.second) + offset[1];
-			if (i < 0 || j < 0 || i >= static_cast<long>(xs.size()) || j >= static_cast<long>(ys.size()))
+		Point point{xs[node[0]], ys[node[1]]};
+		constexpr std::array<std::array<int, 2>, 4> offsets{{{-1, 0}, {1, 0}, {0, 1}, {0, -1}}};
+		for (std::size_t direction = 0; direction < offsets.size(); ++direction) {
+			auto offset = offsets[direction];
+			if ((offset[0] < 0 && node[0] == 0) || (offset[0] > 0 && node[0] + 1 == xs.size()) ||
+				(offset[1] < 0 && node[1] == 0) || (offset[1] > 0 && node[1] + 1 == ys.size()))
 				continue;
-			int axis = offset[0] ? 1 : 2;
-			State next{{static_cast<std::size_t>(i), static_cast<std::size_t>(j)}, axis};
+			auto i = node[0] + offset[0], j = node[1] + offset[1];
+			auto axis = offset[0] ? 1u : 2u;
+			auto& edge = cell.edges[direction];
+			if (edge.neighbor == no_search_id) {
+				edge.neighbor = workspace.cell({i, j});
+				workspace.cells[edge.neighbor].edges[direction ^ 1].neighbor = cell_id;
+			}
+			SearchId next = edge.neighbor * 3 + axis;
 			Point neighbor{xs[i], ys[j]};
-			if (blocked(point, neighbor, obstacles))
+			if (!edge.status) {
+				edge.status = geometry.blocked(point, neighbor) ? 1 : 2;
+				if (edge.status == 2)
+					edge.cost = geometry.cost(point, neighbor);
+				auto& reverse = workspace.cells[edge.neighbor].edges[direction ^ 1];
+				reverse.status = edge.status;
+				reverse.cost = edge.cost;
+			}
+			if (edge.status == 1)
 				continue;
-			Segment segment = point < neighbor ? Segment{point, neighbor} : Segment{neighbor, point};
-			if (!cache.count(segment))
-				cache[segment] = segment_cost(point, neighbor, occupied, shared, grid);
-			auto step = cache.at(segment), old = distances.at(state);
-			double turn = state.second && state.second != axis ? bend_penalty : 0;
+			auto step = edge.cost, old = record.distance;
+			double turn = state % 3 && state % 3 != axis ? bend_penalty : 0;
 			Cost cost{old.first + step.first, old.second + step.second + turn};
-			if (!distances.count(next) || cost < distances.at(next)) {
-				distances[next] = cost;
-				previous[next] = state;
-				queue.push({{cost.first, cost.second + length(neighbor, end) * (shared.empty() ? 1 : 0.25)}, serial++, next});
+			auto& next_record = workspace.cells[edge.neighbor].states[axis];
+			if (cost < next_record.distance) {
+				next_record.distance = cost;
+				next_record.previous = state;
+				workspace.push({{cost.first, cost.second + length(neighbor, end) * (shared.empty() ? 1 : 0.25)}, serial++, next});
 			}
 		}
 	}
@@ -204,6 +380,29 @@ Path orthogonal(Point start, Point end, const std::vector<Rect>& obstacles, cons
 	if (shared.empty() && (start[0] == end[0] || start[1] == end[1]) && !blocked(start, end, obstacles) &&
 		segment_cost(start, end, occupied, shared, grid).first == 0)
 		return {start, end};
+	Path best;
+	RouteGeometry geometry(obstacles, occupied, shared, grid);
+	Cost best_cost{std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
+	auto consider = [&](Path path) {
+		path = simplify(path);
+		if (!geometry.clear(path))
+			return;
+		auto c = geometry.cost(path);
+		if (c < best_cost) {
+			best = std::move(path);
+			best_cost = c;
+		}
+	};
+	// Resolve ordinary elbows and centered lanes before enumerating every
+	// obstacle coordinate. A clear shortest two-bend path cannot be improved
+	// once both one-bend possibilities have been scored (without trunk reuse).
+	consider({start, {end[0], start[1]}, end});
+	consider({start, {start[0], end[1]}, end});
+	consider({start, {(start[0] + end[0]) / 2, start[1]}, {(start[0] + end[0]) / 2, end[1]}, end});
+	consider({start, {start[0], (start[1] + end[1]) / 2}, {end[0], (start[1] + end[1]) / 2}, end});
+	if (shared.empty() && !best.empty() && best_cost.first == 0 && best_cost.second <= length(start, end) + 2 * bend_penalty)
+		return best;
+	// Collect global visibility coordinates only when the simple routes fail.
 	std::set<double> xs{(start[0] + end[0]) / 2, start[0], end[0]}, ys{(start[1] + end[1]) / 2, start[1], end[1]};
 	for (auto r : obstacles) {
 		xs.insert(r[0]);
@@ -225,18 +424,6 @@ Path orthogonal(Point start, Point end, const std::vector<Rect>& obstacles, cons
 			xs.insert(p[0]);
 			ys.insert(p[1]);
 		}
-	Path best;
-	Cost best_cost{std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
-	auto consider = [&](Path path) {
-		path = simplify(path);
-		if (!clear(path, obstacles))
-			return;
-		auto c = route_cost(path, occupied, shared, grid);
-		if (c < best_cost) {
-			best = std::move(path);
-			best_cost = c;
-		}
-	};
 	// Cheap straight/elbow/two-bend candidates resolve most wires without search.
 	for (auto x : xs)
 		consider({start, {x, start[1]}, {x, end[1]}, end});
@@ -244,8 +431,8 @@ Path orthogonal(Point start, Point end, const std::vector<Rect>& obstacles, cons
 		consider({start, {start[0], y}, {end[0], y}, end});
 	if (!best.empty() && best_cost.first == 0)
 		return best;
-	auto found = search(start, end, obstacles, occupied, shared, grid);
-	if (!found.empty() && (best.empty() || route_cost(found, occupied, shared, grid) < best_cost))
+	auto found = search(start, end, obstacles, occupied, shared, grid, geometry);
+	if (!found.empty() && (best.empty() || geometry.cost(found) < best_cost))
 		return found;
 	return best;
 }
