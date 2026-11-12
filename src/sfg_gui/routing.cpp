@@ -7,6 +7,8 @@
 
 namespace asic::gui {
 namespace {
+constexpr double bend_penalty = 20;
+
 double length(Point a, Point b) {
 	return std::abs(a[0] - b[0]) + std::abs(a[1] - b[1]);
 }
@@ -84,23 +86,30 @@ Path search(Point start, Point end, const std::vector<Rect>& obstacles, const Se
 	Cell origin{std::lower_bound(xs.begin(), xs.end(), start[0]) - xs.begin(),
 				std::lower_bound(ys.begin(), ys.end(), start[1]) - ys.begin()};
 	Cell target{std::lower_bound(xs.begin(), xs.end(), end[0]) - xs.begin(), std::lower_bound(ys.begin(), ys.end(), end[1]) - ys.begin()};
-	using Entry = std::tuple<Cost, std::size_t, Cell>;
+	// Reaching a cell horizontally or vertically can have different future bend
+	// costs. Keep both arrivals rather than discarding one based on length alone.
+	using State = std::pair<Cell, int>; // Incoming axis: 0 at origin, 1 horizontal, 2 vertical.
+	State initial{origin, 0};
+	using Entry = std::tuple<Cost, std::size_t, State>;
 	std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> queue;
 	std::size_t serial = 0;
-	queue.push({{0, 0}, serial++, origin});
-	std::map<Cell, Cost> distances{{origin, {0, 0}}};
-	std::map<Cell, Cell> previous;
-	std::set<Cell> settled;
+	queue.push({{0, 0}, serial++, initial});
+	std::map<State, Cost> distances{{initial, {0, 0}}};
+	std::map<State, State> previous;
+	std::set<State> settled;
 	std::map<Segment, Cost> cache;
-	while (!queue.empty() && settled.size() < 512) {
-		auto node = std::get<2>(queue.top());
+	// Allow two arrival axes for the previous budget of 512 visibility cells.
+	while (!queue.empty() && settled.size() < 1024) {
+		auto state = std::get<2>(queue.top());
+		auto node = state.first;
 		queue.pop();
-		if (!settled.insert(node).second)
+		if (!settled.insert(state).second)
 			continue;
 		if (node == target) {
 			Path path{{xs[node.first], ys[node.second]}};
-			while (previous.count(node)) {
-				node = previous.at(node);
+			while (previous.count(state)) {
+				state = previous.at(state);
+				node = state.first;
 				path.push_back({xs[node.first], ys[node.second]});
 			}
 			std::reverse(path.begin(), path.end());
@@ -111,18 +120,20 @@ Path search(Point start, Point end, const std::vector<Rect>& obstacles, const Se
 			auto i = static_cast<long>(node.first) + offset[0], j = static_cast<long>(node.second) + offset[1];
 			if (i < 0 || j < 0 || i >= static_cast<long>(xs.size()) || j >= static_cast<long>(ys.size()))
 				continue;
-			Cell next{static_cast<std::size_t>(i), static_cast<std::size_t>(j)};
+			int axis = offset[0] ? 1 : 2;
+			State next{{static_cast<std::size_t>(i), static_cast<std::size_t>(j)}, axis};
 			Point neighbor{xs[i], ys[j]};
 			if (blocked(point, neighbor, obstacles))
 				continue;
 			Segment segment = point < neighbor ? Segment{point, neighbor} : Segment{neighbor, point};
 			if (!cache.count(segment))
 				cache[segment] = segment_cost(point, neighbor, occupied, shared, grid);
-			auto step = cache.at(segment), old = distances.at(node);
-			Cost cost{old.first + step.first, old.second + step.second};
+			auto step = cache.at(segment), old = distances.at(state);
+			double turn = state.second && state.second != axis ? bend_penalty : 0;
+			Cost cost{old.first + step.first, old.second + step.second + turn};
 			if (!distances.count(next) || cost < distances.at(next)) {
 				distances[next] = cost;
-				previous[next] = node;
+				previous[next] = state;
 				queue.push({{cost.first, cost.second + length(neighbor, end) * (shared.empty() ? 1 : 0.25)}, serial++, next});
 			}
 		}
@@ -181,7 +192,7 @@ Cost route_cost(const Path& path, const Segments& occupied, const Segments& shar
 		result.second += c.second;
 	}
 	if (path.size() > 2)
-		result.second += 20 * (path.size() - 2);
+		result.second += bend_penalty * (path.size() - 2);
 	return result;
 }
 Path orthogonal(Point start, Point end, const std::vector<Rect>& obstacles, const Segments& occupied, const Segments& shared, double grid) {
