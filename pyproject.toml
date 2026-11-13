@@ -25,6 +25,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
   "numpy>=2",
+  "scipy>=1.9",
   "qtpy>=2",
   "graphviz>=0.21",
   "matplotlib>=3.11",
@@ -64,7 +65,7 @@ test = [
   "pytest-xvfb",
   "pytest-xdist",
 ]
-test_optional = ["scipy>=1.9", "cocotb>=2"]
+test_optional = ["cocotb>=2"]
 hdl = ["cocotb>=2"]
 doc = [
   "sphinx",

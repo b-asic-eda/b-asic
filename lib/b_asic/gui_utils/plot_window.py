@@ -22,6 +22,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from scipy.signal import freqz
 
 from b_asic._preferences import _with_default_plot_font
 from b_asic.gui_utils.icons import get_icon
@@ -32,6 +33,10 @@ from b_asic.types import Num
 class PlotWindow(QWidget):
     """
     Dialog for plotting the result of a simulation.
+
+    Time, frequency magnitude, and frequency phase can be selected independently
+    and are stacked vertically. Frequency plots use :func:`scipy.signal.freqz`
+    with each selected trace as the numerator coefficients.
 
     Parameters
     ----------
@@ -98,13 +103,17 @@ class PlotWindow(QWidget):
                 updated_result[key2 + "_re"] = np.real(result)
                 updated_result[key2 + "_im"] = np.imag(result)
                 updated_result[key2 + "_mag"] = np.absolute(result)
-                updated_result[key2 + "_ang"] = np.angle(result)
+                updated_result[key2 + "_ang"] = np.unwrap(np.angle(result))
                 n = n + 4
                 if m == 3:  # output
                     initially_checked.append(key2 + "_re")
                     initially_checked.append(key2 + "_im")
 
         key_order = list(dict(sorted(dict_to_sort.items(), reverse=True)).values())
+        self._results = {key: updated_result[key] for key in key_order}
+        self._selected_keys = set(initially_checked)
+        self._frequency_results = {}
+        self._lines = {}
 
         # Layout: ############################################
         # | list | icons |
@@ -127,13 +136,6 @@ class PlotWindow(QWidget):
         #    logger=logger, parent=self, width=5, height=4, dpi=100
         # )
         self._plot_fig = Figure(figsize=(5, 4), layout="compressed")
-        self._plot_axes = self._plot_fig.add_subplot(111)
-        self._plot_axes.xaxis.set_major_locator(MaxNLocator(integer=True))
-
-        self._lines = {}
-        for key in key_order:
-            line = self._plot_axes.plot(updated_result[key], label=key)
-            self._lines[key] = line[0]
 
         self._plot_canvas = FigureCanvas(self._plot_fig)
         self._toolbar = NavigationToolbar(self._plot_canvas, self)
@@ -168,11 +170,23 @@ class PlotWindow(QWidget):
         # self._checklist.setFixedWidth(150)
         listlayout.addWidget(self._checklist)
 
+        # Each plot can be enabled independently, in this vertical order.
+        self._subplot_checkboxes = {}
+        for name, label in (
+            ("time", "&Time"),
+            ("magnitude", "Frequency &magnitude"),
+            ("phase", "Frequency &phase"),
+        ):
+            checkbox = QCheckBox(label)
+            checkbox.setChecked(name == "time")
+            checkbox.stateChanged.connect(self._subplot_change)
+            self._subplot_checkboxes[name] = checkbox
+            listlayout.addWidget(checkbox)
+
         # Add additional checkboxes
-        self._legend = self._plot_axes.legend()
         self._legend_checkbox = QCheckBox("&Legend")
-        self._legend_checkbox.stateChanged.connect(self._legend_checkbox_change)
         self._legend_checkbox.setCheckState(Qt.CheckState.Checked)
+        self._legend_checkbox.stateChanged.connect(self._legend_checkbox_change)
         self._legend_checkbox.setIcon(get_icon("legend"))
         listlayout.addWidget(self._legend_checkbox)
         # self.ontop_checkbox = QCheckBox("&On top")
@@ -188,7 +202,7 @@ class PlotWindow(QWidget):
         button_close = QPushButton(get_icon("close"), "&Close", self)
         button_close.clicked.connect(self.close)
         listlayout.addWidget(button_close)
-        self._relim()
+        self._subplot_change()
 
         # Done. Tell the functions below to redraw the canvas when needed.
         # self.plotcanvas.draw()
@@ -196,11 +210,56 @@ class PlotWindow(QWidget):
 
     @_with_default_plot_font
     def _legend_checkbox_change(self, check_state) -> None:
-        self._legend.set(visible=(check_state == Qt.CheckState.Checked))
+        for legend in self._legends:
+            legend.set_visible(self._legend_checkbox.isChecked())
         if self._auto_redraw:
-            if check_state == Qt.CheckState.Checked:
-                self._legend = self._plot_axes.legend()
             self._plot_canvas.draw()
+
+    @_with_default_plot_font
+    def _subplot_change(self, check_state=None) -> None:
+        self._plot_fig.clear()
+        selected = [
+            name
+            for name, checkbox in self._subplot_checkboxes.items()
+            if checkbox.isChecked()
+        ]
+        self._axes = {}
+        self._lines = {key: {} for key in self._results}
+        for index, name in enumerate(selected, start=1):
+            axes = self._plot_fig.add_subplot(len(selected), 1, index)
+            self._axes[name] = axes
+            if name == "time":
+                axes.set_xlabel("Sample")
+                axes.set_ylabel("Value")
+                axes.xaxis.set_major_locator(MaxNLocator(integer=True))
+            else:
+                axes.set_xlabel("Normalized frequency (π rad/sample)")
+                axes.set_ylabel("Magnitude" if name == "magnitude" else "Phase (rad)")
+            for key, result in self._results.items():
+                if name == "time":
+                    (line,) = axes.plot(result, label=key)
+                else:
+                    if key not in self._frequency_results:
+                        # Empty simulation traces have no frequency response.
+                        self._frequency_results[key] = (
+                            freqz(result)
+                            if len(result)
+                            else (np.array([]), np.array([]))
+                        )
+                    frequency, response = self._frequency_results[key]
+                    values = (
+                        np.abs(response)
+                        if name == "magnitude"
+                        else np.unwrap(np.angle(response))
+                    )
+                    (line,) = axes.plot(frequency / np.pi, values, label=key)
+                self._lines[key][name] = line
+                if key not in self._selected_keys:
+                    line.remove()
+        self._plot_axes = self._axes.get("time")
+        self._toolbar.update()
+        self._update_legend()
+        self._relim()
 
     def _button_all_click(self, event) -> None:
         self._auto_redraw = False
@@ -211,7 +270,12 @@ class PlotWindow(QWidget):
 
     @_with_default_plot_font
     def _update_legend(self) -> None:
-        self._legend = self._plot_axes.legend()
+        self._legends = []
+        for axes in self._axes.values():
+            legend = axes.legend() if axes.lines else axes.legend([], [])
+            legend.set_visible(self._legend_checkbox.isChecked())
+            self._legends.append(legend)
+        self._legend = self._legends[0] if self._legends else None
         self._plot_canvas.draw()
 
     def _button_none_click(self, event) -> None:
@@ -224,17 +288,24 @@ class PlotWindow(QWidget):
     def _item_change(self, listitem) -> None:
         key = listitem.text()
         if listitem.checkState() == Qt.CheckState.Checked:
-            self._plot_axes.add_line(self._lines[key])
+            self._selected_keys.add(key)
         else:
-            self._lines[key].remove()
+            self._selected_keys.discard(key)
+        for name, line in self._lines.get(key, {}).items():
+            if key in self._selected_keys:
+                if line.axes is None:
+                    self._axes[name].add_line(line)
+            elif line.axes is not None:
+                line.remove()
         if self._auto_redraw:
             self._update_legend()
 
     def _relim(self, event=None) -> None:
-        self._plot_axes.relim(True)
-        self._plot_axes.autoscale(True)
-        self._plot_axes.autoscale(axis="x", tight=True)
-        self._plot_axes.autoscale(axis="y")
+        for axes in self._axes.values():
+            axes.relim(True)
+            axes.autoscale(True)
+            axes.autoscale(axis="x", tight=True)
+            axes.autoscale(axis="y")
         self._plot_canvas.draw()
 
 
