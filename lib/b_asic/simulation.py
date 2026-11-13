@@ -43,6 +43,14 @@ class Simulation:
     Use FastSimulation (from the C++ extension module) for a more effective
     simulation when running many iterations.
 
+    Graphs containing Expansion or Compression are normalized on an internal
+    copy. One iteration processes one common period, consuming
+    ``input_samples_per_iteration`` samples per input and producing
+    ``output_samples_per_iteration`` samples per output. Input callables receive
+    their local sample index. Saved traces contain consecutive samples at each
+    signal's own rate. Run methods return the last sample of each output in the
+    last period. Finite input arrays must contain whole periods of equal duration.
+
     Parameters
     ----------
     sfg : :class:`~b_asic.sfg.SFG`
@@ -80,9 +88,38 @@ class Simulation:
         self._iteration = 0
         self._input_functions = [lambda _: 0 for _ in range(self._sfg.input_count)]
         self._input_length = None
+        self._data_type = data_type
+        self._rate_normalization = (
+            self._sfg.to_single_rate() if self._sfg.is_multirate else None
+        )
+        self._input_samples = (
+            self._rate_normalization.input_samples
+            if self._rate_normalization is not None
+            else (1,) * self._sfg.input_count
+        )
+        self._output_samples = (
+            self._rate_normalization.output_samples
+            if self._rate_normalization is not None
+            else (1,) * self._sfg.output_count
+        )
+        self._rate_simulation: Simulation | None = None
         if input_providers is not None:
             self.set_inputs(input_providers)
-        self._data_type = data_type
+        if self._rate_normalization is not None:
+            self._rate_simulation = Simulation(
+                self._rate_normalization.sfg, data_type=data_type
+            )
+            for index, (original, phase) in enumerate(
+                self._rate_normalization.input_phases
+            ):
+                count = self._input_samples[original]
+                self._rate_simulation.set_input(
+                    index,
+                    lambda n, original=original, phase=phase, count=count: (
+                        self._input_functions[original](n * count + phase)
+                    ),
+                )
+            return
         self._evaluation_order, self._delay_updates, self._result_aliases = (
             self._build_evaluation_order()
         )
@@ -183,12 +220,19 @@ class Simulation:
         elif isinstance(input_provider, Number):
             self._input_functions[index] = lambda _: input_provider
         else:
+            count = self._input_samples[index]
+            length, remainder = divmod(len(input_provider), count)
+            if remainder:
+                raise ValueError(
+                    "Input arrays must contain whole simulation periods "
+                    f"({count} samples per iteration for input {index})."
+                )
             if self._input_length is None:
-                self._input_length = len(input_provider)
-            elif self._input_length != len(input_provider):
+                self._input_length = length
+            elif self._input_length != length:
                 raise ValueError(
                     "Inconsistent input length for simulation (was"
-                    f" {self._input_length}, got {len(input_provider)})"
+                    f" {self._input_length} iterations, got {length})"
                 )
             self._input_functions[index] = lambda n: input_provider[n]
 
@@ -250,6 +294,8 @@ class Simulation:
         list[:data:`~b_asic.types.Num`]
             Output values of the last iteration, in SFG output order.
         """
+        if self._rate_simulation is not None:
+            return self._run_multirate_until(iteration, save_results)
         results: dict[ResultKey, Num] = {}
         while self._iteration < iteration:
             results = {}
@@ -301,6 +347,29 @@ class Simulation:
 
         return [results[op.graph_id] for op in self._sfg.output_operations]
 
+    def _run_multirate_until(self, iteration: int, save_results: bool) -> Sequence[Num]:
+        """Pack phase inputs and reconstruct native-rate traces for each period."""
+        simulation = self._rate_simulation
+        normalization = self._rate_normalization
+        assert simulation is not None
+        assert normalization is not None
+        outputs = []
+        while self._iteration < iteration:
+            values = simulation.step(save_results)
+            if save_results:
+                for key, phases in normalization.result_phases.items():
+                    self._results[key].extend(
+                        simulation._results[phase][0] for phase in phases
+                    )
+                simulation.clear_results()
+            offset = 0
+            outputs = []
+            for count in self._output_samples:
+                outputs.append(values[offset + count - 1])
+                offset += count
+            self._iteration += 1
+        return outputs
+
     def run_for(self, iterations: int, save_results: bool = True) -> Sequence[Num]:
         """
         Run a given number of iterations of the simulation.
@@ -345,6 +414,16 @@ class Simulation:
     def iteration(self) -> int:
         """Get the current iteration number of the simulation."""
         return self._iteration
+
+    @property
+    def input_samples_per_iteration(self) -> tuple[int, ...]:
+        """Get the number of samples consumed per original input in one period."""
+        return self._input_samples
+
+    @property
+    def output_samples_per_iteration(self) -> tuple[int, ...]:
+        """Get the number of samples produced per original output in one period."""
+        return self._output_samples
 
     @property
     def results(self) -> ResultArrayMap:
@@ -402,6 +481,8 @@ class Simulation:
         Clear all current state of the simulation, except for the results and iteration.
         """
         self._delays.clear()
+        if self._rate_simulation is not None:
+            self._rate_simulation.clear_state()
 
     @property
     def sfg(self) -> SFG:

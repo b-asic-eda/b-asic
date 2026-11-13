@@ -20,6 +20,7 @@ from b_asic.fft_operations import *
 from b_asic.graph_component import *
 from b_asic.list_schedulers import *
 from b_asic.logger import *
+from b_asic.multirate import *
 from b_asic.operation import *
 from b_asic.port import *
 from b_asic.process import *

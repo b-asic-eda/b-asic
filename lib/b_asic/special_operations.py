@@ -257,3 +257,130 @@ class Delay(AbstractOperation):
             value = source.operation.value
             return _simplified_sfg(self, lambda inputs: Constant(value))
         return None
+
+
+class _RateChange(AbstractOperation):
+    """Base for symbolic operations that change the number of samples."""
+
+    is_linear = True
+    is_constant = False
+
+    def __init__(
+        self,
+        factor: int = 2,
+        in0: SignalSourceProvider | None = None,
+        name: Name = "",
+        *,
+        phase: int = 0,
+    ) -> None:
+        if not isinstance(factor, int) or isinstance(factor, bool):
+            raise TypeError("factor must be an integer")
+        if factor < 1:
+            raise ValueError("factor must be positive")
+        if not isinstance(phase, int) or isinstance(phase, bool):
+            raise TypeError("phase must be an integer")
+        if not 0 <= phase < factor:
+            raise ValueError("phase must satisfy 0 <= phase < factor")
+        super().__init__(
+            input_count=1,
+            output_count=1,
+            input_sources=[in0],
+            name=name,
+            latency=0,
+            execution_time=0,
+        )
+        self.set_param("factor", factor)
+        self.set_param("phase", phase)
+
+    @property
+    def factor(self) -> int:
+        """Get the integer sample-rate conversion factor."""
+        return self.param("factor")
+
+    @property
+    def phase(self) -> int:
+        """Get the retained or nonzero phase."""
+        return self.param("phase")
+
+    def _expr(self, recursive: bool = False) -> str:
+        source = self._get_input_representations(recursive)[0]
+        return f"{type(self).__name__}({self.factor}, {source}, phase={self.phase})"
+
+    def evaluate(self, *inputs, data_type=None):
+        raise ValueError(
+            "Rate-changing operations require stream evaluation. "
+            "Use Simulation or SFG.to_single_rate()."
+        )
+
+    def split(self):
+        return [self]
+
+    def to_sfg(self) -> "SFG":
+        from b_asic.sfg import SFG  # noqa: PLC0415
+
+        source = Input()
+        operation = self.copy()
+        operation.input(0).connect(source)
+        return SFG(source, Output(operation))
+
+    def _constant_propagation(self) -> "SFG | None":
+        # In particular, expanding a nonzero constant does not produce a
+        # constant stream. Simplify after the phases have been made explicit.
+        return None
+
+
+class Expansion(_RateChange):
+    r"""
+    Increase the sample rate by an integer *factor* using zero insertion.
+
+    The output is ``y[factor * n + phase] = x[n]``; all other samples are zero.
+    Filtering, when needed, is represented by separate operations.
+
+    Parameters
+    ----------
+    factor : int, default: 2
+        Positive integer expansion factor.
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        Input stream.
+    name : :data:`~b_asic.types.Name`, optional
+        Operation name.
+    phase : int, default: 0
+        Nonzero phase, in the range ``0 <= phase < factor``.
+
+    Notes
+    -----
+    Simulate graphs containing this operation with :class:`~b_asic.simulation.Simulation`.
+    Use :meth:`~b_asic.sfg.SFG.to_single_rate` before scheduling.
+    """
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("expand")
+
+
+class Compression(_RateChange):
+    r"""
+    Reduce the sample rate by retaining every *factor*:th sample.
+
+    The output is ``y[n] = x[factor * n + phase]``.
+
+    Parameters
+    ----------
+    factor : int, default: 2
+        Positive integer compression factor.
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        Input stream.
+    name : :data:`~b_asic.types.Name`, optional
+        Operation name.
+    phase : int, default: 0
+        Retained phase, in the range ``0 <= phase < factor``.
+
+    Notes
+    -----
+    Simulate graphs containing this operation with :class:`~b_asic.simulation.Simulation`.
+    Use :meth:`~b_asic.sfg.SFG.to_single_rate` before scheduling.
+    """
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("compress")
