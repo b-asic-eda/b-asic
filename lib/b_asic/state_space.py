@@ -80,6 +80,11 @@ class StateSpace:
         """
         from b_asic.special_operations import Delay  # noqa: PLC0415
 
+        if sfg.is_multirate:
+            raise ValueError(
+                "State-space representation requires a single-rate graph. "
+                "Use sfg.to_single_rate().sfg."
+            )
         if not sfg.is_linear:
             raise ValueError(
                 "SFG must be linear to generate state-space representation"

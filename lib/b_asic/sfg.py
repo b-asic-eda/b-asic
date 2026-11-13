@@ -39,11 +39,12 @@ from b_asic.operation import (
 )
 from b_asic.port import InputPort, OutputPort, Port, SignalSourceProvider
 from b_asic.signal import Signal
-from b_asic.special_operations import Delay, Input, Output
+from b_asic.special_operations import Compression, Delay, Expansion, Input, Output
 from b_asic.state_space import StateSpace
 from b_asic.types import GraphID, GraphIDNumber, LoopElement, Name, Num, TypeName
 
 if TYPE_CHECKING:
+    from b_asic.multirate import RateNormalization
     from b_asic.simulation import Simulation
 
 DelayQueue = list[tuple[str, ResultKey, OutputPort]]
@@ -541,6 +542,34 @@ class SFG(AbstractOperation):
 
     def to_sfg(self) -> "SFG":
         return self
+
+    @property
+    def is_multirate(self) -> bool:
+        """Whether this graph or a nested graph contains rate-changing operations."""
+        return any(
+            isinstance(op, Expansion | Compression)
+            or (isinstance(op, SFG) and op.is_multirate)
+            for op in self.operations
+        )
+
+    def to_single_rate(self) -> "RateNormalization":
+        """
+        Normalize rate changes into phase connections over one common period.
+
+        Return a :class:`~b_asic.multirate.RateNormalization` containing an
+        independent single-rate SFG and input, output, and intermediate-result
+        phase mappings. Each input or output is represented by one scalar port
+        per sample in the period, ordered by original port, then phase.
+
+        Expansion becomes wiring and zero constants; compression selects phases
+        and terminates unused results with Sinks. Operations are replicated at
+        their local sample rates, including delay state updates. No arithmetic
+        simplification or noble rewrites are applied. Constants may feed several
+        rate domains. Inconsistent rates at reconvergent branches raise ValueError.
+        """
+        from b_asic.multirate import normalize_rates  # noqa: PLC0415
+
+        return normalize_rates(self)
 
     def flatten(self, expand: bool = False) -> "SFG":
         """
@@ -3379,6 +3408,10 @@ class SFG(AbstractOperation):
         """
         if factor == 0:
             raise ValueError("Unfolding 0 times removes the SFG")
+        if self.is_multirate:
+            raise ValueError(
+                "Unfolding requires a single-rate graph. Use sfg.to_single_rate().sfg."
+            )
 
         sfg = self()  # copy the sfg
 

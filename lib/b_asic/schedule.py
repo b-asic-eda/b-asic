@@ -114,6 +114,11 @@ class Schedule:
         """Construct a Schedule from an SFG."""
         if not isinstance(sfg, SFG):
             raise TypeError("An SFG must be provided")
+        if sfg.is_multirate:
+            raise ValueError(
+                "Rate-changing operations must be normalized before scheduling. "
+                "Use sfg.to_single_rate().sfg."
+            )
 
         self._sfg = sfg
         self._start_times = {}
