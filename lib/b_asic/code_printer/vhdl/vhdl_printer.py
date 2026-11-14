@@ -20,7 +20,7 @@ from b_asic.code_printer.vhdl import (
 from b_asic.code_printer.vhdl.util import signed_type
 from b_asic.data_type import DataType, NumRepresentation, _VhdlDataType
 from b_asic.quantization import OverflowMode, QuantizationMode
-from b_asic.special_operations import Output
+from b_asic.special_operations import MemoryRead, MemoryWrite, Output
 
 if TYPE_CHECKING:
     from b_asic.architecture import Architecture, Memory, ProcessingElement
@@ -131,6 +131,21 @@ class VhdlPrinter(Printer):
                 Use ``std_logic_vector`` data instead of ``signed``/``unsigned``.
             **pipeline_mem_control** : :class:`bool`, default ``False``
                 Register memory control signals after generation.
+
+        **External memory I/O**
+
+            :class:`~b_asic.special_operations.MemoryRead` and
+            :class:`~b_asic.special_operations.MemoryWrite` generate one interface
+            per memory name used by a PE. Names are sorted and numbered from zero;
+            the generated PE comments record the mapping. Each interface has
+            ``<pe>_memory_<index>_address`` and ``<pe>_memory_<index>_enable``
+            outputs, and data ports following the normal I/O naming convention.
+            Address widths use the largest address on that interface, with a
+            minimum of one bit. Enables are low during reset, disabled cycles,
+            and cycles without an access. Read requests occur at operation start;
+            data is expected at start plus read latency. The latency belongs to
+            the external memory; no additional PE or top-level I/O registers are
+            inserted in these interfaces.
 
         **Memories (register-based)**
 
@@ -454,11 +469,16 @@ class VhdlPrinter(Printer):
                     break
 
         if split is None:
+            if issubclass(pe.operation_type, (MemoryRead, MemoryWrite)):
+                # The read latency belongs to the external memory, not PE registers.
+                return (0, 0)
             # Default to latency-based register insertion
             latency = pe._latency
             return (latency - 1, 1) if latency > 0 else (0, 0)
 
         n_in, n_out = split
+        if issubclass(pe.operation_type, (MemoryRead, MemoryWrite)) and split != (0, 0):
+            raise ValueError("External memory interfaces do not support PE registers")
         # Sanity check the provided split values
         if (
             not isinstance(n_in, int)
@@ -594,6 +614,14 @@ class VhdlPrinter(Printer):
         common.write(code, 1, "p_0_out_im <= std_logic_vector(res_overflow_0.im);")
         wls = [(self._dt.wl[0], self._dt.wl[1])]
         return wls, (declarations.getvalue(), code.getvalue())
+
+    def print_MemoryRead(self, pe: "ProcessingElement") -> tuple[WLS, CODE]:
+        suffix = f"{self.num_repr()}_{'complex' if self.is_complex else 'real'}"
+        return getattr(self, f"print_Input_{suffix}")(pe)
+
+    def print_MemoryWrite(self, pe: "ProcessingElement") -> tuple[WLS, CODE]:
+        suffix = f"{self.num_repr()}_{'complex' if self.is_complex else 'real'}"
+        return getattr(self, f"print_Output_{suffix}")(pe)
 
     def print_DontCare(self, pe: "ProcessingElement") -> tuple[str, str]:
         declarations, code = io.StringIO(), io.StringIO()
