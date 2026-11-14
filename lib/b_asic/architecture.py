@@ -560,6 +560,11 @@ class ProcessingElement(Resource):
 
     @property
     def control_table(self) -> dict[str, ControlTable]:
+        from b_asic.special_operations import MemoryRead, MemoryWrite  # noqa: PLC0415
+
+        if issubclass(self.operation_type, (MemoryRead, MemoryWrite)):
+            # Addresses are external interface controls; memory names are metadata.
+            return {}
         # Loop through all params and set these values
         control_table = {}
         params = cast(OperatorProcess, self.collection.collection[0]).operation.params
@@ -644,6 +649,8 @@ class ProcessingElement(Resource):
     def write_component_declaration(
         self, f: TextIO, dt: _VhdlDataType, indent: int = 1, control_ports=()
     ) -> None:
+        from b_asic.code_printer.vhdl import memory_io  # noqa: PLC0415
+
         ports = [
             "clk : in std_logic",
             "en : in std_logic",
@@ -661,6 +668,8 @@ class ProcessingElement(Resource):
         ]
         if self.operation_type == Output:
             ports.extend(dt.get_output_port_declaration("p"))
+
+        ports.extend(memory_io.ports(self, dt, "p"))
 
         common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
         common.blank(f)
@@ -697,6 +706,8 @@ class ProcessingElement(Resource):
         output_register: bool = False,
         control_ports=(),
     ) -> None:
+        from b_asic.code_printer.vhdl import memory_io  # noqa: PLC0415
+
         port_mappings = [
             "clk => clk",
             f"en => {en_sig}",
@@ -722,6 +733,8 @@ class ProcessingElement(Resource):
             port_mappings.extend(
                 dt.get_output_port_mapping(self.entity_name, signal_suffix)
             )
+
+        port_mappings.extend(memory_io.port_mappings(self, dt))
 
         common.component_instantiation(
             f,
@@ -1192,6 +1205,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
     def write_component_declaration(
         self, f: TextIO, dt: _VhdlDataType, indent: int = 1
     ) -> None:
+        from b_asic.code_printer.vhdl import memory_io  # noqa: PLC0415
+
         ports = ["clk : in std_logic", "rst : in std_logic", "en : in std_logic"]
 
         inputs = [pe for pe in self.processing_elements if pe.operation_type == Input]
@@ -1201,6 +1216,9 @@ of :class:`~b_asic.architecture.ProcessingElement`
         outputs = [pe for pe in self.processing_elements if pe.operation_type == Output]
         for pe in outputs:
             ports.extend(dt.get_output_port_declaration(pe.entity_name))
+
+        for pe in self.processing_elements:
+            ports.extend(memory_io.ports(pe, dt, pe.entity_name))
 
         common.component_declaration(f, self.entity_name, ports=ports, indent=indent)
 
@@ -1222,6 +1240,8 @@ of :class:`~b_asic.architecture.ProcessingElement`
     def write_component_instantiation(
         self, f: TextIO, dt: _VhdlDataType, indent: int = 1, enable_pin: bool = True
     ) -> None:
+        from b_asic.code_printer.vhdl import memory_io  # noqa: PLC0415
+
         port_mappings = ["clk => tb_clk", "rst => tb_rst"]
         if enable_pin:
             port_mappings.append("en => tb_en")
@@ -1251,6 +1271,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 port_mappings.append(
                     f"{pe.entity_name}_0_out => tb_{pe.entity_name}_0_out"
                 )
+        for pe in self.processing_elements:
+            for port in memory_io.ports(pe, dt, pe.entity_name):
+                name = port.split(":")[0].strip()
+                port_mappings.append(f"{name} => tb_{name}")
         common.component_instantiation(
             f,
             f"{self.entity_name}_inst",

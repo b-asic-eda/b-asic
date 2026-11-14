@@ -4,7 +4,7 @@ Module for VHDL code generation of test benches.
 
 from typing import TYPE_CHECKING, TextIO
 
-from b_asic.code_printer.vhdl import common
+from b_asic.code_printer.vhdl import common, memory_io
 from b_asic.data_type import _VhdlDataType
 from b_asic.special_operations import Input, Output
 
@@ -83,6 +83,12 @@ def _write_signal_generation(
                 dt.input_type_str,
                 "(others => '0')",
             )
+    for pe in arch.processing_elements:
+        for port in memory_io.ports(pe, dt, pe.entity_name):
+            name, direction_type = port.split(":", maxsplit=1)
+            signal_type = direction_type.strip().split(maxsplit=1)[1]
+            initial = "'0'" if signal_type == "std_logic" else "(others => '0')"
+            common.signal_declaration(f, f"tb_{name.strip()}", signal_type, initial)
 
 
 def _write_clock_generation(f: TextIO) -> None:

@@ -5,7 +5,7 @@ Module for VHDL code generation of top level designs.
 from typing import TYPE_CHECKING, TextIO
 
 from b_asic.code_printer.util import selector_bits, time_bin_str
-from b_asic.code_printer.vhdl import common, control
+from b_asic.code_printer.vhdl import common, control, memory_io
 from b_asic.code_printer.vhdl.control import unique_sources as _unique_sources
 from b_asic.data_type import _VhdlDataType
 from b_asic.process import MemoryOutputPort
@@ -38,6 +38,8 @@ def entity(
         if pe.operation_type == Output
         for port in dt.get_output_port_declaration(pe.entity_name)
     ]
+    for pe in arch.processing_elements:
+        ports.extend(memory_io.ports(pe, dt, pe.entity_name))
     common.entity_declaration(f, arch.entity_name, ports=ports)
 
 
@@ -83,6 +85,9 @@ def architecture(
     arch.write_signal_declarations(f, dt)
     all_controls = [item for items in controls.values() for item in items]
     control.declarations(f, all_controls, arch.schedule_time)
+    has_memory_io = any(memory_io.is_memory_io(pe) for pe in arch.processing_elements)
+    if has_memory_io:
+        common.signal_declaration(f, "memory_io_en", "std_logic")
 
     if input_register or output_register:
         _write_io_register_signal_declarations(
@@ -97,6 +102,8 @@ def architecture(
         )
 
     common.write(f, 0, "begin", end="\n\n")
+    if has_memory_io:
+        common.write(f, 1, f"memory_io_en <= {en_sig} and not rst;")
 
     if input_register or output_register:
         _write_io_registers(f, arch, dt, input_register, output_register, enable_pin)
@@ -106,7 +113,7 @@ def architecture(
         pe.write_component_instantiation(
             f,
             dt,
-            en_sig=en_sig,
+            en_sig="memory_io_en" if memory_io.is_memory_io(pe) else en_sig,
             input_register=input_register,
             output_register=output_register,
             control_ports=[

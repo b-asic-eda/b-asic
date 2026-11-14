@@ -124,15 +124,11 @@ def _sanitize_port_option(
 
 
 def _get_source_port(var: MemoryVariable, pes: list["ProcessingElement"]) -> str:
-    split_var = iter(var.name.split("."))
-    var_name = next(split_var)
-    port_index = int(next(split_var).split("_")[0])
+    source = var.root_write_port
     for pe in pes:
         for process in pe:
-            if var_name == process.name:
-                for output_port in process.operation.outputs:
-                    if output_port.index == port_index:
-                        return f"{pe.entity_name}.out.{output_port.index}"
+            if source.operation is process.operation:
+                return f"{pe.entity_name}.out.{source.index}"
     raise ValueError("Source could not be found for the given variable.")
 
 

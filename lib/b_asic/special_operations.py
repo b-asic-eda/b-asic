@@ -171,6 +171,126 @@ class Output(AbstractOperation):
         return 0
 
 
+class MemoryRead(Input):
+    """
+    Read a value from a memory address.
+
+    Behaves as an :class:`Input` with an address and an optional memory name.
+    During simulation, values are supplied through the SFG input mechanism.
+    The address and memory name identify the memory location symbolically.
+
+    Parameters
+    ----------
+    address : int, default: 0
+        Read address.
+    memory_name : :data:`~b_asic.types.Name`, optional
+        Memory name. An empty name denotes the default memory.
+    name : :data:`~b_asic.types.Name`, optional
+        Operation name.
+    latency : int, default: 0
+        Cycles between presenting the read address and obtaining the value.
+        The operation starts when the address is presented, and its value output
+        has this latency offset.
+    """
+
+    def __init__(
+        self,
+        address: int = 0,
+        memory_name: Name = "",
+        name: Name = "",
+        latency: int = 0,
+    ) -> None:
+        super().__init__(name=name)
+        self.address = address
+        self.memory_name = memory_name
+        self.set_latency(latency)
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("read")
+
+    @property
+    def latency(self) -> int:
+        """Get the latency from the read address to the value output."""
+        return self.output_latency_offsets[0]
+
+    @property
+    def address(self) -> int:
+        """Get the read address."""
+        return self.param("address")
+
+    @address.setter
+    def address(self, address: int) -> None:
+        """Set the read address."""
+        self.set_param("address", address)
+
+    @property
+    def memory_name(self) -> Name:
+        """Get the name of the memory to read from."""
+        return self.param("memory_name")
+
+    @memory_name.setter
+    def memory_name(self, memory_name: Name) -> None:
+        """Set the name of the memory to read from."""
+        self.set_param("memory_name", memory_name)
+
+
+class MemoryWrite(Output):
+    """
+    Write a value to a memory address.
+
+    Behaves as an :class:`Output` with an address and an optional memory name.
+    During simulation, values are collected through the SFG output mechanism.
+    The address and memory name identify the memory location symbolically.
+
+    Parameters
+    ----------
+    address : int, default: 0
+        Write address.
+    in0 : :class:`~b_asic.port.SignalSourceProvider`, optional
+        The signal to write.
+    memory_name : :data:`~b_asic.types.Name`, optional
+        Memory name. An empty name denotes the default memory.
+    name : :data:`~b_asic.types.Name`, optional
+        Operation name.
+    """
+
+    def __init__(
+        self,
+        address: int = 0,
+        in0: SignalSourceProvider | None = None,
+        memory_name: Name = "",
+        name: Name = "",
+    ) -> None:
+        super().__init__(in0=in0, name=name)
+        self.address = address
+        self.memory_name = memory_name
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("write")
+
+    @property
+    def address(self) -> int:
+        """Get the write address."""
+        return self.param("address")
+
+    @address.setter
+    def address(self, address: int) -> None:
+        """Set the write address."""
+        self.set_param("address", address)
+
+    @property
+    def memory_name(self) -> Name:
+        """Get the name of the memory to write to."""
+        return self.param("memory_name")
+
+    @memory_name.setter
+    def memory_name(self, memory_name: Name) -> None:
+        """Set the name of the memory to write to."""
+        self.set_param("memory_name", memory_name)
+
+
 class Delay(AbstractOperation):
     """
     Unit delay operation.

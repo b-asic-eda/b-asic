@@ -13,13 +13,13 @@ from b_asic.core_operations import (
 )
 from b_asic.fft_operations import R2Butterfly
 from b_asic.sfg import SFG
-from b_asic.special_operations import Input, Output
+from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
 
 if TYPE_CHECKING:
     from b_asic.port import OutputPort
 
 
-def radix_2_dif_fft(points: int) -> SFG:
+def radix_2_dif_fft(points: int, mem: bool = False) -> SFG:
     """
     Generate a radix-2 decimation-in-frequency FFT structure.
 
@@ -27,6 +27,12 @@ def radix_2_dif_fft(points: int) -> SFG:
     ----------
     points : int
         Number of points for the FFT, needs to be a positive power of 2.
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output` operations.
+        Each memory address is the corresponding sample index.
 
     Returns
     -------
@@ -38,7 +44,10 @@ def radix_2_dif_fft(points: int) -> SFG:
     if points & (points - 1) != 0:
         raise ValueError("Points must be a power of two.")
 
-    inputs = [Input() for _ in range(points)]
+    inputs = [
+        MemoryRead(address=i, name=f"x[{i}]") if mem else Input(name=f"x[{i}]")
+        for i in range(points)
+    ]
 
     ports = inputs
     number_of_stages = int(np.log2(points))
@@ -49,7 +58,12 @@ def radix_2_dif_fft(points: int) -> SFG:
         ports = _construct_dif_fft_stage(ports, stage, twiddles[stage])
 
     ports = _get_bit_reversed_ports(ports)
-    outputs = [Output(port) for port in ports]
+    outputs = [
+        MemoryWrite(address=i, in0=port, name=f"X[{i}]")
+        if mem
+        else Output(port, name=f"X[{i}]")
+        for i, port in enumerate(ports)
+    ]
 
     return SFG(inputs=inputs, outputs=outputs)
 

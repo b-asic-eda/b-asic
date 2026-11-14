@@ -58,10 +58,14 @@ def sfg_to_python(
 
     def kwarg_unpacker(comp: GraphComponent, params=None) -> str:
         if params is None:
+            constructor_parameters = signature(comp.__init__).parameters
             params_filtered = {
                 attr: getattr(comp, attr)
-                for attr in signature(comp.__init__).parameters
-                if attr != "latency" and hasattr(comp, attr)
+                for attr in constructor_parameters
+                if (
+                    attr != "latency" or "latency_offsets" not in constructor_parameters
+                )
+                and hasattr(comp, attr)
             }
             params = {
                 attr: (
@@ -86,11 +90,11 @@ def sfg_to_python(
 
     result += "\n# Inputs:\n"
     for input_op in sfg.input_operations:
-        result += f"{input_op.graph_id} = Input({kwarg_unpacker(input_op)})\n"
+        result += f"{input_op.graph_id} = {type(input_op).__name__}({kwarg_unpacker(input_op)})\n"
 
     result += "\n# Outputs:\n"
     for output_op in sfg.output_operations:
-        result += f"{output_op.graph_id} = Output({kwarg_unpacker(output_op)})\n"
+        result += f"{output_op.graph_id} = {type(output_op).__name__}({kwarg_unpacker(output_op)})\n"
 
     result += "\n# Operations:\n"
     for operation in sfg.split():
