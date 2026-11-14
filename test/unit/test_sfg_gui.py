@@ -2299,6 +2299,8 @@ def test_wdf_and_fft_operation_palettes(qtbot):
         "ParallelTwoportAdaptor",
         "SeriesThreeportAdaptor",
         "ReflectionFreeSeriesThreeportAdaptor",
+        "ParallelThreePortAdaptor",
+        "ReflectionFreeParallelThreePortAdaptor",
     }
     wdf_list, fft_list = window._ui.wdf_operations_list, window._ui.fft_operations_list
 
@@ -2330,12 +2332,17 @@ def test_wdf_and_fft_operation_palettes(qtbot):
     )
 
 
-def test_reflection_free_marker_tracks_port_side(qtbot):
-    from b_asic.wdf_operations import ReflectionFreeSeriesThreeportAdaptor
+@pytest.mark.parametrize(
+    "adaptor_name",
+    ["ReflectionFreeSeriesThreeportAdaptor", "ReflectionFreeParallelThreePortAdaptor"],
+)
+def test_reflection_free_marker_tracks_port_side(qtbot, adaptor_name):
+    from b_asic import wdf_operations
+    from b_asic.sfg_gui._preferences import PORT_STUB
 
     window = SFGMainWindow()
     qtbot.addWidget(window)
-    operation = ReflectionFreeSeriesThreeportAdaptor()
+    operation = getattr(wdf_operations, adaptor_name)()
     window.add_operation(operation)
     button = window._drag_buttons[operation]
     marker = button._reflection_marker
@@ -2345,18 +2352,25 @@ def test_reflection_free_marker_tracks_port_side(qtbot):
             button._flip()
         for angle in (0, 90, 180, 270):
             button.set_rotation(angle)
-            port = button.port_list[1]
-            dx, dy = port.scene_direction()
-            center = button.graphicsProxyWidget().sceneBoundingRect().center()
-            position = marker.mapToScene(marker.path().boundingRect().center())
-            body = button.graphicsProxyWidget().sceneBoundingRect()
-            assert not body.contains(position)
             output = button.port_list[button.operation.input_count + 1]
-            pair_center = (port.anchor() + output.anchor()) * 0.5
-            assert (pair_center - position).manhattanLength() < 12
-            assert (position.x() - center.x()) * dx + (
-                position.y() - center.y()
-            ) * dy > 0
+            dx, dy = output.scene_direction()
+            outward = QtCore.QPointF(dx, dy)
+            path = marker.path()
+            body = button.graphicsProxyWidget().sceneBoundingRect()
+            points = [
+                marker.mapToScene(
+                    QtCore.QPointF(path.elementAt(i).x, path.elementAt(i).y)
+                )
+                for i in range(path.elementCount())
+            ]
+            assert all(body.contains(point) for point in points)
+            base = output.anchor() - outward * (PORT_STUB + 2)
+            crossbar_center = base - outward * 8
+            assert (points[0] - base).manhattanLength() < 1e-6
+            assert (points[1] - crossbar_center).manhattanLength() < 1e-6
+            assert (
+                (points[2] + points[3]) * 0.5 - crossbar_center
+            ).manhattanLength() < 1e-6
 
 
 @pytest.mark.parametrize("angle", [0, 90, 180, 270])
