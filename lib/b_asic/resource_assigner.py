@@ -52,8 +52,8 @@ def assign_processing_elements_and_memories(
     max_mux_size: int | None = None,
     resources: dict[TypeName, int] | None = None,
     max_mems: int | None = None,
-    memory_read_ports: int | None = None,
-    memory_write_ports: int | None = None,
+    memory_read_ports: int = 1,
+    memory_write_ports: int = 1,
     memory_total_ports: int | None = None,
     memory_type: Literal["RAM", "register"] = "RAM",
     solver: LpSolver | str | SolverInterface | None = None,
@@ -92,11 +92,11 @@ def assign_processing_elements_and_memories(
         The maximum amount of memories to assign to, used to limit the solution
         space for performance gains.
 
-    memory_read_ports : int, optional
+    memory_read_ports : int, default 1
         The number of read ports used when splitting process collection based on
         memory variable access.
 
-    memory_write_ports : int, optional
+    memory_write_ports : int, default 1
         The number of write ports used when splitting process collection based on
         memory variable access.
 
@@ -259,8 +259,8 @@ def _split_operations_and_variables(
     max_mux_size: int | None = None,
     resources: dict[TypeName, int] | None = None,
     max_mems: int | None = None,
-    memory_read_ports: int | None = None,
-    memory_write_ports: int | None = None,
+    memory_read_ports: int = 1,
+    memory_write_ports: int = 1,
     memory_total_ports: int | None = None,
     memory_type: Literal["RAM", "register"] = "RAM",
     solver: LpSolver | str | SolverInterface | None = None,
