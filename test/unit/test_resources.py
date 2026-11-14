@@ -6,8 +6,15 @@ import matplotlib.testing.decorators
 import networkx as nx
 import pytest
 
+from b_asic.architecture import ProcessingElement
 from b_asic.core_operations import ConstantMultiplication
-from b_asic.process import PlainMemoryVariable
+from b_asic.fft_operations import R2Butterfly
+from b_asic.process import (
+    MemoryOutputPort,
+    MemoryVariable,
+    OperatorProcess,
+    PlainMemoryVariable,
+)
 from b_asic.research.interleaver import (
     generate_matrix_transposer,
     generate_random_interleaver,
@@ -16,8 +23,44 @@ from b_asic.resources import (
     ProcessCollection,
     _exclusion_graph_layout,
     _ForwardBackwardTable,
+    _get_source_port,
     draw_exclusion_graph_coloring,
 )
+from b_asic.special_operations import Input, MemoryRead, Output
+
+
+@pytest.mark.parametrize(
+    ("operation_type", "port_index"), [(Input, 0), (MemoryRead, 0), (R2Butterfly, 1)]
+)
+@pytest.mark.parametrize("chained", [False, True])
+def test_source_port_uses_connection_instead_of_names(
+    operation_type, port_index, chained
+):
+    sources = [operation_type(name="shared.display.name") for _ in range(2)]
+    pes = []
+    for i, source in enumerate(sources):
+        source.set_latency(1)
+        source.execution_time = 1
+        pes.append(
+            ProcessingElement(
+                ProcessCollection(
+                    [OperatorProcess(0, source, name="custom process name")], 4
+                ),
+                entity_name=f"producer{i}",
+            )
+        )
+    source_port = sources[1].output(port_index)
+    sink = Output(source_port)
+    variable = MemoryVariable(
+        1, source_port, {sink.input(0): 1}, name="custom variable name"
+    )
+    if chained:
+        variable = MemoryVariable(
+            2, MemoryOutputPort(variable), {sink.input(0): 1}, name="relay"
+        )
+    assert _get_source_port(variable, pes) == f"producer1.out.{port_index}"
+    with pytest.raises(ValueError, match="Source could not be found"):
+        _get_source_port(variable, pes[:1])
 
 
 class TestProcessCollectionPlainMemoryVariable:
