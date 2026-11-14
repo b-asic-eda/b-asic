@@ -182,7 +182,7 @@ def test_public_cp_solver_instance(mux_assigner, read_times, total_ports, interr
             memory_read_ports=1,
             memory_write_ports=1,
             memory_total_ports=total_ports,
-            time_limit=10,
+            strat_params={"time_limit": 10},
         )
     solve.assert_called_once_with(time_limit=10, display=ANY)
     assert solver.ort_solver.parameters.num_search_workers == 1

@@ -73,12 +73,13 @@ class TestProcessCollectionPlainMemoryVariable:
         split = simple_collection.split_on_ports(
             strategy="left_edge", read_ports=1, write_ports=2, total_ports=2
         )
-        assert len(split) == 3
+        # Reads wrapping to cycle zero also compete with the two write ports.
+        assert len(split) == 4
 
         split = simple_collection.split_on_ports(
             strategy="left_edge", read_ports=2, write_ports=2, total_ports=2
         )
-        assert len(split) == 2
+        assert len(split) == 3
 
     def test_split_memory_variable_raises(self, simple_collection: ProcessCollection):
         with pytest.raises(
@@ -139,7 +140,7 @@ class TestProcessCollectionPlainMemoryVariable:
         assignment_left_edge = collection._left_edge_assignment()
         assignment_graph_color = collection.split_on_execution_time(
             strategy="greedy_graph_color",
-            alg_params={"coloring_strategy": "saturation_largest_first"},
+            strat_params={"coloring_strategy": "saturation_largest_first"},
         )
         assert len(assignment_left_edge) == 18
         assert len(assignment_graph_color) == 16
@@ -313,7 +314,17 @@ class TestProcessCollectionPlainMemoryVariable:
             for size in range(5, 20, 5):
                 collection = generate_random_interleaver(size)
                 assert len(collection.split_on_ports(read_ports=1, write_ports=1)) == 1
-                if any(var.execution_time for var in collection.collection):
+                if any(
+                    read_time % collection.schedule_time
+                    == var.start_time % collection.schedule_time
+                    for var in collection
+                    for read_time in var.read_times
+                ):
+                    # A same-cycle read/write cannot share a single total port,
+                    # even when the variable is alone in its memory.
+                    with pytest.raises(ValueError, match="exceeds the port limits"):
+                        collection.split_on_ports(total_ports=1)
+                elif any(var.execution_time for var in collection.collection):
                     assert len(collection.split_on_ports(total_ports=1)) == 2
 
     def test_len_process_collection(self, simple_collection: ProcessCollection):

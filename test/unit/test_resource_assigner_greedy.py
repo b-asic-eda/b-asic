@@ -10,6 +10,7 @@ from b_asic.process import MemoryVariable, OperatorProcess
 from b_asic.resource_assigner import (
     _get_assignment_from_coloring,
     _greedy_min_mux,
+    _memory_upper_bound_assignment,
     assign_processing_elements_and_memories,
 )
 from b_asic.resources import ProcessCollection
@@ -207,6 +208,237 @@ def test_mux_periodic_pe_conflicts(mux_assigner):
         mux_assigner({"in": group}, empty, {"in": 1}, 0, empty)
 
 
+@pytest.mark.parametrize("ports", [(2, 1, 3), (2, 1, 2), (2, 2, 3)])
+def test_public_left_edge_multiport_memories(ports):
+    groups, memories, direct = _problem(read_times=(2, 2))
+    schedule = Mock()
+    schedule.get_operations.return_value = ProcessCollection(
+        [process for group in groups.values() for process in group], 4
+    )
+    schedule.get_memory_variables.return_value = ProcessCollection(
+        [*memories, *direct], 4
+    )
+    with (
+        patch.object(
+            ProcessCollection,
+            "exclusion_graph_from_ports",
+            side_effect=AssertionError(
+                "Multiport memories must bypass the exclusion graph"
+            ),
+        ),
+        patch(
+            "b_asic.resource_assigner._memory_upper_bound_assignment",
+            wraps=_memory_upper_bound_assignment,
+        ) as upper_bound,
+    ):
+        pes, mems, _ = assign_processing_elements_and_memories(
+            schedule,
+            strategy="left_edge",
+            memory_read_ports=ports[0],
+            memory_write_ports=ports[1],
+            memory_total_ports=ports[2],
+        )
+    upper_bound.assert_called_once()
+    assert pes
+    assert len(mems) == 1
+    assert mems[0].output_count == 2
+    assigned = list(mems[0])
+    # Memory construction copies variables while preserving their connections.
+    assert {
+        var.name: (var.start_time, var.write_port, var.reads) for var in assigned
+    } == {var.name: (var.start_time, var.write_port, var.reads) for var in memories}
+    assert mems[0].collection.read_ports_bound() <= ports[0]
+    assert mems[0].collection.write_ports_bound() <= ports[1]
+    assert mems[0].collection.total_ports_bound() <= ports[2]
+
+
+def test_multiport_memory_upper_bound_assignment():
+    from b_asic.process import PlainMemoryVariable
+
+    variables = ProcessCollection(
+        [
+            PlainMemoryVariable(time, 0, {0: 4 - time}, name=str(time))
+            for time in range(3)
+        ],
+        8,
+    )
+    groups = _memory_upper_bound_assignment(variables, 2, 1)
+    assert len(groups) == 2
+    assert {var for group in groups for var in group} == set(variables)
+    for group in groups:
+        assert group.read_ports_bound() <= 2
+        assert group.write_ports_bound() <= 1
+        assert group.total_ports_bound() <= 3
+    assert _memory_upper_bound_assignment(ProcessCollection([], 8), 2, 1) == []
+
+
+def test_public_left_edge_single_port_skips_upper_bound():
+    groups, memories, direct = _problem(read_times=(2, 2))
+    schedule = Mock()
+    schedule.get_operations.return_value = ProcessCollection(
+        [process for group in groups.values() for process in group], 4
+    )
+    schedule.get_memory_variables.return_value = ProcessCollection(
+        [*memories, *direct], 4
+    )
+    with patch(
+        "b_asic.resource_assigner._memory_upper_bound_assignment",
+        side_effect=AssertionError(
+            "Single-port left-edge needs no heuristic upper bound"
+        ),
+    ):
+        _, mems, _ = assign_processing_elements_and_memories(
+            schedule, strategy="left_edge"
+        )
+    assert len(mems) == 2
+
+
+def _schedule_for_bounds_tests():
+    groups, memories, direct = _problem()
+    schedule = Mock()
+    schedule.get_operations.return_value = ProcessCollection(
+        [process for group in groups.values() for process in group], 4
+    )
+    schedule.get_memory_variables.return_value = ProcessCollection(
+        [*memories, *direct], 4
+    )
+    return schedule
+
+
+@pytest.mark.parametrize("read_ports", [1, 2])
+def test_left_edge_skips_graphs_and_initial_coloring(read_ports):
+    with (
+        patch(
+            "b_asic.resource_assigner.nx.coloring.greedy_color",
+            side_effect=AssertionError("No initial coloring needed for left-edge"),
+        ),
+        patch.object(
+            ProcessCollection,
+            "exclusion_graph_from_ports",
+            side_effect=AssertionError("No port graph needed for left-edge"),
+        ),
+        patch.object(
+            ProcessCollection,
+            "exclusion_graph_from_execution_time",
+            side_effect=AssertionError("No execution graph needed for left-edge"),
+        ),
+    ):
+        pes, mems, _ = assign_processing_elements_and_memories(
+            _schedule_for_bounds_tests(),
+            strategy="left_edge",
+            memory_read_ports=read_ports,
+        )
+    assert pes
+    assert mems
+
+
+@pytest.mark.parametrize(
+    "strategy", ["ilp_graph_color", "cp_min_mux", "greedy_min_mux"]
+)
+def test_explicit_bounds_skip_initial_coloring(strategy):
+    if strategy == "cp_min_mux":
+        pytest.importorskip("cpmpy", exc_type=ImportError)
+    with patch(
+        "b_asic.resource_assigner.nx.coloring.greedy_color",
+        side_effect=AssertionError("Explicit bounds need no heuristic coloring"),
+    ):
+        pes, mems, _ = assign_processing_elements_and_memories(
+            _schedule_for_bounds_tests(),
+            strategy=strategy,
+            resources={"in": 2, "out": 2},
+            max_mems=2,
+        )
+    assert pes
+    assert mems
+
+
+@pytest.mark.parametrize("strategy", ["cp_min_mux", "greedy_min_mux"])
+def test_mux_explicit_bounds_skip_exclusion_graphs(strategy):
+    if strategy == "cp_min_mux":
+        pytest.importorskip("cpmpy", exc_type=ImportError)
+    with (
+        patch.object(
+            ProcessCollection,
+            "exclusion_graph_from_ports",
+            side_effect=AssertionError(
+                "Mux models do not need a separate memory graph"
+            ),
+        ),
+        patch.object(
+            ProcessCollection,
+            "exclusion_graph_from_execution_time",
+            side_effect=AssertionError("Mux models build their own PE conflicts"),
+        ),
+    ):
+        pes, mems, _ = assign_processing_elements_and_memories(
+            _schedule_for_bounds_tests(),
+            strategy=strategy,
+            resources={"in": 2, "out": 2},
+            max_mems=2,
+        )
+    assert pes
+    assert mems
+
+
+def test_only_missing_pe_bounds_are_computed():
+    with (
+        patch(
+            "b_asic.resource_assigner.nx.coloring.greedy_color",
+            wraps=nx.coloring.greedy_color,
+        ) as coloring,
+        patch.object(
+            ProcessCollection,
+            "exclusion_graph_from_ports",
+            side_effect=AssertionError("The memory bound is already supplied"),
+        ),
+    ):
+        pes, mems, _ = assign_processing_elements_and_memories(
+            _schedule_for_bounds_tests(),
+            strategy="greedy_min_mux",
+            resources={"in": 2},
+            max_mems=2,
+        )
+    assert pes
+    assert mems
+    assert coloring.call_count == 1
+
+
+def test_ilp_mux_keeps_heuristic_warm_starts():
+    from b_asic.resource_assigner import _ilp_min_mux
+
+    with patch("b_asic.resource_assigner._ilp_min_mux", wraps=_ilp_min_mux) as assigner:
+        assign_processing_elements_and_memories(
+            _schedule_for_bounds_tests(),
+            strategy="ilp_min_mux",
+            resources={"in": 2, "out": 2},
+            max_mems=2,
+        )
+    assert set(assigner.call_args.args[9]) == {"in", "out"}
+    assert len(assigner.call_args.args[10]) == 2
+
+
+@pytest.mark.parametrize(
+    "strategy",
+    [
+        "ilp_graph_color",
+        "greedy_graph_color",
+    ],
+)
+def test_public_multiport_unsupported_joint_strategies(strategy):
+    groups, memories, direct = _problem(read_times=(2, 2))
+    schedule = Mock()
+    schedule.get_operations.return_value = ProcessCollection(
+        [process for group in groups.values() for process in group], 4
+    )
+    schedule.get_memory_variables.return_value = ProcessCollection(
+        [*memories, *direct], 4
+    )
+    with pytest.raises(ValueError, match="for multiport memories"):
+        assign_processing_elements_and_memories(
+            schedule, strategy=strategy, memory_read_ports=2
+        )
+
+
 def test_greedy_local_search_reuses_connections():
     sources = [Input() for _ in range(4)]
     outputs = [Output(source) for source in sources]
@@ -273,7 +505,7 @@ def test_public_greedy_search_options(total_ports):
             memory_read_ports=1,
             memory_write_ports=1,
             memory_total_ports=total_ports,
-            **options,
+            strat_params=options,
         )
     assert pes
     assert len(mems) == (2 if total_ports == 1 else 1)
@@ -292,6 +524,7 @@ def test_public_coloring_strategy_override(total_ports):
     schedule.get_memory_variables.return_value = ProcessCollection(
         [*memories, *direct], 4
     )
+    options = {"coloring_strategy": "largest_first", "interchange": True}
     with patch(
         "b_asic.resource_assigner.nx.coloring.greedy_color",
         wraps=nx.coloring.greedy_color,
@@ -302,12 +535,13 @@ def test_public_coloring_strategy_override(total_ports):
             memory_read_ports=1,
             memory_write_ports=1,
             memory_total_ports=total_ports,
-            coloring_strategy="largest_first",
-            interchange=True,
+            strat_params=options,
         )
     assert pes
     assert len(mems) == (2 if total_ports == 1 else 1)
-    # Upper bounds use the default; final assignments use the requested strategy.
+    # Final assignments also supply the missing bounds, without extra colorings.
+    assert options == {"coloring_strategy": "largest_first", "interchange": True}
+    assert color.call_count == 3
     for call in color.call_args_list[-3:]:
         assert call.kwargs == {"strategy": "largest_first", "interchange": True}
 
@@ -315,7 +549,7 @@ def test_public_coloring_strategy_override(total_ports):
 @pytest.mark.parametrize(
     ("options", "message"),
     [
-        ({"memory_total_ports": 3}, "one or two total memory ports"),
+        ({"memory_read_ports": 3}, "Total ports"),
         ({"max_mux_size": 0}, "max_mux_size must be at least 1"),
         ({"restarts": 0}, "restarts must be positive"),
         ({"max_passes": -1}, "max_passes nonnegative"),
