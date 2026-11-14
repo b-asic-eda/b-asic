@@ -5,6 +5,10 @@ from b_asic.data_type import DataType, OverflowMode
 from b_asic.quantization import QuantizationMode
 from b_asic.signal_generator import Impulse
 from b_asic.simulation import Simulation
+from b_asic.wdf_operations import (
+    ReflectionFreeParallelThreePortAdaptor,
+    ReflectionFreeSeriesThreeportAdaptor,
+)
 
 
 class TestRunFor:
@@ -272,17 +276,85 @@ class TestRun:
 
 
 class TestTopologicalEvaluation:
-    def test_reuses_sfg_topological_order(self, sfg_delay, monkeypatch):
-        from b_asic import SFG
+    @pytest.mark.parametrize("nested", [False, True])
+    @pytest.mark.parametrize("data_type", [None, DataType(wl=(5, 4))])
+    @pytest.mark.parametrize(
+        ("adaptor_type", "expected"),
+        [
+            (
+                ReflectionFreeSeriesThreeportAdaptor,
+                ([1.75, 2.75, 3.75], [-6, -7, -8], [3.25, 3.25, 3.25]),
+            ),
+            (
+                ReflectionFreeParallelThreePortAdaptor,
+                ([6, 5.5, 5], [3.5, 3.75, 4], [4, 4.5, 5]),
+            ),
+        ],
+    )
+    def test_reflection_free_feedback(self, nested, data_type, adaptor_type, expected):
+        from b_asic import SFG, Constant, Input, Output
 
-        get_order = SFG.get_operations_topological_order
+        source = Input()
+        adaptor = adaptor_type(0.25, source, in2=Constant(4))
+        adaptor.input(1).connect(adaptor.output(1) + 1)
+        graph = SFG([source], [Output(port) for port in adaptor.outputs])
+        if nested:
+            outer_source = Input()
+            graph <<= outer_source
+            graph = SFG([outer_source], [Output(port) for port in graph.outputs])
+
+        simulation = Simulation(graph, [[2, 3, 4]], data_type)
+        assert [float(value) for value in simulation.run()] == [
+            values[-1] for values in expected
+        ]
+        for index, values in enumerate(expected):
+            assert [
+                float(value) for value in simulation.results[f"out{index}"]
+            ] == values
+        prefix = "sfg0." if nested else ""
+        assert [
+            float(value)
+            for value in simulation.results[f"{prefix}{adaptor_type.type_name()}0.0"]
+        ] == expected[0]
+
+    @pytest.mark.parametrize("output_index", [0, 2])
+    @pytest.mark.parametrize(
+        "adaptor_type",
+        [ReflectionFreeSeriesThreeportAdaptor, ReflectionFreeParallelThreePortAdaptor],
+    )
+    def test_reflection_free_combinational_cycle(self, output_index, adaptor_type):
+        from b_asic import SFG, Constant, Input, Output
+
+        source = Input()
+        adaptor = adaptor_type(0.25, source, in2=Constant(4))
+        adaptor.input(1).connect(adaptor.output(output_index))
+        with pytest.raises(RuntimeError, match="Direct feedback loop"):
+            Simulation(SFG([source], [Output(adaptor.output(1))]))
+
+    def test_reflection_free_feedback_updates_delay(self):
+        from b_asic import SFG, Delay, Input, Output
+
+        source = Input()
+        delay = Delay(initial_value=4)
+        adaptor = ReflectionFreeSeriesThreeportAdaptor(0.25, source, in2=delay)
+        adaptor.input(1).connect(adaptor.output(1) + 1)
+        delay <<= adaptor.output(2)
+        simulation = Simulation(
+            SFG([source], [Output(port) for port in adaptor.outputs]), [2]
+        )
+        assert simulation.run_for(3) == [1.75, -4.5, 1.75]
+        np.testing.assert_array_equal(simulation.results["t0"], [4, 3.25, 2.5])
+        np.testing.assert_array_equal(simulation.results["out2"], [3.25, 2.5, 1.75])
+
+    def test_reuses_evaluation_order(self, sfg_delay, monkeypatch):
+        get_order = Simulation._build_evaluation_order
         calls = []
 
         def counted_get_order(self):
             calls.append(self)
             return get_order(self)
 
-        monkeypatch.setattr(SFG, "get_operations_topological_order", counted_get_order)
+        monkeypatch.setattr(Simulation, "_build_evaluation_order", counted_get_order)
         simulation = Simulation(sfg_delay, [1])
         assert simulation.run_for(3) == [1]
         assert len(calls) == 1

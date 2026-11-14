@@ -6,6 +6,7 @@ Contains a class for simulating the result of an SFG given a set of input values
 
 from collections import defaultdict
 from collections.abc import Callable, Mapping, MutableMapping, MutableSequence, Sequence
+from graphlib import CycleError, TopologicalSorter
 from numbers import Number
 from typing import NamedTuple
 
@@ -129,7 +130,7 @@ class Simulation:
     ) -> tuple[
         list[_EvaluationStep], dict[ResultKey, ResultKey], dict[ResultKey, ResultKey]
     ]:
-        """Use the flattened SFG's topological order for evaluation."""
+        """Order individual outputs by their required inputs on the flattened SFG."""
         graph = self._sfg()
         aliases: dict[ResultKey, ResultKey] = {}
         graphs = [(graph, "")]
@@ -169,25 +170,34 @@ class Simulation:
         for op, key_base in operations:
             op.graph_id = key_base
         self._evaluation_sfg = graph.flatten()
-        ports = [
-            port
-            for op in self._evaluation_sfg.get_operations_topological_order()
-            for port in op.outputs
-        ]
-        steps = [
-            _EvaluationStep(
-                port.operation.key(port.index, port.operation.graph_id),
-                port.operation,
-                port.index,
+        steps_by_key = {}
+        sorter = TopologicalSorter()
+        for op in self._evaluation_sfg.operations:
+            input_keys = (
                 ()
-                if isinstance(port.operation, Delay)
-                else tuple(
-                    source_key(input_port, "") for input_port in port.operation.inputs
-                ),
-                port.operation.graph_id,
+                if isinstance(op, Delay)
+                else tuple(source_key(port, "") for port in op.inputs)
             )
-            for port in ports
-        ]
+            for port in op.outputs:
+                key = op.key(port.index, op.graph_id)
+                steps_by_key[key] = _EvaluationStep(
+                    key, op, port.index, input_keys, op.graph_id
+                )
+                dependencies = (
+                    ()
+                    if isinstance(op, Delay)
+                    else tuple(
+                        input_keys[index]
+                        for index in op.inputs_required_for_output(port.index)
+                    )
+                )
+                sorter.add(key, *dependencies)
+        try:
+            steps = [steps_by_key[key] for key in sorter.static_order()]
+        except CycleError as exc:
+            raise RuntimeError(
+                "Direct feedback loop detected when ordering simulation outputs."
+            ) from exc
         delay_updates = {
             op.key(0, op.graph_id): source_key(op.input(0), "")
             for op in self._evaluation_sfg.find_by_type(Delay)
@@ -315,7 +325,6 @@ class Simulation:
                 if step.key in results:
                     continue
                 op = step.operation
-                input_vals = [results[key] for key in step.input_keys]
                 if isinstance(op, Delay):
                     results[step.key] = op.evaluate(
                         None,
@@ -323,10 +332,15 @@ class Simulation:
                         self._delays,
                     )
                 else:
+                    # Only required inputs are guaranteed to be ready. A zero
+                    # placeholder cannot affect this output, but other outputs
+                    # from the same evaluation must not be cached yet.
+                    inputs_ready = all(key in results for key in step.input_keys)
+                    input_vals = [results.get(key, 0) for key in step.input_keys]
                     results[step.key] = op.evaluate_output(
                         step.index,
                         input_vals,
-                        results,
+                        results if inputs_ready else None,
                         self._delays,
                         step.prefix,
                         data_type=self._data_type,
