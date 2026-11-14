@@ -899,13 +899,19 @@ class Memory(Resource):
 
         Keys are ``(variable, delay)``; ``None`` denotes the write access.
         Solver-selected ports are retained. Otherwise consecutive ports are
-        allocated independently for each read/write cycle.
+        allocated independently for each read/write cycle, wrapping at the
+        declared port count. This allows temporary port conflicts while moving
+        processes between memories; :meth:`assign` rejects unresolved conflicts.
         """
-        return (
-            dict(self._collection._memory_port_assignment)
-            if self._collection._memory_port_assignment
-            else _default_memory_ports(self, self.schedule_time)
-        )
+        if self._collection._memory_port_assignment:
+            return dict(self._collection._memory_port_assignment)
+        return {
+            (variable, delay): port
+            % (self.input_count if delay is None else self.output_count)
+            for (variable, delay), port in _default_memory_ports(
+                self, self.schedule_time
+            ).items()
+        }
 
     @property
     def assignment(self) -> list[ProcessCollection]:
