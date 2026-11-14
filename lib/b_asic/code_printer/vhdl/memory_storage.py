@@ -293,10 +293,12 @@ def architecture(
                 write_time = p.start_time % schedule_time
             output_cases[write_time] = f"'{int(1 in p.reads.values())}'"
         common.synchronous_process_prologue(f, name="output_reg_proc")
-        common.write(f, 3, "if forward_ctrl = '1' then")
-        common.write(f, 4, "p_0_out_internal <= p_0_in_internal;")
-        common.write(f, 3, "else")
-        common.write(f, 4, "p_0_out_internal <= read_port_0;")
+        common.write(f, 3, "if en = '1' then")
+        common.write(f, 4, "if forward_ctrl = '1' then")
+        common.write(f, 5, "p_0_out_internal <= p_0_in_internal;")
+        common.write(f, 4, "else")
+        common.write(f, 5, "p_0_out_internal <= read_port_0;")
+        common.write(f, 4, "end if;")
         common.write(f, 3, "end if;")
         common.synchronous_process_epilogue(
             f,

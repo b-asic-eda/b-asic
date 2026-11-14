@@ -5,7 +5,7 @@ Module for VHDL code generation of top level designs.
 from typing import TYPE_CHECKING, TextIO
 
 from b_asic.code_printer.util import selector_bits, time_bin_str
-from b_asic.code_printer.vhdl import common, control
+from b_asic.code_printer.vhdl import common, control, streaming
 from b_asic.code_printer.vhdl.control import unique_sources as _unique_sources
 from b_asic.data_type import _VhdlDataType
 from b_asic.process import MemoryOutputPort
@@ -17,7 +17,11 @@ if TYPE_CHECKING:
 
 
 def entity(
-    f: TextIO, arch: "Architecture", dt: _VhdlDataType, enable_pin: bool = True
+    f: TextIO,
+    arch: "Architecture",
+    dt: _VhdlDataType,
+    enable_pin: bool = True,
+    streams: list[streaming.Endpoint] | None = None,
 ) -> None:
     ports = [
         "clk : in std_logic",
@@ -26,16 +30,19 @@ def entity(
     if enable_pin:
         ports.append("en : in std_logic")
 
+    streamed = {pe.entity_name for ep in streams or [] for pe in ep.pes}
+    if streams:
+        ports += streaming.ports(streams, dt)
     ports += [
         port
         for pe in arch.processing_elements
-        if pe.operation_type == Input
+        if pe.operation_type == Input and pe.entity_name not in streamed
         for port in dt.get_input_port_declaration(pe.entity_name)
     ]
     ports += [
         port
         for pe in arch.processing_elements
-        if pe.operation_type == Output
+        if pe.operation_type == Output and pe.entity_name not in streamed
         for port in dt.get_output_port_declaration(pe.entity_name)
     ]
     common.entity_declaration(f, arch.entity_name, ports=ports)
@@ -50,9 +57,12 @@ def architecture(
     multiplexer_control_registered: bool = True,
     enable_pin: bool = True,
     controls: dict[str, list[control.Control]] | None = None,
+    streams: list[streaming.Endpoint] | None = None,
 ) -> None:
     controls = controls or {}
-    if not enable_pin:
+    if streams:
+        en_sig = "core_en"
+    elif not enable_pin:
         en_sig = "'1'"
     elif input_register:
         en_sig = "en_internal"
@@ -81,6 +91,8 @@ def architecture(
         )
     common.write(f, 1, "-- Component interconnect and schedule counter signals")
     arch.write_signal_declarations(f, dt)
+    if streams:
+        streaming.declarations(f, streams, dt)
     all_controls = [item for items in controls.values() for item in items]
     control.declarations(f, all_controls, arch.schedule_time)
 
@@ -97,6 +109,8 @@ def architecture(
         )
 
     common.write(f, 0, "begin", end="\n\n")
+    if streams:
+        streaming.statements(f, arch, streams, dt, enable_pin)
 
     if input_register or output_register:
         _write_io_registers(f, arch, dt, input_register, output_register, enable_pin)
@@ -125,7 +139,7 @@ def architecture(
             ],
         )
 
-    _write_schedule_counter(f, arch, en_sig, enable_pin)
+    _write_schedule_counter(f, arch, en_sig, enable_pin or bool(streams))
     if all_controls:
         common.write(f, 1, "-- Centralized control")
     control.statements(f, all_controls, en_sig, arch.schedule_time)
@@ -141,7 +155,7 @@ def architecture(
             mem_mux_info,
             multiplexer_control_registered,
             en_sig,
-            enable_pin,
+            enable_pin or bool(streams),
         )
     _write_interconnect(f, dt, pe_mux_info, mem_mux_info)
 

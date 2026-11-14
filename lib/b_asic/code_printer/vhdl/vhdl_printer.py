@@ -15,6 +15,7 @@ from b_asic.code_printer.vhdl import (
     memory_storage,
     processing_element,
     register_storage,
+    streaming,
     top_level,
 )
 from b_asic.code_printer.vhdl.util import signed_type
@@ -97,6 +98,13 @@ class VhdlPrinter(Printer):
                 Register multiplexer control signals in generated top-level.
             enable_pin : :class:`bool`, default ``True``
                 Whether to include an enable pin on the top-level entity.
+            interface : :class:`~b_asic.code_printer.vhdl.streaming.StreamInterface`, optional
+                Select synchronous I/O (default), AXI4-Stream, or Avalon-ST,
+                FIFO sizing, clock mode, and whether the core may stall.
+            stream_inputs, stream_outputs : :class:`dict`, optional
+                Map physical stream names to lists of input/output PE entity
+                names. Scheduled transfers from grouped resources share one
+                FIFO in schedule order. Unlisted resources get their own stream.
             centralize_control : :class:`bool`, default ``True``
                 Generate a shared schedule-indexed control ROM in the top-level
                 architecture instead of distributed control generation.
@@ -144,6 +152,7 @@ class VhdlPrinter(Printer):
                 Register the back-edge multiplexer select signal.
         """
         kwargs = self._control_options(kwargs)
+        self._stream_options(arch, kwargs)
         dir_path = Path(path)
         dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -278,6 +287,7 @@ class VhdlPrinter(Printer):
 
     def print_Architecture(self, arch: "Architecture", **kwargs) -> str | None:
         kwargs = self._control_options(kwargs)
+        streams = self._stream_options(arch, kwargs)
         io_registers = bool(kwargs.get("io_registers", False))
         input_register = bool(kwargs.get("input_register", False)) or io_registers
         output_register = bool(kwargs.get("output_register", False)) or io_registers
@@ -305,12 +315,14 @@ class VhdlPrinter(Printer):
                 multiplexer_control_registered,
             )
         f = io.StringIO()
+        if streams:
+            f.write(streaming.fifo_source(arch.entity_name))
         common.b_asic_preamble(f)
         common.ieee_header(f, fixed_pkg=self.vhdl_2008)
         if self.is_complex:
             common.package_header(f, "types")
 
-        top_level.entity(f, arch, self._dt, enable_pin=enable_pin)
+        top_level.entity(f, arch, self._dt, enable_pin=enable_pin, streams=streams)
         top_level.architecture(
             f,
             arch,
@@ -320,8 +332,32 @@ class VhdlPrinter(Printer):
             multiplexer_control_registered,
             enable_pin=enable_pin,
             controls=controls,
+            streams=streams,
         )
         return f.getvalue()
+
+    @staticmethod
+    def _stream_options(
+        arch: "Architecture", options: dict
+    ) -> list[streaming.Endpoint]:
+        streams = streaming.endpoints(
+            arch,
+            options.get("interface"),
+            options.get("stream_inputs"),
+            options.get("stream_outputs"),
+        )
+        if streams and any(
+            options.get(key, False)
+            for key in (
+                "io_registers",
+                "input_register",
+                "output_register",
+            )
+        ):
+            raise ValueError(
+                "Streaming FIFOs replace the optional top-level I/O registers"
+            )
+        return streams
 
     def print_Memory(self, mem: "Memory", **kwargs) -> str | None:
         f = io.StringIO()

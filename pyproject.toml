@@ -184,4 +184,4 @@ ignore = [
 known-first-party = ["b_asic"]
 
 [tool.codespell]
-ignore-words-list = ["inout", "Ot"]
+ignore-words-list = ["inout", "Ot", "dout"]
