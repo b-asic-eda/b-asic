@@ -642,6 +642,67 @@ def test_move_process(schedule_direct_form_iir_lp_filter: Schedule):
         architecture.move_process("invalid_name", memories[0], processing_elements[1])
 
 
+@pytest.mark.parametrize(
+    ("read_conflict", "write_conflict"), [(True, False), (False, True), (True, True)]
+)
+def test_move_memory_process_with_temporary_port_conflicts(
+    read_conflict, write_conflict
+):
+    sources = [Input() for _ in range(3)]
+    outputs = [Output(source) for source in sources]
+    starts = [0, 1, 0 if write_conflict else 2]
+    reads = [4, 5, 4 if read_conflict else 6]
+    input_pes = [
+        ProcessingElement(ProcessCollection([OperatorProcess(t, op)], 8), f"in{i}")
+        for i, (t, op) in enumerate(zip(starts, sources, strict=True))
+    ]
+    output_pes = [
+        ProcessingElement(ProcessCollection([OperatorProcess(t, op)], 8), f"out{i}")
+        for i, (t, op) in enumerate(zip(reads, outputs, strict=True))
+    ]
+    variables = [
+        MemoryVariable(
+            start, source.output(0), {output.input(0): read - start}, f"v{i}"
+        )
+        for i, (start, read, source, output) in enumerate(
+            zip(starts, reads, sources, outputs, strict=True)
+        )
+    ]
+    destination = Memory(
+        ProcessCollection(variables[:2], 8), entity_name="destination", assign=True
+    )
+    source = Memory(
+        ProcessCollection(variables[2:], 8), entity_name="source", assign=True
+    )
+    architecture = Architecture([*input_pes, *output_pes], [source, destination])
+
+    architecture.move_process("v2", source, destination)
+
+    assert not source.is_assigned
+    assert not destination.is_assigned
+    assert destination.input_count == destination.output_count == 1
+    assert set(destination.port_assignment.values()) == {0}
+    assert architecture.get_interconnects_for_memory(destination) == (
+        [{(pe, 0): 1 for pe in input_pes}],
+        [{(pe, 0): 1 for pe in output_pes}],
+    )
+    with pytest.raises(ValueError, match=r"concurrent .* declared"):
+        destination.assign()
+
+    architecture.move_process("v0", destination, source, assign=True)
+
+    assert source.is_assigned
+    assert destination.is_assigned
+    assert architecture.get_interconnects_for_memory(destination) == (
+        [{(pe, 0): 1 for pe in input_pes[1:]}],
+        [{(pe, 0): 1 for pe in output_pes[1:]}],
+    )
+    assert architecture.get_interconnects_for_memory(source) == (
+        [{(input_pes[0], 0): 1}],
+        [{(output_pes[0], 0): 1}],
+    )
+
+
 def test_resource_errors(precedence_sfg_delays):
     precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
     precedence_sfg_delays.set_latency_of_type_name(
