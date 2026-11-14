@@ -12,6 +12,7 @@ from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from numbers import Number
 from typing import (
     TYPE_CHECKING,
+    NamedTuple,
     NewType,
     cast,
     overload,
@@ -28,6 +29,14 @@ from b_asic.types import Num, ShapeCoordinates
 
 if TYPE_CHECKING:
     from b_asic.sfg import SFG
+    from b_asic.utility_operations import Sink
+
+
+class _ComplexPair(NamedTuple):
+    """Real and imaginary signal sources for one complex value."""
+
+    re: SignalSourceProvider
+    im: SignalSourceProvider
 
 
 ResultKey = NewType("ResultKey", str)
@@ -244,6 +253,29 @@ class Operation(GraphComponent, SignalSourceProvider):
         split.
         """
         raise NotImplementedError
+
+    def complex_to_real(self, **kwargs) -> "SFG":
+        """
+        Convert complex arithmetic into an SFG of real operations.
+
+        Each input and output becomes an adjacent pair, real part first.
+        ``multiplication_method`` selects ``"four"`` (four real products) or
+        ``"three"`` (three products with extra additions) for complex products,
+        including those in MAD and MADS. The transformation is algebraic;
+        finite-wordlength rounding and operation timing are not preserved.
+        Unsupported primitive operations raise NotImplementedError.
+        Set ``split_io=False`` to keep complex input and output interfaces.
+        """
+        from b_asic.sfg import SFG  # noqa: PLC0415
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        operation = cast(Operation, self.copy())
+        inputs = [Input() for _ in operation.inputs]
+        for port, source in zip(operation.inputs, inputs, strict=True):
+            port.connect(source)
+        return SFG(
+            inputs, [Output(port) for port in operation.outputs]
+        ).complex_to_real(**kwargs)
 
     @abstractmethod
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
@@ -520,6 +552,39 @@ class Operation(GraphComponent, SignalSourceProvider):
         for source in inputs:
             Sink().input(0).connect(source)
         return SFG(inputs, [Output(DontCare()) for _ in self.outputs])
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """
+        Build one _ComplexPair per output from input pairs with .re/.im fields.
+
+        Override this hook for custom primitive operations. Append discarded
+        branches to ``sinks`` so they survive even without graph outputs.
+        ``kwargs`` contains all options passed to ``complex_to_real``, including
+        ``multiplication_method``. The default expands composite operations.
+        """
+        from b_asic.special_operations import Input, Output  # noqa: PLC0415
+
+        expanded = self.to_sfg()
+        inner = [
+            op for op in expanded.operations if not isinstance(op, (Input, Output))
+        ]
+        if len(inner) == 1 and type(inner[0]) is type(self):
+            raise NotImplementedError(
+                f"Complex-to-real conversion does not support {type(self).__name__}."
+            )
+        # Composite interfaces connect real pairs inside the parent graph,
+        # even when its external interface remains complex.
+        converted = expanded.complex_to_real(**(kwargs | {"split_io": True}))
+        for port, value in zip(
+            converted.inputs, (v for pair in inputs for v in pair), strict=True
+        ):
+            port.connect(value)
+        return [
+            _ComplexPair(converted.output(i), converted.output(i + 1))
+            for i in range(0, converted.output_count, 2)
+        ]
 
 
 class AbstractOperation(Operation, AbstractGraphComponent):

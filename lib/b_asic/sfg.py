@@ -543,6 +543,58 @@ class SFG(AbstractOperation):
     def to_sfg(self) -> "SFG":
         return self
 
+    def complex_to_real(
+        self,
+        operations: type[Operation]
+        | GraphID
+        | Iterable[type[Operation] | GraphID]
+        | None = None,
+        **kwargs,
+    ) -> "SFG":
+        """
+        Return an independent real-arithmetic version of this complex SFG.
+
+        Inputs and outputs are ordered ``real0, imag0, real1, imag1, ...``.
+        Nested graphs and composite operations are expanded. Delay initial
+        values are split, preserving feedback. Operations marked
+        ``real_valued=True`` use only real inputs; imaginary inputs terminate
+        at Sinks and imaginary outputs are zero constants.
+
+        Parameters
+        ----------
+        operations : Operation type, GraphID, or iterable of either, optional
+            Convert all operations if None. Otherwise convert only matching
+            types (including subclasses) or graph IDs. Iterators are accepted.
+            Nested operations can be selected by type or hierarchical IDs such
+            as ``sfg0.mul0``. Selecting a nested SFG converts its contents.
+            Unselected operations retain their IDs. Real/complex boundary
+            conversions are inserted as needed and inverse pairs are removed.
+            This permits successive calls with different conversion settings.
+        multiplication_method : {"four", "three"}, default: "four"
+            Use four real multiplications, or three with extra additions,
+            for each general complex product, including MAD and MADS.
+        split_io : bool, default: True
+            Split each external input and output into real/imaginary ports.
+            If False, retain complex Input/Output and MemoryRead/MemoryWrite
+            operations, including their names and memory metadata, and insert
+            ComplexToReal/RealToComplex operations at the graph boundary.
+            Internal arithmetic still uses real signals.
+            With an operation selector, only selected interfaces are split.
+        **kwargs
+            All options, including ``multiplication_method``, are forwarded to
+            each operation's private ``_complex_to_real`` hook. Custom
+            operations may define additional options.
+
+        Notes
+        -----
+        This is an algebraic conversion. Timing and finite-wordlength
+        rounding are not preserved. Real-valued square roots require
+        nonnegative inputs. Unsupported primitives raise NotImplementedError.
+        """
+        from b_asic.complex_conversion import complex_to_real  # noqa: PLC0415
+
+        return complex_to_real(self, operations=operations, **kwargs)
+
     @property
     def is_multirate(self) -> bool:
         """Whether this graph or a nested graph contains rate-changing operations."""
