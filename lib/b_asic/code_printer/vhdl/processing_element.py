@@ -8,7 +8,7 @@ import apytypes as apy
 import numpy as np
 
 from b_asic.code_printer.util import bin_str, time_bin_str
-from b_asic.code_printer.vhdl import common
+from b_asic.code_printer.vhdl import common, memory_io
 from b_asic.code_printer.vhdl.util import schedule_time_type
 from b_asic.data_type import _VhdlDataType
 from b_asic.process import OperatorProcess
@@ -38,6 +38,8 @@ def entity(f: TextIO, pe: "ProcessingElement", dt: _VhdlDataType, controls=()) -
     if pe.operation_type == Output:
         ports.extend(dt.get_output_port_declaration("p"))
 
+    ports.extend(memory_io.ports(pe, dt, "p"))
+
     common.entity_declaration(f, pe.entity_name, ports=ports)
 
 
@@ -57,9 +59,11 @@ def architecture(
     _declarative_region_common(
         f, pe, dt, n_in, n_out, pipeline_control_signals, external_control
     )
+    memory_io.declarations(f, pe, dt)
     common.write(f, 1, "-- Arithmetic core signals", start="\n")
     common.write(f, 0, core_code[0])
     common.write(f, 0, "begin", end="\n\n")
+    memory_io.statements(f, pe, dt)
     common.write(f, 1, "-- Pipeline registers, operands, and control")
     _statement_region_common(
         f,
