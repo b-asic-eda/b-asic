@@ -94,15 +94,18 @@ def assign_processing_elements_and_memories(
 
     memory_read_ports : int, default 1
         The number of read ports used when splitting process collection based on
-        memory variable access.
+        memory variable access. ``left_edge`` supports multiple read ports and
+        uses capacity-aware greedy packing for multiport memories. Other
+        strategies require one read and one write port.
 
     memory_write_ports : int, default 1
         The number of write ports used when splitting process collection based on
-        memory variable access.
+        memory variable access. Multiple write ports are supported by ``left_edge``.
 
     memory_total_ports : int, optional
         The total number of ports used when splitting process collection based on
-        memory variable access.
+        memory variable access. Defaults to the sum of the read and write ports.
+        Strategies other than ``left_edge`` require one or two total ports.
 
     memory_type : {'RAM', 'register'}, default: 'RAM'
         The type of memory to assign to.
@@ -136,6 +139,7 @@ def assign_processing_elements_and_memories(
         Options passed to the selected assignment strategy. The dictionary is
         not modified. For example, ``{"restarts": 1, "seed": 42}`` configures
         ``greedy_min_mux`` and ``{"time_limit": 60}`` configures ``cp_min_mux``.
+
         For ``greedy_min_mux``, the following options are supported:
 
         * ``restarts`` : int, default: 8
@@ -246,6 +250,31 @@ def assign_processing_elements_and_memories(
     return processing_elements, memories, direct
 
 
+def _memory_upper_bound_assignment(
+    mem_vars: ProcessCollection,
+    read_ports: int,
+    write_ports: int,
+    total_ports: int | None = None,
+) -> list[ProcessCollection]:
+    """Return a feasible memory partition whose size bounds the minimum count."""
+    read_ports, write_ports, total_ports = _sanitize_port_option(
+        read_ports, write_ports, total_ports
+    )
+    if not mem_vars:
+        return []
+    strategy = (
+        "greedy_graph_color"
+        if read_ports == write_ports == 1 and total_ports in (1, 2)
+        else "greedy_port_packing"
+    )
+    return mem_vars.split_on_ports(
+        strategy=strategy,
+        read_ports=read_ports,
+        write_ports=write_ports,
+        total_ports=total_ports,
+    )
+
+
 def _split_operations_and_variables(
     op_groups: dict[TypeName, ProcessCollection],
     mem_vars: ProcessCollection,
@@ -284,6 +313,20 @@ def _split_operations_and_variables(
         )
         mem_vars = mem_vars.split_into_chains()
 
+    memory_read_ports, memory_write_ports, memory_total_ports = _sanitize_port_option(
+        memory_read_ports, memory_write_ports, memory_total_ports
+    )
+    multiport = (
+        memory_read_ports != 1
+        or memory_write_ports != 1
+        or memory_total_ports not in (1, 2)
+    )
+    if multiport and strategy != "left_edge":
+        raise ValueError(
+            f"Strategy '{strategy}' requires one read port, one write port, "
+            "and one or two total memory ports; use 'left_edge' for multiport memories."
+        )
+
     # Generate the color upper bound for PEs
     log.info("Generating color upper bounds")
     max_pes = {}
@@ -303,16 +346,27 @@ def _split_operations_and_variables(
             max_pes[operation.type_name()] = resources[operation.type_name()]
     log.info("Upper bounds on PE colors: %s", max_pes)
 
-    log.info("Generating memory variable exclusion graph")
-    mem_exclusion_graph = mem_vars.exclusion_graph_from_ports(
-        memory_read_ports, memory_write_ports, memory_total_ports
-    )
-    mem_greedy_coloring = nx.coloring.greedy_color(
-        mem_exclusion_graph, strategy="saturation_largest_first"
-    )
+    if multiport:
+        log.info("Generating multiport memory upper bound using greedy port packing")
+        mem_upper_bound_assignment = _memory_upper_bound_assignment(
+            mem_vars, memory_read_ports, memory_write_ports, memory_total_ports
+        )
+        mem_greedy_coloring = {
+            var: color
+            for color, group in enumerate(mem_upper_bound_assignment)
+            for var in group
+        }
+    else:
+        log.info("Generating memory variable exclusion graph")
+        mem_exclusion_graph = mem_vars.exclusion_graph_from_ports(
+            memory_read_ports, memory_write_ports, memory_total_ports
+        )
+        mem_greedy_coloring = nx.coloring.greedy_color(
+            mem_exclusion_graph, strategy="saturation_largest_first"
+        )
     if max_mems is None:
         log.info(
-            "max_mems not provided, using greedy graph coloring to determine upper bound on memory colors"
+            "max_mems not provided, using the feasible greedy assignment as the memory upper bound"
         )
         max_mems = len(set(mem_greedy_coloring.values()))
     log.info(
@@ -407,12 +461,16 @@ def _split_operations_and_variables(
             for node, node_color in mem_coloring.items()
         }
     elif strategy == "left_edge":
-        mem_process_collections = mem_vars.split_on_ports(
-            strategy="left_edge",
-            read_ports=memory_read_ports,
-            write_ports=memory_write_ports,
-            total_ports=memory_total_ports,
-            strat_params=strat_params,
+        mem_process_collections = (
+            mem_upper_bound_assignment
+            if multiport
+            else mem_vars.split_on_ports(
+                strategy="left_edge",
+                read_ports=memory_read_ports,
+                write_ports=memory_write_ports,
+                total_ports=memory_total_ports,
+                strat_params=strat_params,
+            )
         )
         pe_process_collections = {}
         for op_type_name, group in op_groups.items():

@@ -27,6 +27,18 @@ Pass strategy-specific options through ``strat_params``. For example,
 ``strat_params={"coloring_strategy": "largest_first", "interchange": True}``
 configures ``greedy_graph_color``. The supplied dictionary is not modified.
 
+For multiport memories, use ``strategy="left_edge"`` with the desired
+``memory_read_ports``, ``memory_write_ports``, and ``memory_total_ports``.
+The assigner obtains a feasible memory-count upper bound using
+``greedy_port_packing`` and reuses that assignment for the memories.
+Processing elements still use left-edge allocation. Per-cycle reads, writes,
+and their sum must fit the corresponding port limits. This is a heuristic
+upper bound, not a proof of the minimum memory count.
+
+The other joint assignment strategies require one read port, one write port,
+and one or two total ports. Single-read/single-write configurations retain
+their existing graph-based upper-bound calculation.
+
 Both mux minimization strategies count physical connections, including inputs
 with fan-in one, within the supplied resource budgets. The CP strategy supports
 one read and one write port per memory, with ``memory_total_ports=1`` enforcing
