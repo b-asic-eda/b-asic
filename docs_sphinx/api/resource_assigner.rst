@@ -36,8 +36,11 @@ and their sum must fit the corresponding port limits. This is a heuristic
 upper bound, not a proof of the minimum memory count.
 
 The other joint assignment strategies require one read port, one write port,
-and one or two total ports. Single-read/single-write configurations retain
-their existing graph-based upper-bound calculation.
+and one or two total ports. Missing bounds use graph coloring for
+single-read/single-write memories. Supplied bounds skip those estimates,
+except that ``ilp_min_mux`` retains heuristic colorings for warm starts.
+``left_edge`` computes its assignments directly without preliminary bounds,
+and ``greedy_graph_color`` reuses its final colorings as any missing bounds.
 
 Both mux minimization strategies count physical connections, including inputs
 with fan-in one, within the supplied resource budgets. The CP strategy supports

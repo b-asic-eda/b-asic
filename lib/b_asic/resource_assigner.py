@@ -327,53 +327,108 @@ def _split_operations_and_variables(
             "and one or two total memory ports; use 'left_edge' for multiport memories."
         )
 
+    if strategy == "left_edge":
+        mem_process_collections = (
+            _memory_upper_bound_assignment(
+                mem_vars, memory_read_ports, memory_write_ports, memory_total_ports
+            )
+            if multiport
+            else mem_vars.split_on_ports(
+                strategy="left_edge",
+                read_ports=memory_read_ports,
+                write_ports=memory_write_ports,
+                total_ports=memory_total_ports,
+                strat_params=strat_params,
+            )
+        )
+        return {
+            op_type: group.split_on_execution_time(
+                "left_edge", strat_params=strat_params
+            )
+            for op_type, group in op_groups.items()
+        }, mem_process_collections
+
+    if strategy not in (
+        "ilp_graph_color",
+        "ilp_min_mux",
+        "cp_min_mux",
+        "greedy_min_mux",
+        "greedy_graph_color",
+    ):
+        raise ValueError(f"Invalid strategy '{strategy}'")
+
+    # Only ILP mux minimization consumes heuristic warm starts. Greedy graph
+    # coloring uses its actual assignments to derive any missing bounds.
+    warm_start = strategy == "ilp_min_mux"
+    greedy_assignment = strategy == "greedy_graph_color"
+    coloring_strategy = (
+        strat_params.pop("coloring_strategy", "saturation_largest_first")
+        if greedy_assignment
+        else "saturation_largest_first"
+    )
+    coloring_options = strat_params if greedy_assignment else {}
+
     # Generate the color upper bound for PEs
     log.info("Generating color upper bounds")
     max_pes = {}
     pe_greedy_colorings: dict[TypeName, dict] = {}
     pe_operations = []
-    for group in op_groups.values():
-        operation = next(iter(group)).operation
-        pe_operations.append(operation)
-        pe_ex_graph = group.exclusion_graph_from_execution_time()
-        coloring = nx.coloring.greedy_color(
-            pe_ex_graph, strategy="saturation_largest_first"
-        )
-        pe_greedy_colorings[operation.type_name()] = coloring
-        if not resources or operation.type_name() not in resources:
-            max_pes[operation.type_name()] = len(set(coloring.values()))
+    for op_type, group in op_groups.items():
+        if warm_start:
+            pe_operations.append(next(iter(group)).operation)
+        if (
+            greedy_assignment
+            or warm_start
+            or resources is None
+            or op_type not in resources
+        ):
+            coloring = nx.coloring.greedy_color(
+                group.exclusion_graph_from_execution_time(),
+                strategy=coloring_strategy,
+                **coloring_options,
+            )
+            pe_greedy_colorings[op_type] = coloring
+        if resources is None or op_type not in resources:
+            max_pes[op_type] = len(set(pe_greedy_colorings[op_type].values()))
         else:
-            max_pes[operation.type_name()] = resources[operation.type_name()]
+            max_pes[op_type] = resources[op_type]
     log.info("Upper bounds on PE colors: %s", max_pes)
 
-    if multiport:
-        log.info("Generating multiport memory upper bound using greedy port packing")
-        mem_upper_bound_assignment = _memory_upper_bound_assignment(
-            mem_vars, memory_read_ports, memory_write_ports, memory_total_ports
-        )
-        mem_greedy_coloring = {
-            var: color
-            for color, group in enumerate(mem_upper_bound_assignment)
-            for var in group
-        }
-    else:
+    mem_exclusion_graph = None
+    mem_greedy_coloring = None
+    if (
+        max_mems is None
+        or warm_start
+        or strategy == "ilp_graph_color"
+        or greedy_assignment
+    ):
         log.info("Generating memory variable exclusion graph")
         mem_exclusion_graph = mem_vars.exclusion_graph_from_ports(
             memory_read_ports, memory_write_ports, memory_total_ports
         )
-        mem_greedy_coloring = nx.coloring.greedy_color(
-            mem_exclusion_graph, strategy="saturation_largest_first"
-        )
+        if max_mems is None or warm_start or greedy_assignment:
+            mem_greedy_coloring = nx.coloring.greedy_color(
+                mem_exclusion_graph, strategy=coloring_strategy, **coloring_options
+            )
     if max_mems is None:
         log.info(
             "max_mems not provided, using the feasible greedy assignment as the memory upper bound"
         )
         max_mems = len(set(mem_greedy_coloring.values()))
+    read_ports_bound = mem_vars.read_ports_bound()
+    write_ports_bound = mem_vars.write_ports_bound()
+    memory_lower_bound = max(
+        (read_ports_bound + memory_read_ports - 1) // memory_read_ports,
+        (write_ports_bound + memory_write_ports - 1) // memory_write_ports,
+        (mem_vars.total_ports_bound() + memory_total_ports - 1) // memory_total_ports,
+    )
     log.info(
-        "Upper bound on memory colors: %d, maximum number of memory reads: %d and memory writes: %d",
+        "Upper bound on memory colors: %d, lower bound on memories: %d, "
+        "lower bound on read ports: %d and write ports: %d",
         max_mems,
-        mem_vars.read_ports_bound(),
-        mem_vars.write_ports_bound(),
+        memory_lower_bound,
+        read_ports_bound,
+        write_ports_bound,
     )
 
     log.info("Using strategy '%s' for resource assignment", strategy)
@@ -408,44 +463,31 @@ def _split_operations_and_variables(
             **strat_params,
         )
     elif strategy == "cp_min_mux":
-        _, _, total_ports = _sanitize_port_option(
-            memory_read_ports, memory_write_ports, memory_total_ports
-        )
         pe_x, mem_x = _cp_min_mux(
             op_groups,
             mem_vars,
             max_pes,
             max_mems,
             direct_variables,
-            memory_total_ports=total_ports,
+            memory_total_ports=memory_total_ports,
             max_mux_size=max_mux_size,
             solver=cast("str | SolverInterface | None", solver),
             **strat_params,
         )
     elif strategy == "greedy_min_mux":
-        _, _, total_ports = _sanitize_port_option(
-            memory_read_ports, memory_write_ports, memory_total_ports
-        )
         pe_x, mem_x = _greedy_min_mux(
             op_groups,
             mem_vars,
             max_pes,
             max_mems,
             direct_variables,
-            memory_total_ports=total_ports,
+            memory_total_ports=memory_total_ports,
             max_mux_size=max_mux_size,
             **strat_params,
         )
     elif strategy == "greedy_graph_color":
-        coloring_strategy = strat_params.pop(
-            "coloring_strategy", "saturation_largest_first"
-        )
         pe_x = {}
-        for op_type_name, group in op_groups.items():
-            pe_ex_graph = group.exclusion_graph_from_execution_time()
-            coloring = nx.coloring.greedy_color(
-                pe_ex_graph, strategy=coloring_strategy, **strat_params
-            )
+        for op_type_name, coloring in pe_greedy_colorings.items():
             pe_x[op_type_name] = {
                 node: {
                     color: 1 if color == node_color else 0
@@ -453,33 +495,10 @@ def _split_operations_and_variables(
                 }
                 for node, node_color in coloring.items()
             }
-        mem_coloring = nx.coloring.greedy_color(
-            mem_exclusion_graph, strategy=coloring_strategy, **strat_params
-        )
         mem_x = {
             node: {color: 1 if color == node_color else 0 for color in range(max_mems)}
-            for node, node_color in mem_coloring.items()
+            for node, node_color in mem_greedy_coloring.items()
         }
-    elif strategy == "left_edge":
-        mem_process_collections = (
-            mem_upper_bound_assignment
-            if multiport
-            else mem_vars.split_on_ports(
-                strategy="left_edge",
-                read_ports=memory_read_ports,
-                write_ports=memory_write_ports,
-                total_ports=memory_total_ports,
-                strat_params=strat_params,
-            )
-        )
-        pe_process_collections = {}
-        for op_type_name, group in op_groups.items():
-            pe_process_collections[op_type_name] = group.split_on_execution_time(
-                strategy="left_edge", strat_params=strat_params
-            )
-        return pe_process_collections, mem_process_collections
-    else:
-        raise ValueError(f"Invalid strategy '{strategy}'")
 
     # Assign memories based on coloring
     mem_assignment_dict = _get_assignment_from_coloring(
