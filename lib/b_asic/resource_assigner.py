@@ -96,19 +96,19 @@ def assign_processing_elements_and_memories(
         The number of read ports used when splitting process collection based on
         memory variable access. ``left_edge`` supports multiple read ports and
         uses capacity-aware greedy packing for multiport memories.
-        ``ilp_min_mux`` and ``cp_min_mux`` also support multiple read ports;
+        ``ilp_min_mux``, ``cp_min_mux``, and ``greedy_min_mux`` also support multiple read ports;
         their models enforce per-cycle port capacities. Other strategies
         require one read and one write port.
 
     memory_write_ports : int, default 1
         The number of write ports used when splitting process collection based on
         memory variable access. Multiple write ports are supported by
-        ``left_edge``, ``ilp_min_mux``, and ``cp_min_mux``.
+        ``left_edge``, ``ilp_min_mux``, ``cp_min_mux``, and ``greedy_min_mux``.
 
     memory_total_ports : int, optional
         The total number of ports used when splitting process collection based on
         memory variable access. Defaults to the sum of the read and write ports.
-        Strategies other than ``left_edge``, ``ilp_min_mux``, and ``cp_min_mux``
+        Strategies other than ``left_edge``, ``ilp_min_mux``, ``cp_min_mux``, and ``greedy_min_mux``
         require one or two total ports.
 
     memory_type : {'RAM', 'register'}, default: 'RAM'
@@ -325,11 +325,16 @@ def _split_operations_and_variables(
         or memory_write_ports != 1
         or memory_total_ports not in (1, 2)
     )
-    if multiport and strategy not in ("left_edge", "ilp_min_mux", "cp_min_mux"):
+    if multiport and strategy not in (
+        "left_edge",
+        "ilp_min_mux",
+        "cp_min_mux",
+        "greedy_min_mux",
+    ):
         raise ValueError(
             f"Strategy '{strategy}' requires one read port, one write port, "
             "and one or two total memory ports; use 'left_edge', 'ilp_min_mux', "
-            "or 'cp_min_mux' for multiport memories."
+            "'cp_min_mux', or 'greedy_min_mux' for multiport memories."
         )
 
     if strategy == "left_edge":
@@ -509,6 +514,8 @@ def _split_operations_and_variables(
             max_mems,
             direct_variables,
             memory_total_ports=memory_total_ports,
+            memory_read_ports=memory_read_ports,
+            memory_write_ports=memory_write_ports,
             max_mux_size=max_mux_size,
             **strat_params,
         )
@@ -801,6 +808,8 @@ def _greedy_min_mux(
     direct: ProcessCollection,
     *,
     memory_total_ports: int = 2,
+    memory_read_ports: int = 1,
+    memory_write_ports: int = 1,
     max_mux_size: int | None = None,
     restarts: int = 8,
     max_passes: int = 20,
@@ -809,11 +818,15 @@ def _greedy_min_mux(
     """
     Heuristically minimize physical connections as in ``_cp_min_mux`` and ``_ilp_min_mux``.
 
-    Each start uses saturation coloring, preferring assignments that reuse
-    physical connections. Local search then recolors individual processes and
+    Each start uses saturation coloring for single-port conflicts. Multiport
+    memories combine unit-capacity conflict edges with aggregate load counters
+    and prioritize variables that use busy cycles. Placement prefers assignments
+    that reuse physical connections. Local search recolors individual processes and
     swaps pairs in the same resource family. Mux fan-in violations are minimized
     before connection count, allowing initially overfull muxes to be repaired.
     Execution and memory port conflicts are forbidden throughout the search.
+    Multiport moves and swaps check their net changes to all affected read,
+    write, and combined-access loads before they are accepted.
 
     The search is bounded by ``restarts`` and ``max_passes`` and reproducible for
     a fixed process order and ``seed``. It requires no optional solver, provides
@@ -824,9 +837,32 @@ def _greedy_min_mux(
         raise ValueError("max_mux_size must be at least 1")
     if restarts < 1 or max_passes < 0:
         raise ValueError("restarts must be positive and max_passes nonnegative")
-    counts, families, links = _mux_problem(
-        op_groups, mem_vars, max_pes, max_mems, direct, memory_total_ports
+    limits = _sanitize_port_option(
+        memory_read_ports, memory_write_ports, memory_total_ports
     )
+    multiport = limits[:2] != (1, 1) or limits[2] not in (1, 2)
+    counts, families, links = _mux_problem(
+        op_groups,
+        mem_vars,
+        max_pes,
+        max_mems,
+        direct,
+        memory_total_ports,
+        memory_port_limits=limits if multiport else None,
+    )
+    capacity_rows = (
+        mem_vars._port_capacity_rows(mem_vars._validated_port_accesses(*limits), limits)
+        if multiport
+        else []
+    )
+    rows_for_key = defaultdict(list)
+    pressure = defaultdict(float)
+    for index, (demands, capacity) in enumerate(capacity_rows):
+        total = sum(demands.values())
+        for var, demand in demands.items():
+            key = ("mem", var)
+            rows_for_key[key].append((index, demand))
+            pressure[key] += demand * total / capacity
     log.debug(
         "Greedy mux search starting: %d processes, %d logical connections, "
         "%d restarts, up to %d passes per restart, seed=%d, max_mux_size=%s",
@@ -845,6 +881,13 @@ def _greedy_min_mux(
         for clique in cliques:
             for key in clique:
                 neighbors[key].update(clique - {key})
+    # Unit-capacity rows are genuine pairwise conflicts; larger capacities
+    # need aggregate load checks rather than a graph exclusion.
+    for demands, capacity in capacity_rows:
+        if capacity == 1:
+            keys = {("mem", var) for var in demands}
+            for key in keys:
+                neighbors[key].update(keys - {key})
 
     def score(assignment):
         connections = {
@@ -871,6 +914,31 @@ def _greedy_min_mux(
             "Greedy mux restart %d/%d: initial coloring starting", restart, restarts
         )
         assignment = {}
+        loads = [defaultdict(int) for _ in capacity_rows]
+
+        def capacity_changes(move, assignment=assignment):
+            changes = defaultdict(int)
+            for node, color in move.items():
+                for row, demand in rows_for_key.get(node, ()):
+                    if node in assignment:
+                        changes[row, assignment[node]] -= demand
+                    changes[row, color] += demand
+            return changes
+
+        def fits_capacity(move, loads=loads, capacity_changes=capacity_changes):
+            return all(
+                loads[row][color] + change <= capacity_rows[row][1]
+                for (row, color), change in capacity_changes(move).items()
+            )
+
+        def apply_move(
+            move, loads=loads, assignment=assignment, capacity_changes=capacity_changes
+        ):
+            if multiport:
+                for (row, color), change in capacity_changes(move).items():
+                    loads[row][color] += change
+            assignment.update(move)
+
         order = list(counts)
         rng.shuffle(order)
         # Stable tie breaking follows the shuffled order, never set iteration.
@@ -880,11 +948,17 @@ def _greedy_min_mux(
                 remaining,
                 key=lambda k: (
                     len({assignment[n] for n in neighbors[k] if n in assignment}),
+                    pressure[k] if multiport else 0,
                     len(neighbors[k]),
                 ),
             )
             forbidden = {assignment[n] for n in neighbors[key] if n in assignment}
-            colors = [color for color in range(counts[key]) if color not in forbidden]
+            colors = [
+                color
+                for color in range(counts[key])
+                if color not in forbidden
+                and (not multiport or fits_capacity({key: color}))
+            ]
             if not colors:
                 break
             rng.shuffle(colors)
@@ -893,9 +967,10 @@ def _greedy_min_mux(
             for color in colors:
                 assignment[key] = color
                 candidate_score = score(assignment)
+                del assignment[key]
                 if chosen_score is None or candidate_score < chosen_score:
                     chosen, chosen_score = color, candidate_score
-            assignment[key] = chosen
+            apply_move({key: chosen})
             del remaining[key]
         if remaining:
             log.debug(
@@ -949,6 +1024,8 @@ def _greedy_min_mux(
                         for n in neighbors[node]
                     ):
                         continue
+                    if multiport and not fits_capacity(move):
+                        continue
                     previous = {node: assignment[node] for node in move}
                     assignment.update(move)
                     candidate_score = score(assignment)
@@ -956,7 +1033,7 @@ def _greedy_min_mux(
                     if candidate_score < chosen_score:
                         chosen_move, chosen_score = move, candidate_score
                 if chosen_move is not None:
-                    assignment.update(chosen_move)
+                    apply_move(chosen_move)
                     current_score = chosen_score
                     improved = True
                     accepted_moves += 1
