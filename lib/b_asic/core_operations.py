@@ -7,7 +7,7 @@ Contains some of the most commonly used mathematical operations.
 import math
 import numbers
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Self, Union, cast
 
 import apytypes as apy
 from numpy import abs as np_abs
@@ -15,13 +15,14 @@ from numpy import conjugate, sqrt
 
 from b_asic.data_type import NumRepresentation
 from b_asic.graph_component import Name, TypeName
-from b_asic.operation import AbstractOperation
+from b_asic.operation import AbstractOperation, _ComplexPair
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Num, ShapeCoordinates
 from b_asic.utils import _fixed_point_bits, float_to_csd
 
 if TYPE_CHECKING:
     from b_asic.sfg import SFG
+    from b_asic.utility_operations import Sink
 
 
 def _zero_inputs(operation: AbstractOperation) -> set[int]:
@@ -105,6 +106,30 @@ def _lean_add_sub(
     if out0_scale:
         result = f"({result} / (2 : Real) ^ ({out0_scale} : Int))"
     return result
+
+
+class _RealValuedOperation(AbstractOperation):
+    """Store the real-arithmetic assumption separately from operation parameters."""
+
+    __slots__ = ("_real_valued",)
+
+    _real_valued: bool | None
+
+    @property
+    def real_valued(self) -> bool | None:
+        """Whether only real input parts are used and the result is real."""
+        return self._real_valued
+
+    @real_valued.setter
+    def real_valued(self, value: bool | None) -> None:
+        if value is not None and not isinstance(value, bool):
+            raise TypeError("real_valued must be a bool or None")
+        self._real_valued = value
+
+    def copy(self, *args, **kwargs) -> Self:
+        copied = cast(Self, super().copy(*args, **kwargs))
+        copied.real_valued = self.real_valued
+        return copied
 
 
 class Constant(AbstractOperation):
@@ -218,6 +243,12 @@ class Constant(AbstractOperation):
         # doc-string inherited
         return ((0, 0.5),)
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        return [_ComplexPair(Constant(self.value.real), Constant(self.value.imag))]
+
 
 class Negation(AbstractOperation):
     """
@@ -301,6 +332,14 @@ class Negation(AbstractOperation):
         if _zero_inputs(self):
             return _simplified_sfg(self, lambda inputs: Constant(0))
         return None
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _componentwise  # noqa: PLC0415
+
+        return _componentwise(self, inputs, sinks)
 
 
 class Addition(AbstractOperation):
@@ -547,6 +586,26 @@ class Addition(AbstractOperation):
             return folded
         return _simplify_add_sub(self, is_add=True)
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from typing import cast  # noqa: PLC0415
+
+        from b_asic.operation import Operation  # noqa: PLC0415
+
+        left, right = inputs
+        if self.mul_j:
+            right = _ComplexPair(Negation(right.im), right.re)
+        results = []
+        for left_part, right_part in ((left.re, right.re), (left.im, right.im)):
+            replacement = cast(Operation, self.copy())
+            replacement.set_param("mul_j", False)
+            replacement.input(0).connect(left_part)
+            replacement.input(1).connect(right_part)
+            results.append(replacement)
+        return [_ComplexPair(*results)]
+
 
 class Subtraction(AbstractOperation):
     """
@@ -787,6 +846,26 @@ class Subtraction(AbstractOperation):
         if folded is not None:
             return folded
         return _simplify_add_sub(self, is_add=False)
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from typing import cast  # noqa: PLC0415
+
+        from b_asic.operation import Operation  # noqa: PLC0415
+
+        left, right = inputs
+        if self.mul_j:
+            right = _ComplexPair(Negation(right.im), right.re)
+        results = []
+        for left_part, right_part in ((left.re, right.re), (left.im, right.im)):
+            replacement = cast(Operation, self.copy())
+            replacement.set_param("mul_j", False)
+            replacement.input(0).connect(left_part)
+            replacement.input(1).connect(right_part)
+            results.append(replacement)
+        return [_ComplexPair(*results)]
 
 
 class AddSub(AbstractOperation):
@@ -1048,6 +1127,26 @@ class AddSub(AbstractOperation):
             return folded
         return _simplify_add_sub(self, is_add=self.is_add)
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from typing import cast  # noqa: PLC0415
+
+        from b_asic.operation import Operation  # noqa: PLC0415
+
+        left, right = inputs
+        if self.mul_j:
+            right = _ComplexPair(Negation(right.im), right.re)
+        results = []
+        for left_part, right_part in ((left.re, right.re), (left.im, right.im)):
+            replacement = cast(Operation, self.copy())
+            replacement.set_param("mul_j", False)
+            replacement.input(0).connect(left_part)
+            replacement.input(1).connect(right_part)
+            results.append(replacement)
+        return [_ComplexPair(*results)]
+
 
 class Multiplication(AbstractOperation):
     r"""
@@ -1146,8 +1245,18 @@ class Multiplication(AbstractOperation):
             return _simplified_sfg(self, lambda inputs: Constant(0))
         return None
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _product  # noqa: PLC0415
 
-class Division(AbstractOperation):
+        return [
+            _product(inputs[0], inputs[1], kwargs.get("multiplication_method", "four"))
+        ]
+
+
+class Division(_RealValuedOperation):
     r"""
     Binary division operation.
 
@@ -1172,6 +1281,8 @@ class Division(AbstractOperation):
         only.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
+    real_valued : bool or None, default: None
+        Use only real input parts and assume a real result.
 
     See Also
     --------
@@ -1201,6 +1312,7 @@ class Division(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        real_valued: bool | None = None,
     ) -> None:
         """Construct a Division operation."""
         super().__init__(
@@ -1212,6 +1324,7 @@ class Division(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
+        self.real_valued = real_valued
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -1225,12 +1338,41 @@ class Division(AbstractOperation):
         return f"{inputs[0]} / {inputs[1]}"
 
     def evaluate(self, a, b, data_type=None) -> Num:
+        if self.real_valued:
+            a, b = a.real, b.real
         res = float("inf") if b == 0 else a / b
         return self._cast_to_data_type(res, data_type)
 
     @property
     def is_linear(self) -> bool:
         return self.input(1).connected_source.operation.is_constant
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import (  # noqa: PLC0415
+            _product,
+            _real_valued,
+            _safe_norm,
+        )
+
+        if self.real_valued:
+            return _real_valued(self, inputs, sinks)
+        a, b = inputs[0].re, inputs[0].im
+        c, d = inputs[1].re, inputs[1].im
+        norm = Addition(Multiplication(c, c), Multiplication(d, d))
+        numerator = _product(
+            _ComplexPair(a, b),
+            _ComplexPair(c, Negation(d)),
+            kwargs.get("multiplication_method", "four"),
+        )
+        return [
+            _ComplexPair(
+                Division(numerator.re, norm, real_valued=True),
+                Division(numerator.im, _safe_norm(norm), real_valued=True),
+            )
+        ]
 
 
 class Min(AbstractOperation):
@@ -1316,6 +1458,14 @@ class Min(AbstractOperation):
         res = min(a, b)
         return self._cast_to_data_type(res, data_type)
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Reject conversion because complex inputs cannot be ordered."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support complex-to-real conversion."
+        )
+
 
 class Max(AbstractOperation):
     r"""
@@ -1399,6 +1549,14 @@ class Max(AbstractOperation):
             raise ValueError("core_operations.Max does not support complex numbers.")
         res = max(a, b)
         return self._cast_to_data_type(res, data_type)
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Reject conversion because complex inputs cannot be ordered."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support complex-to-real conversion."
+        )
 
 
 class Comparator(AbstractOperation):
@@ -1515,8 +1673,16 @@ class Comparator(AbstractOperation):
         """Split into the same Min/Max network as :meth:`_rewrite_Min`."""
         return self._rewrite_Min()
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Reject conversion because complex inputs cannot be ordered."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support complex-to-real conversion."
+        )
 
-class SquareRoot(AbstractOperation):
+
+class SquareRoot(_RealValuedOperation):
     r"""
     Square root operation.
 
@@ -1538,6 +1704,8 @@ class SquareRoot(AbstractOperation):
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
+    real_valued : bool or None, default: None
+        Use only the real input part, which must be nonnegative.
 
     See Also
     --------
@@ -1558,6 +1726,7 @@ class SquareRoot(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        real_valued: bool | None = None,
     ) -> None:
         """Construct a SquareRoot operation."""
         super().__init__(
@@ -1569,6 +1738,7 @@ class SquareRoot(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
+        self.real_valued = real_valued
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -1578,8 +1748,21 @@ class SquareRoot(AbstractOperation):
         return f"(Real.sqrt {inputs[0]})"
 
     def evaluate(self, a, data_type=None) -> Num:
-        res = sqrt(complex(a))
+        res = sqrt(float(a.real)) if self.real_valued else sqrt(complex(a))
         return self._cast_to_data_type(res, data_type)
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import (  # noqa: PLC0415
+            _real_valued,
+            _square_root,
+        )
+
+        if self.real_valued:
+            return _real_valued(self, inputs, sinks)
+        return [_square_root(inputs[0])]
 
 
 class ComplexConjugate(AbstractOperation):
@@ -1640,8 +1823,14 @@ class ComplexConjugate(AbstractOperation):
         res = conjugate(a)
         return self._cast_to_data_type(res, data_type)
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        return [_ComplexPair(inputs[0].re, Negation(inputs[0].im))]
 
-class Absolute(AbstractOperation):
+
+class Absolute(_RealValuedOperation):
     """
     Absolute value operation.
 
@@ -1663,6 +1852,8 @@ class Absolute(AbstractOperation):
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
+    real_valued : bool or None, default: None
+        Use only real input parts and assume a real result.
     """
 
     __slots__ = ("_execution_time", "_in0", "_latency", "_latency_offsets", "_name")
@@ -1679,6 +1870,7 @@ class Absolute(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        real_valued: bool | None = None,
     ) -> None:
         """Construct an Absolute operation."""
         super().__init__(
@@ -1690,6 +1882,7 @@ class Absolute(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
+        self.real_valued = real_valued
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -1699,7 +1892,28 @@ class Absolute(AbstractOperation):
         return f"(abs {inputs[0]})"
 
     def evaluate(self, a, data_type=None) -> Num:
+        if self.real_valued:
+            a = a.real
         return self._cast_to_data_type(np_abs(a), data_type)
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _real_valued  # noqa: PLC0415
+
+        if self.real_valued:
+            return _real_valued(self, inputs, sinks)
+        a, b = inputs[0].re, inputs[0].im
+        return [
+            _ComplexPair(
+                SquareRoot(
+                    Addition(Multiplication(a, a), Multiplication(b, b)),
+                    real_valued=True,
+                ),
+                Constant(0),
+            )
+        ]
 
 
 class ImaginaryMultiplication(AbstractOperation):
@@ -1831,6 +2045,12 @@ class ImaginaryMultiplication(AbstractOperation):
         if _zero_inputs(self):
             return _simplified_sfg(self, lambda inputs: Constant(0))
         return None
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        return [_ComplexPair(Negation(inputs[0].im), inputs[0].re)]
 
 
 class ConstantMultiplication(AbstractOperation):
@@ -2026,6 +2246,29 @@ class ConstantMultiplication(AbstractOperation):
             return _simplified_sfg(self, lambda inputs: inputs[0])
         return None
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        a, b = inputs[0].re, inputs[0].im
+        c, d = self.value.real, self.value.imag
+        if d == 0:
+            return [
+                _ComplexPair(ConstantMultiplication(c, a), ConstantMultiplication(c, b))
+            ]
+        if c == 0:
+            return [
+                _ComplexPair(
+                    ConstantMultiplication(-d, b), ConstantMultiplication(d, a)
+                )
+            ]
+        return [
+            _ComplexPair(
+                Subtraction(ConstantMultiplication(c, a), ConstantMultiplication(d, b)),
+                Addition(ConstantMultiplication(d, a), ConstantMultiplication(c, b)),
+            )
+        ]
+
 
 class MAD(AbstractOperation):
     r"""
@@ -2163,6 +2406,22 @@ class MAD(AbstractOperation):
             )
         return None
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _product  # noqa: PLC0415
+
+        product = _product(
+            inputs[0], inputs[1], kwargs.get("multiplication_method", "four")
+        )
+        if self.do_add:
+            product = _ComplexPair(
+                Addition(product.re, inputs[2].re),
+                Addition(product.im, inputs[2].im),
+            )
+        return [product]
+
 
 class MADS(AbstractOperation):
     __slots__ = (
@@ -2285,8 +2544,27 @@ class MADS(AbstractOperation):
 
         return _simplified_sfg(self, build)
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _product  # noqa: PLC0415
 
-class Reciprocal(AbstractOperation):
+        product = _product(
+            inputs[1], inputs[2], kwargs.get("multiplication_method", "four")
+        )
+        if self.do_addsub:
+            combine = Addition if self.is_add else Subtraction
+            product = _ComplexPair(
+                combine(inputs[0].re, product.re),
+                combine(inputs[0].im, product.im),
+            )
+        elif not self.is_add:
+            product = _ComplexPair(Negation(product.re), Negation(product.im))
+        return [product]
+
+
+class Reciprocal(_RealValuedOperation):
     r"""
     Reciprocal operation.
 
@@ -2308,6 +2586,8 @@ class Reciprocal(AbstractOperation):
         operator starts. If not provided and *latency* is provided, set to zero.
     execution_time : int, optional
         Operation execution time (time units before operator can be reused).
+    real_valued : bool or None, default: None
+        Use only real input parts and assume a real result.
 
     See Also
     --------
@@ -2328,6 +2608,7 @@ class Reciprocal(AbstractOperation):
         latency: int | None = None,
         latency_offsets: dict[str, int] | None = None,
         execution_time: int | None = None,
+        real_valued: bool | None = None,
     ) -> None:
         """Construct a Reciprocal operation."""
         super().__init__(
@@ -2339,6 +2620,7 @@ class Reciprocal(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
+        self.real_valued = real_valued
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -2351,11 +2633,23 @@ class Reciprocal(AbstractOperation):
         return f"{self.graph_id} = 1 / {input_ids[0]}"
 
     def evaluate(self, a, data_type=None) -> Num:
+        if self.real_valued:
+            a = a.real
         res = float("inf") if a == 0 else 1 / a
         return self._cast_to_data_type(res, data_type)
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _real_valued, _reciprocal  # noqa: PLC0415
 
-class ReciprocalSquareRoot(AbstractOperation):
+        if self.real_valued:
+            return _real_valued(self, inputs, sinks)
+        return [_reciprocal(inputs[0])]
+
+
+class ReciprocalSquareRoot(_RealValuedOperation):
     r"""
     Reciprocal square root operation.
 
@@ -2380,6 +2674,7 @@ class ReciprocalSquareRoot(AbstractOperation):
     real_valued : bool or None, default: None
         Whether to use only the real part of a complex input. If False or None,
         use the full complex value. Real inputs are evaluated directly.
+        When True, the real input part must be nonnegative.
 
     See Also
     --------
@@ -2393,14 +2688,12 @@ class ReciprocalSquareRoot(AbstractOperation):
         "_latency",
         "_latency_offsets",
         "_name",
-        "_real_valued",
     )
     _in0: SignalSourceProvider | None
     _name: Name
     _latency: int | None
     _latency_offsets: dict[str, int] | None
     _execution_time: int | None
-    _real_valued: bool | None
 
     def __init__(
         self,
@@ -2421,7 +2714,7 @@ class ReciprocalSquareRoot(AbstractOperation):
             latency_offsets=latency_offsets,
             execution_time=execution_time,
         )
-        self._real_valued = real_valued
+        self.real_valued = real_valued
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -2431,9 +2724,23 @@ class ReciprocalSquareRoot(AbstractOperation):
         if isinstance(a, numbers.Real):
             res = float("inf") if a == 0 else float(a) ** (-0.5)
         else:
-            operand = complex(a).real if self._real_valued else complex(a)
+            operand = complex(a).real if self.real_valued else complex(a)
             res = float("inf") if operand == 0 else operand ** (-0.5)
         return self._cast_to_data_type(res, data_type)
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import (  # noqa: PLC0415
+            _real_valued,
+            _reciprocal,
+            _square_root,
+        )
+
+        if self.real_valued:
+            return _real_valued(self, inputs, sinks)
+        return [_reciprocal(_square_root(inputs[0]))]
 
 
 class RightShift(AbstractOperation):
@@ -2543,6 +2850,14 @@ class RightShift(AbstractOperation):
             return _simplified_sfg(self, lambda inputs: Constant(0))
         return None
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _componentwise  # noqa: PLC0415
+
+        return _componentwise(self, inputs, sinks)
+
 
 class LeftShift(AbstractOperation):
     r"""
@@ -2650,6 +2965,14 @@ class LeftShift(AbstractOperation):
         if _zero_inputs(self):
             return _simplified_sfg(self, lambda inputs: Constant(0))
         return None
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _componentwise  # noqa: PLC0415
+
+        return _componentwise(self, inputs, sinks)
 
 
 class Shift(AbstractOperation):
@@ -2799,3 +3122,11 @@ class Shift(AbstractOperation):
         if _zero_inputs(self):
             return _simplified_sfg(self, lambda inputs: Constant(0))
         return None
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _componentwise  # noqa: PLC0415
+
+        return _componentwise(self, inputs, sinks)

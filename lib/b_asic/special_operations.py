@@ -5,6 +5,7 @@ Contains operations with special purposes that may be treated differently from
 normal operations in an SFG.
 """
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import apytypes as apy
@@ -13,12 +14,14 @@ from b_asic.data_type import NumRepresentation
 from b_asic.operation import (
     AbstractOperation,
     DelayMap,
+    _ComplexPair,
 )
 from b_asic.port import SignalSourceProvider
 from b_asic.types import Name, Num, ShapeCoordinates, TypeName
 
 if TYPE_CHECKING:
     from b_asic.sfg import SFG
+    from b_asic.utility_operations import Sink
 
 
 class Input(AbstractOperation):
@@ -378,6 +381,18 @@ class Delay(AbstractOperation):
             return _simplified_sfg(self, lambda inputs: Constant(value))
         return None
 
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        value = self.initial_value
+        return [
+            _ComplexPair(
+                Delay(inputs[0].re, initial_value=value.real, name=self.name),
+                Delay(inputs[0].im, initial_value=value.imag, name=self.name),
+            )
+        ]
+
 
 class _RateChange(AbstractOperation):
     """Base for symbolic operations that change the number of samples."""
@@ -447,6 +462,14 @@ class _RateChange(AbstractOperation):
         # In particular, expanding a nonzero constant does not produce a
         # constant stream. Simplify after the phases have been made explicit.
         return None
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Build real and imaginary output pairs for this operation."""
+        from b_asic.complex_conversion import _componentwise  # noqa: PLC0415
+
+        return _componentwise(self, inputs, sinks)
 
 
 class Expansion(_RateChange):

@@ -11,7 +11,15 @@ from b_asic.architecture import (
     _fixed_point_bits,
 )
 from b_asic.code_printer.vhdl.vhdl_printer import VhdlPrinter
-from b_asic.core_operations import Addition, ConstantMultiplication
+from b_asic.core_operations import (
+    Absolute,
+    Addition,
+    ConstantMultiplication,
+    Division,
+    Reciprocal,
+    ReciprocalSquareRoot,
+    SquareRoot,
+)
 from b_asic.data_type import DataType
 from b_asic.fft_operations import R2Butterfly
 from b_asic.process import (
@@ -26,6 +34,20 @@ from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
 from b_asic.special_operations import Input, Output
 from b_asic.utility_operations import Sink
+
+
+@pytest.mark.parametrize(
+    "operation_type", [Reciprocal, ReciprocalSquareRoot, SquareRoot, Absolute, Division]
+)
+@pytest.mark.parametrize("real_valued", [None, False, True])
+def test_real_valued_metadata_is_not_a_control(operation_type, real_valued):
+    operation = operation_type(real_valued=real_valued, latency=1, execution_time=1)
+    copied = operation.copy()
+    assert copied.real_valued is real_valued
+    assert "real_valued" not in operation.params
+    assert "real_valued" not in copied.params
+    pe = ProcessingElement(ProcessCollection([OperatorProcess(0, copied)], 2))
+    assert pe.control_table == {}
 
 
 @pytest.mark.parametrize("orientation", ["horizontal", "vertical"])

@@ -378,7 +378,7 @@ def cholesky_matrix_inverse(
                 else:
                     acc = acc - L[j][k] * L[j][k]
 
-            L_inv[j][j] = ReciprocalSquareRoot(acc)
+            L_inv[j][j] = ReciprocalSquareRoot(acc, real_valued=True)
 
             for i in range(j + 1, N_local):
                 acc2 = A[i][j]
@@ -1165,7 +1165,7 @@ def block_cholesky_matrix_inverse(
 
     def _chol_inv_2x2(acc):
         res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
-        inv_L00 = ReciprocalSquareRoot(acc[0][0])
+        inv_L00 = ReciprocalSquareRoot(acc[0][0], real_valued=True)
         if pe == "mads":
             L10 = MADS(
                 is_add=True,
@@ -1175,7 +1175,7 @@ def block_cholesky_matrix_inverse(
                 do_addsub=False,
             )
             tmp1 = MADS(is_add=False, in0=acc[1][1], in1=L10, in2=L10, do_addsub=True)
-            inv_L11 = ReciprocalSquareRoot(tmp1)
+            inv_L11 = ReciprocalSquareRoot(tmp1, real_valued=True)
             tmp2 = MADS(
                 is_add=True,
                 in0=DontCare(),
@@ -1195,13 +1195,15 @@ def block_cholesky_matrix_inverse(
         elif pe == "addsub":
             L10 = Multiplication(acc[1][0], inv_L00)
             tmp1 = _sub_nodes(acc[1][1], Multiplication(L10, L10))
-            inv_L11 = ReciprocalSquareRoot(tmp1)
+            inv_L11 = ReciprocalSquareRoot(tmp1, real_valued=True)
             res[0][0] = inv_L00
             res[1][0] = Negation(Multiplication(Multiplication(L10, inv_L00), inv_L11))
             res[1][1] = inv_L11
         else:
             L10 = acc[1][0] * inv_L00
-            inv_L11 = ReciprocalSquareRoot(_sub_nodes(acc[1][1], L10 * L10))
+            inv_L11 = ReciprocalSquareRoot(
+                _sub_nodes(acc[1][1], L10 * L10), real_valued=True
+            )
             res[0][0] = inv_L00
             res[1][0] = -(L10 * inv_L00 * inv_L11)
             res[1][1] = inv_L11
