@@ -57,7 +57,7 @@ def assign_processing_elements_and_memories(
     memory_total_ports: int | None = None,
     memory_type: Literal["RAM", "register"] = "RAM",
     solver: LpSolver | str | SolverInterface | None = None,
-    **kwargs,
+    strat_params: dict | None = None,
 ) -> tuple[list[ProcessingElement], list[Memory], ProcessCollection]:
     """
     Assign PEs and memories jointly using resource assignment strategies.
@@ -132,8 +132,10 @@ def assign_processing_elements_and_memories(
 
            print(pulp.listSolvers(onlyAvailable=True))
 
-    **kwargs : Any
-        Additional keyword arguments passed to the selected assignment algorithm.
+    strat_params : dict, optional
+        Options passed to the selected assignment strategy. The dictionary is
+        not modified. For example, ``{"restarts": 1, "seed": 42}`` configures
+        ``greedy_min_mux`` and ``{"time_limit": 60}`` configures ``cp_min_mux``.
         For ``greedy_min_mux``, the following options are supported:
 
         * ``restarts`` : int, default: 8
@@ -158,9 +160,9 @@ def assign_processing_elements_and_memories(
           to use. Additional backend-specific keyword arguments
           are forwarded to that backend.
 
-        For ``cp_min_mux``, keyword arguments are passed to the CP solver's
-        ``solve()`` method, e.g. ``time_limit=60`` (seconds) and, for OR-Tools,
-        ``num_search_workers=4`` or ``log_search_progress=False``. With a solver
+        For ``cp_min_mux``, dictionary entries are passed to the CP solver's
+        ``solve()`` method, e.g. ``{"time_limit": 60}`` (seconds) and, for OR-Tools,
+        ``{"num_search_workers": 4, "log_search_progress": False}``. With a solver
         name, OR-Tools search logging defaults to True; supplied options override
         this default. With an instance, no logging default is imposed.
 
@@ -227,7 +229,7 @@ def assign_processing_elements_and_memories(
         memory_total_ports,
         memory_type,
         solver,
-        **kwargs,
+        strat_params=strat_params,
     )
 
     processing_elements = [
@@ -264,8 +266,9 @@ def _split_operations_and_variables(
     memory_total_ports: int | None = None,
     memory_type: Literal["RAM", "register"] = "RAM",
     solver: LpSolver | str | SolverInterface | None = None,
-    **kwargs,
+    strat_params: dict | None = None,
 ) -> tuple[dict[TypeName, list[ProcessCollection]], list[ProcessCollection]]:
+    strat_params = dict(strat_params or {})
     log.info("Checking that operation execution times do not exceed schedule time")
     for group in op_groups.values():
         for process in group:
@@ -324,7 +327,13 @@ def _split_operations_and_variables(
         # Color the graphs concurrently using ILP to minimize the total amount of resources
         problem = LpProblem()
         pe_x, mem_x = _ilp_coloring(
-            problem, op_groups, mem_exclusion_graph, max_pes, max_mems, solver, **kwargs
+            problem,
+            op_groups,
+            mem_exclusion_graph,
+            max_pes,
+            max_mems,
+            solver,
+            **strat_params,
         )
     elif strategy == "ilp_min_mux":
         # Color the graphs concurrently using ILP to minimize the amount of multiplexers
@@ -342,7 +351,7 @@ def _split_operations_and_variables(
             solver,
             pe_greedy_colorings,
             mem_greedy_coloring,
-            **kwargs,
+            **strat_params,
         )
     elif strategy == "cp_min_mux":
         _, _, total_ports = _sanitize_port_option(
@@ -357,7 +366,7 @@ def _split_operations_and_variables(
             memory_total_ports=total_ports,
             max_mux_size=max_mux_size,
             solver=cast("str | SolverInterface | None", solver),
-            **kwargs,
+            **strat_params,
         )
     elif strategy == "greedy_min_mux":
         _, _, total_ports = _sanitize_port_option(
@@ -371,15 +380,17 @@ def _split_operations_and_variables(
             direct_variables,
             memory_total_ports=total_ports,
             max_mux_size=max_mux_size,
-            **kwargs,
+            **strat_params,
         )
     elif strategy == "greedy_graph_color":
-        coloring_strategy = kwargs.pop("coloring_strategy", "saturation_largest_first")
+        coloring_strategy = strat_params.pop(
+            "coloring_strategy", "saturation_largest_first"
+        )
         pe_x = {}
         for op_type_name, group in op_groups.items():
             pe_ex_graph = group.exclusion_graph_from_execution_time()
             coloring = nx.coloring.greedy_color(
-                pe_ex_graph, strategy=coloring_strategy, **kwargs
+                pe_ex_graph, strategy=coloring_strategy, **strat_params
             )
             pe_x[op_type_name] = {
                 node: {
@@ -389,7 +400,7 @@ def _split_operations_and_variables(
                 for node, node_color in coloring.items()
             }
         mem_coloring = nx.coloring.greedy_color(
-            mem_exclusion_graph, strategy=coloring_strategy, **kwargs
+            mem_exclusion_graph, strategy=coloring_strategy, **strat_params
         )
         mem_x = {
             node: {color: 1 if color == node_color else 0 for color in range(max_mems)}
@@ -401,12 +412,12 @@ def _split_operations_and_variables(
             read_ports=memory_read_ports,
             write_ports=memory_write_ports,
             total_ports=memory_total_ports,
-            **kwargs,
+            strat_params=strat_params,
         )
         pe_process_collections = {}
         for op_type_name, group in op_groups.items():
             pe_process_collections[op_type_name] = group.split_on_execution_time(
-                strategy="left_edge", **kwargs
+                strategy="left_edge", strat_params=strat_params
             )
         return pe_process_collections, mem_process_collections
     else:

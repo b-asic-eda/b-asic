@@ -19,7 +19,13 @@ optional dependencies with ``pip install 'b-asic[cp]'``. For example:
        memory_total_ports=2,
        max_mux_size=4,
        solver="ortools",
+       strat_params={"time_limit": 60, "log_search_progress": False},
    )
+
+Pass strategy-specific options through ``strat_params``. For example,
+``strat_params={"restarts": 4, "seed": 42}`` configures ``greedy_min_mux``;
+``strat_params={"coloring_strategy": "largest_first", "interchange": True}``
+configures ``greedy_graph_color``. The supplied dictionary is not modified.
 
 Both mux minimization strategies count physical connections, including inputs
 with fan-in one, within the supplied resource budgets. The CP strategy supports
