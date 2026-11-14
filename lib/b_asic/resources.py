@@ -556,7 +556,7 @@ class ProcessCollection:
         .. math:: t = t \bmod T_{\textrm{schedule}}.
     """
 
-    __slots__ = ("_collection", "_cyclic", "_schedule_time")
+    __slots__ = ("_collection", "_cyclic", "_memory_port_assignment", "_schedule_time")
     _collection: list[Process]
     _schedule_time: int
     _cyclic: bool
@@ -570,6 +570,7 @@ class ProcessCollection:
         self._collection = list(collection)
         self._schedule_time = schedule_time
         self._cyclic = cyclic
+        self._memory_port_assignment: dict[tuple[MemoryProcess, int | None], int] = {}
 
     @property
     def collection(self) -> list[Process]:
@@ -594,6 +595,7 @@ class ProcessCollection:
         if process in self.collection:
             raise ValueError("Process already in ProcessCollection")
         self.collection.append(process)
+        self._memory_port_assignment.clear()
 
     def remove_process(self, process: Process) -> None:
         """
@@ -612,6 +614,7 @@ class ProcessCollection:
                 f"Can't remove process: '{process}', as it is not in collection."
             )
         self.collection.remove(process)
+        self._memory_port_assignment.clear()
 
     def find_by_time(self, time: int) -> "ProcessCollection":
         return ProcessCollection(

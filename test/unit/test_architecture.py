@@ -13,11 +13,151 @@ from b_asic.architecture import (
 from b_asic.code_printer.vhdl.vhdl_printer import VhdlPrinter
 from b_asic.core_operations import Addition, ConstantMultiplication
 from b_asic.data_type import DataType
-from b_asic.process import MemoryProcess, OperatorProcess, PlainMemoryVariable
+from b_asic.fft_operations import R2Butterfly
+from b_asic.process import (
+    MemoryOutputPort,
+    MemoryProcess,
+    MemoryVariable,
+    OperatorProcess,
+    PlainMemoryVariable,
+)
 from b_asic.resources import ProcessCollection
 from b_asic.schedule import Schedule
 from b_asic.scheduler import ASAPScheduler
 from b_asic.special_operations import Input, Output
+from b_asic.utility_operations import Sink
+
+
+@pytest.mark.parametrize("orientation", ["horizontal", "vertical"])
+@pytest.mark.parametrize("used_outputs", [(0, 1), (1,)])
+def test_multiport_memory_and_multioutput_pe_connections(orientation, used_outputs):
+    sources = [Input(), Input()]
+    butterfly = R2Butterfly(*sources, latency=1, execution_time=1)
+    outputs = [Output(butterfly.output(port)) for port in used_outputs]
+    if 0 not in used_outputs:
+        Sink(butterfly.output(0))
+    input_pe = ProcessingElement(
+        ProcessCollection([OperatorProcess(t, op) for t, op in enumerate(sources)], 8),
+        "inputs",
+    )
+    pe = ProcessingElement(ProcessCollection([OperatorProcess(2, butterfly)], 8), "bf")
+    output_pe = ProcessingElement(
+        ProcessCollection(
+            [OperatorProcess(5 + t, op) for t, op in enumerate(outputs)], 8
+        ),
+        "outputs",
+    )
+    variables = [
+        MemoryVariable(t, source.output(0), {butterfly.input(t): 2 - t}, f"in{t}")
+        for t, source in enumerate(sources)
+    ]
+    variables.extend(
+        MemoryVariable(
+            3, butterfly.output(port), {output.input(0): 2 + t}, f"out{port}"
+        )
+        for t, (port, output) in enumerate(zip(used_outputs, outputs, strict=True))
+    )
+    memory = Memory(
+        ProcessCollection(variables, 8), entity_name="mem", read_ports=2, write_ports=2
+    )
+    architecture = Architecture([input_pe, pe, output_pe], [memory])
+    inputs, outputs_by_port = architecture.get_interconnects_for_memory("mem")
+    assert inputs[0] == {(input_pe, 0): 2, (pe, used_outputs[0]): 1}
+    assert inputs[1] == ({(pe, 1): 1} if len(used_outputs) == 2 else {})
+    assert outputs_by_port == [
+        {(pe, 0): 1, (output_pe, 0): len(used_outputs)},
+        {(pe, 1): 1},
+    ]
+    pe_inputs, pe_outputs = architecture.get_interconnects_for_pe(pe)
+    assert pe_inputs == [{(memory, 0): 1}, {(memory, 1): 1}]
+    for port in used_outputs:
+        assert pe_outputs[port] == {(memory, used_outputs.index(port)): 1}
+    graph = architecture._digraph(orientation=orientation, wire_labels=True).source
+    assert "mem_0" in graph
+    assert "mem_1" in graph
+    assert "bf_1" in graph
+    assert ("bf_0" in graph) == (0 in used_outputs)
+
+
+def test_memory_broadcast_uses_one_read_port():
+    source = Input()
+    outputs = [Output(source), Output(source)]
+    input_pe = ProcessingElement(
+        ProcessCollection([OperatorProcess(0, source)], 8), "src"
+    )
+    output_pes = [
+        ProcessingElement(
+            ProcessCollection([OperatorProcess(4, output)], 8), f"dst{index}"
+        )
+        for index, output in enumerate(outputs)
+    ]
+    variable = MemoryVariable(
+        0, source.output(0), {output.input(0): 4 for output in outputs}
+    )
+    memory = Memory(
+        ProcessCollection([variable], 8), entity_name="mem", read_ports=2, write_ports=1
+    )
+    architecture = Architecture([input_pe, *output_pes], [memory])
+    assert architecture.get_interconnects_for_memory(memory) == (
+        [{(input_pe, 0): 1}],
+        [{(pe, 0): 1 for pe in output_pes}, {}],
+    )
+    graph = architecture._digraph(wire_labels=True).source
+    assert "mem_0" in graph
+    assert "mem_1" not in graph
+
+
+def test_memory_relay_uses_nonzero_read_and_write_ports():
+    sources = [Input() for _ in range(3)]
+    outputs = [Output(source) for source in sources]
+    pes = [
+        ProcessingElement(
+            ProcessCollection([OperatorProcess(time, op)], 8), f"pe{index}"
+        )
+        for index, (time, op) in enumerate(
+            zip((0, 1, 4, 4, 6, 6), [*sources, *outputs], strict=True)
+        )
+    ]
+    chained = ProcessCollection(
+        [MemoryVariable(1, sources[1].output(0), {outputs[1].input(0): 5}, "long")], 8
+    ).split_into_chains(max_length=3)
+    root = next(
+        var for var in chained if not isinstance(var.write_port, MemoryOutputPort)
+    )
+    tail = next(var for var in chained if isinstance(var.write_port, MemoryOutputPort))
+    memory_a = Memory(
+        ProcessCollection(
+            [
+                MemoryVariable(
+                    0, sources[0].output(0), {outputs[0].input(0): 4}, "early"
+                ),
+                root,
+            ],
+            8,
+        ),
+        entity_name="a",
+    )
+    memory_b = Memory(
+        ProcessCollection(
+            [
+                MemoryVariable(
+                    4, sources[2].output(0), {outputs[2].input(0): 2}, "a_stub"
+                ),
+                tail,
+            ],
+            8,
+        ),
+        entity_name="b",
+    )
+    architecture = Architecture(pes, [memory_a, memory_b])
+    assert architecture.get_interconnects_for_memory(memory_a)[1][1] == {
+        (memory_b, 1): 1
+    }
+    assert architecture.get_interconnects_for_memory(memory_b)[0][1] == {
+        (memory_a, 1): 1
+    }
+    edges, _ = architecture._build_interconnect_edges()
+    assert edges["a:out1"] == {("b:in1", "1")}
 
 
 @pytest.mark.parametrize(
@@ -350,8 +490,8 @@ def test_architecture(schedule_direct_form_iir_lp_filter: Schedule):
     assert architecture.resource_from_name("adder") == adder
 
     assert architecture.get_interconnects_for_memory("MEM0") == (
-        {adder: 2, multiplier: 2, input_pe: 1},
-        {adder: 4, multiplier: 4},
+        [{(adder, 0): 2, (multiplier, 0): 2, (input_pe, 0): 1}],
+        [{(adder, 0): 1, (adder, 1): 3, (multiplier, 0): 4}],
     )
     assert architecture.get_interconnects_for_pe("adder") == (
         [

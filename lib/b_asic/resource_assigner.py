@@ -7,6 +7,7 @@ Contains functions for joint resource assignment of processing elements and memo
 from __future__ import annotations
 
 from collections import defaultdict
+from itertools import combinations
 from random import Random
 from typing import TYPE_CHECKING, Literal, cast
 
@@ -23,6 +24,7 @@ from pulp import (
 import b_asic.logger
 from b_asic._cp_utils import _solve_cp_problem
 from b_asic._ilp_utils import _solve_ilp_problem
+from b_asic._memory_ports import _memory_access_groups, _MemoryAssignment
 from b_asic.architecture import Memory, ProcessingElement
 from b_asic.operation import Operation
 from b_asic.port import InputPort
@@ -83,6 +85,9 @@ def assign_processing_elements_and_memories(
         strategies 'ilp_min_mux', 'cp_min_mux', and 'greedy_min_mux'. Must be
         at least 1. The heuristic may fail to find a feasible assignment even
         when one exists.
+        Memory read ports count as distinct sources, and each memory write
+        port is a separate target. Memory access ports are optimized together
+        with resource assignment and retained in the resulting memories.
 
     resources : dict[:data:`~b_asic.types.TypeName`, int], optional
         The maximum amount of resources to assign to, used to limit the solution
@@ -247,7 +252,15 @@ def assign_processing_elements_and_memories(
     ]
 
     memories = [
-        Memory(mem, memory_type=memory_type, entity_name=f"memory{i}", assign=True)
+        Memory(
+            mem,
+            memory_type=memory_type,
+            entity_name=f"memory{i}",
+            read_ports=memory_read_ports,
+            write_ports=memory_write_ports,
+            total_ports=memory_total_ports,
+            assign=True,
+        )
         for i, mem in enumerate(memory_variable_set)
     ]
 
@@ -776,14 +789,25 @@ def _mux_problem(
     for var in mem_vars:
         dst = ("mem", var)
         if isinstance(var.write_port, MemoryOutputPort):
-            add_connection(("mem", var.write_port.source_variable), dst)
+            source = var.write_port.source_variable
+            delay = next(
+                delay
+                for delay in sorted(set(source.reads.values()))
+                if (source.start_time + delay) % Ts == var.start_time % Ts
+            )
+            add_connection(("mem", source), dst, (source, delay), (var, None))
         elif not isinstance(var.write_port.operation, DontCare):
-            add_connection(op_info[var.write_port.operation], dst, var.write_port.index)
+            add_connection(
+                op_info[var.write_port.operation],
+                dst,
+                var.write_port.index,
+                (var, None),
+            )
         # Use the actual read port of each chain segment, rather than all
         # consumers of its root producer. Relay reads are represented above.
-        for port in var.reads:
+        for port, delay in var.reads.items():
             if isinstance(port, InputPort):
-                add_connection(dst, op_info[port.operation], dst_port=port.index)
+                add_connection(dst, op_info[port.operation], (var, delay), port.index)
 
     for var in direct:
         if isinstance(var.write_port.operation, DontCare):
@@ -798,6 +822,13 @@ def _mux_problem(
                 )
 
     return counts, families, list(dict.fromkeys(links))
+
+
+def _physical_port(key, port, assignment, ports):
+    """Resolve a logical endpoint for a complete or partial greedy assignment."""
+    if key[0] == "mem":
+        port = ports[port]
+    return (*key[:-1], assignment[key], port)
 
 
 def _greedy_min_mux(
@@ -889,11 +920,13 @@ def _greedy_min_mux(
             for key in keys:
                 neighbors[key].update(keys - {key})
 
-    def score(assignment):
+    access_groups = _memory_access_groups(mem_vars, mem_vars.schedule_time)
+
+    def evaluate(assignment, ports):
         connections = {
             (
-                (*src[:-1], assignment[src], src_port),
-                (*dst[:-1], assignment[dst], dst_port),
+                _physical_port(src, src_port, assignment, ports),
+                _physical_port(dst, dst_port, assignment, ports),
             )
             for src, dst, src_port, dst_port in links
             if src in assignment and dst in assignment
@@ -905,6 +938,56 @@ def _greedy_min_mux(
                 incoming[dst] += 1
             excess = sum(max(0, size - max_mux_size) for size in incoming.values())
         return excess, len(connections)
+
+    def allocate_ports(assignment):
+        # Port numbers are search decisions, independent of access ordering.
+        # Recoloring a bank can change its best wiring, so optimize ports for
+        # every candidate bank/PE assignment, including partial placements.
+        slots = []
+        ports = {}
+        for group in access_groups:
+            by_bank = defaultdict(list)
+            for access in group:
+                key = ("mem", access[0])
+                if key in assignment:
+                    by_bank[assignment[key]].append(access)
+            for accesses in by_bank.values():
+                ports.update({access: port for port, access in enumerate(accesses)})
+                slots.append(accesses)
+        current = evaluate(assignment, ports)
+        improved = True
+        while improved:
+            improved = False
+            for accesses in slots:
+                for access in accesses:
+                    port_count = limits[1] if access[1] is None else limits[0]
+                    for port in range(port_count):
+                        original = ports[access]
+                        if port == original:
+                            continue
+                        other = next(
+                            (
+                                candidate
+                                for candidate in accesses
+                                if ports[candidate] == port
+                            ),
+                            None,
+                        )
+                        ports[access] = port
+                        if other is not None:
+                            ports[other] = original
+                        candidate_score = evaluate(assignment, ports)
+                        if candidate_score < current:
+                            current = candidate_score
+                            improved = True
+                        else:
+                            ports[access] = original
+                            if other is not None:
+                                ports[other] = port
+        return current, ports
+
+    def score(assignment):
+        return allocate_ports(assignment)[0]
 
     rng = Random(seed)
     best = None
@@ -1081,6 +1164,7 @@ def _greedy_min_mux(
             "try more restarts or use cp_min_mux."
         )
     log.info("Greedy mux connection count: %d", best_score[1])
+    _, best_ports = allocate_ports(best)
 
     def coloring(key):
         return {idx: int(idx == best[key]) for idx in range(counts[key])}
@@ -1090,7 +1174,9 @@ def _greedy_min_mux(
             op_type: {proc: coloring(("pe", op_type, proc)) for proc in group}
             for op_type, group in op_groups.items()
         },
-        {var: coloring(("mem", var)) for var in mem_vars},
+        _MemoryAssignment(
+            {var: coloring(("mem", var)) for var in mem_vars}, best_ports
+        ),
     )
 
 
@@ -1166,15 +1252,49 @@ def _cp_min_mux(
                 <= capacity
             )
 
+    access_groups = _memory_access_groups(mem_vars, mem_vars.schedule_time)
+    ports = {
+        access: cp.intvar(
+            0,
+            (limits[1] if access[1] is None else limits[0]) - 1,
+            name=f"memory_port_{index}",
+        )
+        for index, access in enumerate(
+            access for group in access_groups for access in group
+        )
+    }
+    model += [port >= 0 for port in ports.values()]
+    for group in access_groups:
+        for first, second in combinations(group, 2):
+            model += (assignments["mem", first[0]] != assignments["mem", second[0]]) | (
+                ports[first] != ports[second]
+            )
+    endpoints = {}
+
+    def endpoint_options(key, port):
+        if (key, port) not in endpoints:
+            options = []
+            for index in range(counts[key]):
+                assigned = assignments[key] == index
+                if key[0] == "mem":
+                    port_count = limits[1] if port[1] is None else limits[0]
+                    options.extend(
+                        (
+                            (*key[:-1], index, physical_port),
+                            assigned & (ports[port] == physical_port),
+                        )
+                        for physical_port in range(port_count)
+                    )
+                else:
+                    options.append(((*key[:-1], index, port), assigned))
+            endpoints[key, port] = options
+        return endpoints[key, port]
+
     uses = defaultdict(list)
     for src, dst, src_port, dst_port in links:
-        for src_idx in range(counts[src]):
-            for dst_idx in range(counts[dst]):
-                physical_src = (*src[:-1], src_idx, src_port)
-                physical_dst = (*dst[:-1], dst_idx, dst_port)
-                uses[physical_src, physical_dst].append(
-                    (assignments[src] == src_idx) & (assignments[dst] == dst_idx)
-                )
+        for physical_src, source_used in endpoint_options(src, src_port):
+            for physical_dst, destination_used in endpoint_options(dst, dst_port):
+                uses[physical_src, physical_dst].append(source_used & destination_used)
 
     connections = []
     incoming = defaultdict(list)
@@ -1205,8 +1325,194 @@ def _cp_min_mux(
         op_type: {proc: coloring(("pe", op_type, proc)) for proc in group}
         for op_type, group in op_groups.items()
     }
-    mem_x = {var: coloring(("mem", var)) for var in mem_vars}
+    mem_x = _MemoryAssignment(
+        {var: coloring(("mem", var)) for var in mem_vars},
+        {access: int(port.value()) for access, port in ports.items()},
+    )
     return pe_x, mem_x
+
+
+def _ilp_min_mux_multiport(
+    problem,
+    op_groups,
+    mem_vars,
+    max_pes,
+    max_mems,
+    direct,
+    limits,
+    max_mux_size,
+    solver,
+    pe_warm_start,
+    mem_warm_start,
+):
+    """Minimize connections between individual physical memory and PE ports."""
+    counts, families, links = _mux_problem(
+        op_groups,
+        mem_vars,
+        max_pes,
+        max_mems,
+        direct,
+        limits[2],
+        memory_port_limits=limits,
+    )
+    assignments = {
+        key: [
+            problem.add_variable(f"assignment_{index}_{bank}", cat=LpBinary)
+            for bank in range(count)
+        ]
+        for index, (key, count) in enumerate(counts.items())
+    }
+    initial = {}
+    for key, count in counts.items():
+        coloring = (
+            mem_warm_start if key[0] == "mem" else (pe_warm_start or {}).get(key[1])
+        )
+        if coloring is not None and key[-1] in coloring and coloring[key[-1]] < count:
+            initial[key] = coloring[key[-1]]
+    for choices in assignments.values():
+        problem += lpSum(choices) == 1
+    for keys, cliques in families:
+        for clique in cliques:
+            for bank in range(counts[keys[0]]):
+                problem += lpSum(assignments[key][bank] for key in clique) <= 1
+        anchor = max(cliques, key=len) if cliques else keys[:1]
+        anchored = [key for key in keys if key in anchor]
+        for bank, key in enumerate(anchored):
+            problem += assignments[key][bank] == 1
+        if keys and all(key in initial for key in keys):
+            permutation = {initial[key]: bank for bank, key in enumerate(anchored)}
+            remaining = iter(
+                sorted(set(range(counts[keys[0]])) - set(permutation.values()))
+            )
+            for bank in range(counts[keys[0]]):
+                if bank not in permutation:
+                    permutation[bank] = next(remaining)
+            initial.update({key: permutation[initial[key]] for key in keys})
+    complete_start = len(initial) == len(counts)
+    for key, bank in initial.items():
+        for index, assigned in enumerate(assignments[key]):
+            assigned.setInitialValue(int(index == bank))
+    accesses = mem_vars._validated_port_accesses(*limits)
+    for demands, capacity in mem_vars._port_capacity_rows(accesses, limits):
+        for bank in range(max_mems):
+            problem += (
+                lpSum(
+                    demand * assignments["mem", var][bank]
+                    for var, demand in demands.items()
+                )
+                <= capacity
+            )
+
+    access_groups = _memory_access_groups(mem_vars, mem_vars.schedule_time)
+    initial_ports = {}
+    if complete_start:
+        for group in access_groups:
+            loads = defaultdict(int)
+            for access in group:
+                bank = initial["mem", access[0]]
+                initial_ports[access] = loads[bank]
+                loads[bank] += 1
+    endpoints = {}
+
+    def endpoint_options(key, port):
+        if (key, port) not in endpoints:
+            options = []
+            for bank, assigned in enumerate(assignments[key]):
+                if key[0] != "mem":
+                    options.append(((*key[:-1], bank, port), assigned))
+                    continue
+                port_count = limits[1] if port[1] is None else limits[0]
+                indicators = []
+                for physical_port in range(port_count):
+                    used = problem.add_variable(
+                        f"endpoint_{len(endpoints)}_{bank}_{physical_port}",
+                        cat=LpBinary,
+                    )
+                    indicators.append(used)
+                    options.append(((*key[:-1], bank, physical_port), used))
+                    if complete_start:
+                        used.setInitialValue(
+                            int(
+                                initial[key] == bank
+                                and initial_ports[port] == physical_port
+                            )
+                        )
+                problem.addConstraint(lpSum(indicators) == assigned)
+            endpoints[key, port] = options
+        return endpoints[key, port]
+
+    # Each access chooses its bank and physical port jointly. Simultaneous
+    # distinct accesses cannot select the same port of the same memory.
+    for group in access_groups:
+        by_endpoint = defaultdict(list)
+        for access in group:
+            for endpoint, used in endpoint_options(("mem", access[0]), access):
+                by_endpoint[endpoint].append(used)
+        for indicators in by_endpoint.values():
+            problem += lpSum(indicators) <= 1
+
+    connections = {}
+    witnesses = defaultdict(list)
+    incoming = defaultdict(list)
+    use_count = 0
+    for src, dst, src_port, dst_port in links:
+        for physical_src, source_used in endpoint_options(src, src_port):
+            for physical_dst, destination_used in endpoint_options(dst, dst_port):
+                edge = physical_src, physical_dst
+                if edge not in connections:
+                    connection = problem.add_variable(
+                        f"connection_{len(connections)}", cat=LpBinary
+                    )
+                    connections[edge] = connection
+                    incoming[physical_dst].append(connection)
+                witness = problem.add_variable(f"use_{use_count}", cat=LpBinary)
+                use_count += 1
+                problem += witness <= source_used
+                problem += witness <= destination_used
+                problem += witness >= source_used + destination_used - 1
+                witnesses[edge].append(witness)
+                problem += connections[edge] >= witness
+                if complete_start:
+                    witness.setInitialValue(
+                        int(value(source_used) == value(destination_used) == 1)
+                    )
+    for edge, connection in connections.items():
+        problem += connection <= lpSum(witnesses[edge])
+        if complete_start:
+            connection.setInitialValue(
+                int(any(value(witness) for witness in witnesses[edge]))
+            )
+    if max_mux_size is not None:
+        for inputs in incoming.values():
+            problem += lpSum(inputs) <= max_mux_size
+    problem += lpSum(connections.values())
+    _solve_ilp_problem(problem, solver, warm_start=complete_start)
+    log.info("ILP mux connection count: %s", value(problem.objective))
+
+    def coloring(key):
+        return {
+            bank: round(value(assigned))
+            for bank, assigned in enumerate(assignments[key])
+        }
+
+    return (
+        {
+            op_type: {proc: coloring(("pe", op_type, proc)) for proc in group}
+            for op_type, group in op_groups.items()
+        },
+        _MemoryAssignment(
+            {var: coloring(("mem", var)) for var in mem_vars},
+            {
+                access: next(
+                    endpoint[-1]
+                    for endpoint, used in endpoints[("mem", access[0]), access]
+                    if value(used) > 0.5
+                )
+                for group in access_groups
+                for access in group
+            },
+        ),
+    )
 
 
 def _ilp_min_mux(
@@ -1229,6 +1535,20 @@ def _ilp_min_mux(
     limits = _sanitize_port_option(
         memory_read_ports, memory_write_ports, memory_total_ports
     )
+    if limits[:2] != (1, 1):
+        return _ilp_min_mux_multiport(
+            problem,
+            op_groups,
+            mem_vars,
+            max_pes,
+            max_mems,
+            direct,
+            limits,
+            max_mux_size,
+            solver,
+            pe_warm_start,
+            mem_warm_start,
+        )
     accesses = mem_vars._validated_port_accesses(*limits)
     pe_in_cnt = {
         op_type_name: op.input_count
@@ -1658,6 +1978,14 @@ def _get_assignment_from_coloring(
         if res_idx not in assignment:
             assignment[res_idx] = ProcessCollection([], schedule_time)
         assignment[res_idx].add_process(process)
+
+    if isinstance(x, _MemoryAssignment):
+        for res_idx, collection in assignment.items():
+            collection._memory_port_assignment = {
+                access: port
+                for access, port in x.ports.items()
+                if proc_res[access[0]] == res_idx
+            }
 
     return assignment
 

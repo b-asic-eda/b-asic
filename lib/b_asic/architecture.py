@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from graphviz import Digraph
 
+from b_asic._memory_ports import _default_memory_ports
 from b_asic._preferences import (
     DEFAULT_FONT_FAMILY,
     IO_CLUSTER_COLOR,
@@ -827,6 +828,18 @@ class Memory(Resource):
 
     def _validate_ports_in_bounds(self, read_ports, write_ports, total_ports):
         read_ports_bound = self._collection.read_ports_bound()
+        saved_ports = self._collection._memory_port_assignment
+        read_ports_bound = max(
+            read_ports_bound,
+            max(
+                (
+                    port + 1
+                    for (_, delay), port in saved_ports.items()
+                    if delay is not None
+                ),
+                default=0,
+            ),
+        )
         if read_ports is None:
             self._output_count = read_ports_bound
         else:
@@ -835,6 +848,13 @@ class Memory(Resource):
             self._output_count = read_ports
 
         write_ports_bound = self._collection.write_ports_bound()
+        write_ports_bound = max(
+            write_ports_bound,
+            max(
+                (port + 1 for (_, delay), port in saved_ports.items() if delay is None),
+                default=0,
+            ),
+        )
         if write_ports is None:
             self._input_count = write_ports_bound
         else:
@@ -858,6 +878,21 @@ class Memory(Resource):
             cell_count = len(self.assignment)
         plural_s = "s" if cell_count != 1 else ""
         return f": ({self._memory_type}, {cell_count} cell{plural_s})"
+
+    @property
+    def port_assignment(self) -> dict[tuple[MemoryProcess, int | None], int]:
+        """
+        Return the physical port for each memory access.
+
+        Keys are ``(variable, delay)``; ``None`` denotes the write access.
+        Solver-selected ports are retained. Otherwise consecutive ports are
+        allocated independently for each read/write cycle.
+        """
+        return (
+            dict(self._collection._memory_port_assignment)
+            if self._collection._memory_port_assignment
+            else _default_memory_ports(self, self.schedule_time)
+        )
 
     @property
     def assignment(self) -> list[ProcessCollection]:
@@ -1093,15 +1128,59 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 for output_port in operator.operation.outputs:
                     self._operation_outport_to_resource[output_port] = pe
 
+        # Retain optimized ports, or allocate defaults for unoptimized memories.
+        memory_for_variable = {}
+        write_indices = {}
+        read_indices = {}
+        self._memory_interconnects = {}
         for memory in self.memories:
+            self._memory_interconnects[memory] = (
+                [defaultdict(int) for _ in range(memory.input_count)],
+                [defaultdict(int) for _ in range(memory.output_count)],
+            )
             for mv in memory:
-                for read_port in mv.read_ports:
-                    if isinstance(read_port, InputPort):  # skip MemoryInputPort relays
-                        self._variable_input_port_to_resource[read_port].add(
-                            (memory, 0)
+                memory_for_variable[mv] = memory
+            for (mv, delay), port in memory.port_assignment.items():
+                if delay is None:
+                    write_indices[mv] = port
+                else:
+                    read_indices[mv, delay] = port
+
+        for memory in self.memories:
+            inputs, outputs = self._memory_interconnects[memory]
+            for mv in memory:
+                write_index = write_indices[mv]
+                if isinstance(mv.write_port, MemoryOutputPort):
+                    source_var = mv.write_port.source_variable
+                    source = memory_for_variable[source_var]
+                    delay = next(
+                        delay
+                        for delay in sorted(set(source_var.reads.values()))
+                        if (source_var.start_time + delay) % self.schedule_time
+                        == mv.start_time % self.schedule_time
+                    )
+                    source_index = read_indices[source_var, delay]
+                    inputs[write_index][source, source_index] += 1
+                    self._memory_interconnects[source][1][source_index][
+                        memory, write_index
+                    ] += 1
+                else:
+                    source = self._operation_outport_to_resource.get(mv.write_port)
+                    if source is not None:
+                        inputs[write_index][source, mv.write_port.index] += 1
+                        self._variable_outport_to_resource[mv.write_port].add(
+                            (memory, write_index)
                         )
-                if not isinstance(mv.write_port, MemoryOutputPort):
-                    self._variable_outport_to_resource[mv.write_port].add((memory, 0))
+                for read_port, delay in mv.reads.items():
+                    if not isinstance(read_port, InputPort):
+                        continue
+                    read_index = read_indices[mv, delay]
+                    destination = self._operation_input_port_to_resource.get(read_port)
+                    if destination is not None:
+                        outputs[read_index][destination, read_port.index] += 1
+                        self._variable_input_port_to_resource[read_port].add(
+                            (memory, read_index)
+                        )
         if self._direct_interconnects:
             for di in self._direct_interconnects:
                 di = cast(MemoryVariable, di)
@@ -1261,9 +1340,11 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
     def get_interconnects_for_memory(
         self, mem: Memory | str
-    ) -> tuple[dict[Resource, int], dict[Resource, int]]:
+    ) -> tuple[
+        list[dict[tuple[Resource, int], int]], list[dict[tuple[Resource, int], int]]
+    ]:
         """
-        Return a dictionary with interconnect information for a Memory.
+        Return per-port interconnect information for a Memory.
 
         Parameters
         ----------
@@ -1272,29 +1353,18 @@ of :class:`~b_asic.architecture.ProcessingElement`
 
         Returns
         -------
-        (dict, dict)
-            A dictionary with the ProcessingElements that are connected to the read and
-            write ports, respectively, with counts of the number of accesses.
+        list
+            One dictionary per write port, mapping ``(source resource, output
+            port index)`` to the number of accesses.
+        list
+            One dictionary per read port, mapping ``(destination resource,
+            input port index)`` to the number of accesses. Resources may be
+            processing elements or other memories for chained variables.
         """
         mem = cast(Memory, self._resolve_resource(mem))
 
-        d_in: defaultdict[Resource, int] = defaultdict(_interconnect_dict)
-        d_out: defaultdict[Resource, int] = defaultdict(_interconnect_dict)
-        for var in mem.collection:
-            var = cast(MemoryVariable, var)
-            if isinstance(var.write_port, MemoryOutputPort):
-                # Source is another memory (chained variable)
-                source_var = var.write_port.source_variable
-                for other_mem in self._memories:
-                    if any(v is source_var for v in other_mem):
-                        d_in[other_mem] += 1
-                        break
-            else:
-                d_in[self._operation_outport_to_resource[var.write_port]] += 1
-            for read_port in var.read_ports:
-                if isinstance(read_port, InputPort):
-                    d_out[self._operation_input_port_to_resource[read_port]] += 1
-        return dict(d_in), dict(d_out)
+        inputs, outputs = self._memory_interconnects[mem]
+        return [dict(port) for port in inputs], [dict(port) for port in outputs]
 
     def get_interconnects_for_pe(
         self, pe: str | ProcessingElement
@@ -1660,19 +1730,16 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     edges[source_str].add((destination_str, f"{cnt}"))
                     destination_edges[destination_str].add(source_str)
 
-        # Add memory-to-memory edges for chained lifetime-split variables
+        # Add memory-to-memory edges using the assigned read and write ports.
         for dst_mem in self._memories:
-            for mv in dst_mem:
-                if not isinstance(mv.write_port, MemoryOutputPort):
-                    continue
-                source_var = mv.write_port.source_variable
-                for src_mem in self._memories:
-                    if any(v is source_var for v in src_mem):
-                        source_str = f"{src_mem.entity_name}:out0"
-                        destination_str = f"{dst_mem.entity_name}:in0"
-                        edges[source_str].add((destination_str, "1"))
+            inputs, _ = self.get_interconnects_for_memory(dst_mem)
+            for write_port, sources in enumerate(inputs):
+                for (source, read_port), count in sources.items():
+                    if isinstance(source, Memory):
+                        source_str = f"{source.entity_name}:out{read_port}"
+                        destination_str = f"{dst_mem.entity_name}:in{write_port}"
+                        edges[source_str].add((destination_str, str(count)))
                         destination_edges[destination_str].add(source_str)
-                        break
 
         return edges, destination_edges
 
@@ -1765,11 +1832,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
             dest: {src: i for i, src in enumerate(sources)}
             for dest, sources in destination_list.items()
         }
-        entity_output_count: defaultdict[str, int] = defaultdict(int)
-        for src_str in edges:
-            entity = src_str.split(":")[0]
-            if entity in pe_names:
-                entity_output_count[entity] += 1
+        entity_output_count = {
+            resource.entity_name: resource.output_count
+            for resource in (*self._processing_elements, *self._memories)
+        }
         wire_label_counter = 0
 
         for src_str, destination_counts in edges.items():
