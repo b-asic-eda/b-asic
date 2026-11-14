@@ -1,7 +1,9 @@
 import pytest
 
 from b_asic.wdf_operations import (
+    ParallelThreePortAdaptor,
     ParallelTwoportAdaptor,
+    ReflectionFreeParallelThreePortAdaptor,
     ReflectionFreeSeriesThreeportAdaptor,
     SeriesThreeportAdaptor,
     SeriesTwoportAdaptor,
@@ -166,6 +168,13 @@ class TestSeriesThreeportAdaptor:
 class TestReflectionFreeSeriesThreeportAdaptor:
     """Tests for ReflectionFreeSeriesThreeportAdaptor class."""
 
+    @pytest.mark.parametrize(
+        ("index", "expected"), [(0, (0, 1, 2)), (1, (0, 2)), (2, (0, 1, 2))]
+    )
+    def test_inputs_required_for_output(self, index, expected):
+        operation = ReflectionFreeSeriesThreeportAdaptor(0.25)
+        assert tuple(operation.inputs_required_for_output(index)) == expected
+
     def test_reflectionfreeseriesthreeportadaptor_positive(self):
         test_operation = ReflectionFreeSeriesThreeportAdaptor(0.25)
         assert test_operation.evaluate_output(0, [2, 3, 4]) == -0.25
@@ -203,3 +212,79 @@ class TestReflectionFreeSeriesThreeportAdaptor:
             assert test_operation1.evaluate_output(
                 port, [2, 3, 4]
             ) == test_operation2.evaluate_output(port, [2, 3, 4])
+
+
+class TestParallelThreePortAdaptor:
+    @pytest.mark.parametrize(
+        "values", [(2, 3, 4), (-2, -3, -4), (2 + 1j, 3 - 2j, 4 + 3j)]
+    )
+    @pytest.mark.parametrize("coefficients", [(0.5, 1.25), (0, 0), (0, 2), (2, 0)])
+    def test_evaluate(self, values, coefficients):
+        operation = ParallelThreePortAdaptor(coefficients)
+        a, b, c = values
+        v0, v1 = coefficients
+        total = v0 * a + v1 * b + (2 - v0 - v1) * c
+        assert operation.evaluate_outputs(values) == pytest.approx(
+            [total - a, total - b, total - c]
+        )
+        assert operation.value == coefficients
+
+    @pytest.mark.parametrize(
+        ("coefficients", "message"),
+        [
+            ((-1, 1), "each value"),
+            ((0, 3), "each value"),
+            ((1.5, 1), "sum of values"),
+            ((0,), "exactly two values"),
+            ((0, 0, 0), "exactly two values"),
+        ],
+    )
+    def test_invalid_coefficients(self, coefficients, message):
+        with pytest.raises(ValueError, match=message):
+            ParallelThreePortAdaptor(coefficients)
+        operation = ParallelThreePortAdaptor()
+        with pytest.raises(ValueError, match=message):
+            operation.value = coefficients
+
+
+class TestReflectionFreeParallelThreePortAdaptor:
+    @pytest.mark.parametrize(
+        "values", [(2, 3, 4), (-2, -3, -4), (2 + 1j, 3 - 2j, 4 + 3j)]
+    )
+    @pytest.mark.parametrize("coefficient", [0, 0.25, 1])
+    def test_evaluate(self, values, coefficient):
+        operation = ReflectionFreeParallelThreePortAdaptor(coefficient)
+        normal = ParallelThreePortAdaptor((coefficient, 1))
+        assert operation.evaluate_outputs(values) == pytest.approx(
+            normal.evaluate_outputs(values)
+        )
+        a, b, c = values
+        y1 = coefficient * a + (1 - coefficient) * c
+        assert operation.evaluate_outputs(values) == pytest.approx(
+            [y1 + b - a, y1, y1 + b - c]
+        )
+
+    @pytest.mark.parametrize("coefficient", [-1, 1.5])
+    def test_invalid_coefficient(self, coefficient):
+        with pytest.raises(ValueError, match="value must be between 0 and 1"):
+            ReflectionFreeParallelThreePortAdaptor(coefficient)
+        operation = ReflectionFreeParallelThreePortAdaptor()
+        with pytest.raises(ValueError, match="value must be between 0 and 1"):
+            operation.value = coefficient
+
+    @pytest.mark.parametrize(
+        ("index", "expected"), [(0, (0, 1, 2)), (1, (0, 2)), (2, (0, 1, 2))]
+    )
+    def test_inputs_required_for_output(self, index, expected):
+        operation = ReflectionFreeParallelThreePortAdaptor(0.25)
+        assert tuple(operation.inputs_required_for_output(index)) == expected
+
+
+@pytest.mark.parametrize(
+    "adaptor_type",
+    [ReflectionFreeSeriesThreeportAdaptor, ReflectionFreeParallelThreePortAdaptor],
+)
+@pytest.mark.parametrize("index", [-1, 3])
+def test_reflection_free_invalid_output_index(adaptor_type, index):
+    with pytest.raises(IndexError, match="Output index out of range"):
+        adaptor_type().inputs_required_for_output(index)

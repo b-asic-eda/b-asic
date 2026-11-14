@@ -570,4 +570,172 @@ class ReflectionFreeSeriesThreeportAdaptor(_Adaptor):
         Get the input indices of all inputs in this operation whose values are
         required in order to evaluate the output at the given output index.
         """
-        return {0: (0, 1, 2), 1: (0, 2), 2: (0, 1, 2)}
+        if output_index == 1:
+            return (0, 2)
+        return super().inputs_required_for_output(output_index)
+
+
+class ParallelThreePortAdaptor(_Adaptor):
+    r"""
+    Wave digital filter parallel threeport-adaptor operation.
+
+    .. math::
+
+        \begin{eqnarray}
+        s & = & \text{value}_0 x_0 + \text{value}_1 x_1
+                + (2 - \text{value}_0 - \text{value}_1) x_2\\
+        y_0 & = & s - x_0\\
+        y_1 & = & s - x_1\\
+        y_2 & = & s - x_2
+        \end{eqnarray}
+
+    Port 2 is the dependent port. Both coefficients must be between 0 and 2
+    and their sum must not exceed 2.
+    """
+
+    is_linear = True
+    is_swappable = True
+
+    def __init__(
+        self,
+        value: tuple[Num, Num] = (0, 0),
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ):
+        """Construct a ParallelThreePortAdaptor operation."""
+        super().__init__(
+            input_count=3,
+            output_count=3,
+            name=Name(name),
+            input_sources=[in0, in1, in2],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self.value = value
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("par3p")
+
+    def evaluate(self, a, b, c, data_type=None):
+        val0, val1 = self.value
+        difference0 = c - a
+        difference1 = c - b
+        y2 = c - val0 * difference0 - val1 * difference1
+        return (
+            self._cast_to_data_type(y2 + difference0, data_type),
+            self._cast_to_data_type(y2 + difference1, data_type),
+            self._cast_to_data_type(y2, data_type),
+        )
+
+    def _arithmetic_outputs(self, inputs, zeros, unused):
+        a, b, c = inputs
+        val0, val1 = self.value
+        difference0 = Subtraction(c, a)
+        difference1 = Subtraction(c, b)
+        y2 = Subtraction(
+            Subtraction(c, _scale(val0, difference0)), _scale(val1, difference1)
+        )
+        return [Addition(y2, difference0), Addition(y2, difference1), y2]
+
+    @property
+    def value(self) -> tuple[Num, Num]:
+        """Get the coefficients of this operation."""
+        return self.param("value")
+
+    @value.setter
+    def value(self, value: tuple[Num, Num]) -> None:
+        """Set the coefficients of this operation."""
+        if len(value) != 2:
+            raise ValueError("exactly two values must be supplied")
+        if not all(0 <= v <= 2 for v in value):
+            raise ValueError("each value must be between 0 and 2 (inclusive)")
+        if sum(value) > 2:
+            raise ValueError("sum of values must be between 0 and 2 (inclusive)")
+        self.set_param("value", value)
+
+
+class ReflectionFreeParallelThreePortAdaptor(_Adaptor):
+    r"""
+    Wave digital filter reflection free parallel threeport-adaptor operation.
+
+    .. math::
+
+        \begin{eqnarray}
+        y_1 & = & \text{value} x_0 + (1 - \text{value}) x_2\\
+        y_0 & = & y_1 + x_1 - x_0\\
+        y_2 & = & y_1 + x_1 - x_2
+        \end{eqnarray}
+
+    Port 1 is the reflection-free port and port 2 is the dependent port.
+    The coefficient must be between 0 and 1.
+    """
+
+    is_linear = True
+    is_swappable = True
+
+    def __init__(
+        self,
+        value: Num = 0,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        in2: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ):
+        """Construct a ReflectionFreeParallelThreePortAdaptor operation."""
+        super().__init__(
+            input_count=3,
+            output_count=3,
+            name=Name(name),
+            input_sources=[in0, in1, in2],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+        self.value = value
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("rfp3p")
+
+    def evaluate(self, a, b, c, data_type=None):
+        product = self.value * (a - c)
+        y1 = c + product
+        return (
+            self._cast_to_data_type(y1 + b - a, data_type),
+            self._cast_to_data_type(y1, data_type),
+            self._cast_to_data_type(b + product, data_type),
+        )
+
+    def _arithmetic_outputs(self, inputs, zeros, unused):
+        a, b, c = inputs
+        product = _scale(self.value, Subtraction(a, c))
+        y1 = Addition(c, product)
+        return [Subtraction(Addition(y1, b), a), y1, Addition(b, product)]
+
+    @property
+    def value(self) -> Num:
+        """Get the coefficient of this operation."""
+        return self.param("value")
+
+    @value.setter
+    def value(self, value: Num) -> None:
+        """Set the coefficient of this operation."""
+        if not 0 <= value <= 1:
+            raise ValueError("value must be between 0 and 1 (inclusive)")
+        self.set_param("value", value)
+
+    def inputs_required_for_output(self, output_index: int) -> Iterable[int]:
+        """Return input indices required to evaluate the requested output."""
+        if output_index == 1:
+            return (0, 2)
+        return super().inputs_required_for_output(output_index)

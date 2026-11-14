@@ -9,7 +9,9 @@ from b_asic.sfg import SFG
 from b_asic.special_operations import Input, Output
 from b_asic.utility_operations import DontCare, Sink
 from b_asic.wdf_operations import (
+    ParallelThreePortAdaptor,
     ParallelTwoportAdaptor,
+    ReflectionFreeParallelThreePortAdaptor,
     ReflectionFreeSeriesThreeportAdaptor,
     SeriesThreeportAdaptor,
     SeriesTwoportAdaptor,
@@ -22,6 +24,8 @@ ADAPTORS = [
     (ParallelTwoportAdaptor, 0.75, 2),
     (SeriesThreeportAdaptor, (0.25, 1.25), 3),
     (ReflectionFreeSeriesThreeportAdaptor, 0.25, 3),
+    (ParallelThreePortAdaptor, (0.25, 1.25), 3),
+    (ReflectionFreeParallelThreePortAdaptor, 0.25, 3),
 ]
 VALUES = [[2.5, -3.75, 5], [-3.75, 0, 1], [1 + 2j, 3 - 4j, -2 + 0.5j]]
 
@@ -52,7 +56,11 @@ def test_zero_inputs(adaptor_type, coefficient, ports):
                 assert simplified.evaluate_outputs(values[:ports]) == pytest.approx(
                     original.evaluate_outputs(values[:ports])
                 )
-            multiplier_bound = 2 if adaptor_type is SeriesThreeportAdaptor else 1
+            multiplier_bound = (
+                2
+                if adaptor_type in (SeriesThreeportAdaptor, ParallelThreePortAdaptor)
+                else 1
+            )
             assert (
                 len(simplified.find_by_type(ConstantMultiplication)) <= multiplier_bound
             )
@@ -144,6 +152,11 @@ def test_all_constants(adaptor_type, coefficient, ports, zero):
         (SeriesThreeportAdaptor, (2, 0), 3),
         (ReflectionFreeSeriesThreeportAdaptor, 0, 3),
         (ReflectionFreeSeriesThreeportAdaptor, 1, 3),
+        (ParallelThreePortAdaptor, (0, 0), 3),
+        (ParallelThreePortAdaptor, (0, 2), 3),
+        (ParallelThreePortAdaptor, (2, 0), 3),
+        (ReflectionFreeParallelThreePortAdaptor, 0, 3),
+        (ReflectionFreeParallelThreePortAdaptor, 1, 3),
     ],
 )
 def test_zero_input_boundary_coefficients(adaptor_type, coefficient, ports):
