@@ -29,7 +29,11 @@ from b_asic.sfg_gui.properties_window import PropertiesWindow
 from b_asic.special_operations import Input, Output
 from b_asic.types import TypeName
 from b_asic.utility_operations import DontCare, Sink
-from b_asic.wdf_operations import ReflectionFreeSeriesThreeportAdaptor, _Adaptor
+from b_asic.wdf_operations import (
+    ReflectionFreeParallelThreePortAdaptor,
+    ReflectionFreeSeriesThreeportAdaptor,
+    _Adaptor,
+)
 
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QGraphicsTextItem
@@ -453,21 +457,26 @@ class DragButton(QPushButton):
         self._road_sign_body.setPath(path)
 
     def _position_reflection_marker(self) -> None:
-        """Attach the reflection-free T mark to port 1 so it rotates with it."""
-        if not isinstance(self.operation, ReflectionFreeSeriesThreeportAdaptor):
+        """Place the T inside the box, with its base at reflection-free output 1."""
+        if not isinstance(
+            self.operation,
+            (
+                ReflectionFreeSeriesThreeportAdaptor,
+                ReflectionFreeParallelThreePortAdaptor,
+            ),
+        ):
             return
         if self._reflection_marker is None:
             self._reflection_marker = QGraphicsPathItem(self.graphicsProxyWidget())
             self._reflection_marker.setPen(QPen(Qt.black, 1.5))
             self._reflection_marker.setAcceptedMouseButtons(Qt.NoButton)
             self._reflection_marker.setZValue(3)
-        incoming = self._ports[1]
         outgoing = self._ports[self.operation.input_count + 1]
-        midpoint = (incoming.pos() + outgoing.pos()) * 0.5
-        outward = incoming.mapToParent(QPointF(incoming.direction, 0)) - incoming.pos()
-        center = midpoint - outward * 5
+        outward = outgoing.mapToParent(QPointF(outgoing.direction, 0)) - outgoing.pos()
+        base = outgoing.pos() - outward * (PORT_STUB + 2)
+        center = base - outward * 8
         tangent = QPointF(-outward.y(), outward.x()) * 5
-        path = QPainterPath(center - outward * 6)
+        path = QPainterPath(base)
         path.lineTo(center)
         path.moveTo(center - tangent)
         path.lineTo(center + tangent)
