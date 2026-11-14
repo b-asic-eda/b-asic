@@ -212,15 +212,16 @@ def test_missing_processing_elements(simple_collection, strategy):
 
 
 @pytest.mark.parametrize("strategy", PORT_STRATEGIES)
-def test_graph_port_restrictions(cp, strategy):
+def test_multiple_read_ports(cp, strategy):
     collection, pes = _mux_problem()
-    with pytest.raises(ValueError, match="read and write ports not equal to one"):
-        collection.split_on_ports(
-            strategy,
-            read_ports=2,
-            write_ports=1,
-            alg_params={"processing_elements": pes},
-        )
+    groups = collection.split_on_ports(
+        strategy,
+        read_ports=2,
+        write_ports=1,
+        alg_params={"processing_elements": pes},
+    )
+    assert len(groups) == 1
+    assert set(groups[0]) == set(collection)
 
 
 @pytest.mark.parametrize("instance", [False, True])

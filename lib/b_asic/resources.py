@@ -10,9 +10,10 @@ import math
 import re
 import sys
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from functools import reduce
 from pathlib import Path
+from random import Random
 from typing import TYPE_CHECKING, Literal, Union
 
 import matplotlib.pyplot as plt
@@ -1112,13 +1113,14 @@ class ProcessCollection:
             "cp_min_mux",
             "greedy_graph_color",
             "equitable_graph_color",
+            "greedy_port_packing",
             "left_edge",
             "left_edge_min_pe_to_mem",
             "left_edge_min_mem_to_pe",
             "left_edge_min_mux",
         ] = "left_edge",
-        read_ports: int | None = None,
-        write_ports: int | None = None,
+        read_ports: int = 1,
+        write_ports: int = 1,
         total_ports: int | None = None,
         alg_params: dict | None = None,
     ) -> list["ProcessCollection"]:
@@ -1143,33 +1145,66 @@ class ProcessCollection:
             * ``'cp_min_mux'`` - CP-based graph coloring minimizing connections in both directions.
             * ``'greedy_graph_color'`` - Greedy graph coloring based heuristic.
             * ``'equitable_graph_color'`` - Equitable graph coloring, attempting to divide the variables evenly.
+            * ``'greedy_port_packing'`` - Capacity-aware first-fit packing over several variable orders, returning the smallest feasible assignment found.
             * ``'left_edge'`` - Greedy heuristic for assigning variables.
             * ``'left_edge_min_pe_to_mem'`` - Greedy heuristic for assigning variables, attempting to reduce the amount of PE -> memory connections.
             * ``'left_edge_min_mem_to_pe'`` - Greedy heuristic for assigning variables, attempting to reduce the amount of memory -> PE connections.
-            * ``'left_edge_min_mux'`` - Greedy heuristic for assigning variables, attempting to reduce the total number of multiplexers.
+            * ``'left_edge_min_mux'`` - Reserved for total multiplexer minimization; currently raises :class:`NotImplementedError`.
 
             CP strategies require the optional ``cp`` dependencies
-            (``pip install b-asic[cp]``). Like the ILP graph coloring strategies,
-            they support one read port, one write port, and one or two total
-            ports per memory.
+            (``pip install b-asic[cp]``).
 
-        read_ports : int, optional
+            Port constraints by strategy:
+
+            * ``'greedy_graph_color'`` and ``'equitable_graph_color'`` require exactly one read
+              port, one write port, and one or two total ports per memory.
+            * All ``ilp_*`` and ``cp_*`` strategies, ``'greedy_port_packing'``, ``'left_edge'``,
+              ``'left_edge_min_pe_to_mem'``, and ``'left_edge_min_mem_to_pe'``
+              support multiple read and write ports. Read, write, and combined
+              accesses must each fit their respective limits in every cycle.
+              Each variable must fit a memory individually; otherwise a
+              :class:`ValueError` is raised. These strategies do not replicate
+              or split variables to satisfy port limits.
+              ILP and CP retain graph models with clique symmetry breaking for
+              one read and one write port. Other configurations use per-cycle
+              capacity constraints instead of pairwise conflicts.
+            * ``'left_edge_min_mux'`` is not implemented for any port counts.
+
+        read_ports : int, default: 1
             The number of read ports per memory resource.
 
-        write_ports : int, optional
+        write_ports : int, default: 1
             The number of write ports per memory resource.
 
         total_ports : int, optional
             The total number of ports per memory resource.
+            Defaults to ``read_ports + write_ports``. When supplied, omitted
+            read or write limits default to this value. All limits must be
+            positive, and neither read nor write limits may exceed this value.
 
         alg_params : dict, optional
             Algorithm-specific parameters. Valid keys depend on *strategy*:
+
+            For ``'greedy_port_packing'``:
+
+            restarts : int, default: 8
+                Number of shuffled variable orders to try in addition to
+                start-time, decreasing-read-count, and busy-cycle orders.
+                Must be nonnegative. The result is no worse than first-fit
+                assignment in start-time order.
+
+            seed : int, default: 0
+                Random seed for shuffled orders. Results are reproducible for
+                a fixed collection iteration order and seed.
 
             For ``'ilp_graph_color'``, ``'ilp_min_input_mux'``,
             ``'ilp_min_output_mux'``, ``'ilp_min_mux'``:
 
             max_colors : int, optional
                 The maximum number of colors (memory resources) to split into.
+                Defaults to a feasible upper bound from greedy graph coloring
+                for one read/one write port, or ``'greedy_port_packing'`` for
+                other port configurations.
 
             solver : :class:`~pulp.LpSolver`, optional
                 ILP solver to use. To see available solvers:
@@ -1184,8 +1219,10 @@ class ProcessCollection:
             ``'cp_min_output_mux'``, ``'cp_min_mux'``:
 
             max_colors : int, optional
-                The maximum number of colors (memories) to split into.
-                Defaults to an upper bound from greedy graph coloring. The mux
+                The maximum number of resources to split into.
+                Defaults to an upper bound from greedy graph coloring for
+                one read/one write port, or ``'greedy_port_packing'`` for other
+                port configurations. The mux
                 strategies minimize connections within this resource bound.
 
             solver : str or :class:`~cpmpy.solvers.solver_interface.SolverInterface`, optional
@@ -1229,6 +1266,28 @@ class ProcessCollection:
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
         )
+
+        if strategy.startswith(("ilp_", "cp_")):
+            self._validated_port_accesses(read_ports, write_ports, total_ports)
+        if strategy in (
+            "ilp_graph_color",
+            "ilp_min_input_mux",
+            "ilp_min_output_mux",
+            "ilp_min_mux",
+        ) and (read_ports != 1 or write_ports != 1 or total_ports not in (1, 2)):
+            if strategy != "ilp_graph_color" and processing_elements is None:
+                raise ValueError(
+                    f"processing_elements must be provided if strategy = '{strategy}'"
+                )
+            return self._split_ports_ilp_capacity(
+                read_ports,
+                write_ports,
+                total_ports,
+                strategy,
+                processing_elements,
+                max_colors,
+                solver,
+            )
 
         if strategy in (
             "cp_graph_color",
@@ -1301,6 +1360,14 @@ class ProcessCollection:
             return self._split_ports_equitable_graph_color(
                 read_ports, write_ports, total_ports
             )
+        elif strategy == "greedy_port_packing":
+            return self._split_ports_greedy_port_packing(
+                read_ports,
+                write_ports,
+                total_ports,
+                restarts=alg_params.get("restarts", 8),
+                seed=alg_params.get("seed", 0),
+            )
         elif strategy == "left_edge":
             return self.split_ports_sequentially(
                 read_ports,
@@ -1347,6 +1414,132 @@ class ProcessCollection:
         else:
             raise ValueError("Invalid strategy provided.")
 
+    def _process_port_accesses(
+        self, process: Process
+    ) -> tuple[Counter[int], Counter[int]]:
+        """Count reads and writes, including accesses that wrap around the period."""
+        return (
+            Counter(time % self.schedule_time for time in process.read_times),
+            Counter({process.start_time % self.schedule_time: 1}),
+        )
+
+    @staticmethod
+    def _port_accesses_fit(
+        reads: Mapping[int, int],
+        writes: Mapping[int, int],
+        memory_reads: Mapping[int, int],
+        memory_writes: Mapping[int, int],
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+    ) -> bool:
+        """Check the full candidate demand against each memory port capacity."""
+        for time in reads.keys() | writes.keys():
+            read_count = memory_reads.get(time, 0) + reads.get(time, 0)
+            write_count = memory_writes.get(time, 0) + writes.get(time, 0)
+            if (
+                read_count > read_ports
+                or write_count > write_ports
+                or read_count + write_count > total_ports
+            ):
+                return False
+        return True
+
+    def _validated_port_accesses(
+        self, read_ports: int, write_ports: int, total_ports: int
+    ) -> dict[Process, tuple[Counter[int], Counter[int]]]:
+        """Reject variables that cannot fit even an otherwise empty memory."""
+        if min(read_ports, write_ports, total_ports) < 1:
+            raise ValueError("Read, write, and total port limits must be positive")
+        accesses = {}
+        for process in self:
+            reads, writes = self._process_port_accesses(process)
+            if not self._port_accesses_fit(
+                reads, writes, {}, {}, read_ports, write_ports, total_ports
+            ):
+                raise ValueError(
+                    f"Process {process.name!r} exceeds the port limits of a single memory"
+                )
+            accesses[process] = reads, writes
+        return accesses
+
+    def _split_ports_greedy_port_packing(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        *,
+        restarts: int = 8,
+        seed: int = 0,
+    ) -> list["ProcessCollection"]:
+        """Find a feasible memory-count upper bound by repeated first-fit packing."""
+        if not isinstance(restarts, int) or restarts < 0:
+            raise ValueError("restarts must be a nonnegative integer")
+        accesses = self._validated_port_accesses(read_ports, write_ports, total_ports)
+        processes = sorted(self)
+        if not processes:
+            return []
+        total_reads = Counter(self.read_port_accesses())
+        total_writes = Counter(self.write_port_accesses())
+
+        def pressure(process):
+            reads, writes = accesses[process]
+            return sum(
+                count * total_reads[time] / read_ports for time, count in reads.items()
+            ) + sum(
+                count * total_writes[time] / write_ports
+                for time, count in writes.items()
+            )
+
+        orders = [
+            processes,
+            sorted(
+                processes,
+                key=lambda process: sum(accesses[process][0].values()),
+                reverse=True,
+            ),
+            sorted(processes, key=pressure, reverse=True),
+        ]
+        rng = Random(seed)
+        for _ in range(restarts):
+            order = processes.copy()
+            rng.shuffle(order)
+            orders.append(order)
+
+        best = [[process] for process in processes]
+        for order in orders:
+            bins: list[list[Process]] = []
+            usage: list[tuple[Counter[int], Counter[int]]] = []
+            for process in order:
+                reads, writes = accesses[process]
+                for index in range(len(usage)):
+                    memory_reads, memory_writes = usage[index]
+                    if self._port_accesses_fit(
+                        reads,
+                        writes,
+                        memory_reads,
+                        memory_writes,
+                        read_ports,
+                        write_ports,
+                        total_ports,
+                    ):
+                        break
+                else:
+                    index = len(bins)
+                    bins.append([])
+                    usage.append((Counter(), Counter()))
+                bins[index].append(process)
+                usage[index][0].update(reads)
+                usage[index][1].update(writes)
+            if len(bins) < len(best):
+                best = bins
+        return [
+            ProcessCollection(
+                group, schedule_time=self.schedule_time, cyclic=self._cyclic
+            )
+            for group in best
+        ]
+
     def split_ports_sequentially(
         self,
         read_ports: int,
@@ -1385,6 +1578,7 @@ class ProcessCollection:
         if set(self.collection) != set(sequence):
             raise KeyError("processes in `sequence` must be equal to processes in self")
 
+        self._validated_port_accesses(read_ports, write_ports, total_ports)
         collections: list[ProcessCollection] = []
         for process in sequence:
             process_added = False
@@ -1543,7 +1737,7 @@ class ProcessCollection:
         raise NotImplementedError
 
     def _get_process_fits_in_collection(
-        self, process, collections, write_ports, read_ports, total_ports
+        self, process, collections, read_ports, write_ports, total_ports
     ) -> list[bool]:
         return [
             not self._ports_collide(
@@ -1560,25 +1754,16 @@ class ProcessCollection:
         read_ports: int,
         total_ports: int,
     ) -> bool:
-        # Test the number of concurrent write accesses
-        collection_writes = defaultdict(int, collection.write_port_accesses())
-        if collection_writes[proc.start_time] >= write_ports:
-            return True
-
-        # Test the number of concurrent read accesses
-        collection_reads = defaultdict(int, collection.read_port_accesses())
-        for proc_read_time in proc.read_times:
-            if collection_reads[proc_read_time % self.schedule_time] >= read_ports:
-                return True
-
-        # Test the number of total accesses
-        collection_total_accesses = defaultdict(
-            int, Counter(collection_writes) + Counter(collection_reads)
+        reads, writes = self._process_port_accesses(proc)
+        return not self._port_accesses_fit(
+            reads,
+            writes,
+            collection.read_port_accesses(),
+            collection.write_port_accesses(),
+            read_ports,
+            write_ports,
+            total_ports,
         )
-        for access_time in [proc.start_time, *proc.read_times]:
-            if collection_total_accesses[access_time] >= total_ports:
-                return True
-        return False
 
     @staticmethod
     def _count_number_of_pes_read_from(
@@ -1693,9 +1878,38 @@ class ProcessCollection:
         solver_options: dict | None = None,
     ) -> list["ProcessCollection"]:
         """Color port conflicts, optionally minimizing physical PE-memory links."""
-        graph = self.exclusion_graph_from_ports(read_ports, write_ports, total_ports)
+        accesses = None
+        if read_ports == write_ports == 1 and total_ports in (1, 2):
+            graph = self.exclusion_graph_from_ports(
+                read_ports, write_ports, total_ports
+            )
+        else:
+            accesses, max_colors = self._prepare_port_assignment(
+                read_ports, write_ports, total_ports, max_colors
+            )
+            graph = nx.Graph()
+            graph.add_nodes_from(accesses)
+        connection_groups = self._port_connection_groups(strategy, processing_elements)
+        return self._cp_graph_color_assignment(
+            graph,
+            max_colors,
+            solver,
+            solver_options,
+            connection_groups,
+            port_accesses=accesses,
+            port_limits=(read_ports, write_ports, total_ports),
+        )
+
+    def _port_connection_groups(
+        self, strategy: str, processing_elements: list["ProcessingElement"] | None
+    ) -> list[list[Process]] | None:
+        """Group variables by the physical PE ports selected by a mux objective."""
         connection_groups = None
-        if strategy != "cp_graph_color":
+        if not strategy.endswith("graph_color"):
+            if processing_elements is None:
+                raise ValueError(
+                    f"processing_elements must be provided if strategy = '{strategy}'"
+                )
             pe_for_operation = {
                 process.operation.graph_id: index
                 for index, pe in enumerate(processing_elements)
@@ -1704,11 +1918,11 @@ class ProcessCollection:
             endpoints = defaultdict(list)
             for var in self:
                 if not isinstance(var, MemoryVariable):
-                    raise TypeError("CP mux splitting requires MemoryVariable objects.")
-                if strategy in ("cp_min_input_mux", "cp_min_mux"):
+                    raise TypeError("Mux splitting requires MemoryVariable objects.")
+                if strategy.endswith(("min_input_mux", "min_mux")):
                     if isinstance(var.write_port, MemoryOutputPort):
                         raise ValueError(
-                            "CP mux splitting requires direct connections to processing elements."
+                            "Mux splitting requires direct connections to processing elements."
                         )
                     source_id = var.write_port.operation.graph_id
                     if source_id not in pe_for_operation:
@@ -1718,11 +1932,11 @@ class ProcessCollection:
                     endpoints[
                         "out", pe_for_operation[source_id], var.write_port.index
                     ].append(var)
-                if strategy in ("cp_min_output_mux", "cp_min_mux"):
+                if strategy.endswith(("min_output_mux", "min_mux")):
                     for port in var.read_ports:
                         if isinstance(port, MemoryInputPort):
                             raise ValueError(
-                                "CP mux splitting requires direct connections to processing elements."
+                                "Mux splitting requires direct connections to processing elements."
                             )
                         destination_id = port.operation.graph_id
                         if destination_id not in pe_for_operation:
@@ -1733,8 +1947,111 @@ class ProcessCollection:
                             "in", pe_for_operation[destination_id], port.index
                         ].append(var)
             connection_groups = list(endpoints.values())
-        return self._cp_graph_color_assignment(
-            graph, max_colors, solver, solver_options, connection_groups
+        return connection_groups
+
+    def _prepare_port_assignment(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        max_colors: int | None,
+    ) -> tuple[dict[Process, tuple[Counter[int], Counter[int]]], int]:
+        """Validate variable demands and obtain a feasible default resource bound."""
+        if max_colors is not None and (
+            not isinstance(max_colors, int) or max_colors <= 0
+        ):
+            raise ValueError("max_colors must be a positive integer.")
+        accesses = self._validated_port_accesses(read_ports, write_ports, total_ports)
+        if max_colors is None:
+            max_colors = len(
+                self._split_ports_greedy_port_packing(
+                    read_ports, write_ports, total_ports
+                )
+            )
+        return accesses, min(max_colors, len(accesses))
+
+    @staticmethod
+    def _port_capacity_rows(
+        accesses: dict[Process, tuple[Counter[int], Counter[int]]],
+        limits: tuple[int, int, int],
+    ) -> list[tuple[dict[Process, int], int]]:
+        """Build sparse per-cycle read, write, and shared-port capacity rows."""
+        rows = defaultdict(dict)
+        for process, (reads, writes) in accesses.items():
+            for kind, counts in enumerate((reads, writes, reads + writes)):
+                for time, count in counts.items():
+                    rows[kind, time][process] = count
+        return [(counts, limits[kind]) for (kind, _time), counts in rows.items()]
+
+    def _split_ports_ilp_capacity(
+        self,
+        read_ports: int,
+        write_ports: int,
+        total_ports: int,
+        strategy: str,
+        processing_elements: list["ProcessingElement"] | None = None,
+        max_colors: int | None = None,
+        solver: LpSolver | None = None,
+    ) -> list["ProcessCollection"]:
+        """Assign multiport memories using per-cycle integer capacity constraints."""
+        accesses, max_colors = self._prepare_port_assignment(
+            read_ports, write_ports, total_ports, max_colors
+        )
+        connection_groups = self._port_connection_groups(strategy, processing_elements)
+        if not accesses:
+            return []
+        nodes = list(accesses)
+        colors = range(max_colors)
+        problem = LpProblem()
+        x = problem.add_variable_dicts("x", (nodes, colors), cat=LpBinary)
+        used = problem.add_variable_dicts("used", colors, cat=LpBinary)
+        for node in nodes:
+            problem += lpSum(x[node][color] for color in colors) == 1
+            for color in colors:
+                problem += x[node][color] <= used[color]
+        for color in colors:
+            problem += used[color] <= lpSum(x[node][color] for node in nodes)
+        for color in colors[:-1]:
+            problem += used[color + 1] <= used[color]
+        # Any feasible assignment can relabel the first variable's memory as zero.
+        problem += x[nodes[0]][0] == 1
+        for counts, limit in self._port_capacity_rows(
+            accesses, (read_ports, write_ports, total_ports)
+        ):
+            for color in colors:
+                problem += (
+                    lpSum(count * x[node][color] for node, count in counts.items())
+                    <= limit * used[color]
+                )
+        if connection_groups is None:
+            problem += lpSum(used.values())
+        else:
+            connected = problem.add_variable_dicts(
+                "connected", (range(len(connection_groups)), colors), cat=LpBinary
+            )
+            for index, group in enumerate(connection_groups):
+                for color in colors:
+                    for node in group:
+                        problem += x[node][color] <= connected[index][color]
+            problem += lpSum(
+                connected[index][color]
+                for index in range(len(connection_groups))
+                for color in colors
+            )
+        stats = _solve_ilp_problem(problem, solver)
+        if not stats.has_solution:
+            raise ValueError("Solution could not be found via ILP, use another method.")
+        coloring = {
+            node: color
+            for node in nodes
+            for color in colors
+            if round(value(x[node][color])) == 1
+        }
+        used_colors = {
+            color: index for index, color in enumerate(sorted(set(coloring.values())))
+        }
+        return self._split_from_graph_coloring(
+            {node: used_colors[color] for node, color in coloring.items()}
         )
 
     def _cp_graph_color_assignment(
@@ -1744,6 +2061,9 @@ class ProcessCollection:
         solver: "str | SolverInterface | None" = None,
         solver_options: dict | None = None,
         connection_groups: list[list[Process]] | None = None,
+        *,
+        port_accesses: dict[Process, tuple[Counter[int], Counter[int]]] | None = None,
+        port_limits: tuple[int, int, int] | None = None,
     ) -> list["ProcessCollection"]:
         """Minimize distinct resource assignments globally or per physical port."""
         try:
@@ -1775,6 +2095,19 @@ class ProcessCollection:
         # Isolated processes must also occur in the model and receive a value.
         model += [assignment >= 0 for assignment in assignments.values()]
         model += [assignments[u] != assignments[v] for u, v in graph.edges()]
+        if port_accesses is not None:
+            assert port_limits is not None
+            for counts, limit in self._port_capacity_rows(port_accesses, port_limits):
+                for color in range(max_colors):
+                    model += (
+                        cp.sum(
+                            [
+                                count * (assignments[node] == color)
+                                for node, count in counts.items()
+                            ]
+                        )
+                        <= limit
+                    )
         # Fix a clique's labels to remove equivalent color permutations.
         anchor = next(nx.find_cliques(graph))
         for color, node in enumerate(anchor):
