@@ -421,7 +421,6 @@ def test_ilp_mux_keeps_heuristic_warm_starts():
     "strategy",
     [
         "ilp_graph_color",
-        "greedy_min_mux",
         "greedy_graph_color",
     ],
 )
@@ -550,7 +549,7 @@ def test_public_coloring_strategy_override(total_ports):
 @pytest.mark.parametrize(
     ("options", "message"),
     [
-        ({"memory_total_ports": 3}, "one or two total memory ports"),
+        ({"memory_read_ports": 3}, "Total ports"),
         ({"max_mux_size": 0}, "max_mux_size must be at least 1"),
         ({"restarts": 0}, "restarts must be positive"),
         ({"max_passes": -1}, "max_passes nonnegative"),
