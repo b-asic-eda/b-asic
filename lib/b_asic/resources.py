@@ -998,7 +998,7 @@ class ProcessCollection:
             "ilp_graph_color",
             "cp_graph_color",
         ] = "left_edge",
-        alg_params: dict | None = None,
+        strat_params: dict | None = None,
     ) -> list["ProcessCollection"]:
         """
         Split based on overlapping execution time.
@@ -1010,8 +1010,8 @@ class ProcessCollection:
             ``'cp_graph_color'`` uses CPMpy to minimize the number of resources
             and requires the optional ``cp`` dependencies (``pip install b-asic[cp]``).
 
-        alg_params : dict, optional
-            Algorithm-specific parameters. Valid keys depend on *strategy*:
+        strat_params : dict, optional
+            Strategy-specific parameters. Valid keys depend on *strategy*:
 
             For ``'greedy_graph_color'``:
 
@@ -1065,13 +1065,13 @@ class ProcessCollection:
             Collections grouping processes that can share a resource without
             overlapping execution times.
         """
-        alg_params = alg_params or {}
-        coloring_strategy = alg_params.get(
+        strat_params = strat_params or {}
+        coloring_strategy = strat_params.get(
             "coloring_strategy", "saturation_largest_first"
         )
-        max_colors = alg_params.get("max_colors", None)
-        solver = alg_params.get("solver", None)
-        direct_variables = alg_params.get("direct_variables", None)
+        max_colors = strat_params.get("max_colors", None)
+        solver = strat_params.get("solver", None)
+        direct_variables = strat_params.get("direct_variables", None)
         if strategy == "ilp_graph_color":
             return self._ilp_graph_color_assignment(max_colors, solver)
         elif strategy == "cp_graph_color":
@@ -1085,7 +1085,7 @@ class ProcessCollection:
                 self.exclusion_graph_from_execution_time(),
                 max_colors,
                 solver,
-                alg_params.get("solver_options"),
+                strat_params.get("solver_options"),
             )
         elif strategy == "greedy_graph_color":
             return self._greedy_graph_color_assignment(coloring_strategy)
@@ -1122,7 +1122,7 @@ class ProcessCollection:
         read_ports: int = 1,
         write_ports: int = 1,
         total_ports: int | None = None,
-        alg_params: dict | None = None,
+        strat_params: dict | None = None,
     ) -> list["ProcessCollection"]:
         """
         Split based on concurrent read and write accesses.
@@ -1182,8 +1182,8 @@ class ProcessCollection:
             read or write limits default to this value. All limits must be
             positive, and neither read nor write limits may exceed this value.
 
-        alg_params : dict, optional
-            Algorithm-specific parameters. Valid keys depend on *strategy*:
+        strat_params : dict, optional
+            Strategy-specific parameters. Valid keys depend on *strategy*:
 
             For ``'greedy_port_packing'``:
 
@@ -1200,8 +1200,8 @@ class ProcessCollection:
             For ``'ilp_graph_color'``, ``'ilp_min_input_mux'``,
             ``'ilp_min_output_mux'``, ``'ilp_min_mux'``:
 
-            max_colors : int, optional
-                The maximum number of colors (memory resources) to split into.
+            max_resources : int, optional
+                The maximum number of resources to split into. Must be positive.
                 Defaults to a feasible upper bound from greedy graph coloring
                 for one read/one write port, or ``'greedy_port_packing'`` for
                 other port configurations.
@@ -1218,8 +1218,8 @@ class ProcessCollection:
             For ``'cp_graph_color'``, ``'cp_min_input_mux'``,
             ``'cp_min_output_mux'``, ``'cp_min_mux'``:
 
-            max_colors : int, optional
-                The maximum number of resources to split into.
+            max_resources : int, optional
+                The maximum number of resources to split into. Must be positive.
                 Defaults to an upper bound from greedy graph coloring for
                 one read/one write port, or ``'greedy_port_packing'`` for other
                 port configurations. The mux
@@ -1258,11 +1258,15 @@ class ProcessCollection:
             Collections grouping processes whose concurrent accesses satisfy the
             specified read, write, and total port limits.
         """
-        alg_params = alg_params or {}
-        processing_elements = alg_params.get("processing_elements", None)
-        max_colors = alg_params.get("max_colors", None)
-        solver = alg_params.get("solver", None)
-        direct_variables = alg_params.get("direct_variables", None)
+        strat_params = strat_params or {}
+        processing_elements = strat_params.get("processing_elements", None)
+        max_resources = strat_params.get("max_resources", None)
+        if max_resources is not None and (
+            not isinstance(max_resources, int) or max_resources <= 0
+        ):
+            raise ValueError("max_resources must be a positive integer.")
+        solver = strat_params.get("solver", None)
+        direct_variables = strat_params.get("direct_variables", None)
         read_ports, write_ports, total_ports = _sanitize_port_option(
             read_ports, write_ports, total_ports
         )
@@ -1285,7 +1289,7 @@ class ProcessCollection:
                 total_ports,
                 strategy,
                 processing_elements,
-                max_colors,
+                max_resources,
                 solver,
             )
 
@@ -1305,13 +1309,13 @@ class ProcessCollection:
                 total_ports,
                 strategy,
                 processing_elements,
-                max_colors,
+                max_resources,
                 solver,
-                alg_params.get("solver_options"),
+                strat_params.get("solver_options"),
             )
         elif strategy == "ilp_graph_color":
             return self._split_ports_ilp_graph_color(
-                read_ports, write_ports, total_ports, max_colors, solver
+                read_ports, write_ports, total_ports, max_resources, solver
             )
         elif strategy == "ilp_min_input_mux":
             if processing_elements is None:
@@ -1323,7 +1327,7 @@ class ProcessCollection:
                 write_ports,
                 total_ports,
                 processing_elements,
-                max_colors,
+                max_resources,
                 solver,
             )
         elif strategy == "ilp_min_output_mux":
@@ -1336,7 +1340,7 @@ class ProcessCollection:
                 write_ports,
                 total_ports,
                 processing_elements,
-                max_colors,
+                max_resources,
                 solver,
             )
         elif strategy == "ilp_min_mux":
@@ -1349,7 +1353,7 @@ class ProcessCollection:
                 write_ports,
                 total_ports,
                 processing_elements,
-                max_colors,
+                max_resources,
                 solver,
             )
         elif strategy == "greedy_graph_color":
@@ -1365,8 +1369,8 @@ class ProcessCollection:
                 read_ports,
                 write_ports,
                 total_ports,
-                restarts=alg_params.get("restarts", 8),
-                seed=alg_params.get("seed", 0),
+                restarts=strat_params.get("restarts", 8),
+                seed=strat_params.get("seed", 0),
             )
         elif strategy == "left_edge":
             return self.split_ports_sequentially(
@@ -1968,7 +1972,7 @@ class ProcessCollection:
                     read_ports, write_ports, total_ports
                 )
             )
-        return accesses, min(max_colors, len(accesses))
+        return accesses, max(1, min(max_colors, len(accesses)))
 
     @staticmethod
     def _port_capacity_rows(

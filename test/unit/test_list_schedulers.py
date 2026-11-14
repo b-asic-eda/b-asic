@@ -1776,7 +1776,10 @@ class TestListScheduler:
             write_ports=1,
             total_ports=2,
             strategy="ilp_graph_color",
-            alg_params={"processing_elements": processing_elements, "max_colors": 2},
+            strat_params={
+                "processing_elements": processing_elements,
+                "max_resources": 2,
+            },
         )
 
         memories = []
@@ -1857,7 +1860,10 @@ class TestListScheduler:
             write_ports=1,
             total_ports=2,
             strategy="ilp_graph_color",
-            alg_params={"processing_elements": processing_elements, "max_colors": 2},
+            strat_params={
+                "processing_elements": processing_elements,
+                "max_resources": 2,
+            },
         )
 
         memories = []

@@ -45,7 +45,7 @@ CP strategies require the ``cp`` extra.
 ILP and CP use the existing graph models, including clique-based symmetry
 breaking, for one read port, one write port, and one or two total ports.
 Other port configurations use per-cycle read, write, and combined-access
-capacity constraints. If ``max_colors`` is omitted, their memory-count upper
+capacity constraints. If ``max_resources`` is omitted, their memory-count upper
 bound comes from ``greedy_port_packing``. The mux objectives minimize distinct
 PE-port-to-memory connections within that bound; they do not assign accesses
 to individual physical memory ports.
@@ -58,7 +58,7 @@ upper bound on the memory count::
         read_ports=2,
         write_ports=1,
         total_ports=3,
-        alg_params={"restarts": 8, "seed": 0},
+        strat_params={"restarts": 8, "seed": 0},
     )
     upper_bound = len(memories)
 

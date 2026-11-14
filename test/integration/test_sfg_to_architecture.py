@@ -167,7 +167,7 @@ def test_left_edge(mem_variables_fft32):
         write_ports=1,
         total_ports=2,
         strategy="left_edge",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = []
@@ -194,7 +194,7 @@ def test_min_pe_to_mem(mem_variables_fft32):
         write_ports=1,
         total_ports=2,
         strategy="left_edge_min_pe_to_mem",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = []
@@ -221,7 +221,7 @@ def test_min_mem_to_pe(mem_variables_fft32):
         write_ports=1,
         total_ports=2,
         strategy="left_edge_min_mem_to_pe",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = []
@@ -248,7 +248,7 @@ def test_greedy_graph_coloring(mem_variables_fft32):
         write_ports=1,
         total_ports=2,
         strategy="greedy_graph_color",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = []
@@ -275,7 +275,7 @@ def test_equitable_color(mem_variables_fft32):
         write_ports=1,
         total_ports=2,
         strategy="equitable_graph_color",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = []
@@ -301,7 +301,7 @@ def test_ilp_color(mem_variables_fft16):
         write_ports=1,
         total_ports=2,
         strategy="ilp_graph_color",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = []
@@ -327,7 +327,7 @@ def test_ilp_color_with_colors_given(mem_variables_fft16):
         write_ports=1,
         total_ports=2,
         strategy="ilp_graph_color",
-        alg_params={"processing_elements": processing_elements, "max_colors": 4},
+        strat_params={"processing_elements": processing_elements, "max_resources": 4},
     )
 
     memories = []
@@ -353,7 +353,7 @@ def test_ilp_color_input_mux(mem_variables_fft16):
         write_ports=1,
         total_ports=2,
         strategy="ilp_min_input_mux",
-        alg_params={"processing_elements": processing_elements, "max_colors": 4},
+        strat_params={"processing_elements": processing_elements, "max_resources": 4},
     )
 
     memories = []
@@ -379,7 +379,7 @@ def test_ilp_color_output_mux(mem_variables_fft16):
         write_ports=1,
         total_ports=2,
         strategy="ilp_min_output_mux",
-        alg_params={"processing_elements": processing_elements, "max_colors": 4},
+        strat_params={"processing_elements": processing_elements, "max_resources": 4},
     )
 
     memories = []
@@ -406,7 +406,7 @@ def test_ilp_color_total_mux(mem_variables_fft16):
         write_ports=1,
         total_ports=2,
         strategy="ilp_min_mux",
-        alg_params={"processing_elements": processing_elements, "max_colors": 4},
+        strat_params={"processing_elements": processing_elements, "max_resources": 4},
     )
 
     memories = []
@@ -467,9 +467,9 @@ def test_ilp_resource_algorithm_custom_solver():
         write_ports=1,
         total_ports=2,
         strategy="ilp_min_mux",
-        alg_params={
+        strat_params={
             "processing_elements": processing_elements,
-            "max_colors": 3,
+            "max_resources": 3,
             "solver": HiGHS(),
         },
     )
@@ -480,7 +480,7 @@ def test_ilp_resource_algorithm_custom_solver():
         memories.append(memory)
         memory.assign(
             "ilp_graph_color",
-            alg_params={
+            strat_params={
                 "solver": HiGHS(),
             },
         )
@@ -585,7 +585,7 @@ def test_separate_ilp_color_no_max_colors_provided(mem_variables_fft16):
         write_ports=1,
         total_ports=2,
         strategy="ilp_min_input_mux",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = [
@@ -606,7 +606,7 @@ def test_separate_ilp_color_no_max_colors_provided(mem_variables_fft16):
         write_ports=1,
         total_ports=2,
         strategy="ilp_min_output_mux",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = [
@@ -627,7 +627,7 @@ def test_separate_ilp_color_no_max_colors_provided(mem_variables_fft16):
         write_ports=1,
         total_ports=2,
         strategy="ilp_min_mux",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = [
@@ -681,7 +681,7 @@ def test_ilp_resource_algorithm_single_port_memory(mem_variables_fft16):
         write_ports=1,
         total_ports=1,
         strategy="ilp_graph_color",
-        alg_params={"processing_elements": processing_elements},
+        strat_params={"processing_elements": processing_elements},
     )
 
     memories = [

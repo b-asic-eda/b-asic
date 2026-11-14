@@ -106,7 +106,13 @@ def test_insufficient_colors(cp, simple_collection, method):
     )
     with pytest.raises(ValueError, match="Solution could not be found via CP"):
         getattr(simple_collection, method)(
-            "cp_graph_color", alg_params={"max_colors": 1}, **options
+            "cp_graph_color",
+            **options,
+            **(
+                {"strat_params": {"max_resources": 1}}
+                if method == "split_on_ports"
+                else {"strat_params": {"max_colors": 1}}
+            ),
         )
 
 
@@ -114,7 +120,7 @@ def test_insufficient_colors(cp, simple_collection, method):
 def test_invalid_bound(cp, simple_collection, bound):
     with pytest.raises(ValueError, match="max_colors must be a positive integer"):
         simple_collection.split_on_execution_time(
-            "cp_graph_color", alg_params={"max_colors": bound}
+            "cp_graph_color", strat_params={"max_colors": bound}
         )
 
 
@@ -182,9 +188,9 @@ def _connection_cost(coloring, pes, strategy):
 def test_mux_optimality(cp, strategy, fanout):
     collection, pes = _mux_problem(fanout)
     solver = cp.SolverLookup.get("ortools")
-    params = {"processing_elements": pes, "max_colors": 2, "solver": solver}
+    params = {"processing_elements": pes, "max_resources": 2, "solver": solver}
     groups = collection.split_on_ports(
-        strategy, read_ports=1, write_ports=1, total_ports=2, alg_params=params
+        strategy, read_ports=1, write_ports=1, total_ports=2, strat_params=params
     )
     graph = collection.exclusion_graph_from_ports(
         read_ports=1, write_ports=1, total_ports=2
@@ -218,7 +224,7 @@ def test_multiple_read_ports(cp, strategy):
         strategy,
         read_ports=2,
         write_ports=1,
-        alg_params={"processing_elements": pes},
+        strat_params={"processing_elements": pes},
     )
     assert len(groups) == 1
     assert set(groups[0]) == set(collection)
@@ -231,7 +237,7 @@ def test_solver_options(cp, simple_collection, instance):
         solver.ort_solver.parameters.num_search_workers = 1
     params = {"solver": solver, "solver_options": {"time_limit": 10}}
     groups = simple_collection.split_on_execution_time(
-        "cp_graph_color", alg_params=params
+        "cp_graph_color", strat_params=params
     )
     _validate_split(
         simple_collection,
@@ -246,7 +252,7 @@ def test_solver_options(cp, simple_collection, instance):
 def test_invalid_solver(cp, simple_collection):
     with pytest.raises(TypeError, match="CPMpy solver name or instance"):
         simple_collection.split_on_execution_time(
-            "cp_graph_color", alg_params={"solver": object()}
+            "cp_graph_color", strat_params={"solver": object()}
         )
 
 
@@ -283,7 +289,9 @@ def test_split_recovers_after_interruption(cp, simple_collection, monkeypatch, m
         else {}
     )
     groups = getattr(simple_collection, method)(
-        "cp_graph_color", alg_params={"solver": solver}, **options
+        "cp_graph_color",
+        strat_params={"solver": solver},
+        **options,
     )
     graph = (
         simple_collection.exclusion_graph_from_ports(**options)
