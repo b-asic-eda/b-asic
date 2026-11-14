@@ -26,7 +26,7 @@ from b_asic.sfg_generators import (
 )
 from b_asic.signal_generator import Constant, Impulse, ZeroPad
 from b_asic.simulation import Simulation
-from b_asic.special_operations import Delay
+from b_asic.special_operations import Delay, Input, MemoryRead, MemoryWrite, Output
 from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
@@ -862,6 +862,25 @@ class TestDirectFormIIRType2:
 
 
 class TestRadix2FFT:
+    @pytest.mark.parametrize("mem", [False, True])
+    @pytest.mark.parametrize("points", [1, 4, 8])
+    def test_memory_io(self, points, mem):
+        sfg = radix_2_dif_fft(points, mem=mem)
+        for i, operation in enumerate(sfg.input_operations):
+            assert type(operation) is (MemoryRead if mem else Input)
+            assert operation.name == f"x[{i}]"
+            if mem:
+                assert operation.address == i
+        for i, operation in enumerate(sfg.output_operations):
+            assert type(operation) is (MemoryWrite if mem else Output)
+            assert operation.name == f"X[{i}]"
+            if mem:
+                assert operation.address == i
+        samples = np.arange(points) + 1j * np.arange(points)[::-1]
+        np.testing.assert_allclose(
+            sfg.evaluate_outputs(samples), np.fft.fft(samples), atol=1e-12
+        )
+
     def test_4_points_constant_input(self):
         sfg = radix_2_dif_fft(points=4)
 
