@@ -273,7 +273,7 @@ def test_public_greedy_search_options(total_ports):
             memory_read_ports=1,
             memory_write_ports=1,
             memory_total_ports=total_ports,
-            **options,
+            strat_params=options,
         )
     assert pes
     assert len(mems) == (2 if total_ports == 1 else 1)
@@ -292,6 +292,7 @@ def test_public_coloring_strategy_override(total_ports):
     schedule.get_memory_variables.return_value = ProcessCollection(
         [*memories, *direct], 4
     )
+    options = {"coloring_strategy": "largest_first", "interchange": True}
     with patch(
         "b_asic.resource_assigner.nx.coloring.greedy_color",
         wraps=nx.coloring.greedy_color,
@@ -302,12 +303,12 @@ def test_public_coloring_strategy_override(total_ports):
             memory_read_ports=1,
             memory_write_ports=1,
             memory_total_ports=total_ports,
-            coloring_strategy="largest_first",
-            interchange=True,
+            strat_params=options,
         )
     assert pes
     assert len(mems) == (2 if total_ports == 1 else 1)
     # Upper bounds use the default; final assignments use the requested strategy.
+    assert options == {"coloring_strategy": "largest_first", "interchange": True}
     for call in color.call_args_list[-3:]:
         assert call.kwargs == {"strategy": "largest_first", "interchange": True}
 
