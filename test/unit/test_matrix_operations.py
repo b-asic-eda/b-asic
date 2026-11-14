@@ -1,4 +1,4 @@
-"""Tests for the Strassen matrix multiplication SFG generator."""
+"""Tests for matrix multiplication SFG generators."""
 
 from copy import deepcopy
 
@@ -6,7 +6,63 @@ import numpy as np
 import pytest
 
 from b_asic.core_operations import Addition, Constant, Multiplication, Subtraction
-from b_asic.sfg_generators import strassen_matrix_multiplication
+from b_asic.sfg_generators import matrix_multiplication, strassen_matrix_multiplication
+from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
+
+
+@pytest.mark.parametrize(
+    "generator", [matrix_multiplication, strassen_matrix_multiplication]
+)
+@pytest.mark.parametrize("dimensions", [{}, {"n": None, "p": None}, {"n": 2}, {"p": 2}])
+@pytest.mark.parametrize("mem", [False, True])
+def test_optional_dimensions(generator, dimensions, mem):
+    m = 3
+    n = dimensions.get("n") or m
+    p = dimensions.get("p") or m
+    graph = generator(m, **dimensions, mem=mem)
+    assert graph.input_count == m * n + n * p
+    assert graph.output_count == m * p
+    a = np.arange(m * n).reshape(m, n)
+    b = np.arange(n * p).reshape(n, p)
+    np.testing.assert_allclose(
+        graph.evaluate_outputs([*a.ravel(), *b.ravel()]), (a @ b).ravel()
+    )
+
+
+@pytest.mark.parametrize(
+    "generator", [matrix_multiplication, strassen_matrix_multiplication]
+)
+def test_options_are_keyword_only(generator):
+    with pytest.raises(TypeError, match="positional"):
+        generator(2, 2, 2, "product")
+
+
+@pytest.mark.parametrize(
+    "generator", [matrix_multiplication, strassen_matrix_multiplication]
+)
+@pytest.mark.parametrize(("m", "n", "p"), [(1, 1, 1), (2, 4, 2), (3, 5, 2)])
+@pytest.mark.parametrize("mem", [False, True])
+def test_matrix_memory_layout_and_values(generator, m, n, p, mem):
+    graph = generator(m, n, p, mem=mem)
+    assert len(graph.input_operations) == m * n + n * p
+    assert len(graph.output_operations) == m * p
+    for memory_name, rows, cols, operations, operation_type in (
+        ("A", m, n, graph.input_operations[: m * n], MemoryRead if mem else Input),
+        ("B", n, p, graph.input_operations[m * n :], MemoryRead if mem else Input),
+        ("C", m, p, graph.output_operations, MemoryWrite if mem else Output),
+    ):
+        for i in range(rows):
+            for j in range(cols):
+                operation = operations[i * cols + j]
+                assert type(operation) is operation_type
+                assert operation.name == f"{memory_name}[{i},{j}]"
+                if mem:
+                    assert operation.address == i * cols + j
+                    assert operation.memory_name == memory_name
+    a = np.arange(m * n).reshape(m, n) + 1j
+    b = np.arange(n * p).reshape(n, p) - 2j
+    actual = graph.evaluate_outputs([*a.ravel(), *b.ravel()])
+    np.testing.assert_allclose(np.array(actual).reshape(m, p), a @ b)
 
 
 @pytest.mark.parametrize(
@@ -120,9 +176,14 @@ def test_strassen_nonpositive_dimensions(dimension, value):
 
 
 @pytest.mark.parametrize("dimension", range(3))
-@pytest.mark.parametrize("value", [2.5, "2", True, None])
+@pytest.mark.parametrize("value", [2.5, "2", True])
 def test_strassen_noninteger_dimensions(dimension, value):
     dimensions = [2, 2, 2]
     dimensions[dimension] = value
     with pytest.raises(TypeError, match="must be an integer"):
         strassen_matrix_multiplication(*dimensions)
+
+
+def test_strassen_requires_m():
+    with pytest.raises(TypeError, match="m must be an integer"):
+        strassen_matrix_multiplication(None)

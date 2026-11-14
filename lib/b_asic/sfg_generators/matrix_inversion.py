@@ -1,8 +1,18 @@
-"""
+r"""
 B-ASIC signal flow graph generators.
 
 This module contains a number of functions generating SFGs for matrix inversion.
+
+When ``mem=True``, the input matrix and its inverse use the same packed
+lower-triangular layout in the default unnamed memory. For zero-based row and
+column indices :math:`i \ge j`, the address is :math:`\frac{i(i+1)}{2} + j`. Thus addresses
+0, 1, 2, 3, 4, 5 correspond to entries (0, 0), (1, 0), (1, 1), (2, 0), (2, 1),
+(2, 2), respectively. Each matrix occupies :math:`\frac{N(N+1)}{2}` locations;
+upper-triangular entries follow by symmetry. Block and tile algorithms use this
+same external layout regardless of their internal partitioning.
 """
+
+from typing import Literal
 
 from b_asic.core_operations import (
     MADS,
@@ -13,18 +23,38 @@ from b_asic.core_operations import (
     Reciprocal,
     ReciprocalSquareRoot,
 )
+from b_asic.port import SignalSourceProvider
 from b_asic.sfg import SFG
-from b_asic.special_operations import Input, Output
+from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
 from b_asic.utility_operations import DontCare
+
+
+def _matrix_input(row: int, col: int, mem: bool) -> Input:
+    """Create an input for a packed lower-triangular matrix entry."""
+    name = f"A[{row},{col}]"
+    if mem:
+        return MemoryRead(address=row * (row + 1) // 2 + col, name=name)
+    return Input(name=name)
+
+
+def _matrix_output(
+    row: int, col: int, value: SignalSourceProvider, mem: bool
+) -> Output:
+    """Create an output for a packed lower-triangular inverse entry."""
+    name = f"res[{row},{col}]"
+    if mem:
+        return MemoryWrite(address=row * (row + 1) // 2 + col, in0=value, name=name)
+    return Output(value, name=name)
 
 
 def ldlt_matrix_inverse(
     N: int,
     name: str | None = None,
-    mode: str = "eqs",
-    pe: str | None = None,
+    mode: Literal["eqs", "mult"] = "eqs",
+    pe: Literal["addsub", "mads"] | None = None,
+    mem: bool = False,
 ) -> SFG:
-    """
+    r"""
     Generate an SFG for the LDLT matrix inverse algorithm.
 
     Parameters
@@ -37,6 +67,15 @@ def ldlt_matrix_inverse(
         The mode of operation, either "mult" or "eqs".
     pe : str, optional
         Processing element to use. Can be "mads", "addsub", or None.
+
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output`. Input and inverse entries
+        use packed lower-triangular row order in the default unnamed memory:
+        entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
+        Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
 
     Returns
     -------
@@ -259,7 +298,7 @@ def ldlt_matrix_inverse(
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = Input(name=f"A[{i},{j}]")
+            in_op = _matrix_input(i, j, mem)
             A[i][j] = in_op
             inputs.append(in_op)
 
@@ -269,16 +308,12 @@ def ldlt_matrix_inverse(
         L_inv = ldl_l_inv(L)
         res = ldl_matmul(L_inv, D_inv)
         outputs = [
-            Output(res[i][j], name=f"res[{i},{j}]")
-            for i in range(N)
-            for j in range(i + 1)
+            _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
         ]
     else:
         res = ldl_eqs(L, D_inv)
         outputs = [
-            Output(res[i][j], name=f"res[{i},{j}]")
-            for i in range(N)
-            for j in range(i + 1)
+            _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
         ]
 
     return SFG(inputs=inputs, outputs=outputs, name=Name(name))
@@ -287,10 +322,11 @@ def ldlt_matrix_inverse(
 def cholesky_matrix_inverse(
     N: int,
     name: str | None = None,
-    mode: str = "eqs",
-    pe: str | None = None,
+    mode: Literal["eqs", "mult"] = "eqs",
+    pe: Literal["addsub", "mads"] | None = None,
+    mem: bool = False,
 ) -> SFG:
-    """
+    r"""
     Generate an SFG for the Cholesky matrix inverse algorithm.
 
     Parameters
@@ -303,6 +339,15 @@ def cholesky_matrix_inverse(
         The mode of operation, either "mult" or "eqs".
     pe : str, optional
         Processing element to use. Can be "mads", "addsub", or None.
+
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output`. Input and inverse entries
+        use packed lower-triangular row order in the default unnamed memory:
+        entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
+        Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
 
     Returns
     -------
@@ -549,7 +594,7 @@ def cholesky_matrix_inverse(
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = Input(name=f"A[{i},{j}]")
+            in_op = _matrix_input(i, j, mem)
             A[i][j] = in_op
             inputs.append(in_op)
 
@@ -559,16 +604,12 @@ def cholesky_matrix_inverse(
         L_inv = chol_l_inv(L, L_inv_diag)
         res = chol_matmul(L_inv)
         outputs = [
-            Output(res[i][j], name=f"res[{i},{j}]")
-            for i in range(N)
-            for j in range(i + 1)
+            _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
         ]
     else:
         res = chol_eqs(L, L_inv_diag)
         outputs = [
-            Output(res[i][j], name=f"res[{i},{j}]")
-            for i in range(N)
-            for j in range(i + 1)
+            _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
         ]
 
     return SFG(inputs=inputs, outputs=outputs, name=Name(name))
@@ -577,10 +618,11 @@ def cholesky_matrix_inverse(
 def block_ldlt_matrix_inverse(
     N: int,
     name: str | None = None,
-    mode: str = "eqs",
-    pe: str | None = None,
+    mode: Literal["eqs", "mult"] = "eqs",
+    pe: Literal["addsub", "mads"] | None = None,
+    mem: bool = False,
 ) -> SFG:
-    """
+    r"""
     Generate an SFG for the block LDLT matrix inverse algorithm.
 
     Parameters
@@ -593,6 +635,15 @@ def block_ldlt_matrix_inverse(
         The mode of operation, either "mult" or "eqs".
     pe : str, optional
         Processing element to use. Can be "mads", "addsub", or None.
+
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output`. Input and inverse entries
+        use packed lower-triangular row order in the default unnamed memory:
+        entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
+        Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
 
     Returns
     -------
@@ -794,7 +845,7 @@ def block_ldlt_matrix_inverse(
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = Input(name=f"A[{i},{j}]")
+            in_op = _matrix_input(i, j, mem)
             A[i][j] = in_op
             inputs.append(in_op)
 
@@ -913,14 +964,14 @@ def block_ldlt_matrix_inverse(
                         val = res_blk[i][j][r][c]
                         row = i * BLOCK_SIZE + r
                         col = j * BLOCK_SIZE + c
-                        res[row][col] = Output(val, name=f"res[{row},{col}]")
+                        res[row][col] = _matrix_output(row, col, val, mem)
             else:
                 for r in range(BLOCK_SIZE):
                     for c in range(BLOCK_SIZE):
                         val = res_blk[i][j][r][c]
                         row = i * BLOCK_SIZE + r
                         col = j * BLOCK_SIZE + c
-                        res[row][col] = Output(val, name=f"res[{row},{col}]")
+                        res[row][col] = _matrix_output(row, col, val, mem)
 
     outputs = [res[i][j] for i in range(N) for j in range(i + 1)]
 
@@ -930,10 +981,11 @@ def block_ldlt_matrix_inverse(
 def block_cholesky_matrix_inverse(
     N: int,
     name: str | None = None,
-    mode: str = "eqs",
-    pe: str | None = None,
+    mode: Literal["eqs", "mult"] = "eqs",
+    pe: Literal["addsub", "mads"] | None = None,
+    mem: bool = False,
 ) -> SFG:
-    """
+    r"""
     Generate an SFG for the block Cholesky matrix inverse algorithm.
 
     Parameters
@@ -945,7 +997,16 @@ def block_cholesky_matrix_inverse(
     mode : str, default: "eqs"
         The mode of operation, either "mult" or "eqs".
     pe : str, optional
-        Processing element to use. Currently only None is supported.
+        Processing element to use. Can be "mads", "addsub", or None.
+
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output`. Input and inverse entries
+        use packed lower-triangular row order in the default unnamed memory:
+        entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
+        Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
 
     Returns
     -------
@@ -1150,7 +1211,7 @@ def block_cholesky_matrix_inverse(
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = Input(name=f"A[{i},{j}]")
+            in_op = _matrix_input(i, j, mem)
             A[i][j] = in_op
             inputs.append(in_op)
 
@@ -1275,14 +1336,14 @@ def block_cholesky_matrix_inverse(
                         val = res_blk[i][j][r][c]
                         row = i * BLOCK_SIZE + r
                         col = j * BLOCK_SIZE + c
-                        res[row][col] = Output(val, name=f"res[{row},{col}]")
+                        res[row][col] = _matrix_output(row, col, val, mem)
             else:
                 for r in range(BLOCK_SIZE):
                     for c in range(BLOCK_SIZE):
                         val = res_blk[i][j][r][c]
                         row = i * BLOCK_SIZE + r
                         col = j * BLOCK_SIZE + c
-                        res[row][col] = Output(val, name=f"res[{row},{col}]")
+                        res[row][col] = _matrix_output(row, col, val, mem)
 
     outputs = [res[i][j] for i in range(N) for j in range(i + 1)]
 
@@ -1292,10 +1353,11 @@ def block_cholesky_matrix_inverse(
 def tile_ldlt_matrix_inverse(
     N: int,
     name: str | None = None,
-    mode: str = "eqs",
-    pe: str | None = None,
+    mode: Literal["eqs", "mult"] = "eqs",
+    pe: Literal["addsub", "mads"] | None = None,
+    mem: bool = False,
 ) -> SFG:
-    """
+    r"""
     Generate an SFG for the tile LDLT matrix inverse algorithm.
 
     Parameters
@@ -1308,6 +1370,15 @@ def tile_ldlt_matrix_inverse(
         The mode of operation, either "mult" or "eqs".
     pe : str, optional
         Processing element to use. Can be "mads", "addsub", or None.
+
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output`. Input and inverse entries
+        use packed lower-triangular row order in the default unnamed memory:
+        entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
+        Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
 
     Returns
     -------
@@ -1431,7 +1502,7 @@ def tile_ldlt_matrix_inverse(
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = Input(name=f"A[{i},{j}]")
+            in_op = _matrix_input(i, j, mem)
             A[i][j] = in_op
             inputs.append(in_op)
 
@@ -1660,7 +1731,7 @@ def tile_ldlt_matrix_inverse(
                 res[i][j] = val
 
     outputs = [
-        Output(res[i][j], name=f"res[{i},{j}]") for i in range(N) for j in range(i + 1)
+        _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
     ]
 
     return SFG(inputs=inputs, outputs=outputs, name=Name(name))
@@ -1669,10 +1740,11 @@ def tile_ldlt_matrix_inverse(
 def analytical_block_matrix_inverse(
     N: int,
     name: str | None = None,
-    mode: str = "mid",
-    pe: str | None = None,
+    mode: Literal["top", "bot", "mid"] = "mid",
+    pe: Literal["addsub", "mads"] | None = None,
+    mem: bool = False,
 ) -> SFG:
-    """
+    r"""
     Generate an SFG for the analytical block matrix inverse algorithm.
 
     Parameters
@@ -1685,6 +1757,15 @@ def analytical_block_matrix_inverse(
         The mode of operation, either "top", "bot", or "mid".
     pe : str, optional
         Processing element to use. Can be "mads", "addsub", or None.
+
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output`. Input and inverse entries
+        use packed lower-triangular row order in the default unnamed memory:
+        entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
+        Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
 
     Returns
     -------
@@ -1984,16 +2065,14 @@ def analytical_block_matrix_inverse(
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = Input(name=f"A[{i},{j}]")
+            in_op = _matrix_input(i, j, mem)
             A[i][j] = in_op
             inputs.append(in_op)
 
     result = _analytical_block_inv_inner(A)
 
     outputs = [
-        Output(result[i][j], name=f"res[{i},{j}]")
-        for i in range(N)
-        for j in range(i + 1)
+        _matrix_output(i, j, result[i][j], mem) for i in range(N) for j in range(i + 1)
     ]
 
     return SFG(inputs=inputs, outputs=outputs, name=Name(name))

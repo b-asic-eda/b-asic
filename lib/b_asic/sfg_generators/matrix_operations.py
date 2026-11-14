@@ -2,6 +2,12 @@
 B-ASIC signal flow graph generators.
 
 This module contains a number of functions generating SFGs for matrix operations.
+
+With ``mem=True``, matrices A, B, and C use separate named memories, each stored
+in row-major order starting at address zero. A has :math:`mn` locations with
+address :math:`in + j`; B has :math:`np` locations with address :math:`ip + j`;
+C has :math:`mp` locations with address :math:`ip + j`. Indices are zero-based.
+The input order is all of A followed by all of B; outputs follow C's row order.
 """
 
 from b_asic.core_operations import (
@@ -12,16 +18,18 @@ from b_asic.core_operations import (
     Subtraction,
 )
 from b_asic.sfg import SFG
-from b_asic.special_operations import Input, Output
+from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
 from b_asic.utility_operations import DontCare
 
 
 def matrix_multiplication(
     m: int,
-    n: int,
-    p: int,
+    n: int | None = None,
+    p: int | None = None,
+    *,
     name: str | None = None,
     mad_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    mem: bool = False,
 ) -> SFG:
     r"""
     Generate a structure for the multiplication of matrices A and B.
@@ -31,27 +39,54 @@ def matrix_multiplication(
     ----------
     m : int
         Number of rows in A.
-    n : int
-        Number of columns in A (and rows in B).
-    p : int
-        Number of columns in B.
+    n : int, optional
+        Number of columns in A (and rows in B). If None, use m.
+    p : int, optional
+        Number of columns in B. If None, use m.
     name : :data:`~b_asic.types.Name`, optional
         The name of the SFG. If None, "Matrix-multiplication".
     mad_properties : dictionary, optional
         Properties passed to :class:`~b_asic.core_operations.MAD`.
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output`. Matrices use separate
+        memories named ``A``, ``B``, and ``C``, in row-major order starting at
+        address zero. Entry :math:`A_{i,j}` has address :math:`in + j`; entries
+        :math:`B_{i,j}` and :math:`C_{i,j}` have address :math:`ip + j`. Memory
+        sizes are :math:`mn`, :math:`np`, and :math:`mp`, respectively.
 
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
+    n = m if n is None else n
+    p = m if p is None else p
     if name is None:
         name = "Matrix-multiplication"
     if mad_properties is None:
         mad_properties = {}
 
-    A = [[Input(f"A[{i},{j}]") for i in range(n)] for j in range(m)]
-    B = [[Input(f"B[{i},{j}]") for i in range(p)] for j in range(n)]
+    A = [
+        [
+            MemoryRead(i * n + j, memory_name="A", name=f"A[{i},{j}]")
+            if mem
+            else Input(f"A[{i},{j}]")
+            for j in range(n)
+        ]
+        for i in range(m)
+    ]
+    B = [
+        [
+            MemoryRead(i * p + j, memory_name="B", name=f"B[{i},{j}]")
+            if mem
+            else Input(f"B[{i},{j}]")
+            for j in range(p)
+        ]
+        for i in range(n)
+    ]
 
     C = []
     for i in range(m):
@@ -59,7 +94,11 @@ def matrix_multiplication(
             tmp = DontCare()
             for k in range(n):
                 tmp = MAD(A[i][k], B[k][j], tmp, do_add=(k != 0), **mad_properties)
-            C.append(Output(tmp, f"C[{i},{j}]"))
+            C.append(
+                MemoryWrite(i * p + j, tmp, memory_name="C", name=f"C[{i},{j}]")
+                if mem
+                else Output(tmp, f"C[{i},{j}]")
+            )
 
     inputs = [elem for row in A for elem in row] + [elem for row in B for elem in row]
     outputs = C
@@ -69,24 +108,27 @@ def matrix_multiplication(
 
 def strassen_matrix_multiplication(
     m: int,
-    n: int,
-    p: int,
+    n: int | None = None,
+    p: int | None = None,
+    *,
     name: str | None = None,
     mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
     add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
     sub_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    mem: bool = False,
 ) -> SFG:
     r"""
-    Generate a Strassen matrix multiplication SFG for A of size m x n and B of size n x p.
+    Generate a Strassen matrix multiplication SFG for A of size :math:`m \times n`
+    and B of size :math:`n \times p`.
 
     Parameters
     ----------
     m : int
         Positive number of rows in A.
-    n : int
-        Positive number of columns in A and rows in B.
-    p : int
-        Positive number of columns in B.
+    n : int, optional
+        Positive number of columns in A and rows in B. If None, use m.
+    p : int, optional
+        Positive number of columns in B. If None, use m.
     name : str, optional
         SFG name. Defaults to "Strassen matrix-multiplication".
     mult_properties : dictionary, optional
@@ -97,13 +139,23 @@ def strassen_matrix_multiplication(
     sub_properties : dictionary, optional
         Properties passed to every :class:`~b_asic.core_operations.Subtraction`.
         If omitted, use ``add_properties`` for subtractions as well.
+    mem : bool, default: False
+        Use :class:`~b_asic.special_operations.MemoryRead` and
+        :class:`~b_asic.special_operations.MemoryWrite` instead of
+        :class:`~b_asic.special_operations.Input` and
+        :class:`~b_asic.special_operations.Output`. Matrices use separate
+        memories named ``A``, ``B``, and ``C``, in row-major order starting at
+        address zero. Entry :math:`A_{i,j}` has address :math:`in + j`; entries
+        :math:`B_{i,j}` and :math:`C_{i,j}` have address :math:`ip + j`. Memory
+        sizes are :math:`mn`, :math:`np`, and :math:`mp`, respectively. Padding is internal
+        and occupies no memory locations.
 
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
         Inputs are the elements of A followed by B, each in row-major order,
         named ``A[i,j]`` and ``B[i,j]`` with zero-based row and column indices.
-        Outputs are the elements of C = A B in row-major order, named ``C[i,j]``.
+        Outputs are the elements of :math:`C = AB` in row-major order, named ``C[i,j]``.
 
     Notes
     -----
@@ -118,6 +170,8 @@ def strassen_matrix_multiplication(
     .. [1] V. Strassen, "Gaussian elimination is not optimal", Numerische
        Mathematik, 13, 354-356, 1969. https://doi.org/10.1007/BF02165411
     """
+    n = m if n is None else n
+    p = m if p is None else p
     for dimension, value in (("m", m), ("n", n), ("p", p)):
         if isinstance(value, bool) or not isinstance(value, int):
             raise TypeError(f"{dimension} must be an integer")
@@ -127,8 +181,24 @@ def strassen_matrix_multiplication(
     add_properties = {} if add_properties is None else add_properties
     sub_properties = add_properties if sub_properties is None else sub_properties
 
-    a = [[Input(f"A[{i},{j}]") for j in range(n)] for i in range(m)]
-    b = [[Input(f"B[{i},{j}]") for j in range(p)] for i in range(n)]
+    a = [
+        [
+            MemoryRead(i * n + j, memory_name="A", name=f"A[{i},{j}]")
+            if mem
+            else Input(f"A[{i},{j}]")
+            for j in range(n)
+        ]
+        for i in range(m)
+    ]
+    b = [
+        [
+            MemoryRead(i * p + j, memory_name="B", name=f"B[{i},{j}]")
+            if mem
+            else Input(f"B[{i},{j}]")
+            for j in range(p)
+        ]
+        for i in range(n)
+    ]
     padded_m, padded_n, padded_p = (
         1 << (value - 1).bit_length() for value in (m, n, p)
     )
@@ -201,7 +271,13 @@ def strassen_matrix_multiplication(
 
     result = multiply(padded_a, padded_b)
     inputs = [elem for row in a for elem in row] + [elem for row in b for elem in row]
-    outputs = [Output(result[i][j], f"C[{i},{j}]") for i in range(m) for j in range(p)]
+    outputs = [
+        MemoryWrite(i * p + j, result[i][j], memory_name="C", name=f"C[{i},{j}]")
+        if mem
+        else Output(result[i][j], f"C[{i},{j}]")
+        for i in range(m)
+        for j in range(p)
+    ]
     return SFG(
         inputs,
         outputs,
