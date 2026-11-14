@@ -238,7 +238,9 @@ def architecture(
         common.write(f, 3, "if rst = '1' then")
         for reg_idx in range(reg_cnt):
             common.write(f, 4, f"shift_reg({reg_idx}) <= (others => '0');")
-        common.write(f, 3, "else")
+        common.write(f, 3, "elsif en = '1' then")
+    else:
+        common.write(f, 3, "if en = '1' then")
 
     common.write_lines(
         f,
@@ -266,8 +268,7 @@ def architecture(
         ],
     )
 
-    if sync_rst:
-        common.write(f, 3, "end if;")
+    common.write(f, 3, "end if;")
 
     common.synchronous_process_epilogue(
         f,
