@@ -118,3 +118,19 @@ printer.print(
 # containing instantiated AMD Floating-Point IP cores.
 
 # %%
+# Derive another architecture from the same schedule, using register memories
+# with two read ports and one write port. Three total ports allow both reads
+# and the write to occur concurrently.
+
+pes_2r, mems_2r, direct_2r = assign_processing_elements_and_memories(
+    schedule,
+    strategy="ilp_min_mux",
+    memory_read_ports=2,
+    memory_write_ports=1,
+    memory_total_ports=3,
+    memory_type="register",
+    max_mux_size=4,
+)
+
+arch_2r = Architecture(pes_2r, mems_2r, "matinv_2r", direct_2r)
+arch_2r
