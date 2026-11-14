@@ -65,8 +65,8 @@ test = [
   "pytest-xvfb",
   "pytest-xdist",
 ]
-test_optional = ["cocotb>=2"]
-hdl = ["cocotb>=2"]
+test_optional = ["cocotb>=2", "vunit_hdl"]
+hdl = ["cocotb>=2", "vunit_hdl"]
 doc = [
   "sphinx",
   "furo",

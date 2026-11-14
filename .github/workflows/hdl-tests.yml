@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest numpy meson-python setuptools_scm cocotb pytest-cov ninja matplotlib networkx scipy "pulp[highs]>=4.2" qtawesome natsort qtpy apytypes graphviz
+          python -m pip install pytest numpy meson-python setuptools_scm cocotb pytest-cov ninja matplotlib networkx scipy "pulp[highs]>=4.2" qtawesome natsort qtpy apytypes graphviz vunit_hdl
       - name: Install B-ASIC
         run: |
           git fetch --tags
