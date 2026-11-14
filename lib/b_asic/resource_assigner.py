@@ -95,17 +95,21 @@ def assign_processing_elements_and_memories(
     memory_read_ports : int, default 1
         The number of read ports used when splitting process collection based on
         memory variable access. ``left_edge`` supports multiple read ports and
-        uses capacity-aware greedy packing for multiport memories. Other
-        strategies require one read and one write port.
+        uses capacity-aware greedy packing for multiport memories.
+        ``ilp_min_mux`` and ``cp_min_mux`` also support multiple read ports;
+        their models enforce per-cycle port capacities. Other strategies
+        require one read and one write port.
 
     memory_write_ports : int, default 1
         The number of write ports used when splitting process collection based on
-        memory variable access. Multiple write ports are supported by ``left_edge``.
+        memory variable access. Multiple write ports are supported by
+        ``left_edge``, ``ilp_min_mux``, and ``cp_min_mux``.
 
     memory_total_ports : int, optional
         The total number of ports used when splitting process collection based on
         memory variable access. Defaults to the sum of the read and write ports.
-        Strategies other than ``left_edge`` require one or two total ports.
+        Strategies other than ``left_edge``, ``ilp_min_mux``, and ``cp_min_mux``
+        require one or two total ports.
 
     memory_type : {'RAM', 'register'}, default: 'RAM'
         The type of memory to assign to.
@@ -321,10 +325,11 @@ def _split_operations_and_variables(
         or memory_write_ports != 1
         or memory_total_ports not in (1, 2)
     )
-    if multiport and strategy != "left_edge":
+    if multiport and strategy not in ("left_edge", "ilp_min_mux", "cp_min_mux"):
         raise ValueError(
             f"Strategy '{strategy}' requires one read port, one write port, "
-            "and one or two total memory ports; use 'left_edge' for multiport memories."
+            "and one or two total memory ports; use 'left_edge', 'ilp_min_mux', "
+            "or 'cp_min_mux' for multiport memories."
         )
 
     if strategy == "left_edge":
@@ -402,11 +407,28 @@ def _split_operations_and_variables(
         or strategy == "ilp_graph_color"
         or greedy_assignment
     ):
-        log.info("Generating memory variable exclusion graph")
-        mem_exclusion_graph = mem_vars.exclusion_graph_from_ports(
-            memory_read_ports, memory_write_ports, memory_total_ports
-        )
-        if max_mems is None or warm_start or greedy_assignment:
+        if multiport:
+            log.info(
+                "Generating multiport memory bound and warm start using port packing"
+            )
+            mem_greedy_coloring = {
+                var: color
+                for color, group in enumerate(
+                    _memory_upper_bound_assignment(
+                        mem_vars,
+                        memory_read_ports,
+                        memory_write_ports,
+                        memory_total_ports,
+                    )
+                )
+                for var in group
+            }
+        else:
+            log.info("Generating memory variable exclusion graph")
+            mem_exclusion_graph = mem_vars.exclusion_graph_from_ports(
+                memory_read_ports, memory_write_ports, memory_total_ports
+            )
+        if not multiport and (max_mems is None or warm_start or greedy_assignment):
             mem_greedy_coloring = nx.coloring.greedy_color(
                 mem_exclusion_graph, strategy=coloring_strategy, **coloring_options
             )
@@ -460,6 +482,9 @@ def _split_operations_and_variables(
             solver,
             pe_greedy_colorings,
             mem_greedy_coloring,
+            memory_read_ports=memory_read_ports,
+            memory_write_ports=memory_write_ports,
+            memory_total_ports=memory_total_ports,
             **strat_params,
         )
     elif strategy == "cp_min_mux":
@@ -472,6 +497,8 @@ def _split_operations_and_variables(
             memory_total_ports=memory_total_ports,
             max_mux_size=max_mux_size,
             solver=cast("str | SolverInterface | None", solver),
+            memory_read_ports=memory_read_ports,
+            memory_write_ports=memory_write_ports,
             **strat_params,
         )
     elif strategy == "greedy_min_mux":
@@ -672,9 +699,11 @@ def _mux_problem(
     max_mems: int,
     direct: ProcessCollection,
     memory_total_ports: int,
+    *,
+    memory_port_limits: tuple[int, int, int] | None = None,
 ) -> tuple[dict, list, list]:
     """Build shared resource families, conflict cliques, and logical port links."""
-    if memory_total_ports not in (1, 2):
+    if memory_port_limits is None and memory_total_ports not in (1, 2):
         raise ValueError("mux minimization supports one or two total memory ports")
     if (mem_vars and max_mems < 1) or any(
         max_pes[op_type] < 1 for op_type in op_groups
@@ -708,7 +737,10 @@ def _mux_problem(
         writes[var.start_time % Ts].add(key)
         for t in var.read_times:
             reads[t % Ts].add(key)
-    if memory_total_ports == 1:
+    if memory_port_limits is not None:
+        # Multiport conflicts require weighted capacities, added by the caller.
+        mem_slots = []
+    elif memory_total_ports == 1:
         for t in writes.keys() & reads.keys():
             if writes[t] & reads[t]:
                 raise ValueError(
@@ -995,13 +1027,15 @@ def _cp_min_mux(
     memory_total_ports: int = 2,
     max_mux_size: int | None = None,
     solver: str | SolverInterface | None = None,
+    memory_read_ports: int = 1,
+    memory_write_ports: int = 1,
     **kwargs,
 ) -> tuple[dict, dict]:
     """
     Minimize physical connections using CPMpy integer resource assignments.
 
     Resource bounds have the same meaning as for ``_ilp_min_mux``. Memories
-    have one read and one write port, optionally sharing a single total port.
+    obey per-cycle read, write, and combined port capacities.
     Connection variables are exact ORs of their logical uses, and are created
     only for physical links that can be required by the dataflow graph.
     """
@@ -1012,9 +1046,20 @@ def _cp_min_mux(
 
     if max_mux_size is not None and max_mux_size < 1:
         raise ValueError("max_mux_size must be at least 1")
-    counts, families, links = _mux_problem(
-        op_groups, mem_vars, max_pes, max_mems, direct, memory_total_ports
+    limits = _sanitize_port_option(
+        memory_read_ports, memory_write_ports, memory_total_ports
     )
+    multiport = limits[:2] != (1, 1) or limits[2] not in (1, 2)
+    counts, families, links = _mux_problem(
+        op_groups,
+        mem_vars,
+        max_pes,
+        max_mems,
+        direct,
+        memory_total_ports,
+        memory_port_limits=limits if multiport else None,
+    )
+    accesses = mem_vars._validated_port_accesses(*limits)
     model = cp.Model()
     assignments = {
         key: cp.intvar(0, count - 1, name=f"assignment_{idx}")
@@ -1032,6 +1077,18 @@ def _cp_min_mux(
             model += assignments[key] == idx
 
     # A physical endpoint includes its resource family, index, and port.
+    for demands, capacity in mem_vars._port_capacity_rows(accesses, limits):
+        for memory in range(max_mems):
+            model += (
+                cp.sum(
+                    [
+                        count * (assignments["mem", var] == memory)
+                        for var, count in demands.items()
+                    ]
+                )
+                <= capacity
+            )
+
     uses = defaultdict(list)
     for src, dst, src_port, dst_port in links:
         for src_idx in range(counts[src]):
@@ -1087,7 +1144,15 @@ def _ilp_min_mux(
     solver: LpSolver | None = None,
     pe_warm_start: dict[TypeName, dict] | None = None,
     mem_warm_start: dict | None = None,
+    *,
+    memory_read_ports: int = 1,
+    memory_write_ports: int = 1,
+    memory_total_ports: int = 2,
 ) -> tuple[dict, dict]:
+    limits = _sanitize_port_option(
+        memory_read_ports, memory_write_ports, memory_total_ports
+    )
+    accesses = mem_vars._validated_port_accesses(*limits)
     pe_in_cnt = {
         op_type_name: op.input_count
         for op_type_name, op in zip(op_groups.keys(), pe_operations, strict=True)
@@ -1341,14 +1406,7 @@ def _ilp_min_mux(
             for pe_idx in range(max_pes[op_type_name] - 1):
                 problem += pe_c[op_type_name][pe_idx + 1] <= pe_c[op_type_name][pe_idx]
 
-    # mem_writes_in_time[t] / mem_reads_in_time[t]: variables written/read at time t
-    mem_writes_in_time: dict[int, list] = defaultdict(list)
-    mem_reads_in_time: dict[int, list] = defaultdict(list)
     Ts = mem_vars.schedule_time
-    for var in mem_vars:
-        mem_writes_in_time[var.start_time % Ts].append(var)
-        for rt in var.read_times:
-            mem_reads_in_time[rt % Ts].append(var)
 
     # procs_in_time[op_type][t] gives the list of processes of type op_type active at time t
     procs_in_time: dict[str, dict[int, list]] = {
@@ -1360,12 +1418,14 @@ def _ilp_min_mux(
                 procs_in_time[op_type_name][t % Ts].append(proc)
 
     # Loop over the schedule and add constraints
+    capacity_rows = mem_vars._port_capacity_rows(accesses, limits)
+    for demands, capacity in capacity_rows:
+        for mem_idx in range(max_mems):
+            problem += (
+                lpSum(count * mem_x[var][mem_idx] for var, count in demands.items())
+                <= capacity
+            )
     for t in range(Ts):
-        # At most one read/write per memory per time slot
-        for vars_at_t in (mem_writes_in_time[t], mem_reads_in_time[t]):
-            if len(vars_at_t) > 1:
-                for mem_idx in range(max_mems):
-                    problem += lpSum(mem_x[var][mem_idx] for var in vars_at_t) <= 1
         # At most one process per PE per time slot
         for op_type_name in op_groups:
             procs_at_t = procs_in_time[op_type_name][t]
@@ -1376,21 +1436,15 @@ def _ilp_min_mux(
                         <= 1
                     )
 
-    # Set the busiest time slot to distinct indices with == 1 (performance)
-    # Use whichever of reads/writes is largest at the busiest time step
-    all_mem_times = list(
-        dict.fromkeys(list(mem_writes_in_time) + list(mem_reads_in_time))
+    # Only unit-capacity rows imply pairwise exclusions. Multiport read
+    # groups must not be anchored to distinct memories.
+    busiest_mem_vars = max(
+        (list(demands) for demands, capacity in capacity_rows if capacity == 1),
+        key=len,
+        default=list(mem_vars)[:1],
     )
-    busiest_mem_t = max(
-        all_mem_times,
-        key=lambda t: max(len(mem_writes_in_time[t]), len(mem_reads_in_time[t])),
-    )
-    busiest_mem_vars = (
-        mem_reads_in_time[busiest_mem_t]
-        if len(mem_reads_in_time[busiest_mem_t])
-        > len(mem_writes_in_time[busiest_mem_t])
-        else mem_writes_in_time[busiest_mem_t]
-    )
+    if len(busiest_mem_vars) > max_mems:
+        raise ValueError("Insufficient memories for mux minimization")
     for mem_idx, var in enumerate(busiest_mem_vars):
         # problem += mem_x[var][mem_idx] == mem_c[mem_idx] == 1
         mem_x[var][mem_idx].setInitialValue(1)

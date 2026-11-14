@@ -421,8 +421,6 @@ def test_ilp_mux_keeps_heuristic_warm_starts():
     "strategy",
     [
         "ilp_graph_color",
-        "ilp_min_mux",
-        "cp_min_mux",
         "greedy_min_mux",
         "greedy_graph_color",
     ],
@@ -436,7 +434,7 @@ def test_public_multiport_unsupported_joint_strategies(strategy):
     schedule.get_memory_variables.return_value = ProcessCollection(
         [*memories, *direct], 4
     )
-    with pytest.raises(ValueError, match="use 'left_edge' for multiport memories"):
+    with pytest.raises(ValueError, match="for multiport memories"):
         assign_processing_elements_and_memories(
             schedule, strategy=strategy, memory_read_ports=2
         )
