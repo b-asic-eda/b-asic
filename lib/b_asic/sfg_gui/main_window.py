@@ -67,12 +67,14 @@ from b_asic.sfg_gui._preferences import (
 )
 from b_asic.sfg_gui.arrow import Arrow
 from b_asic.sfg_gui.drag_button import DragButton
+from b_asic.sfg_gui.generator_window import GeneratorWindow
 from b_asic.sfg_gui.gui_interface import Ui_main_window
 from b_asic.sfg_gui.native import NativeDesign
 from b_asic.sfg_gui.port_button import PortButton
 from b_asic.sfg_gui.precedence_graph_window import PrecedenceGraphWindow
 from b_asic.sfg_gui.scene import ConnectionScene
 from b_asic.sfg_gui.select_sfg_window import SelectSFGWindow
+from b_asic.sfg_gui.sfg_generator import builtin_generators
 from b_asic.sfg_gui.simulate_sfg_window import SimulateSFGWindow
 from b_asic.sfg_gui.simulation_worker import SimulationWorker
 from b_asic.sfg_gui.util_dialogs import FaqWindow, KeybindingsWindow
@@ -121,6 +123,7 @@ class SFGMainWindow(QMainWindow):
         self._sfg_dict: dict[str, SFG] = {}
         self._plot: dict[Simulation, PlotWindow] = {}
         self._ports: dict[DragButton, list[PortButton]] = {}
+        self.sfg_generators = list(builtin_generators())
 
         # Create Graphics View
         self._graphics_view = SFGGraphicsView(self._scene, self._ui.splitter)
@@ -141,6 +144,10 @@ class SFGMainWindow(QMainWindow):
         self._toolbar.addAction(
             get_icon("new-sfg"), "Create SFG", self.create_sfg_from_toolbar
         )
+        self._generate_sfg_action = QAction("Generate SFG", self)
+        self._generate_sfg_action.triggered.connect(self.generate_sfg)
+        self._toolbar.addAction(self._generate_sfg_action)
+        self._ui.edit_menu.addAction(self._generate_sfg_action)
         self._toolbar.addAction(
             get_icon("close"), "Clear workspace", self._clear_workspace
         )
@@ -528,6 +535,23 @@ class SFGMainWindow(QMainWindow):
         self._scene.clear()
         self._logger.info("Workspace cleared.")
         self.update_statusbar("Workspace cleared.")
+
+    def generate_sfg(self, event=None) -> None:
+        """Configure a generator and insert its graph as one SFG operation."""
+        self._generator_window = GeneratorWindow(self, self.sfg_generators)
+        self._generator_window.generated.connect(self._insert_generated_sfg)
+        self._generator_window.show()
+
+    def _insert_generated_sfg(self, sfg: SFG) -> None:
+        name = sfg.name or "Generated SFG"
+        sfg.name = name
+        existing_names = {op.name for op in self._drag_buttons} | self._sfg_dict.keys()
+        suffix = 2
+        while sfg.name in existing_names:
+            sfg.name = f"{name} ({suffix})"
+            suffix += 1
+        self.add_operation(sfg)
+        self.update_statusbar(f"Added generated SFG: {sfg.name}")
 
     def create_sfg_from_toolbar(self) -> None:
         """Create an SFG."""

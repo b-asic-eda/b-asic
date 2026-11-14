@@ -7,7 +7,9 @@ stored as files.
 
 from datetime import datetime
 from inspect import signature
+from keyword import iskeyword
 from pathlib import Path
+from textwrap import indent
 from typing import cast
 
 from b_asic.graph_component import GraphComponent
@@ -71,7 +73,7 @@ def sfg_to_python(
                 attr: (
                     getattr(comp, attr)
                     if not isinstance(getattr(comp, attr), str)
-                    else f'"{getattr(comp, attr)}"'
+                    else repr(getattr(comp, attr))
                 )
                 for attr in params_filtered
             }
@@ -102,7 +104,14 @@ def sfg_to_python(
             continue
         if isinstance(operation, SFG):
             counter += 1
-            result = sfg_to_python(operation, counter) + result
+            # Isolate child graph IDs from the parent and other nested graphs.
+            # Construct the child before assigning its external operation ID.
+            factory = f"_create_{operation.graph_id}"
+            child = sfg_to_python(operation, counter) + "\nreturn prop['name']\n"
+            result += (
+                f"def {factory}():\n{indent(child, '    ')}\n"
+                f"{operation.graph_id} = {factory}()\n"
+            )
             continue
 
         result += (
@@ -134,9 +143,11 @@ def sfg_to_python(
     outputs = "[" + ", ".join(op.graph_id for op in sfg.output_operations) + "]"
     sfg_name = sfg.name or (f"sfg{counter}" if counter > 0 else "sfg")
     sfg_name_var = sfg_name.replace(" ", "_").replace("-", "_")
+    if not sfg_name_var.isidentifier() or iskeyword(sfg_name_var):
+        sfg_name_var = f"sfg{counter}" if counter else "sfg"
     result += "\n# Signal flow graph:\n"
     result += (
-        f"{sfg_name_var} = SFG(inputs={inputs}, outputs={outputs}, name='{sfg_name}')\n"
+        f"{sfg_name_var} = SFG(inputs={inputs}, outputs={outputs}, name={sfg_name!r})\n"
     )
     result += "\n# SFG Properties:\n" + "prop = {'name':" + f"{sfg_name_var}" + "}\n"
 

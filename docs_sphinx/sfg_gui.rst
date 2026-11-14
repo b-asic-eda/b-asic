@@ -1,6 +1,43 @@
 SFG GUI
 =================
 
+Generating graphs
+-----------------
+
+Choose **Generate SFG** from the toolbar or Edit menu. Select a generator,
+configure its parameters, and click **Generate**. Every public generator in
+``b_asic.sfg_generators`` is available. Boolean parameters use checkboxes and
+``Literal`` parameters use dropdowns, including ``None`` for optional choices.
+Enter coefficient sequences as ``[1, 0.5, 2j]`` and property dictionaries as
+``{'latency': 2}``. Optional parameters initially use the generator's defaults.
+Invalid parameters leave the dialog open with an error so they can be corrected.
+
+The result is inserted as a single SFG operation with its external input and
+output ports. Connect these ports to other operations and Input/Output nodes,
+then create the enclosing SFG as usual. The generated graph remains nested
+when the enclosing graph is saved. Existing canvas contents are retained.
+
+``SFGGenerator`` describes a generator using its annotated function signature
+and invokes it to construct an SFG. It can be instantiated directly or inherited
+to supply custom configuration and generation behavior. Extend an editor's
+``sfg_generators`` list to expose additional configurations::
+
+    from b_asic.sfg_generators import fir
+    from b_asic.sfg_gui import SFGGenerator
+    from b_asic.sfg_gui.main_window import SFGMainWindow
+
+    class TwoTapFIR(SFGGenerator):
+        generator = staticmethod(fir)
+
+    window = SFGMainWindow()
+    window.sfg_generators.append(
+        TwoTapFIR(name="Two tap FIR", defaults={"coefficients": [0.5, 0.5]})
+    )
+
+Custom functions must accept named parameters and return an SFG. Their type
+annotations determine the parameter editors. Subclasses can override
+``generate(**configuration)`` for custom construction.
+
 Editing graphs
 --------------
 
