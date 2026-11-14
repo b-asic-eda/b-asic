@@ -41,6 +41,7 @@ class VhdlTbPrinter:
         warmup_laps: int = 0,
         abs_tol: float | None = None,
         rel_tol: float | None = None,
+        vunit: bool = False,
     ) -> None:
         """
         Generate the VHDL test bench file.
@@ -75,6 +76,9 @@ class VhdlTbPrinter:
         rel_tol : float or None, default None
             Relative tolerance for output assertions. Combined with *abs_tol*
             as ``max(abs_tol, rel_tol * abs(expected))``.
+        vunit : bool, default False
+            Generate a VUnit testbench with a ``runner_cfg`` generic and test
+            runner setup and cleanup instead of stopping the simulation directly.
         """
         path = Path(path)
 
@@ -160,6 +164,7 @@ class VhdlTbPrinter:
             warmup_cycles,
             abs_tol,
             rel_tol,
+            vunit,
         )
 
         with (path / "tb.vhdl").open("w") as f:
@@ -185,6 +190,7 @@ class VhdlTbPrinter:
         warmup_cycles: int = 0,
         abs_tol: float | None = None,
         rel_tol: float | None = None,
+        vunit: bool = False,
     ) -> str:
         use_real_asserts = asserts and (abs_tol is not None or rel_tol is not None)
         lines = []
@@ -199,11 +205,22 @@ class VhdlTbPrinter:
         ]
         if float_pkg_line:
             header.append(float_pkg_line)
-        header.append("use std.env.all;")
+        if vunit:
+            header += ["library vunit_lib;", "context vunit_lib.vunit_context;"]
+        else:
+            header.append("use std.env.all;")
         lines += header
         lines += [
             "",
             "entity tb is",
+        ]
+        if vunit:
+            lines += [
+                "    generic (",
+                "        runner_cfg : string",
+                "    );",
+            ]
+        lines += [
             "end entity tb;",
             "",
             "architecture sim of tb is",
@@ -279,8 +296,10 @@ class VhdlTbPrinter:
         stimulus_lines = [
             "    stimulus : process",
             "    begin",
-            "        rst <= '1';",
         ]
+        if vunit:
+            stimulus_lines.append("        test_runner_setup(runner, runner_cfg);")
+        stimulus_lines.append("        rst <= '1';")
         if enable_pin:
             stimulus_lines.append("        en  <= '0';")
         stimulus_lines += [
@@ -344,9 +363,12 @@ class VhdlTbPrinter:
             lines.append("        wait until falling_edge(clk);")
             lines.append("")
 
+        lines.append('        report "SUCCESS: All assertions passed" severity note;')
+        if vunit:
+            lines += ["        test_runner_cleanup(runner);", "        wait;"]
+        else:
+            lines.append("        stop(0);")
         lines += [
-            '        report "SUCCESS: All assertions passed" severity note;',
-            "        stop(0);",
             "    end process stimulus;",
             "",
             "end architecture sim;",
