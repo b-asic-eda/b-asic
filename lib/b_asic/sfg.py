@@ -1916,6 +1916,226 @@ class SFG(AbstractOperation):
                         signal.set_source(new_port)
         return cast(SFG, graph.copy())
 
+    def find_redundant_operations(self, delayed: bool = False) -> list[list[Operation]]:
+        """
+        Find groups of operations computing the same outputs.
+
+        Operations must have equal parameters and equivalent input sources,
+        including source output indices. Valid input swaps are considered, as
+        are Addition and Subtraction expressed as AddSub operations. Equivalence
+        propagates through duplicate chains, including chains of delays with
+        equal initial values. Names, graph IDs, and timing metadata are ignored.
+
+        Parameters
+        ----------
+        delayed : bool, default: False
+            Also detect computations equivalent up to a uniform time shift.
+            Delay chains are counted and common input delays may be moved
+            across operations. Relative delays between inputs are preserved.
+            This considers structural retiming only, ignoring initial values
+            of delays crossed in the comparison. It does not retime the graph
+            or make such groups directly suitable for merging.
+
+        Returns
+        -------
+        list of lists of :class:`~b_asic.operation.Operation`
+            Disjoint groups containing at least two operations from this graph,
+            in depth-first order. The graph is not modified.
+
+        See Also
+        --------
+        merge_redundant_operations : Merge a group of redundant operations.
+
+        Notes
+        -----
+        This is structural detection, not general symbolic simplification.
+        Inputs, operations without outputs, and nested SFGs are excluded.
+        Swaps that reorder outputs are excluded. Feedback is handled
+        conservatively: equivalence must follow from already equivalent sources.
+        Custom operations must encode their computational behavior in parameters.
+        With *delayed*, custom operations must also be time invariant. Multirate
+        operations are treated as boundaries and are not compared in this mode.
+        """
+        from b_asic.core_operations import (  # noqa: PLC0415
+            Addition,
+            AddSub,
+            Subtraction,
+        )
+
+        def description(operation: Operation) -> tuple[type[Operation], dict]:
+            kind = type(operation)
+            parameters = dict(operation.params)
+            if kind in (Addition, Subtraction, AddSub):
+                if kind is not AddSub:
+                    parameters["is_add"] = kind is Addition
+                kind = AddSub
+            return kind, parameters
+
+        candidates = [
+            operation
+            for operation in self.operations
+            if not isinstance(operation, (Input, Output, SFG))
+            and operation.output_count
+            and all(port.connected_source is not None for port in operation.inputs)
+            and not (delayed and isinstance(operation, (Compression, Expansion)))
+        ]
+        # Prepare alternate descriptions on disconnected copies so swapping
+        # cannot affect the graph's ports or parameter values.
+        variants = {}
+        for operation in candidates:
+            kind, parameters = description(operation)
+            identity = tuple(range(operation.input_count))
+            variants[operation] = [(kind, parameters, identity)]
+            if operation.is_swappable and operation.input_count > 1:
+                swapped = cast(Operation, operation.copy())
+                inputs = list(swapped.inputs)
+                outputs = list(swapped.outputs)
+                swapped.swap_io()
+                if list(swapped.outputs) == outputs:
+                    kind, parameters = description(swapped)
+                    permutation = tuple(inputs.index(port) for port in swapped.inputs)
+                    variants[operation].append((kind, parameters, permutation))
+
+        representatives = {operation: operation for operation in self.operations}
+        offsets = dict.fromkeys(self.operations, 0)
+
+        def representative(operation: Operation) -> tuple[Operation, int]:
+            offset = 0
+            while representatives[operation] is not operation:
+                offset += offsets[operation]
+                operation = representatives[operation]
+            return operation, offset
+
+        def source_description(source: OutputPort) -> tuple[Operation, int, int]:
+            original = source
+            delay = 0
+            visited = set()
+            while delayed and type(source.operation) is Delay:
+                operation = source.operation
+                upstream = operation.input(0).connected_source
+                if operation in visited or upstream is None:
+                    # A delay-only feedback cycle has no non-delay source.
+                    source = original
+                    delay = 0
+                    break
+                visited.add(operation)
+                delay += 1
+                source = upstream
+            root, offset = representative(source.operation)
+            return root, source.index, delay + offset
+
+        while True:
+            changed = False
+            buckets = defaultdict(list)
+            for operation in candidates:
+                sources = [
+                    source_description(source)
+                    for port in operation.inputs
+                    if (source := port.connected_source) is not None
+                ]
+                common_delay = min((source[2] for source in sources), default=0)
+                for kind, parameters, permutation in variants[operation]:
+                    key = (
+                        kind,
+                        operation.output_count,
+                        tuple(
+                            (
+                                sources[index][0],
+                                sources[index][1],
+                                sources[index][2] - common_delay,
+                            )
+                            for index in permutation
+                        ),
+                    )
+                    for other_parameters, other, other_delay in buckets[key]:
+                        try:
+                            equal = bool(parameters == other_parameters)
+                        except (TypeError, ValueError):
+                            # Some custom parameters do not define scalar equality.
+                            equal = False
+                        if equal:
+                            root, offset = representative(operation)
+                            other_root, other_offset = representative(other)
+                            if root is not other_root:
+                                representatives[root] = other_root
+                                offsets[root] = (
+                                    common_delay - other_delay + other_offset - offset
+                                )
+                                changed = True
+                    buckets[key].append((parameters, operation, common_delay))
+            if not changed:
+                break
+
+        groups = defaultdict(list)
+        for operation in candidates:
+            groups[representative(operation)[0]].append(operation)
+        return [group for group in groups.values() if len(group) > 1]
+
+    def merge_redundant_operations(self, operations: Iterable[Operation]) -> "SFG":
+        """
+        Return a copy with redundant operations merged into the first operation.
+
+        Each output signal of a removed operation is connected to the output
+        with the same index on the retained operation. Its name, graph ID,
+        parameters, and timing metadata are preserved. The original graph is
+        not modified.
+
+        Parameters
+        ----------
+        operations : iterable of :class:`~b_asic.operation.Operation`
+            At least two distinct operations belonging to this graph. They must
+            belong to a single group returned by :meth:`find_redundant_operations`;
+            a subset of a group is also accepted. Iterator order determines
+            which operation is retained.
+
+        Returns
+        -------
+        SFG
+            A graph with all but the first supplied operation removed.
+
+        Raises
+        ------
+        TypeError
+            If an element is not an operation.
+        ValueError
+            If fewer than two distinct operations are supplied, an operation
+            does not belong to this graph, or the operations are not redundant.
+
+        See Also
+        --------
+        find_redundant_operations : Find groups of redundant operations.
+        """
+        selected = list(operations)
+        if any(not isinstance(operation, Operation) for operation in selected):
+            raise TypeError("All elements must be operations")
+        if len(selected) < 2 or len(set(selected)) != len(selected):
+            raise ValueError("At least two distinct operations must be supplied")
+        if any(
+            self.find_by_id(operation.graph_id) is not operation
+            for operation in selected
+        ):
+            raise ValueError("All operations must belong to this SFG")
+        selected_set = set(selected)
+        if not any(
+            selected_set.issubset(group) for group in self.find_redundant_operations()
+        ):
+            raise ValueError("The supplied operations are not redundant")
+
+        graph = cast(SFG, self.copy())
+        retained = cast(Operation, graph.find_by_id(selected[0].graph_id))
+        for original in selected[1:]:
+            redundant = cast(Operation, graph.find_by_id(original.graph_id))
+            for index, output in enumerate(redundant.outputs):
+                for signal in list(output.signals):
+                    signal.set_source(retained.output(index))
+            for port in redundant.inputs:
+                for signal in list(port.signals):
+                    signal.remove_source()
+                    signal.remove_destination()
+
+        # Rebuild component indexes and traversal orders from the new wiring.
+        return cast(SFG, graph.copy())
+
     def simplify_delay_element_placement(self) -> "SFG":
         """
         Simplify an SFG by removing redundant delay elements.
