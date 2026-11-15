@@ -766,7 +766,8 @@ class Memory(Resource):
     read_ports : int, optional
         Number of read ports for memory.
     write_ports : int, optional
-        Number of write ports for memory.
+        Number of write ports for memory. Register-based memories support one
+        write port and any number of read ports.
     total_ports : int, optional
         Total number of read and write ports for memory.
     assign : bool, default False
@@ -971,6 +972,8 @@ class Memory(Resource):
                 strategy, **kwargs
             )
         else:  # "register"
+            if self.input_count != 1:
+                raise ValueError("Register-based memories support only one write port")
             self._forward_backward_table = _ForwardBackwardTable(self._collection)
             self._assignment = [self._collection]
 

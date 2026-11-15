@@ -73,6 +73,25 @@ def pe_controls(
     return controls
 
 
+def register_output_sources(memory: "Memory") -> list[dict[int, int]]:
+    """Map each physical read port and cycle to its allocated register or input."""
+    if memory.input_count != 1:
+        raise ValueError("Register-based memories support only one write port")
+    table = memory._forward_backward_table
+    if table is None:
+        raise ValueError(
+            "Memory assignment must be performed before generating register-based code."
+        )
+    ports = memory.port_assignment
+    sources: list[dict[int, int]] = [{} for _ in range(memory.output_count)]
+    for variable in memory.collection:
+        for delay in sorted(set(variable.reads.values())):
+            time = (variable.start_time + delay) % memory.schedule_time
+            register = -1 if delay == 0 else table[time].regs.index(variable)
+            sources[ports[variable, delay]][time] = register
+    return sources
+
+
 def memory_controls(memory: "Memory", options: dict) -> list[Control]:
     schedule_time = memory.schedule_time
     if memory._memory_type == "RAM":
@@ -140,10 +159,7 @@ def memory_controls(memory: "Memory", options: dict) -> list[Control]:
         raise ValueError(
             "Memory assignment must be performed before generating register-based code."
         )
-    output_regs = {
-        entry.outputs_from for entry in table.table if entry.outputs_from is not None
-    }
-    output_table = {reg: index for index, reg in enumerate(output_regs)}
+    output_sources = register_output_sources(memory)
     back_edges = {
         (source, target)
         for entry in table
@@ -151,11 +167,9 @@ def memory_controls(memory: "Memory", options: dict) -> list[Control]:
     }
     back_table = {edge: index + 1 for index, edge in enumerate(back_edges)}
     back_bits = selector_bits(len(back_edges) + 1)
-    output_bits = selector_bits(len(output_regs))
     back_registered = bool(options.get("pipeline_back_edge_mux", False))
     output_registered = bool(options.get("pipeline_output_mux", False))
     back_values = ["0" * back_bits for _ in range(schedule_time)]
-    output_values = ["0" * output_bits for _ in range(schedule_time)]
     for time, entry in enumerate(table):
         if entry.back_edge_to:
             if len(entry.back_edge_to) != 1:
@@ -164,11 +178,7 @@ def memory_controls(memory: "Memory", options: dict) -> list[Control]:
             back_values[(time - int(back_registered)) % schedule_time] = bin_str(
                 back_table[edge], back_bits
             )
-        if entry.outputs_from is not None:
-            output_values[(time - int(output_registered)) % schedule_time] = bin_str(
-                output_table[entry.outputs_from], output_bits
-            )
-    return [
+    result = [
         Control(
             f"{memory.entity_name}_ctrl_back_edge",
             "ctrl_back_edge",
@@ -177,15 +187,27 @@ def memory_controls(memory: "Memory", options: dict) -> list[Control]:
             back_values,
             back_registered,
         ),
-        Control(
-            f"{memory.entity_name}_ctrl_output",
-            "ctrl_output",
-            f"unsigned({output_bits - 1} downto 0)",
-            output_bits,
-            output_values,
-            output_registered,
-        ),
     ]
+    for port, sources in enumerate(output_sources):
+        registers = sorted(set(sources.values())) or [-1]
+        output_bits = selector_bits(len(registers))
+        output_values = ["0" * output_bits for _ in range(schedule_time)]
+        for time, register in sources.items():
+            output_values[(time - int(output_registered)) % schedule_time] = bin_str(
+                registers.index(register), output_bits
+            )
+        name = "ctrl_output" if memory.output_count == 1 else f"ctrl_output_{port}"
+        result.append(
+            Control(
+                f"{memory.entity_name}_{name}",
+                name,
+                f"unsigned({output_bits - 1} downto 0)",
+                output_bits,
+                output_values,
+                output_registered,
+            )
+        )
+    return result
 
 
 def mux_controls(

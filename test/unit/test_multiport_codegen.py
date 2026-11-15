@@ -61,7 +61,7 @@ def test_multiport_control_tables(registered):
             )
 
 
-def make_architecture(write_ports=2, read_ports=2):
+def make_architecture(write_ports=2, read_ports=2, storage="RAM"):
     pes, variables = [], []
     for index in range(4):
         start = 2 * index if write_ports == 1 else 4 * (index // 2)
@@ -95,12 +95,23 @@ def make_architecture(write_ports=2, read_ports=2):
         for index, variable in enumerate(variables)
         for delay in (None, *sorted(set(variable.reads.values())))
     }
+    if storage == "register":
+        # Swap all reads in alternating slots so a variable's intermediate
+        # and final reads can use different physical ports without conflicts.
+        for (variable, delay), port in collection._memory_port_assignment.items():
+            if delay is not None:
+                collection._memory_port_assignment[variable, delay] = (
+                    port + int((variable.start_time + delay) % 4 == 1)
+                ) % read_ports
     memory = Memory(
         collection,
+        memory_type=storage,
         entity_name="storage",
         read_ports=read_ports,
         write_ports=write_ports,
     )
+    if storage == "register":
+        memory.assign()
     return Architecture(pes, [memory], "multiport")
 
 
@@ -144,12 +155,13 @@ def simulate(tmp_path, sources, tb):
 @pytest.mark.parametrize("registered", [False, True])
 @pytest.mark.parametrize("output_sync", [False, True])
 @pytest.mark.parametrize(
-    ("write_ports", "read_ports"), [(2, 2), (1, 2), (2, 1), (3, 4)]
+    ("write_ports", "read_ports", "storage"),
+    [(2, 2, "RAM"), (1, 2, "RAM"), (2, 1, "RAM"), (3, 4, "RAM"), (1, 2, "register")],
 )
 def test_multiport_roundtrip(
-    tmp_path, centralized, registered, output_sync, write_ports, read_ports
+    tmp_path, centralized, registered, output_sync, write_ports, read_ports, storage
 ):
-    arch = make_architecture(write_ports, read_ports)
+    arch = make_architecture(write_ports, read_ports, storage)
     printer = VhdlPrinter(DataType(8))
     printer.print(
         arch,
@@ -158,6 +170,8 @@ def test_multiport_roundtrip(
         pipeline_mem_control=registered,
         multiplexer_control_registered=registered,
         output_sync=output_sync,
+        pipeline_output_mux=registered,
+        pipeline_back_edge_mux=registered,
     )
     declarations, mapping, checks, drive = (
         [],
@@ -228,4 +242,87 @@ end;
         .replace("MAPPING", ", ".join(mapping))
         .replace("DRIVE", "\n".join(drive))
         .replace("CHECKS", "\n".join(checks)),
+    )
+
+
+def test_register_memory_rejects_multiple_write_ports():
+    memory = Memory(
+        ProcessCollection(
+            [
+                PlainMemoryVariable(0, 0, {0: 2}, "first"),
+                PlainMemoryVariable(0, 1, {0: 2}, "second"),
+            ],
+            4,
+        ),
+        memory_type="register",
+        read_ports=2,
+        write_ports=2,
+    )
+    with pytest.raises(ValueError, match="only one write port"):
+        memory.assign()
+
+
+@pytest.mark.parametrize("registered", [False, True])
+@pytest.mark.parametrize("stored_delay", [0, 3])
+def test_register_memory_bypass_and_broadcast(tmp_path, registered, stored_delay):
+    stored = PlainMemoryVariable(0, 0, {0: stored_delay, 1: stored_delay}, "stored")
+    bypass = PlainMemoryVariable(3, 0, {0: 0}, "bypass")
+    variables = ProcessCollection([stored, bypass], 5, cyclic=True)
+    variables._memory_port_assignment = {
+        (stored, None): 0,
+        (stored, stored_delay): 1,
+        (bypass, None): 0,
+        (bypass, 0): 0,
+    }
+    memory = Memory(
+        variables,
+        memory_type="register",
+        entity_name="storage",
+        read_ports=3,
+        write_ports=1,
+        assign=True,
+    )
+    sources = control.register_output_sources(memory)
+    assert sources == [{3: -1}, {stored_delay: -1 if stored_delay == 0 else 0}, {}]
+    code = VhdlPrinter(DataType(8)).print_Memory(
+        memory, pipeline_output_mux=registered, pipeline_back_edge_mux=registered
+    )
+    (tmp_path / "storage.vhdl").write_text(code)
+    simulate(
+        tmp_path,
+        ["storage.vhdl"],
+        """
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+entity tb is end;
+architecture sim of tb is
+signal clk : std_logic := '0';
+signal cnt : unsigned(2 downto 0) := (others => '0');
+signal data_in, stored, bypass : signed(7 downto 0) := (others => '0');
+begin
+dut: entity work.storage port map (
+    clk => clk, en => '1', schedule_cnt => cnt, p_0_in => data_in,
+    p_0_out => bypass, p_1_out => stored, p_2_out => open
+);
+process begin
+    for frame in 0 to 2 loop
+        for cycle in 0 to 4 loop
+            cnt <= to_unsigned(cycle, 3);
+            if cycle = 3 then data_in <= to_signed(27, 8);
+            else data_in <= to_signed(11, 8); end if;
+            wait for 5 ns;
+            if cycle = STORED_DELAY and frame > 0 then
+                assert stored = to_signed(11, 8) report "Stored read failed" severity failure;
+            end if;
+            if cycle = 3 and frame > 0 then
+                assert bypass = to_signed(27, 8) report "Bypass failed" severity failure;
+            end if;
+            clk <= '1'; wait for 5 ns; clk <= '0';
+        end loop;
+    end loop;
+    report "PASS"; std.env.stop; wait;
+end process;
+end;
+""".replace("STORED_DELAY", str(stored_delay)),
     )
