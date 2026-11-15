@@ -78,45 +78,61 @@ def memory_controls(memory: "Memory", options: dict) -> list[Control]:
     if memory._memory_type == "RAM":
         bits = len(memory.assignment).bit_length()
         registered = bool(options.get("pipeline_mem_control", False))
-        write_addresses = ["-" * bits for _ in range(schedule_time)]
-        write_enables = ["0" for _ in range(schedule_time)]
-        read_addresses = ["0" * bits for _ in range(schedule_time)]
-        forward = ["-" for _ in range(schedule_time)]
+        ports = memory.port_assignment
+        write_addresses = [
+            ["-" * bits] * schedule_time for _ in range(memory.input_count)
+        ]
+        write_enables = [["0"] * schedule_time for _ in range(memory.input_count)]
+        read_addresses = [
+            ["0" * bits] * schedule_time for _ in range(memory.output_count)
+        ]
+        single_port = memory.input_count == memory.output_count == 1
+        forward_bits = selector_bits(memory.input_count + 1)
+        forward = [
+            ["0" * forward_bits] * schedule_time for _ in range(memory.output_count)
+        ]
         output_sync = bool(options.get("output_sync", True))
         for address, collection in enumerate(memory.assignment):
             for variable in collection:
+                write_port = ports[variable, None]
                 write_time = (variable.start_time - int(registered)) % schedule_time
                 if variable.execution_time:
-                    write_addresses[write_time] = bin_str(address, bits)
-                    write_enables[write_time] = "1"
-                forward[write_time] = str(int(1 in variable.reads.values()))
-                for read_time in variable.reads.values():
+                    write_addresses[write_port][write_time] = bin_str(address, bits)
+                    write_enables[write_port][write_time] = "1"
+                for delay in sorted(set(variable.reads.values())):
+                    read_port = ports[variable, delay]
                     time = (
-                        variable.start_time
-                        + read_time
-                        - int(output_sync)
-                        - int(registered)
+                        variable.start_time + delay - int(output_sync) - int(registered)
                     ) % schedule_time
-                    read_addresses[time] = bin_str(address, bits)
-        entries = [
-            ("ctrl_write_adr_0", bits, write_addresses),
-            ("ctrl_write_en_0", 1, write_enables),
-            ("ctrl_read_adr_0", bits, read_addresses),
-        ]
-        if output_sync:
-            entries.append(("ctrl_forward", 1, forward))
+                    read_addresses[read_port][time] = bin_str(address, bits)
+                    # A one-cycle read captures the input before the RAM write
+                    # becomes visible. Encode the physical write port to bypass.
+                    forward[read_port][time] = bin_str(
+                        write_port + 1 if delay == 1 else 0, forward_bits
+                    )
+        entries = []
+        for port in range(memory.input_count):
+            entries.extend(
+                [
+                    (f"ctrl_write_adr_{port}", bits, write_addresses[port], False),
+                    (f"ctrl_write_en_{port}", 1, write_enables[port], True),
+                ]
+            )
+        for port in range(memory.output_count):
+            entries.append((f"ctrl_read_adr_{port}", bits, read_addresses[port], False))
+            if output_sync:
+                name = "ctrl_forward" if single_port else f"ctrl_forward_{port}"
+                entries.append((name, forward_bits, forward[port], single_port))
         return [
             Control(
                 f"{memory.entity_name}_{name}",
                 name,
-                "std_logic"
-                if name in ("ctrl_write_en_0", "ctrl_forward")
-                else f"unsigned({width - 1} downto 0)",
+                "std_logic" if scalar else f"unsigned({width - 1} downto 0)",
                 width,
                 values,
                 registered,
             )
-            for name, width, values in entries
+            for name, width, values, scalar in entries
         ]
 
     table = memory._forward_backward_table
@@ -180,7 +196,8 @@ def mux_controls(
         (pe.entity_name, port, assignments) for pe, port, assignments in pe_mux_info
     ]
     muxes += [
-        (memory.entity_name, 0, assignments) for memory, assignments in mem_mux_info
+        (memory.entity_name, port, assignments)
+        for memory, port, assignments in mem_mux_info
     ]
     for name, port, assignments in muxes:
         sources = unique_sources(assignments)

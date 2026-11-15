@@ -127,6 +127,9 @@ def test_memory_broadcast_uses_one_read_port():
     graph = architecture._digraph(wire_labels=True).source
     assert "mem_0" in graph
     assert "mem_1" not in graph
+    code = VhdlPrinter(DataType(8)).print_Architecture(architecture)
+    assert "dst0_0_in <= mem_0_out;" in code
+    assert "dst1_0_in <= mem_0_out;" in code
 
 
 def test_memory_relay_uses_nonzero_read_and_write_ports():
@@ -180,6 +183,9 @@ def test_memory_relay_uses_nonzero_read_and_write_ports():
     }
     edges, _ = architecture._build_interconnect_edges()
     assert edges["a:out1"] == {("b:in1", "1")}
+    code = VhdlPrinter(DataType(8)).print_Architecture(architecture)
+    assert "b_1_in <= a_1_out;" in code
+    assert "pe4_0_in <= b_1_out;" in code
 
 
 @pytest.mark.parametrize(

@@ -170,6 +170,7 @@ def architecture(
 
 
 def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
+    ports = {mem: mem.port_assignment for mem in arch.memories}
     # Collect PE input multiplexer info
     pe_mux_info = []  # List of (pe, port_number, assignments)
     for pe in arch.processing_elements:
@@ -190,23 +191,15 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 input_latency = op_input_port.latency_offset or 0
                 for mem in arch.memories:
                     for var in mem.collection:
-                        read_times = [
-                            time % arch.schedule_time for time in var.read_times
-                        ]
-                        if (
-                            process.start_time + input_latency
-                        ) % arch.schedule_time not in read_times:
+                        if op_input_port not in var.reads:
                             continue
-                        root_port = var.root_write_port
-                        var_op_id = root_port.operation.graph_id
-                        var_port_index = root_port.index
-                        if (
-                            var_op_id == source_op.graph_id
-                            and var_port_index == source_port.index
-                        ):
+                        delay = var.reads[op_input_port]
+                        if (var.start_time + delay) % arch.schedule_time == (
+                            process.start_time + input_latency
+                        ) % arch.schedule_time:
                             source_resource = mem
                             is_found = True
-                            source_port_index = 0
+                            source_port_index = ports[mem][var, delay]
                             break
                     if is_found:
                         break
@@ -232,10 +225,11 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 pe_mux_info.append((pe, port_number, assignments))
 
     # Collect memory input multiplexer info
-    mem_mux_info = []  # List of (mem, assignments)
+    mem_mux_info = []  # List of (mem, port_number, assignments)
     for mem in arch.memories:
-        assignments = []
+        assignments_by_port = [[] for _ in range(mem.input_count)]
         for var in mem.collection:
+            assignments = assignments_by_port[ports[mem][var, None]]
             is_found = False
             time = var.start_time % arch.schedule_time
 
@@ -244,7 +238,14 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 source_var = var.write_port.source_variable
                 for other_mem in arch.memories:
                     if any(ov is source_var for ov in other_mem.collection):
-                        source_signal = f"{other_mem.entity_name}_0_out"
+                        delay = next(
+                            delay
+                            for delay in sorted(set(source_var.reads.values()))
+                            if (source_var.start_time + delay) % arch.schedule_time
+                            == time
+                        )
+                        source_index = ports[other_mem][source_var, delay]
+                        source_signal = f"{other_mem.entity_name}_{source_index}_out"
                         assignments.append((time, source_signal))
                         is_found = True
                         break
@@ -269,8 +270,9 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 source_signal = f"{source_pe.entity_name}_{source_port_index}_out"
                 assignments.append((time, source_signal))
 
-        if assignments:
-            mem_mux_info.append((mem, assignments))
+        for port_number, assignments in enumerate(assignments_by_port):
+            if assignments:
+                mem_mux_info.append((mem, port_number, assignments))
 
     return pe_mux_info, mem_mux_info
 
@@ -305,20 +307,19 @@ def _write_mux_control_signal_declarations(
                 )
 
     # Memory input mux control signals
-    for mem, assignments in mem_mux_info:
+    for mem, port_number, assignments in mem_mux_info:
         unique_sources = _unique_sources(assignments)
         if len(unique_sources) > 1:
             sel_bits = selector_bits(len(unique_sources))
-            # TODO: Handle multi-input memories here
             common.signal_declaration(
                 f,
-                f"{mem.entity_name}_0_sel",
+                f"{mem.entity_name}_{port_number}_sel",
                 f"std_logic_vector({sel_bits - 1} downto 0)",
             )
             if multiplexer_control_registered:
                 common.signal_declaration(
                     f,
-                    f"{mem.entity_name}_0_sel_next",
+                    f"{mem.entity_name}_{port_number}_sel_next",
                     f"std_logic_vector({sel_bits - 1} downto 0)",
                 )
 
@@ -393,7 +394,7 @@ def _write_mux_control_signals(
                 common.blank(f)
 
     # Memory input mux control signals
-    for mem, assignments in mem_mux_info:
+    for mem, port_number, assignments in mem_mux_info:
         unique_sources = _unique_sources(assignments)
         if len(unique_sources) > 1:
             # Build source to index mapping
@@ -401,9 +402,9 @@ def _write_mux_control_signals(
 
             common.write(f, 1, "with schedule_cnt select")
             if multiplexer_control_registered:
-                common.write(f, 2, f"{mem.entity_name}_0_sel_next <=")
+                common.write(f, 2, f"{mem.entity_name}_{port_number}_sel_next <=")
             else:
-                common.write(f, 2, f"{mem.entity_name}_0_sel <=")
+                common.write(f, 2, f"{mem.entity_name}_{port_number}_sel <=")
             sel_bits = selector_bits(len(unique_sources))
             for time, source_signal in assignments:
                 idx = source_to_idx[source_signal]
@@ -431,14 +432,14 @@ def _write_mux_control_signals(
                     common.write(
                         f,
                         4,
-                        f"{mem.entity_name}_0_sel <= {mem.entity_name}_0_sel_next;",
+                        f"{mem.entity_name}_{port_number}_sel <= {mem.entity_name}_{port_number}_sel_next;",
                     )
                     common.write(f, 3, "end if;")
                 else:
                     common.write(
                         f,
                         3,
-                        f"{mem.entity_name}_0_sel <= {mem.entity_name}_0_sel_next;",
+                        f"{mem.entity_name}_{port_number}_sel <= {mem.entity_name}_{port_number}_sel_next;",
                     )
                 common.write(f, 2, "end if;")
                 common.write(f, 1, "end process;", end="\n\n")
@@ -478,19 +479,21 @@ def _write_interconnect(
             common.write(f, 3, f"{dt.dontcare_str} when others;", end="\n\n")
 
     # Define memory input interconnect
-    # TODO: Handle multi-input memories here
-    for mem, assignments in mem_mux_info:
+    for mem, port_number, assignments in mem_mux_info:
         unique_sources = _unique_sources(assignments)
 
         if len(unique_sources) == 1:
             # Direct assignment
             common.write(
-                f, 1, f"{mem.entity_name}_0_in <= {assignments[0][1]};", end="\n\n"
+                f,
+                1,
+                f"{mem.entity_name}_{port_number}_in <= {assignments[0][1]};",
+                end="\n\n",
             )
         else:
             # Multiplexer needed - use control signal
-            common.write(f, 1, f"with {mem.entity_name}_0_sel select")
-            common.write(f, 2, f"{mem.entity_name}_0_in <=")
+            common.write(f, 1, f"with {mem.entity_name}_{port_number}_sel select")
+            common.write(f, 2, f"{mem.entity_name}_{port_number}_in <=")
             sel_bits = selector_bits(len(unique_sources))
             for idx, source_signal in enumerate(unique_sources):
                 sel_value = format(idx, f"0{sel_bits}b")
