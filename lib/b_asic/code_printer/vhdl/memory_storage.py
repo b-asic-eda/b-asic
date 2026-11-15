@@ -6,7 +6,7 @@ import math
 from typing import TYPE_CHECKING, TextIO, cast
 
 from b_asic.code_printer.util import bin_str, time_bin_str
-from b_asic.code_printer.vhdl import common
+from b_asic.code_printer.vhdl import common, control
 from b_asic.code_printer.vhdl.util import schedule_time_type, unsigned_type
 from b_asic.data_type import _VhdlDataType
 from b_asic.process import MemoryVariable, PlainMemoryVariable
@@ -156,10 +156,10 @@ def architecture(
 
     # Address generation signals
     common.write(f, 1, "-- Memory address generation", start="\n")
-    for i in range(memory.input_count):
+    for i in range(memory.output_count):
         common.signal_declaration(f, f"read_port_{i}", data_type)
         common.signal_declaration(f, f"read_adr_{i}", unsigned_type(mem_adress_bits))
-    for i in range(memory.output_count):
+    for i in range(memory.input_count):
         common.signal_declaration(f, f"write_port_{i}", data_type)
         common.signal_declaration(f, f"write_adr_{i}", unsigned_type(mem_adress_bits))
         common.signal_declaration(f, f"write_en_{i}", "std_logic")
@@ -167,19 +167,19 @@ def architecture(
     # Address generation signals (single ROM instance)
     if not external_control:
         common.write(f, 1, "-- Address generation multiplexing signals", start="\n")
-        for write_port_idx in range(memory.output_count):
+        for write_port_idx in range(memory.input_count):
             common.signal_declaration(
                 f,
                 f"write_adr_{write_port_idx}_0_0",
                 unsigned_type(mem_adress_bits),
             )
-        for write_port_idx in range(memory.output_count):
+        for write_port_idx in range(memory.input_count):
             common.signal_declaration(
                 f,
                 f"write_en_{write_port_idx}_0_0",
                 signal_type="std_logic",
             )
-        for read_port_idx in range(memory.input_count):
+        for read_port_idx in range(memory.output_count):
             common.signal_declaration(
                 f,
                 f"read_adr_{read_port_idx}_0_0",
@@ -197,13 +197,23 @@ def architecture(
             f, f"p_{i}_out_internal", data_type, default_value=dt.init_val
         )
 
-    # forward_ctrl signal
-    if output_sync:
-        common.signal_declaration(
-            f,
-            "forward_ctrl",
-            signal_type="std_logic",
+    ports = memory.port_assignment
+    single_port = memory.input_count == memory.output_count == 1
+    forward_controls = [
+        item
+        for item in control.memory_controls(
+            memory,
+            {
+                "output_sync": output_sync,
+                "pipeline_mem_control": pipeline_control_signals,
+            },
         )
+        if item.port.startswith("ctrl_forward")
+    ]
+
+    # Forwarding selectors for registered outputs
+    for item in forward_controls:
+        common.signal_declaration(f, item.port.removeprefix("ctrl_"), item.vhdl_type)
 
     #
     # Architecture body begin
@@ -247,9 +257,9 @@ def architecture(
         common.write(f, 1, "-- Control signal registers", start="\n")
         common.synchronous_process_prologue(f, name="control_regs_proc")
         common.write(f, 3, "if en = '1' then")
-        for i in range(memory.input_count):
-            common.write(f, 4, f"read_adr_{i} <= read_adr_{i}_0_0;")
         for i in range(memory.output_count):
+            common.write(f, 4, f"read_adr_{i} <= read_adr_{i}_0_0;")
+        for i in range(memory.input_count):
             common.write(f, 4, f"write_adr_{i} <= write_adr_{i}_0_0;")
             common.write(f, 4, f"write_en_{i} <= write_en_{i}_0_0;")
         common.write(f, 3, "end if;")
@@ -262,82 +272,89 @@ def architecture(
         clk="clk",
         name=f"mem_{0}_proc",
         read_ports={
-            (f"read_port_{i}", f"read_adr_{i}") for i in range(memory.input_count)
+            (f"read_port_{i}", f"read_adr_{i}") for i in range(memory.output_count)
         },
         write_ports={
             (f"write_port_{i}", f"write_adr_{i}", f"write_en_{i}")
-            for i in range(memory.output_count)
+            for i in range(memory.input_count)
         },
         enable="en",
     )
-    if external_control:
-        common.write(f, 1, "read_adr_0 <= ctrl_read_adr_0;")
-        common.write(f, 1, "write_adr_0 <= ctrl_write_adr_0;")
-        common.write(f, 1, "write_en_0 <= ctrl_write_en_0;")
-    elif not pipeline_control_signals:
-        common.write(f, 1, "read_adr_0 <= read_adr_0_0_0;")
-        common.write(f, 1, "write_adr_0 <= write_adr_0_0_0;")
-        common.write(f, 1, "write_en_0 <= write_en_0_0_0;")
-    common.write(f, 1, "write_port_0 <= p_0_in_internal;")
+    for i in range(memory.output_count):
+        source = f"ctrl_read_adr_{i}" if external_control else f"read_adr_{i}_0_0"
+        if external_control or not pipeline_control_signals:
+            common.write(f, 1, f"read_adr_{i} <= {source};")
+    for i in range(memory.input_count):
+        if external_control or not pipeline_control_signals:
+            for signal in (f"write_adr_{i}", f"write_en_{i}"):
+                source = f"ctrl_{signal}" if external_control else f"{signal}_0_0"
+                common.write(f, 1, f"{signal} <= {source};")
+        common.write(f, 1, f"write_port_{i} <= p_{i}_in_internal;")
 
-    # Input and output assignments
+    # Each registered output can bypass any physical write port independently.
     if output_sync:
         common.write(f, 1, "-- Input and output assignments", start="\n")
-        all_procs = [p for pc in memory.assignment for p in pc]
-        output_cases: dict[int, str] = {}
-        # forward_ctrl ROM
-        for p in all_procs:
-            if pipeline_control_signals:
-                write_time = (p.start_time - 1) % schedule_time
-            else:
-                write_time = p.start_time % schedule_time
-            output_cases[write_time] = f"'{int(1 in p.reads.values())}'"
         common.synchronous_process_prologue(f, name="output_reg_proc")
         common.write(f, 3, "if en = '1' then")
-        common.write(f, 4, "if forward_ctrl = '1' then")
-        common.write(f, 5, "p_0_out_internal <= p_0_in_internal;")
-        common.write(f, 4, "else")
-        common.write(f, 5, "p_0_out_internal <= read_port_0;")
-        common.write(f, 4, "end if;")
+        for port, item in enumerate(forward_controls):
+            selector = item.port.removeprefix("ctrl_")
+            if single_port:
+                common.write(f, 4, f"if {selector} = '1' then")
+                common.write(f, 5, "p_0_out_internal <= p_0_in_internal;")
+                common.write(f, 4, "else")
+                common.write(f, 5, "p_0_out_internal <= read_port_0;")
+                common.write(f, 4, "end if;")
+            else:
+                common.write(f, 4, f"case {selector} is")
+                for write_port in range(memory.input_count):
+                    value = bin_str(write_port + 1, item.bits)
+                    common.write(
+                        f,
+                        5,
+                        f'when "{value}" => p_{port}_out_internal <= p_{write_port}_in_internal;',
+                    )
+                common.write(
+                    f, 5, f"when others => p_{port}_out_internal <= read_port_{port};"
+                )
+                common.write(f, 4, "end case;")
         common.write(f, 3, "end if;")
-        common.synchronous_process_epilogue(
-            f,
-            clk="clk",
-            name="output_reg_proc",
-        )
-        if external_control:
-            common.write(f, 1, "forward_ctrl <= ctrl_forward;")
-        elif pipeline_control_signals:
-            common.synchronous_process_prologue(f, name="forward_ctrl_rom_proc")
-            common.write(f, 3, "if en = '1' then")
-            common.write(f, 4, "case schedule_cnt is")
-            for write_time, stmt in sorted(output_cases.items()):
-                bin_time = time_bin_str(write_time, schedule_time)
-                common.write(f, 5, f'when "{bin_time}" => forward_ctrl <= {stmt};')
-            # Normal operation, output the read port
-            common.write_lines(
-                f,
-                [
-                    (5, "when others => forward_ctrl <= '-';"),
-                    (4, "end case;"),
-                ],
-            )
-            common.write(f, 3, "end if;")
-            common.synchronous_process_epilogue(
-                f,
-                clk="clk",
-                name="forward_ctrl_rom_proc",
-            )
-        else:
-            common.write(f, 1, "with schedule_cnt select", start="\n")
-            common.write(f, 2, "forward_ctrl <=", end="\n")
-            for write_time, stmt in sorted(output_cases.items()):
-                bin_time = time_bin_str(write_time, schedule_time)
-                common.write(f, 2, f'{stmt} when "{bin_time}",')
-            common.write(f, 2, "'-' when others;")
-
+        common.synchronous_process_epilogue(f, clk="clk", name="output_reg_proc")
+        for item in forward_controls:
+            selector = item.port.removeprefix("ctrl_")
+            if external_control:
+                common.write(f, 1, f"{selector} <= {item.port};")
+                continue
+            if pipeline_control_signals:
+                common.synchronous_process_prologue(f, name=f"{selector}_rom_proc")
+                common.write(f, 3, "if en = '1' then")
+                common.write(f, 4, "case schedule_cnt is")
+                for time, value in enumerate(item.values):
+                    literal = f"'{value}'" if single_port else f'"{value}"'
+                    common.write(
+                        f,
+                        5,
+                        f'when "{time_bin_str(time, schedule_time)}" => {selector} <= {literal};',
+                    )
+                default = "'-'" if single_port else "(others => '-')"
+                common.write(f, 5, f"when others => {selector} <= {default};")
+                common.write(f, 4, "end case;")
+                common.write(f, 3, "end if;")
+                common.synchronous_process_epilogue(
+                    f, clk="clk", name=f"{selector}_rom_proc"
+                )
+            else:
+                common.write(f, 1, "with schedule_cnt select", start="\n")
+                common.write(f, 2, f"{selector} <=")
+                for time, value in enumerate(item.values):
+                    literal = f"'{value}'" if single_port else f'"{value}"'
+                    common.write(
+                        f, 3, f'{literal} when "{time_bin_str(time, schedule_time)}",'
+                    )
+                default = "'-'" if single_port else "(others => '-')"
+                common.write(f, 3, f"{default} when others;")
     else:
-        common.write(f, 1, "p_0_out_internal <= read_port_0;")
+        for i in range(memory.output_count):
+            common.write(f, 1, f"p_{i}_out_internal <= read_port_{i};")
 
     if external_control:
         common.write(f, 0, "end architecture rtl;")
@@ -350,54 +367,57 @@ def architecture(
     common.write(f, 1, "-- Memory write address generation", start="")
     common.write(f, 1, "--")
 
-    # Extract all the write addresses
-    write_list: list[tuple[int, MemoryVariable] | None] = [
-        None for _ in range(schedule_time)
-    ]
-    for i, collection in enumerate(memory.assignment):
-        for mv in collection:
-            mv = cast("MemoryVariable", mv)
-            if mv.start_time >= schedule_time:
-                raise ValueError("start_time greater than schedule_time")
-            if mv.execution_time:
-                write_list[mv.start_time] = (i, mv)
+    for port in range(memory.input_count):
+        # Extract all the write addresses
+        write_list: list[tuple[int, MemoryVariable] | None] = [
+            None for _ in range(schedule_time)
+        ]
+        for i, collection in enumerate(memory.assignment):
+            for mv in collection:
+                mv = cast("MemoryVariable", mv)
+                if mv.start_time >= schedule_time:
+                    raise ValueError("start_time greater than schedule_time")
+                if mv.execution_time and ports[mv, None] == port:
+                    write_list[mv.start_time] = (i, mv)
 
-    common.process_prologue(
-        f, sensitivity_list="schedule_cnt", name="mem_write_address_proc"
-    )
-    indent_offset = 0
-    common.write(f, 3 + indent_offset, "case schedule_cnt is")
-    for i, mv in filter(None, write_list[:elements_per_rom]):
-        write_time = mv.start_time % schedule_time
-        if pipeline_control_signals:
-            write_time = (write_time - 1) % schedule_time
-        bin_time = bin_str(write_time % elements_per_rom, ADR_LEN)
+        common.process_prologue(
+            f, sensitivity_list="schedule_cnt", name=f"mem_write_address_proc_{port}"
+        )
+        indent_offset = 0
+        common.write(f, 3 + indent_offset, "case schedule_cnt is")
+        for i, mv in filter(None, write_list[:elements_per_rom]):
+            write_time = mv.start_time % schedule_time
+            if pipeline_control_signals:
+                write_time = (write_time - 1) % schedule_time
+            bin_time = bin_str(write_time % elements_per_rom, ADR_LEN)
+            common.write_lines(
+                f,
+                [
+                    (
+                        4 + indent_offset,
+                        f"-- Variable {mv.name!r}, start time {mv.start_time}",
+                    ),
+                    (4 + indent_offset, (f'when "{bin_time}" =>')),
+                    (
+                        5 + indent_offset,
+                        f"write_adr_{port}_0_0 <= to_unsigned({i}, write_adr_{port}_0_0'length);",
+                    ),
+                    (5 + indent_offset, f"write_en_{port}_0_0 <= '1';"),
+                ],
+            )
         common.write_lines(
             f,
             [
-                (
-                    4 + indent_offset,
-                    f"-- Variable {mv.name!r}, start time {mv.start_time}",
-                ),
-                (4 + indent_offset, (f'when "{bin_time}" =>')),
-                (
-                    5 + indent_offset,
-                    f"write_adr_0_0_0 <= to_unsigned({i}, write_adr_0_0_0'length);",
-                ),
-                (5 + indent_offset, "write_en_0_0_0 <= '1';"),
+                (4 + indent_offset, "when others =>"),
+                (5 + indent_offset, f"write_adr_{port}_0_0 <= (others => '-');"),
+                (5 + indent_offset, f"write_en_{port}_0_0 <= '0';"),
+                (3 + indent_offset, "end case;"),
             ],
         )
-    common.write_lines(
-        f,
-        [
-            (4 + indent_offset, "when others =>"),
-            (5 + indent_offset, "write_adr_0_0_0 <= (others => '-');"),
-            (5 + indent_offset, "write_en_0_0_0 <= '0';"),
-            (3 + indent_offset, "end case;"),
-        ],
-    )
-    common.process_epilogue(f, sensitivity_list="clk", name="mem_write_address_proc")
-    common.blank(f)
+        common.process_epilogue(
+            f, sensitivity_list="clk", name=f"mem_write_address_proc_{port}"
+        )
+        common.blank(f)
 
     #
     # ROM read address generation
@@ -406,63 +426,68 @@ def architecture(
     common.write(f, 1, "-- Memory read address generation", start="")
     common.write(f, 1, "--")
 
-    # Extract all the read addresses
-    read_list: list[tuple[int, MemoryVariable] | None] = [
-        None for _ in range(schedule_time)
-    ]
-    for i, collection in enumerate(memory.assignment):
-        for mv in collection:
-            mv = cast("MemoryVariable", mv)
-            for read_time in mv.reads.values():
-                read_list[(mv.start_time + read_time) % schedule_time] = (i, mv)
+    for port in range(memory.output_count):
+        # Extract all the read addresses
+        read_list: list[tuple[int, MemoryVariable] | None] = [
+            None for _ in range(schedule_time)
+        ]
+        for i, collection in enumerate(memory.assignment):
+            for mv in collection:
+                mv = cast("MemoryVariable", mv)
+                for read_time in sorted(set(mv.reads.values())):
+                    if ports[mv, read_time] != port:
+                        continue
+                    read_list[(mv.start_time + read_time) % schedule_time] = (i, mv)
 
-    common.process_prologue(
-        f, sensitivity_list="schedule_cnt", name="mem_read_address_proc"
-    )
-    indent_offset = 0
-    common.write(f, 3 + indent_offset, "case schedule_cnt is")
-    for idx in range(elements_per_rom):
-        if idx < schedule_time:
-            tp = read_list[idx]
-            if tp is None:
-                continue
-            i = tp[0]
-            mv = tp[1]
-            time = idx % elements_per_rom
-            if output_sync:
-                time -= 1  # Account for output register
-            if pipeline_control_signals:
-                time -= 1  # Account for control-signal register stage
-            time = time % schedule_time
-            common.write_lines(
-                f,
-                [
-                    (
-                        4 + indent_offset,
-                        f"-- Variable {mv.name!r}, start time {mv.start_time}",
-                    ),
-                    (
-                        4 + indent_offset,
-                        f'when "{bin_str(time, ADR_LEN)}" =>',
-                    ),
-                    (
-                        5 + indent_offset,
-                        f"read_adr_0_0_0 <= to_unsigned({i}, read_adr_0_0_0'length);",
-                    ),
-                ],
-            )
-    common.write_lines(
-        f,
-        [
-            (4 + indent_offset, "when others =>"),
-            (
-                5 + indent_offset,
-                "read_adr_0_0_0 <= to_unsigned(0, read_adr_0_0_0'length);",
-            ),
-            (3 + indent_offset, "end case;"),
-        ],
-    )
-    common.process_epilogue(f, sensitivity_list="clk", name="mem_read_address_proc")
-    common.blank(f)
+        common.process_prologue(
+            f, sensitivity_list="schedule_cnt", name=f"mem_read_address_proc_{port}"
+        )
+        indent_offset = 0
+        common.write(f, 3 + indent_offset, "case schedule_cnt is")
+        for idx in range(elements_per_rom):
+            if idx < schedule_time:
+                tp = read_list[idx]
+                if tp is None:
+                    continue
+                i = tp[0]
+                mv = tp[1]
+                time = idx % elements_per_rom
+                if output_sync:
+                    time -= 1  # Account for output register
+                if pipeline_control_signals:
+                    time -= 1  # Account for control-signal register stage
+                time = time % schedule_time
+                common.write_lines(
+                    f,
+                    [
+                        (
+                            4 + indent_offset,
+                            f"-- Variable {mv.name!r}, start time {mv.start_time}",
+                        ),
+                        (
+                            4 + indent_offset,
+                            f'when "{bin_str(time, ADR_LEN)}" =>',
+                        ),
+                        (
+                            5 + indent_offset,
+                            f"read_adr_{port}_0_0 <= to_unsigned({i}, read_adr_{port}_0_0'length);",
+                        ),
+                    ],
+                )
+        common.write_lines(
+            f,
+            [
+                (4 + indent_offset, "when others =>"),
+                (
+                    5 + indent_offset,
+                    f"read_adr_{port}_0_0 <= to_unsigned(0, read_adr_{port}_0_0'length);",
+                ),
+                (3 + indent_offset, "end case;"),
+            ],
+        )
+        common.process_epilogue(
+            f, sensitivity_list="clk", name=f"mem_read_address_proc_{port}"
+        )
+        common.blank(f)
 
     common.write(f, 0, "end architecture rtl;")
