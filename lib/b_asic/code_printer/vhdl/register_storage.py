@@ -4,7 +4,7 @@ Module for VHDL code generation of register based storage.
 
 from typing import TYPE_CHECKING, TextIO
 
-from b_asic.code_printer.vhdl import common, memory_storage
+from b_asic.code_printer.vhdl import common, control, memory_storage
 from b_asic.data_type import _VhdlDataType
 from b_asic.resources import _ForwardBackwardTable
 
@@ -94,15 +94,11 @@ def architecture(
     # Number of registers in this design
     reg_cnt = len(forward_backward_table[0].regs)
 
-    # Set of the register indices to output from
-    output_regs = {
-        entry.outputs_from
-        for entry in forward_backward_table.table
-        if entry.outputs_from is not None
-    }
-
-    # Table with mapping: register to output multiplexer index
-    output_mux_table: dict[int, int] = {reg: i for i, reg in enumerate(output_regs)}
+    output_sources = control.register_output_sources(memory)
+    output_mux_tables = [
+        {reg: index for index, reg in enumerate(sorted(set(sources.values())) or [-1])}
+        for sources in output_sources
+    ]
 
     # Back-edge register indices
     back_edges: set[tuple[int, int]] = {
@@ -159,12 +155,14 @@ def architecture(
 
     # Output mux selector
     common.write(f, 1, "-- Output mux select signal", start="\n")
-    common.signal_declaration(
-        f,
-        name="out_mux_sel",
-        signal_type=f"integer range 0 to {len(output_regs) - 1}",
-        name_pad=18,
-    )
+    for port, output_mux_table in enumerate(output_mux_tables):
+        selector = "out_mux_sel" if memory.output_count == 1 else f"out_mux_sel_{port}"
+        common.signal_declaration(
+            f,
+            name=selector,
+            signal_type=f"integer range 0 to {len(output_mux_table) - 1}",
+            name_pad=18,
+        )
 
     #
     # Architecture body begin
@@ -242,13 +240,9 @@ def architecture(
     else:
         common.write(f, 3, "if en = '1' then")
 
-    common.write_lines(
-        f,
-        [
-            (3, "-- Default case"),
-            (3, "shift_reg(0) <= p_0_in;"),
-        ],
-    )
+    if reg_cnt:
+        common.write(f, 3, "-- Default case")
+        common.write(f, 3, "shift_reg(0) <= p_0_in;")
     for reg_idx in range(1, reg_cnt):
         common.write(f, 3, f"shift_reg({reg_idx}) <= shift_reg({reg_idx - 1});")
     common.write(f, 3, "case back_edge_mux_sel is")
@@ -276,56 +270,60 @@ def architecture(
         name="shift_reg_proc",
     )
 
-    # Output multiplexer decoding logic
-    common.write(f, 1, "-- Output multiplexer decoding logic", start="\n")
-    if external_control:
-        common.write(f, 1, "out_mux_sel <= to_integer(ctrl_output);")
-    elif pipeline_output_mux:
-        decode_entries = [
-            ((i - 1) % schedule_time, output_mux_table[entry.outputs_from])
-            for i, entry in enumerate(forward_backward_table)
-            if entry.outputs_from is not None
-        ]
-        common.synchronous_process_prologue(f, clk="clk", name="out_mux_sel_proc")
-        common.write(f, 3, "if en = '1' then")
-        common.write(f, 4, "case schedule_cnt_int is")
-        for time_val, sel in decode_entries:
-            common.write(f, 5, f"when {time_val} =>")
-            common.write(f, 6, f"out_mux_sel <= {sel};")
-        common.write_lines(
-            f,
-            [
-                (5, "when others =>"),
-                (6, "out_mux_sel <= 0;"),
-                (4, "end case;"),
-                (3, "end if;"),
-            ],
+    for port, (sources, output_mux_table) in enumerate(
+        zip(output_sources, output_mux_tables, strict=True)
+    ):
+        selector = "out_mux_sel" if memory.output_count == 1 else f"out_mux_sel_{port}"
+        control_port = (
+            "ctrl_output" if memory.output_count == 1 else f"ctrl_output_{port}"
         )
-        common.synchronous_process_epilogue(
-            f,
-            clk="clk",
-            name="out_mux_sel_proc",
-        )
-    else:
-        decode_entries = [
-            (i % schedule_time, output_mux_table[entry.outputs_from])
-            for i, entry in enumerate(forward_backward_table)
-            if entry.outputs_from is not None
-        ]
-        common.write(f, 1, "with schedule_cnt_int select")
-        common.write(f, 2, "out_mux_sel <=")
-        for time_val, sel in decode_entries:
-            common.write(f, 3, f"{sel} when {time_val},")
-        common.write(f, 3, "0 when others;")
+        # Output multiplexer decoding logic
+        common.write(f, 1, "-- Output multiplexer decoding logic", start="\n")
+        if external_control:
+            common.write(f, 1, f"{selector} <= to_integer({control_port});")
+        elif pipeline_output_mux:
+            decode_entries = [
+                ((time - 1) % schedule_time, output_mux_table[register])
+                for time, register in sources.items()
+            ]
+            common.synchronous_process_prologue(f, clk="clk", name=f"{selector}_proc")
+            common.write(f, 3, "if en = '1' then")
+            common.write(f, 4, "case schedule_cnt_int is")
+            for time_val, sel in decode_entries:
+                common.write(f, 5, f"when {time_val} =>")
+                common.write(f, 6, f"{selector} <= {sel};")
+            common.write_lines(
+                f,
+                [
+                    (5, "when others =>"),
+                    (6, f"{selector} <= 0;"),
+                    (4, "end case;"),
+                    (3, "end if;"),
+                ],
+            )
+            common.synchronous_process_epilogue(
+                f,
+                clk="clk",
+                name=f"{selector}_proc",
+            )
+        else:
+            decode_entries = [
+                (time, output_mux_table[register]) for time, register in sources.items()
+            ]
+            common.write(f, 1, "with schedule_cnt_int select")
+            common.write(f, 2, f"{selector} <=")
+            for time_val, sel in decode_entries:
+                common.write(f, 3, f"{sel} when {time_val},")
+            common.write(f, 3, "0 when others;")
 
-    # Output multiplexer logic
-    common.write(f, 1, "-- Output multiplexer", start="\n")
-    mux_items = list(output_mux_table.items())
-    common.write(f, 1, "with out_mux_sel select")
-    common.write(f, 2, "p_0_out <=")
-    for reg_i, mux_i in mux_items:
-        rhs = f"p_{-1 - reg_i}_in" if reg_i < 0 else f"shift_reg({reg_i})"
-        common.write(f, 3, f"{rhs} when {mux_i},")
-    common.write(f, 3, f"{dt.init_val} when others;")
+        # Output multiplexer logic
+        common.write(f, 1, "-- Output multiplexer", start="\n")
+        mux_items = list(output_mux_table.items())
+        common.write(f, 1, f"with {selector} select")
+        common.write(f, 2, f"p_{port}_out <=")
+        for reg_i, mux_i in mux_items:
+            rhs = f"p_{-1 - reg_i}_in" if reg_i < 0 else f"shift_reg({reg_i})"
+            common.write(f, 3, f"{rhs} when {mux_i},")
+        common.write(f, 3, f"{dt.init_val} when others;")
 
     common.write(f, 0, "end architecture rtl;", start="\n")
