@@ -3392,51 +3392,98 @@ class SFG(AbstractOperation):
         """
         cycles = []
         for cycle in self._iter_loops():
-            min_idx = cycle.index(min(cycle))
-            normalized = cycle[min_idx:] + cycle[:min_idx]
-            cycles.append([*normalized, normalized[0]])
+            cycle.append(cycle[0])
+            cycles.append(cycle)
         cycles.sort()
         return cycles
 
     def _iter_loops(self) -> Iterator[list[LoopElement]]:
-        """Yield recursive loops without sorting or repeating the closing node."""
+        """Yield loops starting at their smallest graph ID, without a closing node."""
         if not self.input_count:
             return
-        graph: nx.DiGraph = nx.DiGraph()
-        edge_ports: defaultdict[tuple[GraphID, GraphID], list[tuple[int, int]]] = (
-            defaultdict(list)
-        )
+        graph: dict[GraphID, dict[GraphID, list[tuple[int, int]]]] = {}
         queue: deque[Operation] = deque(self._input_operations)
         visited: set[Operation] = set(self._input_operations)
         while queue:
             op = queue.popleft()
+            source_id = op.graph_id
+            is_internal = not isinstance(op, (Input, Output))
             for output_port in op.outputs:
+                output_index = output_port.index
                 for signal in output_port.signals:
-                    if signal.destination is not None:
-                        new_op = signal.destination.operation
-                        if not isinstance(op, (Input, Output)) and not isinstance(
-                            new_op, Output
-                        ):
-                            graph.add_edge(op.graph_id, new_op.graph_id)
-                            edge_ports[op.graph_id, new_op.graph_id].append(
-                                (output_port.index, signal.destination.index)
-                            )
-                        if new_op not in visited:
-                            queue.append(new_op)
-                            visited.add(new_op)
-                    else:
+                    destination_port = signal.destination
+                    if destination_port is None:
                         raise ValueError("Destination for {signal!r} does not exist")
-        for cycle in nx.simple_cycles(graph):
+                    new_op = destination_port.operation
+                    if is_internal and not isinstance(new_op, Output):
+                        graph.setdefault(source_id, {}).setdefault(
+                            new_op.graph_id, []
+                        ).append((output_index, destination_port.index))
+                    if new_op not in visited:
+                        queue.append(new_op)
+                        visited.add(new_op)
+
+        # Prune acyclic prefixes before constructing a NetworkX graph.
+        indegree = dict.fromkeys(graph, 0)
+        for destinations in graph.values():
+            for destination_id in destinations:
+                indegree[destination_id] = indegree.get(destination_id, 0) + 1
+        roots = deque(node for node, degree in indegree.items() if degree == 0)
+        while roots:
+            for destination_id in graph.pop(roots.popleft(), {}):
+                indegree[destination_id] -= 1
+                if indegree[destination_id] == 0:
+                    roots.append(destination_id)
+        if not graph:
+            return
+
+        cycle_graph: nx.DiGraph = nx.DiGraph()
+        cycle_graph.add_edges_from(
+            (source_id, destination_id)
+            for source_id, destinations in graph.items()
+            for destination_id in destinations
+        )
+        for cycle in nx.simple_cycles(cycle_graph):
+            if len(cycle) == 1:
+                op_id = cycle[0]
+                for output_index, input_index in graph[op_id][op_id]:
+                    yield [LoopElement(op_id, input_index, output_index)]
+                continue
+
+            # Graph IDs are unique within a cycle, independently of port choices.
+            min_index = cycle.index(min(cycle))
+            cycle = cycle[min_index:] + cycle[:min_index]
             connections = [
-                edge_ports[source, destination]
+                graph[source][destination]
                 for source, destination in zip(
                     cycle, [*cycle[1:], cycle[0]], strict=True
                 )
             ]
+            if all(len(connection) == 1 for connection in connections):
+                single_ports = [connection[0] for connection in connections]
+                yield [
+                    LoopElement(
+                        op_id, single_ports[index - 1][1], single_ports[index][0]
+                    )
+                    for index, op_id in enumerate(cycle)
+                ]
+                continue
+
+            # Reuse immutable elements across parallel connection combinations.
+            elements = [
+                {
+                    (input_index, output_index): LoopElement(
+                        op_id, input_index, output_index
+                    )
+                    for _, input_index in connections[index - 1]
+                    for output_index, _ in connections[index]
+                }
+                for index, op_id in enumerate(cycle)
+            ]
             for ports in itertools.product(*connections):
                 yield [
-                    LoopElement(op_id, ports[index - 1][1], ports[index][0])
-                    for index, op_id in enumerate(cycle)
+                    elements[index][ports[index - 1][1], ports[index][0]]
+                    for index in range(len(cycle))
                 ]
 
     def to_lean(self) -> str:
