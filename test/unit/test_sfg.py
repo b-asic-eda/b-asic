@@ -3164,6 +3164,82 @@ class TestLoops:
             [("add0", 1, 0), ("add1", 1, 0), ("t0", 0, 0), ("add0", 1, 0)],
         ]
 
+    def test_adjacent_parallel_connections(self):
+        source = Input()
+        first = Addition(source, None)
+        middle = R2Butterfly(first, first, name="middle")
+        last = R2Butterfly(middle.output(0), middle.output(1), name="last")
+        first.input(1).connect(last.output(1))
+        sfg = SFG([source], [Output(last.output(0))])
+        middle_id = sfg.find_by_name("middle")[0].graph_id
+        last_id = sfg.find_by_name("last")[0].graph_id
+
+        assert sfg.loops == [
+            [
+                ("add0", 1, 0),
+                (middle_id, input_index, output_index),
+                (last_id, output_index, 1),
+                ("add0", 1, 0),
+            ]
+            for input_index in range(2)
+            for output_index in range(2)
+        ]
+
+    def test_reconvergent_feedforward_paths(self):
+        source = Input()
+        value = Addition(source, source)
+        for _ in range(12):
+            butterfly = R2Butterfly(value, value)
+            value = Addition(butterfly.output(0), butterfly.output(1))
+        sfg = SFG([source], [Output(value)])
+
+        assert sfg.loops == []
+        assert sfg.iteration_period_bound() == -1
+
+    def test_feedback_after_feedforward_paths(self):
+        source = Input()
+        feedforward = Addition(source, source)
+        first_delay = Delay(name="first_delay")
+        first = Addition(feedforward, first_delay, name="first")
+        first_delay.input(0).connect(first)
+        second_delay = Delay(name="second_delay")
+        second = Addition(feedforward, second_delay, name="second")
+        second_delay.input(0).connect(second)
+        sfg = SFG([source], [Output(Addition(first, second))])
+        first_id = sfg.find_by_name("first")[0].graph_id
+        second_id = sfg.find_by_name("second")[0].graph_id
+        first_delay_id = sfg.find_by_name("first_delay")[0].graph_id
+        second_delay_id = sfg.find_by_name("second_delay")[0].graph_id
+
+        assert sfg.loops == sorted(
+            [
+                [(first_id, 1, 0), (first_delay_id, 0, 0), (first_id, 1, 0)],
+                [(second_id, 1, 0), (second_delay_id, 0, 0), (second_id, 1, 0)],
+            ]
+        )
+
+    def test_overlapping_cycles(self):
+        source = Input()
+        first_delay = Delay()
+        first = Addition(source, first_delay, name="first")
+        second_delay = Delay()
+        second = Addition(first, second_delay, name="second")
+        first_delay.input(0).connect(second)
+        second_delay.input(0).connect(second)
+        sfg = SFG([source], [Output(second)])
+        first_id = sfg.find_by_name("first")[0].graph_id
+        second_id = sfg.find_by_name("second")[0].graph_id
+
+        assert sfg.loops == [
+            [
+                (first_id, 1, 0),
+                (second_id, 0, 0),
+                ("t0", 0, 0),
+                (first_id, 1, 0),
+            ],
+            [(second_id, 1, 0), ("t1", 0, 0), (second_id, 1, 0)],
+        ]
+
     def test_parallel_outputs(self):
         source = Input()
         delay = Delay()
@@ -3195,6 +3271,20 @@ class TestLoops:
 
         assert sfg.loops == [[("add0", 1, 0), ("add0", 1, 0)]]
         assert sfg.iteration_period_bound() == 2
+
+    def test_parallel_self_connections(self):
+        inner_inputs = [Input() for _ in range(3)]
+        inner = SFG(inner_inputs, [Output(source) for source in inner_inputs])
+        source = Input()
+        inner.input(0).connect(source)
+        inner.input(1).connect(inner.output(1))
+        inner.input(2).connect(inner.output(2))
+        sfg = SFG([source], [Output(inner.output(0))])
+
+        assert sfg.loops == [
+            [("sfg0", 1, 1), ("sfg0", 1, 1)],
+            [("sfg0", 2, 2), ("sfg0", 2, 2)],
+        ]
 
     def test_empty_sfg(self):
         loops = SFG([], []).loops
