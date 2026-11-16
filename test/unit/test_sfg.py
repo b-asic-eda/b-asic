@@ -3030,6 +3030,93 @@ class TestIterationPeriodBound:
         assert sfg_two_inputs_two_outputs.iteration_period_bound() == -1
 
 
+class TestIsRecursive:
+    @pytest.mark.parametrize(
+        ("fixture_name", "expected"),
+        [
+            ("sfg_two_inputs_two_outputs", False),
+            ("sfg_delay", False),
+            ("sfg_nested", False),
+            ("sfg_simple_accumulator", True),
+            ("sfg_simple_filter", True),
+            ("sfg_direct_form_iir_lp_filter", True),
+        ],
+    )
+    def test_existing_graphs(self, request, fixture_name, expected):
+        graph = request.getfixturevalue(fixture_name)
+        assert graph.is_recursive is expected
+        assert graph.is_recursive == bool(graph.loops)
+
+    def test_empty_graph(self):
+        assert SFG([], []).is_recursive is False
+
+    def test_constant_graph(self):
+        assert SFG([], [Output(Constant(1))]).is_recursive is False
+
+    def test_self_loop(self):
+        source = Input()
+        addition = Addition(source)
+        addition.input(1).connect(addition)
+        graph = SFG([source], [Output(addition)])
+
+        assert graph.is_recursive is True
+
+    @pytest.mark.parametrize("recursive", [False, True])
+    def test_parallel_connections(self, recursive):
+        source = Input()
+        delay = Delay()
+        first = Addition(source, delay) if recursive else Delay(source)
+        second = Addition(first, first)
+        if recursive:
+            delay.input(0).connect(second)
+        graph = SFG([source], [Output(second)])
+
+        assert graph.is_recursive is recursive
+
+    @pytest.mark.parametrize("with_input", [False, True])
+    def test_cycle_not_reachable_from_inputs(self, with_input):
+        delay = Delay()
+        delay.input(0).connect(delay)
+        inputs = [Input()] if with_input else []
+        outputs = [Output(source) for source in inputs] + [Output(delay)]
+        graph = SFG(inputs, outputs)
+
+        assert graph.is_recursive is True
+
+    @pytest.mark.parametrize("recursive", [False, True])
+    def test_nested_graph(self, recursive):
+        source = Input()
+        delay = Delay()
+        if recursive:
+            addition = Addition(source, delay)
+            delay.input(0).connect(addition)
+        else:
+            delay.input(0).connect(source)
+        graph = SFG([source], [Output(delay)])
+        for _ in range(2):
+            outer_source = Input()
+            graph = SFG([outer_source], [Output(graph(outer_source))])
+
+        assert graph.is_recursive is recursive
+
+    def test_long_path(self):
+        source = Input()
+        result = source
+        for _ in range(sys.getrecursionlimit() + 1):
+            result = Delay(result)
+        graph = SFG([source], [Output(result)])
+
+        assert graph.is_recursive is False
+
+    def test_does_not_enumerate_loops(self, sfg_simple_accumulator, monkeypatch):
+        def unexpected_loop_enumeration(*args, **kwargs):
+            pytest.fail("is_recursive must not enumerate loops")
+
+        monkeypatch.setattr(SFG, "_iter_loops", unexpected_loop_enumeration)
+
+        assert sfg_simple_accumulator.is_recursive is True
+
+
 class TestLoops:
     def test_accumulator(self, sfg_simple_accumulator):
         loops = sfg_simple_accumulator.loops

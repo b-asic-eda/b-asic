@@ -3378,6 +3378,47 @@ class SFG(AbstractOperation):
         return bound
 
     @property
+    def is_recursive(self) -> bool:
+        """
+        Whether this SFG or a nested SFG contains a directed cycle.
+
+        Feedback through delays also counts as recursion. All operations are
+        checked, including those not reachable from the inputs. Nested SFGs
+        are checked internally and treated as single operations externally.
+
+        The check takes O(V + E) time and O(V) space for V operations and E
+        signals, stopping as soon as a cycle is found.
+        """
+        visited: set[Operation] = set()
+        active: set[Operation] = set()
+        for op in self._operations_dfs_order:
+            if isinstance(op, SFG) and op.is_recursive:
+                return True
+            if op in visited:
+                continue
+            visited.add(op)
+            active.add(op)
+            stack = [(op, iter(op.inputs))]
+            while stack:
+                current, inputs = stack[-1]
+                port = next(inputs, None)
+                if port is None:
+                    active.remove(current)
+                    stack.pop()
+                else:
+                    source = port.connected_source
+                    if source is None:
+                        continue
+                    predecessor = source.operation
+                    if predecessor in active:
+                        return True
+                    if predecessor not in visited:
+                        visited.add(predecessor)
+                        active.add(predecessor)
+                        stack.append((predecessor, iter(predecessor.inputs)))
+        return False
+
+    @property
     def loops(self) -> list[list[LoopElement]]:
         """
         Return the recursive loops found in the SFG.
