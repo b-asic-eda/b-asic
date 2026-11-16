@@ -1082,10 +1082,17 @@ class RecursiveListScheduler(ListScheduler):
             ]
             self._remaining_ops_set = set(self._remaining_ops)
 
-        loops = self._schedule._sfg.loops
-        if loops:
-            log.debug("Scheduling recursive operations")
-            self._schedule_recursive_ops(loops)
+        if self._schedule._sfg.is_recursive:
+            loops = self._schedule._sfg.loops
+            if loops:
+                log.debug("Scheduling recursive operations")
+                self._schedule_recursive_ops(loops)
+            else:
+                raise ValueError(
+                    "No loops despite is_recursive being True, please report the bug"
+                )
+        else:
+            loops = []
 
         log.debug("Scheduling non-recursive operations")
         self._schedule_nonrecursive_ops()
