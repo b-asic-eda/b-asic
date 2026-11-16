@@ -126,7 +126,7 @@ run-doc-test:
     - git fetch --tags
     - export QT_API=$QT_API
     - export PYTEST_QT_API=$QT_API
-    - pip install -v .[$QT_API,doc]
+    - pip install -v .[$QT_API,doc,cp]
     - sphinx-build -b html docs_sphinx public
     - ruff check lib/b_asic --output-format=gitlab > ruff.json
   artifacts:
@@ -148,7 +148,7 @@ pages:
     - git fetch --tags
     - export QT_API=$QT_API
     - export PYTEST_QT_API=$QT_API
-    - pip install -v .[$QT_API,doc]
+    - pip install -v .[$QT_API,doc,cp]
     - sphinx-build -b html docs_sphinx public
   artifacts:
     paths:
