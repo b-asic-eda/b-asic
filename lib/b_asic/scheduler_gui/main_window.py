@@ -14,6 +14,7 @@ import sys
 import webbrowser
 from collections import defaultdict, deque
 from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_loader
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, cast, overload
 
@@ -452,9 +453,18 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             log.error("Could not load module from file '%s'", abs_path_filename)
             return
 
+        previous_module = sys.modules.get(module_name)
         try:
-            module = SourceFileLoader(module_name, abs_path_filename).load_module()
+            loader = SourceFileLoader(module_name, abs_path_filename)
+            spec = spec_from_loader(module_name, loader)
+            module = module_from_spec(spec)
+            sys.modules[module_name] = module
+            loader.exec_module(module)
         except Exception as e:
+            if previous_module is None:
+                sys.modules.pop(module_name, None)
+            else:
+                sys.modules[module_name] = previous_module
             log.exception(
                 "Exception occurred. Could not load module from file '%s'.\n\n%s",
                 abs_path_filename,
