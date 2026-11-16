@@ -2,12 +2,14 @@
 B-ASIC GUI Decorators Module.
 """
 
+from functools import wraps
 from traceback import format_exc
 
 from qtpy.QtWidgets import QErrorMessage
 
 
 def handle_error(fn):
+    @wraps(fn)
     def wrapper(self, *args, **kwargs):
         try:
             return fn(self, *args, **kwargs)

@@ -28,6 +28,7 @@ def test_builtin_generator_configuration(qtbot, name):
     assert set(window._fields) == set(inspect.signature(function).parameters)
     required = {
         "size": "2",
+        "factor": "2",
         "points": "2",
         "m": "2",
         "N": "4",

@@ -18,9 +18,10 @@ def test_start(qtbot):
     qtbot.addWidget(widget)
 
 
-def test_start_with_data(qtbot):
+@pytest.mark.parametrize("output_key", ["0", "out0"])
+def test_start_with_data(qtbot, output_key):
     sim_res = {
-        "0": [0.5, 0.5, 0, 0],
+        output_key: [0.5, 0.5, 0, 0],
         "add1": [0.5, 0.5, 0, 0],
         "cmul1": [0, 0.5, 0, 0],
         "cmul2": [0.5, 0, 0, 0],
@@ -32,6 +33,10 @@ def test_start_with_data(qtbot):
 
     assert widget._checklist.count() == 6
     assert len(widget._plot_axes.lines) == 1
+    assert widget._plot_axes.lines[0].get_label() == "o0"
+    np.testing.assert_array_equal(
+        widget._plot_axes.lines[0].get_ydata(), [0.5, 0.5, 0, 0]
+    )
     assert widget._plot_axes.xaxis.label.get_fontfamily() == ["DejaVu Serif"]
     assert widget._legend.get_texts()[0].get_fontfamily() == ["DejaVu Serif"]
     widget._update_legend()

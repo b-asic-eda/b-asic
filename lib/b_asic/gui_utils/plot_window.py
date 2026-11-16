@@ -286,9 +286,9 @@ class PlotWindow(QWidget):
             key2 = key  # in most cases
             if re.fullmatch("in[0-9]+", key):
                 m = 4
-            elif re.fullmatch("[0-9]+", key):
+            elif re.fullmatch("(?:out)?[0-9]+", key):
                 m = 3
-                key2 = "o" + key
+                key2 = "o" + key.removeprefix("out")
             elif re.fullmatch("t[0-9]+", key):
                 m = 2
             else:
