@@ -4,7 +4,7 @@ B-ASIC signal flow graph generators.
 This module contains a number of functions generating SFGs for specific functions.
 """
 
-from .digital_filters import direct_form_1_iir, direct_form_2_iir, fir
+from .digital_filters import cic, direct_form_1_iir, direct_form_2_iir, fir
 from .fft import radix_2_dif_fft
 from .matrix_inversion import (
     analytical_block_matrix_inverse,
@@ -32,6 +32,7 @@ __all__ = [
     "block_ldlt_matrix_inverse",
     "bubble_sort",
     "cholesky_matrix_inverse",
+    "cic",
     "direct_form_1_iir",
     "direct_form_2_iir",
     "fir",

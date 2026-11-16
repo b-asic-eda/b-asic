@@ -5,6 +5,7 @@ This module contains a number of functions generating digital filters.
 """
 
 from collections.abc import Sequence
+from typing import Literal
 
 import numpy as np
 
@@ -12,9 +13,148 @@ from b_asic.core_operations import (
     Addition,
     ConstantMultiplication,
     Name,
+    Subtraction,
 )
+from b_asic.port import OutputPort
 from b_asic.sfg import SFG
-from b_asic.special_operations import Delay, Input, Output
+from b_asic.special_operations import Compression, Delay, Expansion, Input, Output
+
+
+def cic(
+    factor: int,
+    stages: int = 1,
+    differential_delay: int = 1,
+    name: str | None = None,
+    *,
+    mode: Literal["decimation", "interpolation"] = "decimation",
+    normalize: bool = False,
+    phase: int = 0,
+    mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+    sub_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
+) -> SFG:
+    r"""
+    Generate a conventional cascaded integrator-comb (CIC) filter.
+
+    A decimator has *stages* integrators, a compression by *factor*, and
+    *stages* combs. An interpolator has *stages* combs, an expansion by
+    *factor*, and *stages* integrators. The combs always operate at the
+    lower sample rate, with *differential_delay* delays per comb.
+
+    At the higher sample rate, the equivalent FIR transfer function is
+
+    .. math::
+
+        H(z) = \left(\frac{1-z^{-RM}}{1-z^{-1}}\right)^N
+             = \left(\sum_{k=0}^{RM-1} z^{-k}\right)^N,
+
+    where :math:`R` is *factor*, :math:`M` is *differential_delay*, and
+    :math:`N` is *stages*. No multipliers are used unless normalization
+    requires one. All delay states start at zero.
+
+    Parameters
+    ----------
+    factor : int
+        Positive integer sample-rate conversion factor, :math:`R`.
+    stages : int, default: 1
+        Positive number of integrator stages and comb stages, :math:`N`.
+    differential_delay : int, default: 1
+        Positive comb delay at the lower sample rate, :math:`M`.
+        Common configurations use 1 or 2.
+    name : :data:`~b_asic.types.Name`, optional
+        The name of the SFG. If None, "CIC decimator" or "CIC interpolator".
+    mode : {"decimation", "interpolation"}, default: "decimation"
+        Whether to decrease or increase the sample rate.
+    normalize : bool, default: False
+        Scale the output to preserve the steady-state level of a constant
+        input. Decimation uses :math:`1/(RM)^N`; interpolation uses
+        :math:`R/(RM)^N` to compensate for zero insertion.
+    phase : int, default: 0
+        Retained phase for decimation, or nonzero phase for interpolation,
+        in the range ``0 <= phase < factor``.
+    mult_properties : dictionary, optional
+        Properties passed to the normalization
+        :class:`~b_asic.core_operations.ConstantMultiplication`, if needed.
+    add_properties : dictionary, optional
+        Properties passed to each integrator's
+        :class:`~b_asic.core_operations.Addition`.
+    sub_properties : dictionary, optional
+        Properties passed to each comb's
+        :class:`~b_asic.core_operations.Subtraction`.
+
+    Returns
+    -------
+    :class:`~b_asic.sfg.SFG`
+        CIC filter with one input and one output.
+
+    Notes
+    -----
+    Simulate the graph with :class:`~b_asic.simulation.Simulation`.
+    Use :meth:`~b_asic.sfg.SFG.to_single_rate` before scheduling.
+
+    Examples
+    --------
+    A three-stage decimator by eight with the usual unit comb delay:
+
+    >>> decimator = cic(8, stages=3)
+
+    An interpolator by four with a two-sample comb delay and unity DC gain:
+
+    >>> interpolator = cic(
+    ...     4, stages=3, differential_delay=2, mode="interpolation", normalize=True
+    ... )
+    """
+    for parameter, value in (
+        ("factor", factor),
+        ("stages", stages),
+        ("differential_delay", differential_delay),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(f"{parameter} must be an integer")
+        if value < 1:
+            raise ValueError(f"{parameter} must be positive")
+    if mode not in ("decimation", "interpolation"):
+        raise ValueError("mode must be 'decimation' or 'interpolation'")
+
+    converter = (
+        Compression(factor, phase=phase)
+        if mode == "decimation"
+        else Expansion(factor, phase=phase)
+    )
+
+    def integrators(source: OutputPort) -> OutputPort:
+        for _ in range(stages):
+            delay = Delay()
+            total = Addition(source, delay, **(add_properties or {}))
+            delay.input(0).connect(total)
+            source = total.output(0)
+        return source
+
+    def combs(source: OutputPort) -> OutputPort:
+        for _ in range(stages):
+            delayed = source
+            for _ in range(differential_delay):
+                delayed = Delay(delayed).output(0)
+            source = Subtraction(source, delayed, **(sub_properties or {})).output(0)
+        return source
+
+    input_op = Input()
+    before, after = (
+        (integrators, combs) if mode == "decimation" else (combs, integrators)
+    )
+    converter.input(0).connect(before(input_op.output(0)))
+    source = after(converter.output(0))
+    if normalize:
+        gain = (factor * differential_delay) ** stages
+        if mode == "interpolation":
+            gain //= factor
+        if gain != 1:
+            source = ConstantMultiplication(
+                1 / gain, source, **(mult_properties or {})
+            ).output(0)
+    if name is None:
+        name = "CIC decimator" if mode == "decimation" else "CIC interpolator"
+    return SFG([input_op], [Output(source)], name=Name(name))
 
 
 def fir(
