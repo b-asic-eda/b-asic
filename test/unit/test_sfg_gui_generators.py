@@ -4,7 +4,7 @@ import inspect
 
 import pytest
 
-pytest.importorskip("qtpy.QtWidgets")
+pytest.importorskip("qtpy.QtWidgets", exc_type=ImportError)
 
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QCheckBox, QComboBox, QDialog, QDialogButtonBox
