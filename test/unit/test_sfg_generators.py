@@ -6,6 +6,7 @@ from b_asic.core_operations import (
     Addition,
     ConstantMultiplication,
     Reciprocal,
+    Subtraction,
 )
 from b_asic.fft_operations import R2Butterfly
 from b_asic.sfg_generators import (
@@ -13,6 +14,7 @@ from b_asic.sfg_generators import (
     block_cholesky_matrix_inverse,
     block_ldlt_matrix_inverse,
     cholesky_matrix_inverse,
+    cic,
     direct_form_1_iir,
     direct_form_2_iir,
     fir,
@@ -26,7 +28,15 @@ from b_asic.sfg_generators import (
 )
 from b_asic.signal_generator import Constant, Impulse, ZeroPad
 from b_asic.simulation import Simulation
-from b_asic.special_operations import Delay, Input, MemoryRead, MemoryWrite, Output
+from b_asic.special_operations import (
+    Compression,
+    Delay,
+    Expansion,
+    Input,
+    MemoryRead,
+    MemoryWrite,
+    Output,
+)
 from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
@@ -230,6 +240,176 @@ def test_wdf_allpass_adaptor_names(generator):
 
     sfg = generator([0.3, 0.5, 0.7], adaptor_names=[None, "", None])
     assert {op.name for op in sfg.find_by_type(Delay)} == {"T0", "T1", "T2"}
+
+
+class TestCIC:
+    @pytest.mark.parametrize("mode", ["decimation", "interpolation"])
+    @pytest.mark.parametrize("normalize", [False, True])
+    @pytest.mark.parametrize("input_kind", ["impulse", "complex"])
+    @pytest.mark.parametrize(
+        ("factor", "stages", "differential_delay", "phase"),
+        [
+            (1, 1, 1, 0),
+            (1, 3, 2, 0),
+            (2, 1, 1, 0),
+            (2, 3, 2, 1),
+            (3, 2, 1, 0),
+            (3, 2, 3, 2),
+            (4, 3, 2, 0),
+        ],
+    )
+    def test_matches_fir(
+        self, mode, normalize, input_kind, factor, stages, differential_delay, phase
+    ):
+        # Compare the recursive multirate structure with an independent FIR.
+        coefficients = np.ones(1)
+        for _ in range(stages):
+            coefficients = np.convolve(
+                coefficients, np.ones(factor * differential_delay)
+            )
+        if input_kind == "impulse":
+            samples = np.zeros(8 * factor)
+            samples[0] = 1
+        else:
+            rng = np.random.default_rng(123)
+            samples = rng.integers(-3, 4, 8 * factor) + 1j * rng.integers(
+                -3, 4, 8 * factor
+            )
+        # Include the full filter tail, keeping whole decimation periods.
+        samples = np.pad(samples, (0, stages * factor * differential_delay))
+        if mode == "interpolation":
+            expanded = np.zeros(factor * len(samples), dtype=samples.dtype)
+            expanded[phase::factor] = samples
+            expected = np.convolve(expanded, coefficients)[: len(expanded)]
+        else:
+            expected = np.convolve(samples, coefficients)[: len(samples)][phase::factor]
+        if normalize:
+            expected = expected / (factor * differential_delay) ** stages
+            if mode == "interpolation":
+                expected *= factor
+
+        sfg = cic(
+            factor,
+            stages,
+            differential_delay,
+            mode=mode,
+            phase=phase,
+            normalize=normalize,
+        )
+        sim = Simulation(sfg, [samples])
+        sim.run()
+        np.testing.assert_allclose(sim.results["out0"], expected, atol=1e-12)
+        assert sim.input_samples_per_iteration == (
+            (factor,) if mode == "decimation" else (1,)
+        )
+        assert sim.output_samples_per_iteration == (
+            (1,) if mode == "decimation" else (factor,)
+        )
+
+    @pytest.mark.parametrize("mode", ["decimation", "interpolation"])
+    @pytest.mark.parametrize("normalize", [False, True])
+    @pytest.mark.parametrize("phase", [0, 2])
+    def test_constant_input_gain(self, mode, normalize, phase):
+        sfg = cic(
+            3,
+            stages=2,
+            differential_delay=2,
+            mode=mode,
+            normalize=normalize,
+            phase=phase,
+        )
+        sim = Simulation(sfg, [1])
+        sim.run_for(16)
+        gain = 1 if normalize else 36 if mode == "decimation" else 12
+        np.testing.assert_allclose(sim.results["out0"][-6:], gain)
+
+    @pytest.mark.parametrize("mode", ["decimation", "interpolation"])
+    def test_structure(self, mode):
+        sfg = cic(4, stages=3, differential_delay=2, mode=mode, phase=1)
+        assert sfg.input_count == sfg.output_count == 1
+        assert len(sfg.find_by_type(Addition)) == 3
+        assert len(sfg.find_by_type(Subtraction)) == 3
+        assert len(sfg.find_by_type(Delay)) == 9
+        assert not sfg.find_by_type(ConstantMultiplication)
+        converters = [
+            op for op in sfg.operations if isinstance(op, (Compression, Expansion))
+        ]
+        assert len(converters) == 1
+        converter = converters[0]
+        assert converter.factor == 4
+        assert converter.phase == 1
+        assert isinstance(converter, Compression if mode == "decimation" else Expansion)
+        assert isinstance(
+            converter.input(0).connected_source.operation,
+            Addition if mode == "decimation" else Subtraction,
+        )
+
+    @pytest.mark.parametrize("mode", ["decimation", "interpolation"])
+    def test_properties(self, mode):
+        sfg = cic(
+            3,
+            stages=2,
+            name="custom CIC",
+            mode=mode,
+            normalize=True,
+            add_properties={"latency": 4, "execution_time": 2},
+            sub_properties={"latency": 3, "execution_time": 1},
+            mult_properties={"latency": 5, "execution_time": 3},
+        )
+        assert sfg.name == "custom CIC"
+        for operation in sfg.operations:
+            if isinstance(operation, Addition):
+                assert operation.latency == 4
+                assert operation.execution_time == 2
+            elif isinstance(operation, Subtraction):
+                assert operation.latency == 3
+                assert operation.execution_time == 1
+            elif isinstance(operation, ConstantMultiplication):
+                assert operation.latency == 5
+                assert operation.execution_time == 3
+        assert len(sfg.find_by_type(ConstantMultiplication)) == 1
+
+    def test_defaults(self):
+        sfg = cic(2)
+        assert sfg.name == "CIC decimator"
+        assert len(sfg.find_by_type(Addition)) == 1
+        assert len(sfg.find_by_type(Subtraction)) == 1
+        assert len(sfg.find_by_type(Delay)) == 2
+        assert cic(2, mode="interpolation").name == "CIC interpolator"
+        assert cic(2, name="").name == ""
+        assert not cic(1, normalize=True).find_by_type(ConstantMultiplication)
+        assert not cic(2, mode="interpolation", normalize=True).find_by_type(
+            ConstantMultiplication
+        )
+
+    @pytest.mark.parametrize("parameter", ["factor", "stages", "differential_delay"])
+    @pytest.mark.parametrize("value", [0, -1])
+    def test_nonpositive_parameters(self, parameter, value):
+        with pytest.raises(ValueError, match=f"{parameter} must be positive"):
+            cic(**{"factor": 2, parameter: value})
+
+    @pytest.mark.parametrize("parameter", ["factor", "stages", "differential_delay"])
+    @pytest.mark.parametrize("value", [True, 1.5, "2"])
+    def test_noninteger_parameters(self, parameter, value):
+        with pytest.raises(TypeError, match=f"{parameter} must be an integer"):
+            cic(**{"factor": 2, parameter: value})
+
+    @pytest.mark.parametrize("mode", ["decimation", "interpolation"])
+    @pytest.mark.parametrize("phase", [-1, 3])
+    def test_invalid_phase(self, mode, phase):
+        with pytest.raises(ValueError, match="phase"):
+            cic(3, mode=mode, phase=phase)
+
+    @pytest.mark.parametrize("mode", ["decimation", "interpolation"])
+    @pytest.mark.parametrize("phase", [True, 0.5])
+    def test_noninteger_phase(self, mode, phase):
+        with pytest.raises(TypeError, match="phase must be an integer"):
+            cic(3, mode=mode, phase=phase)
+
+    @pytest.mark.parametrize("mode", ["", "invalid"])
+    def test_invalid_mode(self, mode):
+        with pytest.raises(ValueError, match="mode must be"):
+            cic(2, mode=mode)
 
 
 class TestFIR:
