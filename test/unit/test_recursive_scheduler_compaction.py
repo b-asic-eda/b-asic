@@ -7,17 +7,19 @@ from b_asic import (
     Addition,
     Constant,
     ConstantMultiplication,
-    CPRecursiveScheduler,
-    ILPRecursiveScheduler,
+    CPScheduler,
+    Delay,
+    ILPScheduler,
     Input,
     Output,
     Schedule,
 )
+from test.unit.test_ilp_recursive_schedule import _feedback
 
 
-@pytest.fixture(params=[ILPRecursiveScheduler, CPRecursiveScheduler])
+@pytest.fixture(params=[ILPScheduler, CPScheduler])
 def scheduler_type(request):
-    if request.param is CPRecursiveScheduler:
+    if request.param is CPScheduler:
         pytest.importorskip("cpmpy")
     return request.param
 
@@ -26,7 +28,9 @@ def scheduler_type(request):
 @pytest.mark.parametrize("input_time", [None, 3])
 def test_compact_input_and_output(scheduler_type, cyclic, input_time):
     source = Input()
-    first = ConstantMultiplication(2, source, latency=2, execution_time=1)
+    state = Delay()
+    first = Addition(source, state, latency=2, execution_time=1)
+    state.input(0).connect(first)
     second = ConstantMultiplication(3, first, latency=2, execution_time=1)
     schedule = Schedule(
         SFG(inputs=[source], outputs=[Output(second)]),
@@ -42,7 +46,10 @@ def test_compact_input_and_output(scheduler_type, cyclic, input_time):
 @pytest.mark.parametrize("cyclic", [False, True])
 def test_multiple_free_inputs_start_at_zero(scheduler_type, cyclic):
     first, second = Input(), Input()
-    op = Addition(first, second, latency=2, execution_time=1)
+    combined = Addition(first, second, latency=2, execution_time=1)
+    state = Delay()
+    op = Addition(combined, state, latency=2, execution_time=1)
+    state.input(0).connect(op)
     schedule = Schedule(
         SFG(inputs=[first, second], outputs=[Output(op)]),
         scheduler_type(),
@@ -57,9 +64,12 @@ def test_multiple_free_inputs_start_at_zero(scheduler_type, cyclic):
 @pytest.mark.parametrize("cyclic", [False, True])
 def test_output_delta_group_and_unspecified_output(scheduler_type, cyclic):
     source = Input()
-    first = ConstantMultiplication(2, source, latency=2, execution_time=1)
-    second = ConstantMultiplication(3, source, latency=2, execution_time=1)
-    third = ConstantMultiplication(4, source, latency=2, execution_time=1)
+    state = Delay()
+    feedback = Addition(source, state, latency=1, execution_time=1)
+    state.input(0).connect(feedback)
+    first = ConstantMultiplication(2, feedback, latency=2, execution_time=1)
+    second = ConstantMultiplication(3, feedback, latency=2, execution_time=1)
+    third = ConstantMultiplication(4, feedback, latency=2, execution_time=1)
     schedule = Schedule(
         SFG(inputs=[source], outputs=[Output(first), Output(second), Output(third)]),
         scheduler_type(output_delta_times={"out0": 1, "out1": 4}),
@@ -74,7 +84,9 @@ def test_output_delta_group_and_unspecified_output(scheduler_type, cyclic):
 @pytest.mark.parametrize("cyclic", [False, True])
 def test_explicit_output_time_bypasses_compaction(scheduler_type, cyclic, monkeypatch):
     source = Input()
-    op = ConstantMultiplication(2, source, latency=2, execution_time=1)
+    state = Delay()
+    op = Addition(source, state, latency=2, execution_time=1)
+    state.input(0).connect(op)
     before = {}
     compact = scheduler_type._compact_recursive_io
 
@@ -92,6 +104,7 @@ def test_explicit_output_time_bypasses_compaction(scheduler_type, cyclic, monkey
     )
     assert schedule.start_times["in0"] == 2
     assert schedule.start_times["out0"] == 10
+    assert before
 
 
 def test_rotation_wraps_other_operations_and_preserves_dependencies(scheduler_type):
@@ -152,3 +165,63 @@ def test_rotation_respects_port_offsets(scheduler_type):
     assert schedule.start_times["cmul0"] == schedule.start_times["add0"] == 0
     assert schedule.backward_slack("out0") == 0
     assert all(lap >= 0 for lap in schedule.laps.values())
+
+
+@pytest.mark.parametrize("cyclic", [False, True])
+def test_nonrecursive_graph_skips_feedback_processing(
+    scheduler_type, monkeypatch, cyclic
+):
+    def unexpected(*args):
+        pytest.fail("An acyclic graph must not need feedback processing")
+
+    monkeypatch.setattr(scheduler_type, "_validate_iteration_period", unexpected)
+    monkeypatch.setattr(scheduler_type, "_compact_recursive_io", unexpected)
+    source = Input()
+    op = ConstantMultiplication(2, source, latency=2, execution_time=1)
+    graph = SFG(inputs=[source], outputs=[Output(op)])
+    assert not graph.is_recursive
+    schedule = Schedule(graph, scheduler_type(), schedule_time=8, cyclic=cyclic)
+    assert schedule.schedule_time == 8
+
+
+def test_scheduler_reuse_detects_feedback_each_run(scheduler_type, monkeypatch):
+    calls = []
+    compact = scheduler_type._compact_recursive_io
+
+    def capture(self, schedule, period):
+        calls.append(schedule.sfg.is_recursive)
+        compact(self, schedule, period)
+
+    monkeypatch.setattr(scheduler_type, "_compact_recursive_io", capture)
+    scheduler = scheduler_type()
+    for recursive in (False, True, False):
+        if recursive:
+            graph = _feedback()
+        else:
+            source = Input()
+            graph = SFG(
+                inputs=[source],
+                outputs=[
+                    Output(
+                        ConstantMultiplication(2, source, latency=2, execution_time=1)
+                    )
+                ],
+            )
+        Schedule(graph, scheduler, schedule_time=8, cyclic=True)
+    assert calls == [True]
+
+
+@pytest.mark.parametrize("recursive", [False, True])
+def test_inferred_period_rejects_output_beyond_period(scheduler_type, recursive):
+    if recursive:
+        graph = _feedback()
+    else:
+        source = Input()
+        op = ConstantMultiplication(2, source, latency=2, execution_time=1)
+        graph = SFG(inputs=[source], outputs=[Output(op)])
+    with pytest.raises(ValueError, match="Solution could not be found"):
+        Schedule(
+            graph,
+            scheduler_type(output_times={"out0": 3}, max_time=4),
+            cyclic=True,
+        )

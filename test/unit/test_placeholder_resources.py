@@ -7,7 +7,7 @@ from b_asic.core_operations import Addition
 from b_asic.fft_operations import R2Butterfly
 from b_asic.resource_assigner import assign_processing_elements_and_memories
 from b_asic.schedule import Schedule
-from b_asic.scheduler import ILPRecursiveScheduler
+from b_asic.scheduler import ILPScheduler
 from b_asic.sfg import SFG
 from b_asic.sfg_generators import lattice_wdf, richards
 from b_asic.special_operations import Input, Output
@@ -116,7 +116,7 @@ def test_wdf_placeholder_resources(graph_name, period):
         graph,
         schedule_time=period,
         cyclic=True,
-        scheduler=ILPRecursiveScheduler(max_time=24),
+        scheduler=ILPScheduler(max_time=24),
     )
     if period == 4:
         schedule.move_operation("in0", -5)
