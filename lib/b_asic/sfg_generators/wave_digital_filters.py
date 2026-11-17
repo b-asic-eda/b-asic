@@ -9,6 +9,7 @@ from collections.abc import Sequence
 import numpy as np
 
 from b_asic.core_operations import (
+    ConstantMultiplication,
     Name,
 )
 from b_asic.sfg import SFG
@@ -273,11 +274,13 @@ def lattice_wdf(
         sig_b = input_op
 
     if only_adaptors:
-        adaptor = SymmetricTwoportAdaptor(-0.5, sig_a, sig_b)
+        adaptor = SymmetricTwoportAdaptor(-0.5, sig_a, sig_b, name="output_adaptor")
         output = Output(adaptor.output(0), name=Name("y"))
         Sink().input(0).connect(adaptor.output(1))
     else:
-        output = Output((sig_a + sig_b) * 0.5, name=Name("y"))
+        output = Output(
+            ConstantMultiplication(0.5, sig_a + sig_b, name="gain"), name=Name("y")
+        )
 
     sfg = SFG([input_op], [output], name=Name(name or "Lattice WDF"))
     return sfg.flatten()

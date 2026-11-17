@@ -51,6 +51,8 @@ def cic(
     where :math:`R` is *factor*, :math:`M` is *differential_delay*, and
     :math:`N` is *stages*. No multipliers are used unless normalization
     requires one. All delay states start at zero.
+    The input and output are named ``x`` and ``y``. Integrators and combs
+    have zero-based stage names; the optional normalization multiplier is ``gain``.
 
     Parameters
     ----------
@@ -117,28 +119,32 @@ def cic(
         raise ValueError("mode must be 'decimation' or 'interpolation'")
 
     converter = (
-        Compression(factor, phase=phase)
+        Compression(factor, phase=phase, name="decimator")
         if mode == "decimation"
-        else Expansion(factor, phase=phase)
+        else Expansion(factor, phase=phase, name="interpolator")
     )
 
     def integrators(source: OutputPort) -> OutputPort:
-        for _ in range(stages):
-            delay = Delay()
-            total = Addition(source, delay, **(add_properties or {}))
+        for i in range(stages):
+            delay = Delay(name=f"integrator_state[{i}]")
+            total = Addition(
+                source, delay, **{"name": f"integrator[{i}]", **(add_properties or {})}
+            )
             delay.input(0).connect(total)
             source = total.output(0)
         return source
 
     def combs(source: OutputPort) -> OutputPort:
-        for _ in range(stages):
+        for i in range(stages):
             delayed = source
-            for _ in range(differential_delay):
-                delayed = Delay(delayed).output(0)
-            source = Subtraction(source, delayed, **(sub_properties or {})).output(0)
+            for k in range(differential_delay):
+                delayed = Delay(delayed, name=f"comb_delay[{i},{k}]").output(0)
+            source = Subtraction(
+                source, delayed, **{"name": f"comb[{i}]", **(sub_properties or {})}
+            ).output(0)
         return source
 
-    input_op = Input()
+    input_op = Input(name="x")
     before, after = (
         (integrators, combs) if mode == "decimation" else (combs, integrators)
     )
@@ -150,11 +156,11 @@ def cic(
             gain //= factor
         if gain != 1:
             source = ConstantMultiplication(
-                1 / gain, source, **(mult_properties or {})
+                1 / gain, source, **{"name": "gain", **(mult_properties or {})}
             ).output(0)
     if name is None:
         name = "CIC decimator" if mode == "decimation" else "CIC interpolator"
-    return SFG([input_op], [Output(source)], name=Name(name))
+    return SFG([input_op], [Output(source, name="y")], name=Name(name))
 
 
 def fir(
@@ -175,6 +181,10 @@ def fir(
     Leading to the transfer function:
 
     .. math:: \sum_{i=0}^N h_iz^{-i}
+
+    The input and output are named ``x`` and ``y``. Coefficient multipliers
+    are named ``h[i]`` using their original coefficient indices, including
+    in transposed structures. A symmetric pair shares one multiplier name.
 
     Parameters
     ----------
@@ -205,8 +215,8 @@ def fir(
         mult_properties = {}
     if add_properties is None:
         add_properties = {}
-    input_op = Input()
-    output = Output()
+    input_op = Input(name="x")
+    output = Output(name="y")
 
     if symmetric and not transposed:
         # Symmetric Direct Form FIR
@@ -221,12 +231,16 @@ def fir(
 
         if taps == 1:
             muls = [
-                ConstantMultiplication(coefficients[0], input_op, **mult_properties)
+                ConstantMultiplication(
+                    coefficients[0], input_op, **{"name": "h[0]", **mult_properties}
+                )
             ]
         else:
             muls = [
                 ConstantMultiplication(
-                    coefficients[i], add_layer_1[i], **mult_properties
+                    coefficients[i],
+                    add_layer_1[i],
+                    **{"name": f"h[{i}]", **mult_properties},
                 )
                 for i in range(taps // 2)
             ]
@@ -242,7 +256,11 @@ def fir(
         # Transposed Direct Form FIR
         prev_delay = None
         for i, coefficient in enumerate(reversed(np_coefficients)):
-            tmp_mul = ConstantMultiplication(coefficient, input_op, **mult_properties)
+            tmp_mul = ConstantMultiplication(
+                coefficient,
+                input_op,
+                **{"name": f"h[{taps - 1 - i}]", **mult_properties},
+            )
             tmp_add = (
                 tmp_mul
                 if prev_delay is None
@@ -255,8 +273,10 @@ def fir(
         # Transposed Symmetric Direct Form FIR
         prev_delay = None
         cmuls = [
-            ConstantMultiplication(coef, input_op, **mult_properties)
-            for coef in np_coefficients[: (taps + 1) // 2]
+            ConstantMultiplication(
+                coef, input_op, **{"name": f"h[{i}]", **mult_properties}
+            )
+            for i, coef in enumerate(np_coefficients[: (taps + 1) // 2])
         ]
         for i in range(taps):
             tmp_mul = cmuls[i] if i < (taps + 1) // 2 else cmuls[taps - i - 1]
@@ -273,7 +293,9 @@ def fir(
         prev_delay = input_op
         prev_add = None
         for i, coefficient in enumerate(np_coefficients):
-            tmp_mul = ConstantMultiplication(coefficient, prev_delay, **mult_properties)
+            tmp_mul = ConstantMultiplication(
+                coefficient, prev_delay, **{"name": f"h[{i}]", **mult_properties}
+            )
             prev_add = (
                 tmp_mul
                 if prev_add is None
@@ -293,7 +315,12 @@ def direct_form_1_iir(
     mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
     add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
-    """Generate a direct-form IIR filter of type I with coefficients a and b."""
+    """
+    Generate a direct-form IIR filter of type I with coefficients a and b.
+
+    Input/output names are ``x``/``y``. Feed-forward coefficient multipliers
+    are ``b[i]``; feedback multipliers are ``-a[i]`` to include their sign.
+    """
     if len(a) < 2 or len(b) < 2:
         raise ValueError(
             "Size of coefficient lists a and b needs to contain at least 2 element."
@@ -310,9 +337,13 @@ def direct_form_1_iir(
         add_properties = {}
 
     # construct the feed-forward part
-    input_op = Input()
+    input_op = Input(name="x")
     if b[0] != 1:
-        muls = [ConstantMultiplication(b[0], input_op, **mult_properties)]
+        muls = [
+            ConstantMultiplication(
+                b[0], input_op, **{"name": "b[0]", **mult_properties}
+            )
+        ]
     else:
         muls = [input_op]
     delays = []
@@ -323,7 +354,9 @@ def direct_form_1_iir(
         if i < len(b) - 1:
             if coeff != 1:
                 muls.append(
-                    ConstantMultiplication(coeff, prev_delay, **mult_properties)
+                    ConstantMultiplication(
+                        coeff, prev_delay, **{"name": f"b[{i + 1}]", **mult_properties}
+                    )
                 )
             else:
                 muls.append(prev_delay)
@@ -335,7 +368,7 @@ def direct_form_1_iir(
     # construct the feedback part
     tmp_add = Addition(op_a, None, **add_properties)
     muls = []
-    output = Output()
+    output = Output(name="y")
     output <<= tmp_add
 
     delays = []
@@ -346,7 +379,11 @@ def direct_form_1_iir(
         if i < len(a) - 1:
             if -coeff != 1:
                 muls.append(
-                    ConstantMultiplication(-coeff, prev_delay, **mult_properties)
+                    ConstantMultiplication(
+                        -coeff,
+                        prev_delay,
+                        **{"name": f"-a[{i + 1}]", **mult_properties},
+                    )
                 )
             else:
                 muls.append(prev_delay)
@@ -367,7 +404,12 @@ def direct_form_2_iir(
     mult_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
     add_properties: dict[str, int] | dict[str, dict[str, int]] | None = None,
 ) -> SFG:
-    """Generate a direct-form IIR filter of type II with coefficients a and b."""
+    """
+    Generate a direct-form IIR filter of type II with coefficients a and b.
+
+    Input/output names are ``x``/``y``. Feed-forward coefficient multipliers
+    are ``b[i]``; feedback multipliers are ``-a[i]`` to include their sign.
+    """
     if len(a) < 2 or len(b) < 2:
         raise ValueError(
             "Size of coefficient lists a and b needs to contain at least 2 element."
@@ -401,14 +443,22 @@ def direct_form_2_iir(
 
         if -a_coeff != 1:
             left_muls.append(
-                ConstantMultiplication(-a_coeff, delays[-1], **mult_properties)
+                ConstantMultiplication(
+                    -a_coeff,
+                    delays[-1],
+                    **{"name": f"-a[{len(a) - 1 - i}]", **mult_properties},
+                )
             )
         else:
             left_muls.append(delays[-1])
 
         if b_coeff != 1:
             right_muls.append(
-                ConstantMultiplication(b_coeff, delays[-1], **mult_properties)
+                ConstantMultiplication(
+                    b_coeff,
+                    delays[-1],
+                    **{"name": f"b[{len(b) - 1 - i}]", **mult_properties},
+                )
             )
         else:
             right_muls.append(delays[-1])
@@ -423,7 +473,7 @@ def direct_form_2_iir(
             op_a_right = right_muls[-1]
 
     # finalize the SFG
-    input_op = Input()
+    input_op = Input(name="x")
     if left_adds:
         left_adds.append(Addition(input_op, left_adds[-1], **add_properties))
     else:
@@ -433,12 +483,14 @@ def direct_form_2_iir(
     if b[0] == 1:
         mul = left_adds[-1]
     else:
-        mul = ConstantMultiplication(b[0], left_adds[-1], **mult_properties)
+        mul = ConstantMultiplication(
+            b[0], left_adds[-1], **{"name": "b[0]", **mult_properties}
+        )
 
     if right_adds:
         add = Addition(mul, right_adds[-1], **add_properties)
     else:
         add = Addition(mul, right_muls[-1], **add_properties)
-    output = Output()
+    output = Output(name="y")
     output <<= add
     return SFG([input_op], [output], name=Name(name))

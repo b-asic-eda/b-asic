@@ -20,8 +20,12 @@ if TYPE_CHECKING:
 
 
 def radix_2_dif_fft(points: int, mem: bool = False) -> SFG:
-    """
+    r"""
     Generate a radix-2 decimation-in-frequency FFT structure.
+
+    Butterflies are named ``bf[stage,index]`` with zero-based indices. Twiddle
+    multipliers are named ``WN^k`` for :math:`W_N^k = e^{-2\pi j k/N}`.
+    Input/output names remain ``x[i]``/``X[i]`` in natural order.
 
     Parameters
     ----------
@@ -86,12 +90,20 @@ def _construct_dif_fft_stage(
             input1 = ports[input1_index]
             input2 = ports[input2_index]
 
-            butterfly = R2Butterfly(input1, input2)
+            butterfly = R2Butterfly(
+                input1,
+                input2,
+                name=f"bf[{stage},{group_index * group_size + bf_index}]",
+            )
             output1, output2 = butterfly.outputs
 
             twiddle_factor = twiddles[bf_index]
             if twiddle_factor != 1:
-                twiddle_mul = ConstantMultiplication(twiddles[bf_index], output2)
+                twiddle_mul = ConstantMultiplication(
+                    twiddles[bf_index],
+                    output2,
+                    name=f"W{len(ports)}^{2**stage * bf_index}",
+                )
                 output2 = twiddle_mul.output(0)
 
             ports[input1_index] = output1
