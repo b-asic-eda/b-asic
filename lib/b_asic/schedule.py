@@ -34,6 +34,7 @@ from b_asic._preferences import (
     SIGNAL_LINEWIDTH,
     SPLINE_OFFSET,
 )
+from b_asic._scheduler_utils import _execution_count
 from b_asic.core_operations import Constant
 from b_asic.graph_component import GraphID
 from b_asic.operation import Operation
@@ -1919,14 +1920,11 @@ class Schedule:
 
     def _execution_times_in_time(self, op_type, time: int) -> int:
         count = 0
+        period = self._schedule_time if self.cyclic else None
         for other_op_id, start_time in self.start_times.items():
-            if self._schedule_time is not None:
-                start_time %= self._schedule_time
             op = cast(Operation, self._sfg.find_by_id(other_op_id))
-            if (
-                time >= start_time
-                and time < start_time + cast(int, op.execution_time)
-                and isinstance(op, op_type)
-            ):
-                count += 1
+            if isinstance(op, op_type):
+                count += _execution_count(
+                    start_time, cast(int, op.execution_time), time, period
+                )
         return count
