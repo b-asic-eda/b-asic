@@ -8,6 +8,7 @@ import copy
 import math
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
+from functools import cmp_to_key
 from typing import TYPE_CHECKING, cast
 
 import pulp
@@ -15,6 +16,11 @@ import pulp
 import b_asic.logger
 from b_asic._cp_utils import _solve_cp_problem
 from b_asic._ilp_utils import _solve_ilp_problem
+from b_asic._scheduler_utils import (
+    _Connection,
+    _execution_occupancy,
+    _get_connections,
+)
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.special_operations import Delay, Input, Output
@@ -79,7 +85,7 @@ class Scheduler(ABC):
                     raise ValueError("Provided input_times values must be integers.")
             if any(time < 0 for time in input_times.values()):
                 raise ValueError("Provided input_times values must be non-negative.")
-            self._input_times = input_times
+            self._input_times = input_times.copy()
         else:
             self._input_times = {}
 
@@ -99,7 +105,7 @@ class Scheduler(ABC):
                 raise ValueError(
                     "Provided output_delta_times values must be non-negative."
                 )
-            self._output_delta_times = output_delta_times
+            self._output_delta_times = output_delta_times.copy()
         else:
             self._output_delta_times = {}
 
@@ -115,7 +121,7 @@ class Scheduler(ABC):
                     raise ValueError("Provided output_times values must be integers.")
             if any(time < 0 for time in output_times.values()):
                 raise ValueError("Provided output_times values must be non-negative.")
-            self._output_times = output_times
+            self._output_times = output_times.copy()
         else:
             self._output_times = {}
 
@@ -132,6 +138,94 @@ class Scheduler(ABC):
             Schedule to apply the scheduling algorithm on.
         """
         raise NotImplementedError
+
+    def _begin_scheduling(self, schedule: "Schedule") -> None:
+        """Start a run with fresh state and validate timing-map operation IDs."""
+        self._schedule = schedule
+        self._op_laps = {}
+        schedule.start_times = {}
+        schedule._laps.clear()
+        for label, timings, op_type in (
+            ("input time", self._input_times, Input),
+            ("output delta time", self._output_delta_times, Output),
+            ("output time", self._output_times, Output),
+        ):
+            for op_id in timings:
+                op = schedule._sfg.find_by_id(op_id)
+                if op is None:
+                    raise ValueError(
+                        f"Provided {label} with GraphID {op_id} cannot be found in the provided SFG."
+                    )
+                if not isinstance(op, op_type):
+                    raise ValueError(
+                        f"Provided {label} with GraphID {op_id} must identify an {op_type.__name__} operation."
+                    )
+        if schedule._schedule_time is not None:
+            for op_id, time in self._output_times.items():
+                if time > schedule._schedule_time:
+                    raise ValueError(
+                        f"Cannot place output {op_id} at time {time} for scheduling time {schedule._schedule_time}."
+                    )
+
+    def _place_fixed_outputs(self) -> None:
+        """Apply absolute output times, retaining any relative output group."""
+        if not self._output_times:
+            return
+        schedule = self._schedule
+        period = schedule._schedule_time if schedule.cyclic else None
+        times = self._output_times.copy()
+        output_ids = times.keys() | self._output_delta_times.keys()
+        earliest = {
+            op_id: schedule.start_times[op_id]
+            + self._op_laps.get(op_id, 0) * (period or 0)
+            - schedule.backward_slack(op_id)
+            for op_id in output_ids
+        }
+        bases = {
+            (time - self._output_delta_times[op_id]) % period
+            if period
+            else time - self._output_delta_times[op_id]
+            for op_id, time in times.items()
+            if op_id in self._output_delta_times
+        }
+        if len(bases) > 1:
+            raise ValueError("Fixed output times conflict with output delta times.")
+        if bases:
+            base = bases.pop()
+            if base < 0:
+                raise ValueError("Fixed output times conflict with output delta times.")
+            if period:
+                required = max(
+                    max(earliest[op_id], self._output_times.get(op_id, 0)) - delta
+                    for op_id, delta in self._output_delta_times.items()
+                )
+                base += ((max(0, required - base) + period - 1) // period) * period
+            times.update(
+                (op_id, base + delta)
+                for op_id, delta in self._output_delta_times.items()
+            )
+        if period or isinstance(self, ListScheduler):
+            for source_id in schedule.start_times:
+                self._op_laps.setdefault(source_id, 0)
+        for op_id, time in times.items():
+            if period and op_id not in self._output_delta_times:
+                time += (
+                    (max(0, earliest[op_id] - time) + period - 1) // period
+                ) * period
+            elif time < earliest[op_id]:
+                raise ValueError(
+                    f"Cannot place output {op_id} at time {time}; earliest time is {earliest[op_id]}."
+                )
+            if period or isinstance(self, ListScheduler):
+                op = cast(Operation, schedule._sfg.find_by_id(op_id))
+                schedule._place_operation(op, time, self._op_laps)
+                self._op_laps[op_id] = (
+                    (time - schedule.start_times[op_id]) // schedule._schedule_time
+                    if schedule._schedule_time
+                    else 0
+                )
+            else:
+                schedule.start_times[op_id] = time
 
     def _place_inputs_on_given_times(self) -> None:
         log.debug("Input placement starting")
@@ -204,18 +298,12 @@ class Scheduler(ABC):
                     and isinstance(self, ListScheduler)
                 ):
                     # Calculate lap number to maintain absolute time relationships
-                    lap_number = new_time // self._schedule._schedule_time
-                    self._op_laps[output.graph_id] = lap_number
                     self._schedule._place_operation(output, new_time, self._op_laps)
+                    self._op_laps[output.graph_id] = (
+                        new_time - self._schedule.start_times[output.graph_id]
+                    ) // self._schedule._schedule_time
                 else:
                     self._schedule.start_times[output.graph_id] = new_time
-
-                count = -1
-                for op_id, time in self._schedule.start_times.items():
-                    if time == new_time and isinstance(
-                        self._schedule._sfg.find_by_id(op_id), Output
-                    ):
-                        count += 1
 
                 modulo_time = (
                     new_time % self._schedule._schedule_time
@@ -299,7 +387,7 @@ class ASAPScheduler(Scheduler):
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Doc-string inherited
-        self._schedule = schedule
+        self._begin_scheduling(schedule)
         prec_list = schedule._sfg.get_precedence_list()
         if len(prec_list) < 2:
             raise ValueError("Empty signal flow graph cannot be scheduled.")
@@ -364,6 +452,7 @@ class ASAPScheduler(Scheduler):
         if self._output_delta_times:
             self._place_outputs_on_given_times()
         schedule.remove_delays()
+        self._place_fixed_outputs()
 
         max_end_time = schedule.get_max_end_time()
 
@@ -396,20 +485,14 @@ class ALAPScheduler(Scheduler):
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Doc-string inherited
-        self._schedule = schedule
+        self._begin_scheduling(schedule)
         ASAPScheduler(
             input_times=self._input_times,
             output_delta_times=self._output_delta_times,
+            output_times=self._output_times,
             sort_y_location=False,
         ).apply_scheduling(schedule)
         self._op_laps = {}
-
-        if self._output_times:
-            for output_id, output_time in self._output_times.items():
-                self._schedule.move_operation(
-                    output_id,
-                    output_time - self._schedule.start_time_of_operation(output_id),
-                )
 
         for input_op in schedule.sfg.find_by_type(Input):
             input_op = cast(Input, input_op)
@@ -504,12 +587,16 @@ class ListScheduler(Scheduler):
         "_max_concurrent_reads",
         "_max_concurrent_writes",
         "_max_resources",
+        "_operation_order",
+        "_operations",
         "_output_slacks",
         "_remaining_ops",
         "_remaining_ops_set",
         "_remaining_resources",
+        "_resource_limits",
         "_sort_order",
         "_used_reads",
+        "_used_writes",
     )
     _remaining_ops: list["GraphID"]
     _deadlines: dict["GraphID", int]
@@ -522,6 +609,10 @@ class ListScheduler(Scheduler):
     _alap_schedule_time: int
     _used_reads: defaultdict[int, int]
     _cached_execution_times: dict["GraphID", int]
+    _operations: dict["GraphID", Operation]
+    _operation_order: dict["GraphID", int]
+    _resource_limits: dict[TypeName, int]
+    _used_writes: defaultdict[int, int]
 
     def __init__(
         self,
@@ -555,6 +646,8 @@ class ListScheduler(Scheduler):
                     )
                 if not isinstance(value, int):
                     raise ValueError("Provided max_resources values must be integers.")
+                if value <= 0:
+                    raise ValueError("Provided max_resources values must be positive.")
                 normalized[TypeName(key)] = value
             self._max_resources = normalized
         else:
@@ -583,6 +676,8 @@ class ListScheduler(Scheduler):
 
         if self._input_times:
             self._place_inputs_on_given_times()
+            for op_id, time in self._input_times.items():
+                self._record_resource_use(self._operations[op_id], time)
             self._remaining_ops = [
                 op_id for op_id in self._remaining_ops if op_id not in self._input_times
             ]
@@ -592,10 +687,11 @@ class ListScheduler(Scheduler):
 
         if self._output_delta_times:
             self._place_outputs_on_given_times()
+        self._schedule.remove_delays()
+        self._place_fixed_outputs()
 
         if self._schedule._schedule_time is None:
             self._schedule.set_schedule_time(self._schedule.get_max_end_time())
-        self._schedule.remove_delays()
         self._handle_utility_operations()
         if self._sort_y_location:
             schedule.sort_y_locations_on_start_times()
@@ -603,42 +699,49 @@ class ListScheduler(Scheduler):
         log.debug("Scheduling completed")
 
     def _validate_constraints(self) -> None:
-        for time_slot in range(self._schedule._schedule_time):
-            for op_type, constraint in self._remaining_resources.items():
-                if (
-                    self._schedule._execution_times_in_time(op_type, time_slot)
-                    > constraint
-                ):
-                    raise ValueError(
-                        "Derived schedule breaches resource constraints for:",
-                        op_type,
-                        " at time slot",
-                        time_slot,
+        period = self._resource_period()
+        occupancy: dict[type[Operation], Counter[int]] = defaultdict(Counter)
+        for op in self._schedule._sfg.operations:
+            if type(op) in self._remaining_resources:
+                occupancy[type(op)].update(
+                    _execution_occupancy(
+                        self._schedule.start_times[op.graph_id],
+                        cast(int, op.execution_time),
+                        period,
                     )
-            if self._max_concurrent_reads:
-                _, mem_vars = self._schedule.get_memory_variables().split_on_length()
-                if mem_vars.read_ports_bound() > self._max_concurrent_reads:
+                )
+        for op_type, constraint in self._remaining_resources.items():
+            for time_slot, count in occupancy[op_type].items():
+                if count > constraint:
                     raise ValueError(
-                        "Derived schedule breaches concurrent read constraints for time slot:",
-                        time_slot,
+                        f"Derived schedule breaches resource constraints for {op_type} at time slot {time_slot}."
                     )
-            if self._max_concurrent_writes:
-                _, mem_vars = self._schedule.get_memory_variables().split_on_length()
-                if mem_vars.write_ports_bound() > self._max_concurrent_writes:
-                    raise ValueError(
-                        "Derived schedule breaches concurrent write constraints for time slot:",
-                        time_slot,
-                    )
+        if self._max_concurrent_reads or self._max_concurrent_writes:
+            _, mem_vars = self._schedule.get_memory_variables().split_on_length()
+            if (
+                self._max_concurrent_reads
+                and mem_vars.read_ports_bound() > self._max_concurrent_reads
+            ):
+                raise ValueError(
+                    "Derived schedule breaches concurrent read constraints."
+                )
+            if (
+                self._max_concurrent_writes
+                and mem_vars.write_ports_bound() > self._max_concurrent_writes
+            ):
+                raise ValueError(
+                    "Derived schedule breaches concurrent write constraints."
+                )
 
     def _get_next_op_id(self, priority_table: PriorityTableType) -> "GraphID":
-        def sort_key(item):
-            return tuple(
-                (item[index] * (-1 if not asc else 1),)
-                for index, asc in self._sort_order
-            )
+        def compare(left, right):
+            for index, ascending in self._sort_order:
+                if left[index] != right[index]:
+                    result = -1 if left[index] < right[index] else 1
+                    return result if ascending else -result
+            return self._operation_order[left[0]] - self._operation_order[right[0]]
 
-        sorted_table = sorted(priority_table, key=sort_key)
-        return sorted_table[0][0]
+        return min(priority_table, key=cmp_to_key(compare))[0]
 
     def _get_priority_table(self, candidate_ids) -> PriorityTableType:
         schedule_time = (
@@ -653,7 +756,11 @@ class ListScheduler(Scheduler):
                 cast(Operation, self._schedule._sfg.find_by_id(op_id)), schedule_time
             )
         ]
-        memory_reads = self._calculate_memory_reads(ready_ops)
+        memory_reads = (
+            self._calculate_memory_reads(ready_ops)
+            if any(index == 4 for index, _ in self._sort_order)
+            else {}
+        )
 
         return [
             (
@@ -661,7 +768,7 @@ class ListScheduler(Scheduler):
                 self._deadlines[op_id],
                 self._output_slacks[op_id],
                 self._fan_outs[op_id],
-                memory_reads[op_id],
+                memory_reads.get(op_id, 0),
             )
             for op_id in ready_ops
         ]
@@ -712,20 +819,31 @@ class ListScheduler(Scheduler):
         return op_reads
 
     def _op_satisfies_resource_constraints(self, op: Operation) -> bool:
-        op_type = type(op)
-        if self._schedule._schedule_time is None:
-            for i in range(max(1, op.execution_time)):
-                time_slot = self._current_time + i
-                count = self._cached_execution_times_in_time[op_type][time_slot]
-                if count >= self._remaining_resources[op_type]:
-                    return False
-        else:
-            for i in range(max(1, cast(int, op.execution_time))):
-                time_slot = (self._current_time + i) % self._schedule._schedule_time
-                count = self._cached_execution_times_in_time[op_type][time_slot]
-                if count >= self._remaining_resources[op_type]:
-                    return False
-        return True
+        period = self._resource_period()
+        demand = _execution_occupancy(
+            self._current_time, cast(int, op.execution_time), period
+        )
+        usage = self._cached_execution_times_in_time[type(op)]
+        return all(
+            usage.get(time_slot, 0) + count <= self._remaining_resources[type(op)]
+            for time_slot, count in demand.items()
+        )
+
+    def _record_resource_use(self, op: Operation, time: int) -> None:
+        period = self._resource_period()
+        for slot, count in _execution_occupancy(
+            time, cast(int, op.execution_time), period
+        ).items():
+            self._cached_execution_times_in_time[type(op)][slot] += count
+        for port in op.outputs:
+            slot = time + cast(int, port.latency_offset)
+            if period:
+                slot %= period
+            self._used_writes[slot] += 1
+
+    def _resource_period(self) -> int | None:
+        """Return the period used for resource sharing during this run."""
+        return self._schedule._schedule_time if self._schedule.cyclic else None
 
     def _op_satisfies_concurrent_writes(self, op: Operation) -> bool:
         if self._max_concurrent_writes:
@@ -738,15 +856,7 @@ class ListScheduler(Scheduler):
                     if self._schedule._schedule_time:
                         output_ready_time %= self._schedule._schedule_time
 
-                    writes_in_time = 0
-                    for op_id, start_time in self._schedule.start_times.items():
-                        tmp_op = cast(Operation, self._schedule._sfg.find_by_id(op_id))
-                        offsets = [
-                            cast(int, output.latency_offset)
-                            for output in tmp_op.outputs
-                        ]
-                        write_times = [start_time + offset for offset in offsets]
-                        writes_in_time += write_times.count(output_ready_time)
+                    writes_in_time = self._used_writes.get(output_ready_time, 0)
 
                     tmp_used_writes[output_ready_time] += 1
 
@@ -782,7 +892,7 @@ class ListScheduler(Scheduler):
 
                     if (
                         self._max_concurrent_reads
-                        < self._used_reads[input_read_time]
+                        < self._used_reads.get(input_read_time, 0)
                         + tmp_used_reads[input_read_time]
                     ):
                         return False
@@ -813,15 +923,32 @@ class ListScheduler(Scheduler):
         return True
 
     def _op_is_schedulable(self, op: Operation, schedule_time: int) -> bool:
+        if op.graph_id in self._output_times:
+            time = self._output_times[op.graph_id]
+            if self._schedule.cyclic and schedule_time:
+                if self._current_time % schedule_time != time % schedule_time or (
+                    time == schedule_time and self._current_time == 0
+                ):
+                    return False
+            elif self._current_time < time:
+                return False
+            elif self._current_time > time:
+                raise ValueError(
+                    f"Cannot place output {op.graph_id} at fixed time {time}."
+                )
         return (
-            self._op_satisfies_resource_constraints(op)
-            and self._op_satisfies_data_dependencies(op, schedule_time)
+            self._op_satisfies_data_dependencies(op, schedule_time)
+            and self._op_satisfies_resource_constraints(op)
             and self._op_satisfies_concurrent_writes(op)
             and self._op_satisfies_concurrent_reads(op)
         )
 
     def _initialize_scheduler(self, schedule: "Schedule") -> None:
-        self._schedule = schedule
+        self._begin_scheduling(schedule)
+        self._operations = {op.graph_id: op for op in schedule._sfg.operations}
+        self._operation_order = {
+            op_id: index for index, op_id in enumerate(self._operations)
+        }
 
         for resource_type in self._max_resources:
             if not self._schedule._sfg.find_by_type_name(resource_type):
@@ -829,28 +956,10 @@ class ListScheduler(Scheduler):
                     f"Provided max resource of type {resource_type} cannot be found in the provided SFG."
                 )
 
-        differing_elems = [
-            resource
-            for resource in self._schedule._sfg.get_used_type_names()
-            if resource not in self._max_resources
-            and resource != Delay.type_name()
-            and resource != DontCare.type_name()
-            and resource != Sink.type_name()
-        ]
-        for type_name in differing_elems:
-            self._max_resources[type_name] = 1
-
-        for key in self._input_times:
-            if self._schedule._sfg.find_by_id(key) is None:
-                raise ValueError(
-                    f"Provided input time with GraphID {key} cannot be found in the provided SFG."
-                )
-
-        for key in self._output_delta_times:
-            if self._schedule._sfg.find_by_id(key) is None:
-                raise ValueError(
-                    f"Provided output delta time with GraphID {key} cannot be found in the provided SFG."
-                )
+        self._resource_limits = self._max_resources.copy()
+        for op in self._operations.values():
+            if not isinstance(op, (Delay, DontCare, Sink)):
+                self._resource_limits.setdefault(op.type_name(), 1)
 
         if self._schedule._cyclic and self._schedule._schedule_time is not None:
             iteration_period_bound = self._schedule._sfg.iteration_period_bound()
@@ -861,7 +970,7 @@ class ListScheduler(Scheduler):
                 )
 
         if self._schedule._schedule_time is not None:
-            for resource_type, resource_amount in self._max_resources.items():
+            for resource_type, resource_amount in self._resource_limits.items():
                 if resource_amount < self._schedule._sfg.resource_lower_bound(
                     resource_type, self._schedule._schedule_time
                 ):
@@ -871,6 +980,7 @@ class ListScheduler(Scheduler):
                     )
 
         alap_schedule = copy.copy(self._schedule)
+        alap_schedule._laps = self._schedule._laps.copy()
         alap_schedule._schedule_time = None
         alap_scheduler = ALAPScheduler(
             input_times=self._input_times,
@@ -906,10 +1016,10 @@ class ListScheduler(Scheduler):
 
         self._remaining_resources = {
             find_type_from_type_name(type_name): cnt
-            for type_name, cnt in self._max_resources.items()
+            for type_name, cnt in self._resource_limits.items()
         }
 
-        self._remaining_ops = [op.graph_id for op in self._schedule._sfg.operations]
+        self._remaining_ops = list(self._operations)
         self._cached_execution_times = {
             op_id: cast(Operation, self._schedule._sfg.find_by_id(op_id)).execution_time
             for op_id in self._remaining_ops
@@ -920,14 +1030,15 @@ class ListScheduler(Scheduler):
         self._remaining_ops = [
             op_id
             for op_id in self._remaining_ops
-            if not isinstance(self._schedule._sfg.find_by_id(op_id), (Delay, DontCare))
+            if not isinstance(self._operations[op_id], (Delay, DontCare, Sink))
         ]
         self._remaining_ops = [
             op_id
             for op_id in self._remaining_ops
             if not (
-                isinstance(self._schedule._sfg.find_by_id(op_id), Output)
+                isinstance(self._operations[op_id], Output)
                 and op_id in self._output_delta_times
+                and op_id not in self._output_times
             )
         ]
 
@@ -946,60 +1057,156 @@ class ListScheduler(Scheduler):
 
         self._schedule.start_times = {}
         self._used_reads = defaultdict(int)
+        self._used_writes = defaultdict(int)
 
         self._current_time = 0
 
     def _schedule_nonrecursive_ops(self) -> None:
         log.debug("Non-recursive operation scheduling starting")
-        while self._remaining_ops:
-            prio_table = self._get_priority_table(self._remaining_ops)
-            while prio_table:
-                next_op_id = self._get_next_op_id(prio_table)
-                next_op = self._schedule._sfg.find_by_id(next_op_id)
-                next_op = cast(Operation, next_op)
-
-                self._update_port_reads(next_op)
-
-                self._remaining_ops = [
-                    op_id for op_id in self._remaining_ops if op_id != next_op_id
-                ]
-                self._remaining_ops_set.remove(next_op_id)
-
-                self._schedule._place_operation(
-                    next_op, self._current_time, self._op_laps
+        successors = defaultdict(set)
+        unmet = {}
+        for op_id in self._remaining_ops:
+            dependencies = {
+                port.connected_source.operation.graph_id
+                for port in self._operations[op_id].inputs
+                if not isinstance(port.connected_source.operation, (Delay, DontCare))
+                and port.connected_source.operation.graph_id in self._remaining_ops_set
+            }
+            unmet[op_id] = len(dependencies)
+            for source_id in dependencies:
+                successors[source_id].add(op_id)
+        ready = {op_id for op_id, count in unmet.items() if count == 0}
+        idle_phases = set()
+        while self._remaining_ops_set:
+            if not ready:
+                raise ValueError(
+                    "Remaining operations have unsatisfied data dependencies."
                 )
-                self._op_laps[next_op_id] = (
-                    (self._current_time) // self._schedule._schedule_time
-                    if self._schedule._schedule_time
-                    else 0
+            prio_table = self._get_priority_table(ready)
+            if not prio_table:
+                period = self._resource_period()
+                release = max(
+                    self._data_available_time(self._operations[op_id])
+                    for op_id in ready
                 )
-
-                if self._schedule._schedule_time is None:
-                    for i in range(max(1, next_op.execution_time)):
-                        time_slot = self._current_time + i
-                        self._cached_execution_times_in_time[type(next_op)][
-                            time_slot
-                        ] += 1
+                if period and self._current_time >= release:
+                    phase = self._current_time % period
+                    if phase in idle_phases:
+                        raise ValueError(
+                            "Remaining operations cannot satisfy scheduling constraints in any time slot."
+                        )
+                    idle_phases.add(phase)
                 else:
-                    for i in range(max(1, cast(int, next_op.execution_time))):
-                        time_slot = (
-                            self._current_time + i
-                        ) % self._schedule._schedule_time
-                        self._cached_execution_times_in_time[type(next_op)][
-                            time_slot
-                        ] += 1
+                    idle_phases.clear()
+                self._current_time = self._next_scheduling_time(ready)
+                continue
 
-                log.debug(
-                    "Schedule operation: %s at time: %d",
-                    next_op.graph_id,
-                    self._current_time,
-                )
-
-                prio_table = self._get_priority_table(self._remaining_ops)
-
-            self._current_time += 1
-        self._current_time -= 1
+            next_op_id = self._get_next_op_id(prio_table)
+            next_op = self._operations[next_op_id]
+            self._update_port_reads(next_op)
+            self._remaining_ops_set.remove(next_op_id)
+            ready.remove(next_op_id)
+            self._schedule._place_operation(next_op, self._current_time, self._op_laps)
+            self._op_laps[next_op_id] = (
+                (self._current_time - self._schedule.start_times[next_op_id])
+                // self._schedule._schedule_time
+                if self._schedule._schedule_time
+                else 0
+            )
+            self._record_resource_use(next_op, self._current_time)
+            for op_id in successors[next_op_id]:
+                unmet[op_id] -= 1
+                if unmet[op_id] == 0:
+                    ready.add(op_id)
+            idle_phases.clear()
+            log.debug(
+                "Schedule operation: %s at time: %d", next_op_id, self._current_time
+            )
+        self._remaining_ops = []
         log.debug("Non-recursive operation scheduling completed")
+
+    def _data_available_time(self, op: Operation) -> int:
+        period = self._schedule._schedule_time or 0
+        available = 0
+        for port in op.inputs:
+            source = cast(OutputPort, port.connected_source)
+            if isinstance(source.operation, (Delay, DontCare)):
+                continue
+            op_id = source.operation.graph_id
+            available = max(
+                available,
+                self._schedule.start_times[op_id]
+                + self._op_laps[op_id] * period
+                + cast(int, source.latency_offset)
+                - cast(int, port.latency_offset),
+            )
+        return available
+
+    def _next_scheduling_time(self, ready: set["GraphID"]) -> int:
+        """Advance to a data release, fixed output time, or resource release."""
+        events = []
+        available = []
+        for op_id in ready:
+            time = self._data_available_time(self._operations[op_id])
+            if op_id in self._output_times:
+                time = max(time, self._output_times[op_id])
+            if time > self._current_time:
+                events.append(time)
+            else:
+                available.append(self._operations[op_id])
+        if available:
+            if self._resource_period() or any(
+                self._op_satisfies_resource_constraints(op) for op in available
+            ):
+                events.append(self._current_time + 1)
+            else:
+                for counts in self._cached_execution_times_in_time.values():
+                    events.extend(
+                        slot + 1
+                        for slot, count in counts.items()
+                        if slot >= self._current_time
+                        and count > counts.get(slot + 1, 0)
+                    )
+        if not events:
+            raise ValueError(
+                "Remaining operations cannot satisfy scheduling constraints."
+            )
+        next_time = min(events)
+        period = self._schedule._schedule_time
+        if (
+            period is not None
+            and self._resource_period() is None
+            and next_time > period
+        ):
+            raise ValueError(
+                f"Remaining operations cannot fit in scheduling time {period}."
+            )
+        if period is None and available:
+            last_event = max(
+                [
+                    *self._used_reads,
+                    *(
+                        slot
+                        for counts in self._cached_execution_times_in_time.values()
+                        for slot in counts
+                    ),
+                    *(
+                        start + cast(int, port.latency_offset)
+                        for op_id, start in self._schedule.start_times.items()
+                        for port in self._operations[op_id].outputs
+                    ),
+                    *(
+                        self._data_available_time(self._operations[op_id])
+                        for op_id in ready
+                    ),
+                ],
+                default=0,
+            )
+            if self._current_time > last_event:
+                raise ValueError(
+                    "Remaining operations cannot satisfy scheduling constraints."
+                )
+        return next_time
 
     def _update_port_reads(self, next_op: Operation) -> None:
         for input_port in next_op.inputs:
@@ -1073,10 +1280,15 @@ class RecursiveListScheduler(ListScheduler):
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         log.debug("Scheduler initializing")
+        self._recursive_ops = []
+        self._recursive_ops_set = set()
+        self._remaining_recursive_ops = []
         self._initialize_scheduler(schedule)
 
         if self._input_times:
             self._place_inputs_on_given_times()
+            for op_id, time in self._input_times.items():
+                self._record_resource_use(self._operations[op_id], time)
             self._remaining_ops = [
                 op_id for op_id in self._remaining_ops if op_id not in self._input_times
             ]
@@ -1104,6 +1316,7 @@ class RecursiveListScheduler(ListScheduler):
             self._schedule.set_schedule_time(self._schedule.get_max_end_time())
         period_bound = self._schedule._sfg.iteration_period_bound()
         self._schedule.remove_delays()
+        self._place_fixed_outputs()
         if loops:
             if int(period_bound) != period_bound:
                 log.warning("Rational iteration period bound: %d", period_bound)
@@ -1114,6 +1327,13 @@ class RecursiveListScheduler(ListScheduler):
             schedule.sort_y_locations_on_start_times()
         self._validate_constraints()
         log.debug("Scheduling completed")
+
+    def _resource_period(self) -> int | None:
+        # Recursive sections establish an iteration period before the rest of
+        # the graph is placed, also when the caller did not request cyclic.
+        if self._recursive_ops:
+            return self._schedule._schedule_time
+        return super()._resource_period()
 
     def _get_recursive_ops(self, loops: list[list["LoopElement"]]) -> list["GraphID"]:
         recursive_ops = []
@@ -1150,8 +1370,10 @@ class RecursiveListScheduler(ListScheduler):
 
     def _retime_ops(self, period_bound: int) -> None:
         # calculate the time goal
-        time_goal = period_bound
-        for type_name, amount_of_resource in self._max_resources.items():
+        time_goal = max(
+            [period_bound, *self._input_times.values(), *self._output_times.values()]
+        )
+        for type_name, amount_of_resource in self._resource_limits.items():
             if type_name in ("out", "in"):
                 continue
             time_required = self._schedule._sfg.resource_lower_bound(
@@ -1175,7 +1397,11 @@ class RecursiveListScheduler(ListScheduler):
             # move all operations forward to the next valid step and check if period can be reduced
             for op_id in sorted_op_ids:
                 op = self._schedule._sfg.find_by_id(op_id)
-                if self._schedule.forward_slack(op_id):
+                if (
+                    op_id not in self._input_times
+                    and op_id not in self._output_times
+                    and self._schedule.forward_slack(op_id)
+                ):
                     delta = 1
                     delta_start_time = self._schedule._start_times[op_id] + delta
                     new_times = (
@@ -1216,6 +1442,8 @@ class RecursiveListScheduler(ListScheduler):
 
                 # adjust time if a gap exists on the left side of the schedule
                 slack = min(self._schedule._start_times.values())
+                if self._input_times or self._output_times:
+                    slack = 0
                 for other_op_id in sorted_op_ids:
                     op = cast(Operation, self._schedule._sfg.find_by_id(other_op_id))
                     max_end_time = 0
@@ -1281,21 +1509,34 @@ class RecursiveListScheduler(ListScheduler):
             self._remaining_ops.remove(op.graph_id)
             self._remaining_ops_set.remove(op.graph_id)
 
-            for i in range(max(1, cast(int, op.execution_time))):
-                time_slot = op_sched_time + i
-                self._cached_execution_times_in_time[op_type][time_slot] += 1
+            self._record_resource_use(op, op_sched_time)
 
             prio_table = self._get_recursive_priority_table()
 
         self._schedule._schedule_time = self._schedule.get_max_end_time()
+        if self._output_times:
+            self._schedule._schedule_time = max(
+                self._schedule._schedule_time, *self._output_times.values()
+            )
 
         if saved_sched_time and saved_sched_time > self._schedule._schedule_time:
             self._schedule._schedule_time = saved_sched_time
+        self._cached_execution_times_in_time = {
+            op_type: defaultdict(int)
+            for op_type in self._cached_execution_times_in_time
+        }
+        self._used_writes.clear()
+        for op_id, time in self._schedule.start_times.items():
+            self._record_resource_use(self._operations[op_id], time)
         log.debug("Scheduling of recursive loops completed")
 
     def _get_next_recursive_op(self, priority_table: PriorityTableType) -> Operation:
-        sorted_table = sorted(priority_table, key=lambda row: row[1])
-        return cast(Operation, self._schedule._sfg.find_by_id(sorted_table[0][0]))
+        return cast(
+            Operation,
+            self._schedule._sfg.find_by_id(
+                min(priority_table, key=lambda row: row[1])[0]
+            ),
+        )
 
     def _pipeline_input_to_recursive_sections(self) -> None:
         for op_id in self._recursive_ops:
@@ -1354,6 +1595,22 @@ class RecursiveListScheduler(ListScheduler):
 class _OptimizationScheduler(Scheduler):
     """Shared timing bounds and schedule extraction for optimizing schedulers."""
 
+    _connections: tuple[_Connection, ...]
+    _max_time: int | None
+
+    def _initialize_optimization(self, schedule: "Schedule") -> list[Operation]:
+        self._begin_scheduling(schedule)
+        operations = [
+            op
+            for op in schedule._sfg.operations
+            if not isinstance(op, (Delay, DontCare, Sink))
+        ]
+        self._connections = _get_connections(operations)
+        for op in operations:
+            if op.execution_time is None:
+                raise ValueError(f"Operation {op.graph_id} has no execution time.")
+        return operations
+
     def _compact_recursive_io(self, schedule: "Schedule", period: int) -> None:
         """Remove boundary slack in absolute time, before folding cyclic laps."""
         if self._output_times:
@@ -1362,35 +1619,29 @@ class _OptimizationScheduler(Scheduler):
         inputs = list(schedule._sfg.find_by_type(Input))
         outputs = list(schedule._sfg.find_by_type(Output))
 
-        # Resolve each connection independently, retaining its delay count.
-        connections: list[tuple[OutputPort, InputPort, int]] = []
-        for op in schedule._sfg.operations:
-            if op.graph_id not in starts or isinstance(op, Delay):
-                continue
-            for port in op.inputs:
-                source = cast(OutputPort, port.connected_source)
-                depth = 0
-                while isinstance(source.operation, Delay):
-                    source = cast(
-                        OutputPort, source.operation.input(0).connected_source
-                    )
-                    depth += 1
-                if not isinstance(source.operation, DontCare):
-                    connections.append((source, port, depth))
+        # Subclasses can also compact a supplied placement without building a
+        # solver model first. Normal solver runs reuse their validated edges.
+        connections = getattr(self, "_connections", None)
+        if connections is None:
+            connections = _get_connections(
+                op
+                for op in schedule._sfg.operations
+                if op.graph_id in starts and not isinstance(op, Delay)
+            )
 
         for op in inputs:
             if op.graph_id not in self._input_times:
                 starts[op.graph_id] = 0
 
         slack = [
-            starts[port.operation.graph_id]
-            + cast(int, port.latency_offset)
-            + depth * period
-            - starts[source.operation.graph_id]
-            - cast(int, source.latency_offset)
-            for source, port, depth in connections
-            if isinstance(source.operation, Input)
-            and not isinstance(port.operation, Output)
+            starts[edge.destination.operation.graph_id]
+            + edge.destination_offset
+            + edge.delay_count * period
+            - starts[edge.source.operation.graph_id]
+            - edge.source_offset
+            for edge in connections
+            if isinstance(edge.source.operation, Input)
+            and not isinstance(edge.destination.operation, Output)
         ]
         moving = starts.keys() - {op.graph_id for op in (*inputs, *outputs)}
         shift = min(slack, default=0)
@@ -1400,7 +1651,12 @@ class _OptimizationScheduler(Scheduler):
             # A rotation must also preserve non-negative laps after folding.
             # Port offsets can make some phases infeasible despite positive slack.
             def valid_rotation(amount: int) -> bool:
-                for source, port, depth in connections:
+                for edge in connections:
+                    source, port, depth = (
+                        edge.source,
+                        edge.destination,
+                        edge.delay_count,
+                    )
                     # Outputs are placed independently below.
                     if isinstance(port.operation, Output):
                         continue
@@ -1428,7 +1684,8 @@ class _OptimizationScheduler(Scheduler):
             starts[op_id] -= shift
 
         earliest = {output.graph_id: 0 for output in outputs}
-        for source, port, depth in connections:
+        for edge in connections:
+            source, port, depth = edge.source, edge.destination, edge.delay_count
             op_id = port.operation.graph_id
             if op_id in earliest:
                 earliest[op_id] = max(
@@ -1473,6 +1730,7 @@ class _OptimizationScheduler(Scheduler):
         output_delta_times: dict["GraphID", int] | None = None,
     ) -> tuple[dict["GraphID", int], int]:
         asap_schedule = copy.copy(schedule)
+        asap_schedule._laps = schedule._laps.copy()
         asap_schedule._schedule_time = None
         asap_scheduler = ASAPScheduler(
             sort_y_location=False,
@@ -1480,8 +1738,6 @@ class _OptimizationScheduler(Scheduler):
             output_delta_times=output_delta_times,
         )
         asap_scheduler.apply_scheduling(asap_schedule)
-        for key in schedule._laps:
-            schedule._laps[key] = 0
         return copy.copy(asap_schedule.start_times), asap_schedule.schedule_time
 
     def _get_alap_start_times(
@@ -1492,6 +1748,7 @@ class _OptimizationScheduler(Scheduler):
         max_time: int | None = None,
     ) -> dict["GraphID", int]:
         alap_schedule = copy.copy(schedule)
+        alap_schedule._laps = schedule._laps.copy()
         if max_time is not None:
             alap_schedule._schedule_time = max_time
         alap_scheduler = ALAPScheduler(
@@ -1500,8 +1757,6 @@ class _OptimizationScheduler(Scheduler):
             output_delta_times=output_delta_times,
         )
         alap_scheduler.apply_scheduling(alap_schedule)
-        for key in schedule._laps:
-            schedule._laps[key] = 0
         upper_bounds = copy.copy(alap_schedule.start_times)
         if output_delta_times:
             # ALAP leaves the relative output group at its ASAP placement.
@@ -1636,14 +1891,18 @@ class ILPScheduler(_OptimizationScheduler):
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Inspired by K.K. Parhi https://doi.org/10.1109/CICC.1993.590480
 
-        Ts = schedule.schedule_time
-
-        self._schedule = schedule
+        ops = self._initialize_optimization(schedule)
         LB, asap_max_time = self._get_asap_start_times(
             schedule,
             input_times=self._input_times,
             output_delta_times=self._output_delta_times,
         )
+        Ts = schedule._schedule_time
+        if Ts is None:
+            Ts = asap_max_time
+            schedule._schedule_time = Ts
+        if Ts <= 0:
+            raise ValueError("ILPScheduler requires a positive schedule time.")
         if not self._schedule.cyclic and asap_max_time > self._schedule.schedule_time:
             raise ValueError(
                 f"Shortest possible schedule time, {asap_max_time}, is longer than requested schedule time {self._schedule.schedule_time}. Use cyclic scheduling or increase schedule time."
@@ -1660,16 +1919,27 @@ class ILPScheduler(_OptimizationScheduler):
         else:
             time_slots = range(Ts + 1)
 
-        ops = [
-            op
-            for op in schedule._sfg.operations
-            if not isinstance(op, (Delay, DontCare, Sink))
-        ]
         op_types = list({op.type_name() for op in ops})
 
         problem = pulp.LpProblem()
-        X = problem.add_variable_dicts("X", (ops, time_slots), cat=pulp.LpBinary)
-        R_used = problem.add_variable_dicts("R_used", op_types, cat=pulp.LpInteger)
+        X = {}
+        for op in ops:
+            op_id = op.graph_id
+            times = range(max(0, LB[op_id]), min(time_slots.stop - 1, UB[op_id]) + 1)
+            if op_id in self._input_times:
+                times = [time for time in times if time == self._input_times[op_id]]
+            if op_id in self._output_times:
+                times = [
+                    time for time in times if time % Ts == self._output_times[op_id]
+                ]
+            if not times:
+                raise ValueError(
+                    "Solution could not be found via ILP, use another method."
+                )
+            X[op] = problem.add_variable_dicts(f"X_{op_id}", times, cat=pulp.LpBinary)
+        R_used = problem.add_variable_dicts(
+            "R_used", op_types, lowBound=0, cat=pulp.LpInteger
+        )
 
         # I/O timing constraints already determine resource requirements.
         # Partial timing maps give lower bounds; complete maps give exact
@@ -1724,38 +1994,15 @@ class ILPScheduler(_OptimizationScheduler):
         initial_values = {
             X[op][time]: int(time == initial_start_times[op.graph_id])
             for op in ops
-            for time in time_slots
+            for time in X[op]
         }
-
-        # w - Stage difference between operations (i.e. number of Delays between)
-        W = {}
-        for op in ops:
-            tmp = {}
-            for input_port in op.inputs:
-                depth = 0
-                source_op = input_port.connected_source.operation
-                while isinstance(source_op, Delay):
-                    source_op = source_op.inputs[0].connected_source.operation
-                    depth += 1
-                tmp[source_op.graph_id] = depth
-            W[op.graph_id] = tmp
 
         # Minimize the amount of concurrent processes and I/O
         problem += pulp.lpSum(R_used[op_type] for op_type in op_types)
 
         # (1) - Each operation should have one and only one start time
         for op in ops:
-            # Variables outside the ASAP/ALAP window must not be selected when
-            # extracting start times, or contribute to resource constraints.
-            for time in time_slots:
-                if not LB[op.graph_id] <= time <= UB[op.graph_id]:
-                    X[op][time].upBound = 0
-            problem += (
-                pulp.lpSum(
-                    X[op][j] for j in range(LB[op.graph_id], UB[op.graph_id] + 1)
-                )
-                == 1
-            )
+            problem += pulp.lpSum(X[op].values()) == 1
 
         if self._output_delta_times:
             # Keep the output offsets relative to a movable common origin.
@@ -1770,90 +2017,50 @@ class ILPScheduler(_OptimizationScheduler):
             for output_id, delta_time in self._output_delta_times.items():
                 output_op = schedule._sfg.find_by_id(output_id)
                 problem += (
-                    pulp.lpSum(
-                        time * X[output_op][time]
-                        for time in range(LB[output_id], UB[output_id] + 1)
-                    )
+                    pulp.lpSum(time * X[output_op][time] for time in X[output_op])
                     == output_origin + delta_time
                 )
 
-        if self._input_times:
-            for input_id, input_time in self._input_times.items():
-                input_op = schedule._sfg.find_by_id(input_id)
-                X[input_op][input_time].setInitialValue(1)
-                X[input_op][input_time].fixValue()
-
-        if self._output_times:
-            for output_id, output_time in self._output_times.items():
-                output_op = schedule._sfg.find_by_id(output_id)
-                for t in time_slots:
-                    if t % Ts != output_time:
-                        X[output_op][t].setInitialValue(0)
-                        X[output_op][t].fixValue()
-
         # (2) - At most R_used[resource_type] can be used in each time slot for every resource type
-        resource_slots = range(Ts) if schedule.cyclic else time_slots
         for op_type in op_types:
-            occupancy = {time: [] for time in resource_slots}
+            occupancy = defaultdict(list)
             for op in ops:
                 if op.type_name() != op_type:
                     continue
-                for start_time in range(LB[op.graph_id], UB[op.graph_id] + 1):
+                for start_time, variable in X[op].items():
                     # Count every occupied slot, including repeated visits if
                     # execution_time exceeds the period. Latency determines
                     # data availability, not resource occupancy.
-                    for offset in range(op.execution_time):
-                        time = start_time + offset
-                        if schedule.cyclic:
-                            time %= Ts
-                        if time in occupancy:
-                            occupancy[time].append(X[op][start_time])
+                    for time, count in _execution_occupancy(
+                        start_time, op.execution_time, Ts if schedule.cyclic else None
+                    ).items():
+                        occupancy[time].append((variable, count))
             for terms in occupancy.values():
-                problem += pulp.lpSum(terms) <= R_used[op_type]
+                problem += (
+                    pulp.lpSum(var * count for var, count in terms) <= R_used[op_type]
+                )
             initial_values[R_used[op_type]] = max(
                 (
-                    sum(initial_values[var] for var in terms)
+                    sum(initial_values[var] * count for var, count in terms)
                     for terms in occupancy.values()
                 ),
                 default=0,
             )
 
         # (3) - Ensure that all timing constraints are met
-        for op in ops:
-            for input_port in op.inputs:
-                source_port = input_port.connected_source
-                source_op = source_port.operation
-                if isinstance(source_op, DontCare):
-                    continue
-                while isinstance(source_op, Delay):
-                    source_port = source_op.inputs[0].connected_source
-                    source_op = source_port.operation
-                a = set(
-                    range(
-                        LB[source_op.graph_id],
-                        UB[source_op.graph_id] + source_op.latency,
-                    )
-                )
-                b = set(
-                    range(
-                        LB[op.graph_id] + Ts * W[op.graph_id][source_op.graph_id],
-                        UB[op.graph_id] + Ts * W[op.graph_id][source_op.graph_id] + 1,
-                    )
-                )
-                for j in list(a & b):
+        for edge in self._connections:
+            source_choices = X[edge.source.operation]
+            dest_choices = X[edge.destination.operation]
+            gap = edge.source_offset - edge.destination_offset - edge.delay_count * Ts
+            for cutoff in dest_choices:
+                late = [
+                    var for time, var in source_choices.items() if time + gap > cutoff
+                ]
+                if late:
                     problem += (
-                        pulp.lpSum(
-                            X[source_op][j2]
-                            for j2 in range(
-                                LB[source_op.graph_id] + input_port.latency_offset,
-                                UB[source_op.graph_id] + 1,
-                            )
-                            if j2 >= j - source_port.latency_offset + 1
-                        )
+                        pulp.lpSum(late)
                         + pulp.lpSum(
-                            X[op][j1]
-                            for j1 in range(LB[op.graph_id], UB[op.graph_id] + 1)
-                            if j1 <= j - W[op.graph_id][source_op.graph_id] * Ts
+                            var for time, var in dest_choices.items() if time <= cutoff
                         )
                         <= 1
                     )
@@ -1887,7 +2094,7 @@ class ILPScheduler(_OptimizationScheduler):
             raise ValueError("Solution could not be found via ILP, use another method.")
 
         for op in ops:
-            for time in range(LB[op.graph_id], UB[op.graph_id] + 1):
+            for time in X[op]:
                 if round(pulp.value(X[op][time])) == 1:
                     schedule.start_times[op.graph_id] = time
                     break
@@ -1926,7 +2133,7 @@ class ILPRecursiveScheduler(ILPScheduler):
     """
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
-        self._schedule = schedule
+        ops = self._initialize_optimization(schedule)
         if self._max_time is not None:
             if not isinstance(self._max_time, int) or self._max_time <= 0:
                 raise ValueError("max_time must be a positive integer.")
@@ -1942,11 +2149,6 @@ class ILPRecursiveScheduler(ILPScheduler):
             raise ValueError("ILPRecursiveScheduler requires a positive schedule time.")
         self._validate_iteration_period(schedule, period)
         horizon = max(period, self._max_time or period)
-        ops = [
-            op
-            for op in schedule._sfg.operations
-            if not isinstance(op, (Delay, DontCare, Sink))
-        ]
         problem = pulp.LpProblem("recursive_schedule", pulp.LpMinimize)
         choices = {}
         starts = {}
@@ -1954,13 +2156,6 @@ class ILPRecursiveScheduler(ILPScheduler):
         wrapped = {}
         groups = defaultdict(list)
         for op in ops:
-            if op.execution_time is None:
-                raise ValueError(f"Operation {op.graph_id} has no execution time.")
-            for port in (*op.inputs, *op.outputs):
-                if port.latency_offset is None:
-                    raise ValueError(
-                        f"Port {port.index} of operation {op.graph_id} has no latency-offset."
-                    )
             times = range(horizon + 1)
             if not schedule.cyclic:
                 # Every produced value must fit within the scheduling horizon.
@@ -2005,35 +2200,22 @@ class ILPRecursiveScheduler(ILPScheduler):
             for op_id, delta in self._output_delta_times.items():
                 problem += starts[op_id] == base + delta
 
-        for op in ops:
-            for port in op.inputs:
-                source = port.connected_source
-                depth = 0
-                seen = set()
-                while isinstance(source.operation, Delay):
-                    if source.operation.graph_id in seen:
-                        raise ValueError(
-                            "A delay-only feedback loop cannot be scheduled."
-                        )
-                    seen.add(source.operation.graph_id)
-                    depth += 1
-                    source = source.operation.input(0).connected_source
-                if isinstance(source.operation, DontCare):
-                    continue
-                source_id = source.operation.graph_id
+        for edge in self._connections:
+            source_id = edge.source.operation.graph_id
+            op_id = edge.destination.operation.graph_id
+            problem += (
+                starts[source_id] + edge.source_offset
+                <= starts[op_id] + edge.destination_offset + edge.delay_count * period
+            )
+            if schedule.cyclic:
+                # Folding must leave a non-negative lap on every signal.
                 problem += (
-                    starts[source_id] + source.latency_offset
-                    <= starts[op.graph_id] + port.latency_offset + depth * period
+                    edge.delay_count
+                    + stages[op_id]
+                    - stages[source_id]
+                    - wrapped[source_id, edge.source.index]
+                    >= 0
                 )
-                if schedule.cyclic:
-                    # Folding must leave a non-negative lap on every signal.
-                    problem += (
-                        depth
-                        + stages[op.graph_id]
-                        - stages[source_id]
-                        - wrapped[source_id, source.index]
-                        >= 0
-                    )
 
         capacities = []
         for op_type, group in groups.items():
@@ -2044,11 +2226,10 @@ class ILPRecursiveScheduler(ILPScheduler):
             occupancy = defaultdict(list)
             for op in group:
                 for time, var in choices[op.graph_id].items():
-                    for offset in range(op.execution_time):
-                        slot = time + offset
-                        if schedule.cyclic:
-                            slot %= period
-                        occupancy[slot].append(var)
+                    for slot, count in _execution_occupancy(
+                        time, op.execution_time, period if schedule.cyclic else None
+                    ).items():
+                        occupancy[slot].append(count * var)
             for terms in occupancy.values():
                 problem += pulp.lpSum(terms) <= capacity
         problem += pulp.lpSum(capacities)
@@ -2175,13 +2356,8 @@ class CPScheduler(_OptimizationScheduler):
         ):
             raise TypeError("CPScheduler requires a CPMpy solver name or instance")
 
-        self._schedule = schedule
+        ops = self._initialize_optimization(schedule)
         lower, upper, Ts, horizon = self._get_timing_bounds(schedule)
-        ops = [
-            op
-            for op in schedule._sfg.operations
-            if not isinstance(op, (Delay, DontCare, Sink))
-        ]
         model = cp.Model()
         starts = {}
         groups = defaultdict(list)
@@ -2240,29 +2416,22 @@ class CPScheduler(_OptimizationScheduler):
         }
         # Follow each input separately: parallel edges may have different delays
         # and different latency offsets even when their source operation agrees.
-        for op in ops:
-            for port in op.inputs:
-                source = port.connected_source
-                depth = 0
-                while isinstance(source.operation, Delay):
-                    source = source.operation.input(0).connected_source
-                    depth += 1
-                if isinstance(source.operation, DontCare):
-                    continue
+        for edge in self._connections:
+            source_id = edge.source.operation.graph_id
+            op_id = edge.destination.operation.graph_id
+            model += (
+                starts[source_id] + edge.source_offset
+                <= starts[op_id] + edge.destination_offset + edge.delay_count * Ts
+            )
+            if schedule.cyclic:
+                source_phase = starts[source_id] - stages[source_id] * Ts
                 model += (
-                    starts[source.operation.graph_id] + source.latency_offset
-                    <= starts[op.graph_id] + port.latency_offset + depth * Ts
+                    edge.delay_count
+                    + stages[op_id]
+                    - stages[source_id]
+                    - (source_phase + edge.source_offset > Ts)
+                    >= 0
                 )
-                if schedule.cyclic:
-                    source_id = source.operation.graph_id
-                    source_phase = starts[source_id] - stages[source_id] * Ts
-                    model += (
-                        depth
-                        + stages[op.graph_id]
-                        - stages[source_id]
-                        - (source_phase + source.latency_offset > Ts)
-                        >= 0
-                    )
 
         capacities = []
         for op_type, group in groups.items():
