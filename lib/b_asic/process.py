@@ -117,6 +117,31 @@ class OperatorProcess(Process):
     def type_name(self) -> TypeName:
         return self._operation.type_name()
 
+    def _physical_port_accesses(self, schedule_time: int) -> set[tuple[str, int, int]]:
+        """Return port demands and reject collisions within one invocation."""
+        accesses = set()
+        op = self.operation
+        for direction, ports, mapping in (
+            ("in", op.inputs, op.input_port_mapping),
+            ("out", op.outputs, op.output_port_mapping),
+        ):
+            for port, physical in zip(ports, mapping, strict=True):
+                if port.latency_offset is None:
+                    raise ValueError(
+                        "Physical port assignment requires latency offsets"
+                    )
+                event = (
+                    direction,
+                    physical,
+                    (self.start_time + port.latency_offset) % schedule_time,
+                )
+                if event in accesses:
+                    raise ValueError(
+                        f"Physical port collision in {self.name!r}: {event}"
+                    )
+                accesses.add(event)
+        return accesses
+
     def __repr__(self) -> str:
         return f"OperatorProcess({self.start_time}, {self.operation}, {self.name!r})"
 
