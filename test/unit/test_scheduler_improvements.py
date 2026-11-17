@@ -12,7 +12,7 @@ from b_asic.schedule import Schedule
 from b_asic.scheduler import (
     ALAPScheduler,
     ASAPScheduler,
-    ILPRecursiveScheduler,
+    CPScheduler,
     ILPScheduler,
     ListScheduler,
     RecursiveListScheduler,
@@ -356,8 +356,10 @@ def test_ilp_creates_only_feasible_start_variables(monkeypatch):
     assert schedule.start_times["out0"] == 20
 
 
-@pytest.mark.parametrize("scheduler_type", [ILPScheduler, ILPRecursiveScheduler])
+@pytest.mark.parametrize("scheduler_type", [ILPScheduler, CPScheduler])
 def test_parallel_connections_keep_their_individual_delays(scheduler_type):
+    if scheduler_type is CPScheduler:
+        pytest.importorskip("cpmpy")
     source = Input()
     op = Addition(source, Delay(source), latency=2, execution_time=1)
     schedule = Schedule(
@@ -383,8 +385,10 @@ def test_recursive_list_retiming_preserves_fixed_io():
     assert schedule.start_times["out0"] == 8
 
 
-@pytest.mark.parametrize("scheduler_type", [ILPScheduler, ILPRecursiveScheduler])
+@pytest.mark.parametrize("scheduler_type", [ILPScheduler, CPScheduler])
 def test_optimization_respects_input_port_offset(scheduler_type):
+    if scheduler_type is CPScheduler:
+        pytest.importorskip("cpmpy")
     source = Input()
     op = ConstantMultiplication(
         2, source, latency_offsets={"in0": 2, "out0": 3}, execution_time=1
