@@ -213,7 +213,8 @@ def test_assumptions_reject_conflicting_recovery():
         )
 
 
-def test_scheduler_recovers_warm_start_after_interruption(monkeypatch):
+@pytest.mark.parametrize("memory_weight", [0, 1])
+def test_scheduler_recovers_warm_start_after_interruption(monkeypatch, memory_weight):
     from b_asic import SFG, ConstantMultiplication, Input, Output
     from b_asic.schedule import Schedule
     from b_asic.scheduler import CPScheduler
@@ -235,6 +236,9 @@ def test_scheduler_recovers_warm_start_after_interruption(monkeypatch):
             solver=solver,
             input_times={"in0": 0},
             output_delta_times={"out0": 0, "out1": 1},
+            read_weight=memory_weight,
+            write_weight=memory_weight,
+            storage_weight=memory_weight,
         ),
         schedule_time=5,
     )

@@ -8,6 +8,7 @@ import copy
 import math
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
+from fractions import Fraction
 from functools import cmp_to_key
 from typing import TYPE_CHECKING, cast
 
@@ -1597,6 +1598,294 @@ class _OptimizationScheduler(Scheduler):
 
     _connections: tuple[_Connection, ...]
     _max_time: int | None
+    _resource_weight: float
+    _read_weight: float
+    _write_weight: float
+    _storage_weight: float
+
+    def __init__(
+        self,
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+        output_times: dict["GraphID", int] | None = None,
+        sort_y_location: bool = True,
+        *,
+        resource_weight: float = 1,
+        read_weight: float = 0,
+        write_weight: float = 0,
+        storage_weight: float = 0,
+    ) -> None:
+        super().__init__(
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+            output_times=output_times,
+            sort_y_location=sort_y_location,
+        )
+        for name, weight in (
+            ("resource_weight", resource_weight),
+            ("read_weight", read_weight),
+            ("write_weight", write_weight),
+            ("storage_weight", storage_weight),
+        ):
+            if (
+                not isinstance(weight, (int, float))
+                or not math.isfinite(weight)
+                or weight < 0
+            ):
+                raise ValueError(f"{name} must be a finite non-negative number.")
+            setattr(self, f"_{name}", weight)
+
+    def _memory_groups(self) -> dict[OutputPort, list[_Connection]]:
+        """Group real consumers by produced value, preserving multicast reads."""
+        groups = defaultdict(list)
+        for edge in self._connections:
+            groups[edge.source].append(edge)
+        return groups
+
+    def _add_ilp_memory_objective(
+        self,
+        problem: pulp.LpProblem,
+        choices: dict["GraphID", dict[int, pulp.LpVariable]],
+        period: int,
+        initial_values: dict[pulp.LpVariable, int] | None = None,
+    ) -> pulp.LpAffineExpression:
+        """Add only enabled memory costs using time-indexed access/live flags."""
+        objective = pulp.lpSum([])
+        if not (self._read_weight or self._write_weight or self._storage_weight):
+            return objective
+
+        reads, writes, storage = defaultdict(list), defaultdict(list), defaultdict(list)
+
+        def indicator(name, active, conditions):
+            conditions = [pulp.lpSum(terms) for terms in conditions if terms]
+            if not active or not conditions:
+                return None
+            active = pulp.lpSum(active)
+            variable = problem.add_variable(name, cat=pulp.LpBinary)
+            problem.addConstraint(variable <= active)
+            problem.addConstraint(variable <= pulp.lpSum(conditions))
+            for condition in conditions:
+                problem.addConstraint(variable >= active + condition - 1)
+            if initial_values is not None:
+
+                def initial(expression):
+                    return expression.constant + sum(
+                        coefficient * initial_values[var]
+                        for var, coefficient in expression.items()
+                    )
+
+                initial_values[variable] = int(
+                    initial(active) and any(initial(term) for term in conditions)
+                )
+            return variable
+
+        def add_usage(usage, time, variable):
+            if variable is not None:
+                usage[time % period if self._schedule.cyclic else time].append(variable)
+
+        for source, edges in self._memory_groups().items():
+            name = f"{source.operation.graph_id}_{source.index}"
+            produced = {
+                time + edges[0].source_offset: var
+                for time, var in choices[source.operation.graph_id].items()
+            }
+            consumed = [
+                {
+                    time + edge.destination_offset + edge.delay_count * period: var
+                    for time, var in choices[
+                        edge.destination.operation.graph_id
+                    ].items()
+                }
+                for edge in edges
+            ]
+            if self._read_weight:
+                candidates = defaultdict(set)
+                for times in consumed:
+                    for time, var in times.items():
+                        candidates[time].add(var)
+                for time, variables in candidates.items():
+                    variable = indicator(
+                        f"memory_read_{name}_{time}",
+                        [var for start, var in produced.items() if start < time],
+                        [[var] for var in variables],
+                    )
+                    add_usage(reads, time, variable)
+            if self._write_weight:
+                for time, var in produced.items():
+                    variable = indicator(
+                        f"memory_write_{name}_{time}",
+                        [var],
+                        [
+                            [var for end, var in times.items() if end > time]
+                            for times in consumed
+                        ],
+                    )
+                    add_usage(writes, time, variable)
+            if self._storage_weight:
+                for time in range(min(produced), max(max(times) for times in consumed)):
+                    variable = indicator(
+                        f"memory_live_{name}_{time}",
+                        [var for start, var in produced.items() if start <= time],
+                        [
+                            [var for end, var in times.items() if end > time]
+                            for times in consumed
+                        ],
+                    )
+                    add_usage(storage, time, variable)
+
+        for name, weight, usage in (
+            ("peak_reads", self._read_weight, reads),
+            ("peak_writes", self._write_weight, writes),
+            ("total_storage", self._storage_weight, storage),
+        ):
+            if not weight:
+                continue
+            capacity = problem.add_variable(name, lowBound=0, cat=pulp.LpInteger)
+            for terms in usage.values():
+                problem += pulp.lpSum(terms) <= capacity
+            if initial_values is not None:
+                initial_values[capacity] = max(
+                    (
+                        sum(initial_values[var] for var in terms)
+                        for terms in usage.values()
+                    ),
+                    default=0,
+                )
+            objective += weight * capacity
+        return objective
+
+    def _add_cp_memory_objective(
+        self, model, starts, period, initial_starts, initial_values
+    ):
+        """Add enabled peak memory costs, counting overlapping cyclic lifetimes."""
+        if not (self._read_weight or self._write_weight or self._storage_weight):
+            return {}
+        import cpmpy as cp  # noqa: PLC0415
+
+        groups = self._memory_groups()
+        reads, writes, storage = [], [], []
+        initial_reads, initial_writes, initial_storage = Counter(), Counter(), Counter()
+        storage_upper = 0
+        for source, edges in groups.items():
+            produced = starts[source.operation.graph_id] + edges[0].source_offset
+            consumed = [
+                starts[edge.destination.operation.graph_id]
+                + edge.destination_offset
+                + edge.delay_count * period
+                for edge in edges
+            ]
+            initial_produced = (
+                initial_starts[source.operation.graph_id] + edges[0].source_offset
+            )
+            initial_consumed = {
+                initial_starts[edge.destination.operation.graph_id]
+                + edge.destination_offset
+                + edge.delay_count * period
+                for edge in edges
+            }
+            if self._read_weight:
+                for index, time in enumerate(consumed):
+                    active = (time > produced) & cp.all(
+                        [time != other for other in consumed[:index]]
+                    )
+                    reads.append((time, active))
+                initial_reads.update(
+                    time % period if self._schedule.cyclic else time
+                    for time in initial_consumed
+                    if time > initial_produced
+                )
+            if self._write_weight or self._storage_weight:
+                end = cp.max(consumed)
+                initial_end = max(initial_consumed)
+                if self._write_weight:
+                    writes.append((produced, end > produced))
+                    if initial_end > initial_produced:
+                        initial_writes.update(
+                            [
+                                initial_produced % period
+                                if self._schedule.cyclic
+                                else initial_produced
+                            ]
+                        )
+                if self._storage_weight:
+                    storage.append((produced, end - produced, end))
+                    initial_storage.update(
+                        _execution_occupancy(
+                            initial_produced,
+                            max(0, initial_end - initial_produced),
+                            period if self._schedule.cyclic else None,
+                        )
+                    )
+                    max_duration = (
+                        max(
+                            starts[edge.destination.operation.graph_id].ub
+                            + edge.destination_offset
+                            + edge.delay_count * period
+                            for edge in edges
+                        )
+                        - starts[source.operation.graph_id].lb
+                        - edges[0].source_offset
+                    )
+                    storage_upper += (
+                        max(0, math.ceil(max_duration / period))
+                        if self._schedule.cyclic
+                        else 1
+                    )
+
+        capacities = {}
+        for name, weight, events, initial in (
+            ("peak_reads", self._read_weight, reads, initial_reads),
+            ("peak_writes", self._write_weight, writes, initial_writes),
+            ("total_storage", self._storage_weight, storage, initial_storage),
+        ):
+            if not weight:
+                continue
+            capacity = cp.intvar(
+                0, storage_upper if name == "total_storage" else len(events), name=name
+            )
+            capacities[name] = capacity
+            initial_values[capacity] = max(initial.values(), default=0)
+            if not events:
+                model += capacity == 0
+            elif self._schedule.cyclic:
+                # Shift the slot by whole periods so modulo operands stay non-negative.
+                shift = (
+                    max(var.ub for var in starts.values())
+                    + max(edges[0].source_offset for edges in groups.values())
+                ) // period + 1
+                for time in range(period):
+                    if name == "total_storage":
+                        occupancy = [
+                            duration // period
+                            + (
+                                (time + shift * period - start) % period
+                                < duration % period
+                            )
+                            for start, duration, _ in events
+                        ]
+                    else:
+                        occupancy = [
+                            active & (start % period == time)
+                            for start, active in events
+                        ]
+                    model += cp.sum(occupancy) <= capacity
+            elif name == "total_storage":
+                model += cp.Cumulative(
+                    [start for start, _, _ in events],
+                    [duration for _, duration, _ in events],
+                    [end for _, _, end in events],
+                    [1] * len(events),
+                    capacity,
+                )
+            else:
+                model += cp.Cumulative(
+                    [start for start, _ in events],
+                    [1] * len(events),
+                    [start + 1 for start, _ in events],
+                    [active for _, active in events],
+                    capacity,
+                )
+        return capacities
 
     def _initialize_optimization(self, schedule: "Schedule") -> list[Operation]:
         self._begin_scheduling(schedule)
@@ -1613,7 +1902,12 @@ class _OptimizationScheduler(Scheduler):
 
     def _compact_recursive_io(self, schedule: "Schedule", period: int) -> None:
         """Remove boundary slack in absolute time, before folding cyclic laps."""
-        if self._output_times:
+        if (
+            self._output_times
+            or self._read_weight
+            or self._write_weight
+            or self._storage_weight
+        ):
             return
         starts = schedule.start_times
         inputs = list(schedule._sfg.find_by_type(Input))
@@ -1758,6 +2052,16 @@ class _OptimizationScheduler(Scheduler):
         )
         alap_scheduler.apply_scheduling(alap_schedule)
         upper_bounds = copy.copy(alap_schedule.start_times)
+        if self._read_weight or self._write_weight or self._storage_weight:
+            # ALAP folds a zero-latency operation at the horizon back to zero.
+            # Memory costs depend on its placement, so retain the absolute bound.
+            for op_id in upper_bounds:
+                op = cast(Operation, alap_schedule._sfg.find_by_id(op_id))
+                if all(port.latency_offset == 0 for port in op.outputs):
+                    upper_bounds[op_id] += (
+                        alap_scheduler._op_laps.get(op_id, 0)
+                        * alap_schedule.schedule_time
+                    )
         if output_delta_times:
             # ALAP leaves the relative output group at its ASAP placement.
             # Translate its bounds to use the available horizon. Only the
@@ -1843,7 +2147,7 @@ class _OptimizationScheduler(Scheduler):
 
 class ILPScheduler(_OptimizationScheduler):
     """
-    ILP-based scheduler that minimizes the sum of per-type resource counts.
+    ILP-based scheduler with weighted resource and memory costs.
 
     Resource occupancy is determined by execution time. For cyclic schedules,
     occupancy includes overlap between successive iterations.
@@ -1868,6 +2172,20 @@ class ILPScheduler(_OptimizationScheduler):
         The time horizon to schedule for in cyclic scheduling.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
+    resource_weight : float, default: 1
+        Weight of the sum of peak resource counts per operation type, including I/O.
+    read_weight : float, default: 0
+        Weight of the peak number of concurrent memory reads. Simultaneous reads
+        of the same value count once; direct transfers require no memory read.
+    write_weight : float, default: 0
+        Weight of the peak number of concurrent memory writes. A produced value
+        is written once if any consumer needs it after its production time.
+    storage_weight : float, default: 0
+        Weight of the peak number of simultaneously stored values. A value is
+        stored from production until its last read, including overlapping cyclic
+        iterations. All weights must be finite and non-negative. Zero weights
+        omit the corresponding variables and constraints; all-zero weights seek
+        any feasible schedule.
     """
 
     def __init__(
@@ -1878,6 +2196,11 @@ class ILPScheduler(_OptimizationScheduler):
         output_times: dict["GraphID", int] | None = None,
         max_time: int | None = None,
         sort_y_location: bool = True,
+        *,
+        resource_weight: float = 1,
+        read_weight: float = 0,
+        write_weight: float = 0,
+        storage_weight: float = 0,
     ) -> None:
         self._solver = solver
         super().__init__(
@@ -1885,6 +2208,10 @@ class ILPScheduler(_OptimizationScheduler):
             output_delta_times=output_delta_times,
             output_times=output_times,
             sort_y_location=sort_y_location,
+            resource_weight=resource_weight,
+            read_weight=read_weight,
+            write_weight=write_weight,
+            storage_weight=storage_weight,
         )
         self._max_time = max_time
 
@@ -1919,7 +2246,7 @@ class ILPScheduler(_OptimizationScheduler):
         else:
             time_slots = range(Ts + 1)
 
-        op_types = list({op.type_name() for op in ops})
+        op_types = list({op.type_name() for op in ops}) if self._resource_weight else []
 
         problem = pulp.LpProblem()
         X = {}
@@ -1960,7 +2287,7 @@ class ILPScheduler(_OptimizationScheduler):
             (Output, (fixed_output_times, self._output_delta_times)),
         ):
             io_ops = [op for op in ops if isinstance(op, io_type)]
-            if not io_ops:
+            if not io_ops or not self._resource_weight:
                 continue
             resource = R_used[io_type.type_name()]
             for timings in timing_maps:
@@ -1997,8 +2324,7 @@ class ILPScheduler(_OptimizationScheduler):
             for time in X[op]
         }
 
-        # Minimize the amount of concurrent processes and I/O
-        problem += pulp.lpSum(R_used[op_type] for op_type in op_types)
+        objective = self._resource_weight * pulp.lpSum(R_used.values())
 
         # (1) - Each operation should have one and only one start time
         for op in ops:
@@ -2065,6 +2391,13 @@ class ILPScheduler(_OptimizationScheduler):
                         <= 1
                     )
 
+        problem += objective + self._add_ilp_memory_objective(
+            problem,
+            {op.graph_id: variables for op, variables in X.items()},
+            Ts,
+            initial_values,
+        )
+
         # Check the ASAP candidate against the complete model before passing
         # it to the solver. Fixed output times or additional resource limits
         # may rule it out even when its data dependencies are satisfied.
@@ -2106,7 +2439,7 @@ class ILPRecursiveScheduler(ILPScheduler):
     """
     ILP scheduler for algorithms with feedback through delays.
 
-    Minimize the sum of peak resource counts, including I/O, for a fixed
+    By default minimize the sum of peak resource counts, including I/O, for a fixed
     iteration period. Each input connection contributes its own precedence
     constraint, with one period of available time per intervening Delay.
     Latency offsets determine data availability; execution times determine
@@ -2117,7 +2450,7 @@ class ILPRecursiveScheduler(ILPScheduler):
     operations to span several iterations before folding into the period.
     Without ``schedule_time``, use the ASAP schedule length as the period.
     Output delta times are relative to a common time chosen by the solver.
-    Unless output times are fixed, compact I/O slack after solving. Unspecified
+    With memory weights zero and output times unfixed, compact I/O slack after solving. Unspecified
     inputs start at zero; the other operations rotate together to remove input
     slack, and outputs move earlier while preserving specified output deltas.
 
@@ -2218,7 +2551,7 @@ class ILPRecursiveScheduler(ILPScheduler):
                 )
 
         capacities = []
-        for op_type, group in groups.items():
+        for op_type, group in groups.items() if self._resource_weight else ():
             capacity = problem.add_variable(
                 f"resources_{op_type}", lowBound=0, cat=pulp.LpInteger
             )
@@ -2232,7 +2565,9 @@ class ILPRecursiveScheduler(ILPScheduler):
                         occupancy[slot].append(count * var)
             for terms in occupancy.values():
                 problem += pulp.lpSum(terms) <= capacity
-        problem += pulp.lpSum(capacities)
+        problem += self._resource_weight * pulp.lpSum(
+            capacities
+        ) + self._add_ilp_memory_objective(problem, choices, period)
         stats = _solve_ilp_problem(problem, self._solver)
         if not stats.has_solution:
             raise ValueError("Solution could not be found via ILP, use another method.")
@@ -2249,10 +2584,10 @@ class ILPRecursiveScheduler(ILPScheduler):
 
 class CPScheduler(_OptimizationScheduler):
     """
-    Constraint programming scheduler minimizing concurrent operations and I/O.
+    Constraint programming scheduler with weighted resource and memory costs.
 
-    Minimizes the sum of peak resource counts for each operation type, including
-    I/O. For cyclic schedules, resource constraints count overlap between
+    By default minimizes the sum of peak resource counts for each operation type,
+    including I/O. For cyclic schedules, resource constraints count overlap between
     successive iterations. I/O timing constraints tighten resource bounds, and
     a feasible ASAP schedule is supplied as a warm start when the solver supports
     solution hints.
@@ -2278,6 +2613,21 @@ class CPScheduler(_OptimizationScheduler):
         period is specified by the Schedule's ``schedule_time`` parameter.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
+    resource_weight : float, default: 1
+        Weight of the sum of peak resource counts per operation type, including I/O.
+    read_weight : float, default: 0
+        Weight of the peak number of concurrent memory reads. Simultaneous reads
+        of the same value count once; direct transfers require no memory read.
+    write_weight : float, default: 0
+        Weight of the peak number of concurrent memory writes. A produced value
+        is written once if any consumer needs it after its production time.
+    storage_weight : float, default: 0
+        Weight of the peak number of simultaneously stored values. A value is
+        stored from production until its last read, including overlapping cyclic
+        iterations. All weights must be finite and non-negative. Zero weights
+        omit the corresponding variables and constraints; all-zero weights seek
+        any feasible schedule. Fractional weights are scaled together to integer
+        coefficients for CP solvers, preserving their ratios.
     **kwargs : Any
         Options passed to the CPMpy solver's ``solve()`` method, for example
         ``time_limit=60`` or, for OR-Tools, ``num_search_workers=4``.
@@ -2301,6 +2651,11 @@ class CPScheduler(_OptimizationScheduler):
         output_times: dict["GraphID", int] | None = None,
         max_time: int | None = None,
         sort_y_location: bool = True,
+        *,
+        resource_weight: float = 1,
+        read_weight: float = 0,
+        write_weight: float = 0,
+        storage_weight: float = 0,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -2308,6 +2663,10 @@ class CPScheduler(_OptimizationScheduler):
             output_delta_times=output_delta_times,
             output_times=output_times,
             sort_y_location=sort_y_location,
+            resource_weight=resource_weight,
+            read_weight=read_weight,
+            write_weight=write_weight,
+            storage_weight=storage_weight,
         )
         if max_time is not None and (not isinstance(max_time, int) or max_time <= 0):
             raise ValueError("max_time must be a positive integer.")
@@ -2434,7 +2793,7 @@ class CPScheduler(_OptimizationScheduler):
                 )
 
         capacities = []
-        for op_type, group in groups.items():
+        for op_type, group in groups.items() if self._resource_weight else ():
             capacity_lower = 0
             capacity_upper = sum(
                 max(1, math.ceil(op.execution_time / Ts)) for op in group
@@ -2509,8 +2868,33 @@ class CPScheduler(_OptimizationScheduler):
                         [1] * len(busy),
                         capacity,
                     )
-        objective = cp.sum(capacities)
-        model.minimize(objective)
+        memory_capacities = self._add_cp_memory_objective(
+            model, starts, Ts, initial_starts, initial_values
+        )
+        weights = [
+            Fraction(str(weight))
+            for weight in (
+                self._resource_weight,
+                self._read_weight,
+                self._write_weight,
+                self._storage_weight,
+            )
+        ]
+        scale = math.lcm(*(weight.denominator for weight in weights))
+        objective = cp.sum(
+            [int(weights[0] * scale) * capacity for capacity in capacities]
+            + [
+                int(weight * scale) * memory_capacities[name]
+                for name, weight in zip(
+                    ("peak_reads", "peak_writes", "total_storage"),
+                    weights[1:],
+                    strict=True,
+                )
+                if weight
+            ]
+        )
+        if any(weights):
+            model.minimize(objective)
         _solve_cp_problem(
             model,
             self._solver,
@@ -2530,7 +2914,7 @@ class CPRecursiveScheduler(CPScheduler):
     """
     Constraint programming scheduler for algorithms with feedback through delays.
 
-    Minimize the sum of peak resource counts, including I/O, using the same
+    By default minimize the sum of peak resource counts, including I/O, using the same
     per-connection feedback constraints as :class:`ILPRecursiveScheduler`.
     Search the full scheduling horizon rather than restricting start times to
     ASAP/ALAP bounds, so iterations may overlap even when the period is shorter
@@ -2542,7 +2926,7 @@ class CPRecursiveScheduler(CPScheduler):
     explicit period, use the ASAP schedule length. Requires the optional
     ``cp`` dependencies (``pip install b-asic[cp]``).
 
-    Compact I/O slack after solving as in :class:`ILPRecursiveScheduler`,
+    With memory weights zero, compact I/O slack as in :class:`ILPRecursiveScheduler`,
     preserving fixed input times and relative output offsets. Fixed output
     times disable this compaction.
 

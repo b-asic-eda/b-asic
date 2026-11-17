@@ -77,7 +77,8 @@ def test_completed_solve_preserves_statistics():
     assert stats.objective == 0
 
 
-def test_scheduler_recovers_initial_schedule_after_interruption():
+@pytest.mark.parametrize("memory_weight", [0, 1])
+def test_scheduler_recovers_initial_schedule_after_interruption(memory_weight):
     input_op = Input()
     multiplications = [
         ConstantMultiplication(value, input_op, latency=1, execution_time=1)
@@ -90,6 +91,9 @@ def test_scheduler_recovers_initial_schedule_after_interruption():
             solver=_InterruptedSolver(),
             input_times={"in0": 0},
             output_delta_times={"out0": 0, "out1": 1},
+            read_weight=memory_weight,
+            write_weight=memory_weight,
+            storage_weight=memory_weight,
         ),
         schedule_time=5,
     )
