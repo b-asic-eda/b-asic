@@ -779,7 +779,16 @@ def _mux_problem(
         for proc in group:
             for t in range(proc.start_time, proc.start_time + proc.execution_time):
                 slots[t % group.schedule_time].add(("pe", op_type, proc))
-        families.append(([("pe", op_type, proc) for proc in group], slots.values()))
+        port_conflicts = [
+            {("pe", op_type, first), ("pe", op_type, second)}
+            for first, second in group._physical_port_exclusion_graph().edges()
+        ]
+        families.append(
+            (
+                [("pe", op_type, proc) for proc in group],
+                [*slots.values(), *port_conflicts],
+            )
+        )
 
     reads = defaultdict(set)
     writes = defaultdict(set)
@@ -831,14 +840,19 @@ def _mux_problem(
             add_connection(
                 op_info[var.write_port.operation],
                 dst,
-                var.write_port.index,
+                var.write_port.operation.output_port_mapping[var.write_port.index],
                 (var, None),
             )
         # Use the actual read port of each chain segment, rather than all
         # consumers of its root producer. Relay reads are represented above.
         for port, delay in var.reads.items():
             if isinstance(port, InputPort):
-                add_connection(dst, op_info[port.operation], (var, delay), port.index)
+                add_connection(
+                    dst,
+                    op_info[port.operation],
+                    (var, delay),
+                    port.operation.input_port_mapping[port.index],
+                )
 
     for var in direct:
         if isinstance(var.write_port.operation, DontCare):
@@ -848,8 +862,8 @@ def _mux_problem(
                 add_connection(
                     op_info[var.write_port.operation],
                     op_info[port.operation],
-                    var.write_port.index,
-                    port.index,
+                    var.write_port.operation.output_port_mapping[var.write_port.index],
+                    port.operation.input_port_mapping[port.index],
                 )
 
     return counts, families, list(dict.fromkeys(links))
@@ -1566,8 +1580,17 @@ def _ilp_min_mux(
     limits = _sanitize_port_option(
         memory_read_ports, memory_write_ports, memory_total_ports
     )
-    if limits[:2] != (1, 1) or any(
-        group.schedule_time != mem_vars.schedule_time for group in op_groups.values()
+    if (
+        limits[:2] != (1, 1)
+        or any(
+            group.schedule_time != mem_vars.schedule_time
+            for group in op_groups.values()
+        )
+        or any(
+            proc.operation._port_mapping_key[2]
+            for group in op_groups.values()
+            for proc in group
+        )
     ):
         return _ilp_min_mux_multiport(
             problem,

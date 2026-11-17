@@ -119,6 +119,12 @@ def sfg_to_python(
             f" {operation.__class__.__name__}({kwarg_unpacker(operation)})\n"
         )
 
+    for operation in sfg.split():
+        if operation._port_mapping_key[2]:
+            result += (
+                f"{operation.graph_id}.set_port_mapping({operation.port_mapping!r})\n"
+            )
+
     result += "\n# Signals:\n"
     # Keep track of already existing connections to avoid adding duplicates
     connections = []
