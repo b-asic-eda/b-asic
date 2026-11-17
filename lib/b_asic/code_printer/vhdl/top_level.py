@@ -174,16 +174,18 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
     # Collect PE input multiplexer info
     pe_mux_info = []  # List of (pe, port_number, assignments)
     for pe in arch.processing_elements:
-        for port_number in range(pe.input_count):
-            assignments = []
-            for process in sorted(pe.collection):
-                op = process.operation
-                if isinstance(op, Input):
-                    continue
-                op_input_port = op.inputs[port_number]
+        pe.validate_port_mapping()
+        assignments_by_port = [[] for _ in range(pe.input_count)]
+        for process in sorted(pe.collection):
+            op = process.operation
+            if isinstance(op, Input):
+                continue
+            for op_input_port in op.inputs:
+                port_number = op.input_port_mapping[op_input_port.index]
+                assignments = assignments_by_port[port_number]
                 source_port = op_input_port.signals[0].source
-                source_port_index = source_port.index
                 source_op = source_port.operation
+                source_port_index = source_op.output_port_mapping[source_port.index]
                 if isinstance(source_op, DontCare):
                     continue
                 is_found = False
@@ -221,6 +223,8 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 source_signal = f"{source_resource.entity_name}_{source_port_index}_out"
                 assignments.append((time, source_signal))
 
+        for port_number in range(pe.input_count):
+            assignments = assignments_by_port[port_number]
             if assignments:
                 pe_mux_info.append((pe, port_number, assignments))
 
@@ -256,7 +260,9 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
             else:
                 # Source is a PE output port
                 source_op_graph_id = var.write_port.operation.graph_id
-                source_port_index = var.write_port.index
+                source_port_index = var.write_port.operation.output_port_mapping[
+                    var.write_port.index
+                ]
                 for other_pe in arch.processing_elements:
                     for pro in other_pe.collection:
                         if pro.operation.graph_id == source_op_graph_id:

@@ -2539,6 +2539,30 @@ class SFG(AbstractOperation):
         for op in self.find_by_type(operation_type):
             cast(Operation, op).set_latency_offsets(latency_offsets)
 
+    def set_port_mapping_of_type_name(
+        self, type_name: TypeName, port_mapping: dict[str, int] | None
+    ) -> None:
+        """
+        Set physical port mappings for operations with the given type name.
+
+        See :meth:`Operation.set_port_mapping` for mapping and reset semantics.
+        """
+        for op in self.find_by_type_name(type_name):
+            cast(Operation, op).set_port_mapping(port_mapping)
+
+    def set_port_mapping_of_type(
+        self, operation_type: type[Operation], port_mapping: dict[str, int] | None
+    ) -> None:
+        """
+        Set physical port mappings for operations with the given type.
+
+        For example, ``sfg.set_port_mapping_of_type(Addition,
+        {"in0": 0, "in1": 0})`` shares the two logical inputs of each addition.
+        See :meth:`Operation.set_port_mapping` for mapping and reset semantics.
+        """
+        for op in self.find_by_type(operation_type):
+            cast(Operation, op).set_port_mapping(port_mapping)
+
     def _traverse_for_precedence_list(
         self, first_iter_ports: list[OutputPort]
     ) -> list[list[OutputPort]]:

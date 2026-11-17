@@ -58,6 +58,17 @@ class Operation(GraphComponent, SignalSourceProvider):
     Operations may specify how to quantize inputs through quantize_input().
     """
 
+    _port_mapping: dict[str, int]
+
+    @property
+    def _port_mapping_key(self) -> tuple:
+        """Hardware compatibility key; mapped interfaces also require equal timing."""
+        inputs, outputs = self.input_port_mapping, self.output_port_mapping
+        mapped = inputs != tuple(range(self.input_count)) or outputs != tuple(
+            range(self.output_count)
+        )
+        return inputs, outputs, tuple(self.latency_offsets.values()) if mapped else ()
+
     def _lean(self, inputs: Sequence[str], output_index: int = 0) -> str:
         """
         Return a Lean real expression for one output using rendered input terms.
@@ -96,6 +107,81 @@ class Operation(GraphComponent, SignalSourceProvider):
         Get the number of output ports.
         """
         raise NotImplementedError
+
+    @property
+    def port_mapping(self) -> dict[str, int]:
+        """
+        Logical-to-physical port indices, with separate input/output namespaces.
+
+        By default each logical port has its own physical port. The returned
+        dictionary is a copy; use :meth:`set_port_mapping` to change the mapping.
+        Logical ports and signal connections are unaffected by this mapping.
+        """
+        return {
+            **{f"in{i}": i for i in range(self.input_count)},
+            **{f"out{i}": i for i in range(self.output_count)},
+            **self._port_mapping,
+        }
+
+    @property
+    def input_port_mapping(self) -> tuple[int, ...]:
+        """Physical input index for each logical input, in logical port order."""
+        mapping = self.port_mapping
+        return tuple(mapping[f"in{i}"] for i in range(self.input_count))
+
+    @property
+    def output_port_mapping(self) -> tuple[int, ...]:
+        """Physical output index for each logical output, in logical port order."""
+        mapping = self.port_mapping
+        return tuple(mapping[f"out{i}"] for i in range(self.output_count))
+
+    @property
+    def physical_input_count(self) -> int:
+        """Number of physical input ports."""
+        return len(set(self.input_port_mapping))
+
+    @property
+    def physical_output_count(self) -> int:
+        """Number of physical output ports."""
+        return len(set(self.output_port_mapping))
+
+    def set_port_mapping(self, port_mapping: Mapping[str, int] | None) -> None:
+        """
+        Set physical ports without changing logical ports or latency offsets.
+
+        For each direction included, specify every logical port. Physical indices
+        must be non-negative integers contiguous from zero. A direction omitted
+        from the mapping keeps its current assignment. Pass ``None`` to reset
+        both directions to distinct ports.
+
+        For example, ``{"in0": 0, "in1": 0}`` shares one physical input.
+        Shared ports must have distinct access times; this is checked when
+        assigning operations to a processing element, including schedule wrap.
+        """
+        if port_mapping is None:
+            self._port_mapping = {}
+            return
+        mapping = dict(port_mapping)
+        known = self.port_mapping
+        for name, index in mapping.items():
+            if name not in known:
+                raise ValueError(f"Unknown logical port: {name!r}")
+            if isinstance(index, bool) or not isinstance(index, int) or index < 0:
+                raise ValueError("Physical port indices must be non-negative integers")
+        for prefix, count in (("in", self.input_count), ("out", self.output_count)):
+            names = {f"{prefix}{i}" for i in range(count)}
+            specified = names.intersection(mapping)
+            if specified:
+                if specified != names:
+                    raise ValueError(
+                        f"Specify all {prefix} ports when mapping that direction"
+                    )
+                indices = {mapping[name] for name in names}
+                if indices != set(range(len(indices))):
+                    raise ValueError(
+                        "Physical port indices must be contiguous from zero"
+                    )
+        self._port_mapping = {**self._port_mapping, **mapping}
 
     @abstractmethod
     def input(self, index: int) -> InputPort:
@@ -595,7 +681,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     behavior.
     """
 
-    __slots__ = ("_execution_time", "_input_ports", "_output_ports")
+    __slots__ = ("_execution_time", "_input_ports", "_output_ports", "_port_mapping")
+    _port_mapping: dict[str, int]
     _input_ports: list[InputPort]
     _output_ports: list[OutputPort]
     _execution_time: int | None
@@ -623,6 +710,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
 
         self._input_ports = [InputPort(self, i) for i in range(input_count)]
         self._output_ports = [OutputPort(self, i) for i in range(output_count)]
+        self._port_mapping = {}
 
         # Connect given input sources, if any.
         if input_sources is not None:
@@ -1000,6 +1088,7 @@ class AbstractOperation(Operation, AbstractGraphComponent):
         for i, output in enumerate(self.outputs):
             new_component.output(i).latency_offset = output.latency_offset
         new_component.execution_time = self._execution_time
+        new_component.set_port_mapping(self.port_mapping)
         return new_component
 
     def inputs_required_for_output(self, output_index: int) -> Iterable[int]:

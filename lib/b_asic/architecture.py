@@ -547,13 +547,33 @@ class ProcessingElement(Resource):
             raise TypeError("Different Operation types in ProcessCollection")
         self._operation_type = op_type
         self._type_name = op_type.type_name()
-        self._input_count = ops[0].input_count
-        self._output_count = ops[0].output_count
+        self._input_count = ops[0].physical_input_count
+        self._output_count = ops[0].physical_output_count
         self._latency = ops[0].latency
         if not all(op.latency == self._latency for op in ops):
             raise ValueError("Operations with different latencies in ProcessCollection")
+        self.validate_port_mapping()
         if assign:
             self.assign()
+
+    def validate_port_mapping(self) -> None:
+        """Validate physical interface compatibility and scheduled port demands."""
+        reference = self.processes[0].operation
+        accesses = set()
+        for process in self.processes:
+            op = process.operation
+            if op._port_mapping_key != reference._port_mapping_key:
+                raise ValueError("Operations with incompatible port mappings or timing")
+            if (
+                op.physical_input_count != self.input_count
+                or op.physical_output_count != self.output_count
+            ):
+                raise ValueError("Operation port mapping changed after PE construction")
+            if reference._port_mapping_key[2]:
+                demands = process._physical_port_accesses(self.schedule_time)
+                if accesses & demands:
+                    raise ValueError("Physical port collision between operations in PE")
+                accesses.update(demands)
 
     @property
     def processes(self) -> list[OperatorProcess]:
@@ -640,6 +660,7 @@ class ProcessingElement(Resource):
         ProcessCollection.split_on_execution_time
 
         """
+        self.validate_port_mapping()
         self._assignment = list(
             self._collection.split_on_execution_time(strategy, **kwargs)
         )
@@ -1189,7 +1210,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
                 else:
                     source = self._operation_outport_to_resource.get(mv.write_port)
                     if source is not None:
-                        inputs[write_index][source, mv.write_port.index] += 1
+                        source_index = mv.write_port.operation.output_port_mapping[
+                            mv.write_port.index
+                        ]
+                        inputs[write_index][source, source_index] += 1
                         self._variable_outport_to_resource[mv.write_port].add(
                             (memory, write_index)
                         )
@@ -1199,7 +1223,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     read_index = read_indices[mv, delay]
                     destination = self._operation_input_port_to_resource.get(read_port)
                     if destination is not None:
-                        outputs[read_index][destination, read_port.index] += 1
+                        destination_index = read_port.operation.input_port_mapping[
+                            read_port.index
+                        ]
+                        outputs[read_index][destination, destination_index] += 1
                         self._variable_input_port_to_resource[read_port].add(
                             (memory, read_index)
                         )
@@ -1216,17 +1243,21 @@ of :class:`~b_asic.architecture.ProcessingElement`
                     self._variable_input_port_to_resource[read_port].add(
                         (
                             self._operation_outport_to_resource[di.write_port],
-                            di.write_port.index,
+                            di.write_port.operation.output_port_mapping[
+                                di.write_port.index
+                            ],
                         )
                     )
                     self._variable_outport_to_resource[di.write_port].add(
                         (
                             self._operation_input_port_to_resource[read_port],
-                            read_port.index,
+                            read_port.operation.input_port_mapping[read_port.index],
                         )
                     )
 
     def validate_ports(self) -> None:
+        for pe in self.processing_elements:
+            pe.validate_port_mapping()
         # Validate inputs and outputs of memory variables in all the memories in this
         # architecture
         memory_read_ports = set()
@@ -1435,10 +1466,10 @@ of :class:`~b_asic.architecture.ProcessingElement`
             var = cast(OperatorProcess, var)
             for i, input_ in enumerate(var.operation.inputs):
                 for v in self._variable_input_port_to_resource[input_]:
-                    d_in[i][v] += 1
+                    d_in[var.operation.input_port_mapping[i]][v] += 1
             for i, output in enumerate(var.operation.outputs):
                 for v in self._variable_outport_to_resource[output]:
-                    d_out[i][v] += 1
+                    d_out[var.operation.output_port_mapping[i]][v] += 1
         return [dict(d) for d in d_in], [dict(d) for d in d_out]
 
     def get_multiplexer_input_count(self, multiplexed_only: bool = False) -> int:
