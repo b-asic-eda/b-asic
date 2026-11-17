@@ -331,6 +331,15 @@ def test_unfolded_control_periods(centralized, registered):
         assert "with memory_schedule_cnt select" in code
 
 
+def test_unfolded_memory_muxes_use_producer_operations():
+    arch = unfolded_architecture()
+    _, memory_muxes = top_level._collect_mux_info(arch)
+    assert len(memory_muxes) == 3
+    for _, port, assignments in memory_muxes:
+        assert port == 0
+        assert {source for _, source in assignments} == {"multipliers_0_out"}
+
+
 def test_unfolded_muxes_select_the_correct_iteration():
     arch = unfolded_architecture()
     pe_muxes, _ = top_level._collect_mux_info(arch)

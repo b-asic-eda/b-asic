@@ -296,13 +296,11 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                     )
             else:
                 # Source is a PE output port
-                source_op_graph_id = var.write_port.operation.graph_id
-                source_port_index = var.write_port.operation.output_port_mapping[
-                    var.write_port.index
-                ]
+                source_op = var.write_port.operation
+                source_port_index = source_op.output_port_mapping[var.write_port.index]
                 for other_pe in arch.processing_elements:
                     for pro in other_pe.collection:
-                        if pro.operation.graph_id == source_op_graph_id:
+                        if pro.operation is source_op:
                             source_pe = other_pe
                             is_found = True
                             break

@@ -131,16 +131,26 @@ def test_multiport_interconnect():
 
 
 def simulate(tmp_path, sources, tb):
-    if not shutil.which("ghdl"):
-        pytest.skip("GHDL is required for memory simulation")
+    if shutil.which("ghdl"):
+        simulator = "ghdl"
+        commands = (
+            ["-a", "--std=08", *sources, "tb.vhdl"],
+            ["-e", "--std=08", "tb"],
+            ["-r", "--std=08", "tb", "--assert-level=error"],
+        )
+    elif shutil.which("nvc"):
+        simulator = "nvc"
+        commands = (
+            ["--std=2008", "-a", *sources, "tb.vhdl"],
+            ["--std=2008", "-e", "tb"],
+            ["--std=2008", "-r", "tb", "--exit-severity=error"],
+        )
+    else:
+        pytest.skip("GHDL or NVC is required for memory simulation")
     (tmp_path / "tb.vhdl").write_text(tb)
-    for arguments in (
-        ["-a", "--std=08", *sources, "tb.vhdl"],
-        ["-e", "--std=08", "tb"],
-        ["-r", "--std=08", "tb", "--assert-level=error"],
-    ):
+    for arguments in commands:
         result = subprocess.run(
-            ["ghdl", *arguments],
+            [simulator, *arguments],
             cwd=tmp_path,
             capture_output=True,
             text=True,

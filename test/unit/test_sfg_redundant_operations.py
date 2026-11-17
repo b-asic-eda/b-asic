@@ -221,6 +221,9 @@ def test_merge_preserves_first_operation_and_original_graph(keep_configurable):
 
 
 @pytest.mark.parametrize("automatic", [False, True])
+@pytest.mark.filterwarnings(
+    "ignore:^Two signals connected to the same output port$:UserWarning"
+)
 def test_merge_multioutput_operations(automatic):
     left, right = Input(), Input()
     first, second = R2Butterfly(left, right), R2Butterfly(left, right)
@@ -237,6 +240,9 @@ def test_merge_multioutput_operations(automatic):
     assert merged.evaluate(7, 2) == graph.evaluate(7, 2) == [9, 5, 9, 5]
 
 
+@pytest.mark.filterwarnings(
+    "ignore:^Two signals connected to the same output port$:UserWarning"
+)
 def test_merge_subset_and_duplicate_chains():
     source = Input()
     products = [ConstantMultiplication(2, source, name=f"product{i}") for i in range(3)]

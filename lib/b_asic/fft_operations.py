@@ -170,9 +170,7 @@ class R2DIFButterfly(AbstractOperation):
         "_latency",
         "_latency_offsets",
         "_name",
-        "_w",
     )
-    _w: complex
     _in0: SignalSourceProvider | None
     _in1: SignalSourceProvider | None
     _name: Name
@@ -267,9 +265,7 @@ class R2DITButterfly(AbstractOperation):
         "_latency",
         "_latency_offsets",
         "_name",
-        "_w",
     )
-    _w: complex
     _in0: SignalSourceProvider | None
     _in1: SignalSourceProvider | None
     _name: Name
@@ -367,11 +363,7 @@ class R2TFButterfly(AbstractOperation):
         "_latency",
         "_latency_offsets",
         "_name",
-        "_w0",
-        "_w1",
     )
-    _w0: complex
-    _w1: complex
     _in0: SignalSourceProvider | None
     _in1: SignalSourceProvider | None
     _name: Name

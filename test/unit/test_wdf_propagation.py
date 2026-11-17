@@ -31,6 +31,9 @@ VALUES = [[2.5, -3.75, 5], [-3.75, 0, 1], [1 + 2j, 3 - 4j, -2 + 0.5j]]
 
 
 @pytest.mark.parametrize(("adaptor_type", "coefficient", "ports"), ADAPTORS)
+@pytest.mark.filterwarnings(
+    "ignore:^Two signals connected to the same output port$:UserWarning"
+)
 def test_zero_inputs(adaptor_type, coefficient, ports):
     for count in range(1, ports):
         for zeros in combinations(range(ports), count):
@@ -158,6 +161,9 @@ def test_all_constants(adaptor_type, coefficient, ports, zero):
         (ReflectionFreeParallelThreePortAdaptor, 0, 3),
         (ReflectionFreeParallelThreePortAdaptor, 1, 3),
     ],
+)
+@pytest.mark.filterwarnings(
+    "ignore:^Two signals connected to the same output port$:UserWarning"
 )
 def test_zero_input_boundary_coefficients(adaptor_type, coefficient, ports):
     test_zero_inputs(adaptor_type, coefficient, ports)

@@ -76,6 +76,9 @@ def test_self_feedback_nonzero_initial_state_opt_out():
 
 
 @pytest.mark.parametrize(("adaptor_type", "coefficient", "ports"), ADAPTORS)
+@pytest.mark.filterwarnings(
+    "ignore:^Two signals connected to the same output port$:UserWarning"
+)
 def test_live_input_feedback_is_not_constant(adaptor_type, coefficient, ports):
     source = Input()
     delays = [Delay() for _ in range(ports - 1)]
