@@ -3,6 +3,7 @@ Generate sorting networks from two-input, two-output comparators.
 
 Inputs are real-valued, and outputs are ordered from smallest at index zero to
 largest at the last index. Every network has fixed, data-independent wiring.
+Inputs and outputs are named ``x[i]`` and ``y[i]`` in port order.
 """
 
 from collections.abc import Iterable, Iterator
@@ -172,7 +173,7 @@ def _validate_size(size: int) -> int:
 
 def _sorting_network(size: int, pairs: Iterable[tuple[int, int]]) -> SFG:
     """Wire compare-exchanges, eliminating virtual positive-infinity inputs."""
-    inputs = [Input() for _ in range(size)]
+    inputs = [Input(name=f"x[{i}]") for i in range(size)]
     ports: list[OutputPort | None] = [source.output(0) for source in inputs]
     ports.extend([None] * ((1 << (size - 1).bit_length()) - size))
     for low, high in pairs:
@@ -183,7 +184,7 @@ def _sorting_network(size: int, pairs: Iterable[tuple[int, int]]) -> SFG:
         elif ports[high] is not None:
             comparator = Comparator(ports[low], ports[high])
             ports[low], ports[high] = comparator.outputs
-    outputs = [Output(port) for port in ports[:size]]
+    outputs = [Output(port, name=f"y[{i}]") for i, port in enumerate(ports[:size])]
     return SFG(inputs=inputs, outputs=outputs)
 
 

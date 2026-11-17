@@ -60,7 +60,8 @@ def matrix_multiplication(
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
-        Signal Flow Graph
+        Signal Flow Graph. Partial dot-product sums are named ``C[i,j,k]``:
+        output row ``i``, output column ``j``, and inner-product step ``k``.
     """
     n = m if n is None else n
     p = m if p is None else p
@@ -93,7 +94,13 @@ def matrix_multiplication(
         for j in range(p):
             tmp = DontCare()
             for k in range(n):
-                tmp = MAD(A[i][k], B[k][j], tmp, do_add=(k != 0), **mad_properties)
+                tmp = MAD(
+                    A[i][k],
+                    B[k][j],
+                    tmp,
+                    do_add=(k != 0),
+                    **{"name": f"C[{i},{j},{k}]", **mad_properties},
+                )
             C.append(
                 MemoryWrite(i * p + j, tmp, memory_name="C", name=f"C[{i},{j}]")
                 if mem
@@ -164,6 +171,9 @@ def strassen_matrix_multiplication(
     Recursion uses seven block products until a block dimension is one, when
     conventional multiplication is used. Padding may add arithmetic operations;
     the graph is not guaranteed to be smaller than conventional multiplication.
+    Scalar products are named ``M1/p[i,j,k]``, ..., ``M7/p[i,j,k]`` for the
+    seven block products. Further recursion extends the path, for example
+    ``M1/M2/p[i,j,k]``. Indices are local to the scalar multiplication block.
 
     References
     ----------
@@ -229,15 +239,19 @@ def strassen_matrix_multiplication(
             [row[cols:] for row in matrix[rows:]],
         )
 
-    def multiply(left, right):
+    def multiply(left, right, prefix=""):
         rows, inner, cols = len(left), len(right), len(right[0])
         if min(rows, inner, cols) == 1:
             result = []
-            for row in left:
+            for i, row in enumerate(left):
                 result_row = []
                 for col in range(cols):
                     products = [
-                        Multiplication(row[k], right[k][col], **mult_properties)
+                        Multiplication(
+                            row[k],
+                            right[k][col],
+                            **{"name": f"{prefix}p[{i},{col},{k}]", **mult_properties},
+                        )
                         for k in range(inner)
                     ]
                     total = products[0]
@@ -249,13 +263,17 @@ def strassen_matrix_multiplication(
 
         a11, a12, a21, a22 = split(left)
         b11, b12, b21, b22 = split(right)
-        product1 = multiply(combine(a11, a22), combine(b11, b22))
-        product2 = multiply(combine(a21, a22), b11)
-        product3 = multiply(a11, combine(b12, b22, subtract=True))
-        product4 = multiply(a22, combine(b21, b11, subtract=True))
-        product5 = multiply(combine(a11, a12), b22)
-        product6 = multiply(combine(a21, a11, subtract=True), combine(b11, b12))
-        product7 = multiply(combine(a12, a22, subtract=True), combine(b21, b22))
+        product1 = multiply(combine(a11, a22), combine(b11, b22), prefix + "M1/")
+        product2 = multiply(combine(a21, a22), b11, prefix + "M2/")
+        product3 = multiply(a11, combine(b12, b22, subtract=True), prefix + "M3/")
+        product4 = multiply(a22, combine(b21, b11, subtract=True), prefix + "M4/")
+        product5 = multiply(combine(a11, a12), b22, prefix + "M5/")
+        product6 = multiply(
+            combine(a21, a11, subtract=True), combine(b11, b12), prefix + "M6/"
+        )
+        product7 = multiply(
+            combine(a12, a22, subtract=True), combine(b21, b22), prefix + "M7/"
+        )
 
         c11 = combine(
             combine(combine(product1, product4), product5, subtract=True), product7
