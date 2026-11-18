@@ -244,7 +244,9 @@ def mux_controls(
     return result
 
 
-def declarations(f: TextIO, controls: list[Control], schedule_time: int) -> None:
+def declarations(
+    f: TextIO, controls: list[Control], schedule_time: int, *, prefix: str = ""
+) -> None:
     if not controls:
         return
     width = sum(item.bits for item in controls)
@@ -253,9 +255,9 @@ def declarations(f: TextIO, controls: list[Control], schedule_time: int) -> None
     common.write(
         f,
         1,
-        f"type control_rom_type is array (0 to {depth - 1}) of std_logic_vector({width - 1} downto 0);",
+        f"type {prefix}control_rom_type is array (0 to {depth - 1}) of std_logic_vector({width - 1} downto 0);",
     )
-    common.write(f, 1, "constant control_rom : control_rom_type := (")
+    common.write(f, 1, f"constant {prefix}control_rom : {prefix}control_rom_type := (")
     for time in range(schedule_time):
         word = "".join(item.values[time] for item in controls)
         common.write(f, 2, f'{time} => "{word}",')
@@ -263,18 +265,18 @@ def declarations(f: TextIO, controls: list[Control], schedule_time: int) -> None
     common.write(f, 1, ");")
     if any(not item.registered for item in controls):
         common.signal_declaration(
-            f, "control_word", f"std_logic_vector({width - 1} downto 0)"
+            f, f"{prefix}control_word", f"std_logic_vector({width - 1} downto 0)"
         )
     if any(item.registered for item in controls):
         common.signal_declaration(
             f,
-            "control_word_reg",
+            f"{prefix}control_word_reg",
             f"std_logic_vector({width - 1} downto 0)",
-            default_value=f"control_rom({schedule_time - 1})",
+            default_value=f"{prefix}control_rom({schedule_time - 1})",
         )
     high = width - 1
     for item in controls:
-        word = "control_word_reg" if item.registered else "control_word"
+        word = prefix + ("control_word_reg" if item.registered else "control_word")
         low = high - item.bits + 1
         if item.vhdl_type == "std_logic":
             alias_type = "std_logic"
@@ -296,17 +298,33 @@ def port_signal(item: Control) -> str:
 
 
 def statements(
-    f: TextIO, controls: list[Control], en_sig: str, schedule_time: int
+    f: TextIO,
+    controls: list[Control],
+    en_sig: str,
+    schedule_time: int,
+    *,
+    prefix: str = "",
+    counter: str = "schedule_cnt",
 ) -> None:
     if not controls:
         return
     if any(not item.registered for item in controls):
-        common.write(f, 1, "control_word <= control_rom(to_integer(schedule_cnt));")
+        common.write(
+            f, 1, f"{prefix}control_word <= {prefix}control_rom(to_integer({counter}));"
+        )
     if any(item.registered for item in controls):
-        common.synchronous_process_prologue(f, name="control_rom_proc")
+        common.synchronous_process_prologue(f, name=f"{prefix}control_rom_proc")
         common.write(f, 3, "if rst = '1' then")
-        common.write(f, 4, f"control_word_reg <= control_rom({schedule_time - 1});")
+        common.write(
+            f,
+            4,
+            f"{prefix}control_word_reg <= {prefix}control_rom({schedule_time - 1});",
+        )
         common.write(f, 3, f"elsif {en_sig} = '1' then")
-        common.write(f, 4, "control_word_reg <= control_rom(to_integer(schedule_cnt));")
+        common.write(
+            f,
+            4,
+            f"{prefix}control_word_reg <= {prefix}control_rom(to_integer({counter}));",
+        )
         common.write(f, 3, "end if;")
-        common.synchronous_process_epilogue(f, name="control_rom_proc")
+        common.synchronous_process_epilogue(f, name=f"{prefix}control_rom_proc")

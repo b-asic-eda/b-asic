@@ -108,6 +108,8 @@ class VhdlPrinter(Printer):
             centralize_control : :class:`bool`, default ``True``
                 Generate a shared schedule-indexed control ROM in the top-level
                 architecture instead of distributed control generation.
+                When memory storage is unfolded, use separate PE and memory
+                control ROMs indexed by their respective schedule counters.
             pipeline_control : :class:`bool`, default ``False``
                 Register all outputs of the centralized control ROM. Component
                 control pipeline options must agree with this setting when supplied.
@@ -324,7 +326,7 @@ class VhdlPrinter(Printer):
                 controls[mem.entity_name] = control.memory_controls(mem, kwargs)
             pe_mux_info, mem_mux_info = top_level._collect_mux_info(arch)
             controls[""] = control.mux_controls(
-                arch.schedule_time,
+                arch.memory_schedule_time,
                 pe_mux_info,
                 mem_mux_info,
                 multiplexer_control_registered,

@@ -1030,13 +1030,14 @@ class Memory(Resource):
         en_sig: str = "en",
         control_ports=(),
         include_schedule_counter: bool = True,
+        schedule_counter: str = "schedule_cnt",
     ) -> None:
         port_mappings = [
             "clk => clk",
             f"en => {en_sig}",
         ]
         if include_schedule_counter:
-            port_mappings.append("schedule_cnt => schedule_cnt")
+            port_mappings.append(f"schedule_cnt => {schedule_counter}")
         port_mappings += [f"{port} => {signal}" for port, signal in control_ports]
         port_mappings += [
             f"p_{port_number}_in => {self.entity_name}_{port_number}_in"
@@ -1121,16 +1122,28 @@ of :class:`~b_asic.architecture.ProcessingElement`
         self._build_dicts()
 
     def _check_and_get_schedule_time(self) -> int:
-        schedule_times = set()
-        for memory in self._memories:
-            schedule_times.add(memory.schedule_time)
-        for pe in self._processing_elements:
-            schedule_times.add(pe.schedule_time)
+        schedule_times = {pe.schedule_time for pe in self._processing_elements}
         if self._direct_interconnects is not None:
             schedule_times.add(self._direct_interconnects.schedule_time)
+        memory_times = {memory.schedule_time for memory in self._memories}
+        if not schedule_times:
+            schedule_times = memory_times
         if len(schedule_times) != 1:
             raise ValueError(f"Different schedule times: {schedule_times}")
-        return schedule_times.pop()
+        schedule_time = next(iter(schedule_times))
+        if len(memory_times) > 1 or any(
+            time < schedule_time or time % schedule_time for time in memory_times
+        ):
+            raise ValueError(
+                f"Different schedule times: memory periods {memory_times} must be "
+                f"one integer multiple of the PE period {schedule_time}"
+            )
+        return schedule_time
+
+    @property
+    def memory_schedule_time(self) -> int:
+        """Return the memory control period, an integer multiple of the PE period."""
+        return self._memories[0].schedule_time if self._memories else self.schedule_time
 
     def _build_dicts(self) -> None:
         self._variable_input_port_to_resource = defaultdict(set)
@@ -1323,6 +1336,13 @@ of :class:`~b_asic.architecture.ProcessingElement`
             schedule_time_type(self.schedule_time),
             "(others => '0')",
         )
+        if self.memory_schedule_time != self.schedule_time:
+            common.signal_declaration(
+                f,
+                "memory_schedule_cnt",
+                schedule_time_type(self.memory_schedule_time),
+                "(others => '0')",
+            )
         common.blank(f)
 
     def write_component_instantiation(
