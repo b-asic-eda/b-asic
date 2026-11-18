@@ -34,9 +34,11 @@ _GENERATORS_AND_MODES = [
 @pytest.mark.parametrize(("generator", "mode"), _GENERATORS_AND_MODES)
 @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
 @pytest.mark.parametrize("mem", [False, True])
-def test_matrix_inverse_memory_layout_and_values(generator, mode, pe, mem):
-    size = 4
-    graph = generator(size, mode=mode, pe=pe, mem=mem)
+@pytest.mark.parametrize("cmplx", [False, True])
+@pytest.mark.parametrize("size", [2, 4, 6])
+def test_matrix_inverse_memory_layout_and_values(generator, mode, pe, mem, cmplx, size):
+    graph = generator(size, mode=mode, pe=pe, mem=mem, cmplx=cmplx)
+    assert bool(graph.operation_counter().get("conj", 0)) == cmplx
     rows, cols = np.tril_indices(size)
     assert len(graph.input_operations) == len(rows)
     assert len(graph.output_operations) == len(rows)
@@ -51,8 +53,11 @@ def test_matrix_inverse_memory_layout_and_values(generator, mode, pe, mem):
             assert read.address == write.address == address
             assert read.memory_name == write.memory_name == ""
 
-    matrix = np.array([[2, 1, 0, 1], [1, 3, 1, 0], [0, 1, 4, 1], [1, 0, 1, 5]])
-    matrix = matrix @ matrix.T + np.eye(size)
+    rng = np.random.default_rng(42)
+    factor = rng.normal(size=(size, size))
+    if cmplx:
+        factor = factor + 1j * rng.normal(size=(size, size))
+    matrix = factor @ factor.conj().T + np.eye(size)
     actual = graph.evaluate_outputs(matrix[rows, cols])
     expected = np.linalg.inv(matrix)[rows, cols]
     np.testing.assert_allclose(actual, expected, rtol=1e-10, atol=1e-12)
