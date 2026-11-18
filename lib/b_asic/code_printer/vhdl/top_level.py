@@ -2,6 +2,7 @@
 Module for VHDL code generation of top level designs.
 """
 
+from itertools import product
 from typing import TYPE_CHECKING, TextIO
 
 from b_asic.code_printer.util import selector_bits, time_bin_str
@@ -62,6 +63,8 @@ def architecture(
     streams: list[streaming.Endpoint] | None = None,
 ) -> None:
     controls = controls or {}
+    unfolded = arch.memory_schedule_time != arch.schedule_time
+    memory_counter = "memory_schedule_cnt" if unfolded else "schedule_cnt"
     if streams:
         en_sig = "core_en"
     elif not enable_pin:
@@ -96,7 +99,25 @@ def architecture(
     if streams:
         streaming.declarations(f, streams, dt)
     all_controls = [item for items in controls.values() for item in items]
-    control.declarations(f, all_controls, arch.schedule_time)
+    if unfolded:
+        pe_controls = [
+            item
+            for pe in arch.processing_elements
+            for item in controls.get(pe.entity_name, [])
+        ]
+        memory_controls = [
+            item
+            for name in [*(mem.entity_name for mem in arch.memories), ""]
+            for item in controls.get(name, [])
+        ]
+        control_groups = [
+            (pe_controls, arch.schedule_time, "pe_", "schedule_cnt"),
+            (memory_controls, arch.memory_schedule_time, "memory_", memory_counter),
+        ]
+    else:
+        control_groups = [(all_controls, arch.schedule_time, "", "schedule_cnt")]
+    for items, period, prefix, _ in control_groups:
+        control.declarations(f, items, period, prefix=prefix)
     has_memory_io = any(memory_io.is_memory_io(pe) for pe in arch.processing_elements)
     if has_memory_io:
         common.signal_declaration(f, "memory_io_en", "std_logic")
@@ -140,6 +161,7 @@ def architecture(
             f,
             en_sig=en_sig,
             include_schedule_counter=mem.entity_name not in controls,
+            schedule_counter=memory_counter,
             control_ports=[
                 (item.port, control.port_signal(item))
                 for item in controls.get(mem.entity_name, [])
@@ -147,9 +169,19 @@ def architecture(
         )
 
     _write_schedule_counter(f, arch, en_sig, enable_pin or bool(streams))
+    if unfolded:
+        _write_schedule_counter(
+            f,
+            arch,
+            en_sig,
+            enable_pin or bool(streams),
+            schedule_time=arch.memory_schedule_time,
+            counter=memory_counter,
+        )
     if all_controls:
         common.write(f, 1, "-- Centralized control")
-    control.statements(f, all_controls, en_sig, arch.schedule_time)
+    for items, period, prefix, counter in control_groups:
+        control.statements(f, items, en_sig, period, prefix=prefix, counter=counter)
     if all_controls:
         common.blank(f)
 
@@ -157,12 +189,13 @@ def architecture(
     if not controls:
         _write_mux_control_signals(
             f,
-            arch.schedule_time,
+            arch.memory_schedule_time,
             pe_mux_info,
             mem_mux_info,
             multiplexer_control_registered,
             en_sig,
             enable_pin or bool(streams),
+            counter=memory_counter,
         )
     _write_interconnect(f, dt, pe_mux_info, mem_mux_info)
 
@@ -176,7 +209,10 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
     for pe in arch.processing_elements:
         for port_number in range(pe.input_count):
             assignments = []
-            for process in sorted(pe.collection):
+            for process, phase in product(
+                sorted(pe.collection),
+                range(arch.memory_schedule_time // arch.schedule_time),
+            ):
                 op = process.operation
                 if isinstance(op, Input):
                     continue
@@ -189,14 +225,15 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 is_found = False
 
                 input_latency = op_input_port.latency_offset or 0
+                time = (
+                    process.start_time + input_latency
+                ) % arch.schedule_time + phase * arch.schedule_time
                 for mem in arch.memories:
                     for var in mem.collection:
                         if op_input_port not in var.reads:
                             continue
                         delay = var.reads[op_input_port]
-                        if (var.start_time + delay) % arch.schedule_time == (
-                            process.start_time + input_latency
-                        ) % arch.schedule_time:
+                        if (var.start_time + delay) % arch.memory_schedule_time == time:
                             source_resource = mem
                             is_found = True
                             source_port_index = ports[mem][var, delay]
@@ -217,7 +254,6 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                 if not is_found:
                     raise ValueError("Source resource not found.")
 
-                time = (process.start_time + input_latency) % arch.schedule_time
                 source_signal = f"{source_resource.entity_name}_{source_port_index}_out"
                 assignments.append((time, source_signal))
 
@@ -231,7 +267,7 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
         for var in mem.collection:
             assignments = assignments_by_port[ports[mem][var, None]]
             is_found = False
-            time = var.start_time % arch.schedule_time
+            time = var.start_time % arch.memory_schedule_time
 
             if isinstance(var.write_port, MemoryOutputPort):
                 # Source is another memory variable (chained lifetime split)
@@ -241,7 +277,8 @@ def _collect_mux_info(arch: "Architecture") -> tuple[list[tuple], list[tuple]]:
                         delay = next(
                             delay
                             for delay in sorted(set(source_var.reads.values()))
-                            if (source_var.start_time + delay) % arch.schedule_time
+                            if (source_var.start_time + delay)
+                            % arch.memory_schedule_time
                             == time
                         )
                         source_index = ports[other_mem][source_var, delay]
@@ -334,6 +371,8 @@ def _write_mux_control_signals(
     multiplexer_control_registered: bool = False,
     en_sig: str = "en",
     enable_pin: bool = True,
+    *,
+    counter: str = "schedule_cnt",
 ) -> None:
     if not pe_mux_info and not mem_mux_info:
         return
@@ -347,7 +386,7 @@ def _write_mux_control_signals(
             # Build source to index mapping
             source_to_idx = {src: idx for idx, src in enumerate(unique_sources)}
 
-            common.write(f, 1, "with schedule_cnt select")
+            common.write(f, 1, f"with {counter} select")
             if multiplexer_control_registered:
                 common.write(f, 2, f"{pe.entity_name}_{port_number}_sel_next <=")
             else:
@@ -400,7 +439,7 @@ def _write_mux_control_signals(
             # Build source to index mapping
             source_to_idx = {src: idx for idx, src in enumerate(unique_sources)}
 
-            common.write(f, 1, "with schedule_cnt select")
+            common.write(f, 1, f"with {counter} select")
             if multiplexer_control_registered:
                 common.write(f, 2, f"{mem.entity_name}_{port_number}_sel_next <=")
             else:
@@ -510,20 +549,25 @@ def _write_schedule_counter(
     arch: "Architecture",
     en_sig: str = "en",
     enable_pin: bool = True,
+    *,
+    schedule_time: int | None = None,
+    counter: str = "schedule_cnt",
 ) -> None:
+    if schedule_time is None:
+        schedule_time = arch.schedule_time
     common.write(f, 1, "-- Schedule counter")
-    common.synchronous_process_prologue(f, name="schedule_cnt_proc")
+    common.synchronous_process_prologue(f, name=f"{counter}_proc")
     if enable_pin:
         common.write_lines(
             f,
             [
                 (3, "if rst = '1' then"),
-                (4, "schedule_cnt <= (others => '0');"),
+                (4, f"{counter} <= (others => '0');"),
                 (3, f"elsif {en_sig} = '1' then"),
-                (4, f"if schedule_cnt = {arch.schedule_time - 1} then"),
-                (5, "schedule_cnt <= (others => '0');"),
+                (4, f"if {counter} = {schedule_time - 1} then"),
+                (5, f"{counter} <= (others => '0');"),
                 (4, "else"),
-                (5, "schedule_cnt <= schedule_cnt + 1;"),
+                (5, f"{counter} <= {counter} + 1;"),
                 (4, "end if;"),
                 (3, "end if;"),
             ],
@@ -533,17 +577,17 @@ def _write_schedule_counter(
             f,
             [
                 (3, "if rst = '1' then"),
-                (4, "schedule_cnt <= (others => '0');"),
+                (4, f"{counter} <= (others => '0');"),
                 (3, "else"),
-                (4, f"if schedule_cnt = {arch.schedule_time - 1} then"),
-                (5, "schedule_cnt <= (others => '0');"),
+                (4, f"if {counter} = {schedule_time - 1} then"),
+                (5, f"{counter} <= (others => '0');"),
                 (4, "else"),
-                (5, "schedule_cnt <= schedule_cnt + 1;"),
+                (5, f"{counter} <= {counter} + 1;"),
                 (4, "end if;"),
                 (3, "end if;"),
             ],
         )
-    common.synchronous_process_epilogue(f, name="schedule_cnt_proc", clk="clk")
+    common.synchronous_process_epilogue(f, name=f"{counter}_proc", clk="clk")
     common.blank(f)
 
 

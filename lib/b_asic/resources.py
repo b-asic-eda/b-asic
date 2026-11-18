@@ -3010,7 +3010,71 @@ class ProcessCollection:
             ProcessCollection(long, self.schedule_time, self._cyclic),
         )
 
-    def split_into_chains(self, max_length: int | None = None) -> "ProcessCollection":
+    def unfold(self, factor: int) -> "ProcessCollection":
+        """
+        Repeat memory variables over an integer number of schedule periods.
+
+        Lifetimes and operation ports are preserved. Only storage is unfolded;
+        processing elements can continue to repeat on their original period.
+        Relay ports in existing chains are reconnected to the corresponding
+        copies, including transfers across the unfolded period boundary.
+
+        Parameters
+        ----------
+        factor : int
+            Positive number of original periods in the resulting memory period.
+
+        Returns
+        -------
+        :class:`~b_asic.resources.ProcessCollection`
+            Memory variables with schedule time ``factor * self.schedule_time``.
+            The cyclic setting is preserved; physical ports must be reassigned.
+        """
+        if isinstance(factor, bool) or not isinstance(factor, int) or factor < 1:
+            raise ValueError("factor must be a positive integer")
+        if any(not isinstance(process, MemoryProcess) for process in self):
+            raise TypeError("Only memory variables can be unfolded")
+        if factor == 1:
+            return ProcessCollection(self, self.schedule_time, self._cyclic)
+
+        copies = {
+            (process, iteration): type(process)(
+                process.start_time + iteration * self.schedule_time,
+                process.write_port,
+                dict(process.reads),
+                name=f"{process.name}_unfold{iteration}",
+            )
+            for process in self
+            for iteration in range(factor)
+        }
+        for (process, _iteration), copy in copies.items():
+            reads = {}
+            for port, delay in process.reads.items():
+                if not isinstance(port, MemoryInputPort):
+                    reads[port] = delay
+                    continue
+                destination = port.destination_variable
+                if destination not in self:
+                    raise ValueError("Unfold all connected chain variables together")
+                destination_iteration = (
+                    (copy.start_time + delay - destination.start_time)
+                    // self.schedule_time
+                ) % factor
+                target = copies[destination, destination_iteration]
+                reads[MemoryInputPort(target)] = delay
+                target._write_port = MemoryOutputPort(copy)
+            copy._reads = reads
+            copy._read_ports = list(reads)
+        return ProcessCollection(
+            copies.values(), self.schedule_time * factor, self._cyclic
+        )
+
+    def split_into_chains(
+        self,
+        max_length: int | None = None,
+        *,
+        strategy: Literal["fixed", "min_ports"] = "fixed",
+    ) -> "ProcessCollection":
         """
         Split long-lived memory variables into chains of shorter variables.
 
@@ -3023,6 +3087,12 @@ class ProcessCollection:
         max_length : int, optional
             Maximum allowed execution time for any variable in the result.
             Defaults to ``self.schedule_time``.
+        strategy : {'fixed', 'min_ports'}, default: 'fixed'
+            Use maximum-length segments, or greedily place each relay to
+            minimize peak combined, read, and write load, then squared load.
+            Ties prefer later splits. Variables are processed in start-time
+            order. Both strategies use the minimum number of segments per
+            variable; ``min_ports`` does not guarantee a global optimum.
 
         Returns
         -------
@@ -3032,9 +3102,36 @@ class ProcessCollection:
         """
         if max_length is None:
             max_length = self.schedule_time
+        if (
+            isinstance(max_length, bool)
+            or not isinstance(max_length, int)
+            or max_length < 1
+        ):
+            raise ValueError("max_length must be a positive integer")
+        if strategy not in ("fixed", "min_ports"):
+            raise ValueError(f"Invalid chain split strategy {strategy!r}")
+
+        read_load = Counter(self.read_port_accesses())
+        write_load = Counter(self.write_port_accesses())
+        total_load = read_load + write_load
+        peak_reads = max(read_load.values(), default=0)
+        peak_writes = max(write_load.values(), default=0)
+        peak_total = max(total_load.values(), default=0)
+
+        def relay_cost(process: MemoryVariable, split: int) -> tuple[int, ...]:
+            cycle = (process.start_time + split) % self.schedule_time
+            extra_read = int(split not in process.reads.values())
+            extra = extra_read + 1
+            return (
+                max(peak_total, total_load[cycle] + extra),
+                max(peak_reads, read_load[cycle] + extra_read),
+                max(peak_writes, write_load[cycle] + 1),
+                2 * total_load[cycle] * extra + extra * extra,
+                -split,
+            )
 
         result: list[Process] = []
-        for process in self.collection:
+        for process in sorted(self):
             if process.execution_time <= max_length:
                 result.append(process)
                 continue
@@ -3050,37 +3147,60 @@ class ProcessCollection:
                 result.append(process)
                 continue
 
-            all_reads = process.reads
-            T = max_length
-            S = process.start_time
+            length = process.execution_time
+            segment_count = (length + max_length - 1) // max_length
+            boundaries = [0]
+            for index in range(1, segment_count):
+                earliest = max(
+                    boundaries[-1] + 1, length - (segment_count - index) * max_length
+                )
+                latest = min(
+                    boundaries[-1] + max_length, length - (segment_count - index)
+                )
+                split = (
+                    latest
+                    if strategy == "fixed"
+                    else min(
+                        range(earliest, latest + 1),
+                        key=lambda time: relay_cost(process, time),
+                    )
+                )
+                boundaries.append(split)
+                cycle = (process.start_time + split) % self.schedule_time
+                extra_read = int(split not in process.reads.values())
+                read_load[cycle] += extra_read
+                write_load[cycle] += 1
+                total_load[cycle] += extra_read + 1
+                peak_reads = max(peak_reads, read_load[cycle])
+                peak_writes = max(peak_writes, write_load[cycle])
+                peak_total = max(peak_total, total_load[cycle])
+            boundaries.append(length)
 
-            # Number of time windows needed
-            K = max((L - 1) // T for L in all_reads.values()) + 1
-
-            # Build chain in reverse so relay MemoryInputPort targets already exist.
-            # Each window k covers lifetimes in the range (k*T, (k+1)*T].
+            # Build in reverse so each relay's destination already exists.
             chain: list[MemoryVariable] = []
-            for k in range(K - 1, -1, -1):
-                write_time = (S + k * T) % self.schedule_time
+            for k in range(segment_count - 1, -1, -1):
+                start, end = boundaries[k : k + 2]
+                write_time = (process.start_time + start) % self.schedule_time
                 reads_k: dict = {
-                    port: L - k * T
-                    for port, L in all_reads.items()
-                    if k == (L - 1) // T
+                    port: delay - start
+                    for port, delay in process.reads.items()
+                    if (start < delay <= end) or (k == 0 and delay == 0)
                 }
-                if k < K - 1:
-                    # chain[0] is chain[k+1] since we prepend each iteration
+                if k < segment_count - 1:
                     relay = MemoryInputPort(chain[0])
-                    reads_k[relay] = T
-                wp = process.write_port  # placeholder for k > 0; fixed below
+                    reads_k[relay] = end - start
                 chain.insert(
                     0,
                     MemoryVariable(
-                        write_time, wp, reads_k, name=f"{process.name}_chain{k}"
+                        write_time,
+                        process.write_port,
+                        reads_k,
+                        name=f"{process.name}_chain{k}",
                     ),
                 )
 
             # Fix write_ports for all links after the first
-            for k in range(1, K):
+            for k in range(1, segment_count):
                 chain[k]._write_port = MemoryOutputPort(chain[k - 1])
 
             result.extend(chain)
