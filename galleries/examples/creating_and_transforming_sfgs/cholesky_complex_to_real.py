@@ -5,9 +5,9 @@ Convert a 4 x 4 Cholesky inverse to real arithmetic
 
 Split each complex signal into real and imaginary signals, choosing either
 three or four real multipliers for the complex products in MADS operations.
-The Cholesky generator expects a symmetric positive definite matrix, supplied
-in packed lower-triangular row order. This example uses real matrix entries
-represented as complex signals; all imaginary input channels are zero.
+With ``cmplx=True``, the Cholesky generator expects a Hermitian positive definite
+matrix, supplied in packed lower-triangular row order. This example uses complex
+matrix entries with nonzero imaginary parts.
 """
 
 import numpy as np
@@ -20,7 +20,7 @@ from b_asic.sfg_generators import cholesky_matrix_inverse
 # have real_valued=True: conversion terminates their imaginary inputs at Sinks
 # and produces zero constants for their imaginary outputs.
 
-complex_sfg = cholesky_matrix_inverse(N=4, mode="mult", pe="mads")
+complex_sfg = cholesky_matrix_inverse(N=4, mode="mult", pe="mads", cmplx=True)
 assert all(op.real_valued for op in complex_sfg.find_by_type(ReciprocalSquareRoot))
 
 # %%
@@ -37,10 +37,10 @@ print("Three-product multipliers:", len(real_three.find_by_type(Multiplication))
 # Check both decompositions and the original graph against NumPy.
 
 rng = np.random.default_rng(42)
-factor = rng.normal(size=(4, 4))
-matrix = factor @ factor.T + np.eye(4)
+factor = rng.normal(size=(4, 4)) + 1j * rng.normal(size=(4, 4))
+matrix = factor @ factor.conj().T + np.eye(4)
 lower = np.tril_indices(4)
-packed = matrix[lower].astype(complex)
+packed = matrix[lower]
 split_inputs = np.column_stack((packed.real, packed.imag)).ravel()
 expected = np.linalg.inv(matrix)[lower]
 np.testing.assert_allclose(complex_sfg.evaluate(*packed), expected, atol=1e-12)
@@ -55,7 +55,7 @@ for graph in (real_four, real_three):
 # extract and join real/imaginary signals while internal arithmetic stays real.
 # With memory interfaces, addresses and memory names are preserved as well.
 
-memory_sfg = cholesky_matrix_inverse(N=4, mode="mult", pe="mads", mem=True)
+memory_sfg = cholesky_matrix_inverse(N=4, mode="mult", pe="mads", mem=True, cmplx=True)
 real_memory_sfg = memory_sfg.complex_to_real(
     multiplication_method="three", split_io=False
 )
@@ -78,6 +78,14 @@ np.testing.assert_allclose(mixed_sfg.evaluate(*packed), expected, atol=1e-12)
 
 # %%
 # Display the operation counts. Constant propagation and sink propagation can
-# be applied separately when the imaginary input channels are known to be zero.
+# simplify the real arithmetic introduced by conversion.
 
 real_three.operation_counter()
+# %%
+# Apply constant and sink propagation to remove computations with known zeros,
+# including the imaginary outputs of the real-valued reciprocal square roots.
+simplified_real_three = real_three.constant_propagation().sink_propagation()
+
+simplified_real_three.operation_counter()
+
+# %%

@@ -68,6 +68,7 @@ def test_literal_dropdowns_preserve_values_and_defaults(qtbot):
         "mode": "mult",
         "pe": "mads",
         "mem": True,
+        "cmplx": False,
     }
     with qtbot.waitSignal(window.generated):
         window._generate()
