@@ -32,6 +32,68 @@ def loaded_sfg_window(sfg_window, sfg_two_tap_fir):
     return sfg_window
 
 
+@pytest.mark.parametrize("with_saved_positions", [False, True])
+def test_loading_sfg_zooms_to_fit_after_window_is_shown(
+    sfg_window, sfg_two_tap_fir, monkeypatch, qtbot, with_saved_positions
+):
+    zoom_calls = []
+    monkeypatch.setattr(sfg_window, "_zoom_to_fit", lambda: zoom_calls.append(True))
+    positions = (
+        {
+            operation.graph_id: (index * 500, index * 300)
+            for index, operation in enumerate(sfg_two_tap_fir.split())
+        }
+        if with_saved_positions
+        else None
+    )
+
+    sfg_window._load_sfg(sfg_two_tap_fir, positions)
+    zoom_calls.clear()
+
+    sfg_window.show()
+    qtbot.waitUntil(lambda: zoom_calls == [True])
+    assert zoom_calls == [True]
+    if positions is not None:
+        for operation, button in sfg_window._drag_buttons.items():
+            proxy = sfg_window._drag_operation_scenes[button]
+            assert (proxy.scenePos().x(), proxy.scenePos().y()) == positions[
+                operation.graph_id
+            ]
+
+
+def test_start_editor_opens_maximized(monkeypatch):
+    events = []
+
+    class Application:
+        @staticmethod
+        def exec_():
+            events.append("exec")
+
+    class ApplicationType:
+        @staticmethod
+        def instance():
+            return Application
+
+    class Window:
+        def __init__(self):
+            self._sfg_dict = {}
+
+        @staticmethod
+        def showMaximized():
+            events.append("show")
+
+        @staticmethod
+        def _load_sfg(sfg):
+            events.append(("load", sfg))
+
+    monkeypatch.setattr(main_window, "QApplication", ApplicationType)
+    monkeypatch.setattr(main_window, "SFGMainWindow", Window)
+
+    sfg = object()
+    assert main_window.start_editor(sfg) == {}
+    assert events == ["show", ("load", sfg), "exec"]
+
+
 def _assert_selected(widget, selected):
     assert set(widget._pressed_operations) == set(selected)
     assert len(widget._pressed_operations) == len(selected)

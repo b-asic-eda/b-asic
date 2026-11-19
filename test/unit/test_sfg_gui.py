@@ -17,6 +17,7 @@ from b_asic.special_operations import Input, Output
 def test_start(qtbot):
     widget = SFGMainWindow()
     qtbot.addWidget(widget)
+    assert widget.windowTitle() == "B-ASIC SFG GUI"
 
     widget.exit_app()
 
