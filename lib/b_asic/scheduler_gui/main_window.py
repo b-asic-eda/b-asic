@@ -37,7 +37,6 @@ from qtpy.QtGui import (
     QCloseEvent,
     QColor,
     QKeySequence,
-    QPalette,
     QTransform,
     QWheelEvent,
 )
@@ -63,6 +62,7 @@ from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.icons import get_icon
 from b_asic.gui_utils.mpl_window import MPLWindow
+from b_asic.gui_utils.theme import add_theme_menu, install_theme
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui._preferences import (
     FONT,
@@ -250,6 +250,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             self._increase_time_resolution
         )
         self.actionIncrease_time_resolution.setIcon(get_icon("increase-timeresolution"))
+        add_theme_menu(self, self.menuView)
+        self.menuView.addSeparator()
         self._set_schedule_actions_enabled(False)
         # Setup event member functions
         self.closeEvent = self._close_event
@@ -1522,16 +1524,8 @@ def start_scheduler(schedule: Schedule | None = None) -> Schedule | None:
         app = QApplication(sys.argv)
     else:
         app = QApplication.instance()
-
-    # Enforce a light palette regardless of laptop theme
-    palette = QPalette()
-    palette.setColor(QPalette.ColorRole.Window, QtCore.Qt.white)
-    palette.setColor(QPalette.ColorRole.WindowText, QtCore.Qt.black)
-    palette.setColor(QPalette.ColorRole.ButtonText, QtCore.Qt.black)
-    palette.setColor(QPalette.ColorRole.Base, QtCore.Qt.white)
-    palette.setColor(QPalette.ColorRole.AlternateBase, QtCore.Qt.lightGray)
-    palette.setColor(QPalette.ColorRole.Text, QtCore.Qt.black)
-    app.setPalette(palette)
+    if hasattr(app, "setPalette"):
+        install_theme(app)
 
     window = ScheduleMainWindow()
     if schedule:

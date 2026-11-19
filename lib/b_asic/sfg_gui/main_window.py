@@ -52,6 +52,7 @@ from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.gui_utils.icons import get_icon
 from b_asic.gui_utils.plot_window import PlotWindow
+from b_asic.gui_utils.theme import add_theme_menu, install_theme
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
@@ -259,6 +260,9 @@ class SFGMainWindow(QMainWindow):
         self._ui.edit_menu.addAction(self._flip_vertical_action)
 
         # View menu
+
+        add_theme_menu(self, self._ui.view_menu)
+        self._ui.view_menu.addSeparator()
 
         self._grid_action = QAction("Show &grid", self)
         self._grid_action.setCheckable(True)
@@ -1365,6 +1369,8 @@ def start_editor(sfg: SFG | None = None) -> dict[str, SFG]:
         app = QApplication(sys.argv)
     else:
         app = QApplication.instance()
+    if hasattr(app, "setPalette"):
+        install_theme(app)
     window = SFGMainWindow()
     window.showMaximized()
     if sfg:
