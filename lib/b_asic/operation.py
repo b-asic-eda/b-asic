@@ -688,6 +688,8 @@ class AbstractOperation(Operation, AbstractGraphComponent):
     def _cast_to_data_type(self, value: Number, data_type: DataType) -> Number:
         if data_type is None:
             return value
+        if not data_type.is_complex and isinstance(value, complex) and value.imag == 0:
+            value = value.real
 
         if not isinstance(value, (APyFixed, APyFloat, APyCFixed, APyCFloat)):
             if data_type.num_repr == NumRepresentation.FLOATING_POINT:

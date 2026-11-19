@@ -475,7 +475,16 @@ class Simulation:
                     }
             if self._data_type.num_repr == NumRepresentation.FLOATING_POINT:
                 if self._data_type.is_complex:
-                    raise NotImplementedError
+                    return {
+                        key: apy.APyCFloatArray(
+                            [(value.real.sign, value.imag.sign) for value in values],
+                            [(value.real.exp, value.imag.exp) for value in values],
+                            [(value.real.man, value.imag.man) for value in values],
+                            exp_bits=self._data_type.exp_bits,
+                            man_bits=self._data_type.man_bits,
+                        )
+                        for key, values in self._results.items()
+                    }
                 return {
                     key: apy.APyFloatArray.from_bits(
                         [v.to_bits() for v in value],
