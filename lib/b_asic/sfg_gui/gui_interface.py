@@ -240,7 +240,7 @@ class Ui_main_window:
 
     def retranslateUi(self, main_window) -> None:
         _translate = QtCore.QCoreApplication.translate
-        main_window.setWindowTitle(_translate("main_window", "B-ASIC"))
+        main_window.setWindowTitle(_translate("main_window", "B-ASIC SFG GUI"))
         self.operation_box.setTitle(_translate("main_window", "Operations"))
         self.core_operations_list.setSortingEnabled(False)
         __sortingEnabled = self.core_operations_list.isSortingEnabled()

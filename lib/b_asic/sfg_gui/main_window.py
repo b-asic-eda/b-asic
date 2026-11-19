@@ -123,6 +123,10 @@ class SFGMainWindow(QMainWindow):
         self._expanded_source_button: DragButton | None = None
         self._expanded_sfg_windows: dict[DragButton, SFGMainWindow] = {}
         self._loading_sfg = False
+        self._zoom_after_show = False
+        self._initial_zoom_timer = QTimer(self)
+        self._initial_zoom_timer.setSingleShot(True)
+        self._initial_zoom_timer.timeout.connect(self._finish_initial_zoom)
         self._pressed_ports: list[PortButton] = []
         self._sfg_dict: dict[str, SFG] = {}
         self._plot: dict[Simulation, PlotWindow] = {}
@@ -455,6 +459,26 @@ class SFGMainWindow(QMainWindow):
             self.auto_layout()
         self._loading_sfg = False
         self._update()
+        self._zoom_after_show = True
+        if self.isVisible():
+            self._initial_zoom_timer.start(50)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self._zoom_after_show:
+            self._initial_zoom_timer.start(50)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        if self._zoom_after_show and self.isVisible():
+            self._initial_zoom_timer.start(50)
+
+    def _finish_initial_zoom(self) -> None:
+        if not self._zoom_after_show:
+            return
+        self._zoom_after_show = False
+        if self.isVisible():
+            self._zoom_to_fit()
 
     def _create_recent_file_actions_and_menus(self) -> None:
         for _ in range(self._max_recent_files):
@@ -1342,9 +1366,9 @@ def start_editor(sfg: SFG | None = None) -> dict[str, SFG]:
     else:
         app = QApplication.instance()
     window = SFGMainWindow()
+    window.showMaximized()
     if sfg:
         window._load_sfg(sfg)
-    window.show()
     app.exec_()
     return window._sfg_dict
 
