@@ -510,4 +510,4 @@ class Simulation:
             start_simulation_dialog,
         )
 
-        start_simulation_dialog(self.results, self._sfg.name)
+        start_simulation_dialog(self.results, sfg=self.sfg)
