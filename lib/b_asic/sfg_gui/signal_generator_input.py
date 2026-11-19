@@ -263,6 +263,8 @@ class ConstantInput(SignalGeneratorInput):
         constant = self._parse_number(
             self.constant_input.text(), complex, "Constant", 1.0
         )
+        if isinstance(constant, complex) and constant.imag == 0:
+            constant = constant.real
         return Constant(constant)
 
 

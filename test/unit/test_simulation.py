@@ -3,8 +3,19 @@ import pytest
 
 from b_asic.data_type import DataType, OverflowMode
 from b_asic.quantization import QuantizationMode
-from b_asic.signal_generator import Impulse
+from b_asic.sfg import SFG
+from b_asic.signal_generator import (
+    Constant,
+    FromFile,
+    Gaussian,
+    Impulse,
+    Sinusoid,
+    Step,
+    Uniform,
+    ZeroPad,
+)
 from b_asic.simulation import Simulation
+from b_asic.special_operations import Input, Output
 from b_asic.wdf_operations import (
     ReflectionFreeParallelThreePortAdaptor,
     ReflectionFreeSeriesThreeportAdaptor,
@@ -12,6 +23,44 @@ from b_asic.wdf_operations import (
 
 
 class TestRunFor:
+    @pytest.mark.parametrize(
+        "provider",
+        [
+            Constant(0.5),
+            Gaussian(seed=1, scale=0.1),
+            Impulse(),
+            Sinusoid(0.1),
+            Step(),
+            Uniform(seed=1, low=-0.5, high=0.5),
+            ZeroPad([0.5 + 0j, 0.25 + 0j]),
+        ],
+    )
+    def test_real_signal_generators_with_finite_data_type(self, provider):
+        source = Input()
+        simulation = Simulation(
+            SFG([source], [Output(source)]),
+            [provider],
+            data_type=DataType(wl=(2, 8)),
+        )
+
+        simulation.run_for(3, save_results=True)
+
+        assert len(simulation.results["out0"]) == 3
+
+    def test_real_file_signal_with_finite_data_type(self, tmp_path):
+        input_file = tmp_path / "input.txt"
+        input_file.write_text("0.5\n0.25\n0.0\n")
+        source = Input()
+        simulation = Simulation(
+            SFG([source], [Output(source)]),
+            [FromFile(input_file)],
+            data_type=DataType(wl=(2, 8)),
+        )
+
+        simulation.run_for(3, save_results=True)
+
+        assert len(simulation.results["out0"]) == 3
+
     def test_with_lambdas_as_input(self, sfg_two_inputs_two_outputs):
         simulation = Simulation(
             sfg_two_inputs_two_outputs, [lambda n: n + 3, lambda n: 1 + n * 2]
