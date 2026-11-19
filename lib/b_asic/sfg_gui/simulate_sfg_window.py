@@ -19,6 +19,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
 )
 
+from b_asic.data_type import DataType, NumRepresentation
+from b_asic.quantization import OverflowMode, QuantizationMode
 from b_asic.sfg_gui.signal_generator_input import _GENERATOR_MAPPING
 
 if TYPE_CHECKING:
@@ -43,7 +45,6 @@ class SimulateSFGWindow(QDialog):
         self._dialog_layout.setSizeConstraint(QLayout.SetFixedSize)
         self._simulate_btn = QPushButton("Simulate")
         self._simulate_btn.clicked.connect(self.save_properties)
-        self._dialog_layout.addWidget(self._simulate_btn)
         self.setLayout(self._dialog_layout)
         self._input_files = {}
 
@@ -76,14 +77,62 @@ class SimulateSFGWindow(QDialog):
         check_box_all.setCheckState(Qt.CheckState.Checked)
         options_layout.addRow("Get all results: ", check_box_all)
 
+        data_type_combo = QComboBox()
+        data_type_combo.addItem("Native", None)
+        data_type_combo.addItem("Fixed point", NumRepresentation.FIXED_POINT)
+        data_type_combo.addItem("Floating point", NumRepresentation.FLOATING_POINT)
+        options_layout.addRow("Data type: ", data_type_combo)
+
+        word_length_1 = QSpinBox()
+        word_length_1.setRange(1, 1024)
+        word_length_1.setValue(1)
+        word_length_1_label = QLabel("Integer bits:")
+        options_layout.addRow(word_length_1_label, word_length_1)
+
+        word_length_2 = QSpinBox()
+        word_length_2.setRange(0, 1024)
+        word_length_2.setValue(15)
+        word_length_2_label = QLabel("Fractional bits:")
+        options_layout.addRow(word_length_2_label, word_length_2)
+
+        complex_check_box = QCheckBox()
+        options_layout.addRow("Complex-valued: ", complex_check_box)
+
+        quantization_combo = QComboBox()
+        for mode in QuantizationMode:
+            quantization_combo.addItem(mode.name.replace("_", " ").title(), mode)
+        quantization_combo.setCurrentIndex(
+            quantization_combo.findData(QuantizationMode.TRUNCATION)
+        )
+        options_layout.addRow("Quantization: ", quantization_combo)
+
+        overflow_combo = QComboBox()
+        for mode in OverflowMode:
+            overflow_combo.addItem(mode.name.replace("_", " ").title(), mode)
+        options_layout.addRow("Overflow: ", overflow_combo)
+
         sfg_layout.addLayout(options_layout)
 
-        self._input_fields[sfg] = {
+        fields = {
             "iteration_count": spin_box,
             "show_plot": check_box_plot,
             "all_results": check_box_all,
+            "data_type": data_type_combo,
+            "word_length_1": word_length_1,
+            "word_length_2": word_length_2,
+            "word_length_1_label": word_length_1_label,
+            "word_length_2_label": word_length_2_label,
+            "is_complex": complex_check_box,
+            "quantization": quantization_combo,
+            "overflow": overflow_combo,
             "input_grid": input_grid,
         }
+        self._input_fields[sfg] = fields
+
+        data_type_combo.currentIndexChanged.connect(
+            lambda _, fields=fields: self._update_data_type_controls(fields)
+        )
+        self._update_data_type_controls(fields)
 
         if sfg.input_count > 0:
             input_label = QLabel("Input values:")
@@ -113,6 +162,34 @@ class SimulateSFGWindow(QDialog):
 
         self._sfg_to_layout[sfg] = sfg_layout
         self._dialog_layout.addLayout(sfg_layout)
+        self._dialog_layout.addWidget(self._simulate_btn)
+
+    @staticmethod
+    def _update_data_type_controls(fields: dict) -> None:
+        """Update the word-length controls for the selected representation."""
+        num_repr = fields["data_type"].currentData()
+        finite = num_repr is not None
+        floating = num_repr == NumRepresentation.FLOATING_POINT
+
+        fields["word_length_1"].setEnabled(finite)
+        fields["word_length_2"].setEnabled(finite)
+        fields["is_complex"].setEnabled(finite)
+        fields["quantization"].setEnabled(finite and not floating)
+        fields["overflow"].setEnabled(finite and not floating)
+
+        if floating:
+            fields["word_length_1_label"].setText("Exponent bits:")
+            fields["word_length_2_label"].setText("Mantissa bits:")
+            fields["word_length_1"].setValue(4)
+            fields["word_length_2"].setRange(1, 1024)
+            fields["word_length_2"].setValue(23)
+        else:
+            fields["word_length_1_label"].setText("Integer bits:")
+            fields["word_length_2_label"].setText("Fractional bits:")
+            fields["word_length_2"].setRange(0, 1024)
+            if finite:
+                fields["word_length_1"].setValue(1)
+                fields["word_length_2"].setValue(15)
 
     def change_input_format(self, input_grid: QGridLayout, i: int, text: str) -> None:
         """
@@ -164,11 +241,27 @@ class SimulateSFGWindow(QDialog):
 
                 input_values.append(tmp2)
 
+            fields = self._input_fields[sfg]
+            num_repr = fields["data_type"].currentData()
+            data_type = None
+            if num_repr is not None:
+                data_type = DataType(
+                    wl=(
+                        fields["word_length_1"].value(),
+                        fields["word_length_2"].value(),
+                    ),
+                    num_repr=num_repr,
+                    is_complex=fields["is_complex"].isChecked(),
+                    quantization_mode=fields["quantization"].currentData(),
+                    overflow_mode=fields["overflow"].currentData(),
+                )
+
             self._properties[sfg] = {
                 "iteration_count": ic_value,
                 "show_plot": self._input_fields[sfg]["show_plot"].isChecked(),
                 "all_results": self._input_fields[sfg]["all_results"].isChecked(),
                 "input_values": input_values,
+                "data_type": data_type,
             }
 
             # If we plot we should also print the entire data,

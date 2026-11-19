@@ -8,9 +8,6 @@ normal operations in an SFG.
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-import apytypes as apy
-
-from b_asic.data_type import NumRepresentation
 from b_asic.operation import (
     AbstractOperation,
     DelayMap,
@@ -56,11 +53,7 @@ class Input(AbstractOperation):
         return TypeName("in")
 
     def evaluate(self, data_type=None) -> Num:
-        if data_type is None:
-            return self._value
-        if data_type.num_repr == NumRepresentation.FIXED_POINT:
-            return apy.fx(self._value, data_type.wl[0], data_type.wl[1])
-        return apy.fp(self._value, data_type.wl[0], data_type.wl[1])
+        return self._cast_to_data_type(self._value, data_type)
 
     @property
     def latency(self) -> int:

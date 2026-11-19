@@ -9,7 +9,9 @@ pytest.importorskip("qtpy.QtWidgets", exc_type=ImportError)
 from qtpy.QtCore import QSettings, Qt, QThread
 from qtpy.QtWidgets import QDialog, QPushButton
 
+from b_asic.data_type import NumRepresentation
 from b_asic.port import InputPort, OutputPort
+from b_asic.quantization import OverflowMode, QuantizationMode
 from b_asic.sfg_gui import main_window
 from b_asic.sfg_gui.main_window import SFGMainWindow
 from b_asic.sfg_gui.simulation_worker import SimulationWorker
@@ -462,6 +464,60 @@ def test_simulation_dialog_inputs_per_sfg(
         with qtbot.waitSignal(worker.finished) as signal:
             worker.start_simulation()
         np.testing.assert_array_equal(signal.args[0].results["out0"], expected[index])
+
+
+@pytest.mark.parametrize(
+    ("num_repr", "word_lengths", "is_complex"),
+    [
+        (NumRepresentation.FIXED_POINT, (1, 4), False),
+        (NumRepresentation.FLOATING_POINT, (4, 8), True),
+    ],
+)
+def test_simulation_dialog_configures_finite_word_length(
+    sfg_window, qtbot, num_repr, word_lengths, is_complex
+):
+    from b_asic import SFG, Constant, Input, Output
+    from b_asic.sfg_gui.simulate_sfg_window import SimulateSFGWindow
+
+    if is_complex:
+        source = Input()
+        graph = SFG([source], [Output(source)])
+    else:
+        graph = SFG([], [Output(Constant(0.3))])
+    dialog = SimulateSFGWindow(sfg_window)
+    qtbot.addWidget(dialog)
+    dialog.add_sfg_to_dialog(graph)
+    fields = dialog._input_fields[graph]
+
+    fields["data_type"].setCurrentIndex(fields["data_type"].findData(num_repr))
+    fields["word_length_1"].setValue(word_lengths[0])
+    fields["word_length_2"].setValue(word_lengths[1])
+    fields["is_complex"].setChecked(is_complex)
+    if num_repr is NumRepresentation.FIXED_POINT:
+        fields["quantization"].setCurrentIndex(
+            fields["quantization"].findData(QuantizationMode.ROUNDING)
+        )
+        fields["overflow"].setCurrentIndex(
+            fields["overflow"].findData(OverflowMode.SATURATION)
+        )
+
+    with qtbot.waitSignal(dialog.simulate):
+        qtbot.mouseClick(dialog._simulate_btn, Qt.MouseButton.LeftButton)
+
+    data_type = dialog.properties[graph]["data_type"]
+    assert data_type.num_repr is num_repr
+    assert data_type.wl == word_lengths
+    assert data_type.is_complex is is_complex
+    if num_repr is NumRepresentation.FIXED_POINT:
+        assert data_type.quantization_mode is QuantizationMode.ROUNDING
+        assert data_type.overflow_mode is OverflowMode.SATURATION
+
+    worker = SimulationWorker(graph, dialog.properties[graph])
+    with qtbot.waitSignal(worker.finished) as signal:
+        worker.start_simulation()
+    simulation = signal.args[0]
+    assert simulation._data_type is data_type
+    assert len(simulation.results["out0"]) == 100
 
 
 def test_cancel_simulation(loaded_sfg_window, qtbot):
