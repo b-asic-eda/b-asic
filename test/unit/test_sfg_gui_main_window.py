@@ -193,7 +193,7 @@ def test_simulate_sfg_and_display_results(
     fields["iteration_count"].setValue(5)
     fields["show_plot"].setChecked(show_plot)
     fields["all_results"].setChecked(all_results)
-    dialog._input_grid.itemAtPosition(0, 1).widget().setCurrentText("Impulse")
+    fields["input_grid"].itemAtPosition(0, 1).widget().setCurrentText("Impulse")
 
     # Connect before starting the real worker so even fast simulations are captured.
     simulations = []
@@ -255,6 +255,48 @@ def test_simulate_sfg_and_display_results(
             assert thread.wait(10000), "Simulation thread did not stop"
         for plot in widget._plot.values():
             qtbot.addWidget(plot)
+
+
+@pytest.mark.parametrize(
+    "graph_order", [(0,), (0, 1, 2), (2, 1, 0)], ids=["no-input", "forward", "reverse"]
+)
+def test_simulation_dialog_inputs_per_sfg(
+    sfg_window, qtbot, sfg_two_tap_fir, sfg_two_inputs_two_outputs, graph_order
+):
+    from b_asic import SFG, Constant, Output
+    from b_asic.sfg_gui.simulate_sfg_window import SimulateSFGWindow
+
+    graphs = [
+        SFG([], [Output(Constant(7))]),
+        sfg_two_tap_fir,
+        sfg_two_inputs_two_outputs,
+    ]
+    dialog = SimulateSFGWindow(sfg_window)
+    qtbot.addWidget(dialog)
+    for index in graph_order:
+        dialog.add_sfg_to_dialog(graphs[index])
+        dialog._input_fields[graphs[index]]["iteration_count"].setValue(3)
+
+    if 1 in graph_order:
+        grid = dialog._input_fields[graphs[1]]["input_grid"]
+        grid.itemAtPosition(0, 1).widget().setCurrentText("Impulse")
+    if 2 in graph_order:
+        grid = dialog._input_fields[graphs[2]]["input_grid"]
+        grid.itemAtPosition(0, 1).widget().setCurrentText("Impulse")
+        grid.itemAtPosition(1, 1).widget().setCurrentText("Step")
+
+    with qtbot.waitSignal(dialog.simulate):
+        qtbot.mouseClick(dialog._simulate_btn, Qt.MouseButton.LeftButton)
+
+    expected = ([7, 7, 7], [0.5, 0.5, 0], [2, 1, 1])
+    for index in graph_order:
+        graph = graphs[index]
+        properties = dialog.properties[graph]
+        assert len(properties["input_values"]) == graph.input_count
+        worker = SimulationWorker(graph, properties)
+        with qtbot.waitSignal(worker.finished) as signal:
+            worker.start_simulation()
+        np.testing.assert_array_equal(signal.args[0].results["out0"], expected[index])
 
 
 def test_cancel_simulation(loaded_sfg_window, qtbot):
