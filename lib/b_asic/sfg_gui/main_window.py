@@ -1184,7 +1184,7 @@ class SFGMainWindow(QMainWindow):
     @Slot(Simulation)
     def _show_plot_window(self, sim: Simulation) -> None:
         """Show the simulation results window."""
-        self._plot[sim] = PlotWindow(sim.results, sfg_name=sim.sfg.name)
+        self._plot[sim] = PlotWindow(sim.results, sfg=sim.sfg)
         self._plot[sim].show()
 
     def simulate_sfg(self, event=None) -> None:

@@ -1,19 +1,25 @@
 """PlotWindow is a window in which simulation results are plotted."""
 
+from __future__ import annotations
+
 import re
 import sys
+from collections import Counter
 from collections.abc import Collection, Mapping, Sequence
+from typing import TYPE_CHECKING
 
-# from numpy import (array, real, imag, real_if_close, absolute, angle)
 import numpy as np
+from matplotlib import rcParams
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.container import StemContainer
 from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QApplication,
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
@@ -34,6 +40,11 @@ from b_asic.gui_utils.icons import get_icon
 from b_asic.operation import ResultKey
 from b_asic.types import Num
 from b_asic.utils import interleave
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+    from b_asic.sfg import SFG
 
 
 def _trace_values(key, result):
@@ -62,6 +73,49 @@ def _interleave_results(results, sources):
 def _signal_names(name):
     """Reserve both a signal name and its possible complex time-domain views."""
     return {name, *(name + suffix for suffix in ("_re", "_im", "_mag", "_ang"))}
+
+
+def _operation_labels(sfg: SFG | None) -> dict[str, str]:
+    """Map named operations' result keys to labels that include their IDs."""
+    if sfg is None:
+        return {}
+
+    from b_asic.sfg import SFG  # noqa: PLC0415
+
+    labels = {}
+    pending = [(sfg, "")]
+    while pending:
+        graph, prefix = pending.pop()
+        for operation in graph.operations:
+            graph_id = prefix + operation.graph_id
+            if operation.name:
+                if operation.output_count > 1:
+                    for port in operation.outputs:
+                        key = operation.key(port.index, graph_id)
+                        labels[key] = f"{operation.name}.{port.index} ({key})"
+                else:
+                    labels[graph_id] = f"{operation.name} ({graph_id})"
+            if isinstance(operation, SFG):
+                pending.append((operation, graph_id + "."))
+    for index, output in enumerate(sfg.output_operations):
+        if output.graph_id in labels:
+            labels[str(index)] = labels[output.graph_id]
+    return labels
+
+
+def _trace_color(color_index: int) -> str:
+    colors = rcParams["axes.prop_cycle"].by_key().get("color")
+    return colors[color_index % len(colors)] if colors else f"C{color_index % 10}"
+
+
+def _stem_plot(axes, x, y, color_index: int, label: str | None = None):
+    """Create a stem plot with a color from Matplotlib's configured cycle."""
+    color = _trace_color(color_index)
+    container = axes.stem(x, y, label=label)
+    container.markerline.set_color(color)
+    container.stemlines.set_color(color)
+    container.baseline.set_color(color)
+    return container
 
 
 class _InterleaveDialog(QDialog):
@@ -205,22 +259,20 @@ class _InterleaveDialog(QDialog):
             result = _interleave_results(self._results, self.source_names)
         except ValueError:
             result = None
-        if result is not None:
+        if result is not None and len(result):
             time_axes = self._preview_axes["time"]
+            sample_indices = np.arange(len(result))
             if np.any(np.imag(np.real_if_close(result)) != 0):
-                time_axes.plot(np.real(result), label="Real")
-                time_axes.plot(np.imag(result), label="Imaginary")
+                _stem_plot(time_axes, sample_indices, np.real(result), 0, "Real")
+                _stem_plot(time_axes, sample_indices, np.imag(result), 1, "Imaginary")
                 time_axes.legend()
             else:
-                time_axes.plot(np.real(result))
-            if len(result):
-                frequency, response = freqz(result)
-                self._preview_axes["magnitude"].plot(
-                    frequency / np.pi, np.abs(response)
-                )
-                self._preview_axes["phase"].plot(
-                    frequency / np.pi, np.unwrap(np.angle(response))
-                )
+                _stem_plot(time_axes, sample_indices, np.real(result), 0)
+            frequency, response = freqz(result)
+            self._preview_axes["magnitude"].plot(frequency / np.pi, np.abs(response))
+            self._preview_axes["phase"].plot(
+                frequency / np.pi, np.unwrap(np.angle(response))
+            )
         self._validate()
         self._preview_canvas.toolbar.update()
         self._preview_canvas.draw()
@@ -239,22 +291,25 @@ class PlotWindow(QWidget):
     and are stacked vertically. Frequency plots use :func:`scipy.signal.freqz`
     with each selected signal as the numerator coefficients. Complex time-domain
     views share the frequency response of their underlying complex signal.
-    Parallel simulation streams can be interleaved into additional signals.
+    Parallel simulation streams can be interleaved into additional signals. Use
+    the Time plot style selector to switch between Stem (default) and Line
+    without changing the current zoom or pan.
+    Both styles can use a common scale based on the highest-rate result.
 
     Parameters
     ----------
-    sim_result : dict
+    sim_result : mapping
         Simulation results of the form obtained from
         :attr:`~b_asic.simulation.Simulation.results`.
-    sfg_name : str, optional
-        The name of the SFG.
+    sfg : SFG, optional
+        Supplies the window title and operation labels in ``name (graph ID)`` format.
     """
 
     @_with_default_plot_font
     def __init__(
         self,
         sim_result: Mapping[ResultKey, Sequence[Num]],
-        sfg_name: str | None = None,
+        sfg: SFG | None = None,
     ) -> None:
         super().__init__()
         self.setWindowFlags(
@@ -263,11 +318,9 @@ class PlotWindow(QWidget):
             | Qt.WindowMinimizeButtonHint
             | Qt.WindowMaximizeButtonHint
         )
-        title = (
-            f"Simulation results: {sfg_name}"
-            if sfg_name is not None
-            else "Simulation results"
-        )
+        title = "Simulation results"
+        if sfg is not None and sfg.name:
+            title = f"{title}: {sfg.name}"
         self.setWindowTitle(title)
         self._auto_redraw = False
         self._raw_results = {}
@@ -278,40 +331,46 @@ class PlotWindow(QWidget):
         self._frequency_results = {}
         self._lines = {}
 
-        ########### Categorizing/sorting/renaming sim_results: ##############
+        node_labels = _operation_labels(sfg)
+        display_names = {
+            key: node_labels.get(
+                key, f"out{key}" if re.fullmatch(r"[0-9]+", key) else key
+            )
+            for key in sim_result
+        }
+        name_counts = Counter(display_names.values())
+        used_names = set()
+        for key, name in display_names.items():
+            if name_counts[name] > 1:
+                name = f"{name} ({key})"
+            while name in used_names:
+                name = f"{name} ({key})"
+            display_names[key] = name
+            used_names.add(name)
+
         initially_checked = []
-        dict_to_sort = {}  # use key=m+1/n, where m:3=input, 4=output, 2=T, 1=others
-        n = 0
+        trace_order = []
         for key, result in sim_result.items():
-            key2 = key  # in most cases
             if re.fullmatch("in[0-9]+", key):
-                m = 4
+                priority = 0
             elif re.fullmatch("(?:out)?[0-9]+", key):
-                m = 3
-                key2 = "o" + key.removeprefix("out")
+                priority = 1
             elif re.fullmatch("t[0-9]+", key):
-                m = 2
+                priority = 2
             else:
-                m = 1
+                priority = 3
 
-            keys = self._register_result(key2, result)
-            for trace in keys:
-                n += 1
-                dict_to_sort[m + 1 / n] = trace
-            if m == 3:  # output: real, or real and imaginary components
-                initially_checked.extend(keys[:2])
+            traces = self._register_result(display_names[key], result)
+            trace_order.extend((priority, trace) for trace in traces)
+            if priority == 1:  # Select the real and imaginary output components.
+                initially_checked.extend(traces[:2])
 
-        key_order = list(dict(sorted(dict_to_sort.items(), reverse=True)).values())
+        key_order = [key for _, key in sorted(trace_order, key=lambda entry: entry[0])]
         self._results = {key: self._results[key] for key in key_order}
         self._original_keys = tuple(
             dict.fromkeys(self._trace_sources[key] for key in key_order)
         )
         self._selected_keys = set(initially_checked)
-
-        # Layout: ############################################
-        # | list | icons |
-        # | ...  | plot  |
-        # | misc |       |
 
         self._dialog_layout = QHBoxLayout()
         self.setLayout(self._dialog_layout)
@@ -322,12 +381,6 @@ class PlotWindow(QWidget):
         self._dialog_layout.addLayout(listlayout)
         self._dialog_layout.addLayout(plotlayout)
 
-        ########### Plot: ##############
-        # Do this before the list layout, as the list layout will re/set visibility
-        # Note: The order is of importens. Interesting lines last, to be on top.
-        # self.plotcanvas = PlotCanvas(
-        #    logger=logger, parent=self, width=5, height=4, dpi=100
-        # )
         self._plot_fig = Figure(figsize=(5, 4), layout="compressed")
 
         self._plot_canvas = FigureCanvas(self._plot_fig)
@@ -336,9 +389,6 @@ class PlotWindow(QWidget):
         plotlayout.addWidget(self._toolbar)
         plotlayout.addWidget(self._plot_canvas)
 
-        ########### List layout: ##############
-
-        # Add two buttons for selecting all/none:
         hlayout = QHBoxLayout()
         self._button_all = QPushButton(get_icon("all"), "&All")
         self._button_all.clicked.connect(self._button_all_click)
@@ -348,14 +398,12 @@ class PlotWindow(QWidget):
         hlayout.addWidget(self._button_none)
         listlayout.addLayout(hlayout)
 
-        # Add the entire list
         self._checklist = QListWidget()
         self._checklist.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self._checklist.itemChanged.connect(self._item_change)
         self._checklist.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._checklist.customContextMenuRequested.connect(self._checklist_context_menu)
         self._refresh_checklist()
-        # self._checklist.setFixedWidth(150)
         listlayout.addWidget(self._checklist)
 
         self._button_interleave = QPushButton("&Interleave…")
@@ -376,29 +424,38 @@ class PlotWindow(QWidget):
             self._subplot_checkboxes[name] = checkbox
             listlayout.addWidget(checkbox)
 
-        # Add additional checkboxes
+        style_layout = QHBoxLayout()
+        style_label = QLabel("Time plot st&yle:")
+        self._time_plot_style = QComboBox()
+        self._time_plot_style.addItem("Stem", "stem")
+        self._time_plot_style.addItem("Line", "line")
+        self._time_plot_style.currentIndexChanged.connect(self._time_plot_style_change)
+        style_label.setBuddy(self._time_plot_style)
+        style_layout.addWidget(style_label)
+        style_layout.addWidget(self._time_plot_style)
+        listlayout.addLayout(style_layout)
+
+        self._common_time_scale_checkbox = QCheckBox("Common time scale")
+        self._common_time_scale_checkbox.setToolTip(
+            "Scale sample positions to the highest-rate simulation result."
+        )
+        self._common_time_scale_checkbox.stateChanged.connect(self._subplot_change)
+        listlayout.addWidget(self._common_time_scale_checkbox)
+
         self._legend_checkbox = QCheckBox("&Legend")
         self._legend_checkbox.setCheckState(Qt.CheckState.Checked)
         self._legend_checkbox.stateChanged.connect(self._legend_checkbox_change)
         self._legend_checkbox.setIcon(get_icon("legend"))
         listlayout.addWidget(self._legend_checkbox)
-        # self.ontop_checkbox = QCheckBox("&On top")
-        # self.ontop_checkbox.stateChanged.connect(self._ontop_checkbox_change)
-        # self.ontop_checkbox.setCheckState(Qt.CheckState.Unchecked)
-        # listlayout.addWidget(self.ontop_checkbox)
-
         relim_button = QPushButton("&Recompute limits")
         relim_button.clicked.connect(self._relim)
         listlayout.addWidget(relim_button)
 
-        # Add "Close" buttons
         button_close = QPushButton(get_icon("close"), "&Close", self)
         button_close.clicked.connect(self.close)
         listlayout.addWidget(button_close)
         self._subplot_change()
 
-        # Done. Tell the functions below to redraw the canvas when needed.
-        # self.plotcanvas.draw()
         self._auto_redraw = True
 
     def _register_result(self, key, result) -> tuple[str, ...]:
@@ -549,6 +606,7 @@ class PlotWindow(QWidget):
             for name, checkbox in self._subplot_checkboxes.items()
             if checkbox.isChecked()
         ]
+        self._time_plot_style.setEnabled("time" in selected)
         self._axes = {}
         self._lines = {key: {} for key in self._results}
         for index, name in enumerate(selected, start=1):
@@ -556,35 +614,37 @@ class PlotWindow(QWidget):
             frequency_lines = {}
             self._axes[name] = axes
             if name == "time":
-                axes.set_xlabel("Sample")
+                axes.set_xlabel(
+                    "Common sample"
+                    if self._common_time_scale_checkbox.isChecked()
+                    else "Sample"
+                )
                 axes.set_ylabel("Value")
                 axes.xaxis.set_major_locator(MaxNLocator(integer=True))
-            else:
-                axes.set_xlabel("Normalized frequency (π rad/sample)")
-                axes.set_ylabel("Magnitude" if name == "magnitude" else "Phase (rad)")
-            for key, result in self._results.items():
-                if name == "time":
-                    (line,) = axes.plot(result, label=key)
-                else:
-                    source = self._trace_sources[key]
-                    if source not in self._frequency_results:
-                        raw_result = self._raw_results[source]
-                        # Empty simulation traces have no frequency response.
-                        self._frequency_results[source] = (
-                            freqz(raw_result)
-                            if len(raw_result)
-                            else (np.array([]), np.array([]))
-                        )
-                    if source not in frequency_lines:
-                        frequency, response = self._frequency_results[source]
-                        values = (
-                            np.abs(response)
-                            if name == "magnitude"
-                            else np.unwrap(np.angle(response))
-                        )
-                        (line,) = axes.plot(frequency / np.pi, values, label=source)
-                        frequency_lines[source] = line
-                    line = frequency_lines[source]
+                self._plot_time_traces(axes)
+                continue
+            axes.set_xlabel("Normalized frequency (π rad/sample)")
+            axes.set_ylabel("Magnitude" if name == "magnitude" else "Phase (rad)")
+            for key in self._results:
+                source = self._trace_sources[key]
+                if source not in self._frequency_results:
+                    raw_result = self._raw_results[source]
+                    # Empty simulation traces have no frequency response.
+                    self._frequency_results[source] = (
+                        freqz(raw_result)
+                        if len(raw_result)
+                        else (np.array([]), np.array([]))
+                    )
+                if source not in frequency_lines:
+                    frequency, response = self._frequency_results[source]
+                    values = (
+                        np.abs(response)
+                        if name == "magnitude"
+                        else np.unwrap(np.angle(response))
+                    )
+                    (line,) = axes.plot(frequency / np.pi, values, label=source)
+                    frequency_lines[source] = line
+                line = frequency_lines[source]
                 self._lines[key][name] = line
                 if not self._trace_selected(key, name) and line.axes is not None:
                     line.remove()
@@ -592,6 +652,38 @@ class PlotWindow(QWidget):
         self._toolbar.update()
         self._update_legend()
         self._relim()
+
+    def _plot_time_traces(self, axes: Axes) -> None:
+        use_stems = self._time_plot_style.currentData() == "stem"
+        common_scale = self._common_time_scale_checkbox.isChecked()
+        max_samples = max(map(len, self._raw_results.values()), default=0)
+        for trace_index, (key, result) in enumerate(self._results.items()):
+            scale = max_samples / len(result) if common_scale and len(result) else 1
+            sample_indices = np.arange(len(result)) * scale
+            visible = self._trace_selected(key, "time")
+            if use_stems and len(result):
+                line = _stem_plot(axes, sample_indices, result, trace_index, key)
+                for artist in line:
+                    artist.set_visible(visible)
+            else:
+                (line,) = axes.plot(
+                    sample_indices, result, color=_trace_color(trace_index), label=key
+                )
+                line.set_visible(visible)
+            self._lines[key]["time"] = line
+
+    @_with_default_plot_font
+    def _time_plot_style_change(self, _index: int) -> None:
+        axes = self._axes.get("time")
+        if axes is None:
+            return
+        xlim, ylim = axes.get_xlim(), axes.get_ylim()
+        for plots in self._lines.values():
+            plots["time"].remove()
+        self._plot_time_traces(axes)
+        axes.set_xlim(xlim, auto=None)
+        axes.set_ylim(ylim, auto=None)
+        self._update_legend()
 
     def _button_all_click(self, event) -> None:
         self._auto_redraw = False
@@ -604,7 +696,21 @@ class PlotWindow(QWidget):
     def _update_legend(self) -> None:
         self._legends = []
         for axes in self._axes.values():
-            legend = axes.legend() if axes.lines else axes.legend([], [])
+            handles, labels = axes.get_legend_handles_labels()
+            visible = [
+                (handle, label)
+                for handle, label in zip(handles, labels, strict=True)
+                if (
+                    handle.markerline.get_visible()
+                    if isinstance(handle, StemContainer)
+                    else handle.get_visible()
+                )
+            ]
+            legend = (
+                axes.legend(*zip(*visible, strict=True))
+                if visible
+                else axes.legend([], [])
+            )
             legend.set_visible(self._legend_checkbox.isChecked())
             self._legends.append(legend)
         self._legend = self._legends[0] if self._legends else None
@@ -624,7 +730,14 @@ class PlotWindow(QWidget):
         else:
             self._selected_keys.discard(key)
         for name, line in self._lines.get(key, {}).items():
-            if self._trace_selected(key, name):
+            visible = self._trace_selected(key, name)
+            if isinstance(line, StemContainer):
+                line.markerline.set_visible(visible)
+                line.stemlines.set_visible(visible)
+                line.baseline.set_visible(visible)
+            elif name == "time":
+                line.set_visible(visible)
+            elif visible:
                 if line.axes is None:
                     self._axes[name].add_line(line)
             elif line.axes is not None:
@@ -642,25 +755,24 @@ class PlotWindow(QWidget):
 
 
 def start_simulation_dialog(
-    sim_results: dict[str, list[complex]], sfg_name: str | None = None
+    sim_results: Mapping[ResultKey, Sequence[Num]],
+    sfg: SFG | None = None,
 ) -> None:
     """
     Display the simulation results window.
 
     Parameters
     ----------
-    sim_results : dict
+    sim_results : mapping
         Simulation results of the form obtained from
         :attr:`~b_asic.simulation.Simulation.results`.
-    sfg_name : str, optional
-        The name of the SFG.
+    sfg : SFG, optional
+        Supplies the window title and named operation labels.
     """
-    if not QApplication.instance():
-        # QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    app = QApplication.instance()
+    if app is None:
         app = QApplication(sys.argv)
-    else:
-        app = QApplication.instance()
-    win = PlotWindow(sim_result=sim_results, sfg_name=sfg_name)
+    win = PlotWindow(sim_results, sfg=sfg)
     win.show()
     app.exec_()
 
@@ -679,4 +791,4 @@ if __name__ == "__main__":
         "t2": [0, 0, 1, 0],
         "t3": [0, 0, 0, 1],
     }
-    start_simulation_dialog(sim_res, "Test data")
+    start_simulation_dialog(sim_res)

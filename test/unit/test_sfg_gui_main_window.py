@@ -142,7 +142,7 @@ def test_simulation_plot_runs_on_gui_thread(loaded_sfg_window, qtbot, monkeypatc
     plot_calls = []
 
     class Plot:
-        def __init__(self, sim_result, sfg_name):
+        def __init__(self, sim_result, sfg):
             plot_calls.append(("create", QThread.currentThread()))
 
         def show(self):
@@ -239,9 +239,12 @@ def test_simulate_sfg_and_display_results(
             assert plot.isVisible()
             assert plot.windowTitle() == "Simulation results: twotapfir"
             assert plot._checklist.count() == len(simulation.results)
-            assert len(plot._plot_axes.lines) == 1
-            line = plot._plot_axes.lines[0]
-            assert line.get_label() == "o0"
+            output = simulation.sfg.output_operations[0]
+            output_label = (
+                f"{output.name} ({output.graph_id})" if output.name else output.graph_id
+            )
+            line = plot._lines[output_label]["time"].markerline
+            assert plot._lines[output_label]["time"].get_label() == output_label
             np.testing.assert_array_equal(line.get_xdata(), np.arange(5))
             np.testing.assert_array_equal(line.get_ydata(), [0.5, 0.5, 0, 0, 0])
         else:
