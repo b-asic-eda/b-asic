@@ -45,7 +45,6 @@ class SimulateSFGWindow(QDialog):
         self._simulate_btn.clicked.connect(self.save_properties)
         self._dialog_layout.addWidget(self._simulate_btn)
         self.setLayout(self._dialog_layout)
-        self._input_grid = QGridLayout()
         self._input_files = {}
 
     def add_sfg_to_dialog(self, sfg: "SFG") -> None:
@@ -68,6 +67,7 @@ class SimulateSFGWindow(QDialog):
         spin_box.setValue(100)
         options_layout.addRow("Iteration count: ", spin_box)
 
+        input_grid = QGridLayout()
         check_box_plot = QCheckBox()
         check_box_plot.setCheckState(Qt.CheckState.Checked)
         options_layout.addRow("Plot results: ", check_box_plot)
@@ -82,33 +82,29 @@ class SimulateSFGWindow(QDialog):
             "iteration_count": spin_box,
             "show_plot": check_box_plot,
             "all_results": check_box_all,
+            "input_grid": input_grid,
         }
 
         if sfg.input_count > 0:
             input_label = QLabel("Input values:")
             options_layout.addRow(input_label)
 
-            x, y = 0, 0
             for i in range(sfg.input_count):
-                if i % 2 == 0 and i > 0:
-                    x += 1
-                    y = 0
-
                 input_label = QLabel(f"in{i}")
-                self._input_grid.addWidget(input_label, i, 0)
+                input_grid.addWidget(input_label, i, 0)
 
                 input_dropdown = QComboBox()
                 input_dropdown.insertItems(0, list(_GENERATOR_MAPPING.keys()))
                 input_dropdown.currentTextChanged.connect(
-                    lambda text, i=i: self.change_input_format(i, text)
+                    lambda text, i=i, grid=input_grid: self.change_input_format(
+                        grid, i, text
+                    )
                 )
-                self._input_grid.addWidget(input_dropdown, i, 1, alignment=Qt.AlignLeft)
+                input_grid.addWidget(input_dropdown, i, 1, alignment=Qt.AlignLeft)
 
-                self.change_input_format(i, "Constant")
+                self.change_input_format(input_grid, i, "Constant")
 
-                y += 1
-
-            sfg_layout.addLayout(self._input_grid)
+            sfg_layout.addLayout(input_grid)
 
         frame = QFrame()
         frame.setFrameShape(QFrame.HLine)
@@ -118,32 +114,34 @@ class SimulateSFGWindow(QDialog):
         self._sfg_to_layout[sfg] = sfg_layout
         self._dialog_layout.addLayout(sfg_layout)
 
-    def change_input_format(self, i: int, text: str) -> None:
+    def change_input_format(self, input_grid: QGridLayout, i: int, text: str) -> None:
         """
         Change the input format selector.
 
         Parameters
         ----------
+        input_grid : QGridLayout
+            Input grid for the signal flow graph.
         i : int
             Input number to change for.
         text : str
             Name of generator.
         """
-        grid = self._input_grid.itemAtPosition(i, 2)
+        grid = input_grid.itemAtPosition(i, 2)
         if grid:
             for j in reversed(range(grid.count())):
                 item = grid.itemAt(j)
                 widget = item.widget()
                 if widget:
                     widget.hide()
-            self._input_grid.removeItem(grid)
+            input_grid.removeItem(grid)
 
         if text in _GENERATOR_MAPPING:
             param_grid = _GENERATOR_MAPPING[text](self._window._logger)
         else:
             raise ValueError("Input selection is not implemented")
 
-        self._input_grid.addLayout(param_grid, i, 2)
+        input_grid.addLayout(param_grid, i, 2)
 
     def save_properties(self) -> None:
         """Save the simulation properties and emit a signal to start the simulation."""
@@ -153,10 +151,11 @@ class SimulateSFGWindow(QDialog):
                 self._window._logger.error("Iteration count is set to zero.")
 
             input_values = []
+            input_grid = self._input_fields[sfg]["input_grid"]
 
-            for i in range(self._input_grid.rowCount()):
-                in_format = self._input_grid.itemAtPosition(i, 1).widget().currentText()
-                in_param = self._input_grid.itemAtPosition(i, 2)
+            for i in range(sfg.input_count):
+                in_format = input_grid.itemAtPosition(i, 1).widget().currentText()
+                in_param = input_grid.itemAtPosition(i, 2)
 
                 if in_format in _GENERATOR_MAPPING:
                     tmp2 = in_param.get_generator()
