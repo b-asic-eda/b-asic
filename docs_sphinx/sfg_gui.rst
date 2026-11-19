@@ -15,7 +15,10 @@ Invalid parameters leave the dialog open with an error so they can be corrected.
 The result is inserted as a single SFG operation with its external input and
 output ports. Connect these ports to other operations and Input/Output nodes,
 then create the enclosing SFG as usual. The generated graph remains nested
-when the enclosing graph is saved. Existing canvas contents are retained.
+when the enclosing graph is saved. Double-click an SFG operation to open its
+internal graph in a separate editor. Double-click the operation again or close
+that editor's window to close the expanded view. Existing canvas contents are
+retained.
 
 ``SFGGenerator`` describes a generator using its annotated function signature
 and invokes it to construct an SFG. It can be instantiated directly or inherited

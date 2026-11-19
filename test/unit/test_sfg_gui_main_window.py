@@ -7,11 +7,14 @@ from graphviz import Digraph
 pytest.importorskip("qtpy.QtWidgets", exc_type=ImportError)
 
 from qtpy.QtCore import QSettings, Qt, QThread
-from qtpy.QtWidgets import QDialog
+from qtpy.QtWidgets import QDialog, QPushButton
 
+from b_asic.port import InputPort, OutputPort
 from b_asic.sfg_gui import main_window
 from b_asic.sfg_gui.main_window import SFGMainWindow
 from b_asic.sfg_gui.simulation_worker import SimulationWorker
+from b_asic.special_operations import Input
+from b_asic.special_operations import Output as SFGOutput
 
 
 @pytest.fixture
@@ -88,6 +91,105 @@ def test_control_click_selects_and_unselects_individual_operations(
             button, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.ControlModifier
         )
         _assert_selected(widget, selected)
+
+
+def test_nested_sfg_can_be_expanded_and_closed(sfg_window, sfg_two_tap_fir, qtbot):
+    sfg_window._insert_generated_sfg(sfg_two_tap_fir)
+    button = sfg_window._drag_buttons[sfg_two_tap_fir]
+    assert not button.findChild(QPushButton, "expandSfgButton")
+
+    qtbot.mouseDClick(button, Qt.MouseButton.LeftButton)
+    expanded = sfg_window._expanded_sfg_windows[button]
+    assert expanded.isVisible()
+    assert {op.graph_id for op in expanded._drag_buttons} == {
+        op.graph_id for op in sfg_two_tap_fir.split()
+    }
+
+    expanded.close()
+    assert not expanded.isVisible()
+
+    assert button.operation.input_count == sfg_two_tap_fir.input_count
+    assert button.operation.output_count == sfg_two_tap_fir.output_count
+
+
+def test_expanded_sfg_retains_removed_operation_after_reopen(
+    sfg_window, sfg_two_tap_fir, qtbot
+):
+    sfg_window._insert_generated_sfg(sfg_two_tap_fir)
+    button = sfg_window._drag_buttons[sfg_two_tap_fir]
+    qtbot.mouseDClick(button, Qt.MouseButton.LeftButton)
+    expanded = sfg_window._expanded_sfg_windows[button]
+
+    removed = next(iter(expanded._drag_buttons.values()))
+    removed.remove()
+    expanded.close()
+    qtbot.mouseDClick(button, Qt.MouseButton.LeftButton)
+    assert sfg_window._expanded_sfg_windows[button] is expanded
+    assert expanded.isVisible()
+    assert removed.operation not in expanded._drag_buttons
+    qtbot.mouseDClick(button, Qt.MouseButton.LeftButton)
+    assert not expanded.isVisible()
+
+
+def test_expanded_io_immediately_updates_collapsed_ports(
+    sfg_window, sfg_two_inputs_two_outputs, qtbot
+):
+    sfg = sfg_two_inputs_two_outputs
+    sfg_window._insert_generated_sfg(sfg)
+    button = sfg_window._drag_buttons[sfg]
+    qtbot.mouseDClick(button, Qt.MouseButton.LeftButton)
+    expanded = sfg_window._expanded_sfg_windows[button]
+
+    input_button = next(
+        child
+        for child in expanded._drag_buttons.values()
+        if isinstance(child.operation, Input)
+    )
+    input_button.remove()
+    assert button.operation.input_count == 1
+    assert button.operation.output_count == 2
+    assert (
+        len([port for port in button.port_list if isinstance(port.port, InputPort)])
+        == 1
+    )
+    assert (
+        len([port for port in button.port_list if isinstance(port.port, OutputPort)])
+        == 2
+    )
+
+    expanded.add_operation(Input())
+    qtbot.wait(10)
+    assert button.operation.input_count == 2
+    assert (
+        len([port for port in button.port_list if isinstance(port.port, InputPort)])
+        == 2
+    )
+    input_ports = [
+        port for port in button.port_list if isinstance(port.port, InputPort)
+    ]
+    assert len({(port.x(), port.y()) for port in input_ports}) == 2
+    assert all(port.scene() is sfg_window._scene for port in input_ports)
+
+    expanded.add_operation(Input())
+    expanded.add_operation(Input())
+    expanded.add_operation(SFGOutput())
+    qtbot.wait(10)
+    assert button.operation.input_count == 4
+    assert button.operation.output_count == 3
+    assert (
+        len([port for port in button.port_list if isinstance(port.port, InputPort)])
+        == 4
+    )
+    assert (
+        len([port for port in button.port_list if isinstance(port.port, OutputPort)])
+        == 3
+    )
+    expanded.close()
+    assert button.operation.input_count == 4
+    assert (
+        len([port for port in button.port_list if isinstance(port.port, InputPort)])
+        == 4
+    )
 
 
 def test_scene_selection_updates_selected_operations(loaded_sfg_window):
@@ -228,6 +330,7 @@ def test_simulate_sfg_and_display_results(
             np.testing.assert_array_equal(
                 simulation.results["out0"], [0.5, 0.5, 0, 0, 0]
             )
+
             assert len(simulation.results) == len(widget._drag_buttons)
             assert all(len(values) == 5 for values in simulation.results.values())
         else:

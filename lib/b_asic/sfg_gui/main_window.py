@@ -96,8 +96,8 @@ QCoreApplication.setApplicationVersion(version)
 
 @decorate_class(handle_error)
 class SFGMainWindow(QMainWindow):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
         self._logger = logging.getLogger(__name__)
         self._window = self
         self._ui = Ui_main_window()
@@ -119,6 +119,10 @@ class SFGMainWindow(QMainWindow):
         self._junction_item: QGraphicsPathItem | None = None
         self._arrow_ports: dict[Arrow, list[tuple[PortButton, PortButton]]] = {}
         self._operation_to_sfg: dict[DragButton, SFG] = {}
+        self._close_state_preserved = False
+        self._expanded_source_button: DragButton | None = None
+        self._expanded_sfg_windows: dict[DragButton, SFGMainWindow] = {}
+        self._loading_sfg = False
         self._pressed_ports: list[PortButton] = []
         self._sfg_dict: dict[str, SFG] = {}
         self._plot: dict[Simulation, PlotWindow] = {}
@@ -394,6 +398,7 @@ class SFGMainWindow(QMainWindow):
         self.update_statusbar(f"Loaded SFG from {module}")
 
     def _load_sfg(self, sfg: SFG, positions=None) -> None:
+        self._loading_sfg = True
         if positions is None:
             positions = {}
 
@@ -448,6 +453,7 @@ class SFGMainWindow(QMainWindow):
         self._sfg_dict[sfg.name] = sfg
         if not positions:
             self.auto_layout()
+        self._loading_sfg = False
         self._update()
 
     def _create_recent_file_actions_and_menus(self) -> None:
@@ -521,6 +527,10 @@ class SFGMainWindow(QMainWindow):
     def _clear_workspace(self) -> None:
         self._routing_timer.stop()
         self._logger.info("Clearing workspace from operations and SFGs.")
+        for expanded in list(self._expanded_sfg_windows.values()):
+            expanded._close_state_preserved = False
+            expanded.close()
+        self._expanded_sfg_windows.clear()
         self._cancel_connection()
         self._operation_to_sfg.clear()
         self._pressed_operations.clear()
@@ -552,6 +562,90 @@ class SFGMainWindow(QMainWindow):
             suffix += 1
         self.add_operation(sfg)
         self.update_statusbar(f"Added generated SFG: {sfg.name}")
+
+    def _toggle_expanded_sfg(self, button: DragButton) -> None:
+        """Toggle a child editor displaying the internals of an SFG operation."""
+        expanded = self._expanded_sfg_windows.get(button)
+        if expanded is not None:
+            if expanded.isVisible():
+                expanded.close()
+            else:
+                expanded.show()
+                expanded.activateWindow()
+            return
+        if not isinstance(button.operation, SFG):
+            return
+
+        expanded = SFGMainWindow(self)
+        expanded._close_state_preserved = True
+        expanded._expanded_source_button = button
+        expanded.setWindowFlag(Qt.WindowType.Window, True)
+        expanded.setWindowTitle(f"SFG: {button.operation.name or button.name}")
+        expanded._load_sfg(button.operation)
+        self._expanded_sfg_windows[button] = expanded
+        expanded.show()
+        expanded.activateWindow()
+
+    def closeEvent(self, event) -> None:
+        if self._close_state_preserved:
+            source = self._expanded_source_button
+            if source is not None:
+                inputs, outputs = self._expanded_sfg_interface()
+                try:
+                    replacement = SFG(
+                        inputs=inputs,
+                        outputs=outputs,
+                        name=source.operation.name,
+                    )
+                except ValueError as error:
+                    self._logger.warning("Retaining incomplete SFG edits: %s", error)
+                    source.sync_sfg_interface(inputs, outputs)
+                else:
+                    source.replace_sfg(replacement)
+                    copies = replacement._original_components_to_new
+                    for original, button in list(self._drag_buttons.items()):
+                        copied = copies.get(original)
+                        if not isinstance(copied, Operation):
+                            continue
+                        del self._drag_buttons[original]
+                        self._drag_buttons[copied] = button
+                        button.operation = copied
+                        for terminal in button.port_list:
+                            terminal.port = (
+                                copied.input(terminal.port.index)
+                                if isinstance(terminal.port, InputPort)
+                                else copied.output(terminal.port.index)
+                            )
+                    for arrow in self._arrow_ports:
+                        copied_signal = copies.get(arrow.signal)
+                        if isinstance(copied_signal, Signal):
+                            arrow.signal = copied_signal
+            event.ignore()
+            self.hide()
+            return
+        super().closeEvent(event)
+
+    def _sync_expanded_sfg_interface(self) -> None:
+        if self._loading_sfg:
+            return
+        source = self._expanded_source_button
+        if source is None:
+            return
+        source.sync_sfg_interface(*self._expanded_sfg_interface())
+
+    def _expanded_sfg_interface(self) -> tuple[list[Input], list[Output]]:
+        """Return the current internal I/O operations in canvas order."""
+        inputs = [
+            button.operation
+            for button in self._drag_buttons.values()
+            if isinstance(button.operation, Input)
+        ]
+        outputs = [
+            button.operation
+            for button in self._drag_buttons.values()
+            if isinstance(button.operation, Output)
+        ]
+        return inputs, outputs
 
     def create_sfg_from_toolbar(self) -> None:
         """Create an SFG."""
@@ -809,6 +903,7 @@ class SFGMainWindow(QMainWindow):
                 attr_button_scene.moveBy(
                     position[0] - rect.left(), position[1] - rect.top()
                 )
+            self._sync_expanded_sfg_interface()
             self._update()
 
         except Exception as e:

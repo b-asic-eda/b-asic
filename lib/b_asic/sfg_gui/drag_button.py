@@ -4,9 +4,10 @@ B-ASIC Drag Button Module.
 Contains a GUI class for drag buttons.
 """
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from qtpy.QtCore import QPointF, QRectF, QSize, Qt, Signal
+from qtpy.QtCore import QPointF, QRectF, QSize, Qt, QTimer, Signal
 from qtpy.QtGui import QIcon, QPainterPath, QPen
 from qtpy.QtWidgets import (
     QAction,
@@ -21,8 +22,9 @@ from qtpy.QtWidgets import (
 
 from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.operation import Operation
-from b_asic.port import InputPort
-from b_asic.sfg_gui._preferences import GRID, MINBUTTONSIZE, PORT_STUB, PORTHEIGHT
+from b_asic.port import InputPort, OutputPort
+from b_asic.sfg import SFG
+from b_asic.sfg_gui._preferences import GAP, GRID, MINBUTTONSIZE, PORT_STUB, PORTHEIGHT
 from b_asic.sfg_gui.operation_icon import OperationSymbol, operation_icon
 from b_asic.sfg_gui.port_button import PortButton
 from b_asic.sfg_gui.properties_window import PropertiesWindow
@@ -147,6 +149,223 @@ class DragButton(QPushButton):
         self._properties_window = PropertiesWindow(self, self._window)
         self._properties_window.show()
 
+    def expand_sfg(self, event=None) -> None:
+        """Open or close the editor for this nested SFG."""
+        self._window._toggle_expanded_sfg(self)
+
+    def replace_sfg(self, replacement: SFG) -> None:
+        """Replace the represented SFG while retaining matching external wires."""
+        current = self.operation
+        if not isinstance(current, SFG):
+            raise TypeError("Only SFG operations can be replaced")
+
+        old_input_ports = list(current.inputs)
+        old_output_ports = list(current.outputs)
+        old_port_buttons = {
+            port_button.port: port_button for port_button in self._ports
+        }
+        copies = replacement._original_components_to_new
+        new_input_indexes = {
+            new_index: old_index
+            for old_index, inner in enumerate(current.input_operations)
+            if (copy := copies.get(inner)) in replacement.input_operations
+            for new_index in [list(replacement.input_operations).index(copy)]
+        }
+        new_output_indexes = {
+            new_index: old_index
+            for old_index, inner in enumerate(current.output_operations)
+            if (copy := copies.get(inner)) in replacement.output_operations
+            for new_index in [list(replacement.output_operations).index(copy)]
+        }
+
+        retained_buttons = {}
+        for new_index, old_index in new_input_indexes.items():
+            port = (
+                old_input_ports[old_index] if old_index < len(old_input_ports) else None
+            )
+            button = old_port_buttons.get(port)
+            if button is not None:
+                retained_buttons[replacement.input(new_index)] = button
+        for new_index, old_index in new_output_indexes.items():
+            port = (
+                old_output_ports[old_index]
+                if old_index < len(old_output_ports)
+                else None
+            )
+            button = old_port_buttons.get(port)
+            if button is not None:
+                retained_buttons[replacement.output(new_index)] = button
+
+        retained_old_ports = {
+            *[
+                old_input_ports[index]
+                for index in new_input_indexes.values()
+                if index < len(old_input_ports)
+            ],
+            *[
+                old_output_ports[index]
+                for index in new_output_indexes.values()
+                if index < len(old_output_ports)
+            ],
+        }
+        removed_buttons = [
+            button
+            for port, button in old_port_buttons.items()
+            if port not in retained_old_ports
+        ]
+        for port_button in removed_buttons:
+            for arrow in list(self._window._arrow_ports):
+                if port_button in {
+                    arrow.source_port_button,
+                    arrow.destination_port_button,
+                }:
+                    arrow.remove()
+            if port_button in self._window._pressed_ports:
+                self._window._pressed_ports.remove(port_button)
+            self._window._scene.removeItem(port_button)
+
+        for new_index, old_index in new_input_indexes.items():
+            if old_index >= len(old_input_ports):
+                continue
+            for signal in list(old_input_ports[old_index].signals):
+                signal.set_destination(replacement.input(new_index))
+        for new_index, old_index in new_output_indexes.items():
+            if old_index >= len(old_output_ports):
+                continue
+            for signal in list(old_output_ports[old_index].signals):
+                signal.set_source(replacement.output(new_index))
+
+        current.__dict__.clear()
+        current.__dict__.update(replacement.__dict__)
+        current._input_ports = replacement._input_ports
+        current._output_ports = replacement._output_ports
+        current._execution_time = replacement._execution_time
+        for port in (*current.inputs, *current.outputs):
+            port._operation = current
+
+        self._ports = []
+        for port in (*current.inputs, *current.outputs):
+            port_button = retained_buttons.get(port)
+            if port_button is None:
+                port_button = PortButton("", self, port)
+            else:
+                port_button.port = port
+            self._ports.append(port_button)
+        self._window._ports[self] = self._ports
+        self._refresh_sfg_interface()
+
+    def sync_sfg_interface(
+        self, inputs: Sequence[Input], outputs: Sequence[Output]
+    ) -> None:
+        """Update external ports without requiring the internal graph to be valid."""
+        current = self.operation
+        if not isinstance(current, SFG):
+            raise TypeError("Only SFG operations can be synchronized")
+
+        old_input_buttons = {
+            button.port.index: button
+            for button in self._ports
+            if isinstance(button.port, InputPort)
+        }
+        old_output_buttons = {
+            button.port.index: button
+            for button in self._ports
+            if not isinstance(button.port, InputPort)
+        }
+        retained_inputs = {
+            id(operation): old_input_buttons[index]
+            for index, operation in enumerate(current.input_operations)
+        }
+        retained_outputs = {
+            id(operation): old_output_buttons[index]
+            for index, operation in enumerate(current.output_operations)
+        }
+        retained_input_buttons = [retained_inputs.get(id(op)) for op in inputs]
+        retained_output_buttons = [retained_outputs.get(id(op)) for op in outputs]
+
+        old_ports = set(old_input_buttons.values()) | set(old_output_buttons.values())
+        retained_buttons = {
+            *[button for button in retained_input_buttons if button is not None],
+            *[button for button in retained_output_buttons if button is not None],
+        }
+        for port_button in old_ports - retained_buttons:
+            for arrow in list(self._window._arrow_ports):
+                if port_button in {
+                    arrow.source_port_button,
+                    arrow.destination_port_button,
+                }:
+                    arrow.remove()
+            if port_button in self._window._pressed_ports:
+                self._window._pressed_ports.remove(port_button)
+            self._window._scene.removeItem(port_button)
+
+        new_inputs = [InputPort(current, index) for index in range(len(inputs))]
+        new_outputs = [OutputPort(current, index) for index in range(len(outputs))]
+        current._input_ports = new_inputs
+        current._output_ports = new_outputs
+        self._ports = []
+        for port, retained in zip(new_inputs, retained_input_buttons, strict=True):
+            if retained is not None:
+                port_button = retained
+                for signal in list(port_button.port.signals):
+                    signal.set_destination(port)
+                port_button.port = port
+            else:
+                port_button = PortButton("", self, port)
+            self._ports.append(port_button)
+        for port, retained in zip(new_outputs, retained_output_buttons, strict=True):
+            if retained is not None:
+                port_button = retained
+                for signal in list(port_button.port.signals):
+                    signal.set_source(port)
+                port_button.port = port
+            else:
+                port_button = PortButton("", self, port)
+            self._ports.append(port_button)
+
+        current._input_operations = list(inputs)
+        current._output_operations = list(outputs)
+        self._window._ports[self] = self._ports
+        self._refresh_sfg_interface(defer=True)
+
+    def _refresh_sfg_interface(self, *, defer: bool = False) -> None:
+        """Resize, position, and repaint SFG interface ports."""
+        current = self.operation
+        if not isinstance(current, SFG):
+            return
+        max_ports = max(current.input_count, current.output_count)
+        self.setFixedHeight(
+            max(MINBUTTONSIZE, max_ports * PORTHEIGHT + (max_ports - 1) * GAP)
+        )
+        proxy = self.graphicsProxyWidget()
+        if proxy is not None:
+            proxy.resize(self.width(), self.height())
+            proxy.update()
+        for port in self._ports:
+            port.setVisible(True)
+            port.update()
+        self._position_ports()
+        self.update()
+        self._window._scene.update()
+        self._window._invalidate_sfg(self)
+        self._window._update()
+        if defer:
+            QTimer.singleShot(0, self._refresh_sfg_interface_items)
+
+    def _refresh_sfg_interface_items(self) -> None:
+        """Refresh newly parented Qt scene items after the native resize pass."""
+        proxy = self.graphicsProxyWidget()
+        if proxy is None:
+            return
+        for port in self._ports:
+            port.setParentItem(proxy)
+            port.setVisible(True)
+            port.update()
+        self._position_ports()
+        proxy.update()
+        self._window._scene.update()
+        self._window._graphics_view.viewport().update()
+
     def type_name(self) -> TypeName:
         """Return the type name of the underlying operation."""
         return self.operation.type_name()
@@ -229,6 +448,15 @@ class DragButton(QPushButton):
 
         self._window._update()
         super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and isinstance(
+            self.operation, SFG
+        ):
+            self.expand_sfg()
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
 
     def _flip(self, event=None) -> None:
         self._flipped = not self._flipped
@@ -349,6 +577,10 @@ class DragButton(QPushButton):
         self._window._logger.info(
             "Removing operation with name %s", self.operation.name
         )
+        expanded = self._window._expanded_sfg_windows.pop(self, None)
+        if expanded is not None:
+            expanded._close_state_preserved = False
+            expanded.close()
         self._window._cancel_connection()
         self._window._scene.removeItem(self._window._drag_operation_scenes[self])
 
@@ -380,6 +612,7 @@ class DragButton(QPushButton):
         self._window._ports.pop(self, None)
         if self.operation in self._window._drag_buttons:
             del self._window._drag_buttons[self.operation]
+        self._window._sync_expanded_sfg_interface()
         self._window._update()
 
     def add_ports(self) -> None:
