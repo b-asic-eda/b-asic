@@ -6,7 +6,6 @@ from b_asic import (
     SFG,
     Addition,
     ConstantMultiplication,
-    CPRecursiveScheduler,
     CPScheduler,
     Delay,
     Input,
@@ -18,10 +17,6 @@ from test.unit.test_ilp_recursive_schedule import _feedback
 cp = pytest.importorskip("cpmpy")
 
 
-def test_public_scheduler():
-    assert isinstance(CPRecursiveScheduler(), CPScheduler)
-
-
 @pytest.mark.parametrize("cyclic", [False, True])
 def test_recursive_dependencies(sfg_direct_form_iir_lp_filter, cyclic):
     sfg = sfg_direct_form_iir_lp_filter
@@ -29,7 +24,7 @@ def test_recursive_dependencies(sfg_direct_form_iir_lp_filter, cyclic):
     sfg.set_latency_of_type(ConstantMultiplication, 3)
     sfg.set_execution_time_of_type(Addition, 1)
     sfg.set_execution_time_of_type(ConstantMultiplication, 1)
-    schedule = Schedule(sfg, CPRecursiveScheduler(), schedule_time=15, cyclic=cyclic)
+    schedule = Schedule(sfg, CPScheduler(), schedule_time=15, cyclic=cyclic)
     assert not schedule._sfg.find_by_type(Delay)
     assert any(schedule.laps.values())
 
@@ -37,7 +32,7 @@ def test_recursive_dependencies(sfg_direct_form_iir_lp_filter, cyclic):
 def test_period_below_asap_length():
     schedule = Schedule(
         _feedback(latency=4, delays=2),
-        CPRecursiveScheduler(max_time=4, input_times={"in0": 0}),
+        CPScheduler(max_time=4, input_times={"in0": 0}),
         schedule_time=2,
         cyclic=True,
     )
@@ -55,7 +50,7 @@ def test_infeasible_feedback(monkeypatch, cyclic, latency, delays, bound):
     with pytest.raises(ValueError, match=f"iteration period bound: {bound}"):
         Schedule(
             _feedback(latency=latency, delays=delays),
-            CPRecursiveScheduler(),
+            CPScheduler(),
             schedule_time=2,
             cyclic=cyclic,
         )
@@ -71,7 +66,7 @@ def test_parallel_connections_and_offsets():
     )
     schedule = Schedule(
         SFG(inputs=[source], outputs=[Output(op)]),
-        CPRecursiveScheduler(input_times={"in0": 2}, output_times={"out0": 3}),
+        CPScheduler(input_times={"in0": 2}, output_times={"out0": 3}),
         schedule_time=4,
         cyclic=True,
     )
@@ -89,7 +84,7 @@ def test_resource_occupancy(duration, resources):
     solver = cp.SolverLookup.get("ortools")
     Schedule(
         SFG(inputs=[source], outputs=[Output(op)]),
-        CPRecursiveScheduler(solver=solver),
+        CPScheduler(solver=solver),
         schedule_time=3,
         cyclic=True,
     )
@@ -102,7 +97,7 @@ def test_relative_output_times_and_solver_options():
     second = ConstantMultiplication(3, source, latency=2, execution_time=1)
     schedule = Schedule(
         SFG(inputs=[source], outputs=[Output(first), Output(second)]),
-        CPRecursiveScheduler(
+        CPScheduler(
             output_delta_times={"out0": 0, "out1": 2},
             time_limit=10,
             num_search_workers=1,
@@ -115,7 +110,7 @@ def test_relative_output_times_and_solver_options():
 def test_output_boundary():
     schedule = Schedule(
         _feedback(),
-        CPRecursiveScheduler(output_times={"out0": 4}),
+        CPScheduler(output_times={"out0": 4}),
         schedule_time=4,
         cyclic=True,
     )
@@ -123,26 +118,26 @@ def test_output_boundary():
 
 
 def test_default_period():
-    assert Schedule(_feedback(), CPRecursiveScheduler()).schedule_time == 2
+    assert Schedule(_feedback(), CPScheduler()).schedule_time == 2
 
 
 def test_empty_sfg(sfg_empty):
     with pytest.raises(ValueError, match="Empty signal flow graph"):
-        Schedule(sfg_empty, CPRecursiveScheduler())
+        Schedule(sfg_empty, CPScheduler())
 
 
 @pytest.mark.parametrize("period", [0, -1, 1.5])
 def test_invalid_period(period):
     with pytest.raises(ValueError, match="positive schedule time"):
-        Schedule(_feedback(), CPRecursiveScheduler(), schedule_time=period)
+        Schedule(_feedback(), CPScheduler(), schedule_time=period)
 
 
 @pytest.mark.parametrize("horizon", [0, -1, 1.5])
 def test_invalid_horizon(horizon):
     with pytest.raises(ValueError, match="max_time must be a positive integer"):
-        CPRecursiveScheduler(max_time=horizon)
+        CPScheduler(max_time=horizon)
 
 
 def test_noncyclic_horizon():
     with pytest.raises(ValueError, match="only supported for cyclic scheduling"):
-        Schedule(_feedback(), CPRecursiveScheduler(max_time=8), schedule_time=4)
+        Schedule(_feedback(), CPScheduler(max_time=8), schedule_time=4)

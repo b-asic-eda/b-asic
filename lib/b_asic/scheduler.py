@@ -8,6 +8,7 @@ import copy
 import math
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
+from fractions import Fraction
 from functools import cmp_to_key
 from typing import TYPE_CHECKING, cast
 
@@ -1597,9 +1598,301 @@ class _OptimizationScheduler(Scheduler):
 
     _connections: tuple[_Connection, ...]
     _max_time: int | None
+    _resource_weight: float
+    _read_weight: float
+    _write_weight: float
+    _storage_weight: float
+    _is_recursive: bool
+
+    def __init__(
+        self,
+        input_times: dict["GraphID", int] | None = None,
+        output_delta_times: dict["GraphID", int] | None = None,
+        output_times: dict["GraphID", int] | None = None,
+        sort_y_location: bool = True,
+        *,
+        resource_weight: float = 1,
+        read_weight: float = 0,
+        write_weight: float = 0,
+        storage_weight: float = 0,
+    ) -> None:
+        super().__init__(
+            input_times=input_times,
+            output_delta_times=output_delta_times,
+            output_times=output_times,
+            sort_y_location=sort_y_location,
+        )
+        for name, weight in (
+            ("resource_weight", resource_weight),
+            ("read_weight", read_weight),
+            ("write_weight", write_weight),
+            ("storage_weight", storage_weight),
+        ):
+            if (
+                not isinstance(weight, (int, float))
+                or not math.isfinite(weight)
+                or weight < 0
+            ):
+                raise ValueError(f"{name} must be a finite non-negative number.")
+            setattr(self, f"_{name}", weight)
+
+    def _memory_groups(self) -> dict[OutputPort, list[_Connection]]:
+        """Group real consumers by produced value, preserving multicast reads."""
+        groups = defaultdict(list)
+        for edge in self._connections:
+            groups[edge.source].append(edge)
+        return groups
+
+    def _add_ilp_memory_objective(
+        self,
+        problem: pulp.LpProblem,
+        choices: dict["GraphID", dict[int, pulp.LpVariable]],
+        period: int,
+        initial_values: dict[pulp.LpVariable, int] | None = None,
+    ) -> pulp.LpAffineExpression:
+        """Add only enabled memory costs using time-indexed access/live flags."""
+        objective = pulp.lpSum([])
+        if not (self._read_weight or self._write_weight or self._storage_weight):
+            return objective
+
+        reads, writes, storage = defaultdict(list), defaultdict(list), defaultdict(list)
+
+        def indicator(name, active, conditions):
+            conditions = [pulp.lpSum(terms) for terms in conditions if terms]
+            if not active or not conditions:
+                return None
+            active = pulp.lpSum(active)
+            variable = problem.add_variable(name, cat=pulp.LpBinary)
+            problem.addConstraint(variable <= active)
+            problem.addConstraint(variable <= pulp.lpSum(conditions))
+            for condition in conditions:
+                problem.addConstraint(variable >= active + condition - 1)
+            if initial_values is not None:
+
+                def initial(expression):
+                    return expression.constant + sum(
+                        coefficient * initial_values[var]
+                        for var, coefficient in expression.items()
+                    )
+
+                initial_values[variable] = int(
+                    initial(active) and any(initial(term) for term in conditions)
+                )
+            return variable
+
+        def add_usage(usage, time, variable):
+            if variable is not None:
+                usage[time % period if self._schedule.cyclic else time].append(variable)
+
+        for source, edges in self._memory_groups().items():
+            name = f"{source.operation.graph_id}_{source.index}"
+            produced = {
+                time + edges[0].source_offset: var
+                for time, var in choices[source.operation.graph_id].items()
+            }
+            consumed = [
+                {
+                    time + edge.destination_offset + edge.delay_count * period: var
+                    for time, var in choices[
+                        edge.destination.operation.graph_id
+                    ].items()
+                }
+                for edge in edges
+            ]
+            if self._read_weight:
+                candidates = defaultdict(set)
+                for times in consumed:
+                    for time, var in times.items():
+                        candidates[time].add(var)
+                for time, variables in candidates.items():
+                    variable = indicator(
+                        f"memory_read_{name}_{time}",
+                        [var for start, var in produced.items() if start < time],
+                        [[var] for var in variables],
+                    )
+                    add_usage(reads, time, variable)
+            if self._write_weight:
+                for time, var in produced.items():
+                    variable = indicator(
+                        f"memory_write_{name}_{time}",
+                        [var],
+                        [
+                            [var for end, var in times.items() if end > time]
+                            for times in consumed
+                        ],
+                    )
+                    add_usage(writes, time, variable)
+            if self._storage_weight:
+                for time in range(min(produced), max(max(times) for times in consumed)):
+                    variable = indicator(
+                        f"memory_live_{name}_{time}",
+                        [var for start, var in produced.items() if start <= time],
+                        [
+                            [var for end, var in times.items() if end > time]
+                            for times in consumed
+                        ],
+                    )
+                    add_usage(storage, time, variable)
+
+        for name, weight, usage in (
+            ("peak_reads", self._read_weight, reads),
+            ("peak_writes", self._write_weight, writes),
+            ("total_storage", self._storage_weight, storage),
+        ):
+            if not weight:
+                continue
+            capacity = problem.add_variable(name, lowBound=0, cat=pulp.LpInteger)
+            for terms in usage.values():
+                problem += pulp.lpSum(terms) <= capacity
+            if initial_values is not None:
+                initial_values[capacity] = max(
+                    (
+                        sum(initial_values[var] for var in terms)
+                        for terms in usage.values()
+                    ),
+                    default=0,
+                )
+            objective += weight * capacity
+        return objective
+
+    def _add_cp_memory_objective(
+        self, model, starts, period, initial_starts, initial_values
+    ):
+        """Add enabled peak memory costs, counting overlapping cyclic lifetimes."""
+        if not (self._read_weight or self._write_weight or self._storage_weight):
+            return {}
+        import cpmpy as cp  # noqa: PLC0415
+
+        groups = self._memory_groups()
+        reads, writes, storage = [], [], []
+        initial_reads, initial_writes, initial_storage = Counter(), Counter(), Counter()
+        storage_upper = 0
+        for source, edges in groups.items():
+            produced = starts[source.operation.graph_id] + edges[0].source_offset
+            consumed = [
+                starts[edge.destination.operation.graph_id]
+                + edge.destination_offset
+                + edge.delay_count * period
+                for edge in edges
+            ]
+            initial_produced = (
+                initial_starts[source.operation.graph_id] + edges[0].source_offset
+            )
+            initial_consumed = {
+                initial_starts[edge.destination.operation.graph_id]
+                + edge.destination_offset
+                + edge.delay_count * period
+                for edge in edges
+            }
+            if self._read_weight:
+                for index, time in enumerate(consumed):
+                    active = (time > produced) & cp.all(
+                        [time != other for other in consumed[:index]]
+                    )
+                    reads.append((time, active))
+                initial_reads.update(
+                    time % period if self._schedule.cyclic else time
+                    for time in initial_consumed
+                    if time > initial_produced
+                )
+            if self._write_weight or self._storage_weight:
+                end = cp.max(consumed)
+                initial_end = max(initial_consumed)
+                if self._write_weight:
+                    writes.append((produced, end > produced))
+                    if initial_end > initial_produced:
+                        initial_writes.update(
+                            [
+                                initial_produced % period
+                                if self._schedule.cyclic
+                                else initial_produced
+                            ]
+                        )
+                if self._storage_weight:
+                    storage.append((produced, end - produced, end))
+                    initial_storage.update(
+                        _execution_occupancy(
+                            initial_produced,
+                            max(0, initial_end - initial_produced),
+                            period if self._schedule.cyclic else None,
+                        )
+                    )
+                    max_duration = (
+                        max(
+                            starts[edge.destination.operation.graph_id].ub
+                            + edge.destination_offset
+                            + edge.delay_count * period
+                            for edge in edges
+                        )
+                        - starts[source.operation.graph_id].lb
+                        - edges[0].source_offset
+                    )
+                    storage_upper += (
+                        max(0, math.ceil(max_duration / period))
+                        if self._schedule.cyclic
+                        else 1
+                    )
+
+        capacities = {}
+        for name, weight, events, initial in (
+            ("peak_reads", self._read_weight, reads, initial_reads),
+            ("peak_writes", self._write_weight, writes, initial_writes),
+            ("total_storage", self._storage_weight, storage, initial_storage),
+        ):
+            if not weight:
+                continue
+            capacity = cp.intvar(
+                0, storage_upper if name == "total_storage" else len(events), name=name
+            )
+            capacities[name] = capacity
+            initial_values[capacity] = max(initial.values(), default=0)
+            if not events:
+                model += capacity == 0
+            elif self._schedule.cyclic:
+                # Shift the slot by whole periods so modulo operands stay non-negative.
+                shift = (
+                    max(var.ub for var in starts.values())
+                    + max(edges[0].source_offset for edges in groups.values())
+                ) // period + 1
+                for time in range(period):
+                    if name == "total_storage":
+                        occupancy = [
+                            duration // period
+                            + (
+                                (time + shift * period - start) % period
+                                < duration % period
+                            )
+                            for start, duration, _ in events
+                        ]
+                    else:
+                        occupancy = [
+                            active & (start % period == time)
+                            for start, active in events
+                        ]
+                    model += cp.sum(occupancy) <= capacity
+            elif name == "total_storage":
+                model += cp.Cumulative(
+                    [start for start, _, _ in events],
+                    [duration for _, duration, _ in events],
+                    [end for _, _, end in events],
+                    [1] * len(events),
+                    capacity,
+                )
+            else:
+                model += cp.Cumulative(
+                    [start for start, _ in events],
+                    [1] * len(events),
+                    [start + 1 for start, _ in events],
+                    [active for _, active in events],
+                    capacity,
+                )
+        return capacities
 
     def _initialize_optimization(self, schedule: "Schedule") -> list[Operation]:
         self._begin_scheduling(schedule)
+        if not schedule._sfg.operations:
+            raise ValueError("Empty signal flow graph cannot be scheduled.")
+        self._is_recursive = schedule._sfg.is_recursive
         operations = [
             op
             for op in schedule._sfg.operations
@@ -1613,7 +1906,12 @@ class _OptimizationScheduler(Scheduler):
 
     def _compact_recursive_io(self, schedule: "Schedule", period: int) -> None:
         """Remove boundary slack in absolute time, before folding cyclic laps."""
-        if self._output_times:
+        if (
+            self._output_times
+            or self._read_weight
+            or self._write_weight
+            or self._storage_weight
+        ):
             return
         starts = schedule.start_times
         inputs = list(schedule._sfg.find_by_type(Input))
@@ -1713,6 +2011,60 @@ class _OptimizationScheduler(Scheduler):
 
     def _prepare_start_times(self, schedule: "Schedule", period: int) -> None:
         """Postprocess solver start times before utility placement and folding."""
+        if self._is_recursive:
+            self._compact_recursive_io(schedule, period)
+
+    def _get_timing_bounds(
+        self, schedule: "Schedule"
+    ) -> tuple[dict["GraphID", int], dict["GraphID", int], int, int]:
+        """Use the full horizon for feedback and ASAP/ALAP bounds otherwise."""
+        if self._max_time is not None and not schedule.cyclic:
+            raise ValueError("max_time is only supported for cyclic scheduling.")
+        period = schedule.schedule_time
+        if self._is_recursive:
+            if period is None:
+                _, period = self._get_asap_start_times(schedule, self._input_times)
+                schedule._schedule_time = period
+            if not isinstance(period, int) or period <= 0:
+                raise ValueError(
+                    f"{type(self).__name__} requires a positive schedule time."
+                )
+            self._validate_iteration_period(schedule, period)
+            horizon = max(period, self._max_time or period)
+            lower, upper = {}, {}
+            for op in schedule._sfg.operations:
+                if isinstance(op, (Delay, DontCare, Sink)):
+                    continue
+                lower[op.graph_id] = 0
+                upper[op.graph_id] = horizon
+                if not schedule.cyclic:
+                    upper[op.graph_id] -= max(
+                        (port.latency_offset for port in op.outputs), default=0
+                    )
+            return lower, upper, period, horizon
+
+        lower, asap_time = self._get_asap_start_times(
+            schedule, self._input_times, self._output_delta_times
+        )
+        if period is None:
+            period = asap_time
+            schedule._schedule_time = period
+        if not isinstance(period, int) or period <= 0:
+            raise ValueError(
+                f"{type(self).__name__} requires a positive schedule time."
+            )
+        if not schedule.cyclic and asap_time > period:
+            raise ValueError(
+                f"Shortest possible schedule time, {asap_time}, is longer than requested schedule time {period}. Use cyclic scheduling or increase schedule time."
+            )
+        horizon = max(period, self._max_time or period)
+        upper = self._get_alap_start_times(
+            schedule,
+            self._input_times,
+            self._output_delta_times,
+            max_time=horizon,
+        )
+        return lower, upper, period, horizon
 
     def _validate_iteration_period(self, schedule: "Schedule", period: int) -> None:
         """Reject periods below the feedback bound before building a model."""
@@ -1758,6 +2110,16 @@ class _OptimizationScheduler(Scheduler):
         )
         alap_scheduler.apply_scheduling(alap_schedule)
         upper_bounds = copy.copy(alap_schedule.start_times)
+        if self._read_weight or self._write_weight or self._storage_weight:
+            # ALAP folds a zero-latency operation at the horizon back to zero.
+            # Memory costs depend on its placement, so retain the absolute bound.
+            for op_id in upper_bounds:
+                op = cast(Operation, alap_schedule._sfg.find_by_id(op_id))
+                if all(port.latency_offset == 0 for port in op.outputs):
+                    upper_bounds[op_id] += (
+                        alap_scheduler._op_laps.get(op_id, 0)
+                        * alap_schedule.schedule_time
+                    )
         if output_delta_times:
             # ALAP leaves the relative output group at its ASAP placement.
             # Translate its bounds to use the available horizon. Only the
@@ -1843,10 +2205,17 @@ class _OptimizationScheduler(Scheduler):
 
 class ILPScheduler(_OptimizationScheduler):
     """
-    ILP-based scheduler that minimizes the sum of per-type resource counts.
+    ILP-based scheduler with weighted resource and memory costs.
 
     Resource occupancy is determined by execution time. For cyclic schedules,
     occupancy includes overlap between successive iterations.
+
+    Feedback is detected through the SFG's ``is_recursive`` property. Recursive
+    graphs use the full scheduling horizon and validate the iteration period
+    bound, allowing periods shorter than the ASAP schedule length. Each
+    connection contributes one period of available time per intervening Delay.
+    Unless output times are fixed or memory costs are enabled, recursive I/O
+    slack is compacted after solving while preserving relative output offsets.
 
     Parameters
     ----------
@@ -1868,6 +2237,20 @@ class ILPScheduler(_OptimizationScheduler):
         The time horizon to schedule for in cyclic scheduling.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
+    resource_weight : float, default: 1
+        Weight of the sum of peak resource counts per operation type, including I/O.
+    read_weight : float, default: 0
+        Weight of the peak number of concurrent memory reads. Simultaneous reads
+        of the same value count once; direct transfers require no memory read.
+    write_weight : float, default: 0
+        Weight of the peak number of concurrent memory writes. A produced value
+        is written once if any consumer needs it after its production time.
+    storage_weight : float, default: 0
+        Weight of the peak number of simultaneously stored values. A value is
+        stored from production until its last read, including overlapping cyclic
+        iterations. All weights must be finite and non-negative. Zero weights
+        omit the corresponding variables and constraints; all-zero weights seek
+        any feasible schedule.
     """
 
     def __init__(
@@ -1878,6 +2261,11 @@ class ILPScheduler(_OptimizationScheduler):
         output_times: dict["GraphID", int] | None = None,
         max_time: int | None = None,
         sort_y_location: bool = True,
+        *,
+        resource_weight: float = 1,
+        read_weight: float = 0,
+        write_weight: float = 0,
+        storage_weight: float = 0,
     ) -> None:
         self._solver = solver
         super().__init__(
@@ -1885,52 +2273,43 @@ class ILPScheduler(_OptimizationScheduler):
             output_delta_times=output_delta_times,
             output_times=output_times,
             sort_y_location=sort_y_location,
+            resource_weight=resource_weight,
+            read_weight=read_weight,
+            write_weight=write_weight,
+            storage_weight=storage_weight,
         )
+        if max_time is not None and (not isinstance(max_time, int) or max_time <= 0):
+            raise ValueError("max_time must be a positive integer.")
         self._max_time = max_time
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Inspired by K.K. Parhi https://doi.org/10.1109/CICC.1993.590480
 
         ops = self._initialize_optimization(schedule)
-        LB, asap_max_time = self._get_asap_start_times(
-            schedule,
-            input_times=self._input_times,
-            output_delta_times=self._output_delta_times,
-        )
-        Ts = schedule._schedule_time
-        if Ts is None:
-            Ts = asap_max_time
-            schedule._schedule_time = Ts
-        if Ts <= 0:
-            raise ValueError("ILPScheduler requires a positive schedule time.")
-        if not self._schedule.cyclic and asap_max_time > self._schedule.schedule_time:
-            raise ValueError(
-                f"Shortest possible schedule time, {asap_max_time}, is longer than requested schedule time {self._schedule.schedule_time}. Use cyclic scheduling or increase schedule time."
-            )
-        UB = self._get_alap_start_times(
-            schedule,
-            input_times=self._input_times,
-            output_delta_times=self._output_delta_times,
-            max_time=self._max_time,
-        )
+        LB, UB, Ts, horizon = self._get_timing_bounds(schedule)
 
-        if self._max_time:
-            time_slots = range(max(self._max_time, Ts) + 1)
-        else:
-            time_slots = range(Ts + 1)
-
-        op_types = list({op.type_name() for op in ops})
+        op_types = list({op.type_name() for op in ops}) if self._resource_weight else []
 
         problem = pulp.LpProblem()
         X = {}
         for op in ops:
             op_id = op.graph_id
-            times = range(max(0, LB[op_id]), min(time_slots.stop - 1, UB[op_id]) + 1)
+            times = range(max(0, LB[op_id]), min(horizon, UB[op_id]) + 1)
             if op_id in self._input_times:
                 times = [time for time in times if time == self._input_times[op_id]]
             if op_id in self._output_times:
+                output_time = self._output_times[op_id]
                 times = [
-                    time for time in times if time % Ts == self._output_times[op_id]
+                    time
+                    for time in times
+                    if (
+                        output_time <= Ts
+                        and time % Ts == output_time % Ts
+                        and (output_time != Ts or time > 0)
+                        if schedule.cyclic
+                        else time == output_time
+                        or (not self._is_recursive and output_time == 0 and time == Ts)
+                    )
                 ]
             if not times:
                 raise ValueError(
@@ -1947,12 +2326,9 @@ class ILPScheduler(_OptimizationScheduler):
         fixed_output_times = self._output_times
         if not schedule.cyclic:
             fixed_output_times = {}
-            for output_id, output_time in self._output_times.items():
-                starts = [
-                    time
-                    for time in range(LB[output_id], UB[output_id] + 1)
-                    if time % Ts == output_time
-                ]
+            for output_id in self._output_times:
+                output_op = cast(Operation, schedule._sfg.find_by_id(output_id))
+                starts = list(X[output_op])
                 if len(starts) == 1:
                     fixed_output_times[output_id] = starts[0]
         for io_type, timing_maps in (
@@ -1960,7 +2336,7 @@ class ILPScheduler(_OptimizationScheduler):
             (Output, (fixed_output_times, self._output_delta_times)),
         ):
             io_ops = [op for op in ops if isinstance(op, io_type)]
-            if not io_ops:
+            if not io_ops or not self._resource_weight:
                 continue
             resource = R_used[io_type.type_name()]
             for timings in timing_maps:
@@ -1997,8 +2373,7 @@ class ILPScheduler(_OptimizationScheduler):
             for time in X[op]
         }
 
-        # Minimize the amount of concurrent processes and I/O
-        problem += pulp.lpSum(R_used[op_type] for op_type in op_types)
+        objective = self._resource_weight * pulp.lpSum(R_used.values())
 
         # (1) - Each operation should have one and only one start time
         for op in ops:
@@ -2047,6 +2422,24 @@ class ILPScheduler(_OptimizationScheduler):
                 default=0,
             )
 
+        if self._is_recursive and schedule.cyclic:
+            stages = {
+                op: pulp.lpSum(
+                    (max(time - 1, 0) // Ts if isinstance(op, Output) else time // Ts)
+                    * var
+                    for time, var in X[op].items()
+                )
+                for op in ops
+            }
+            wrapped = {
+                port: pulp.lpSum(
+                    int(time % Ts + cast(int, port.latency_offset) > Ts) * var
+                    for time, var in X[op].items()
+                )
+                for op in ops
+                for port in op.outputs
+            }
+
         # (3) - Ensure that all timing constraints are met
         for edge in self._connections:
             source_choices = X[edge.source.operation]
@@ -2064,6 +2457,22 @@ class ILPScheduler(_OptimizationScheduler):
                         )
                         <= 1
                     )
+            if self._is_recursive and schedule.cyclic:
+                # Folding a feedback graph must leave every signal lap non-negative.
+                problem += (
+                    edge.delay_count
+                    + stages[edge.destination.operation]
+                    - stages[edge.source.operation]
+                    - wrapped[edge.source]
+                    >= 0
+                )
+
+        problem += objective + self._add_ilp_memory_objective(
+            problem,
+            {op.graph_id: variables for op, variables in X.items()},
+            Ts,
+            initial_values,
+        )
 
         # Check the ASAP candidate against the complete model before passing
         # it to the solver. Fixed output times or additional resource limits
@@ -2099,163 +2508,28 @@ class ILPScheduler(_OptimizationScheduler):
                     schedule.start_times[op.graph_id] = time
                     break
 
-        self._finish_schedule(schedule, Ts)
-
-
-class ILPRecursiveScheduler(ILPScheduler):
-    """
-    ILP scheduler for algorithms with feedback through delays.
-
-    Minimize the sum of peak resource counts, including I/O, for a fixed
-    iteration period. Each input connection contributes its own precedence
-    constraint, with one period of available time per intervening Delay.
-    Latency offsets determine data availability; execution times determine
-    resource occupancy, including overlap between cyclic iterations.
-
-    Accepts the same parameters as :class:`ILPScheduler`. ``max_time`` is an
-    optional absolute scheduling horizon for cyclic schedules, allowing
-    operations to span several iterations before folding into the period.
-    Without ``schedule_time``, use the ASAP schedule length as the period.
-    Output delta times are relative to a common time chosen by the solver.
-    Unless output times are fixed, compact I/O slack after solving. Unspecified
-    inputs start at zero; the other operations rotate together to remove input
-    slack, and outputs move earlier while preserving specified output deltas.
-
-    Examples
-    --------
-    .. code-block:: python
-
-        from b_asic import ILPRecursiveScheduler, Schedule
-
-        schedule = Schedule(
-            sfg, ILPRecursiveScheduler(), schedule_time=10, cyclic=True
-        )
-    """
-
-    def apply_scheduling(self, schedule: "Schedule") -> None:
-        ops = self._initialize_optimization(schedule)
-        if self._max_time is not None:
-            if not isinstance(self._max_time, int) or self._max_time <= 0:
-                raise ValueError("max_time must be a positive integer.")
-            if not schedule.cyclic:
-                raise ValueError("max_time is only supported for cyclic scheduling.")
-        if not schedule._sfg.operations:
-            raise ValueError("Empty signal flow graph cannot be scheduled.")
-        period = schedule.schedule_time
-        if period is None:
-            _, period = self._get_asap_start_times(schedule, self._input_times)
-            schedule._schedule_time = period
-        if not isinstance(period, int) or period <= 0:
-            raise ValueError("ILPRecursiveScheduler requires a positive schedule time.")
-        self._validate_iteration_period(schedule, period)
-        horizon = max(period, self._max_time or period)
-        problem = pulp.LpProblem("recursive_schedule", pulp.LpMinimize)
-        choices = {}
-        starts = {}
-        stages = {}
-        wrapped = {}
-        groups = defaultdict(list)
-        for op in ops:
-            times = range(horizon + 1)
-            if not schedule.cyclic:
-                # Every produced value must fit within the scheduling horizon.
-                end_offset = max(
-                    (port.latency_offset for port in op.outputs), default=0
-                )
-                times = range(horizon - end_offset + 1)
-            choices[op.graph_id] = problem.add_variable_dicts(
-                f"start_{op.graph_id}", times, cat=pulp.LpBinary
-            )
-            variables = choices[op.graph_id]
-            problem += pulp.lpSum(variables.values()) == 1
-            starts[op.graph_id] = pulp.lpSum(t * var for t, var in variables.items())
-            stages[op.graph_id] = pulp.lpSum(
-                (max(t - 1, 0) // period if isinstance(op, Output) else t // period)
-                * var
-                for t, var in variables.items()
-            )
-            for port in op.outputs:
-                wrapped[op.graph_id, port.index] = pulp.lpSum(
-                    int(t % period + port.latency_offset > period) * var
-                    for t, var in variables.items()
-                )
-            groups[op.type_name()].append(op)
-
-        for op_id, time in self._input_times.items():
-            problem += starts[op_id] == time
-        for op_id, time in self._output_times.items():
-            if schedule.cyclic:
-                problem += (
-                    pulp.lpSum(
-                        var
-                        for t, var in choices[op_id].items()
-                        if (period if t > 0 and t % period == 0 else t % period) == time
-                    )
-                    == 1
-                )
-            else:
-                problem += starts[op_id] == time
-        if self._output_delta_times:
-            base = problem.add_variable("output_base", lowBound=0, cat=pulp.LpInteger)
-            for op_id, delta in self._output_delta_times.items():
-                problem += starts[op_id] == base + delta
-
-        for edge in self._connections:
-            source_id = edge.source.operation.graph_id
-            op_id = edge.destination.operation.graph_id
-            problem += (
-                starts[source_id] + edge.source_offset
-                <= starts[op_id] + edge.destination_offset + edge.delay_count * period
-            )
-            if schedule.cyclic:
-                # Folding must leave a non-negative lap on every signal.
-                problem += (
-                    edge.delay_count
-                    + stages[op_id]
-                    - stages[source_id]
-                    - wrapped[source_id, edge.source.index]
-                    >= 0
-                )
-
-        capacities = []
-        for op_type, group in groups.items():
-            capacity = problem.add_variable(
-                f"resources_{op_type}", lowBound=0, cat=pulp.LpInteger
-            )
-            capacities.append(capacity)
-            occupancy = defaultdict(list)
-            for op in group:
-                for time, var in choices[op.graph_id].items():
-                    for slot, count in _execution_occupancy(
-                        time, op.execution_time, period if schedule.cyclic else None
-                    ).items():
-                        occupancy[slot].append(count * var)
-            for terms in occupancy.values():
-                problem += pulp.lpSum(terms) <= capacity
-        problem += pulp.lpSum(capacities)
-        stats = _solve_ilp_problem(problem, self._solver)
-        if not stats.has_solution:
-            raise ValueError("Solution could not be found via ILP, use another method.")
-        for op_id, variables in choices.items():
-            schedule.start_times[op_id] = next(
-                time for time, var in variables.items() if round(pulp.value(var)) == 1
-            )
-        self._compact_recursive_io(schedule, period)
-        if schedule.cyclic:
-            self._finish_cyclic_schedule(schedule, period, horizon)
+        self._prepare_start_times(schedule, Ts)
+        if self._is_recursive and schedule.cyclic:
+            self._finish_cyclic_schedule(schedule, Ts, horizon)
         else:
-            self._finish_schedule(schedule, period)
+            self._finish_schedule(schedule, Ts)
 
 
 class CPScheduler(_OptimizationScheduler):
     """
-    Constraint programming scheduler minimizing concurrent operations and I/O.
+    Constraint programming scheduler with weighted resource and memory costs.
 
-    Minimizes the sum of peak resource counts for each operation type, including
-    I/O. For cyclic schedules, resource constraints count overlap between
+    By default minimizes the sum of peak resource counts for each operation type,
+    including I/O. For cyclic schedules, resource constraints count overlap between
     successive iterations. I/O timing constraints tighten resource bounds, and
     a feasible ASAP schedule is supplied as a warm start when the solver supports
     solution hints.
+
+    Feedback is detected through the SFG's ``is_recursive`` property. Recursive
+    graphs use the full scheduling horizon, validate the iteration period bound,
+    and preserve dependencies when folding successive iterations. Unless output
+    times are fixed or memory costs are enabled, recursive I/O slack is compacted
+    after solving while preserving relative output offsets.
 
     Requires the optional ``cp`` dependencies (``pip install b-asic[cp]``).
 
@@ -2278,6 +2552,21 @@ class CPScheduler(_OptimizationScheduler):
         period is specified by the Schedule's ``schedule_time`` parameter.
     sort_y_location : bool, default: True
         If the y-location should be sorted based on start time of operations.
+    resource_weight : float, default: 1
+        Weight of the sum of peak resource counts per operation type, including I/O.
+    read_weight : float, default: 0
+        Weight of the peak number of concurrent memory reads. Simultaneous reads
+        of the same value count once; direct transfers require no memory read.
+    write_weight : float, default: 0
+        Weight of the peak number of concurrent memory writes. A produced value
+        is written once if any consumer needs it after its production time.
+    storage_weight : float, default: 0
+        Weight of the peak number of simultaneously stored values. A value is
+        stored from production until its last read, including overlapping cyclic
+        iterations. All weights must be finite and non-negative. Zero weights
+        omit the corresponding variables and constraints; all-zero weights seek
+        any feasible schedule. Fractional weights are scaled together to integer
+        coefficients for CP solvers, preserving their ratios.
     **kwargs : Any
         Options passed to the CPMpy solver's ``solve()`` method, for example
         ``time_limit=60`` or, for OR-Tools, ``num_search_workers=4``.
@@ -2301,6 +2590,11 @@ class CPScheduler(_OptimizationScheduler):
         output_times: dict["GraphID", int] | None = None,
         max_time: int | None = None,
         sort_y_location: bool = True,
+        *,
+        resource_weight: float = 1,
+        read_weight: float = 0,
+        write_weight: float = 0,
+        storage_weight: float = 0,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -2308,40 +2602,16 @@ class CPScheduler(_OptimizationScheduler):
             output_delta_times=output_delta_times,
             output_times=output_times,
             sort_y_location=sort_y_location,
+            resource_weight=resource_weight,
+            read_weight=read_weight,
+            write_weight=write_weight,
+            storage_weight=storage_weight,
         )
         if max_time is not None and (not isinstance(max_time, int) or max_time <= 0):
             raise ValueError("max_time must be a positive integer.")
         self._solver = solver
         self._max_time = max_time
         self._solver_options = kwargs
-
-    def _get_timing_bounds(
-        self, schedule: "Schedule"
-    ) -> tuple[dict["GraphID", int], dict["GraphID", int], int, int]:
-        """Return start-time bounds, iteration period, and absolute horizon."""
-        lower, asap_time = self._get_asap_start_times(
-            schedule, self._input_times, self._output_delta_times
-        )
-        period = schedule.schedule_time
-        if period is None:
-            period = asap_time
-            schedule._schedule_time = period
-        if period <= 0:
-            raise ValueError("CPScheduler requires a positive schedule time.")
-        if not schedule.cyclic and asap_time > period:
-            raise ValueError(
-                f"Shortest possible schedule time, {asap_time}, is longer than requested schedule time {period}. Use cyclic scheduling or increase schedule time."
-            )
-        if self._max_time is not None and not schedule.cyclic:
-            raise ValueError("max_time is only supported for cyclic scheduling.")
-        horizon = max(period, self._max_time or period)
-        upper = self._get_alap_start_times(
-            schedule,
-            self._input_times,
-            self._output_delta_times,
-            max_time=horizon,
-        )
-        return lower, upper, period, horizon
 
     def apply_scheduling(self, schedule: "Schedule") -> None:
         # Keep CPMpy optional for users of the other schedulers.
@@ -2406,14 +2676,18 @@ class CPScheduler(_OptimizationScheduler):
             else:
                 model += starts[op_id] == time
 
-        stages = {
-            op.graph_id: (
-                cp.max([starts[op.graph_id] - 1, 0]) // Ts
-                if isinstance(op, Output)
-                else starts[op.graph_id] // Ts
-            )
-            for op in ops
-        }
+        stages = (
+            {
+                op.graph_id: (
+                    cp.max([starts[op.graph_id] - 1, 0]) // Ts
+                    if isinstance(op, Output)
+                    else starts[op.graph_id] // Ts
+                )
+                for op in ops
+            }
+            if schedule.cyclic
+            else {}
+        )
         # Follow each input separately: parallel edges may have different delays
         # and different latency offsets even when their source operation agrees.
         for edge in self._connections:
@@ -2434,7 +2708,7 @@ class CPScheduler(_OptimizationScheduler):
                 )
 
         capacities = []
-        for op_type, group in groups.items():
+        for op_type, group in groups.items() if self._resource_weight else ():
             capacity_lower = 0
             capacity_upper = sum(
                 max(1, math.ceil(op.execution_time / Ts)) for op in group
@@ -2509,8 +2783,33 @@ class CPScheduler(_OptimizationScheduler):
                         [1] * len(busy),
                         capacity,
                     )
-        objective = cp.sum(capacities)
-        model.minimize(objective)
+        memory_capacities = self._add_cp_memory_objective(
+            model, starts, Ts, initial_starts, initial_values
+        )
+        weights = [
+            Fraction(str(weight))
+            for weight in (
+                self._resource_weight,
+                self._read_weight,
+                self._write_weight,
+                self._storage_weight,
+            )
+        ]
+        scale = math.lcm(*(weight.denominator for weight in weights))
+        objective = cp.sum(
+            [int(weights[0] * scale) * capacity for capacity in capacities]
+            + [
+                int(weight * scale) * memory_capacities[name]
+                for name, weight in zip(
+                    ("peak_reads", "peak_writes", "total_storage"),
+                    weights[1:],
+                    strict=True,
+                )
+                if weight
+            ]
+        )
+        if any(weights):
+            model.minimize(objective)
         _solve_cp_problem(
             model,
             self._solver,
@@ -2524,72 +2823,3 @@ class CPScheduler(_OptimizationScheduler):
             self._finish_cyclic_schedule(schedule, Ts, horizon)
         else:
             self._finish_schedule(schedule, Ts)
-
-
-class CPRecursiveScheduler(CPScheduler):
-    """
-    Constraint programming scheduler for algorithms with feedback through delays.
-
-    Minimize the sum of peak resource counts, including I/O, using the same
-    per-connection feedback constraints as :class:`ILPRecursiveScheduler`.
-    Search the full scheduling horizon rather than restricting start times to
-    ASAP/ALAP bounds, so iterations may overlap even when the period is shorter
-    than the ASAP schedule length.
-
-    Accepts the same parameters and solver options as :class:`CPScheduler`.
-    ``max_time`` extends the absolute horizon for cyclic schedules; the
-    Schedule's ``schedule_time`` specifies the iteration period. Without an
-    explicit period, use the ASAP schedule length. Requires the optional
-    ``cp`` dependencies (``pip install b-asic[cp]``).
-
-    Compact I/O slack after solving as in :class:`ILPRecursiveScheduler`,
-    preserving fixed input times and relative output offsets. Fixed output
-    times disable this compaction.
-
-    Examples
-    --------
-    .. code-block:: python
-
-        from b_asic import CPRecursiveScheduler, Schedule
-
-        schedule = Schedule(
-            sfg, CPRecursiveScheduler(max_time=20),
-            schedule_time=10, cyclic=True,
-        )
-    """
-
-    def _prepare_start_times(self, schedule: "Schedule", period: int) -> None:
-        self._compact_recursive_io(schedule, period)
-
-    def _get_timing_bounds(
-        self, schedule: "Schedule"
-    ) -> tuple[dict["GraphID", int], dict["GraphID", int], int, int]:
-        if not schedule._sfg.operations:
-            raise ValueError("Empty signal flow graph cannot be scheduled.")
-        if self._max_time is not None and not schedule.cyclic:
-            raise ValueError("max_time is only supported for cyclic scheduling.")
-        period = schedule.schedule_time
-        if period is None:
-            _, period = self._get_asap_start_times(schedule, self._input_times)
-            schedule._schedule_time = period
-        if not isinstance(period, int) or period <= 0:
-            raise ValueError("CPRecursiveScheduler requires a positive schedule time.")
-        self._validate_iteration_period(schedule, period)
-        horizon = max(period, self._max_time or period)
-        lower = {}
-        upper = {}
-        for op in schedule._sfg.operations:
-            if isinstance(op, (Delay, DontCare, Sink)):
-                continue
-            for port in (*op.inputs, *op.outputs):
-                if port.latency_offset is None:
-                    raise ValueError(
-                        f"Port {port.index} of operation {op.graph_id} has no latency-offset."
-                    )
-            lower[op.graph_id] = 0
-            upper[op.graph_id] = horizon
-            if not schedule.cyclic:
-                upper[op.graph_id] -= max(
-                    (port.latency_offset for port in op.outputs), default=0
-                )
-        return lower, upper, period, horizon
