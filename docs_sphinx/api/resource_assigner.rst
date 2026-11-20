@@ -27,6 +27,49 @@ Pass strategy-specific options through ``strat_params``. For example,
 ``strat_params={"coloring_strategy": "largest_first", "interchange": True}``
 configures ``greedy_graph_color``. The supplied dictionary is not modified.
 
+Long-lived memory variables
+--------------------------
+
+Variables with lifetimes longer than the schedule period are preserved by
+default. The assigner repeats their memory accesses over the smallest integer
+number of periods that can hold the longest lifetime. Each original iteration
+still needs only its original writes and reads; no relay transfers are added.
+PEs and direct interconnects keep their original period.
+
+``chain_split_strategy=None`` (the default) preserves variables. Set it to
+``"fixed"`` to request memory-to-memory chains with maximum-length segments,
+or ``"min_ports"`` to greedily choose relay times using peak combined, read,
+and write load, followed by squared combined load. Without an explicit
+unfolding factor, each segment then fits in one schedule period. Both
+strategies keep the minimum number of segments per variable; ``"min_ports"``
+does not guarantee a globally optimal load.
+
+To bound the memory control period, pass ``memory_unfolding_factor``. For
+example, this allows two schedule periods of storage before splitting any
+remaining long lifetimes::
+
+    pes, memories, direct = assign_processing_elements_and_memories(
+        schedule,
+        memory_unfolding_factor=2,
+        chain_split_strategy="min_ports",
+    )
+
+The factor must be a positive integer. If splitting is disabled, an explicit
+factor that cannot hold the longest lifetime raises ``ValueError``. For manual
+assignment, :meth:`~b_asic.resources.ProcessCollection.unfold` repeats the
+memory variables before port and cell allocation, including reconnecting
+existing relay chains. Unfold all connected chain variables together.
+
+:class:`~b_asic.architecture.Architecture` exposes the original PE period as
+``schedule_time`` and the memory period as ``memory_schedule_time``.
+VHDL generation uses separate schedule counters and control ROMs when those
+periods differ. Memory addresses and interconnect selectors follow the longer
+period, while PE parameters retain the original period. Both counters pause
+and reset together. Distributed control generation also supports these periods.
+
+Memory port configurations
+--------------------------
+
 For multiport memories, use ``strategy="left_edge"`` with the desired
 ``memory_read_ports``, ``memory_write_ports``, and ``memory_total_ports``.
 The assigner obtains a feasible memory-count upper bound using

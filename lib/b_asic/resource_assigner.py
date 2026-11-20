@@ -58,6 +58,8 @@ def assign_processing_elements_and_memories(
     memory_write_ports: int = 1,
     memory_total_ports: int | None = None,
     memory_type: Literal["RAM", "register"] = "RAM",
+    chain_split_strategy: Literal["fixed", "min_ports"] | None = None,
+    memory_unfolding_factor: int | None = None,
     solver: LpSolver | str | SolverInterface | None = None,
     strat_params: dict | None = None,
 ) -> tuple[list[ProcessingElement], list[Memory], ProcessCollection]:
@@ -118,6 +120,22 @@ def assign_processing_elements_and_memories(
 
     memory_type : {'RAM', 'register'}, default: 'RAM'
         The type of memory to assign to.
+
+    chain_split_strategy : {None, 'fixed', 'min_ports'}, default: None
+        By default, preserve variables and unfold memory storage enough to
+        accommodate their lifetimes. Set ``fixed`` to split variables exceeding
+        the memory period into maximum-length segments, or ``min_ports`` to
+        greedily choose relay times to reduce peak memory access load.
+        Each relay adds a write and may add a read. Both splitting strategies
+        use the minimum number of segments per variable; ``min_ports`` does
+        not guarantee a global optimum.
+
+    memory_unfolding_factor : int, optional
+        Repeat memory accesses over this positive integer number of schedule
+        periods, keeping PEs and direct interconnects on the original period.
+        Defaults to one when ``chain_split_strategy`` is set, otherwise the
+        smallest factor covering the longest lifetime. A smaller explicit factor
+        requires a splitting strategy.
 
     solver : :class:`~pulp.LpSolver` or str or :class:`~cpmpy.solvers.solver_interface.SolverInterface`, optional
         For ``cp_min_mux``, a CPMpy solver name (default: ``"ortools"``) or
@@ -229,6 +247,26 @@ def assign_processing_elements_and_memories(
     op_groups = operations.split_on_type_name()
     direct, mem_vars = memory_variables.split_on_length()
 
+    if chain_split_strategy not in (None, "fixed", "min_ports"):
+        raise ValueError(f"Invalid chain split strategy {chain_split_strategy!r}")
+    if memory_unfolding_factor is None:
+        longest = max((p.execution_time for p in mem_vars), default=0)
+        memory_unfolding_factor = (
+            1
+            if chain_split_strategy is not None
+            else max(
+                1, (longest + mem_vars.schedule_time - 1) // mem_vars.schedule_time
+            )
+        )
+    mem_vars = mem_vars.unfold(memory_unfolding_factor)
+    if chain_split_strategy is not None:
+        mem_vars = mem_vars.split_into_chains(strategy=chain_split_strategy)
+    elif any(p.execution_time > mem_vars.schedule_time for p in mem_vars):
+        raise ValueError(
+            "memory_unfolding_factor is too small for the longest lifetime; "
+            "increase it or set chain_split_strategy='fixed' or 'min_ports'"
+        )
+
     operations_set, memory_variable_set = _split_operations_and_variables(
         op_groups,
         mem_vars,
@@ -322,13 +360,6 @@ def _split_operations_and_variables(
                 raise ValueError(
                     f"Operation {process} has execution time greater than the schedule time."
                 )
-
-    if any(p.execution_time > mem_vars.schedule_time for p in mem_vars):
-        log.info(
-            "Memory variables with execution time exceeding schedule time detected;"
-            " splitting into chains automatically"
-        )
-        mem_vars = mem_vars.split_into_chains()
 
     memory_read_ports, memory_write_ports, memory_total_ports = _sanitize_port_option(
         memory_read_ports, memory_write_ports, memory_total_ports
@@ -747,7 +778,7 @@ def _mux_problem(
         slots = defaultdict(set)
         for proc in group:
             for t in range(proc.start_time, proc.start_time + proc.execution_time):
-                slots[t % Ts].add(("pe", op_type, proc))
+                slots[t % group.schedule_time].add(("pe", op_type, proc))
         families.append(([("pe", op_type, proc) for proc in group], slots.values()))
 
     reads = defaultdict(set)
@@ -1535,7 +1566,9 @@ def _ilp_min_mux(
     limits = _sanitize_port_option(
         memory_read_ports, memory_write_ports, memory_total_ports
     )
-    if limits[:2] != (1, 1):
+    if limits[:2] != (1, 1) or any(
+        group.schedule_time != mem_vars.schedule_time for group in op_groups.values()
+    ):
         return _ilp_min_mux_multiport(
             problem,
             op_groups,
@@ -1812,7 +1845,7 @@ def _ilp_min_mux(
     for op_type_name, op_group in op_groups.items():
         for proc in op_group:
             for t in range(proc.start_time, proc.start_time + proc.execution_time):
-                procs_in_time[op_type_name][t % Ts].append(proc)
+                procs_in_time[op_type_name][t % op_group.schedule_time].append(proc)
 
     # Loop over the schedule and add constraints
     capacity_rows = mem_vars._port_capacity_rows(accesses, limits)
