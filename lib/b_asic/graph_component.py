@@ -8,6 +8,7 @@ import copy
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Generator, Iterable, Mapping
+from inspect import Parameter, signature
 from typing import Any, cast
 
 from b_asic.types import GraphID, Name, TypeName
@@ -167,11 +168,33 @@ class AbstractGraphComponent(GraphComponent):
         self._parameters[name] = value
 
     def copy(self, *args, **kwargs) -> GraphComponent:
-        new_component = self.__class__(*args, **kwargs)
+        """
+        Copy parameters, supplying required constructor arguments first.
+
+        Constructor arguments explicitly supplied by the caller take precedence
+        during construction. Optional arguments retain their defaults so stored
+        parameters are not revalidated by the constructor. All stored parameters,
+        including metadata without constructor arguments, are then restored on
+        the new component.
+        """
+        params = copy.deepcopy(self.params)
+        constructor = signature(self.__class__)
+        arguments = constructor.bind_partial(*args, **kwargs)
+        for name, value in params.items():
+            parameter = constructor.parameters.get(name)
+            if (
+                parameter is not None
+                and parameter.default is Parameter.empty
+                and parameter.kind
+                not in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD)
+                and name not in arguments.arguments
+            ):
+                arguments.arguments[name] = value
+        new_component = self.__class__(*arguments.args, **arguments.kwargs)
         new_component.name = copy.copy(self.name)
         new_component.graph_id = copy.copy(self.graph_id)
-        for name, value in self.params.items():
-            new_component.set_param(copy.copy(name), copy.deepcopy(value))  # pylint: disable=no-member
+        for name, value in params.items():
+            new_component.set_param(name, value)
         return new_component
 
     def traverse(self) -> Generator[GraphComponent, None, None]:

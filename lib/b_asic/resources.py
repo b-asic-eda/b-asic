@@ -129,7 +129,8 @@ def _get_source_port(var: MemoryVariable, pes: list["ProcessingElement"]) -> str
     for pe in pes:
         for process in pe:
             if source.operation is process.operation:
-                return f"{pe.entity_name}.out.{source.index}"
+                index = source.operation.output_port_mapping[source.index]
+                return f"{pe.entity_name}.out.{index}"
     raise ValueError("Source could not be found for the given variable.")
 
 
@@ -145,7 +146,8 @@ def _get_destination_port(var: MemoryVariable, pes: list["ProcessingElement"]) -
                     input_op.graph_id == var_name
                     and input_port.connected_source.index == port_index
                 ):
-                    return f"{pe.entity_name}.in.{input_port.index}"
+                    index = input_port.operation.input_port_mapping[input_port.index]
+                    return f"{pe.entity_name}.in.{index}"
     raise ValueError("Destination could not be found for the given variable.")
 
 
@@ -935,6 +937,7 @@ class ProcessCollection:
         """
         exclusion_graph = nx.Graph()
         exclusion_graph.add_nodes_from(self._collection)
+        exclusion_graph.add_edges_from(self._physical_port_exclusion_graph().edges())
         for process1 in self._collection:
             for process2 in self._collection:
                 if process1 == process2:
@@ -976,6 +979,23 @@ class ProcessCollection:
                 if t1.intersection(t2):
                     exclusion_graph.add_edge(process1, process2)
         return exclusion_graph
+
+    def _physical_port_exclusion_graph(self) -> nx.Graph:
+        """Conflicts from mapped PE interfaces, timing, and physical port use."""
+        graph = nx.Graph()
+        operators = [p for p in self if isinstance(p, OperatorProcess)]
+        if not any(p.operation._port_mapping_key[2] for p in operators):
+            return graph
+        accesses = {p: p._physical_port_accesses(self.schedule_time) for p in operators}
+        for i, first in enumerate(operators):
+            for second in operators[i + 1 :]:
+                if (
+                    first.operation._port_mapping_key
+                    != second.operation._port_mapping_key
+                    or accesses[first] & accesses[second]
+                ):
+                    graph.add_edge(first, second)
+        return graph
 
     def split_on_type_name(self) -> dict[TypeName, "ProcessCollection"]:
         groups = {}
@@ -1933,7 +1953,11 @@ class ProcessCollection:
                             "Source could not be found for the given variable."
                         )
                     endpoints[
-                        "out", pe_for_operation[source_id], var.write_port.index
+                        "out",
+                        pe_for_operation[source_id],
+                        var.write_port.operation.output_port_mapping[
+                            var.write_port.index
+                        ],
                     ].append(var)
                 if strategy.endswith(("min_output_mux", "min_mux")):
                     for port in var.read_ports:
@@ -1947,7 +1971,9 @@ class ProcessCollection:
                                 "Destination could not be found for the given variable."
                             )
                         endpoints[
-                            "in", pe_for_operation[destination_id], port.index
+                            "in",
+                            pe_for_operation[destination_id],
+                            port.operation.input_port_mapping[port.index],
                         ].append(var)
             connection_groups = list(endpoints.values())
         return connection_groups
@@ -2722,6 +2748,7 @@ class ProcessCollection:
             Collections grouping processes assigned to the same resource by the
             left-edge algorithm, with no overlapping execution times within each collection.
         """
+        port_conflicts = self._physical_port_exclusion_graph()
         assignment: list[ProcessCollection] = []
         for next_process in sorted(self):
             if next_process.execution_time > self.schedule_time:
@@ -2745,6 +2772,9 @@ class ProcessCollection:
                 for cell_assignment in assignment:
                     insert_to_this_cell = True
                     for process in cell_assignment:
+                        if port_conflicts.has_edge(next_process, process):
+                            insert_to_this_cell = False
+                            break
                         # The next_process start_time is always greater than or equal to
                         # the start time of all other assigned processes
                         process_end_time = process.start_time + process.execution_time

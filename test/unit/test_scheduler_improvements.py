@@ -179,6 +179,9 @@ def test_fixed_output_phase_after_data_crosses_period(scheduler_type, output_tim
     "scheduler_type",
     [ASAPScheduler, ALAPScheduler, ListScheduler, RecursiveListScheduler],
 )
+@pytest.mark.filterwarnings(
+    "ignore:^Two signals connected to the same output port$:UserWarning"
+)
 def test_fixed_output_relative_group_crosses_period(scheduler_type):
     source = Input()
     op = ConstantMultiplication(2, source, latency=2, execution_time=1)
@@ -214,6 +217,9 @@ def test_impossible_fixed_output_time(scheduler_type):
     "scheduler_type",
     [ASAPScheduler, ALAPScheduler, ListScheduler, RecursiveListScheduler],
 )
+@pytest.mark.filterwarnings(
+    "ignore:^Two signals connected to the same output port$:UserWarning"
+)
 def test_fixed_output_preserves_relative_output_group(scheduler_type):
     source = Input()
     op = ConstantMultiplication(2, source, latency=2, execution_time=1)
@@ -233,6 +239,9 @@ def test_fixed_output_preserves_relative_output_group(scheduler_type):
 @pytest.mark.parametrize(
     "scheduler_type",
     [ASAPScheduler, ALAPScheduler, ListScheduler, RecursiveListScheduler],
+)
+@pytest.mark.filterwarnings(
+    "ignore:^Two signals connected to the same output port$:UserWarning"
 )
 def test_conflicting_output_timing_constraints(scheduler_type):
     source = Input()

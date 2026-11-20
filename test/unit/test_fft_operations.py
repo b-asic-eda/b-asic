@@ -1,6 +1,7 @@
 """B-ASIC test suite for fft operations."""
 
 import numpy as np
+import pytest
 
 from b_asic.fft_operations import (
     R2Butterfly,
@@ -12,6 +13,24 @@ from b_asic.fft_operations import (
     R5Winograd,
     R7Winograd,
 )
+
+
+@pytest.mark.parametrize(
+    ("operation_type", "parameters"),
+    [
+        (R2DIFButterfly, {"w": 1 - 2j}),
+        (R2DITButterfly, {"w": 1 - 2j}),
+        (R2TFButterfly, {"w0": 2 + 3j, "w1": 1 - 2j}),
+    ],
+)
+def test_copy_twiddle_parameters(operation_type, parameters):
+    original = operation_type(**parameters)
+    copied = original.copy()
+    assert copied.params == parameters
+    for index in range(original.output_count):
+        assert copied.evaluate_output(index, [2, 3]) == original.evaluate_output(
+            index, [2, 3]
+        )
 
 
 class TestR2Butterfly:
@@ -61,6 +80,20 @@ class TestR2DIFButterfly:
         assert test_operation.w == 4
         assert test_operation.evaluate_output(0, [2, 3]) == 5
         assert test_operation.evaluate_output(1, [2, 3]) == -4
+
+    def test_copy_with_shared_output_port(self):
+        operation = R2DIFButterfly(
+            w=1 - 2j,
+            latency_offsets={"in0": 0, "in1": 0, "out0": 1, "out1": 3},
+            execution_time=1,
+        )
+        operation.set_port_mapping({"out0": 0, "out1": 0})
+        copied = operation.copy()
+        assert copied.w == operation.w
+        assert copied.latency_offsets == operation.latency_offsets
+        assert copied.port_mapping == operation.port_mapping
+        assert copied.execution_time == operation.execution_time
+        assert copied.evaluate_output(1, [2, 3]) == -1 + 2j
 
 
 class TestR2DITButterfly:
