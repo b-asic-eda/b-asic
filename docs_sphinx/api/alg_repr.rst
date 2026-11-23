@@ -8,6 +8,7 @@ representations, such as state-space and transfer functions.
     :maxdepth: 1
 
     sfg.rst
+    rewrites.rst
     signal.rst
     sfg_generators.rst
     graph_component.rst
