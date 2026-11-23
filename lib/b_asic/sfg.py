@@ -45,6 +45,7 @@ from b_asic.types import GraphID, GraphIDNumber, LoopElement, Name, Num, TypeNam
 
 if TYPE_CHECKING:
     from b_asic.multirate import RateNormalization
+    from b_asic.rewrites import RewriteMatch, RewriteRule
     from b_asic.simulation import Simulation
 
 DelayQueue = list[tuple[str, ResultKey, OutputPort]]
@@ -4271,6 +4272,102 @@ class SFG(AbstractOperation):
             sfg = sfg()
 
         return sfg
+
+    def find_rewrites(
+        self,
+        rules: "RewriteRule | str | Iterable[RewriteRule | str] | None" = None,
+        target: OpSpecifier | Iterable[OpSpecifier] | None = None,
+        *,
+        within: OpSpecifier | Iterable[OpSpecifier] | None = None,
+    ) -> list["RewriteMatch"]:
+        """
+        Find matching combinational regions without modifying this SFG.
+
+        Parameters
+        ----------
+        rules : RewriteRule, str, iterable of either, or None, optional
+            Rule objects, registered rule names, or collection names. None
+            selects all registered rules. Rules are considered in supplied order.
+        target : OpSpecifier or iterable of OpSpecifier, optional
+            Candidate anchor operations, supplied as graph IDs, operation
+            instances belonging to this graph, or operation classes. None
+            considers all anchors; an empty iterable selects none.
+        within : OpSpecifier or iterable of OpSpecifier, optional
+            Require every internal matched operation to belong to this region.
+            Boundary sources and consumers may remain outside the region.
+
+        Returns
+        -------
+        list of RewriteMatch
+            Matches in rule order, then anchor depth-first order. Matches expose
+            named operations and boundary ports and may overlap. Internal output
+            fanout outside the match must be a declared pattern output. Boundary
+            placeholders bind source ports, not actual Input nodes; distinct
+            placeholders may bind the same source.
+
+        Notes
+        -----
+        Matching is exact for types, computational parameters, and input/output
+        port indices, except that multiplier inputs and commutative addition
+        inputs match in either order. Other input permutations require explicit
+        rule variants. Delays, rate-changing operations, and nested SFGs are
+        boundaries in this version.
+        """
+        from b_asic.rewrites import find_rewrites  # noqa: PLC0415
+
+        return find_rewrites(self, rules, target, within=within)
+
+    def apply_rewrites(self, matches: "RewriteMatch | Iterable[RewriteMatch]") -> "SFG":
+        """
+        Return a copy with selected subgraph matches replaced in supplied order.
+
+        Matches must have been found on this graph. Stale matches raise
+        ValueError. Overlapping matches and later matches invalidated by an
+        earlier replacement are skipped. Replacement boundaries are matched by
+        name, and external output signals retain their IDs and metadata. Incoming
+        boundary signals are reused where possible. New components receive fresh
+        IDs; a rule's explicit preserve map retains selected operation IDs, names,
+        execution times, and port timing. Input timing follows corresponding
+        boundary/preserved sources when identifiable, otherwise port indices.
+
+        Rules assert algebraic equivalence; the engine validates structure and
+        boundaries, not mathematical identities or quantization equivalence.
+        Apply these rewrites before scheduling and quantization.
+        """
+        from b_asic.rewrites import apply_rewrites  # noqa: PLC0415
+
+        return apply_rewrites(self, matches)
+
+    def transform(
+        self,
+        rules: "RewriteRule | str | Iterable[RewriteRule | str] | None" = None,
+        target: OpSpecifier | Iterable[OpSpecifier] | None = None,
+        *,
+        within: OpSpecifier | Iterable[OpSpecifier] | None = None,
+        repeat: bool = False,
+        max_iterations: int = 100,
+    ) -> "SFG":
+        """
+        Find and apply named subgraph rewrites, returning a graph copy.
+
+        Rule and operation selectors follow :meth:`find_rewrites`. Iterators are
+        consumed once. Each pass applies a deterministic nonoverlapping set of
+        matches. By default make one pass; with repeat=True, continue until no
+        matches remain. Operation-class selectors include newly created matching
+        types on later passes; explicit graph IDs remain fixed. A positive
+        max_iterations bounds repetition, raising RuntimeError if matches remain
+        after the last allowed pass. The original graph remains unchanged.
+        """
+        from b_asic.rewrites import transform  # noqa: PLC0415
+
+        return transform(
+            self,
+            rules,
+            target,
+            within=within,
+            repeat=repeat,
+            max_iterations=max_iterations,
+        )
 
     def rewrite(
         self,

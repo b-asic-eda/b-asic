@@ -27,6 +27,7 @@ from b_asic.process import *
 from b_asic.quantization import *
 from b_asic.resource_assigner import *
 from b_asic.resources import *
+from b_asic.rewrites import *
 from b_asic.save_load_structure import *
 from b_asic.schedule import *
 from b_asic.scheduler import *
