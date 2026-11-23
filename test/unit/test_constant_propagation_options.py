@@ -1,4 +1,4 @@
-"""Decomposition control and constant multiplier chain simplification."""
+"""Decomposition control and arithmetic chain simplification."""
 
 import pytest
 

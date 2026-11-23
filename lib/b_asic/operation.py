@@ -525,6 +525,26 @@ class Operation(GraphComponent, SignalSourceProvider):
             [Output(Constant(value)) for value in outputs],
         )
 
+    def _negation_propagation(
+        self,
+        *,
+        direction: str = "forward",
+        input_indices: set[int] | None = None,
+        propagate: bool = False,
+    ) -> bool:
+        """
+        Rewrite adjacent signs in a graph copy and report whether wiring changed.
+
+        Without ``propagate``, only cancel redundant signs. Otherwise move an
+        input sign to the output for ``direction="forward"``, or an output
+        sign to the chosen ``input_indices`` for ``direction="backward"``.
+        Each operation defines which input combinations preserve its behavior.
+        Preserve shared consumers and signal metadata. Newly created components
+        receive graph IDs from the SFG driver. The default leaves unsupported
+        operations unchanged.
+        """
+        return False
+
     def _sink_propagation(self) -> "SFG | None":
         """
         Replace an operation whose outputs are all unused by sinks on its inputs.
