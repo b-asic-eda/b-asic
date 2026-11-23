@@ -10,7 +10,7 @@ import math
 import re
 import warnings
 from collections import Counter, defaultdict, deque
-from collections.abc import Iterable, Iterator, MutableSet, Sequence
+from collections.abc import Iterable, Iterator, Mapping, MutableSet, Sequence
 from copy import copy, deepcopy
 from fractions import Fraction
 from io import StringIO
@@ -1331,6 +1331,10 @@ class SFG(AbstractOperation):
             partially constant WDF adaptors. ConstantMultiplication chains still
             merge, and identity multipliers are removed, in either mode.
 
+        See Also
+        --------
+        negation_propagation : Cancel or move negations through operations.
+
         Notes
         -----
         Input and output ordering and names are preserved, including inputs
@@ -1355,6 +1359,255 @@ class SFG(AbstractOperation):
             assume_zero_initial_state=assume_zero_initial_state,
             decompose=decompose,
         )
+
+    def negation_propagation(
+        self,
+        graph_ids: GraphID | Iterable[GraphID] | None = None,
+        *,
+        direction: Literal["forward", "backward"] = "forward",
+        input_indices: int
+        | Iterable[int]
+        | Mapping[GraphID, int | Iterable[int]]
+        | None = None,
+    ) -> "SFG":
+        """
+        Return a copy with negations canceled or moved through selected operations.
+
+        Without graph IDs, cancel consecutive Negations and paired signs on
+        Multiplication and Division inputs. An input negation changes Addition
+        to Subtraction; a negation on Subtraction's subtracting input changes
+        it to Addition. AddSub changes its mode in the same way. These rules
+        are repeated until no further cancellation or absorption applies.
+
+        Parameters
+        ----------
+        graph_ids : :data:`~b_asic.types.GraphID` or iterable of :data:`~b_asic.types.GraphID`, optional
+            Non-Negation operations through which to move adjacent signs, once
+            each in the supplied order. Without IDs (or with an empty iterable),
+            apply the automatic rules above. Iterators are consumed once.
+            Unsupported operations remain unchanged.
+        direction : {"forward", "backward"}, default: "forward"
+            Move input signs to the output, or an output sign to the inputs.
+            Addition/subtraction can instead absorb a sign by changing kind.
+            Consecutive Negations are canceled in either direction.
+        input_indices : int, iterable of int, or mapping of graph ID to either, optional
+            Input ports to consider in forward mode or receive a sign in
+            backward mode. A mapping selects ports separately for each operation.
+            Requires graph IDs. Backward Multiplication and Division use one
+            input (port zero by default); Addition, Subtraction, and AddSub
+            require both inputs. ConstantMultiplication uses its sole input.
+            Division moves an odd sign only with a known nonzero constant
+            divisor, preserving its positive-infinity result at zero.
+
+        Returns
+        -------
+        SFG
+            A graph with the same interface and delay initial states. Retained
+            operations preserve names, IDs, and timing; arithmetic parameters
+            are adjusted when required by a rewrite. Backward propagation
+            copies producers whose other consumers need the original result.
+
+        Raises
+        ------
+        TypeError
+            If IDs or input indices have invalid types, or an ID is a signal.
+        ValueError
+            If an ID is unknown or identifies a Negation, the direction is
+            invalid, or the chosen input ports cannot represent the rewrite.
+
+        See Also
+        --------
+        constant_propagation : Fold constants and simplify constant arithmetic.
+
+        Notes
+        -----
+        Each operation supplies its own private _negation_propagation hook.
+        Nested graphs and unsupported operations are boundaries. Explicit port
+        placement is preserved; only consecutive negations are automatically
+        canceled during targeted propagation. Shared branches and Sinks remain.
+        This is an algebraic transformation intended before scheduling;
+        removed negations' timing and quantization are not preserved.
+        """
+        from b_asic.core_operations import Negation  # noqa: PLC0415
+        from b_asic.utility_operations import Sink  # noqa: PLC0415
+
+        if direction not in ("forward", "backward"):
+            raise ValueError("direction must be 'forward' or 'backward'")
+        if graph_ids is None:
+            ids = []
+        elif isinstance(graph_ids, str):
+            ids = [graph_ids]
+        else:
+            try:
+                ids = list(graph_ids)
+            except TypeError as exc:
+                raise TypeError(
+                    "graph_ids must be a graph ID or iterable of graph IDs"
+                ) from exc
+        selected = {}
+        for graph_id in ids:
+            if not isinstance(graph_id, str):
+                raise TypeError("graph IDs must be strings")
+            operation = self.find_by_id(graph_id)
+            if operation is None:
+                raise ValueError(
+                    f"No operation with graph ID {graph_id!r} found in the SFG"
+                )
+            if not isinstance(operation, Operation):
+                raise TypeError(f"Graph ID {graph_id!r} does not identify an operation")
+            if isinstance(operation, Negation):
+                raise ValueError(
+                    "Select operations through which to propagate a Negation, not Negations"
+                )
+            selected[graph_id] = operation
+
+        def normalize_indices(value, operation):
+            if value is None:
+                return None
+            if isinstance(value, int):
+                indices = [value]
+            else:
+                try:
+                    indices = list(value)
+                except TypeError as exc:
+                    raise TypeError(
+                        "input_indices must contain integer port indices"
+                    ) from exc
+            if any(
+                not isinstance(index, int) or isinstance(index, bool)
+                for index in indices
+            ):
+                raise TypeError("input_indices must contain integer port indices")
+            if not indices or any(
+                index < 0 or index >= operation.input_count for index in indices
+            ):
+                raise ValueError(
+                    f"Invalid input indices for operation {operation.graph_id!r}"
+                )
+            return set(indices)
+
+        if input_indices is not None and not selected:
+            raise ValueError("input_indices requires selected graph IDs")
+        if isinstance(input_indices, Mapping):
+            if any(graph_id not in selected for graph_id in input_indices):
+                raise ValueError("input_indices contains an unselected graph ID")
+            ports = {
+                graph_id: normalize_indices(input_indices.get(graph_id), operation)
+                for graph_id, operation in selected.items()
+            }
+        else:
+            # Materialize a shared iterator once before applying it to each operation.
+            if input_indices is not None and not isinstance(input_indices, int):
+                try:
+                    input_indices = list(input_indices)
+                except TypeError as exc:
+                    raise TypeError(
+                        "input_indices must contain integer port indices"
+                    ) from exc
+            ports = {
+                graph_id: normalize_indices(input_indices, operation)
+                for graph_id, operation in selected.items()
+            }
+
+        graph = cast(SFG, self.copy())
+        roots = [
+            *graph.input_operations,
+            *graph.output_operations,
+            *(op for op in graph.operations if isinstance(op, Sink)),
+        ]
+        known = set(graph.components) | set(roots)
+        seen_operations = set(graph.operations)
+        changed_any = False
+
+        def collect_operations():
+            pending = list(reversed(roots))
+            components = []
+            visited = set()
+            while pending:
+                component = pending.pop()
+                if component in visited:
+                    continue
+                visited.add(component)
+                components.append(component)
+                pending.extend(component.neighbors)
+            assigned_ids = {
+                component.graph_id for component in components if component in known
+            }
+            for component in components:
+                if component not in known:
+                    if not component.graph_id or component.graph_id in assigned_ids:
+                        component.graph_id = graph._graph_id_generator.next_id(
+                            component.type_name(), graph._used_ids
+                        )
+                    graph._used_ids.add(component.graph_id)
+                    assigned_ids.add(component.graph_id)
+                    known.add(component)
+            operations = [
+                component
+                for component in components
+                if isinstance(component, Operation)
+            ]
+            seen_operations.update(operations)
+            return operations
+
+        def apply_hook(operation, *, propagate=False, indices=None):
+            nonlocal changed_any
+            if not any(port.signals for port in operation.outputs) or any(
+                port.connected_source is None for port in operation.inputs
+            ):
+                return False
+            changed = operation._negation_propagation(
+                direction=direction if propagate else "forward",
+                input_indices=indices,
+                propagate=propagate,
+            )
+            if not isinstance(changed, bool):
+                raise TypeError("_negation_propagation must return a bool")
+            changed_any |= changed
+            return changed
+
+        def cancel_automatically(all_rules):
+            while True:
+                changed = False
+                for operation in collect_operations():
+                    if all_rules or type(operation) is Negation:
+                        changed |= apply_hook(operation)
+                if not changed:
+                    break
+
+        cancel_automatically(all_rules=not selected)
+        for graph_id in selected:
+            operation = next(
+                (op for op in collect_operations() if op.graph_id == graph_id), None
+            )
+            if operation is not None:
+                apply_hook(operation, propagate=True, indices=ports[graph_id])
+                cancel_automatically(all_rules=False)
+        if not changed_any:
+            return graph
+
+        collect_operations()
+        live = set()
+        pending = [
+            *graph.output_operations,
+            *(op for op in seen_operations if isinstance(op, Sink)),
+        ]
+        while pending:
+            operation = pending.pop()
+            if operation in live:
+                continue
+            live.add(operation)
+            pending.extend(
+                source.operation
+                for port in operation.inputs
+                if (source := port.connected_source) is not None
+            )
+        for operation in seen_operations - live:
+            for port in operation.inputs:
+                for signal in list(port.signals):
+                    signal.remove_source()
+                    signal.remove_destination()
+        return cast(SFG, graph.copy())
 
     def sink_propagation(
         self,
@@ -1561,7 +1814,9 @@ class SFG(AbstractOperation):
                 continue
             if not sink_mode and not any(port.signals for port in operation.outputs):
                 continue
-            if not sink_mode and isinstance(operation, ConstantMultiplication):
+            if method == "_constant_propagation" and isinstance(
+                operation, ConstantMultiplication
+            ):
                 # Bypass predecessors only for this consumer. Shared producers
                 # remain for other consumers and explicit sinks.
                 merged = {operation}
@@ -1891,6 +2146,10 @@ class SFG(AbstractOperation):
         Return a copy with a separate Constant operation for each connection.
 
         This reduces fanout to one connection per operation.
+
+        See Also
+        --------
+        split_fanout : Duplicate operations with one input and one output.
         """
         from b_asic.core_operations import Constant  # noqa: PLC0415
 
@@ -1914,6 +2173,184 @@ class SFG(AbstractOperation):
                 ):
                     for signal in list(old_port.signals):
                         signal.set_source(new_port)
+        return cast(SFG, graph.copy())
+
+    def split_fanout(
+        self,
+        operations: OpSpecifier | Iterable[OpSpecifier] | None = None,
+        *,
+        repeat: bool = False,
+    ) -> "SFG":
+        """
+        Return a copy with one operation per branch after a fanout.
+
+        An operation with one input and one output feeding multiple signals
+        is duplicated so that each outgoing signal has its own operation.
+        The operations share the original input source, moving the fanout
+        from the operation's output to its input source. The original graph
+        is not modified.
+
+        Parameters
+        ----------
+        operations : :class:`~b_asic.operation.Operation`, type[:class:`~b_asic.operation.Operation`], :data:`~b_asic.types.GraphID`, or iterable of these, optional
+            Operations to split, supplied as instances belonging to this SFG
+            or their graph IDs. Operation classes select all matching instances
+            with one input and one output, including subclasses. If omitted,
+            select all operations with one input and one output directly inside
+            this SFG. Operations without output fanout are unchanged. Iterators
+            are consumed once.
+        repeat : bool, default: False
+            Continue splitting until the selected operations and their copies
+            have no output fanout. Fanouts created at upstream selected
+            operations are also split. By default, make a single pass.
+
+        Returns
+        -------
+        SFG
+            A graph with copies of the selected operations after their fanouts.
+            One operation retains its graph ID; additional operations and input
+            signals receive new IDs. Names, parameters, and timing metadata
+            are preserved, as are the outgoing signals.
+
+        Raises
+        ------
+        TypeError
+            If a selection is not an operation, an Operation subclass, or a
+            graph ID; a graph ID identifies a signal; or an explicitly selected
+            operation does not have exactly one input and one output.
+        ValueError
+            If a graph ID is unknown or an operation does not belong to this SFG.
+            Also raised if repeated splitting would keep circulating through a
+            feedback cycle of selected operations and could not converge.
+
+        See Also
+        --------
+        split_constant_fanout : Duplicate constants at their fanouts.
+        find_redundant_operations : Find the equivalent copies created by splitting.
+        merge_redundant_operations : Merge equivalent copies to share an operation.
+
+        Notes
+        -----
+        By default, each selected operation is processed once and newly created
+        copies are not revisited. A nested SFG with one input and one output can
+        be duplicated as an operation; its internal fanouts are not split.
+        """
+        selected: list[Operation] = []
+        if operations is None:
+            selected = [
+                operation
+                for operation in self.operations
+                if operation.input_count == 1 and operation.output_count == 1
+            ]
+        else:
+            if isinstance(operations, (Operation, str, type)):
+                operations = [operations]
+            try:
+                specifiers = list(operations)
+            except TypeError as exc:
+                raise TypeError(
+                    "operations must be operation instances, operation types, graph IDs, "
+                    "or an iterable of these"
+                ) from exc
+            for specifier in specifiers:
+                if isinstance(specifier, type):
+                    if not issubclass(specifier, Operation):
+                        raise TypeError(
+                            "All operation types must be subclasses of Operation"
+                        )
+                    selected.extend(
+                        operation
+                        for operation in self.operations
+                        if isinstance(operation, specifier)
+                        and operation.input_count == 1
+                        and operation.output_count == 1
+                    )
+                    continue
+                if isinstance(specifier, str):
+                    operation = self.find_by_id(specifier)
+                    if operation is None:
+                        raise ValueError(
+                            f"No operation with graph ID {specifier!r} found in the SFG"
+                        )
+                    if not isinstance(operation, Operation):
+                        raise TypeError(
+                            f"Graph ID {specifier!r} does not identify an operation"
+                        )
+                elif isinstance(specifier, Operation):
+                    operation = specifier
+                    if self.find_by_id(operation.graph_id) is not operation:
+                        raise ValueError("All operations must belong to this SFG")
+                else:
+                    raise TypeError(
+                        "All elements must be operation instances, operation types, or graph IDs"
+                    )
+                if operation.input_count != 1 or operation.output_count != 1:
+                    raise TypeError(
+                        "Only operations with one input and one output can be split"
+                    )
+                selected.append(operation)
+
+        if repeat:
+            selected_set = set(selected)
+            checked: set[Operation] = set()
+            for operation in selected:
+                if operation.output(0).signal_count <= 1:
+                    continue
+                path: set[Operation] = set()
+                current = operation
+                while current in selected_set and current not in checked:
+                    if current in path:
+                        raise ValueError(
+                            "Repeated fanout splitting cannot converge through a "
+                            "feedback cycle of selected operations"
+                        )
+                    path.add(current)
+                    source = current.input(0).connected_source
+                    if source is None:
+                        break
+                    current = source.operation
+                checked.update(path)
+
+        graph = cast(SFG, self.copy())
+        selected = [
+            cast(Operation, graph.find_by_id(original.graph_id))
+            for original in dict.fromkeys(selected)
+        ]
+        selected_set = set(selected)
+        pending = deque(selected)
+        queued = set(selected)
+        while pending:
+            operation = pending.popleft()
+            queued.remove(operation)
+            source = operation.input(0).connected_source
+            if source is None:
+                continue
+            input_signal = operation.input(0).signals[0]
+            signals_to_split = list(operation.output(0).signals)[1:]
+            for signal in signals_to_split:
+                duplicate = cast(Operation, operation.copy())
+                duplicate.graph_id = graph._graph_id_generator.next_id(
+                    duplicate.type_name(), graph._used_ids
+                )
+                new_input = cast(Signal, input_signal.copy())
+                new_input.graph_id = graph._graph_id_generator.next_id(
+                    new_input.type_name(), graph._used_ids
+                )
+                new_input.set_source(source)
+                new_input.set_destination(duplicate.input(0))
+                signal.set_source(duplicate.output(0))
+                if repeat:
+                    selected_set.add(duplicate)
+            if (
+                repeat
+                and signals_to_split
+                and source.operation in selected_set
+                and source.operation not in queued
+            ):
+                pending.append(source.operation)
+                queued.add(source.operation)
+
+        # Rebuild component indexes and traversal orders from the new wiring.
         return cast(SFG, graph.copy())
 
     def find_redundant_operations(self, delayed: bool = False) -> list[list[Operation]]:
@@ -1945,6 +2382,7 @@ class SFG(AbstractOperation):
         See Also
         --------
         merge_redundant_operations : Merge a group of redundant operations.
+        split_fanout : Duplicate operations across a fanout.
 
         Notes
         -----
@@ -2071,9 +2509,11 @@ class SFG(AbstractOperation):
             groups[representative(operation)[0]].append(operation)
         return [group for group in groups.values() if len(group) > 1]
 
-    def merge_redundant_operations(self, operations: Iterable[Operation]) -> "SFG":
+    def merge_redundant_operations(
+        self, operations: Iterable[Operation] | None = None
+    ) -> "SFG":
         """
-        Return a copy with redundant operations merged into the first operation.
+        Return a copy with redundant groups merged into their first operations.
 
         Each output signal of a removed operation is connected to the output
         with the same index on the retained operation. Its name, graph ID,
@@ -2082,16 +2522,19 @@ class SFG(AbstractOperation):
 
         Parameters
         ----------
-        operations : iterable of :class:`~b_asic.operation.Operation`
+        operations : iterable of :class:`~b_asic.operation.Operation` or None, optional
             At least two distinct operations belonging to this graph. They must
             belong to a single group returned by :meth:`find_redundant_operations`;
             a subset of a group is also accepted. Iterator order determines
-            which operation is retained.
+            which operation is retained. If None or omitted, merge every group
+            reported by :meth:`find_redundant_operations`, retaining the first
+            operation in each group.
 
         Returns
         -------
         SFG
-            A graph with all but the first supplied operation removed.
+            A graph with all but the first operation in each selected group
+            removed. If no redundant groups are found, return an unchanged copy.
 
         Raises
         ------
@@ -2104,34 +2547,41 @@ class SFG(AbstractOperation):
         See Also
         --------
         find_redundant_operations : Find groups of redundant operations.
+        split_fanout : Duplicate operations across a fanout.
         """
-        selected = list(operations)
-        if any(not isinstance(operation, Operation) for operation in selected):
-            raise TypeError("All elements must be operations")
-        if len(selected) < 2 or len(set(selected)) != len(selected):
-            raise ValueError("At least two distinct operations must be supplied")
-        if any(
-            self.find_by_id(operation.graph_id) is not operation
-            for operation in selected
-        ):
-            raise ValueError("All operations must belong to this SFG")
-        selected_set = set(selected)
-        if not any(
-            selected_set.issubset(group) for group in self.find_redundant_operations()
-        ):
-            raise ValueError("The supplied operations are not redundant")
+        if operations is None:
+            groups = self.find_redundant_operations()
+        else:
+            selected = list(operations)
+            if any(not isinstance(operation, Operation) for operation in selected):
+                raise TypeError("All elements must be operations")
+            if len(selected) < 2 or len(set(selected)) != len(selected):
+                raise ValueError("At least two distinct operations must be supplied")
+            if any(
+                self.find_by_id(operation.graph_id) is not operation
+                for operation in selected
+            ):
+                raise ValueError("All operations must belong to this SFG")
+            selected_set = set(selected)
+            if not any(
+                selected_set.issubset(group)
+                for group in self.find_redundant_operations()
+            ):
+                raise ValueError("The supplied operations are not redundant")
+            groups = [selected]
 
         graph = cast(SFG, self.copy())
-        retained = cast(Operation, graph.find_by_id(selected[0].graph_id))
-        for original in selected[1:]:
-            redundant = cast(Operation, graph.find_by_id(original.graph_id))
-            for index, output in enumerate(redundant.outputs):
-                for signal in list(output.signals):
-                    signal.set_source(retained.output(index))
-            for port in redundant.inputs:
-                for signal in list(port.signals):
-                    signal.remove_source()
-                    signal.remove_destination()
+        for selected in groups:
+            retained = cast(Operation, graph.find_by_id(selected[0].graph_id))
+            for original in selected[1:]:
+                redundant = cast(Operation, graph.find_by_id(original.graph_id))
+                for index, output in enumerate(redundant.outputs):
+                    for signal in list(output.signals):
+                        signal.set_source(retained.output(index))
+                for port in redundant.inputs:
+                    for signal in list(port.signals):
+                        signal.remove_source()
+                        signal.remove_destination()
 
         # Rebuild component indexes and traversal orders from the new wiring.
         return cast(SFG, graph.copy())

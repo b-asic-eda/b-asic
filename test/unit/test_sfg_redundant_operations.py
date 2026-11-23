@@ -220,14 +220,15 @@ def test_merge_preserves_first_operation_and_original_graph(keep_configurable):
     )
 
 
-def test_merge_multioutput_operations():
+@pytest.mark.parametrize("automatic", [False, True])
+def test_merge_multioutput_operations(automatic):
     left, right = Input(), Input()
     first, second = R2Butterfly(left, right), R2Butterfly(left, right)
     outputs = [Output(op.output(index)) for op in (first, second) for index in range(2)]
     graph = SFG([left, right], outputs)
     group = graph.find_redundant_operations()[0]
 
-    merged = graph.merge_redundant_operations(group)
+    merged = graph.merge_redundant_operations(None if automatic else group)
 
     retained = merged.find_by_id(group[0].graph_id)
     assert len(merged.find_by_type(R2Butterfly)) == 1
@@ -256,7 +257,8 @@ def test_merge_subset_and_duplicate_chains():
     assert merged.evaluate(3) == graph.evaluate(3) == [9, 9, 9]
 
 
-def test_merge_delays_in_feedback_preserves_sequence():
+@pytest.mark.parametrize("automatic", [False, True])
+def test_merge_delays_in_feedback_preserves_sequence(automatic):
     from b_asic.simulation import Simulation
 
     source = Input()
@@ -268,7 +270,7 @@ def test_merge_delays_in_feedback_preserves_sequence():
     graph = SFG([source], [Output(total)])
     group = graph.find_redundant_operations()[0]
 
-    merged = graph.merge_redundant_operations(group)
+    merged = graph.merge_redundant_operations(None if automatic else group)
 
     assert len(merged.find_by_type(Delay)) == 1
     original_simulation = Simulation(graph, [lambda iteration: iteration])
@@ -328,6 +330,98 @@ def test_merge_rechecks_redundancy_after_parameters_change():
         graph.merge_redundant_operations(group)
 
     assert graph.evaluate(4) == [8, 12]
+
+
+@pytest.mark.parametrize("explicit_none", [False, True])
+def test_merge_all_redundant_groups_and_chains(explicit_none):
+    source, unused = Input("source"), Input("unused")
+    constants = [Constant(2, name=f"constant{index}") for index in range(3)]
+    products = [
+        Multiplication(source, constant, name=f"product{index}", latency=index + 1)
+        for index, constant in enumerate(constants)
+    ]
+    totals = [
+        Addition(product, source, name=f"total{index}")
+        for index, product in enumerate(products)
+    ]
+    graph = SFG(
+        [source, unused],
+        [
+            Output(Subtraction(totals[0], totals[1]) + totals[2], "sum"),
+            Output(ConstantMultiplication(3, source), "unique"),
+        ],
+        name="merge all",
+    )
+    graph.execution_time = 7
+    groups = graph.find_redundant_operations()
+    assert len(groups) == 3
+    retained = [group[0] for group in groups]
+    removed = [operation.graph_id for group in groups for operation in group[1:]]
+    original_sources = {
+        op: tuple(port.connected_source for port in op.inputs)
+        for op in graph.operations
+    }
+
+    merged = (
+        graph.merge_redundant_operations(None)
+        if explicit_none
+        else graph.merge_redundant_operations()
+    )
+
+    assert merged.find_redundant_operations() == []
+    assert len(merged.operations) == len(graph.operations) - len(removed)
+    assert all(merged.find_by_id(graph_id) is None for graph_id in removed)
+    for operation in retained:
+        copied = merged.find_by_id(operation.graph_id)
+        assert type(copied) is type(operation)
+        assert copied.name == operation.name
+        assert copied.params == operation.params
+        assert [port.latency_offset for port in (*copied.inputs, *copied.outputs)] == [
+            port.latency_offset for port in (*operation.inputs, *operation.outputs)
+        ]
+        assert copied.execution_time == operation.execution_time
+    assert merged.name == "merge all"
+    assert merged.execution_time == 7
+    assert [op.name for op in merged.input_operations] == ["source", "unused"]
+    assert [op.name for op in merged.output_operations] == ["sum", "unique"]
+    for value in [3, -7, 2 + 3j]:
+        assert merged.evaluate(value, 99) == graph.evaluate(value, 99)
+    assert len(graph.find_redundant_operations()) == 3
+    for operation, sources in original_sources.items():
+        assert tuple(port.connected_source for port in operation.inputs) == sources
+
+
+@pytest.mark.parametrize("empty", [False, True])
+def test_merge_all_without_redundancy_returns_a_copy(empty):
+    source = Input()
+    graph = (
+        SFG() if empty else SFG([source], [Output(ConstantMultiplication(2, source))])
+    )
+
+    merged = graph.merge_redundant_operations(None)
+
+    assert merged is not graph
+    assert len(merged.operations) == len(graph.operations)
+    assert merged.find_redundant_operations() == []
+    if not empty:
+        assert merged.evaluate(3) == graph.evaluate(3) == 6
+
+
+def test_merge_all_does_not_merge_time_shifted_computations():
+    source = Input()
+    graph = SFG(
+        [source],
+        [
+            Output(ConstantMultiplication(2, source)),
+            Output(ConstantMultiplication(2, Delay(source))),
+        ],
+    )
+    assert graph.find_redundant_operations(delayed=True)
+
+    merged = graph.merge_redundant_operations(None)
+
+    assert len(merged.find_by_type(ConstantMultiplication)) == 2
+    assert len(merged.find_by_type(Delay)) == 1
 
 
 def test_delayed_uniform_shift_and_merge_validation():

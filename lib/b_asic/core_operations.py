@@ -333,6 +333,17 @@ class Negation(AbstractOperation):
             return _simplified_sfg(self, lambda inputs: Constant(0))
         return None
 
+    def _negation_propagation(
+        self,
+        *,
+        direction: str = "forward",
+        input_indices: set[int] | None = None,
+        propagate: bool = False,
+    ) -> bool:
+        from b_asic._negation import cancel_pair  # noqa: PLC0415
+
+        return type(self) is Negation and cancel_pair(self)
+
     def _complex_to_real(
         self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
     ) -> Sequence[_ComplexPair]:
@@ -579,6 +590,23 @@ class Addition(AbstractOperation):
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
+
+    def _negation_propagation(
+        self,
+        *,
+        direction: str = "forward",
+        input_indices: set[int] | None = None,
+        propagate: bool = False,
+    ) -> bool:
+        from b_asic._negation import propagate_add_sub  # noqa: PLC0415
+
+        return type(self) is Addition and propagate_add_sub(
+            self,
+            is_add=True,
+            direction=direction,
+            input_indices=input_indices,
+            propagate=propagate,
+        )
 
     def _constant_propagation(self) -> "SFG | None":
         folded = super()._constant_propagation()
@@ -840,6 +868,23 @@ class Subtraction(AbstractOperation):
         )
         out0 <<= addsub
         return SFG([in0, in1], [out0])
+
+    def _negation_propagation(
+        self,
+        *,
+        direction: str = "forward",
+        input_indices: set[int] | None = None,
+        propagate: bool = False,
+    ) -> bool:
+        from b_asic._negation import propagate_add_sub  # noqa: PLC0415
+
+        return type(self) is Subtraction and propagate_add_sub(
+            self,
+            is_add=False,
+            direction=direction,
+            input_indices=input_indices,
+            propagate=propagate,
+        )
 
     def _constant_propagation(self) -> "SFG | None":
         folded = super()._constant_propagation()
@@ -1121,6 +1166,23 @@ class AddSub(AbstractOperation):
     def is_swappable(self) -> bool:
         return self.is_add and self.in0_scale == self.in1_scale and not self.mul_j
 
+    def _negation_propagation(
+        self,
+        *,
+        direction: str = "forward",
+        input_indices: set[int] | None = None,
+        propagate: bool = False,
+    ) -> bool:
+        from b_asic._negation import propagate_add_sub  # noqa: PLC0415
+
+        return type(self) is AddSub and propagate_add_sub(
+            self,
+            is_add=self.is_add,
+            direction=direction,
+            input_indices=input_indices,
+            propagate=propagate,
+        )
+
     def _constant_propagation(self) -> "SFG | None":
         folded = super()._constant_propagation()
         if folded is not None:
@@ -1245,6 +1307,41 @@ class Multiplication(AbstractOperation):
             return _simplified_sfg(self, lambda inputs: Constant(0))
         return None
 
+    def _negation_propagation(
+        self,
+        *,
+        direction: str = "forward",
+        input_indices: set[int] | None = None,
+        propagate: bool = False,
+    ) -> bool:
+        from b_asic._negation import (  # noqa: PLC0415
+            bypass_inputs,
+            move_backward,
+            move_forward,
+            negated_inputs,
+            output_negations,
+        )
+
+        if type(self) is not Multiplication:
+            return False
+        sources = negated_inputs(self)
+        if not propagate:
+            return len(sources) == 2 and bypass_inputs(self, sources)
+        if direction == "forward":
+            if input_indices is not None:
+                sources = {
+                    index: source
+                    for index, source in sources.items()
+                    if index in input_indices
+                }
+            return move_forward(self, sources)
+        indices = {0} if input_indices is None else input_indices
+        if output_negations(self) and len(indices) != 1:
+            raise ValueError(
+                "Multiplication requires exactly one input for backward negation propagation"
+            )
+        return move_backward(self, indices)
+
     def _complex_to_real(
         self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
     ) -> Sequence[_ComplexPair]:
@@ -1346,6 +1443,44 @@ class Division(_RealValuedOperation):
     @property
     def is_linear(self) -> bool:
         return self.input(1).connected_source.operation.is_constant
+
+    def _negation_propagation(
+        self,
+        *,
+        direction: str = "forward",
+        input_indices: set[int] | None = None,
+        propagate: bool = False,
+    ) -> bool:
+        from b_asic._negation import (  # noqa: PLC0415
+            bypass_inputs,
+            move_backward,
+            move_forward,
+            negated_inputs,
+            nonzero_divisor,
+            output_negations,
+        )
+
+        if type(self) is not Division:
+            return False
+        sources = negated_inputs(self)
+        if not propagate:
+            return len(sources) == 2 and bypass_inputs(self, sources)
+        if direction == "forward":
+            if input_indices is not None:
+                sources = {
+                    index: source
+                    for index, source in sources.items()
+                    if index in input_indices
+                }
+            if len(sources) == 2 or nonzero_divisor(self):
+                return move_forward(self, sources)
+            return False
+        indices = {0} if input_indices is None else input_indices
+        if output_negations(self) and len(indices) != 1:
+            raise ValueError(
+                "Division requires exactly one input for backward negation propagation"
+            )
+        return nonzero_divisor(self) and move_backward(self, indices)
 
     def _complex_to_real(
         self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
@@ -2245,6 +2380,21 @@ class ConstantMultiplication(AbstractOperation):
         if self.value == 1:
             return _simplified_sfg(self, lambda inputs: inputs[0])
         return None
+
+    def _negation_propagation(
+        self,
+        *,
+        direction: str = "forward",
+        input_indices: set[int] | None = None,
+        propagate: bool = False,
+    ) -> bool:
+        from b_asic._negation import move_backward, move_forward, negated_inputs  # noqa: PLC0415
+
+        if type(self) is not ConstantMultiplication or not propagate:
+            return False
+        if direction == "forward":
+            return move_forward(self, negated_inputs(self))
+        return move_backward(self, {0})
 
     def _complex_to_real(
         self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
