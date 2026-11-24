@@ -3,8 +3,8 @@
 Convert a 4 x 4 Cholesky inverse to real arithmetic
 ===================================================
 
-Split each complex signal into real and imaginary signals, choosing either
-three or four real multipliers for the complex products in MADS operations.
+Split each complex signal into real and imaginary signals, choosing the
+``four``, ``three``, or ``threealt`` method for complex products in MADS operations.
 With ``cmplx=True``, the Cholesky generator expects a Hermitian positive definite
 matrix, supplied in packed lower-triangular row order. This example uses complex
 matrix entries with nonzero imaginary parts.
@@ -12,7 +12,7 @@ matrix entries with nonzero imaginary parts.
 
 import numpy as np
 
-from b_asic.core_operations import MADS, Multiplication, ReciprocalSquareRoot
+from b_asic.core_operations import MADS, Multiplication, Negation, ReciprocalSquareRoot
 from b_asic.sfg_generators import cholesky_matrix_inverse
 
 # %%
@@ -25,16 +25,21 @@ assert all(op.real_valued for op in complex_sfg.find_by_type(ReciprocalSquareRoo
 
 # %%
 # Options are forwarded as keyword arguments to each operation's private
-# conversion hook. Both graphs have 20 real inputs and 20 real outputs:
+# conversion hook. All three graphs have 20 real inputs and 20 real outputs:
 # real0, imag0, real1, imag1, ... for the ten lower-triangular entries.
 
 real_four = complex_sfg.complex_to_real(multiplication_method="four")
 real_three = complex_sfg.complex_to_real(multiplication_method="three")
+real_threealt = complex_sfg.complex_to_real(multiplication_method="threealt")
+# The threealt method shares d*(a+b), which vanishes when the second
+# operand's imaginary part is zero. Constant propagation can then remove
+# the surrounding additions and subtractions, leaving two real products.
 print("Four-product multipliers:", len(real_four.find_by_type(Multiplication)))
 print("Three-product multipliers:", len(real_three.find_by_type(Multiplication)))
+print("Threealt-product multipliers:", len(real_threealt.find_by_type(Multiplication)))
 
 # %%
-# Check both decompositions and the original graph against NumPy.
+# Check all three decompositions and the original graph against NumPy.
 
 rng = np.random.default_rng(42)
 factor = rng.normal(size=(4, 4)) + 1j * rng.normal(size=(4, 4))
@@ -45,7 +50,7 @@ split_inputs = np.column_stack((packed.real, packed.imag)).ravel()
 expected = np.linalg.inv(matrix)[lower]
 np.testing.assert_allclose(complex_sfg.evaluate(*packed), expected, atol=1e-12)
 
-for graph in (real_four, real_three):
+for graph in (real_four, real_three, real_threealt):
     split_outputs = np.asarray(graph.evaluate(*split_inputs))
     inverse = split_outputs[0::2] + 1j * split_outputs[1::2]
     np.testing.assert_allclose(inverse, expected, atol=1e-12)
@@ -74,6 +79,9 @@ mixed_sfg = memory_sfg.complex_to_real(
 mixed_sfg = mixed_sfg.complex_to_real(
     operations=mads_ids[1], multiplication_method="four"
 )
+mixed_sfg = mixed_sfg.complex_to_real(
+    operations=mads_ids[2], multiplication_method="threealt"
+)
 np.testing.assert_allclose(mixed_sfg.evaluate(*packed), expected, atol=1e-12)
 
 # %%
@@ -81,11 +89,33 @@ np.testing.assert_allclose(mixed_sfg.evaluate(*packed), expected, atol=1e-12)
 # simplify the real arithmetic introduced by conversion.
 
 print(real_three.operation_counter())
+print(real_threealt.operation_counter())
 # %%
 # Apply constant and sink propagation to remove computations with known zeros,
 # including the imaginary outputs of the real-valued reciprocal square roots.
-simplified_real_three = real_three.constant_propagation().sink_propagation()
+# In addition, propagate negations where possible (first splitting them so that
+# they can be propagated per operation) and merge redundant operations
+# (which will also merge the earlier split negations that didn't propagate).
+simplified_real_three = (
+    real_three.constant_propagation()
+    .sink_propagation()
+    .split_fanout(Negation, repeat=True)
+    .negation_propagation()
+    .merge_redundant_operations()
+)
+simplified_real_threealt = (
+    real_threealt.constant_propagation()
+    .sink_propagation()
+    .split_fanout(Negation, repeat=True)
+    .negation_propagation()
+    .merge_redundant_operations()
+)
 
-print(simplified_real_three.operation_counter())
+print("Simplified three operations:", simplified_real_three.operation_counter())
+print("Simplified threealt operations:", simplified_real_threealt.operation_counter())
+for graph in (simplified_real_three, simplified_real_threealt):
+    split_outputs = np.asarray(graph.evaluate(*split_inputs))
+    inverse = split_outputs[0::2] + 1j * split_outputs[1::2]
+    np.testing.assert_allclose(inverse, expected, atol=1e-12)
 
 # %%

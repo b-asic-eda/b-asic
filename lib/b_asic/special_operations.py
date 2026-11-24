@@ -8,6 +8,7 @@ normal operations in an SFG.
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from b_asic.core_operations import _RealValuedOperation
 from b_asic.operation import (
     AbstractOperation,
     DelayMap,
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from b_asic.utility_operations import Sink
 
 
-class Input(AbstractOperation):
+class Input(_RealValuedOperation):
     """
     Input operation.
 
@@ -32,12 +33,15 @@ class Input(AbstractOperation):
     ----------
     name : :data:`~b_asic.types.Name`, optional
         Operation name.
+    real_valued : bool or None, default: None
+        Mark the interface as real-valued. Complex-to-real conversion discards
+        the imaginary input and uses a zero constant for its imaginary signal.
     """
 
     is_linear = True
     is_constant = False
 
-    def __init__(self, name: Name = "") -> None:
+    def __init__(self, name: Name = "", real_valued: bool | None = None) -> None:
         """Construct an Input operation."""
         super().__init__(
             input_count=0,
@@ -46,6 +50,7 @@ class Input(AbstractOperation):
             latency_offsets={"out0": 0},
             execution_time=1,
         )
+        self.real_valued = real_valued
         self._value = 0
 
     @classmethod
@@ -101,7 +106,7 @@ class Input(AbstractOperation):
         return ((0, 0.5),)
 
 
-class Output(AbstractOperation):
+class Output(_RealValuedOperation):
     """
     Output operation.
 
@@ -115,6 +120,9 @@ class Output(AbstractOperation):
         The signal connected to the Output operation.
     name : :data:`~b_asic.types.Name`, optional
         Operation name.
+    real_valued : bool or None, default: None
+        Mark the interface as real-valued. Complex-to-real conversion terminates
+        the incoming imaginary signal at a Sink and emits an imaginary zero.
     """
 
     is_linear = True
@@ -123,6 +131,7 @@ class Output(AbstractOperation):
         self,
         in0: SignalSourceProvider | None = None,
         name: Name = Name(""),
+        real_valued: bool | None = None,
     ) -> None:
         """Construct an Output operation."""
         super().__init__(
@@ -133,6 +142,7 @@ class Output(AbstractOperation):
             latency_offsets={"in0": 0},
             execution_time=1,
         )
+        self.real_valued = real_valued
 
     @classmethod
     def type_name(cls) -> TypeName:
@@ -187,6 +197,8 @@ class MemoryRead(Input):
         Cycles between presenting the read address and obtaining the value.
         The operation starts when the address is presented, and its value output
         has this latency offset.
+    real_valued : bool or None, default: None
+        Mark the stored input as real-valued, as for :class:`Input`.
     """
 
     def __init__(
@@ -195,8 +207,9 @@ class MemoryRead(Input):
         memory_name: Name = "",
         name: Name = "",
         latency: int = 0,
+        real_valued: bool | None = None,
     ) -> None:
-        super().__init__(name=name)
+        super().__init__(name=name, real_valued=real_valued)
         self.address = address
         self.memory_name = memory_name
         self.set_latency(latency)
@@ -249,6 +262,8 @@ class MemoryWrite(Output):
         Memory name. An empty name denotes the default memory.
     name : :data:`~b_asic.types.Name`, optional
         Operation name.
+    real_valued : bool or None, default: None
+        Mark the stored output as real-valued, as for :class:`Output`.
     """
 
     def __init__(
@@ -257,8 +272,9 @@ class MemoryWrite(Output):
         in0: SignalSourceProvider | None = None,
         memory_name: Name = "",
         name: Name = "",
+        real_valued: bool | None = None,
     ) -> None:
-        super().__init__(in0=in0, name=name)
+        super().__init__(in0=in0, name=name, real_valued=real_valued)
         self.address = address
         self.memory_name = memory_name
 

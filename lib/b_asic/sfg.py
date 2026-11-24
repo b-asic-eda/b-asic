@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Literal, Union, cast
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
-from graphviz import Digraph
+from graphviz import Digraph, escape
 
 from b_asic._preferences import (
     DEFAULT_FONT_FAMILY,
@@ -28,6 +28,7 @@ from b_asic._preferences import (
     MEMORY_CLUSTER_COLOR,
     PE_CLUSTER_COLOR,
 )
+from b_asic._subexpressions import _SumTerm
 from b_asic.data_type import DataType
 from b_asic.graph_component import GraphComponent
 from b_asic.operation import (
@@ -553,6 +554,9 @@ class SFG(AbstractOperation):
         values are split, preserving feedback. Operations marked
         ``real_valued=True`` use only real inputs; imaginary inputs terminate
         at Sinks and imaginary outputs are zero constants.
+        This includes real-valued Input/Output and MemoryRead/MemoryWrite
+        interfaces. Splitting these interfaces retains both ports, terminating
+        unused imaginary inputs and supplying zero imaginary outputs.
 
         Parameters
         ----------
@@ -564,9 +568,12 @@ class SFG(AbstractOperation):
             Unselected operations retain their IDs. Real/complex boundary
             conversions are inserted as needed and inverse pairs are removed.
             This permits successive calls with different conversion settings.
-        multiplication_method : {"four", "three"}, default: "four"
+        multiplication_method : {"four", "three", "threealt"}, default: "four"
             Use four real multiplications, or three with extra additions,
             for each general complex product, including MAD and MADS.
+            For inputs ``a + j*b`` and ``c + j*d``, ``"threealt"`` computes
+            ``k1=d*(a+b)``, ``k2=a*(c+d)``, and ``k3=b*(c-d)``, then returns
+            ``k2-k1`` and ``k1+k3`` as the real and imaginary parts.
         split_io : bool, default: True
             Split each external input and output into real/imaginary ports.
             If False, retain complex Input/Output and MemoryRead/MemoryWrite
@@ -2009,6 +2016,14 @@ class SFG(AbstractOperation):
         transfer_wiring(self, transformed)
         return transformed
 
+    def _find_sums(
+        self, merge_identical: bool = False
+    ) -> dict[OutputPort, tuple[_SumTerm, ...]]:
+        """Find complete sums using :func:`b_asic._subexpressions._find_sums`."""
+        from b_asic._subexpressions import _find_sums  # noqa: PLC0415
+
+        return _find_sums(self, merge_identical=merge_identical)
+
     def rebalance_summation_trees(self) -> "SFG":
         """Return a copy with ordinary addition and subtraction trees balanced."""
         from b_asic.core_operations import (  # noqa: PLC0415
@@ -3047,17 +3062,82 @@ class SFG(AbstractOperation):
 
         return precedence_list
 
+    def _refresh_components(self) -> None:
+        """Reindex connected components in place after rewiring owned operations."""
+        from b_asic.utility_operations import DontCare, Sink  # noqa: PLC0415
+
+        operations = self.operations
+        roots: list[Operation] = [
+            op
+            for op in operations
+            if isinstance(op, Sink) and op.input(0).connected_source is not None
+        ]
+        roots.extend(
+            op for op in operations if isinstance(op, DontCare) and op.output(0).signals
+        )
+        self._components_by_id = {}
+        self._components_by_name = defaultdict(list)
+        self._components_dfs_order = []
+        self._operations_dfs_order = []
+        self._operations_topological_order = []
+        self._precedence_list = []
+        self._original_components_to_new = {}
+        self._original_input_signals_to_indices = {}
+        self._original_output_signals_to_indices = {}
+
+        # Mirror construction order without copying or reconnecting components.
+        # Keep reserved IDs and the generator so removed IDs are never reused.
+        for index, input_operation in enumerate(self._input_operations):
+            self._add_component_unconnected_copy(input_operation, _copy=False)
+            for signal in input_operation.output(0).signals:
+                self._add_component_unconnected_copy(signal, _copy=False)
+                self._original_input_signals_to_indices[signal] = index
+        for index, output_operation in enumerate(self._output_operations):
+            self._add_component_unconnected_copy(output_operation, _copy=False)
+            for signal in output_operation.input(0).signals:
+                if signal not in self._original_components_to_new:
+                    self._add_component_unconnected_copy(signal, _copy=False)
+                self._original_output_signals_to_indices[signal] = index
+
+        outputs = set(self._output_operations)
+        for signal in self._original_input_signals_to_indices:
+            destination = signal.destination
+            if destination is None:
+                raise ValueError("Signal without destination in SFG")
+            if destination.operation not in self._original_components_to_new:
+                self._add_operation_connected_tree_copy(
+                    destination.operation, _copy=False
+                )
+            elif destination.operation in outputs:
+                input_source = cast(OutputPort, signal.source)
+                self._components_dfs_order.extend(
+                    [input_source.operation, signal, destination.operation]
+                )
+                self._operations_dfs_order.extend(
+                    [input_source.operation, destination.operation]
+                )
+        for signal in self._original_output_signals_to_indices:
+            source = signal.source
+            if source is None:
+                raise ValueError("Signal without source in SFG")
+            if source.operation not in self._original_components_to_new:
+                self._add_operation_connected_tree_copy(source.operation, _copy=False)
+        for operation in roots:
+            if operation not in self._original_components_to_new:
+                self._add_operation_connected_tree_copy(operation, _copy=False)
+
     def _add_component_unconnected_copy(
-        self, original_component: GraphComponent
+        self, original_component: GraphComponent, *, _copy: bool = True
     ) -> GraphComponent:
         if original_component in self._original_components_to_new:
             graph_id = original_component.name or (
                 original_component.graph_id or original_component.type_name()
             )
             raise ValueError(f"Tried to add duplicate SFG component: {graph_id}")
-        new_component = original_component.copy()
+        new_component = original_component.copy() if _copy else original_component
         self._original_components_to_new[original_component] = new_component
-        if not new_component.graph_id or new_component.graph_id in self._used_ids:
+        existing_ids = self._used_ids if _copy else self._components_by_id
+        if not new_component.graph_id or new_component.graph_id in existing_ids:
             new_id = self._graph_id_generator.next_id(
                 new_component.type_name(), self._used_ids
             )
@@ -3067,7 +3147,9 @@ class SFG(AbstractOperation):
         self._components_by_name[new_component.name].append(new_component)
         return new_component
 
-    def _add_operation_connected_tree_copy(self, start_op: Operation) -> None:
+    def _add_operation_connected_tree_copy(
+        self, start_op: Operation, *, _copy: bool = True
+    ) -> None:
         op_stack = deque([start_op])
         while op_stack:
             original_op = op_stack.pop()
@@ -3075,7 +3157,7 @@ class SFG(AbstractOperation):
             if original_op not in self._original_components_to_new:
                 new_op = cast(
                     Operation,
-                    self._add_component_unconnected_copy(original_op),
+                    self._add_component_unconnected_copy(original_op, _copy=_copy),
                 )
                 self._components_dfs_order.append(new_op)
                 self._operations_dfs_order.append(new_op)
@@ -3127,7 +3209,9 @@ class SFG(AbstractOperation):
 
                         new_signal = cast(
                             Signal,
-                            self._add_component_unconnected_copy(original_signal),
+                            self._add_component_unconnected_copy(
+                                original_signal, _copy=_copy
+                            ),
                         )
 
                         new_signal.set_destination(
@@ -3152,7 +3236,7 @@ class SFG(AbstractOperation):
                             new_connected_op = cast(
                                 Operation,
                                 self._add_component_unconnected_copy(
-                                    original_connected_op
+                                    original_connected_op, _copy=_copy
                                 ),
                             )
                             new_signal.set_source(
@@ -3194,7 +3278,9 @@ class SFG(AbstractOperation):
 
                         new_signal = cast(
                             Signal,
-                            self._add_component_unconnected_copy(original_signal),
+                            self._add_component_unconnected_copy(
+                                original_signal, _copy=_copy
+                            ),
                         )
                         new_signal.set_source(new_op.output(original_output_port.index))
 
@@ -3230,7 +3316,7 @@ class SFG(AbstractOperation):
                                 Operation,
                                 (
                                     self._add_component_unconnected_copy(
-                                        original_connected_op
+                                        original_connected_op, _copy=_copy
                                     )
                                 ),
                             )
@@ -3352,6 +3438,7 @@ class SFG(AbstractOperation):
         _interactive: bool = False,
         colored: bool = False,
         show_ids: bool = True,
+        title: str | None = None,
     ) -> Digraph:
         """
         Return a Digraph of the SFG.
@@ -3412,9 +3499,15 @@ class SFG(AbstractOperation):
         show_ids : bool, default: True
             Show graph IDs alongside operation names. Unnamed operations always show
             their graph ID.
+        title : str, optional
+            Graph title, shown using Graphviz's graph label. None uses the SFG name
+            if set. An empty string hides the title.
         """
         dg = Digraph()
         _graph_attrs: dict[str, str] = {"rankdir": direction, "splines": splines}
+        _title = self.name if title is None else title
+        if _title:
+            _graph_attrs.update(label=escape(_title), labelloc="t")
         if ranksep is not None:
             _graph_attrs["ranksep"] = str(ranksep)
         if nodesep is not None:
@@ -3673,6 +3766,8 @@ class SFG(AbstractOperation):
         fontsize: float | None = None,
         colored: bool = False,
         show_ids: bool = True,
+        title: str | None = None,
+        legend: bool = True,
     ) -> None:
         """
         Open an interactive SVG of the SFG in the default web browser.
@@ -3680,8 +3775,10 @@ class SFG(AbstractOperation):
         The SVG is stored in a temporary directory. Clicking a signal highlights
         all branches from the same output port and their connected operations.
         Clicking an operation highlights it in orange, its connected signals in
-        magenta, and operations on those signals in blue. Click the background
-        or press Escape to clear the selection.
+        magenta, and operations on those signals in blue. Clicking an operation
+        type in the SVG legend highlights only operations of that type. The
+        legend can be shown or hidden with its heading. Click the background or
+        press Escape to clear the selection.
 
         Parameters
         ----------
@@ -3740,6 +3837,11 @@ class SFG(AbstractOperation):
         show_ids : bool, default: True
             Show graph IDs alongside operation names. Unnamed operations always show
             their graph ID.
+        title : str, optional
+            Graph title. None uses the SFG name if set; an empty string hides it.
+        legend : bool, default: True
+            Include the operation-type legend and its show/hide control in interactive
+            SVG output. Other output formats do not include a legend.
         """
         dg = self.display(
             info=info,
@@ -3760,6 +3862,7 @@ class SFG(AbstractOperation):
             _interactive=fmt in (None, "svg"),
             colored=colored,
             show_ids=show_ids,
+            title=title,
         )
         if fmt in (None, "svg"):
             import tempfile  # noqa: PLC0415
@@ -3768,7 +3871,9 @@ class SFG(AbstractOperation):
 
             from b_asic._sfg_svg import interactive_svg  # noqa: PLC0415
 
-            svg = interactive_svg(self, dg.pipe(format="svg"), branch_node)
+            svg = interactive_svg(
+                self, dg.pipe(format="svg"), branch_node, legend=legend
+            )
             with tempfile.NamedTemporaryFile(
                 prefix="b-asic-sfg-", suffix=".svg", delete=False
             ) as file:
@@ -4351,6 +4456,7 @@ class SFG(AbstractOperation):
         target: OpSpecifier | Iterable[OpSpecifier] | None = None,
         *,
         within: OpSpecifier | Iterable[OpSpecifier] | None = None,
+        multiplication_method: str | None = None,
     ) -> list["RewriteMatch"]:
         """
         Find matching combinational regions without modifying this SFG.
@@ -4367,6 +4473,13 @@ class SFG(AbstractOperation):
         within : OpSpecifier or iterable of OpSpecifier, optional
             Require every internal matched operation to belong to this region.
             Boundary sources and consumers may remain outside the region.
+        multiplication_method : {"four", "three", "threealt"} or None, optional
+            Choose the complex-product rewrite variant while retaining other
+            selected rules. None uses an explicitly selected variant, or
+            defaults to "three" for collections and the full rule set.
+            "threealt" uses the imaginary-part-based shared product, and "four"
+            disables this reduction. Explicit variants conflicting with this
+            option, or with one another, raise ValueError.
 
         Returns
         -------
@@ -4384,10 +4497,23 @@ class SFG(AbstractOperation):
         inputs match in either order. Other input permutations require explicit
         rule variants. Delays, rate-changing operations, and nested SFGs are
         boundaries in this version.
+        Rules with unavailable operation types or insufficient operation counts
+        in the selected region are skipped before matcher construction. Candidate
+        anchor types must also be present in the selected targets. These checks
+        are repeated on each :meth:`transform` pass.
+        Default and built-in predicates use early candidate and partial boundary
+        checks; unguarded rules also start from their anchor. Custom callback
+        evaluation behavior and returned match ordering are preserved.
         """
         from b_asic.rewrites import find_rewrites  # noqa: PLC0415
 
-        return find_rewrites(self, rules, target, within=within)
+        return find_rewrites(
+            self,
+            rules,
+            target,
+            within=within,
+            multiplication_method=multiplication_method,
+        )
 
     def apply_rewrites(self, matches: "RewriteMatch | Iterable[RewriteMatch]") -> "SFG":
         """
@@ -4420,6 +4546,7 @@ class SFG(AbstractOperation):
         within: OpSpecifier | Iterable[OpSpecifier] | None = None,
         repeat: bool = False,
         max_iterations: int = 100,
+        multiplication_method: str | None = None,
     ) -> "SFG":
         """
         Find and apply named subgraph rewrites, returning a graph copy.
@@ -4430,7 +4557,10 @@ class SFG(AbstractOperation):
         matches remain. Operation-class selectors include newly created matching
         types on later passes; explicit graph IDs remain fixed. A positive
         max_iterations bounds repetition, raising RuntimeError if matches remain
-        after the last allowed pass. The original graph remains unchanged.
+        after the last allowed pass. The host SFG is copied once; replacements
+        and subsequent passes reuse that copy. The original graph remains unchanged.
+        ``multiplication_method`` selects the complex-product variant as in
+        :meth:`find_rewrites`, without changing other rule selections.
         """
         from b_asic.rewrites import transform  # noqa: PLC0415
 
@@ -4441,6 +4571,7 @@ class SFG(AbstractOperation):
             within=within,
             repeat=repeat,
             max_iterations=max_iterations,
+            multiplication_method=multiplication_method,
         )
 
     def rewrite(

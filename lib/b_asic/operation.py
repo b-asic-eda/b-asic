@@ -345,10 +345,10 @@ class Operation(GraphComponent, SignalSourceProvider):
         Convert complex arithmetic into an SFG of real operations.
 
         Each input and output becomes an adjacent pair, real part first.
-        ``multiplication_method`` selects ``"four"`` (four real products) or
-        ``"three"`` (three products with extra additions) for complex products,
-        including those in MAD and MADS. The transformation is algebraic;
-        finite-wordlength rounding and operation timing are not preserved.
+        ``multiplication_method`` selects ``"four"`` (four real products),
+        ``"three"``, or ``"threealt"`` (three products with extra additions)
+        for complex products, including those in MAD and MADS. The transformation
+        is algebraic; finite-wordlength rounding and operation timing are not preserved.
         Unsupported primitive operations raise NotImplementedError.
         Set ``split_io=False`` to keep complex input and output interfaces.
         """

@@ -6,6 +6,45 @@ from b_asic import SFG, Input, MemoryRead, MemoryWrite, Output
 from b_asic.save_load_structure import sfg_to_python
 
 
+@pytest.mark.parametrize("operation_type", [Input, Output, MemoryRead, MemoryWrite])
+@pytest.mark.parametrize("real_valued", [None, False, True])
+def test_interface_real_valued_metadata_and_copy(operation_type, real_valued):
+    operation = operation_type(name="interface", real_valued=real_valued)
+
+    copied = operation.copy()
+
+    assert copied.real_valued is real_valued
+    assert "real_valued" not in operation.params
+    assert "real_valued" not in copied.params
+    operation.real_valued = not real_valued
+    assert copied.real_valued is real_valued
+
+
+@pytest.mark.parametrize("operation_type", [Input, Output, MemoryRead, MemoryWrite])
+@pytest.mark.parametrize("value", [0, "real"])
+def test_interface_real_valued_rejects_invalid_values(operation_type, value):
+    with pytest.raises(TypeError, match="real_valued must be a bool or None"):
+        operation_type(real_valued=value)
+
+
+@pytest.mark.parametrize(
+    ("read_type", "write_type"), [(Input, Output), (MemoryRead, MemoryWrite)]
+)
+@pytest.mark.parametrize("real_valued", [None, False, True])
+def test_interface_real_valued_graph_copy_and_serialization(
+    read_type, write_type, real_valued
+):
+    source = read_type(name="source", real_valued=real_valued)
+    graph = SFG(source, write_type(in0=source + 2, real_valued=real_valued))
+    namespace = {}
+    exec(sfg_to_python(graph), namespace)
+
+    for restored in (graph, graph(), namespace["sfg"]):
+        assert restored.input_operations[0].real_valued is real_valued
+        assert restored.output_operations[0].real_valued is real_valued
+        assert restored.evaluate(4) == 6
+
+
 @pytest.mark.parametrize("operation_type", [MemoryRead, MemoryWrite])
 def test_memory_parameters_and_copy(operation_type):
     operation = operation_type(12, memory_name="samples", name="access")

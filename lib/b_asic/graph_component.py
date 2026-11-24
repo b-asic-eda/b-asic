@@ -8,7 +8,8 @@ import copy
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Generator, Iterable, Mapping
-from inspect import Parameter, signature
+from functools import lru_cache
+from inspect import Parameter, Signature, signature
 from typing import Any, cast
 
 from b_asic.types import GraphID, Name, TypeName
@@ -113,6 +114,12 @@ class GraphComponent(ABC):
         raise NotImplementedError
 
 
+@lru_cache(maxsize=128)
+def _constructor_signature(component_type: type[GraphComponent]) -> Signature:
+    """Reuse constructor introspection while keeping custom-class retention bounded."""
+    return signature(component_type)
+
+
 class AbstractGraphComponent(GraphComponent):
     """
     Generic abstract graph component base class.
@@ -178,7 +185,7 @@ class AbstractGraphComponent(GraphComponent):
         the new component.
         """
         params = copy.deepcopy(self.params)
-        constructor = signature(self.__class__)
+        constructor = _constructor_signature(self.__class__)
         arguments = constructor.bind_partial(*args, **kwargs)
         for name, value in params.items():
             parameter = constructor.parameters.get(name)
