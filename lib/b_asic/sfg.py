@@ -303,21 +303,12 @@ class SFG(AbstractOperation):
                 )
 
         # Search the graph inwards from each output signal.
-        output_sources = []
         for (
             signal,
             output_index,
         ) in self._original_output_signals_to_indices.items():
             # Check if already added source.
             new_signal = cast(Signal, self._original_components_to_new[signal])
-
-            # Cloned signal sources may not be connected yet. Compare the
-            # original ports to avoid treating distinct constants as duplicates.
-            if signal.source in output_sources:
-                warnings.warn(
-                    "Two signals connected to the same output port", stacklevel=2
-                )
-            output_sources.append(signal.source)
 
             if new_signal.source is None:
                 if signal.source is None:
@@ -327,7 +318,9 @@ class SFG(AbstractOperation):
                 if signal.source.operation not in self._original_components_to_new:
                     self._add_operation_connected_tree_copy(signal.source.operation)
 
-        if len(output_sources) != (output_operation_count + output_signal_count):
+        if len(self._original_output_signals_to_indices) != (
+            output_operation_count + output_signal_count
+        ):
             raise ValueError(
                 "At least one output operation is not connected!, Tips: Check for output ports that are connected to the same signal"
             )
@@ -990,6 +983,11 @@ class SFG(AbstractOperation):
                 "The output count may not differ between the provided component and target"
             )
 
+        if type(component) is not type(target_op):
+            component.graph_id = sfg_copy._graph_id_generator.next_id(
+                component.type_name(), sfg_copy._used_ids
+            )
+
         # Perform the replacement
         for index_in, input_ in enumerate(target_op.inputs):
             for signal in input_.signals:
@@ -1404,9 +1402,11 @@ class SFG(AbstractOperation):
         -------
         SFG
             A graph with the same interface and delay initial states. Retained
-            operations preserve names, IDs, and timing; arithmetic parameters
-            are adjusted when required by a rewrite. Backward propagation
-            copies producers whose other consumers need the original result.
+            operations preserve names and timing. IDs are preserved only when
+            the operation type is unchanged; type changes receive fresh IDs.
+            Arithmetic parameters are adjusted when required by a rewrite.
+            Backward propagation copies producers whose other consumers need
+            the original result.
 
         Raises
         ------
@@ -2519,7 +2519,8 @@ class SFG(AbstractOperation):
         Each output signal of a removed operation is connected to the output
         with the same index on the retained operation. Its name, graph ID,
         parameters, and timing metadata are preserved. The original graph is
-        not modified.
+        not modified. Multiple SFG output channels may share the retained
+        operation's output port while remaining distinct interface outputs.
 
         Parameters
         ----------
@@ -4397,9 +4398,11 @@ class SFG(AbstractOperation):
         earlier replacement are skipped. Replacement boundaries are matched by
         name, and external output signals retain their IDs and metadata. Incoming
         boundary signals are reused where possible. New components receive fresh
-        IDs; a rule's explicit preserve map retains selected operation IDs, names,
-        execution times, and port timing. Input timing follows corresponding
-        boundary/preserved sources when identifiable, otherwise port indices.
+        IDs; a rule's explicit preserve map retains selected operation names,
+        execution times, and port timing. Operation IDs survive only when their
+        types are unchanged; changed types receive fresh IDs. Input timing
+        follows corresponding boundary/preserved sources when identifiable,
+        otherwise port indices.
 
         Rules assert algebraic equivalence; the engine validates structure and
         boundaries, not mathematical identities or quantization equivalence.

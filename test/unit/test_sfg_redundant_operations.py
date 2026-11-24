@@ -1,5 +1,6 @@
 """Tests for structural detection of redundant computations."""
 
+import numpy as np
 import pytest
 
 from b_asic import SFG, Input, Output
@@ -10,9 +11,11 @@ from b_asic.core_operations import (
     Constant,
     ConstantMultiplication,
     Multiplication,
+    Negation,
     Subtraction,
 )
 from b_asic.fft_operations import R2Butterfly
+from b_asic.sfg_generators import cholesky_matrix_inverse
 from b_asic.special_operations import Delay
 
 
@@ -222,7 +225,7 @@ def test_merge_preserves_first_operation_and_original_graph(keep_configurable):
 
 @pytest.mark.parametrize("automatic", [False, True])
 @pytest.mark.filterwarnings(
-    "ignore:^Two signals connected to the same output port$:UserWarning"
+    "error:^Two signals connected to the same output port$:UserWarning"
 )
 def test_merge_multioutput_operations(automatic):
     left, right = Input(), Input()
@@ -241,7 +244,7 @@ def test_merge_multioutput_operations(automatic):
 
 
 @pytest.mark.filterwarnings(
-    "ignore:^Two signals connected to the same output port$:UserWarning"
+    "error:^Two signals connected to the same output port$:UserWarning"
 )
 def test_merge_subset_and_duplicate_chains():
     source = Input()
@@ -261,6 +264,122 @@ def test_merge_subset_and_duplicate_chains():
     assert merged.output_operations[0].input(0).connected_source is retained.output(0)
     assert merged.output_operations[1].input(0).connected_source is retained.output(0)
     assert merged.evaluate(3) == graph.evaluate(3) == [9, 9, 9]
+
+
+@pytest.mark.filterwarnings(
+    "error:^Two signals connected to the same output port$:UserWarning"
+)
+@pytest.mark.parametrize("boundaries", ["operations", "signals", "mixed"])
+def test_shared_output_source_can_be_constructed_and_copied_without_warnings(
+    boundaries,
+):
+    source = Input()
+    product = ConstantMultiplication(2, source)
+    outputs = [Output(product), Output(product)]
+    signals = [output.input(0).signals[0] for output in outputs]
+    if boundaries == "operations":
+        graph = SFG([source], outputs)
+    elif boundaries == "signals":
+        graph = SFG([source], output_signals=signals)
+    else:
+        graph = SFG([source], outputs[1:], output_signals=signals[:1])
+
+    copied = graph.copy()
+
+    assert copied.output_count == graph.output_count == 2
+    assert (
+        copied.output_operations[0].input(0).connected_source
+        is copied.output_operations[1].input(0).connected_source
+    )
+    assert (
+        copied.output_operations[0].input(0).signals[0]
+        is not copied.output_operations[1].input(0).signals[0]
+    )
+    assert copied.evaluate(3) == graph.evaluate(3) == [6, 6]
+
+
+@pytest.mark.filterwarnings(
+    "error:^Two signals connected to the same output port$:UserWarning"
+)
+@pytest.mark.parametrize("automatic", [False, True])
+def test_merging_equal_output_producers_preserves_channels_and_signals(automatic):
+    source = Input("input")
+    products = [
+        ConstantMultiplication(2, source, name=f"product{index}") for index in range(2)
+    ]
+    graph = SFG(
+        [source],
+        [
+            Output(product, name=f"output{index}")
+            for index, product in enumerate(products)
+        ],
+    )
+    for index, output in enumerate(graph.output_operations):
+        signal = output.input(0).signals[0]
+        signal.name = f"wire{index}"
+        signal.set_param("custom", {"channel": index})
+    group = graph.find_redundant_operations()[0]
+
+    merged = graph.merge_redundant_operations(None if automatic else group)
+    copied = merged.copy()
+
+    assert len(copied.find_by_type(ConstantMultiplication)) == 1
+    assert copied.output_count == 2
+    retained = copied.find_by_id(group[0].graph_id)
+    for original_output, output in zip(
+        graph.output_operations, copied.output_operations, strict=True
+    ):
+        original_signal = original_output.input(0).signals[0]
+        signal = output.input(0).signals[0]
+        assert output.graph_id == original_output.graph_id
+        assert output.name == original_output.name
+        assert signal.graph_id == original_signal.graph_id
+        assert signal.name == original_signal.name
+        assert signal.params == original_signal.params
+        assert output.input(0).connected_source is retained.output(0)
+    for value in [3, -7, 2 + 3j]:
+        assert copied.evaluate(value) == graph.evaluate(value)
+    assert len(graph.find_by_type(ConstantMultiplication)) == 2
+    assert (
+        graph.output_operations[0].input(0).connected_source
+        is not graph.output_operations[1].input(0).connected_source
+    )
+
+
+@pytest.mark.filterwarnings(
+    "error:^Two signals connected to the same output port$:UserWarning"
+)
+def test_cholesky_rewrite_and_merge_pipeline_preserves_shared_zero_outputs():
+    complex_graph = cholesky_matrix_inverse(N=2, mode="mult", pe="mads", cmplx=True)
+    real_four = complex_graph.complex_to_real(multiplication_method="four")
+    prepared = (
+        real_four.constant_propagation()
+        .sink_propagation()
+        .negation_propagation()
+        .split_fanout(Negation, repeat=True)
+        .split_constant_fanout()
+        .negation_propagation()
+        .constant_propagation()
+    )
+    rewritten = prepared.transform("arithmetic", repeat=True).constant_propagation()
+
+    merged = rewritten.merge_redundant_operations()
+
+    assert merged.output_count == rewritten.output_count == 6
+    assert (
+        merged.output_operations[1].input(0).connected_source
+        is merged.output_operations[5].input(0).connected_source
+    )
+    assert merged.find_redundant_operations() == []
+    matrix = np.array([[5, 1 - 2j], [1 + 2j, 4]])
+    lower = np.tril_indices(2)
+    packed = matrix[lower]
+    inputs = np.column_stack((packed.real, packed.imag)).ravel()
+    actual = np.asarray(merged.evaluate(*inputs))
+    np.testing.assert_allclose(actual, rewritten.evaluate(*inputs), atol=1e-12)
+    np.testing.assert_allclose(
+        actual[0::2] + 1j * actual[1::2], np.linalg.inv(matrix)[lower], atol=1e-12
+    )
 
 
 @pytest.mark.parametrize("automatic", [False, True])

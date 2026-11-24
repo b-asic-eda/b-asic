@@ -40,6 +40,32 @@ from b_asic.special_operations import Delay
 from b_asic.wdf_operations import SymmetricTwoportAdaptor
 
 
+@pytest.mark.parametrize("same_type_name", [False, True])
+@pytest.mark.parametrize("reuse_target_id", [False, True])
+def test_replace_changed_operation_type_cannot_reuse_target_id(
+    same_type_name, reuse_target_id
+):
+    class SpecializedAddition(Addition):
+        __slots__ = ()
+
+    a, b = Input(), Input()
+    graph = SFG([a, b], [Output(Addition(a, b))])
+    original_id = graph.find_by_type(Addition)[0].graph_id
+    replacement_type = SpecializedAddition if same_type_name else Subtraction
+    replacement = replacement_type()
+    if reuse_target_id:
+        replacement.graph_id = original_id
+
+    result = graph.replace(original_id, replacement)
+
+    operation = result.find_by_type(replacement_type)[0]
+    assert operation.graph_id.removeprefix(operation.type_name()).isdigit()
+    assert result.find_by_id(original_id) is None
+    assert graph.find_by_id(original_id) is not None
+    assert result.evaluate(2, 3) == (5 if same_type_name else -1)
+    assert graph.evaluate(2, 3) == 5
+
+
 def test_rebalance_subtraction_tree():
     inputs = [Input() for _ in range(4)]
     total = Subtraction(Subtraction(Subtraction(*inputs[:2]), inputs[2]), inputs[3])

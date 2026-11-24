@@ -80,12 +80,12 @@ np.testing.assert_allclose(mixed_sfg.evaluate(*packed), expected, atol=1e-12)
 # Display the operation counts. Constant propagation and sink propagation can
 # simplify the real arithmetic introduced by conversion.
 
-real_three.operation_counter()
+print(real_three.operation_counter())
 # %%
 # Apply constant and sink propagation to remove computations with known zeros,
 # including the imaginary outputs of the real-valued reciprocal square roots.
 simplified_real_three = real_three.constant_propagation().sink_propagation()
 
-simplified_real_three.operation_counter()
+print(simplified_real_three.operation_counter())
 
 # %%

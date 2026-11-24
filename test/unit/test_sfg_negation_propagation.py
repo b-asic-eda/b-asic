@@ -287,12 +287,17 @@ def test_add_sub_default_negation_rules_preserve_scaled_arithmetic(
 
     result = original.negation_propagation()
 
-    retained = result.find_by_id(original_id)
+    retained = result.find_by_name("arithmetic")[0]
     changed = is_add or negated_index == 1
     expected_add = not is_add if changed else is_add
     assert type(retained) is (
         AddSub if kind is AddSub else Addition if expected_add else Subtraction
     )
+    if type(retained) is kind:
+        assert retained.graph_id == original_id
+    else:
+        assert result.find_by_id(original_id) is None
+        assert retained.graph_id.removeprefix(retained.type_name()).isdigit()
     if kind is AddSub:
         assert retained.is_add is expected_add
     assert len(result.find_by_type(Negation)) == (0 if changed else 1)
