@@ -99,20 +99,20 @@ process.stdout.write(JSON.stringify(results));
 @pytest.mark.parametrize("fmt", [None, "svg"])
 @pytest.mark.parametrize("branch_node", [False, True])
 @pytest.mark.parametrize("direction", ["LR", "TB"])
+@pytest.mark.filterwarnings(
+    "error:^Two signals connected to the same output port$:UserWarning"
+)
 def test_show_interactive_svg(monkeypatch, fmt, branch_node, direction):
     x, y = Input(), Input()
     butterfly = R2Butterfly(x, y, name="A < B & C")
-    with pytest.warns(
-        UserWarning, match="Two signals connected to the same output port"
-    ):
-        graph = SFG(
-            [x, y],
-            [
-                Output(butterfly.output(0)),
-                Output(butterfly.output(0)),
-                Output(butterfly.output(1)),
-            ],
-        )
+    graph = SFG(
+        [x, y],
+        [
+            Output(butterfly.output(0)),
+            Output(butterfly.output(0)),
+            Output(butterfly.output(1)),
+        ],
+    )
     opened = []
     monkeypatch.setattr("webbrowser.open", opened.append)
     graph.show(fmt=fmt, branch_node=branch_node, direction=direction, fontname="Arial")

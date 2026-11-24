@@ -153,7 +153,9 @@ def replace_add_sub(
     if type(replacement) is AddSub:
         replacement.set_param("is_add", is_add)
     replacement.name = operation.name
-    replacement.graph_id = operation.graph_id
+    replacement.graph_id = (
+        operation.graph_id if type(replacement) is type(operation) else GraphID("")
+    )
     replacement.execution_time = operation.execution_time
     permutation = (1, 0) if swap else (0, 1)
     for new_index, old_index in enumerate(permutation):

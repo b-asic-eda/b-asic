@@ -4,15 +4,27 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import lru_cache
-from itertools import product
+from itertools import permutations, product
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 import numpy as np
 
-from b_asic.core_operations import Addition, Multiplication
-from b_asic.operation import Operation
+from b_asic.core_operations import (
+    Addition,
+    ComplexConjugate,
+    Constant,
+    ConstantMultiplication,
+    ImaginaryMultiplication,
+    LeftShift,
+    Multiplication,
+    Negation,
+    RightShift,
+    Shift,
+    Subtraction,
+)
+from b_asic.operation import Operation, _ComplexPair
 from b_asic.port import OutputPort, SignalSourceProvider
 from b_asic.signal import Signal
 from b_asic.special_operations import Compression, Delay, Expansion, Input, Output
@@ -103,7 +115,12 @@ def _validate_template(graph: "SFG", *, pattern: bool) -> None:
     network = _network(nodes.values())
     if not nx.is_directed_acyclic_graph(network):
         raise ValueError("Rewrite templates cannot contain feedback")
-    if pattern and (not nodes or not nx.is_weakly_connected(network)):
+    if pattern and (
+        not nodes
+        or not nx.is_weakly_connected(
+            _network([*graph.input_operations, *nodes.values()])
+        )
+    ):
         raise ValueError(
             "A rewrite pattern must contain a connected region of operations"
         )
@@ -192,10 +209,12 @@ class RewriteRule:
     Multiplication inputs match in either order, as do Addition inputs with
     equal input scales and ``mul_j=False``.
 
-    ``preserve`` maps pattern aliases to replacement aliases whose graph IDs,
-    names, execution times, and port latency offsets should survive. Parameters
-    come from the replacement. ``node_match(pattern, candidate)`` may customize
-    parameter matching, and ``condition(match)`` may reject complete matches.
+    ``preserve`` maps pattern aliases to replacement aliases whose names,
+    execution times, and port latency offsets should survive. Graph IDs survive
+    only when the operation type is unchanged; type changes receive fresh IDs.
+    Parameters come from the replacement. ``node_match(pattern, candidate)``
+    may customize parameter matching, and ``condition(match)`` may reject
+    complete matches.
     A replacement factory receives the match and must return an independent
     SFG with the same named boundary. Callbacks must not mutate the host graph.
     """
@@ -407,10 +426,302 @@ class RewriteRegistry:
         return list(selected.values())
 
 
+def _factor_rewrites() -> Iterator[RewriteRule]:
+    for suffix, arithmetic in (("addition", Addition), ("subtraction", Subtraction)):
+        yield RewriteRule.from_builders(
+            f"arithmetic.factor_{suffix}",
+            inputs=("a", "b", "c"),
+            pattern=lambda a, b, c, arithmetic=arithmetic: arithmetic(
+                Multiplication(a, b, name="left"),
+                Multiplication(a, c, name="right"),
+                name="root",
+            ),
+            replacement=lambda a, b, c, arithmetic=arithmetic: Multiplication(
+                a, arithmetic(b, c, name="root"), name="left"
+            ),
+            preserve={"root": "root", "left": "left"},
+        )
+
+
+def _match_variable_value(pattern: Operation, operation: Operation) -> bool:
+    """Capture coefficients or shift amounts without relaxing other parameters."""
+    variable = isinstance(
+        pattern, (ConstantMultiplication, LeftShift, RightShift, Shift)
+    )
+    return _equal(
+        {
+            key: value
+            for key, value in pattern.params.items()
+            if not variable or key != "value"
+        },
+        {
+            key: value
+            for key, value in operation.params.items()
+            if not variable or key != "value"
+        },
+    ) and _equal(
+        getattr(pattern, "real_valued", None), getattr(operation, "real_valued", None)
+    )
+
+
+def _collect_coefficients(match: RewriteMatch) -> "SFG":
+    coefficients = [
+        cast(ConstantMultiplication, match.operations[alias]).value
+        if alias in match.operations
+        else 1
+        for alias in ("left", "right")
+    ]
+    left, right = coefficients
+    coefficient = (
+        left - right if isinstance(match.anchor, Subtraction) else left + right
+    )
+    # Keep even zero/unit coefficients available to collect into their consumers.
+    # Constant propagation can simplify the final multiplier afterwards.
+    return _build_template(("x",), lambda x: ConstantMultiplication(coefficient, x))
+
+
+def _coefficient_rewrites() -> Iterator[RewriteRule]:
+    for suffix, arithmetic, left, right in (
+        ("addition_coefficients", Addition, True, True),
+        ("subtraction_coefficients", Subtraction, True, True),
+        ("addition_unit_coefficient", Addition, True, False),
+        ("subtraction_unit_coefficient", Subtraction, True, False),
+        ("reverse_subtraction_unit_coefficient", Subtraction, False, True),
+        ("repeated_input", Addition, False, False),
+    ):
+        pattern = _build_template(
+            ("x",),
+            lambda x, arithmetic=arithmetic, left=left, right=right: arithmetic(
+                ConstantMultiplication(0, x, name="left") if left else x,
+                ConstantMultiplication(0, x, name="right") if right else x,
+                name="root",
+            ),
+        )
+        yield RewriteRule(
+            f"arithmetic.collect_{suffix}",
+            pattern,
+            _collect_coefficients,
+            node_match=_match_variable_value,
+        )
+
+
+def _cancellation_rewrites() -> Iterator[RewriteRule]:
+    yield RewriteRule.from_builders(
+        "arithmetic.subtract_self",
+        inputs=("x",),
+        pattern=lambda x: Subtraction(x, x),
+        replacement=lambda x: Constant(0),
+    )
+    for name, pattern, replacement in (
+        (
+            "cancel_addend",
+            lambda x, y: Subtraction(Addition(x, y), x),
+            lambda x, y: y,
+        ),
+        (
+            "cancel_subtrahend",
+            lambda x, y: Addition(Subtraction(x, y), y),
+            lambda x, y: x,
+        ),
+        (
+            "subtract_difference",
+            lambda x, y: Subtraction(x, Subtraction(x, y)),
+            lambda x, y: y,
+        ),
+        (
+            "cancel_minuend",
+            lambda x, y: Subtraction(Subtraction(x, y), x),
+            lambda x, y: Negation(y),
+        ),
+        (
+            "subtract_sum",
+            lambda x, y: Subtraction(x, Addition(x, y)),
+            lambda x, y: Negation(y),
+        ),
+    ):
+        yield RewriteRule.from_builders(
+            f"arithmetic.{name}",
+            inputs=("x", "y"),
+            pattern=pattern,
+            replacement=replacement,
+        )
+
+
+def _sharing_rule(
+    shared_type: type[Addition | Subtraction],
+    inner_type: type[Addition | Subtraction],
+    root_type: type[Addition | Subtraction],
+    input_order: tuple[int, ...],
+    inner_index: int,
+) -> RewriteRule | None:
+    """Reuse a sum/difference when its two signed terms occur in another tree."""
+    root_signs = (1, 1 if root_type is Addition else -1)
+    inner_signs = (1, 1 if inner_type is Addition else -1)
+    signs = [0, 0, 0]
+    for index, sign in zip(input_order[:2], inner_signs, strict=True):
+        signs[index] = root_signs[inner_index] * sign
+    signs[input_order[2]] = root_signs[1 - inner_index]
+    if signs[1] != signs[0] * (1 if shared_type is Addition else -1):
+        return None
+
+    def pattern(a, b, c):
+        sources = (a, b, c)
+        shared = shared_type(a, b, name="shared")
+        inner = inner_type(
+            sources[input_order[0]], sources[input_order[1]], name="inner"
+        )
+        other = sources[input_order[2]]
+        operands = (inner, other) if inner_index == 0 else (other, inner)
+        return {"shared": shared, "out": root_type(*operands, name="root")}
+
+    def replacement(a, b, c):
+        shared = shared_type(a, b, name="shared")
+        if signs[0] > 0:
+            arithmetic = Addition if signs[2] > 0 else Subtraction
+            root = arithmetic(shared, c, name="root")
+        elif signs[2] > 0:
+            root = Subtraction(c, shared, name="root")
+        else:
+            root = Subtraction(Negation(c), shared, name="root")
+        return {"shared": shared, "out": root}
+
+    kind = "sum" if shared_type is Addition else "difference"
+    inner_inputs = "".join("abc"[index] for index in input_order[:2])
+    return RewriteRule.from_builders(
+        f"arithmetic.share_{kind}_{inner_type.type_name()}_{inner_inputs}_{root_type.type_name()}_{inner_index}",
+        inputs=("a", "b", "c"),
+        pattern=pattern,
+        replacement=replacement,
+        anchor="root",
+        preserve={"shared": "shared", "root": "root"},
+    )
+
+
+def _sharing_rewrites() -> Iterator[RewriteRule]:
+    for shared_type, inner_type in product((Addition, Subtraction), repeat=2):
+        for input_order in permutations(range(3)):
+            # Addition matching already exchanges its inputs. A shared sum also
+            # makes a and b interchangeable, so one outer operand is sufficient.
+            if inner_type is Addition and input_order[0] > input_order[1]:
+                continue
+            if shared_type is Addition and input_order[2] == 0:
+                continue
+            for root_type, inner_index in (
+                (Addition, 0),
+                (Subtraction, 0),
+                (Subtraction, 1),
+            ):
+                rule = _sharing_rule(
+                    shared_type, inner_type, root_type, input_order, inner_index
+                )
+                if rule is not None:
+                    yield rule
+
+
+def _complex_product_template(
+    a: SignalSourceProvider,
+    b: SignalSourceProvider,
+    c: SignalSourceProvider,
+    d: SignalSourceProvider,
+    method: str,
+) -> dict[str, SignalSourceProvider]:
+    from b_asic.complex_conversion import _product  # noqa: PLC0415
+
+    real, imag = _product(_ComplexPair(a, b), _ComplexPair(c, d), method)
+    real_operation = cast(Operation, real)
+    real_operation.name = "real"
+    cast(Operation, imag).name = "imag"
+    for name, port in zip(("ac", "bd"), real_operation.inputs, strict=True):
+        assert port.connected_source is not None
+        port.connected_source.operation.name = name
+    return {"real": real, "imag": imag}
+
+
+def _complex_rewrites() -> Iterator[RewriteRule]:
+    yield RewriteRule.from_builders(
+        "complex.double_conjugate",
+        inputs=("x",),
+        pattern=lambda x: ComplexConjugate(ComplexConjugate(x)),
+        replacement=lambda x: x,
+    )
+    yield RewriteRule.from_builders(
+        "complex.double_imaginary_multiplication",
+        inputs=("x",),
+        pattern=lambda x: ImaginaryMultiplication(ImaginaryMultiplication(x)),
+        replacement=Negation,
+    )
+    for suffix, arithmetic in (
+        ("addition", Addition),
+        ("subtraction", Subtraction),
+        ("multiplication", Multiplication),
+    ):
+        yield RewriteRule.from_builders(
+            f"complex.share_conjugate_{suffix}",
+            inputs=("a", "b"),
+            pattern=lambda a, b, arithmetic=arithmetic: arithmetic(
+                ComplexConjugate(a, name="left"),
+                ComplexConjugate(b, name="right"),
+                name="root",
+            ),
+            replacement=lambda a, b, arithmetic=arithmetic: ComplexConjugate(
+                arithmetic(a, b, name="root"), name="left"
+            ),
+            preserve={"root": "root", "left": "left"},
+        )
+    yield RewriteRule.from_builders(
+        "complex.three_multiplication_product",
+        inputs=("a", "b", "c", "d"),
+        pattern=lambda a, b, c, d: _complex_product_template(a, b, c, d, "four"),
+        replacement=lambda a, b, c, d: _complex_product_template(a, b, c, d, "three"),
+        anchor="real",
+        preserve={name: name for name in ("ac", "bd", "real", "imag")},
+    )
+
+
+def _fold_shifts(match: RewriteMatch) -> "SFG":
+    amount = sum(
+        -cast(LeftShift, operation).value
+        if isinstance(operation, LeftShift)
+        else cast(RightShift | Shift, operation).value
+        for operation in match.operations.values()
+    )
+    return _build_template(
+        ("x",),
+        lambda x: (
+            RightShift(amount, x)
+            if amount > 0
+            else LeftShift(-amount, x)
+            if amount < 0
+            else x
+        ),
+    )
+
+
+def _shift_rewrites() -> Iterator[RewriteRule]:
+    shifts = (LeftShift, RightShift, Shift)
+    for outer, inner in product(shifts, repeat=2):
+        yield RewriteRule(
+            f"shifts.fold_{outer.type_name()}_{inner.type_name()}",
+            _build_template(
+                ("x",),
+                lambda x, outer=outer, inner=inner: outer(
+                    0, inner(0, x, name="inner"), name="root"
+                ),
+            ),
+            _fold_shifts,
+            node_match=_match_variable_value,
+        )
+    for shift in shifts:
+        yield RewriteRule.from_builders(
+            f"shifts.remove_zero_{shift.type_name()}",
+            inputs=("x",),
+            pattern=lambda x, shift=shift: shift(0, x),
+            replacement=lambda x: x,
+        )
+
+
 @lru_cache(maxsize=1)
 def _default_registry() -> RewriteRegistry:
-    from b_asic.core_operations import Negation, Subtraction  # noqa: PLC0415
-
     result = RewriteRegistry()
     result.register(
         RewriteRule.from_builders(
@@ -491,7 +802,7 @@ def _default_registry() -> RewriteRegistry:
             pattern=lambda a: Negation(Negation(a), name="root"),
             replacement=lambda a: a,
         ),
-        collections=("arithmetic", "negations"),
+        collections=("arithmetic", "negations", "complex"),
     )
     result.register(
         RewriteRule.from_builders(
@@ -503,6 +814,16 @@ def _default_registry() -> RewriteRegistry:
         ),
         collections=("arithmetic", "negations"),
     )
+    for collection, rules in (
+        ("cancellations", _cancellation_rewrites()),
+        ("coefficients", _coefficient_rewrites()),
+        ("factoring", _factor_rewrites()),
+        ("sharing", _sharing_rewrites()),
+        ("complex", _complex_rewrites()),
+        ("shifts", _shift_rewrites()),
+    ):
+        for rule in rules:
+            result.register(rule, collections=("arithmetic", collection))
     return result
 
 
@@ -851,7 +1172,14 @@ def _replace(graph: "SFG", match: RewriteMatch) -> "SFG":
             continue
         source_alias = preserved[alias]
         old = match.operations[source_alias]
-        operation.graph_id, operation.name = old.graph_id, old.name
+        operation.graph_id = (
+            old.graph_id
+            if type(operation) is type(old)
+            else graph._graph_id_generator.next_id(
+                operation.type_name(), graph._used_ids
+            )
+        )
+        operation.name = old.name
         operation.execution_time = old.execution_time
         old_pattern = pattern_nodes[source_alias]
         input_keys = [
