@@ -2,6 +2,7 @@
 
 import pytest
 
+from b_asic import graph_component
 from b_asic.core_operations import Addition, AddSub, Subtraction
 from b_asic.graph_component import AbstractGraphComponent, Name, TypeName
 
@@ -47,6 +48,33 @@ def test_copy_respects_explicit_constructor_arguments():
     assert copied.constructor_scale == 4
     # As before, stored parameters are restored after construction.
     assert copied.params == original.params
+
+
+def test_copy_reuses_signature_but_binds_current_parameters(monkeypatch):
+    class Component(ParameterizedComponent):
+        pass
+
+    inspected = []
+    original_signature = graph_component.signature
+
+    def track_signature(component_type):
+        inspected.append(component_type)
+        return original_signature(component_type)
+
+    monkeypatch.setattr(graph_component, "signature", track_signature)
+    original = Component({"values": [1]}, scale=3)
+    first = original.copy()
+    original.set_param("config", {"values": [2]})
+    original.set_param("scale", 4)
+    second = original.copy()
+
+    assert inspected == [Component]
+    assert first.constructor_config == {"values": [1]}
+    assert first.constructor_scale == 3
+    assert second.constructor_config == {"values": [2]}
+    assert second.constructor_scale == 4
+    second.param("config")["values"].append(5)
+    assert original.param("config") == {"values": [2]}
 
 
 @pytest.mark.parametrize("operation_type", [Addition, Subtraction, AddSub])

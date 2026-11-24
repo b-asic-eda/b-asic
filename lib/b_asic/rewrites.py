@@ -1,16 +1,19 @@
 """Directed replacement of combinational SFG regions using named templates."""
 
+from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import lru_cache
 from itertools import permutations, product
+from logging import DEBUG
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 import numpy as np
 
+import b_asic.logger
 from b_asic.core_operations import (
     Addition,
     ComplexConjugate,
@@ -32,6 +35,8 @@ from b_asic.types import GraphID
 
 if TYPE_CHECKING:
     from b_asic.sfg import SFG, OpSpecifier
+
+log = b_asic.logger.getLogger()
 
 __all__ = [
     "RewriteMatch",
@@ -325,6 +330,37 @@ class RewriteRule:
         return cast(SFG, template.copy())
 
 
+class _NegatedProductRule(RewriteRule):
+    """A built-in product rule that can absorb its sign into all consumers."""
+
+    __slots__ = ()
+
+
+class _SeparatedCoefficientRule(RewriteRule):
+    """Collect coefficients through an ordinary addition/subtraction tree."""
+
+    __slots__ = ()
+
+
+class _SumFactorRule(RewriteRule):
+    """Extract a product factor through an ordinary addition/subtraction tree."""
+
+    __slots__ = ()
+
+
+@dataclass(frozen=True, init=False, eq=False)
+class _ComplexProductRule(RewriteRule):
+    """One selectable variant of real-valued complex-product reduction."""
+
+    __slots__ = ("multiplication_method",)
+
+    multiplication_method: str
+
+    def __init__(self, *args: Any, multiplication_method: str, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        object.__setattr__(self, "multiplication_method", multiplication_method)
+
+
 @dataclass(frozen=True, eq=False)
 class RewriteMatch:
     """An inspectable match belonging to one specific, unchanged host graph."""
@@ -441,6 +477,31 @@ def _factor_rewrites() -> Iterator[RewriteRule]:
             ),
             preserve={"root": "root", "left": "left"},
         )
+        yield _SumFactorRule.from_builders(
+            f"arithmetic.factor_{suffix}_sum",
+            inputs=("a", "b", "c", "d", "e"),
+            pattern=lambda a, b, c, d, e, arithmetic=arithmetic: arithmetic(
+                Addition(Multiplication(a, b, name="left"), c),
+                Addition(Multiplication(a, d), e),
+                name="root",
+            ),
+            replacement=lambda a, b, c, d, e, arithmetic=arithmetic: Addition(
+                Multiplication(a, arithmetic(b, d), name="left"),
+                arithmetic(c, e),
+                name="root",
+            ),
+            preserve={"root": "root", "left": "left"},
+        )
+        yield _share_unary_rule(
+            f"arithmetic.factor_constant_{suffix}",
+            arithmetic,
+            ConstantMultiplication(),
+            ConstantMultiplication(),
+            condition=lambda match: _equal(
+                match.operations["left"].param("value"),
+                match.operations["right"].param("value"),
+            ),
+        )
 
 
 def _match_variable_value(pattern: Operation, operation: Operation) -> bool:
@@ -461,6 +522,49 @@ def _match_variable_value(pattern: Operation, operation: Operation) -> bool:
         },
     ) and _equal(
         getattr(pattern, "real_valued", None), getattr(operation, "real_valued", None)
+    )
+
+
+def _share_unary_inputs(match: RewriteMatch) -> "SFG":
+    """Move a common unary factor outside an addition or subtraction."""
+    arithmetic = Addition if type(match.anchor) is Addition else Subtraction
+
+    def replacement(a, b):
+        unary = cast(Operation, match.operations["left"].copy())
+        unary.name = "left"
+        unary.graph_id = GraphID("")
+        unary.input(0).connect(arithmetic(a, b, name="root"))
+        return unary
+
+    return _build_template(("a", "b"), replacement)
+
+
+def _share_unary_rule(
+    name: str,
+    arithmetic: type[Addition] | type[Subtraction],
+    left: Operation,
+    right: Operation,
+    *,
+    condition: Callable[[RewriteMatch], bool] | None = None,
+) -> RewriteRule:
+    """Build a sharing rule with exact parameters except coefficient/shift values."""
+
+    def pattern(a, b):
+        operands = []
+        for alias, prototype, source in (("left", left, a), ("right", right, b)):
+            node = cast(Operation, prototype.copy())
+            node.name = alias
+            node.input(0).connect(source)
+            operands.append(node)
+        return arithmetic(*operands, name="root")
+
+    return RewriteRule(
+        name,
+        _build_template(("a", "b"), pattern),
+        _share_unary_inputs,
+        preserve={"root": "root", "left": "left"},
+        node_match=_match_variable_value,
+        condition=condition,
     )
 
 
@@ -501,6 +605,21 @@ def _coefficient_rewrites() -> Iterator[RewriteRule]:
             f"arithmetic.collect_{suffix}",
             pattern,
             _collect_coefficients,
+            node_match=_match_variable_value,
+        )
+    for suffix, arithmetic in (("addition", Addition), ("subtraction", Subtraction)):
+        yield _SeparatedCoefficientRule.from_builders(
+            f"arithmetic.collect_separated_{suffix}_coefficients",
+            inputs=("x", "y"),
+            pattern=lambda x, y, arithmetic=arithmetic: arithmetic(
+                Addition(ConstantMultiplication(0, x, name="left"), y),
+                ConstantMultiplication(0, x),
+                name="root",
+            ),
+            replacement=lambda x, y: Addition(
+                ConstantMultiplication(0, x, name="left"), y, name="root"
+            ),
+            preserve={"root": "root", "left": "left"},
             node_match=_match_variable_value,
         )
 
@@ -617,6 +736,22 @@ def _sharing_rewrites() -> Iterator[RewriteRule]:
                 if rule is not None:
                     yield rule
 
+    def opposite_difference(a, b):
+        shared = Subtraction(a, b, name="shared")
+        return {"shared": shared, "opposite": Negation(shared, name="opposite")}
+
+    yield RewriteRule.from_builders(
+        "arithmetic.share_opposite_difference",
+        inputs=("a", "b"),
+        pattern=lambda a, b: {
+            "shared": Subtraction(a, b, name="shared"),
+            "opposite": Subtraction(b, a, name="opposite"),
+        },
+        replacement=opposite_difference,
+        anchor="shared",
+        preserve={"shared": "shared"},
+    )
+
 
 def _complex_product_template(
     a: SignalSourceProvider,
@@ -631,10 +766,27 @@ def _complex_product_template(
     real_operation = cast(Operation, real)
     real_operation.name = "real"
     cast(Operation, imag).name = "imag"
-    for name, port in zip(("ac", "bd"), real_operation.inputs, strict=True):
+    product_names = ("k2", "k1") if method == "threealt" else ("ac", "bd")
+    for name, port in zip(product_names, real_operation.inputs, strict=True):
         assert port.connected_source is not None
         port.connected_source.operation.name = name
+    if method == "threealt":
+        source = cast(Operation, imag).input(1).connected_source
+        assert source is not None
+        source.operation.name = "k3"
     return {"real": real, "imag": imag}
+
+
+def _prefer_real_right_operand(match: RewriteMatch) -> bool:
+    """Put a known-zero imaginary component in threealt's shared product."""
+
+    def is_zero(source: OutputPort) -> bool:
+        operation = source.operation
+        return type(operation) is Constant and _equal(
+            cast(Constant, operation).value, 0
+        )
+
+    return not is_zero(match.inputs["b"]) or is_zero(match.inputs["d"])
 
 
 def _complex_rewrites() -> Iterator[RewriteRule]:
@@ -668,14 +820,31 @@ def _complex_rewrites() -> Iterator[RewriteRule]:
             ),
             preserve={"root": "root", "left": "left"},
         )
-    yield RewriteRule.from_builders(
-        "complex.three_multiplication_product",
-        inputs=("a", "b", "c", "d"),
-        pattern=lambda a, b, c, d: _complex_product_template(a, b, c, d, "four"),
-        replacement=lambda a, b, c, d: _complex_product_template(a, b, c, d, "three"),
-        anchor="real",
-        preserve={name: name for name in ("ac", "bd", "real", "imag")},
-    )
+    for suffix, arithmetic in (("addition", Addition), ("subtraction", Subtraction)):
+        yield _share_unary_rule(
+            f"complex.share_imaginary_{suffix}",
+            arithmetic,
+            ImaginaryMultiplication(),
+            ImaginaryMultiplication(),
+        )
+    for method in ("three", "threealt"):
+        yield _ComplexProductRule.from_builders(
+            f"complex.{method}_multiplication_product",
+            inputs=("a", "b", "c", "d"),
+            pattern=lambda a, b, c, d: _complex_product_template(a, b, c, d, "four"),
+            replacement=lambda a, b, c, d, method=method: _complex_product_template(
+                a, b, c, d, method
+            ),
+            anchor="real",
+            preserve={
+                "ac": "k2" if method == "threealt" else "ac",
+                "bd": "k1" if method == "threealt" else "bd",
+                "real": "real",
+                "imag": "imag",
+            },
+            multiplication_method=method,
+            condition=_prefer_real_right_operand if method == "threealt" else None,
+        )
 
 
 def _fold_shifts(match: RewriteMatch) -> "SFG":
@@ -718,13 +887,34 @@ def _shift_rewrites() -> Iterator[RewriteRule]:
             pattern=lambda x, shift=shift: shift(0, x),
             replacement=lambda x: x,
         )
+    for left, right in product(shifts, repeat=2):
+        for suffix, arithmetic in (
+            ("addition", Addition),
+            ("subtraction", Subtraction),
+        ):
+            yield _share_unary_rule(
+                f"shifts.share_{left.type_name()}_{right.type_name()}_{suffix}",
+                arithmetic,
+                left(0),
+                right(0),
+                condition=lambda match: _equal(
+                    _right_shift_amount(match.operations["left"]),
+                    _right_shift_amount(match.operations["right"]),
+                ),
+            )
+
+
+def _right_shift_amount(operation: Operation) -> int:
+    """Return the effective right-shift amount, including signed Shift values."""
+    amount = cast(LeftShift | RightShift | Shift, operation).value
+    return -amount if type(operation) is LeftShift else amount
 
 
 @lru_cache(maxsize=1)
 def _default_registry() -> RewriteRegistry:
     result = RewriteRegistry()
     result.register(
-        RewriteRule.from_builders(
+        _NegatedProductRule.from_builders(
             "arithmetic.negated_product",
             inputs=("a", "b", "c"),
             pattern=lambda a, b, c: Addition(
@@ -738,8 +928,43 @@ def _default_registry() -> RewriteRegistry:
         ),
         collections=("arithmetic", "negations"),
     )
+    for name, arithmetic, replacement in (
+        ("negated_product_chain", Addition, Subtraction),
+        ("subtract_negated_product_chain", Subtraction, Addition),
+    ):
+        result.register(
+            RewriteRule.from_builders(
+                f"arithmetic.{name}",
+                inputs=("a", "b", "c", "d"),
+                pattern=lambda a, b, c, d, arithmetic=arithmetic: arithmetic(
+                    d,
+                    Multiplication(
+                        Multiplication(
+                            Negation(a, name="negative"), b, name="inner_product"
+                        ),
+                        c,
+                        name="product",
+                    ),
+                    name="root",
+                ),
+                replacement=lambda a, b, c, d, replacement=replacement: replacement(
+                    d,
+                    Multiplication(
+                        Multiplication(a, b, name="inner_product"), c, name="product"
+                    ),
+                    name="root",
+                ),
+                anchor="root",
+                preserve={
+                    "inner_product": "inner_product",
+                    "product": "product",
+                    "root": "root",
+                },
+            ),
+            collections=("arithmetic", "negations"),
+        )
     result.register(
-        RewriteRule.from_builders(
+        _NegatedProductRule.from_builders(
             "arithmetic.subtract_negated_product",
             inputs=("a", "b", "c"),
             pattern=lambda a, b, c: Subtraction(
@@ -767,6 +992,25 @@ def _default_registry() -> RewriteRegistry:
             replacement=lambda a, b, c, d: Subtraction(
                 d,
                 Addition(Multiplication(a, b, name="product"), c, name="inner"),
+                name="root",
+            ),
+            anchor="root",
+            preserve={"product": "product", "inner": "inner", "root": "root"},
+        ),
+        collections=("arithmetic", "negations"),
+    )
+    result.register(
+        RewriteRule.from_builders(
+            "arithmetic.negated_product_minus_difference",
+            inputs=("a", "b", "c", "d"),
+            pattern=lambda a, b, c, d: Subtraction(
+                Multiplication(Negation(a, name="negative"), b, name="product"),
+                Subtraction(c, d, name="inner"),
+                name="root",
+            ),
+            replacement=lambda a, b, c, d: Subtraction(
+                Subtraction(d, c, name="inner"),
+                Multiplication(a, b, name="product"),
                 name="root",
             ),
             anchor="root",
@@ -814,6 +1058,19 @@ def _default_registry() -> RewriteRegistry:
         ),
         collections=("arithmetic", "negations"),
     )
+    result.register(
+        RewriteRule.from_builders(
+            "arithmetic.negated_difference",
+            inputs=("a", "b"),
+            pattern=lambda a, b: Negation(
+                Subtraction(a, b, name="difference"), name="root"
+            ),
+            replacement=lambda a, b: Subtraction(b, a, name="difference"),
+            anchor="root",
+            preserve={"difference": "difference"},
+        ),
+        collections=("arithmetic", "negations"),
+    )
     for collection, rules in (
         ("cancellations", _cancellation_rewrites()),
         ("coefficients", _coefficient_rewrites()),
@@ -840,6 +1097,46 @@ def get_rewrite(name: str) -> RewriteRule:
 def available_rewrites() -> tuple[str, ...]:
     """List the built-in and registered custom rule names."""
     return _default_registry().names()
+
+
+def _select_rewrites(rules, multiplication_method: str | None) -> list[RewriteRule]:
+    """Resolve one product variant per call while retaining all other selected rules."""
+    if multiplication_method not in (None, "four", "three", "threealt"):
+        raise ValueError(
+            'multiplication_method must be None, "four", "three", or "threealt"'
+        )
+    registry = _default_registry()
+    specifiers = (
+        None
+        if rules is None
+        else [rules]
+        if isinstance(rules, (RewriteRule, str))
+        else list(rules)
+    )
+    selected = registry.select(specifiers)
+    explicit_methods = set()
+    registered = set(registry.names())
+    for specifier in specifiers or ():
+        rule = (
+            registry.get(specifier)
+            if isinstance(specifier, str) and specifier in registered
+            else specifier
+        )
+        if isinstance(rule, _ComplexProductRule):
+            explicit_methods.add(rule.multiplication_method)
+    if len(explicit_methods) > 1 or (
+        explicit_methods
+        and multiplication_method is not None
+        and multiplication_method not in explicit_methods
+    ):
+        raise ValueError("Conflicting complex multiplication rewrite variants")
+    method = multiplication_method or next(iter(explicit_methods), "three")
+    return [
+        rule
+        for rule in selected
+        if not isinstance(rule, _ComplexProductRule)
+        or rule.multiplication_method == method
+    ]
 
 
 def _normalize_specifiers(
@@ -941,12 +1238,23 @@ def _input_bindings(
     template_nodes: Mapping[str, Operation],
     operations: Mapping[str, Operation],
     input_names: Mapping[Operation, str],
+    *,
+    partial: bool = False,
 ) -> Iterator[tuple[dict[str, tuple[int, ...]], dict[str, OutputPort]]]:
-    """Bind inputs consistently, exchanging inputs of commutative operations."""
+    """
+    Bind inputs consistently, exchanging inputs of commutative operations.
+
+    Partial mappings may leave internal sources and boundary inputs unresolved.
+    Every call considers all legal input orders without committing an earlier
+    partial mapping to one of its alternatives.
+    """
     pattern_to_host = {template_nodes[alias]: op for alias, op in operations.items()}
+    template_operations = set(template_nodes.values())
     matched = set(operations.values())
     options: list[list[tuple[tuple[int, ...], dict[str, OutputPort]]]] = []
     for alias, pattern in template_nodes.items():
+        if partial and alias not in operations:
+            continue
         operation = operations[alias]
         orders = (
             ((0, 1), (1, 0))
@@ -963,11 +1271,13 @@ def _input_bindings(
                 actual = operation.input(indices[port.index]).connected_source
                 if expected is None or actual is None:
                     break
-                if expected.operation in pattern_to_host:
-                    if (
-                        actual.operation is not pattern_to_host[expected.operation]
-                        or actual.index != expected.index
-                    ):
+                if expected.operation in template_operations:
+                    if actual.index != expected.index:
+                        break
+                    if expected.operation in pattern_to_host:
+                        if actual.operation is not pattern_to_host[expected.operation]:
+                            break
+                    elif not partial or actual.operation in matched:
                         break
                 elif expected.operation in input_names:
                     name = input_names[expected.operation]
@@ -993,12 +1303,14 @@ def _input_bindings(
                 break
             bound_inputs.update(inputs)
         else:
-            if bound_inputs.keys() == set(input_names.values()):
+            if partial or bound_inputs.keys() == set(input_names.values()):
                 yield (
                     {
                         alias: indices
                         for alias, (indices, _) in zip(
-                            template_nodes, combination, strict=True
+                            (alias for alias in template_nodes if alias in operations),
+                            combination,
+                            strict=True,
                         )
                     },
                     bound_inputs,
@@ -1006,7 +1318,11 @@ def _input_bindings(
 
 
 def _bind_match(
-    graph: "SFG", rule: RewriteRule, operations: Mapping[str, Operation]
+    graph: "SFG",
+    rule: RewriteRule,
+    operations: Mapping[str, Operation],
+    *,
+    node_matches: Callable[[RewriteRule, Operation, Operation], bool] = _node_matches,
 ) -> RewriteMatch | None:
     template_nodes = _nodes(rule._pattern)
     if operations.keys() != template_nodes.keys() or len(
@@ -1014,7 +1330,7 @@ def _bind_match(
     ) != len(operations):
         return None
     if any(
-        not _node_matches(rule, template_nodes[alias], op)
+        not node_matches(rule, template_nodes[alias], op)
         for alias, op in operations.items()
     ):
         return None
@@ -1064,29 +1380,515 @@ def _bind_match(
     return None
 
 
+def _shared_negated_product_rule(
+    base: RewriteRule,
+    operations: Mapping[str, Operation],
+    negated_index: int,
+) -> RewriteRule | None:
+    """Build a complete multi-output pattern, retaining consumer dependencies."""
+    from b_asic.sfg import SFG  # noqa: PLC0415
+
+    aliases = {operation: alias for alias, operation in operations.items()}
+    boundaries: dict[OutputPort, str] = {}
+    for operation in operations.values():
+        for port in operation.inputs:
+            source = port.connected_source
+            if source is None:
+                return None
+            if source.operation not in aliases and source not in boundaries:
+                boundaries[source] = f"in{len(boundaries)}"
+    roots = [alias for alias in operations if alias not in ("negative", "product")]
+
+    def template(*, replacement: bool) -> SFG:
+        inputs = {source: Input(name) for source, name in boundaries.items()}
+        nodes: dict[str, Operation] = {}
+        for alias, operation in operations.items():
+            if replacement and alias == "negative":
+                continue
+            node: Operation
+            if replacement and alias in roots:
+                node = (Subtraction if type(operation) is Addition else Addition)()
+            else:
+                node = cast(Operation, operation.copy())
+            node.name = alias
+            node.graph_id = GraphID("")
+            nodes[alias] = node
+        for alias, operation in operations.items():
+            if alias not in nodes:
+                continue
+            for port in operation.inputs:
+                source = cast(OutputPort, port.connected_source)
+                index = port.index
+                if alias == "product":
+                    index = 0 if port.index == negated_index else 1
+                    if replacement and port.index == negated_index:
+                        source = cast(
+                            OutputPort, operations["negative"].input(0).connected_source
+                        )
+                elif type(operation) is Addition:
+                    is_product = source.operation is operations["product"]
+                    index = int(is_product) if replacement else int(not is_product)
+                upstream = (
+                    nodes[aliases[source.operation]].output(source.index)
+                    if source.operation in aliases
+                    else inputs[source].output(0)
+                )
+                nodes[alias].input(index).connect(upstream)
+        return SFG(
+            list(inputs.values()),
+            [
+                Output(nodes[alias], name=f"out{index}")
+                for index, alias in enumerate(roots)
+            ],
+        )
+
+    return RewriteRule(
+        base.name,
+        template(replacement=False),
+        template(replacement=True),
+        anchor="root",
+        preserve={alias: alias for alias in ("product", *roots)},
+    )
+
+
+def _shared_negated_product_matches(
+    graph: "SFG",
+    rule: RewriteRule,
+    targets: set[GraphID],
+    within: set[GraphID],
+    *,
+    node_matches: Callable[[RewriteRule, Operation, Operation], bool] = _node_matches,
+) -> list[RewriteMatch]:
+    """Match a shared product only when every consumer can absorb its sign."""
+    prototypes = _nodes(rule._pattern)
+    negative_prototype = next(op for op in prototypes.values() if type(op) is Negation)
+    consumer_prototypes: dict[type[Operation], Operation] = {
+        Addition: Addition(),
+        Subtraction: Subtraction(),
+    }
+    order = {op: index for index, op in enumerate(dict.fromkeys(graph.operations))}
+    matches = []
+    for operation in order:
+        if not node_matches(rule, prototypes["product"], operation):
+            continue
+        signals = operation.output(0).signals
+        if len(signals) < 2:
+            continue
+        consumers = []
+        for signal in signals:
+            destination = signal.destination
+            if destination is None:
+                break
+            consumer = destination.operation
+            if (
+                consumer not in order
+                or type(consumer) not in consumer_prototypes
+                or (type(consumer) is Subtraction and destination.index != 1)
+                or consumer in consumers
+                or not node_matches(rule, consumer_prototypes[type(consumer)], consumer)
+            ):
+                break
+            consumers.append(consumer)
+        else:
+            consumers.sort(key=order.__getitem__)
+            anchors = [
+                consumer
+                for consumer in consumers
+                if type(consumer) is type(prototypes[rule.anchor])
+                and consumer.graph_id in targets
+            ]
+            if not anchors:
+                continue
+            anchor = anchors[0]
+            others = [consumer for consumer in consumers if consumer is not anchor]
+            for index, port in enumerate(operation.inputs):
+                source = port.connected_source
+                if source is None or not node_matches(
+                    rule, negative_prototype, source.operation
+                ):
+                    continue
+                negative = source.operation
+                if negative.output(0).signal_count != 1:
+                    continue
+                members = {
+                    "negative": negative,
+                    "product": operation,
+                    "root": anchor,
+                    **{f"root{i}": consumer for i, consumer in enumerate(others, 1)},
+                }
+                if any(
+                    op.graph_id not in within for op in members.values()
+                ) or not nx.is_directed_acyclic_graph(_network(members.values())):
+                    continue
+                expanded = _shared_negated_product_rule(rule, members, index)
+                if expanded is not None:
+                    match = _bind_match(
+                        graph, expanded, members, node_matches=node_matches
+                    )
+                    if match is not None:
+                        matches.append(match)
+    return matches
+
+
+def _sum_region(
+    rule: RewriteRule,
+    root: Operation,
+    within: set[GraphID],
+    prototypes: Mapping[type[Operation], Operation],
+    node_matches: Callable[[RewriteRule, Operation, Operation], bool],
+) -> tuple[list[Operation], list[tuple[int, OutputPort]]] | None:
+    """Expand a single-use ordinary sum tree, stopping at shared or scoped sources."""
+    operations = []
+    terms = []
+    visited = set()
+    pending = [(1, root.output(0))]
+    while pending:
+        sign, source = pending.pop()
+        operation = source.operation
+        if (
+            type(operation) not in prototypes
+            or operation.graph_id not in within
+            or (operation is not root and source.signal_count != 1)
+            or not node_matches(rule, prototypes[type(operation)], operation)
+        ):
+            terms.append((sign, source))
+            continue
+        if operation in visited:
+            return None
+        visited.add(operation)
+        operations.append(operation)
+        for port in reversed(operation.inputs):
+            upstream = port.connected_source
+            if upstream is None:
+                return None
+            input_sign = (
+                -sign if type(operation) is Subtraction and port.index else sign
+            )
+            pending.append((input_sign, upstream))
+    return operations, terms
+
+
+def _sum_group_rule(
+    base: RewriteRule,
+    sums: list[Operation],
+    terms: list[tuple[int, OutputPort]],
+    factor: OutputPort,
+    group: list[tuple[int, Operation | None, OutputPort]],
+) -> tuple[RewriteRule, dict[str, Operation]]:
+    """Build an exact, reviewable rewrite for one group of terms in a sum tree."""
+    from b_asic.sfg import SFG  # noqa: PLC0415
+
+    members = {"root": sums[0]}
+    members.update((f"sum{index}", op) for index, op in enumerate(sums[1:]))
+    for _, operation, _ in group:
+        if operation is not None and operation not in members.values():
+            alias = "left" if "left" not in members else f"term{len(members)}"
+            members[alias] = operation
+    aliases = {op: alias for alias, op in members.items()}
+    boundaries: dict[OutputPort, str] = {}
+    for operation in members.values():
+        for port in operation.inputs:
+            source = cast(OutputPort, port.connected_source)
+            if source.operation not in aliases and source not in boundaries:
+                boundaries[source] = f"in{len(boundaries)}"
+
+    pattern_inputs = {source: Input(name) for source, name in boundaries.items()}
+    nodes = {}
+    for alias, operation in members.items():
+        node = cast(Operation, operation.copy())
+        node.name = alias
+        node.graph_id = GraphID("")
+        nodes[alias] = node
+    for alias, operation in members.items():
+        for port in operation.inputs:
+            source = cast(OutputPort, port.connected_source)
+            upstream = (
+                nodes[aliases[source.operation]].output(source.index)
+                if source.operation in aliases
+                else pattern_inputs[source].output(0)
+            )
+            nodes[alias].input(port.index).connect(upstream)
+    pattern = SFG(list(pattern_inputs.values()), [Output(nodes["root"], name="out0")])
+
+    inputs = {source: Input(name) for source, name in boundaries.items()}
+    arithmetic: list[Operation] = []
+
+    def combine(left, right, *, subtract: bool = False):
+        operation = (Subtraction if subtract else Addition)(left, right)
+        arithmetic.append(operation)
+        return operation
+
+    def signed_sum(items: list[tuple[int, SignalSourceProvider]]):
+        sign, result = items[0]
+        for item_sign, source in items[1:]:
+            result = combine(result, source, subtract=item_sign != sign)
+        return sign, result
+
+    group_sign = terms[group[0][0]][0]
+    if isinstance(base, _SeparatedCoefficientRule):
+        coefficient = sum(
+            group_sign
+            * terms[index][0]
+            * (cast(ConstantMultiplication, op).value if op is not None else 1)
+            for index, op, _ in group
+        )
+        collected: SignalSourceProvider = ConstantMultiplication(
+            coefficient, inputs[factor], name="left"
+        )
+    else:
+        _, inner = signed_sum(
+            [
+                (group_sign * terms[index][0], inputs[source])
+                for index, _, source in group
+            ]
+        )
+        collected = Multiplication(inputs[factor], inner, name="left")
+
+    selected = {index for index, _, _ in group}
+    remaining = [
+        (sign, inputs[source])
+        for index, (sign, source) in enumerate(terms)
+        if index not in selected
+    ]
+    result = collected
+    if remaining:
+        remaining_sign, other = signed_sum(remaining)
+        # The original first term is positive, so at least one group is positive.
+        result = (
+            combine(collected, other, subtract=remaining_sign < 0)
+            if group_sign > 0
+            else combine(other, collected, subtract=True)
+        )
+
+    preserve = {"left": "left"}
+    if arithmetic:
+        retained = [alias for alias in members if alias.startswith("sum")]
+        retained = [*retained[: len(arithmetic) - 1], "root"]
+        for alias, operation in zip(retained, arithmetic, strict=True):
+            operation.name = alias
+            preserve[alias] = alias
+    replacement = SFG(list(inputs.values()), [Output(result, name="out0")])
+    return (
+        RewriteRule(base.name, pattern, replacement, anchor="root", preserve=preserve),
+        members,
+    )
+
+
+def _sum_rewrite_matches(
+    graph: "SFG",
+    rule: RewriteRule,
+    targets: set[GraphID],
+    within: set[GraphID],
+    host_operations: Sequence[Operation],
+    node_matches: Callable[[RewriteRule, Operation, Operation], bool],
+) -> list[RewriteMatch]:
+    """Find repeated coefficients/factors without enumerating sum tree shapes."""
+    anchor = _nodes(rule._pattern)[rule.anchor]
+    prototypes: dict[type[Operation], Operation] = {
+        Addition: Addition(),
+        Subtraction: Subtraction(),
+    }
+    coefficients = isinstance(rule, _SeparatedCoefficientRule)
+    prototype = ConstantMultiplication() if coefficients else Multiplication()
+    matches = []
+    for root in host_operations:
+        if (
+            root.graph_id not in targets
+            or root.graph_id not in within
+            or not node_matches(rule, anchor, root)
+        ):
+            continue
+        region = _sum_region(rule, root, within, prototypes, node_matches)
+        if region is None:
+            continue
+        sums, terms = region
+        if len(terms) < 3:
+            continue
+        groups: dict[OutputPort, list[tuple[int, Operation | None, OutputPort]]] = {}
+        for index, (_, source) in enumerate(terms):
+            operation = source.operation
+            if (
+                operation.graph_id not in within
+                or source.signal_count != 1
+                or not node_matches(rule, prototype, operation)
+            ):
+                continue
+            sources = [port.connected_source for port in operation.inputs]
+            if any(port is None for port in sources):
+                continue
+            if coefficients:
+                source = cast(OutputPort, sources[0])
+                groups.setdefault(source, []).append((index, operation, source))
+            else:
+                for factor, other in dict.fromkeys(
+                    zip(sources, reversed(sources), strict=True)
+                ):
+                    groups.setdefault(cast(OutputPort, factor), []).append(
+                        (index, operation, cast(OutputPort, other))
+                    )
+        if coefficients:
+            for index, (_, source) in enumerate(terms):
+                if source in groups:
+                    groups[source].append((index, None, source))
+        for factor, group in groups.items():
+            if len(group) < 2:
+                continue
+            group.sort(key=lambda item: item[0])
+            internal = set(sums) | {op for _, op, _ in group if op is not None}
+            if factor.operation in internal or any(
+                source.operation in internal for _, _, source in group
+            ):
+                continue
+            expanded, members = _sum_group_rule(rule, sums, terms, factor, group)
+            match = _bind_match(graph, expanded, members, node_matches=node_matches)
+            if match is not None:
+                matches.append(match)
+                break
+    return matches
+
+
+class _RewriteMatcher(nx.algorithms.isomorphism.MultiDiGraphMatcher):
+    """Reject incompatible candidates and inconsistent partial source bindings."""
+
+    def __init__(
+        self,
+        graph: nx.MultiDiGraph,
+        pattern: nx.MultiDiGraph,
+        *,
+        pattern_nodes: Mapping[str, Operation],
+        input_names: Mapping[Operation, str],
+        candidates: Mapping[Operation, set[Operation]] | None,
+        **kwargs: Any,
+    ) -> None:
+        self._pattern_nodes = pattern_nodes
+        self._input_names = input_names
+        self._aliases = {op: alias for alias, op in pattern_nodes.items()}
+        self._candidates = candidates
+        super().__init__(graph, pattern, **kwargs)
+
+    def candidate_pairs_iter(self) -> Iterator[tuple[Operation, Operation]]:
+        for operation, pattern in super().candidate_pairs_iter():
+            if self._candidates is None or operation in self._candidates[pattern]:
+                yield operation, pattern
+
+    def semantic_feasibility(self, operation: Operation, pattern: Operation) -> bool:
+        if not super().semantic_feasibility(operation, pattern):
+            return False
+        if self._candidates is None:
+            return True
+        operations = {
+            alias: self.core_2[op]
+            for alias, op in self._pattern_nodes.items()
+            if op in self.core_2
+        }
+        operations[self._aliases[pattern]] = operation
+        return (
+            next(
+                _input_bindings(
+                    self._pattern_nodes, operations, self._input_names, partial=True
+                ),
+                None,
+            )
+            is not None
+        )
+
+
 def _find(
     graph: "SFG",
     rules: Iterable[RewriteRule],
     targets: set[GraphID],
     within: set[GraphID],
 ) -> list[RewriteMatch]:
-    network = _network(graph.operations)
-    order = {op: index for index, op in enumerate(dict.fromkeys(graph.operations))}
+    # Search is read-only. Discard compatibility results before graph mutation
+    # or another pass, and preserve evaluation of arbitrary user callbacks.
+    cached_node_matches = lru_cache(maxsize=None)(_node_matches)
+
+    def node_matches(
+        rule: RewriteRule, pattern: Operation, operation: Operation
+    ) -> bool:
+        if rule.node_match is not None and rule.node_match is not _match_variable_value:
+            return _node_matches(rule, pattern, operation)
+        return cached_node_matches(rule, pattern, operation)
+
+    host_operations = tuple(dict.fromkeys(graph.operations))
+    order = {op: index for index, op in enumerate(host_operations)}
+    available_types = Counter(
+        type(op) for op in host_operations if op.graph_id in within
+    )
+    anchor_types = {
+        type(op)
+        for op in host_operations
+        if op.graph_id in within and op.graph_id in targets
+    }
+    network = None
     result = []
     for rule in rules:
         pattern_nodes = _nodes(rule._pattern)
-        pattern_network = _network(pattern_nodes.values())
         anchor = pattern_nodes[rule.anchor]
-        matcher = nx.algorithms.isomorphism.MultiDiGraphMatcher(
+        if isinstance(rule, (_SeparatedCoefficientRule, _SumFactorRule)):
+            term_type = (
+                ConstantMultiplication
+                if isinstance(rule, _SeparatedCoefficientRule)
+                else Multiplication
+            )
+            minimum = 1 if isinstance(rule, _SeparatedCoefficientRule) else 2
+            if type(anchor) in anchor_types and available_types[term_type] >= minimum:
+                result.extend(
+                    _sum_rewrite_matches(
+                        graph, rule, targets, within, host_operations, node_matches
+                    )
+                )
+            continue
+        required_types = Counter(type(op) for op in pattern_nodes.values())
+        if type(anchor) not in anchor_types or any(
+            count > available_types[operation_type]
+            for operation_type, count in required_types.items()
+        ):
+            continue
+        pure_node_match = (
+            rule.node_match is None or rule.node_match is _match_variable_value
+        )
+        candidates = None
+        if pure_node_match:
+            candidates = {
+                pattern: {
+                    operation
+                    for operation in host_operations
+                    if operation.graph_id in within
+                    and (pattern is not anchor or operation.graph_id in targets)
+                    and node_matches(rule, pattern, operation)
+                }
+                for pattern in pattern_nodes.values()
+            }
+            if any(not choices for choices in candidates.values()):
+                continue
+        if network is None:
+            network = _network(host_operations)
+        # Preserve callback traversal for arbitrary predicates and guards.
+        pattern_order = (
+            (anchor, *(op for op in pattern_nodes.values() if op is not anchor))
+            if pure_node_match and rule.condition is None
+            else pattern_nodes.values()
+        )
+        pattern_network = _network(pattern_order)
+        matcher = _RewriteMatcher(
             network,
             pattern_network,
+            pattern_nodes=pattern_nodes,
+            input_names={
+                op: name
+                for name, op in _boundaries(
+                    rule._pattern.input_operations, "in"
+                ).items()
+            },
+            candidates=candidates,
             node_match=lambda host, pattern, rule=rule, anchor=anchor: (
                 host["operation"].graph_id in within
                 and (
                     pattern["operation"] is not anchor
                     or host["operation"].graph_id in targets
                 )
-                and _node_matches(rule, pattern["operation"], host["operation"])
+                and node_matches(rule, pattern["operation"], host["operation"])
             ),
             edge_match=lambda host, pattern: (
                 sorted((edge["source"], edge["destination"]) for edge in host.values())
@@ -1095,7 +1897,13 @@ def _find(
                 )
             ),
         )
-        matches = []
+        matches = (
+            _shared_negated_product_matches(
+                graph, rule, targets, within, node_matches=node_matches
+            )
+            if isinstance(rule, _NegatedProductRule)
+            else []
+        )
         seen = set()
         for mapping in matcher.subgraph_monomorphisms_iter():
             inverse = {pattern: host for host, pattern in mapping.items()}
@@ -1110,7 +1918,7 @@ def _find(
             if key in seen:
                 continue
             seen.add(key)
-            match = _bind_match(graph, rule, operations)
+            match = _bind_match(graph, rule, operations, node_matches=node_matches)
             if match is not None:
                 matches.append(match)
         matches.sort(
@@ -1124,10 +1932,15 @@ def _find(
 
 
 def find_rewrites(
-    graph: "SFG", rules=None, target=None, *, within=None
+    graph: "SFG",
+    rules=None,
+    target=None,
+    *,
+    within=None,
+    multiplication_method: str | None = None,
 ) -> list[RewriteMatch]:
     """Find exact port-aware matches without modifying the graph."""
-    selected_rules = _default_registry().select(rules)
+    selected_rules = _select_rewrites(rules, multiplication_method)
     targets = _selection_ids(graph, _normalize_specifiers(graph, target))
     region = _selection_ids(graph, _normalize_specifiers(graph, within))
     return _find(graph, selected_rules, targets, region)
@@ -1147,9 +1960,8 @@ def _source_key(
     return "node", renames.get(alias, alias), source.index
 
 
-def _replace(graph: "SFG", match: RewriteMatch) -> "SFG":
-    from b_asic.sfg import SFG  # noqa: PLC0415
-
+def _replace_inplace(graph: "SFG", match: RewriteMatch) -> None:
+    """Splice a replacement into an owned graph and refresh its component indices."""
     rule = match.rule
     replacement = rule.build_replacement(match)
     new_nodes = _nodes(replacement)
@@ -1258,9 +2070,8 @@ def _replace(graph: "SFG", match: RewriteMatch) -> "SFG":
                     signal.graph_id = graph._graph_id_generator.next_id(
                         signal.type_name(), graph._used_ids
                     )
-    rebuilt = cast(SFG, graph.copy())
-    rebuilt._used_ids.update(graph._used_ids)
-    return rebuilt
+    graph._operations_dfs_order.extend(new_nodes.values())
+    graph._refresh_components()
 
 
 def apply_rewrites(
@@ -1284,22 +2095,34 @@ def apply_rewrites(
         ):
             raise ValueError("Rewrite match is stale; find matches again")
     result = cast(SFG, graph.copy())
+    _apply_rewrites_inplace(result, selected)
+    return result
+
+
+def _apply_rewrites_inplace(graph: "SFG", matches: Iterable[RewriteMatch]) -> None:
+    """Apply a pass to an owned graph, rebinding after each successful replacement."""
     occupied: set[GraphID] = set()
-    for match in selected:
+    for match in matches:
         ids = {op.graph_id for op in match.operations.values()}
         if occupied.intersection(ids):
             continue
         current = {
-            alias: result.find_by_id(op.graph_id)
+            alias: graph.find_by_id(op.graph_id)
             for alias, op in match.operations.items()
         }
         if any(not isinstance(op, Operation) for op in current.values()):
             continue
-        rebound = _bind_match(result, match.rule, cast(dict[str, Operation], current))
+        rebound = _bind_match(graph, match.rule, cast(dict[str, Operation], current))
         if rebound is not None:
-            result = _replace(result, rebound)
+            _replace_inplace(graph, rebound)
             occupied.update(ids)
-    return result
+            if log.isEnabledFor(DEBUG):
+                log.debug(
+                    "Applied rewrite %s at %s to operations %s",
+                    rebound.rule.name,
+                    rebound.anchor.graph_id,
+                    {alias: op.graph_id for alias, op in rebound.operations.items()},
+                )
 
 
 def transform(
@@ -1310,6 +2133,7 @@ def transform(
     within=None,
     repeat: bool = False,
     max_iterations: int = 100,
+    multiplication_method: str | None = None,
 ) -> "SFG":
     """Find and apply rules in deterministic passes, optionally until stable."""
     from b_asic.sfg import SFG  # noqa: PLC0415
@@ -1320,7 +2144,7 @@ def transform(
         or max_iterations < 1
     ):
         raise ValueError("max_iterations must be a positive integer")
-    selected_rules = _default_registry().select(rules)
+    selected_rules = _select_rewrites(rules, multiplication_method)
     targets = _normalize_specifiers(graph, target)
     region = _normalize_specifiers(graph, within)
     result = cast(SFG, graph.copy())
@@ -1333,7 +2157,7 @@ def transform(
         )
         if not matches:
             return result
-        result = apply_rewrites(result, matches)
+        _apply_rewrites_inplace(result, matches)
         if not repeat:
             return result
     if _find(

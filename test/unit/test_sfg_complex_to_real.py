@@ -29,7 +29,11 @@ from b_asic.core_operations import (
 from b_asic.fft_operations import R2Butterfly
 from b_asic.operation import AbstractOperation, _ComplexPair
 from b_asic.sfg import SFG
-from b_asic.sfg_generators import block_cholesky_matrix_inverse, cholesky_matrix_inverse
+from b_asic.sfg_generators import (
+    block_cholesky_matrix_inverse,
+    cholesky_matrix_inverse,
+    ldlt_matrix_inverse,
+)
 from b_asic.special_operations import Delay, Input, MemoryRead, MemoryWrite, Output
 from b_asic.types import GraphID
 from b_asic.utility_operations import ComplexToReal, RealToComplex, Sink
@@ -37,6 +41,28 @@ from b_asic.utility_operations import ComplexToReal, RealToComplex, Sink
 
 def split(values):
     return [part for value in values for part in (value.real, value.imag)]
+
+
+def assert_real_diagonal_interfaces(graph, size, split_io):
+    for row in range(size):
+        index = row * (row + 1) // 2 + row
+        if split_io:
+            imaginary = graph.input_operations[2 * index + 1].output(0)
+            assert len(imaginary.signals) == 1
+            assert isinstance(imaginary.signals[0].destination.operation, Sink)
+            zero = (
+                graph.output_operations[2 * index + 1]
+                .input(0)
+                .connected_source.operation
+            )
+        else:
+            assert graph.input_operations[index].real_valued is True
+            assert graph.output_operations[index].real_valued is True
+            joiner = graph.output_operations[index].input(0).connected_source.operation
+            assert isinstance(joiner, RealToComplex)
+            zero = joiner.input(1).connected_source.operation
+        assert isinstance(zero, Constant)
+        assert zero.value == 0
 
 
 @pytest.mark.parametrize("operation_type", [Min, Max, Comparator])
@@ -64,7 +90,9 @@ def test_unselected_ordering_operations_are_preserved(operation_type):
     assert converted.evaluate(2, 3) == graph.evaluate(2, 3)
 
 
-@pytest.mark.parametrize(("method", "count"), [("four", 4), ("three", 3)])
+@pytest.mark.parametrize(
+    ("method", "count"), [("four", 4), ("three", 3), ("threealt", 3)]
+)
 @pytest.mark.parametrize(
     "operation",
     [
@@ -96,7 +124,47 @@ def test_complex_products(operation, method, count):
     assert original.output_count == 1
 
 
-@pytest.mark.parametrize("method", ["three", "four"])
+def test_threealt_shares_k1_between_real_and_imaginary_outputs():
+    converted = Multiplication().complex_to_real(multiplication_method="threealt")
+    real, imag = [
+        output.input(0).connected_source.operation
+        for output in converted.output_operations
+    ]
+    assert type(real) is Subtraction
+    assert type(imag) is Addition
+    k1 = real.input(1).connected_source
+    assert k1 is imag.input(0).connected_source
+    assert k1.signal_count == 2
+    assert type(k1.operation) is Multiplication
+    assert k1.operation.input(0).connected_source is converted.input_operations[
+        3
+    ].output(0)
+    assert type(k1.operation.input(1).connected_source.operation) is Addition
+    assert len(converted.find_by_type(Multiplication)) == 3
+    assert len(converted.find_by_type(Addition)) == 3
+    assert len(converted.find_by_type(Subtraction)) == 2
+    for values in [(0j, 0j), (0j, 1 - 2j), (2, -3), (2j, 3j), (2 + 3j, -2 - 3j)]:
+        assert converted.evaluate(*split(values)) == pytest.approx(
+            split([values[0] * values[1]])
+        )
+
+
+def test_threealt_real_right_operand_collapses_to_two_multipliers():
+    a, b, c = inputs = [Input() for _ in range(3)]
+    left = RealToComplex(a, b)
+    right = RealToComplex(c, Constant(0))
+    graph = SFG(inputs, [Output(Multiplication(left, right))])
+
+    converted = graph.complex_to_real(Multiplication, multiplication_method="threealt")
+    simplified = converted.constant_propagation()
+
+    assert len(simplified.find_by_type(Multiplication)) == 2
+    assert not simplified.find_by_type(Addition)
+    assert not simplified.find_by_type(Subtraction)
+    assert simplified.evaluate(2, 3, 5) == graph.evaluate(2, 3, 5) == 10 + 15j
+
+
+@pytest.mark.parametrize("method", ["three", "four", "threealt"])
 @pytest.mark.parametrize(
     ("operation", "values"),
     [
@@ -159,6 +227,76 @@ def test_real_valued_apy_input(operation_type):
     value = apy.APyCFixed.from_complex(4 + 7j, int_bits=5, frac_bits=4)
     operation = operation_type(real_valued=True)
     assert operation.evaluate(value) == pytest.approx(operation.evaluate(4.0))
+
+
+@pytest.mark.parametrize("split_io", [False, True])
+@pytest.mark.parametrize("mem", [False, True])
+@pytest.mark.parametrize(
+    ("real_input", "real_output"), [(True, False), (False, True), (True, True)]
+)
+def test_real_valued_interfaces_terminate_imaginary_paths(
+    split_io, mem, real_input, real_output
+):
+    read_type, write_type = (MemoryRead, MemoryWrite) if mem else (Input, Output)
+    source = read_type(name="x", real_valued=real_input)
+    # Multiplication by j distinguishes discarding the input imaginary part
+    # from discarding the output imaginary part.
+    graph = SFG(
+        [source],
+        [
+            write_type(
+                in0=ImaginaryMultiplication(source), name="y", real_valued=real_output
+            )
+        ],
+    )
+
+    converted = graph.complex_to_real(split_io=split_io)
+
+    expected = 1j * (2 if real_input else 2 + 3j)
+    if real_output:
+        expected = expected.real
+    actual = converted.evaluate(*(split([2 + 3j]) if split_io else [2 + 3j]))
+    assert actual == pytest.approx(split([expected]) if split_io else expected)
+    assert len(converted.find_by_type(Sink)) == int(real_input) + int(real_output)
+    if split_io:
+        assert (converted.input_count, converted.output_count) == (2, 2)
+        if real_input:
+            imaginary = converted.input_operations[1].output(0)
+            assert len(imaginary.signals) == 1
+            assert isinstance(imaginary.signals[0].destination.operation, Sink)
+        if real_output:
+            zero = converted.output_operations[1].input(0).connected_source.operation
+            assert isinstance(zero, Constant)
+            assert zero.value == 0
+    else:
+        assert (converted.input_count, converted.output_count) == (1, 1)
+        assert type(converted.input_operations[0]) is read_type
+        assert type(converted.output_operations[0]) is write_type
+        assert converted.input_operations[0].real_valued is real_input
+        assert converted.output_operations[0].real_valued is real_output
+
+
+@pytest.mark.parametrize("selector", [Input, Output, ImaginaryMultiplication, ()])
+@pytest.mark.parametrize("split_io", [False, True])
+def test_real_valued_interfaces_respect_operation_selection(selector, split_io):
+    source = Input(name="x", real_valued=True)
+    graph = SFG(
+        source, Output(ImaginaryMultiplication(source), name="y", real_valued=True)
+    )
+
+    converted = graph.complex_to_real(selector, split_io=split_io)
+
+    assert converted.input_count == (2 if selector is Input and split_io else 1)
+    assert converted.output_count == (2 if selector is Output and split_io else 1)
+    assert len(converted.find_by_type(Sink)) == int(selector in (Input, Output))
+    # Real-valued assumptions are only converted for selected interfaces.
+    expected = 2j if selector is Input else -3 if selector is Output else -3 + 2j
+    actual = converted.evaluate(
+        *(split([2 + 3j]) if converted.input_count == 2 else [2 + 3j])
+    )
+    assert actual == pytest.approx(
+        split([expected]) if converted.output_count == 2 else expected
+    )
 
 
 @pytest.mark.parametrize("split_io", [True, False])
@@ -244,7 +382,7 @@ def test_custom_hook_keyword_options(split_io):
             assert graph.evaluate(3 + 4j) == pytest.approx(6 - 8j)
 
 
-@pytest.mark.parametrize("method", ["three", "four"])
+@pytest.mark.parametrize("method", ["three", "four", "threealt"])
 def test_preserve_complex_interfaces(method):
     a, b = Input(name="a"), Input(name="b")
     graph = SFG(
@@ -258,9 +396,7 @@ def test_preserve_complex_interfaces(method):
     assert len(converted.find_by_type(ComplexToReal)) == 2
     # The passthrough output no longer needs a split/join round trip.
     assert len(converted.find_by_type(RealToComplex)) == 1
-    assert len(converted.find_by_type(Multiplication)) == (
-        3 if method == "three" else 4
-    )
+    assert len(converted.find_by_type(Multiplication)) == (4 if method == "four" else 3)
     results = {}
     values = [2 + 3j, -4 + 5j]
     assert converted.evaluate_outputs(values, results=results) == pytest.approx(
@@ -321,7 +457,8 @@ def product_chain():
 
 
 @pytest.mark.parametrize("selector_kind", ["type", "types", "id", "ids", "mixed"])
-def test_operation_selectors(selector_kind):
+@pytest.mark.parametrize("method", ["three", "threealt"])
+def test_operation_selectors(selector_kind, method):
     graph, ids = product_chain()
     selectors = {
         "type": Multiplication,
@@ -331,7 +468,7 @@ def test_operation_selectors(selector_kind):
         "mixed": (ids["first"], Multiplication),
     }
     converted = graph.complex_to_real(
-        selectors[selector_kind], multiplication_method="three"
+        selectors[selector_kind], multiplication_method=method
     )
     assert converted.input_count == 2
     assert converted.output_count == 1
@@ -346,12 +483,18 @@ def test_operation_selectors(selector_kind):
     assert len(graph.find_by_type(Multiplication)) == 2
 
 
-def test_successive_conversion_settings_and_boundary_cancellation():
+@pytest.mark.parametrize("first_method", ["three", "threealt"])
+@pytest.mark.parametrize(("second_method", "count"), [("four", 7), ("threealt", 6)])
+def test_successive_conversion_settings_and_boundary_cancellation(
+    first_method, second_method, count
+):
     graph, ids = product_chain()
-    first = graph.complex_to_real(ids["first"], multiplication_method="three")
+    first = graph.complex_to_real(ids["first"], multiplication_method=first_method)
     assert isinstance(first.find_by_id(ids["second"]), Multiplication)
-    converted = first.complex_to_real(ids["second"], multiplication_method="four")
-    assert len(converted.find_by_type(Multiplication)) == 7
+    converted = first.complex_to_real(
+        ids["second"], multiplication_method=second_method
+    )
+    assert len(converted.find_by_type(Multiplication)) == count
     assert len(converted.find_by_type(ComplexToReal)) == 2
     assert len(converted.find_by_type(RealToComplex)) == 1
     assert converted.evaluate(2 + 3j, -4 + 5j) == pytest.approx(
@@ -509,24 +652,53 @@ def test_split_join_cancellation_respects_ports_and_real_fanout(swap):
 @pytest.mark.parametrize(
     "generator", [cholesky_matrix_inverse, block_cholesky_matrix_inverse]
 )
-@pytest.mark.parametrize("method", ["three", "four"])
+@pytest.mark.parametrize("method", ["three", "four", "threealt"])
 @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
 @pytest.mark.parametrize("mode", ["eqs", "mult"])
 @pytest.mark.parametrize("split_io", [True, False])
-def test_cholesky_inverse_conversion(generator, method, pe, mode, split_io):
-    graph = generator(N=4, mode=mode, pe=pe, mem=not split_io)
+@pytest.mark.parametrize("cmplx", [False, True])
+def test_cholesky_inverse_conversion(generator, method, pe, mode, split_io, cmplx):
+    graph = generator(N=4, mode=mode, pe=pe, mem=not split_io, cmplx=cmplx)
     roots = graph.find_by_type(ReciprocalSquareRoot)
     assert len(roots) == 4
     assert all(op.real_valued for op in roots)
     converted = graph.complex_to_real(multiplication_method=method, split_io=split_io)
     rng = np.random.default_rng(42)
     factor = rng.normal(size=(4, 4))
-    matrix = factor @ factor.T + np.eye(4)
+    if cmplx:
+        factor = factor + 1j * rng.normal(size=(4, 4))
+    matrix = factor @ factor.conj().T + np.eye(4)
     lower = np.tril_indices(4)
     packed = matrix[lower].astype(complex)
     expected = np.linalg.inv(matrix)[lower]
     actual = converted.evaluate(*(split(packed) if split_io else packed))
     assert actual == pytest.approx(split(expected) if split_io else expected, abs=1e-12)
+    assert_real_diagonal_interfaces(converted, 4, split_io)
     if not split_io:
         assert len(converted.find_by_type(MemoryRead)) == 10
         assert len(converted.find_by_type(MemoryWrite)) == 10
+
+
+@pytest.mark.parametrize("pe", [None, "addsub", "mads"])
+@pytest.mark.parametrize("mode", ["eqs", "mult"])
+@pytest.mark.parametrize("split_io", [True, False])
+def test_ldlt_inverse_conversion_keeps_real_reciprocals(pe, mode, split_io):
+    graph = ldlt_matrix_inverse(N=3, mode=mode, pe=pe, cmplx=True, mem=not split_io)
+    reciprocals = graph.find_by_type(Reciprocal)
+    assert len(reciprocals) == 3
+    assert all(op.real_valued is True for op in reciprocals)
+
+    converted = graph.complex_to_real(split_io=split_io)
+
+    reciprocals = converted.find_by_type(Reciprocal)
+    assert len(reciprocals) == 3
+    assert all(op.real_valued is True for op in reciprocals)
+    rng = np.random.default_rng(42)
+    factor = rng.normal(size=(3, 3)) + 1j * rng.normal(size=(3, 3))
+    matrix = factor @ factor.conj().T + np.eye(3)
+    lower = np.tril_indices(3)
+    packed = matrix[lower]
+    expected = np.linalg.inv(matrix)[lower]
+    actual = converted.evaluate(*(split(packed) if split_io else packed))
+    assert actual == pytest.approx(split(expected) if split_io else expected, abs=1e-12)
+    assert_real_diagonal_interfaces(converted, 3, split_io)

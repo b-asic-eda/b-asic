@@ -5,6 +5,10 @@ This module contains a number of functions generating SFGs for matrix inversion.
 
 With ``cmplx=True``, the generators use complex conjugates for Hermitian input
 matrices. Cholesky algorithms require positive definite input matrices.
+Scalar inverses use explicit :class:`~b_asic.core_operations.Reciprocal`
+operations marked real-valued: diagonal pivots and Hermitian block determinants
+are real. Diagonal input and output entries are also marked real-valued,
+including memory interfaces.
 
 When ``mem=True``, the input matrix and its inverse use the same packed
 lower-triangular layout in the default unnamed memory. For zero-based row and
@@ -50,8 +54,10 @@ def _matrix_input(row: int, col: int, mem: bool) -> Input:
     """Create an input for a packed lower-triangular matrix entry."""
     name = f"A[{row},{col}]"
     if mem:
-        return MemoryRead(address=row * (row + 1) // 2 + col, name=name)
-    return Input(name=name)
+        return MemoryRead(
+            address=row * (row + 1) // 2 + col, name=name, real_valued=row == col
+        )
+    return Input(name=name, real_valued=row == col)
 
 
 def _matrix_output(
@@ -60,8 +66,13 @@ def _matrix_output(
     """Create an output for a packed lower-triangular inverse entry."""
     name = f"res[{row},{col}]"
     if mem:
-        return MemoryWrite(address=row * (row + 1) // 2 + col, in0=value, name=name)
-    return Output(value, name=name)
+        return MemoryWrite(
+            address=row * (row + 1) // 2 + col,
+            in0=value,
+            name=name,
+            real_valued=row == col,
+        )
+    return Output(value, name=name, real_valued=row == col)
 
 
 def ldlt_matrix_inverse(
@@ -133,9 +144,7 @@ def ldlt_matrix_inverse(
                 else:
                     D[j] = D[j] - M[j][k] * l_conj
 
-            D_inv[j] = (
-                Reciprocal(D[j], name=f"D_inv[{j}]") if pe is not None else 1 / D[j]
-            )
+            D_inv[j] = Reciprocal(D[j], name=f"D_inv[{j}]", real_valued=True)
 
             for i in range(j + 1, N_local):
                 M[i][j] = A[i][j]
@@ -849,7 +858,7 @@ def block_ldlt_matrix_inverse(
                 in2=offdiag_conj,
                 do_addsub=True,
             )
-            inv_det = Reciprocal(det)
+            inv_det = Reciprocal(det, real_valued=True)
             res[0][0] = MADS(
                 is_add=True,
                 in0=DontCare(),
@@ -873,7 +882,7 @@ def block_ldlt_matrix_inverse(
             )
         else:
             det = _sub_nodes(d_val[0][0] * d_val[1][1], d_val[1][0] * offdiag_conj)
-            inv_det = Reciprocal(det) if pe == "addsub" else 1.0 / det
+            inv_det = Reciprocal(det, real_valued=True)
             res[0][0] = d_val[1][1] * inv_det
             res[1][0] = -d_val[1][0] * inv_det
             res[1][1] = d_val[0][0] * inv_det
@@ -1609,7 +1618,7 @@ def tile_ldlt_matrix_inverse(
 
         D00 = A_kk[0][0]
 
-        D_inv00 = Reciprocal(D00) if pe is not None else 1.0 / D00
+        D_inv00 = Reciprocal(D00, real_valued=True)
 
         L10 = _mul_nodes(A_kk[1][0], D_inv00)
         L_inv10 = -L10
@@ -1624,7 +1633,7 @@ def tile_ldlt_matrix_inverse(
         else:
             D11 = A_kk[1][1] - L10 * offdiag_conj
 
-        D_inv11 = Reciprocal(D11) if pe is not None else 1.0 / D11
+        D_inv11 = Reciprocal(D11, real_valued=True)
 
         L_tiles[k][k][1][0] = L10
         L_inv_tiles[k][k][1][0] = L_inv10
@@ -1999,7 +2008,7 @@ def analytical_block_matrix_inverse(
                 in2=offdiag_conj,
                 do_addsub=True,
             )
-            inv_det = Reciprocal(det)
+            inv_det = Reciprocal(det, real_valued=True)
             res[0][0] = MADS(
                 is_add=True,
                 in0=DontCare(),
@@ -2025,7 +2034,7 @@ def analytical_block_matrix_inverse(
             det = _sub_nodes(
                 A_block[0][0] * A_block[1][1], A_block[1][0] * offdiag_conj
             )
-            inv_det = Reciprocal(det) if pe == "addsub" else 1.0 / det
+            inv_det = Reciprocal(det, real_valued=True)
             res[0][0] = A_block[1][1] * inv_det
             res[1][0] = -A_block[1][0] * inv_det
             res[1][1] = A_block[0][0] * inv_det
@@ -2035,7 +2044,7 @@ def analytical_block_matrix_inverse(
         n = len(matrix)
 
         if n == 1:
-            inv_val = Reciprocal(matrix[0][0]) if pe is not None else 1.0 / matrix[0][0]
+            inv_val = Reciprocal(matrix[0][0], real_valued=True)
             return [[inv_val]]
 
         if n == 2:

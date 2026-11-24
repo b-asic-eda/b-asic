@@ -29,11 +29,17 @@ if TYPE_CHECKING:
 def _product(left: _ComplexPair, right: _ComplexPair, method: str) -> _ComplexPair:
     a, b = left.re, left.im
     c, d = right.re, right.im
+    if method == "threealt":
+        k1 = Multiplication(d, Addition(a, b))
+        k2 = Multiplication(a, Addition(c, d))
+        k3 = Multiplication(b, Subtraction(c, d))
+        return _ComplexPair(Subtraction(k2, k1), Addition(k1, k3))
     ac, bd = Multiplication(a, c), Multiplication(b, d)
     real = Subtraction(ac, bd)
+    imag: SignalSourceProvider
     if method == "three":
         imag = Subtraction(
-            Subtraction(Multiplication(Addition(a, b), Addition(c, d)), ac), bd
+            Multiplication(Addition(a, b), Addition(c, d)), Addition(ac, bd)
         )
     else:
         imag = Addition(Multiplication(a, d), Multiplication(b, c))
@@ -258,47 +264,66 @@ def complex_to_real(
     from b_asic.sfg import SFG  # noqa: PLC0415
 
     multiplication_method = kwargs.get("multiplication_method", "four")
-    if multiplication_method not in ("four", "three"):
-        raise ValueError('multiplication_method must be "four" or "three"')
+    if multiplication_method not in ("four", "three", "threealt"):
+        raise ValueError('multiplication_method must be "four", "three", or "threealt"')
     split_io = kwargs.get("split_io", True)
     if not isinstance(split_io, bool):
         raise TypeError("split_io must be a bool")
     graph, selected = _select_operations(sfg, operations)
     sources: dict[OutputPort, OutputPort | _ComplexPair] = {}
     placeholders: dict[Operation, list[Input] | list[_ComplexPair]] = {}
-    inputs = []
+    inputs: list[Input] = []
     output_by_operation: dict[Operation, list[Output]] = {}
     sinks: list[Sink] = []
     preserved: set[Operation] = set()
-    for operation in graph.input_operations:
-        if split_io and operation.graph_id in selected:
-            pair = _ComplexPair(
-                Input(name=f"{operation.name}_real"),
-                Input(name=f"{operation.name}_imag"),
-            )
-            inputs.extend(pair)
-            sources[operation.output(0)] = pair
+    for input_operation in graph.input_operations:
+        original_input = cast(Input, input_operation)
+        if split_io and original_input.graph_id in selected:
+            real_input = Input(name=f"{original_input.name}_real", real_valued=True)
+            imag_input = Input(name=f"{original_input.name}_imag", real_valued=True)
+            inputs.extend((real_input, imag_input))
+            if original_input.real_valued:
+                sinks.append(Sink(imag_input))
+                input_pair = _ComplexPair(real_input, Constant(0))
+            else:
+                input_pair = _ComplexPair(real_input, imag_input)
+            sources[original_input.output(0)] = input_pair
         else:
-            replacement = cast(Input, operation.copy())
-            preserved.add(replacement)
-            inputs.append(replacement)
-            sources[operation.output(0)] = replacement.output(0)
+            input_replacement = cast(Input, original_input.copy())
+            preserved.add(input_replacement)
+            inputs.append(input_replacement)
+            if original_input.graph_id in selected and original_input.real_valued:
+                splitter = ComplexToReal(input_replacement)
+                sinks.append(Sink(splitter.output(1)))
+                sources[original_input.output(0)] = _ComplexPair(
+                    splitter.output(0), Constant(0)
+                )
+            else:
+                sources[original_input.output(0)] = input_replacement.output(0)
     for operation in graph.operations:
         if isinstance(operation, Input):
             continue
         convert = operation.graph_id in selected
         if isinstance(operation, Output):
-            convert = convert and split_io
+            convert = convert and (split_io or bool(operation.real_valued))
         if convert:
             local_pairs = [_ComplexPair(Input(), Input()) for _ in operation.inputs]
             placeholders[operation] = local_pairs
             if isinstance(operation, Output):
-                output_by_operation[operation] = [
-                    Output(value, name=f"{operation.name}_{part}")
-                    for value, part in zip(
-                        local_pairs[0], ("real", "imag"), strict=True
-                    )
-                ]
+                pair = local_pairs[0]
+                if operation.real_valued:
+                    sinks.append(Sink(pair.im))
+                    pair = _ComplexPair(pair.re, Constant(0))
+                if split_io:
+                    output_by_operation[operation] = [
+                        Output(value, name=f"{operation.name}_{part}", real_valued=True)
+                        for value, part in zip(pair, ("real", "imag"), strict=True)
+                    ]
+                else:
+                    output_replacement = cast(Output, operation.copy())
+                    preserved.add(output_replacement)
+                    output_replacement.input(0).connect(RealToComplex(*pair))
+                    output_by_operation[operation] = [output_replacement]
             else:
                 pairs = operation._complex_to_real(local_pairs, sinks, **kwargs)
                 sources.update(zip(operation.outputs, pairs, strict=True))

@@ -1936,7 +1936,9 @@ class TestSFGGraph:
             return b""
 
         monkeypatch.setattr("graphviz.Digraph.pipe", capture_graph)
-        monkeypatch.setattr("b_asic._sfg_svg.interactive_svg", lambda *args: b"<svg/>")
+        monkeypatch.setattr(
+            "b_asic._sfg_svg.interactive_svg", lambda *args, **kwargs: b"<svg/>"
+        )
         monkeypatch.setattr("tempfile.tempdir", str(tmp_path))
         monkeypatch.setattr("webbrowser.open", lambda url: None)
         sfg_simple_filter.show(**kwargs)
@@ -1965,7 +1967,7 @@ class TestSFGGraph:
 
     def test_sfg(self, sfg_simple_filter):
         res = """digraph {
-	rankdir=LR splines=spline
+	label=simple_filter labelloc=t rankdir=LR splines=spline
 	in0 [label="IN
 (in0)" shape=cds]
 	in0:e -> add0 [headlabel=0]
@@ -1991,7 +1993,7 @@ class TestSFGGraph:
 
     def test_sfg_show_signal_id(self, sfg_simple_filter):
         res = """digraph {
-	rankdir=LR splines=spline
+	label=simple_filter labelloc=t rankdir=LR splines=spline
 	in0 [label="IN
 (in0)" shape=cds]
 	in0:e -> add0 [label=s0 headlabel=0]
@@ -2018,7 +2020,7 @@ class TestSFGGraph:
 
     def test_sfg_no_branch(self, sfg_simple_filter):
         res = """digraph {
-	rankdir=LR splines=spline
+	label=simple_filter labelloc=t rankdir=LR splines=spline
 	in0 [label="IN
 (in0)" shape=cds]
 	in0:e -> add0 [headlabel=0]
@@ -2042,7 +2044,7 @@ class TestSFGGraph:
 
     def test_sfg_no_port_numbering(self, sfg_simple_filter):
         res = """digraph {
-	rankdir=LR splines=spline
+	label=simple_filter labelloc=t rankdir=LR splines=spline
 	in0 [label="IN
 (in0)" shape=cds]
 	in0:e -> add0
