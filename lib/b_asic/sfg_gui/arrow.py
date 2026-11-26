@@ -58,6 +58,8 @@ class Arrow(QGraphicsPathItem):
         self.branch_fraction = 0.0
         self._crossings = []
         self._paint_path = QPainterPath()
+        self._mouse_press_position = None
+        self.setFlag(QGraphicsPathItem.ItemIsSelectable, True)
         self.setZValue(-1)
         self._source_port_button.moved.connect(self.update_arrow)
         self._destination_port_button.moved.connect(self.update_arrow)
@@ -163,17 +165,41 @@ class Arrow(QGraphicsPathItem):
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
+            self._mouse_press_position = event.scenePos()
             if self._window._starting_port is not None:
                 self._window._complete_connection(self, event.scenePos())
+            elif event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                self.setSelected(not self.isSelected())
             else:
-                self._window._signal_clicked(self, event.scenePos())
+                self._window._scene.clearSelection()
+                self.setSelected(True)
             event.accept()
         else:
             super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event) -> None:
+        if (
+            event.buttons() == Qt.LeftButton
+            and self._mouse_press_position is not None
+            and self._window._starting_port is None
+            and event.modifiers() != Qt.KeyboardModifier.ControlModifier
+            and (event.scenePos() - self._mouse_press_position).manhattanLength() > 3
+        ):
+            self._window._signal_clicked(self, self._mouse_press_position)
+            self._window._preview_connection(event.scenePos())
+            event.accept()
+        elif self._window._starting_port is not None:
+            self._window._preview_connection(event.scenePos())
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
     def mouseReleaseEvent(self, event) -> None:
+        self._mouse_press_position = None
         if event.button() == Qt.LeftButton and self._window._starting_port is not None:
             self._window._finish_connection_at(event.scenePos(), ignore=self)
+            event.accept()
+        elif event.button() == Qt.LeftButton:
             event.accept()
         else:
             super().mouseReleaseEvent(event)
@@ -292,6 +318,9 @@ class Arrow(QGraphicsPathItem):
 
     def paint(self, painter, option, widget=None) -> None:
         """Distinguish unconnected crossings without obscuring branch dots."""
-        painter.setPen(self.pen())
+        pen = self.pen()
+        if self.isSelected():
+            pen = QPen(current_theme().wire_active, 3)
+        painter.setPen(pen)
         painter.setBrush(Qt.NoBrush)
         painter.drawPath(self._paint_path)

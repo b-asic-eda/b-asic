@@ -42,12 +42,17 @@ _QUESTIONS = {
         "To remove multiple operations, \nselect all operations to be deleted "
         "and press 'Delete' on your keyboard."
     ),
+    "Selecting and removing signals": (
+        "Click a signal to select it, then press 'Delete' on your keyboard. "
+        "Ctrl-click signals to select or unselect several of them. Selected "
+        "signals are highlighted in the active wire color."
+    ),
     "Connecting operations": (
         "Click an external port to start a wire, then click the destination port. "
-        "You can also drag between ports. Click anywhere on a signal and then an "
-        "input port to add a branch at that point, or drag from the wire to the input. "
-        "You can also start at an input and finish on a signal. Escape or right-click "
-        "cancels the wire. Inputs accept one signal; outputs can feed multiple inputs."
+        "You can also drag between ports. Drag from a signal to an input port to add "
+        "a branch at that point. You can also start at an input and finish on a "
+        "signal. Escape or right-click cancels the wire. Inputs accept one signal; "
+        "outputs can feed multiple inputs."
     ),
     "Rotating operations": (
         "Select operations and press R to rotate clockwise by 90 degrees, or "
