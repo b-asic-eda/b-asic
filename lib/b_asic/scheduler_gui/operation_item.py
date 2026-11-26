@@ -141,6 +141,20 @@ class OperationItem(QGraphicsItemGroup):
         """Include fragments moved outside the group's original bounds."""
         return super().boundingRect().united(self.childrenBoundingRect())
 
+    def shape(self) -> QPainterPath:
+        """Limit hit testing to the visible operation body."""
+        shape = self._latency_item.mapToItem(self, self._latency_item.path())
+        if shape.isEmpty():
+            center = self._latency_item.mapToItem(
+                self, self._latency_item.boundingRect().center()
+            )
+            shape.addRoundedRect(
+                QRectF(center.x() - 0.25, 0, 0.5, self._height),
+                0.1,
+                0.1,
+            )
+        return shape
+
     def clear(self) -> None:
         """Remove the child graphics from both the group and its scene."""
         for item in self.childItems():
@@ -233,7 +247,19 @@ class OperationItem(QGraphicsItemGroup):
 
     def set_active(self) -> None:
         """Set the item as active, i.e., draw it in special colors."""
-        if ACTIVE_COLOR_TYPE.changed:
+        schedule = self._parent.schedule
+        start_time = self.x() - self._parent._x_axis_indent
+        bounds = self._latency_path.boundingRect().translated(start_time, 0)
+        wraps = schedule.cyclic and (
+            bounds.left() < 0 or bounds.right() > schedule.schedule_time
+        )
+        if wraps:
+            self._set_background(
+                LATENCY_COLOR_TYPE.current_color
+                if LATENCY_COLOR_TYPE.changed
+                else LATENCY_COLOR_TYPE.DEFAULT
+            )
+        elif ACTIVE_COLOR_TYPE.changed:
             self._set_background(ACTIVE_COLOR_TYPE.current_color, muted=False)
         else:
             self._set_background(ACTIVE_COLOR_TYPE.DEFAULT, muted=False)
@@ -308,11 +334,9 @@ class OperationItem(QGraphicsItemGroup):
                 if EXECUTION_TIME_COLOR_TYPE.changed
                 else EXECUTION_TIME_COLOR_TYPE.DEFAULT
             )
-            pen = QPen(execution_color, 3 / self._scale, Qt.DashLine)
+            pen = QPen(execution_color, 3 / self._scale, Qt.SolidLine)
             self._execution_time_item.setPen(pen)
-            fill = QColor(execution_color)
-            fill.setAlpha(45)
-            self._execution_time_item.setBrush(fill)
+            self._execution_time_item.setBrush(QBrush())
         self.set_inactive()
 
     def set_show_port_numbers(self, port_number: bool = True) -> None:
@@ -439,7 +463,7 @@ class OperationItem(QGraphicsItemGroup):
         execution_time_pen = QPen()  # used by execution time outline
         execution_time_pen.setColor(execution_time_color)
         execution_time_pen.setWidthF(3 / self._scale)
-        execution_time_pen.setStyle(Qt.DashLine)
+        execution_time_pen.setStyle(Qt.SolidLine)
 
         latency, execution_time = self._operation.get_plot_coordinates()
         input_coordinates = self._operation.get_input_coordinates()
@@ -462,9 +486,7 @@ class OperationItem(QGraphicsItemGroup):
             self._execution_time_path = execution_time_path
             self._execution_time_item = QGraphicsPathItem(execution_time_path)
             self._execution_time_item.setPen(execution_time_pen)
-            execution_fill = QColor(execution_time_color)
-            execution_fill.setAlpha(45)
-            self._execution_time_item.setBrush(execution_fill)
+            self._execution_time_item.setBrush(QBrush())
 
         # component item
         self._set_background(LATENCY_COLOR_TYPE.DEFAULT)  # used by component filling
@@ -543,6 +565,16 @@ class OperationItem(QGraphicsItemGroup):
             return [fragment.translated(offset, 0) for fragment in paths]
 
         latency_fragments = fragments(self._latency_path)
+        if period > 0 and (
+            self._latency_path.boundingRect().translated(start_time, 0).left() < 0
+            or self._latency_path.boundingRect().translated(start_time, 0).right()
+            > period
+        ):
+            self._set_background(
+                LATENCY_COLOR_TYPE.current_color
+                if LATENCY_COLOR_TYPE.changed
+                else LATENCY_COLOR_TYPE.DEFAULT
+            )
         self._update_port_positions(start_time, display_start, period)
 
         self._latency_item.setPath(self._combine_path_fragments(latency_fragments))

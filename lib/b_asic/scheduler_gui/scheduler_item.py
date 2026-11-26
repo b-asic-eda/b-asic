@@ -11,9 +11,15 @@ from copy import copy
 from typing import cast
 
 # QGraphics and QPainter imports
-from qtpy.QtCore import Signal
-from qtpy.QtGui import QColor, QFont
-from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
+from qtpy.QtCore import QPointF, QRectF, Qt, Signal
+from qtpy.QtGui import QBrush, QColor, QFont, QPainterPath, QPen
+from qtpy.QtWidgets import (
+    QGraphicsEllipseItem,
+    QGraphicsItem,
+    QGraphicsItemGroup,
+    QGraphicsPathItem,
+    QGraphicsSimpleTextItem,
+)
 
 from b_asic.gui_utils.theme import current_theme
 
@@ -95,6 +101,9 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         self._x_axis_indent = SCHEDULE_INDENT
         self._event_items = []
         self._signal_dict = defaultdict(set)
+        self._wrap_ghosts: list[QGraphicsItem] = []
+        self._active_item: OperationItem | None = None
+        self._show_wrap_ghosts_always = False
         self._make_graph()
         self.set_warnings(warnings)
         self.set_port_numbers(show_port_numbers)
@@ -104,6 +113,7 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         """
         Set all children's parent to 'None' and delete the children objects.
         """
+        self._clear_wrap_ghosts()
         self._event_items = []
         for item in self.childItems():
             item.setParentItem(None)
@@ -179,6 +189,10 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
             schedule.move_operation(item.graph_id, move_time)
         for signal in self._signal_dict[item]:
             signal.update_path(schedule)
+        if self._show_wrap_ghosts_always:
+            self._refresh_all_wrap_ghosts()
+        elif self._active_item is item:
+            self._show_wrap_ghosts(item)
 
     def _get_all_signals(self) -> set[SignalItem]:
         s = set()
@@ -226,9 +240,14 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         item : :class:`~b_asic.scheduler_gui.operation_item.OperationItem`
             The item to set as active.
         """
+        self._active_item = item
         item.set_active()
         for signal in self._signal_dict[item]:
             signal.set_active()
+        if self._show_wrap_ghosts_always:
+            self._refresh_all_wrap_ghosts()
+        else:
+            self._show_wrap_ghosts(item)
 
     def set_item_inactive(self, item: OperationItem) -> None:
         """
@@ -244,6 +263,150 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         item.set_inactive()
         for signal in self._signal_dict[item]:
             signal.set_inactive()
+        self._active_item = None
+        if self._show_wrap_ghosts_always:
+            self._refresh_all_wrap_ghosts()
+        else:
+            self._clear_wrap_ghosts()
+
+    def _clear_wrap_ghosts(self) -> None:
+        for ghost in self._wrap_ghosts:
+            ghost.setParentItem(None)
+            scene = ghost.scene()
+            if scene is not None:
+                scene.removeItem(ghost)
+        self._wrap_ghosts.clear()
+
+    def set_show_all_wrap_ghosts(self, visible: bool) -> None:
+        """Toggle persistent previews for every wrapped signal."""
+        self._show_wrap_ghosts_always = visible
+        if visible:
+            self._refresh_all_wrap_ghosts()
+        elif self._active_item is not None:
+            self._show_wrap_ghosts(self._active_item)
+        else:
+            self._clear_wrap_ghosts()
+
+    def _refresh_all_wrap_ghosts(self) -> None:
+        self._clear_wrap_ghosts()
+        for item in self.components:
+            self._show_wrap_ghosts(item, clear=False, outgoing_only=True)
+
+    def _show_wrap_ghosts(
+        self, item: OperationItem, clear: bool = True, outgoing_only: bool = False
+    ) -> None:
+        """Show faint copies of wrapped signal neighbors at the opposite edge."""
+        if clear:
+            self._clear_wrap_ghosts()
+        period = self.schedule.schedule_time
+        if not self.schedule.cyclic or period <= 0:
+            return
+        colors = current_theme()
+        raw_start = item.x() - self._x_axis_indent
+        raw_bounds = item._latency_path.boundingRect().translated(raw_start, 0)
+        if raw_bounds.left() < 0 or raw_bounds.right() > period:
+            body_path = item._latency_path
+            bounds = body_path.boundingRect()
+            outside = QPainterPath()
+            if raw_bounds.left() < 0:
+                left_clip = QPainterPath()
+                left_clip.addRect(
+                    QRectF(
+                        bounds.left(),
+                        bounds.top() - 1,
+                        -raw_start - bounds.left(),
+                        bounds.height() + 2,
+                    )
+                )
+                outside.addPath(body_path.intersected(left_clip))
+            if raw_bounds.right() > period:
+                right_clip = QPainterPath()
+                right_clip.addRect(
+                    QRectF(
+                        period - raw_start,
+                        bounds.top() - 1,
+                        bounds.right() - (period - raw_start),
+                        bounds.height() + 2,
+                    )
+                )
+                outside.addPath(body_path.intersected(right_clip))
+            full_body = QGraphicsPathItem(outside, self)
+            full_body.setPos(item.pos())
+            fill = QColor(colors.selection)
+            fill.setAlpha(55)
+            full_body.setBrush(QBrush(fill))
+            pen_color = QColor(colors.wire_active)
+            pen_color.setAlpha(150)
+            full_body.setPen(QPen(pen_color, 2 / OperationItem._scale, Qt.DashLine))
+            full_body.setZValue(1.45)
+            full_body.setAcceptedMouseButtons(Qt.NoButton)
+            self._wrap_ghosts.append(full_body)
+        for signal in self._signal_dict[item]:
+            if outgoing_only and signal._src_operation is not item:
+                continue
+            outgoing = signal._src_operation is item
+            other = signal._dest_operation if outgoing else signal._src_operation
+            offset = period if outgoing else -period
+            port_key = signal._dest_key if outgoing else signal._src_key
+            selected_port_key = signal._src_key if outgoing else signal._dest_key
+            raw_endpoint = raw_start + item._ports[selected_port_key]["pos"].x()
+            operation_crossed = raw_endpoint < 0 or raw_endpoint > period
+            if not signal._wraps and not operation_crossed:
+                continue
+
+            # Use the canonical, unwrapped body and port coordinates. Current
+            # display fragments can represent another cycle after prior movement.
+            body = QGraphicsPathItem(other._latency_path, self)
+            body.setPos(other.x() + offset, other.y())
+            fill = QColor(colors.selection)
+            fill.setAlpha(55)
+            body.setBrush(QBrush(fill))
+            pen_color = QColor(colors.wire_active)
+            pen_color.setAlpha(150)
+            body.setPen(QPen(pen_color, 2 / OperationItem._scale, Qt.DashLine))
+            body.setZValue(1.5)
+            body.setAcceptedMouseButtons(Qt.NoButton)
+            label = QGraphicsSimpleTextItem(other.graph_id, body)
+            label.setScale(1 / OperationItem._scale)
+            label.setBrush(colors.text)
+            scaled_label_center = label.boundingRect().center() * label.scale()
+            center = body.boundingRect().center() - scaled_label_center
+            label.setPos(center)
+            label.setAcceptedMouseButtons(Qt.NoButton)
+            body.setToolTip(f"Wrapped connection to {other.graph_id}")
+            self._wrap_ghosts.append(body)
+
+            port_data = other._ports[port_key]
+            port = port_data["item"]
+            ghost_port = QGraphicsEllipseItem(port.rect(), body)
+            ghost_port.setBrush(pen_color)
+            ghost_port.setPen(QPen(pen_color, 0))
+            ghost_port.setPos(port_data["pos"])
+            ghost_port.setAcceptedMouseButtons(Qt.NoButton)
+
+            connector = QGraphicsPathItem(self)
+            ghost_endpoint = ghost_port.mapToItem(self, ghost_port.rect().center())
+            if operation_crossed:
+                endpoint = item.mapToItem(self, item._ports[selected_port_key]["pos"])
+            else:
+                endpoint = signal._wrap_end if outgoing else signal._wrap_start
+            connector_start, connector_end = (
+                (endpoint, ghost_endpoint) if outgoing else (ghost_endpoint, endpoint)
+            )
+            connector_path = QPainterPath(connector_start)
+            if abs(connector_start.x() - connector_end.x()) <= 0.1:
+                control_1 = QPointF(connector_start.x() + 0.5, connector_start.y())
+                control_2 = QPointF(connector_start.x() - 0.5, connector_end.y())
+            else:
+                midpoint = (connector_start.x() + connector_end.x()) / 2
+                control_1 = QPointF(midpoint, connector_start.y())
+                control_2 = QPointF(midpoint, connector_end.y())
+            connector_path.cubicTo(control_1, control_2, connector_end)
+            connector.setPath(connector_path)
+            connector.setPen(QPen(pen_color, 2 / OperationItem._scale))
+            connector.setZValue(1.4)
+            connector.setAcceptedMouseButtons(Qt.NoButton)
+            self._wrap_ghosts.append(connector)
 
     def set_new_start_time(self, item: OperationItem) -> None:
         """

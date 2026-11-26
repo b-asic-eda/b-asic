@@ -1338,7 +1338,7 @@ class SFGMainWindow(QMainWindow):
             operation._toggle_button(pressed=True)
         self._pressed_operations.clear()
         self._scene.clearSelection()
-        self.update_statusbar("Unselected all operations and signals")
+        self.update_statusbar("Unselected all operations")
 
     def _zoom_to_fit(self, event=None) -> None:
         """Zoom to fit SFGs in window."""

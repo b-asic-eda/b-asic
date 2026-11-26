@@ -27,6 +27,7 @@ from qtpy.QtCore import (
     QByteArray,
     QCoreApplication,
     QFileInfo,
+    QPointF,
     QRectF,
     QSettings,
     QStandardPaths,
@@ -197,6 +198,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_show_port_numbers.setIcon(get_icon("port-numbers"))
         self.action_show_port_numbers.setShortcut("Ctrl+Shift+N")
         self.action_show_port_numbers.triggered.connect(self._toggle_port_number)
+        self.actionShow_wrap_ghosts = QAction("Show wrapped ghost operations", self)
+        self.actionShow_wrap_ghosts.setCheckable(True)
+        self.actionShow_wrap_ghosts.setChecked(
+            QSettings().value("scheduler/show_wrap_ghosts", False, bool)
+        )
+        self.actionShow_wrap_ghosts.triggered.connect(self._toggle_wrap_ghosts)
+        self.menuView.addAction(self.actionShow_wrap_ghosts)
         self.actionPlot_schedule.setIcon(get_icon("plot-schedule"))
         self.actionPlot_schedule.setShortcut("Ctrl+P")
         self.actionPlot_schedule.triggered.connect(self._plot_schedule)
@@ -311,6 +319,24 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         OperationItem._scale = self._scale
         AxesItem._scale = self._scale
         self._scene.sceneRectChanged.connect(self.shrink_scene_to_min_size)
+        self.view.viewport().installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        if watched is self.view.viewport() and event.type() in (
+            qtpy.QtCore.QEvent.Resize,
+            qtpy.QtCore.QEvent.Show,
+        ):
+            self._update_tick_label_density()
+        return super().eventFilter(watched, event)
+
+    def _update_tick_label_density(self) -> None:
+        if self._graph is None or self._graph.axes is None:
+            return
+        width = (
+            self.view.mapFromScene(QPointF(1, 0))
+            - self.view.mapFromScene(QPointF(0, 0))
+        ).x()
+        self._graph.axes.set_tick_label_density(abs(width))
 
     @property
     def schedule(self) -> Schedule | None:
@@ -445,6 +471,8 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         # Both directions
         elif modifiers == Qt.KeyboardModifier.ControlModifier:
             self.view.scale(new_zoom, new_zoom)
+        if modifiers & Qt.KeyboardModifier.ControlModifier:
+            self._update_tick_label_density()
 
         event.ignore()
 
@@ -803,7 +831,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         its minimum size, when the bounding rectangle signals a change in
         geometry.
         """
-        self._scene.setSceneRect(self._scene.itemsBoundingRect())
+        self._sync_scene_rect()
 
     ##########
     # Events #
@@ -899,6 +927,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self._graph._signals.schedule_time_changed.connect(
             self.info_table_update_schedule
         )
+        self._graph._signals.schedule_time_changed.connect(self._sync_scene_rect)
         self._graph._signals.schedule_time_changed.connect(self._schedule_changed)
         self._graph._signals.redraw_all.connect(self._redraw_all)
         self._graph._signals.reopen.connect(self._reopen_schedule)
@@ -914,7 +943,10 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.action_total_execution_times_of_variables.setEnabled(True)
         self.action_view_port_accesses.setEnabled(True)
         self.action_view_io_latency.setEnabled(True)
+        self._graph.set_show_all_wrap_ghosts(self.actionShow_wrap_ghosts.isChecked())
         self.update_statusbar(self.tr("Schedule loaded successfully"))
+        self._sync_scene_rect()
+        self._update_tick_label_density()
 
     @staticmethod
     def _schedule_state(schedule: Schedule) -> tuple:
@@ -982,6 +1014,25 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _redraw_all(self) -> None:
         cast(SchedulerItem, self._graph)._redraw_all()
+        self._sync_scene_rect()
+
+    def _sync_scene_rect(self) -> None:
+        """Set horizontal bounds from the schedule period and vertical item bounds."""
+        if self._graph is None:
+            return
+        bounds = self._scene.itemsBoundingRect()
+        assert self.schedule is not None
+        graph_x = self._graph.scenePos().x()
+        bounds.setLeft(graph_x - self._graph.axes._width_padding)
+        bounds.setRight(
+            graph_x
+            + self._graph._x_axis_indent
+            + self.schedule.schedule_time
+            + self._graph.axes._width_padding
+        )
+        if bounds.isValid() and self._scene.sceneRect() != bounds:
+            self._scene.setSceneRect(bounds)
+        self._update_tick_label_density()
 
     @Slot()
     def _reopen_schedule(self) -> None:
@@ -989,6 +1040,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         if self._graph is None:
             return
         self._graph.refresh()
+        self._sync_scene_rect()
         self.info_table_update_schedule()
         if self._selected_graph_id is not None:
             self.info_table_update_component(self._selected_graph_id)
@@ -1486,18 +1538,23 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
 
     def _zoom_to_fit(self, event=None) -> None:
         """Zoom to fit schedule in window keeping aspect ratio."""
+        self._sync_scene_rect()
         self.view.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self._update_tick_label_density()
 
     def _zoom_to_fit_no_aspect(self, event=None) -> None:
         """Zoom to fit schedule in window ignoring aspect ratio."""
+        self._sync_scene_rect()
         self.view.fitInView(
             self._scene.sceneRect(), Qt.AspectRatioMode.IgnoreAspectRatio
         )
+        self._update_tick_label_density()
 
     def _reset_aspect_ratio(self, event=None) -> None:
         """Reset the aspect ratio."""
         self.view.setTransform(QTransform())
         self.view.scale(self._scale, self._scale)
+        self._update_tick_label_density()
 
     def _toggle_statusbar(self, event=None) -> None:
         """Toggle the status bar."""
@@ -1518,6 +1575,13 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
             return
         self._show_port_numbers = self.action_show_port_numbers.isChecked()
         self._graph.set_port_numbers(self._show_port_numbers)
+
+    @Slot(bool)
+    def _toggle_wrap_ghosts(self, checked: bool) -> None:
+        """Toggle persistent previews for every wrapped signal."""
+        QSettings().setValue("scheduler/show_wrap_ghosts", checked)
+        if self._graph is not None:
+            self._graph.set_show_all_wrap_ghosts(checked)
 
     def _toggle_fullscreen(self, event=None) -> None:
         """Toggle full screen mode."""
