@@ -48,6 +48,56 @@ def test_start(qtbot):
     widget.exit_app()
 
 
+def test_time_ticks_render_behind_operations():
+    source = Input()
+    operation = Addition(source, source, latency=1)
+    graph = SchedulerItem(Schedule(SFG([source], [Output(operation)])))
+
+    assert graph.axes.zValue() < min(
+        component.zValue() for component in graph.components
+    )
+
+
+def test_scheduler_rounded_corners_toggle_keeps_schedule(qtbot):
+    source = Input()
+    operation = Addition(source, source, latency=1)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(Schedule(SFG([source], [Output(operation)])))
+    action = next(
+        action
+        for action in widget._theme_menu.actions()
+        if action.text() == "Rounded corners"
+    )
+    original_state = action.isChecked()
+    graph = widget._graph
+    scene_items = len(widget._scene.items())
+    graphics = [
+        (component._latency_item, component._label_item)
+        for component in graph.components
+    ]
+
+    action.trigger()
+    QApplication.processEvents()
+
+    assert widget._graph is graph
+    assert len(widget._scene.items()) == scene_items
+    assert len(graph.components) == 3
+    assert len(graph._get_all_signals()) == 3
+    for component, (latency_item, label_item) in zip(
+        graph.components, graphics, strict=True
+    ):
+        assert component._latency_item is latency_item
+        assert component._label_item is label_item
+        assert latency_item.isVisible()
+        assert label_item.isVisible()
+        assert latency_item.brush().color().alpha()
+
+    action.trigger()
+    QApplication.processEvents()
+    assert action.isChecked() is original_state
+
+
 @pytest.mark.parametrize("cyclic", [False, True])
 def test_unused_ports_are_marked_without_placeholder_operations(qtbot, cyclic):
     source = Input()
@@ -1093,7 +1143,7 @@ def test_undo_redo_drag_and_shortcuts(qtbot):
     assert widget.schedule.start_times["cmul0"] == 1
     assert widget.actionUndo.isEnabled()
 
-    QApplication.setActiveWindow(widget)
+    widget.activateWindow()
     qtbot.waitActive(widget)
     widget.view.setFocus()
     qtbot.waitUntil(lambda: QApplication.focusWidget() is widget.view)

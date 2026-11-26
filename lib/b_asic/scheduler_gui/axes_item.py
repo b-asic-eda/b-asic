@@ -19,6 +19,7 @@ from qtpy.QtWidgets import (
 )
 
 # B-ASIC
+from b_asic.gui_utils.theme import current_theme
 from b_asic.scheduler_gui._preferences import SCHEDULE_INDENT
 from b_asic.scheduler_gui.timeline_item import TimelineItem
 
@@ -77,6 +78,7 @@ class AxesItem(QGraphicsItemGroup):
         *parent* is passed to QGraphicsItemGroup's constructor.
         """
         super().__init__(parent=parent)
+        self.setZValue(-10)
         if width < 0:
             raise ValueError(f"'width' greater or equal to 0 expected, got: {width}.")
         if height < 0:
@@ -98,16 +100,39 @@ class AxesItem(QGraphicsItemGroup):
         self._y_axis = QGraphicsLineItem()
         self._event_items = []
 
-        self._base_pen = QPen()
+        self._base_pen = QPen(current_theme().text)
         self._base_pen.setWidthF(2 / self._scale)
         self._base_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
-        self._ledger_pen = QPen(Qt.GlobalColor.lightGray)
+        self._ledger_pen = QPen(current_theme().border)
         self._ledger_pen.setWidthF(0)  # 0 = cosmetic pen 1px width
-        self._timeline_pen = QPen(Qt.GlobalColor.black)
+        self._timeline_pen = QPen(current_theme().wire)
         self._timeline_pen.setWidthF(2 / self._scale)
         self._timeline_pen.setStyle(Qt.PenStyle.DashLine)
 
         self._make_base()
+
+    def refresh_theme(self) -> None:
+        """Refresh axis colors after the application theme changes."""
+        colors = current_theme()
+        self._base_pen.setColor(colors.text)
+        self._ledger_pen.setColor(colors.border)
+        self._timeline_pen.setColor(colors.wire)
+        for index, item in enumerate(self._x_ledger):
+            item.setPen(
+                self._timeline_pen
+                if index == len(self._x_ledger) - 1
+                else self._ledger_pen
+            )
+        for item in (self._x_axis, self._y_axis, self._x_arrow, *self._x_scale):
+            item.setPen(self._base_pen)
+        self._x_arrow.setBrush(colors.text)
+        for item in self._x_scale_labels:
+            item.setBrush(colors.text)
+        self._x_label.setBrush(colors.text)
+        for item in self._x_ledger:
+            if isinstance(item, TimelineItem):
+                item.set_text_color(colors.text)
+        self.update()
 
     def clear(self) -> None:
         """Set all children's parent to None and delete the axes."""
@@ -226,6 +251,7 @@ class AxesItem(QGraphicsItemGroup):
 
         # x-axis scale number
         self._x_scale_labels.insert(index, QGraphicsSimpleTextItem(str(index)))
+        self._x_scale_labels[index].setBrush(current_theme().text)
         self._x_scale_labels[index].setScale(1 / self._scale)
         x_pos = self._width_indent + index
         x_pos -= (
@@ -253,6 +279,7 @@ class AxesItem(QGraphicsItemGroup):
         if is_timeline:  # last line is a timeline
             self._x_ledger[index].setPen(self._timeline_pen)
             self._x_ledger[index].set_text_scale(1.05 / self._scale)
+            self._x_ledger[index].set_text_color(current_theme().text)
             self._register_event_item(self._x_ledger[index])
         else:
             self._x_ledger[index].setPen(self._ledger_pen)
@@ -306,6 +333,7 @@ class AxesItem(QGraphicsItemGroup):
 
         # x-axis label
         self._x_label.setText("time")
+        self._x_label.setBrush(current_theme().text)
         self._x_label.setScale(1 / self._scale)
         x_pos = self._width_indent + 0 + self._width_padding  # end of x-axis
         x_pos += (

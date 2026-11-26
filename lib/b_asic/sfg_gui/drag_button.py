@@ -21,6 +21,7 @@ from qtpy.QtWidgets import (
 )
 
 from b_asic.gui_utils.decorators import decorate_class, handle_error
+from b_asic.gui_utils.theme import BORDER_WIDTH, corner_radius, current_theme
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.sfg import SFG
@@ -530,17 +531,35 @@ class DragButton(QPushButton):
 
     def _toggle_button(self, pressed=False) -> None:
         self.pressed = not pressed
+        self._apply_theme()
+
+    def _apply_theme(self) -> None:
+        """Apply semantic canvas colors to the operation body."""
+        colors = current_theme()
+        background = colors.selection if self.pressed else colors.surface
         if self._circular_body is not None:
-            self._circular_body.setBrush(Qt.gray if self.pressed else Qt.white)
+            self._circular_body.setBrush(background)
+            self._circular_body.setPen(QPen(colors.border, 2))
             return
         if self._road_sign_body is not None:
-            self._road_sign_body.setBrush(Qt.gray if self.pressed else Qt.white)
+            self._road_sign_body.setBrush(background)
+            self._road_sign_body.setPen(QPen(colors.border, 2))
             return
         self.setStyleSheet(
-            f"background-color: {'white' if not self.pressed else 'grey'};"
-            " border-style: solid;        border-color: black;"
-            " border-width: 2px"
+            f"background-color: {background.name()};"
+            f" color: {colors.text.name()};"
+            f" border: {BORDER_WIDTH}px solid {colors.border.name()};"
+            f" border-radius: {corner_radius()}px;"
         )
+
+    def refresh_theme(self) -> None:
+        """Refresh the operation body after the application theme changes."""
+        self._apply_theme()
+        self.setIcon(operation_icon(self.operation.type_name()))
+        if self._symbol is not None:
+            self._symbol.refresh_theme()
+        if self._reflection_marker is not None:
+            self._reflection_marker.setPen(QPen(current_theme().border, 1.5))
 
     def is_flipped(self) -> bool:
         """Return True if the button is flipped (inputs to the right)."""
@@ -622,13 +641,13 @@ class DragButton(QPushButton):
                 QRectF(1, 1, self.width() - 2, self.height() - 2),
                 self.graphicsProxyWidget(),
             )
-            self._circular_body.setPen(QPen(Qt.black, 2))
-            self._circular_body.setBrush(Qt.white)
+            self._circular_body.setPen(QPen(current_theme().border, 2))
+            self._circular_body.setBrush(current_theme().surface)
             self._circular_body.setAcceptedMouseButtons(Qt.NoButton)
         elif self.is_road_sign():
             self._road_sign_body = QGraphicsPathItem(self.graphicsProxyWidget())
-            self._road_sign_body.setPen(QPen(Qt.black, 2))
-            self._road_sign_body.setBrush(Qt.white)
+            self._road_sign_body.setPen(QPen(current_theme().border, 2))
+            self._road_sign_body.setBrush(current_theme().surface)
             self._road_sign_body.setAcceptedMouseButtons(Qt.NoButton)
         else:
             size = min(self.iconSize().width(), self.width() - 8, self.height() - 8)
@@ -701,7 +720,7 @@ class DragButton(QPushButton):
             return
         if self._reflection_marker is None:
             self._reflection_marker = QGraphicsPathItem(self.graphicsProxyWidget())
-            self._reflection_marker.setPen(QPen(Qt.black, 1.5))
+            self._reflection_marker.setPen(QPen(current_theme().border, 1.5))
             self._reflection_marker.setAcceptedMouseButtons(Qt.NoButton)
             self._reflection_marker.setZValue(3)
         outgoing = self._ports[self.operation.input_count + 1]

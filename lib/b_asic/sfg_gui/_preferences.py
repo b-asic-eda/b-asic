@@ -1,7 +1,3 @@
-from qtpy.QtGui import QColor
-
-from b_asic._preferences import SIGNAL_COLOR
-
 # Buttons/operations/ports
 GRID = 8
 MINBUTTONSIZE = 8 * GRID
@@ -14,6 +10,3 @@ ADAPTOR_LONG_SIDE = MINBUTTONSIZE + 3 * PORTHEIGHT
 # Window
 MIN_WIDTH_SCENE = 600
 MIN_HEIGHT_SCENE = 520
-
-# Interface
-LINECOLOR = QColor(*SIGNAL_COLOR)

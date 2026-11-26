@@ -9,7 +9,7 @@ maintain the timeline in a schedule.
 from typing import overload
 
 from qtpy.QtCore import QLineF, Qt
-from qtpy.QtGui import QCursor
+from qtpy.QtGui import QColor, QCursor
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsLineItem, QGraphicsTextItem
 
 
@@ -126,6 +126,10 @@ class TimelineItem(QGraphicsLineItem):
             The text scale.
         """
         self._delta_time_label.setScale(scale)
+
+    def set_text_color(self, color: QColor) -> None:
+        """Set the timeline label's text color."""
+        self._delta_time_label.setDefaultTextColor(color)
 
     @property
     def event_items(self) -> list[QGraphicsItem]:

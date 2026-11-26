@@ -25,6 +25,7 @@ from qtpy.QtWidgets import (
 )
 
 from b_asic.gui_utils.color_button import ColorButton
+from b_asic.gui_utils.theme import current_theme
 from b_asic.scheduler_gui._preferences import (
     ACTIVE_COLOR_TYPE,
     EXECUTION_TIME_COLOR_TYPE,
@@ -77,10 +78,6 @@ class PreferencesDialog(QWidget):
         hlayout.setSpacing(20)
 
         signal_color_button = self.create_color_button(SIGNAL_COLOR_TYPE)
-        signal_color_button.setStyleSheet(
-            f"color: {QColor(255, 255, 255, 0).name()}; background-color: {SIGNAL_COLOR_TYPE.DEFAULT.name()}"
-        )
-
         hlayout.addWidget(signal_color_button)
         hlayout.addWidget(self.create_color_button(SIGNAL_WARNING_COLOR_TYPE))
         hlayout.addWidget(self.create_color_button(ACTIVE_COLOR_TYPE))
@@ -88,7 +85,8 @@ class PreferencesDialog(QWidget):
         groupbox.setLayout(hlayout)
         layout.addWidget(groupbox)
 
-        reset_color_button = ColorButton(QColor("silver"))
+        colors = current_theme()
+        reset_color_button = ColorButton(colors.panel)
         reset_color_button.setText("Reset all color settings")
         reset_color_button.pressed.connect(self.reset_color_clicked)
         layout.addWidget(reset_color_button)
@@ -100,11 +98,11 @@ class PreferencesDialog(QWidget):
         hlayout = QHBoxLayout()
         hlayout.setSpacing(10)
 
-        font_button = ColorButton(QColor("moccasin"))
+        font_button = ColorButton(colors.selection)
         font_button.setText("Font settings")
         hlayout.addWidget(font_button)
 
-        font_color_button = ColorButton(QColor("moccasin"))
+        font_color_button = ColorButton(colors.selection)
         font_color_button.setText("Font color")
         font_color_button.pressed.connect(self.font_color_clicked)
         hlayout.addWidget(font_color_button)
@@ -114,9 +112,9 @@ class PreferencesDialog(QWidget):
 
         icon = QIcon.fromTheme("format-text-italic")
         self._italic_button = (
-            ColorButton(QColor("silver"))
+            ColorButton(colors.selection)
             if FONT.italic
-            else ColorButton(QColor("snow"))
+            else ColorButton(colors.surface)
         )
         self._italic_button.setIcon(icon)
         self._italic_button.pressed.connect(self.italic_font_clicked)
@@ -124,7 +122,7 @@ class PreferencesDialog(QWidget):
 
         icon = QIcon.fromTheme("format-text-bold")
         self._bold_button = ColorButton(
-            QColor("silver") if FONT.bold else QColor("snow")
+            colors.selection if FONT.bold else colors.surface
         )
         self._bold_button.setIcon(icon)
         self._bold_button.pressed.connect(self.bold_font_clicked)
@@ -139,7 +137,7 @@ class PreferencesDialog(QWidget):
         font_button.pressed.connect(self.font_clicked)
 
         icon = QIcon.fromTheme("list-add")
-        increase_font_size_button = ColorButton(QColor("smoke"))
+        increase_font_size_button = ColorButton(colors.panel)
         increase_font_size_button.setIcon(icon)
         increase_font_size_button.pressed.connect(self.increase_font_size_clicked)
         increase_font_size_button.setShortcut(
@@ -155,7 +153,7 @@ class PreferencesDialog(QWidget):
         hlayout2.addWidget(self._font_size_input)
 
         icon = QIcon.fromTheme("list-remove")
-        decrease_font_size_button = ColorButton(QColor("smoke"))
+        decrease_font_size_button = ColorButton(colors.panel)
         decrease_font_size_button.setIcon(icon)
         decrease_font_size_button.pressed.connect(self.decrease_font_size_clicked)
         decrease_font_size_button.setShortcut(
@@ -170,7 +168,7 @@ class PreferencesDialog(QWidget):
         groupbox.setLayout(hlayout)
         layout.addWidget(groupbox)
 
-        reset_font_button = ColorButton(QColor("silver"))
+        reset_font_button = ColorButton(colors.panel)
         reset_font_button.setText("Reset all font Settings")
         reset_font_button.pressed.connect(self.reset_font_clicked)
         layout.addWidget(reset_font_button)
@@ -178,7 +176,7 @@ class PreferencesDialog(QWidget):
         label = QLabel("")
         layout.addWidget(label)
 
-        reset_all_button = ColorButton(QColor("salmon"))
+        reset_all_button = ColorButton(colors.warning)
         reset_all_button.setText("Reset all settings")
         reset_all_button.pressed.connect(self.reset_all_clicked)
         layout.addWidget(reset_all_button)
@@ -247,9 +245,9 @@ class PreferencesDialog(QWidget):
         FONT.italic = not FONT.italic
         FONT.current_font.setItalic(FONT.italic)
         if FONT.italic:
-            self._italic_button.set_color(QColor("silver"))
+            self._italic_button.set_color(current_theme().selection)
         else:
-            self._italic_button.set_color(QColor("snow"))
+            self._italic_button.set_color(current_theme().surface)
         self.update_font()
 
     def bold_font_clicked(self) -> None:
@@ -260,9 +258,9 @@ class PreferencesDialog(QWidget):
         FONT.current_font.setBold(FONT.bold)
         FONT.current_font.setWeight(50)
         if FONT.bold:
-            self._bold_button.set_color(QColor("silver"))
+            self._bold_button.set_color(current_theme().selection)
         else:
-            self._bold_button.set_color(QColor("snow"))
+            self._bold_button.set_color(current_theme().surface)
         self.update_font()
 
     def set_latency_color_by_type_name(self, modify_all: bool) -> None:
@@ -372,14 +370,14 @@ class PreferencesDialog(QWidget):
         self._font_size_input.setText(str(FONT.size))
 
         if FONT.italic:
-            self._italic_button.set_color(QColor("silver"))
+            self._italic_button.set_color(current_theme().selection)
         else:
-            self._italic_button.set_color(QColor("snow"))
+            self._italic_button.set_color(current_theme().surface)
 
         if FONT.bold:
-            self._bold_button.set_color(QColor("silver"))
+            self._bold_button.set_color(current_theme().selection)
         else:
-            self._bold_button.set_color(QColor("snow"))
+            self._bold_button.set_color(current_theme().surface)
 
     def update_font(self) -> None:
         """Update font preferences based on current Font settings."""

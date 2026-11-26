@@ -121,6 +121,11 @@ class SignalItem(QGraphicsPathItem):
         self._inactive_pen = make_pen(SIGNAL_COLOR_TYPE, SIGNAL_WIDTH)
         self._warning_pen = make_pen(SIGNAL_WARNING_COLOR_TYPE, SIGNAL_WIDTH_WARNING)
 
+    def refresh_theme(self) -> None:
+        """Refresh wire pens after a theme change."""
+        self._refresh_pens()
+        self.set_inactive()
+
     def set_active(self) -> None:
         """
         Set the signal color to represent that a connected operation is selected.
