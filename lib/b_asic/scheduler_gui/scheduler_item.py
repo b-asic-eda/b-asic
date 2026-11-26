@@ -15,11 +15,14 @@ from qtpy.QtCore import Signal
 from qtpy.QtGui import QColor, QFont
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsItemGroup
 
+from b_asic.gui_utils.theme import current_theme
+
 # B-ASIC
 from b_asic.operation import Operation
 from b_asic.port import InputPort
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui._preferences import (
+    FONT,
     OPERATION_GAP,
     OPERATION_HEIGHT,
     SCHEDULE_INDENT,
@@ -370,6 +373,18 @@ class SchedulerItem(SchedulerEvent, QGraphicsItemGroup):
         for item in self.components:
             item.refresh()
         self._redraw_all()
+
+    def refresh_theme(self) -> None:
+        """Apply the current semantic theme to all graphics in the schedule."""
+        for item in self.components:
+            item.refresh_theme()
+        for signal in self._get_all_signals():
+            signal.refresh_theme()
+        if self._axes is not None:
+            self._axes.refresh_theme()
+        if not FONT.changed:
+            self._font_color_change(current_theme().text)
+        self.update()
 
     def _update_axes(self, build=False) -> None:
         # build axes

@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 import qtawesome
 
+from b_asic.gui_utils.theme import current_theme
+
 if TYPE_CHECKING:
     from qtpy.QtGui import QIcon
 
@@ -47,6 +49,13 @@ ICONS = {
 def get_icon(name: str) -> "QIcon":
     """Return icon for given name."""
     info = ICONS[name]
+    colors = current_theme()
+    options = {
+        "color": colors.text.name(),
+        "color_active": colors.accent.name(),
+        "color_disabled": colors.text_muted.name(),
+        "color_selected": colors.text.name(),
+    }
     if isinstance(info, str):
-        return qtawesome.icon(info)
-    return qtawesome.icon(info[0], **info[1])
+        return qtawesome.icon(info, **options)
+    return qtawesome.icon(info[0], **info[1], **options)

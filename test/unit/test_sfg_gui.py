@@ -1936,6 +1936,7 @@ def test_unused_terminals_have_circular_bodies_without_symbols(qtbot, operation_
     from qtpy.QtGui import QColor, QImage, QPainter
 
     from b_asic import utility_operations
+    from b_asic.gui_utils.theme import current_theme
     from b_asic.sfg_gui._preferences import PORT_STUB, PORTHEIGHT
 
     window = SFGMainWindow()
@@ -1958,8 +1959,8 @@ def test_unused_terminals_have_circular_bodies_without_symbols(qtbot, operation_
             button.graphicsProxyWidget().sceneBoundingRect(),
         )
         painter.end()
-        assert image.pixelColor(95, 95) == QColor(
-            QtCore.Qt.gray if selected else QtCore.Qt.white
+        assert image.pixelColor(95, 95) == (
+            current_theme().selection if selected else current_theme().surface
         )
         for x, y in ((0, 0), (189, 0), (0, 189), (189, 189)):
             assert image.pixelColor(x, y) == QColor(QtCore.Qt.green)
@@ -1980,6 +1981,7 @@ def test_unused_terminals_have_circular_bodies_without_symbols(qtbot, operation_
 def test_input_output_use_road_sign_bodies(qtbot, operation_type, angle, flipped):
     from qtpy.QtGui import QColor, QImage, QPainter
 
+    from b_asic.gui_utils.theme import current_theme
     from b_asic.sfg_gui._preferences import MINBUTTONSIZE, PORT_STUB
 
     window = SFGMainWindow()
@@ -2012,8 +2014,8 @@ def test_input_output_use_road_sign_bodies(qtbot, operation_type, angle, flipped
         painter = QPainter(image)
         window._scene.render(painter, QtCore.QRectF(image.rect()), source)
         painter.end()
-        assert image.pixelColor(image.width() // 2, image.height() // 2) == QColor(
-            QtCore.Qt.gray if selected else QtCore.Qt.white
+        assert image.pixelColor(image.width() // 2, image.height() // 2) == (
+            current_theme().selection if selected else current_theme().surface
         )
         position = proxy.mapToScene(corner) - source.topLeft()
         assert image.pixelColor(

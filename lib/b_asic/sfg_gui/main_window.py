@@ -52,6 +52,12 @@ from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.decorators import decorate_class, handle_error
 from b_asic.gui_utils.icons import get_icon
 from b_asic.gui_utils.plot_window import PlotWindow
+from b_asic.gui_utils.theme import (
+    apply_theme,
+    current_theme,
+    install_theme_menu,
+    saved_theme_mode,
+)
 from b_asic.operation import Operation
 from b_asic.port import InputPort, OutputPort
 from b_asic.save_load_structure import python_to_sfg, sfg_to_python
@@ -61,7 +67,6 @@ from b_asic.sfg_gui._preferences import (
     GAP,
     GRID,
     LAYOUT_SPACING,
-    LINECOLOR,
     MINBUTTONSIZE,
     PORTHEIGHT,
 )
@@ -146,17 +151,21 @@ class SFGMainWindow(QMainWindow):
 
         # Create toolbar
         self._toolbar = self.addToolBar("Toolbar")
-        self._toolbar.addAction(get_icon("open"), "Load SFG", self.load_work)
-        self._toolbar.addAction(get_icon("save"), "Save SFG", self.save_work)
+        self._load_sfg_action = self._toolbar.addAction(
+            get_icon("open"), "Load SFG", self.load_work
+        )
+        self._save_sfg_action = self._toolbar.addAction(
+            get_icon("save"), "Save SFG", self.save_work
+        )
         self._toolbar.addSeparator()
-        self._toolbar.addAction(
+        self._new_sfg_action = self._toolbar.addAction(
             get_icon("new-sfg"), "Create SFG", self.create_sfg_from_toolbar
         )
         self._generate_sfg_action = QAction("Generate SFG", self)
         self._generate_sfg_action.triggered.connect(self.generate_sfg)
         self._toolbar.addAction(self._generate_sfg_action)
         self._ui.edit_menu.addAction(self._generate_sfg_action)
-        self._toolbar.addAction(
+        self._clear_sfg_action = self._toolbar.addAction(
             get_icon("close"), "Clear workspace", self._clear_workspace
         )
 
@@ -285,9 +294,10 @@ class SFGMainWindow(QMainWindow):
         self._statusbar_visible.setChecked(True)
         self._statusbar_visible.triggered.connect(self._toggle_statusbar)
         self._ui.view_menu.addAction(self._statusbar_visible)
+        self._ui.view_menu.addSeparator()
+        install_theme_menu(self, self._ui.view_menu, self._theme_changed)
 
         # Zoom to fit
-        self._ui.view_menu.addSeparator()
         self._zoom_to_fit_action = QAction(get_icon("zoom-to-fit"), "Zoom to &fit")
         self._zoom_to_fit_action.setShortcut(QKeySequence("F"))
         self._zoom_to_fit_action.triggered.connect(self._zoom_to_fit)
@@ -314,6 +324,58 @@ class SFGMainWindow(QMainWindow):
         )
 
         self.cursor = QCursor()
+
+    def _theme_changed(self) -> None:
+        """Refresh scene-native colors after changing the application theme."""
+        colors = current_theme()
+        self._refresh_icons()
+        for button in self._drag_buttons.values():
+            button.refresh_theme()
+            if button.label is not None:
+                button.label.setDefaultTextColor(colors.text)
+        for arrow in self._arrow_ports:
+            arrow.setPen(
+                QPen(
+                    colors.wire,
+                    2,
+                    Qt.DashLine if arrow.toolTip() else Qt.SolidLine,
+                )
+            )
+        if self._connection_preview is not None:
+            self._connection_preview.setPen(QPen(colors.wire_active, 2, Qt.DashLine))
+        if self._junction_item is not None:
+            self._junction_item.setBrush(colors.wire)
+        self._scene.update()
+        self._graphics_view.viewport().update()
+
+    def _refresh_icons(self) -> None:
+        """Regenerate cached qtawesome icons with current semantic colors."""
+        icons = (
+            (self._ui.actionSimulateSFG, "sim"),
+            (self._ui.faqBASIC, "faq"),
+            (self._ui.aboutBASIC, "about"),
+            (self._ui.keybindsBASIC, "keys"),
+            (self._ui.documentationBASIC, "docs"),
+            (self._ui.save_menu, "save"),
+            (self._ui.load_menu, "open"),
+            (self._ui.load_operations, "add-operations"),
+            (self._ui.exit_menu, "quit"),
+            (self._ui.select_all, "all"),
+            (self._ui.unselect_all, "none"),
+            (self._zoom_to_fit_action, "zoom-to-fit"),
+        )
+        for action, name in icons:
+            action.setIcon(get_icon(name))
+        for action, name in (
+            (self._load_sfg_action, "open"),
+            (self._save_sfg_action, "save"),
+            (self._new_sfg_action, "new-sfg"),
+            (self._clear_sfg_action, "close"),
+        ):
+            action.setIcon(get_icon(name))
+        self._fullscreen_action.setIcon(
+            get_icon("full-screen-exit" if self.isFullScreen() else "full-screen")
+        )
 
     def view_operation_names(self, event=None) -> None:
         self._show_names = self._check_show_names.isChecked()
@@ -859,10 +921,7 @@ class SFGMainWindow(QMainWindow):
                 if op.input_count == 3:
                     button_width = ADAPTOR_LONG_SIDE
             attr_button.setFixedSize(button_width, button_height)
-            attr_button.setStyleSheet(
-                "QPushButton { background-color: white; border: 2px solid black; }"
-                "QToolTip { background-color: white; color: black; }"
-            )
+            attr_button.refresh_theme()
 
             attr_button.setToolTip("No SFG")
             attr_button.setParent(None)
@@ -895,6 +954,7 @@ class SFGMainWindow(QMainWindow):
             attr_button_scene.setFlag(QGraphicsItem.ItemIsSelectable, True)
             operation_label = QGraphicsTextItem(op.name, attr_button_scene)
             operation_label.setFont(QFont(DEFAULT_FONT_FAMILY))
+            operation_label.setDefaultTextColor(current_theme().text)
             if not self._show_names:
                 operation_label.setOpacity(0)
             operation_label.setTransformOriginPoint(
@@ -1095,7 +1155,9 @@ class SFGMainWindow(QMainWindow):
         port.select_port()
         self._starting_port = port
         self._connection_preview = QGraphicsPathItem()
-        self._connection_preview.setPen(QPen(Qt.darkGray, 2, Qt.DashLine))
+        self._connection_preview.setPen(
+            QPen(current_theme().wire_active, 2, Qt.DashLine)
+        )
         self._connection_preview.setZValue(-0.5)
         self._connection_preview.setAcceptedMouseButtons(Qt.NoButton)
         self._scene.addItem(self._connection_preview)
@@ -1227,7 +1289,7 @@ class SFGMainWindow(QMainWindow):
         if self._junction_item is None:
             self._junction_item = QGraphicsPathItem()
             self._junction_item.setPen(QPen(Qt.NoPen))
-            self._junction_item.setBrush(LINECOLOR)
+            self._junction_item.setBrush(current_theme().wire)
             self._junction_item.setZValue(-0.25)
             self._junction_item.setAcceptedMouseButtons(Qt.NoButton)
             self._scene.addItem(self._junction_item)
@@ -1365,6 +1427,7 @@ def start_editor(sfg: SFG | None = None) -> dict[str, SFG]:
         app = QApplication(sys.argv)
     else:
         app = QApplication.instance()
+    apply_theme(app, saved_theme_mode())
     window = SFGMainWindow()
     window.showMaximized()
     if sfg:

@@ -10,7 +10,7 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QPainterPath, QPainterPathStroker, QPen
 from qtpy.QtWidgets import QGraphicsPathItem, QMenu
 
-from b_asic.sfg_gui._preferences import LINECOLOR
+from b_asic.gui_utils.theme import current_theme
 from b_asic.signal import Signal
 
 if TYPE_CHECKING:
@@ -234,7 +234,9 @@ class Arrow(QGraphicsPathItem):
         path = QPainterPath(start)
         for x, y in points[1:]:
             path.lineTo(x, y)
-        self.setPen(QPen(LINECOLOR, 2, Qt.DashLine if blocked else Qt.SolidLine))
+        self.setPen(
+            QPen(current_theme().wire, 2, Qt.DashLine if blocked else Qt.SolidLine)
+        )
         self.setZValue(0.5 if blocked else -1)
         self.setToolTip(
             "Route blocked by an operation; move the overlapping operations"

@@ -26,6 +26,7 @@ from b_asic.graph_component import GraphID
 
 # B-ASIC
 from b_asic.gui_utils.icons import get_icon
+from b_asic.gui_utils.theme import BORDER_WIDTH, corner_radius, current_theme
 from b_asic.operation import Operation
 from b_asic.scheduler_gui._preferences import (
     ACTIVE_COLOR_TYPE,
@@ -261,6 +262,49 @@ class OperationItem(QGraphicsItemGroup):
         self._label_item.prepareGeometryChange()
         self._label_item.setBrush(color)
 
+    def refresh_theme(self) -> None:
+        """Refresh semantic colors while preserving user color overrides."""
+        colors = current_theme()
+        latency, execution_time = self._operation.get_plot_coordinates()
+        self._latency_path = self._create_path(latency)
+        if execution_time:
+            self._execution_time_path = self._create_path(execution_time)
+        self._update_cycle_paths()
+        self._port_filling_brush = QBrush(
+            SIGNAL_COLOR_TYPE.current_color
+            if SIGNAL_COLOR_TYPE.changed
+            else colors.wire
+        )
+        self._port_outline_pen = QPen(
+            SIGNAL_COLOR_TYPE.current_color
+            if SIGNAL_COLOR_TYPE.changed
+            else colors.wire
+        )
+        self._port_filling_brush_warning = QBrush(
+            SIGNAL_WARNING_COLOR_TYPE.current_color
+            if SIGNAL_WARNING_COLOR_TYPE.changed
+            else colors.wire_warning
+        )
+        self._port_outline_pen_warning = QPen(
+            SIGNAL_WARNING_COLOR_TYPE.current_color
+            if SIGNAL_WARNING_COLOR_TYPE.changed
+            else colors.wire_warning
+        )
+        self._port_outline_pen.setWidthF(0)
+        self._port_outline_pen_warning.setWidthF(0)
+        self._latency_item.setPen(QPen(colors.border, BORDER_WIDTH / self._scale))
+        for port in self._ports.values():
+            port["item"].setBrush(self._port_filling_brush)
+            port["item"].setPen(self._port_outline_pen)
+        if self._execution_time_path is not None:
+            execution_color = (
+                EXECUTION_TIME_COLOR_TYPE.current_color
+                if EXECUTION_TIME_COLOR_TYPE.changed
+                else EXECUTION_TIME_COLOR_TYPE.DEFAULT
+            )
+            self._execution_time_item.setPen(QPen(execution_color, 3 / self._scale))
+        self.set_inactive()
+
     def set_show_port_numbers(self, port_number: bool = True) -> None:
         """Set if port numbers are shown."""
         for port in self._ports.values():
@@ -309,10 +353,68 @@ class OperationItem(QGraphicsItemGroup):
                 markers[f"out{port.index}"] = "Sink"
         return markers
 
+    def _create_path(self, points: ShapeCoordinates) -> QPainterPath:
+        """Create an operation path with the current corner radius."""
+        coordinates = [QPointF(x, y * self._height) for x, y in points]
+        path = QPainterPath(coordinates[0])
+        for point in coordinates[1:]:
+            path.lineTo(point)
+        path.closeSubpath()
+        bounds = path.boundingRect()
+        corners = {(round(point.x(), 9), round(point.y(), 9)) for point in coordinates}
+        rectangle_corners = {
+            (round(x, 9), round(y, 9))
+            for x in (bounds.left(), bounds.right())
+            for y in (bounds.top(), bounds.bottom())
+        }
+        if corners == rectangle_corners:
+            radius = min(
+                corner_radius() / self._scale,
+                bounds.width() / 2,
+                bounds.height() / 2,
+            )
+            if radius:
+                path = QPainterPath()
+                path.addRoundedRect(bounds, radius, radius, Qt.AbsoluteSize)
+        elif not isinstance(self._operation, (Input, Output, DontCare, Sink)):
+            vertices = (
+                coordinates[:-1] if coordinates[-1] == coordinates[0] else coordinates
+            )
+            radius = corner_radius() / self._scale
+            if not radius:
+                return path
+            entries: list[QPointF] = []
+            exits: list[QPointF] = []
+            for index, vertex in enumerate(vertices):
+                previous = vertices[index - 1]
+                following = vertices[(index + 1) % len(vertices)]
+                incoming = previous - vertex
+                outgoing = following - vertex
+                incoming_length = math.hypot(incoming.x(), incoming.y())
+                outgoing_length = math.hypot(outgoing.x(), outgoing.y())
+                if not incoming_length or not outgoing_length:
+                    entries.append(QPointF(vertex))
+                    exits.append(QPointF(vertex))
+                    continue
+                distance = min(
+                    radius,
+                    incoming_length * 0.3,
+                    outgoing_length * 0.3,
+                )
+                entries.append(vertex + incoming * (distance / incoming_length))
+                exits.append(vertex + outgoing * (distance / outgoing_length))
+            path = QPainterPath(entries[0])
+            for index, vertex in enumerate(vertices):
+                if index:
+                    path.lineTo(entries[index])
+                path.quadTo(vertex, exits[index])
+            path.closeSubpath()
+        return path
+
     def _make_component(self) -> None:
         """Make a new component out of the stored attributes."""
         self._ports.clear()
-        latency_outline_pen = QPen(Qt.GlobalColor.black)  # used by component outline
+        latency_outline_pen = QPen(current_theme().border)  # used by component outline
         latency_outline_pen.setWidthF(2 / self._scale)
         latency_outline_pen.setJoinStyle(Qt.RoundJoin)
 
@@ -327,16 +429,6 @@ class OperationItem(QGraphicsItemGroup):
         execution_time_pen.setColor(execution_time_color)
         execution_time_pen.setWidthF(3 / self._scale)
 
-        def generate_path(points: ShapeCoordinates) -> QPainterPath:
-            """Create a QPainterPath for the *points*."""
-            path = QPainterPath(
-                QPointF(points[0][0], points[0][1] * self._height)
-            )  # starting point
-            for _x, _y in points[1:]:
-                path.lineTo(_x, _y * self._height)
-            path.closeSubpath()
-            return path
-
         latency, execution_time = self._operation.get_plot_coordinates()
         input_coordinates = self._operation.get_input_coordinates()
         output_coordinates = self._operation.get_output_coordinates()
@@ -348,13 +440,13 @@ class OperationItem(QGraphicsItemGroup):
             output_coordinates,
             placeholder_ports,
         )
-        latency_path = generate_path(latency)
+        latency_path = self._create_path(latency)
         self._latency_path = latency_path
         self._latency_item = QGraphicsPathItem(latency_path)
         self._latency_item.setPen(latency_outline_pen)
 
         if execution_time:
-            execution_time_path = generate_path(execution_time)
+            execution_time_path = self._create_path(execution_time)
             self._execution_time_path = execution_time_path
             self._execution_time_item = QGraphicsPathItem(execution_time_path)
             self._execution_time_item.setPen(execution_time_pen)

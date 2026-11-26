@@ -11,10 +11,10 @@
 from qtpy.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
     QMetaObject, QObject, QPoint, QRect,
     QSize, QTime, QUrl, Qt)
-from qtpy.QtGui import (QAction, QBrush, QColor, QConicalGradient,
+from qtpy.QtGui import (QAction, QConicalGradient,
     QCursor, QFont, QFontDatabase, QGradient,
     QIcon, QImage, QKeySequence, QLinearGradient,
-    QPainter, QPalette, QPixmap, QRadialGradient,
+    QPainter, QPixmap, QRadialGradient,
     QTransform)
 from qtpy.QtWidgets import (QAbstractItemView, QApplication, QGraphicsView, QHBoxLayout,
     QHeaderView, QMainWindow, QMenu, QMenuBar,
@@ -214,27 +214,18 @@ class Ui_MainWindow(object):
         self.info_table.setVerticalHeaderItem(0, __qtablewidgetitem2)
         __qtablewidgetitem3 = QTableWidgetItem()
         self.info_table.setVerticalHeaderItem(1, __qtablewidgetitem3)
-        brush = QBrush(QColor(255, 255, 255, 255))
-        brush.setStyle(Qt.BrushStyle.SolidPattern)
-        brush1 = QBrush(QColor(160, 160, 164, 255))
-        brush1.setStyle(Qt.BrushStyle.SolidPattern)
         font1 = QFont()
         font1.setBold(False)
         font1.setKerning(True)
         __qtablewidgetitem4 = QTableWidgetItem()
         __qtablewidgetitem4.setFont(font1);
-        __qtablewidgetitem4.setBackground(brush1);
-        __qtablewidgetitem4.setForeground(brush);
         __qtablewidgetitem4.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEditable|Qt.ItemIsDragEnabled|Qt.ItemIsDropEnabled|Qt.ItemIsUserCheckable);
         self.info_table.setItem(0, 0, __qtablewidgetitem4)
         __qtablewidgetitem5 = QTableWidgetItem()
         __qtablewidgetitem5.setFont(font);
-        __qtablewidgetitem5.setBackground(brush1);
-        __qtablewidgetitem5.setForeground(brush);
         __qtablewidgetitem5.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEditable|Qt.ItemIsDragEnabled|Qt.ItemIsDropEnabled|Qt.ItemIsUserCheckable);
         self.info_table.setItem(1, 0, __qtablewidgetitem5)
         self.info_table.setObjectName(u"info_table")
-        self.info_table.setStyleSheet(u"alternate-background-color: #fadefb;background-color: #ebebeb;")
         self.info_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.info_table.setAlternatingRowColors(True)
         self.info_table.setSelectionBehavior(QAbstractItemView.SelectRows)

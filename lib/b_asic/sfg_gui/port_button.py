@@ -7,9 +7,10 @@ The PortButton name is retained for callers of the editor's existing API.
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QPointF, QRectF, Qt, Signal
-from qtpy.QtGui import QColor, QPen
+from qtpy.QtGui import QPen
 from qtpy.QtWidgets import QGraphicsObject
 
+from b_asic.gui_utils.theme import current_theme
 from b_asic.port import InputPort
 from b_asic.sfg_gui._preferences import PORT_STUB
 
@@ -70,17 +71,18 @@ class PortButton(QGraphicsObject):
         return QRectF(-PORT_STUB, -9, 2 * PORT_STUB, 18)
 
     def paint(self, painter, option, widget=None) -> None:
-        painter.setPen(QPen(QColor("#34495e"), 2))
+        colors = current_theme()
+        painter.setPen(QPen(colors.wire, 2))
         painter.drawLine(QPointF(-self.direction * PORT_STUB, 0), QPointF())
         # Output stubs point away from the box; input stubs point into it.
         # The parent scene transform carries these arrowheads through rotation.
         flow = -self.direction if isinstance(self.port, InputPort) else self.direction
         center = -self.direction * PORT_STUB * 2 / 3
         tip = QPointF(center + flow * 2, 0)
-        painter.setPen(QPen(QColor("#34495e"), 1.5))
+        painter.setPen(QPen(colors.wire, 1.5))
         painter.drawLine(QPointF(center - flow * 1.5, -2.5), tip)
         painter.drawLine(QPointF(center - flow * 1.5, 2.5), tip)
-        painter.setBrush(QColor("#2980b9" if self.pressed else "white"))
+        painter.setBrush(colors.wire_active if self.pressed else colors.surface)
         painter.drawEllipse(QRectF(-4, -4, 8, 8))
 
     def mousePressEvent(self, event) -> None:

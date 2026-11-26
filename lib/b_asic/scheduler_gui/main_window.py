@@ -33,14 +33,7 @@ from qtpy.QtCore import (
     Qt,
     Slot,
 )
-from qtpy.QtGui import (
-    QCloseEvent,
-    QColor,
-    QKeySequence,
-    QPalette,
-    QTransform,
-    QWheelEvent,
-)
+from qtpy.QtGui import QCloseEvent, QColor, QKeySequence, QTransform, QWheelEvent
 from qtpy.QtWidgets import (
     QAbstractButton,
     QAction,
@@ -63,11 +56,17 @@ from b_asic.graph_component import GraphComponent, GraphID
 from b_asic.gui_utils.about_window import AboutWindow
 from b_asic.gui_utils.icons import get_icon
 from b_asic.gui_utils.mpl_window import MPLWindow
+from b_asic.gui_utils.theme import (
+    apply_theme,
+    install_theme_menu,
+    saved_theme_mode,
+)
 from b_asic.schedule import Schedule
 from b_asic.scheduler_gui._preferences import (
     FONT,
     LATENCY_COLOR_TYPE,
     read_from_settings,
+    refresh_theme_defaults,
     write_to_settings,
 )
 from b_asic.scheduler_gui.axes_item import AxesItem
@@ -240,6 +239,7 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.actionDocumentation.setIcon(get_icon("docs"))
         self.actionAbout.triggered.connect(self._open_about_window)
         self.actionAbout.setIcon(get_icon("about"))
+        install_theme_menu(self, self.menuView, self._theme_changed)
         self.actionDecrease_time_resolution.setShortcut("Ctrl+Shift+Down")
         self.actionDecrease_time_resolution.triggered.connect(
             self._decrease_time_resolution
@@ -264,6 +264,43 @@ class ScheduleMainWindow(QMainWindow, Ui_MainWindow):
         self.splitter.setStretchFactor(1, 0)
         self.splitter.setCollapsible(0, False)
         self.splitter.setCollapsible(1, True)
+
+    def _theme_changed(self) -> None:
+        """Refresh custom graphics after the application palette changes."""
+        refresh_theme_defaults()
+        self._refresh_icons()
+        if self._graph is not None:
+            self._graph.refresh_theme()
+        self._scene.update()
+        self.view.viewport().update()
+
+    def _refresh_icons(self) -> None:
+        """Regenerate cached qtawesome icons with current semantic colors."""
+        icons = (
+            (self.menu_load_from_file, "import"),
+            (self.menu_open, "open"),
+            (self.menu_close_schedule, "close"),
+            (self.menu_save, "save"),
+            (self.menu_save_as, "save-as"),
+            (self.menu_quit, "quit"),
+            (self.menu_node_info, "info"),
+            (self.actionReorder, "reorder"),
+            (self.action_incorrect_execution_time, "warning"),
+            (self.action_show_port_numbers, "port-numbers"),
+            (self.actionPlot_schedule, "plot-schedule"),
+            (self.actionZoom_to_fit, "zoom-to-fit"),
+            (self.actionUndo, "undo"),
+            (self.actionRedo, "redo"),
+            (self.actionDocumentation, "docs"),
+            (self.actionAbout, "about"),
+            (self.actionDecrease_time_resolution, "decrease-timeresolution"),
+            (self.actionIncrease_time_resolution, "increase-timeresolution"),
+        )
+        for action, name in icons:
+            action.setIcon(get_icon(name))
+        self.actionToggle_full_screen.setIcon(
+            get_icon("full-screen-exit" if self.isFullScreen() else "full-screen")
+        )
 
     def _init_graphics(self) -> None:
         """Initialize the QGraphics framework."""
@@ -1523,15 +1560,7 @@ def start_scheduler(schedule: Schedule | None = None) -> Schedule | None:
     else:
         app = QApplication.instance()
 
-    # Enforce a light palette regardless of laptop theme
-    palette = QPalette()
-    palette.setColor(QPalette.ColorRole.Window, QtCore.Qt.white)
-    palette.setColor(QPalette.ColorRole.WindowText, QtCore.Qt.black)
-    palette.setColor(QPalette.ColorRole.ButtonText, QtCore.Qt.black)
-    palette.setColor(QPalette.ColorRole.Base, QtCore.Qt.white)
-    palette.setColor(QPalette.ColorRole.AlternateBase, QtCore.Qt.lightGray)
-    palette.setColor(QPalette.ColorRole.Text, QtCore.Qt.black)
-    app.setPalette(palette)
+    apply_theme(app, saved_theme_mode())
 
     window = ScheduleMainWindow()
     if schedule:

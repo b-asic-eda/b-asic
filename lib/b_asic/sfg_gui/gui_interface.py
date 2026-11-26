@@ -7,6 +7,8 @@ Originally generated from QT designer, but now manually maintained.
 
 from qtpy import QtCore, QtWidgets
 
+from b_asic.gui_utils.theme import SPACING_XS
+
 
 class Ui_main_window:
     def setupUi(self, main_window) -> None:
@@ -53,19 +55,6 @@ class Ui_main_window:
         # self.operation_box.setGeometry(QtCore.QRect(10, 10, 201, 531))
         self.operation_box.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.operation_box.setAutoFillBackground(False)
-        self.operation_box.setStyleSheet(
-            "QGroupBox { \n"
-            "     border: 2px solid gray; \n"
-            "     border-radius: 3px;\n"
-            "     margin-top: 0.5em; \n"
-            " } \n"
-            "\n"
-            "QGroupBox::title {\n"
-            "    subcontrol-origin: margin;\n"
-            "    left: 10px;\n"
-            "    padding: 0 3px 0 3px;\n"
-            "}"
-        )
         self.operation_box.setAlignment(
             QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter
         )
@@ -165,7 +154,7 @@ class Ui_main_window:
             (self.fft_operations_page, self.fft_operations_list),
         ):
             page_layout = QtWidgets.QVBoxLayout(page)
-            page_layout.setContentsMargins(0, 0, 0, 0)
+            page_layout.setContentsMargins(SPACING_XS, 0, SPACING_XS, 0)
             page_layout.addWidget(operation_list)
         main_window.setCentralWidget(self.centralwidget)
         self.menu_bar = QtWidgets.QMenuBar(main_window)

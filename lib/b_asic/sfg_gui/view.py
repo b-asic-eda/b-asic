@@ -3,9 +3,10 @@
 from math import ceil, floor, hypot
 
 from qtpy.QtCore import QPoint, QPointF, Qt
-from qtpy.QtGui import QColor, QPainter, QPen, QPolygonF
+from qtpy.QtGui import QPainter, QPen, QPolygonF
 from qtpy.QtWidgets import QGraphicsView
 
+from b_asic.gui_utils.theme import current_theme
 from b_asic.sfg_gui._preferences import GRID
 
 
@@ -47,7 +48,7 @@ class SFGGraphicsView(QGraphicsView):
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing, False)
         # A zero-width cosmetic pen covers one physical pixel, including on HiDPI.
-        painter.setPen(QPen(QColor(105, 105, 105), 0))
+        painter.setPen(QPen(current_theme().grid, 0))
         painter.drawPoints(points)
         painter.restore()
 
