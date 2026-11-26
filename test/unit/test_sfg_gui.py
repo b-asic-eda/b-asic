@@ -759,6 +759,46 @@ def test_delete_multiple_operations_and_clear_pending_connection(qtbot):
     assert not window._operation_to_sfg
 
 
+def test_delete_selected_signal(qtbot):
+    window, _, _, _ = make_connected_window(qtbot)
+    arrow = next(iter(window._arrow_ports))
+    view = window._graphics_view
+    point = arrow.path().pointAtPercent(0.5)
+
+    qtbot.mouseClick(
+        view.viewport(), QtCore.Qt.LeftButton, pos=view.mapFromScene(point)
+    )
+
+    assert arrow.isSelected()
+    assert window._starting_port is None
+    qtbot.keyClick(window, QtCore.Qt.Key_Delete)
+    assert not window._arrow_ports
+    assert len(window._drag_buttons) == 3
+    assert window._starting_port is None
+
+
+def test_control_click_selects_multiple_signals(qtbot):
+    window, _, parent, target = make_branching_window(qtbot)
+    window._signal_clicked(parent, parent.path().pointAtPercent(0.6))
+    click_port(qtbot, window, target)
+    arrows = list(window._arrow_ports)
+    view = window._graphics_view
+
+    for arrow in arrows:
+        point = arrow.path().pointAtPercent(0.9)
+        qtbot.mouseClick(
+            view.viewport(),
+            QtCore.Qt.LeftButton,
+            QtCore.Qt.KeyboardModifier.ControlModifier,
+            pos=view.mapFromScene(point),
+        )
+
+    assert all(arrow.isSelected() for arrow in arrows)
+    assert window._starting_port is None
+    qtbot.keyClick(window, QtCore.Qt.Key_Delete)
+    assert not window._arrow_ports
+
+
 def test_new_connection_invalidates_cached_graph(qtbot, datadir):
     window = SFGMainWindow()
     qtbot.addWidget(window)
@@ -1833,10 +1873,21 @@ def test_start_branch_anywhere_on_wire(qtbot, drag):
         qtbot.mouseClick(
             view.viewport(), QtCore.Qt.LeftButton, pos=view.mapFromScene(point)
         )
+        assert parent.isSelected()
+        assert window._branch_start is None
+        assert window._connection_preview is None
+        qtbot.mousePress(
+            view.viewport(), QtCore.Qt.LeftButton, pos=view.mapFromScene(point)
+        )
+        intermediate = QtCore.QPointF(point.x() + 20, point.y() + 20)
+        qtbot.mouseMove(view.viewport(), view.mapFromScene(intermediate))
         assert window._branch_start[0] is parent
-        preview = window._connection_preview.path().elementAt(0)
-        assert (preview.x, preview.y) == pytest.approx((point.x(), point.y()), abs=1)
-        click_port(qtbot, window, target)
+        qtbot.mouseMove(view.viewport(), view.mapFromScene(target.anchor()))
+        qtbot.mouseRelease(
+            view.viewport(),
+            QtCore.Qt.LeftButton,
+            pos=view.mapFromScene(target.anchor()),
+        )
     child = list(window._arrow_ports)[-1]
     assert len(window._arrow_ports) == 2
     assert child.branch_parent is parent
@@ -1861,11 +1912,16 @@ def test_cancel_wire_branch(qtbot):
     window, _, parent, _ = make_branching_window(qtbot)
     view = window._graphics_view
     point = parent.path().pointAtPercent(0.5)
-    qtbot.mouseClick(
+    qtbot.mousePress(
         view.viewport(), QtCore.Qt.LeftButton, pos=view.mapFromScene(point)
     )
+    moved = QtCore.QPointF(point.x() + 20, point.y() + 20)
+    qtbot.mouseMove(view.viewport(), view.mapFromScene(moved))
     assert window._branch_start is not None
     qtbot.keyClick(window, QtCore.Qt.Key_Escape)
+    qtbot.mouseRelease(
+        view.viewport(), QtCore.Qt.LeftButton, pos=view.mapFromScene(moved)
+    )
     assert window._branch_start is None
     assert window._starting_port is None
     assert len(window._arrow_ports) == 1

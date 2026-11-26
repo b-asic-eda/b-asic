@@ -1020,6 +1020,11 @@ class SFGMainWindow(QMainWindow):
         if event.key() == Qt.Key.Key_Escape:
             self._cancel_connection()
         if event.key() == Qt.Key.Key_Delete:
+            selected_arrows = [
+                item for item in self._scene.selectedItems() if isinstance(item, Arrow)
+            ]
+            for arrow in selected_arrows:
+                arrow.remove()
             for pressed_op in list(self._pressed_operations):
                 pressed_op.remove()
                 self.move_button_index -= 1
@@ -1325,14 +1330,15 @@ class SFGMainWindow(QMainWindow):
 
     def _unselect_all(self, event=None) -> None:
         """Unselect all operation buttons."""
-        if not self._drag_buttons:
+        if not self._drag_buttons and not self._scene.selectedItems():
             self.update_statusbar("No operations to unselect")
             return
 
         for operation in self._drag_buttons.values():
             operation._toggle_button(pressed=True)
         self._pressed_operations.clear()
-        self.update_statusbar("Unselected all operations")
+        self._scene.clearSelection()
+        self.update_statusbar("Unselected all operations and signals")
 
     def _zoom_to_fit(self, event=None) -> None:
         """Zoom to fit SFGs in window."""
