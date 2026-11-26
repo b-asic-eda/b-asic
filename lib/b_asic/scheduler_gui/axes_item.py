@@ -24,6 +24,7 @@ from b_asic.scheduler_gui._preferences import SCHEDULE_INDENT
 from b_asic.scheduler_gui.timeline_item import TimelineItem
 
 MAJOR_TICK_INTERVAL = 5
+MIN_TICK_LABEL_SPACING = 48
 
 
 class AxesItem(QGraphicsItemGroup):
@@ -110,13 +111,14 @@ class AxesItem(QGraphicsItemGroup):
         self._base_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         self._minor_tick_pen = QPen(current_theme().text_muted)
         self._minor_tick_pen.setWidthF(1 / self._scale)
-        self._major_tick_pen = QPen(current_theme().text)
-        self._major_tick_pen.setWidthF(2 / self._scale)
+        self._major_tick_pen = QPen(current_theme().text_muted)
+        self._major_tick_pen.setWidthF(0)
         self._ledger_pen = QPen(current_theme().border)
         self._ledger_pen.setWidthF(0)  # 0 = cosmetic pen 1px width
         self._ledger_pen.setStyle(Qt.PenStyle.DotLine)
         self._major_ledger_pen = QPen(current_theme().text_muted)
         self._major_ledger_pen.setWidthF(0)
+        self._major_ledger_pen.setStyle(Qt.PenStyle.DashLine)
         self._timeline_pen = QPen(current_theme().wire)
         self._timeline_pen.setWidthF(2 / self._scale)
         self._timeline_pen.setStyle(Qt.PenStyle.DashLine)
@@ -128,7 +130,7 @@ class AxesItem(QGraphicsItemGroup):
         colors = current_theme()
         self._base_pen.setColor(colors.text)
         self._minor_tick_pen.setColor(colors.text_muted)
-        self._major_tick_pen.setColor(colors.text)
+        self._major_tick_pen.setColor(colors.text_muted)
         self._ledger_pen.setColor(colors.border)
         self._major_ledger_pen.setColor(colors.text_muted)
         self._timeline_pen.setColor(colors.wire)
@@ -157,6 +159,24 @@ class AxesItem(QGraphicsItemGroup):
         for item in self._x_ledger:
             if isinstance(item, TimelineItem):
                 item.set_text_color(colors.text)
+        self.update()
+
+    def set_tick_label_density(self, pixels_per_time: float) -> None:
+        """Show every label when readable; otherwise retain major labels."""
+        show_all = pixels_per_time >= MIN_TICK_LABEL_SPACING
+        label_scale = 1 / self._scale
+        for index, label in enumerate(self._x_scale_labels):
+            is_major = index % MAJOR_TICK_INTERVAL == 0
+            show_minor = show_all or is_major
+            label.setVisible(show_minor)
+            self._x_scale[index].setVisible(show_minor)
+            ledger = self._x_ledger[index]
+            if not isinstance(ledger, TimelineItem):
+                ledger.setVisible(show_minor)
+            label.setScale(label_scale * (2.0 if is_major and not show_all else 1.0))
+            font = label.font()
+            font.setBold(is_major and not show_all)
+            label.setFont(font)
         self.update()
 
     def clear(self) -> None:
@@ -269,7 +289,7 @@ class AxesItem(QGraphicsItemGroup):
         # make a new x-tick
         # x-axis scale line
         is_major = index % MAJOR_TICK_INTERVAL == 0
-        tick_height = 0.09 if is_major else 0.05
+        tick_height = 0.07 if is_major else 0.05
         self._x_scale.insert(index, QGraphicsLineItem(0, 0, 0, tick_height))
         self._x_scale[index].setPen(
             self._major_tick_pen if is_major else self._minor_tick_pen
