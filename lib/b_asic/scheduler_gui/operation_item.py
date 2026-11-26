@@ -31,6 +31,7 @@ from b_asic.operation import Operation
 from b_asic.scheduler_gui._preferences import (
     ACTIVE_COLOR_TYPE,
     EXECUTION_TIME_COLOR_TYPE,
+    FONT,
     LATENCY_COLOR_TYPE,
     OPERATION_HEIGHT,
     SIGNAL_COLOR_TYPE,
@@ -233,9 +234,10 @@ class OperationItem(QGraphicsItemGroup):
     def set_active(self) -> None:
         """Set the item as active, i.e., draw it in special colors."""
         if ACTIVE_COLOR_TYPE.changed:
-            self._set_background(ACTIVE_COLOR_TYPE.current_color)
+            self._set_background(ACTIVE_COLOR_TYPE.current_color, muted=False)
         else:
-            self._set_background(ACTIVE_COLOR_TYPE.DEFAULT)
+            self._set_background(ACTIVE_COLOR_TYPE.DEFAULT, muted=False)
+        self.set_font_color(QColor("#10231f"))
         self.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
 
     def set_inactive(self) -> None:
@@ -244,6 +246,9 @@ class OperationItem(QGraphicsItemGroup):
             self._set_background(self._inactive_color)
         else:
             self._set_background(LATENCY_COLOR_TYPE.DEFAULT)
+        self.set_font_color(
+            FONT.color if FONT.changed else QColor(current_theme().text)
+        )
         self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
     def set_font(self, font: QFont) -> None:
@@ -296,13 +301,18 @@ class OperationItem(QGraphicsItemGroup):
         for port in self._ports.values():
             port["item"].setBrush(self._port_filling_brush)
             port["item"].setPen(self._port_outline_pen)
+            port["number"].setBrush(colors.text)
         if self._execution_time_path is not None:
             execution_color = (
                 EXECUTION_TIME_COLOR_TYPE.current_color
                 if EXECUTION_TIME_COLOR_TYPE.changed
                 else EXECUTION_TIME_COLOR_TYPE.DEFAULT
             )
-            self._execution_time_item.setPen(QPen(execution_color, 3 / self._scale))
+            pen = QPen(execution_color, 3 / self._scale, Qt.DashLine)
+            self._execution_time_item.setPen(pen)
+            fill = QColor(execution_color)
+            fill.setAlpha(45)
+            self._execution_time_item.setBrush(fill)
         self.set_inactive()
 
     def set_show_port_numbers(self, port_number: bool = True) -> None:
@@ -334,7 +344,8 @@ class OperationItem(QGraphicsItemGroup):
             self._port_outline_pen_warning if warning else self._port_outline_pen
         )
 
-    def _set_background(self, color: QColor) -> None:
+    def _set_background(self, color: QColor, muted: bool = True) -> None:
+        del muted
         brush = QBrush(color)
         self._latency_item.setBrush(brush)
 
@@ -428,6 +439,7 @@ class OperationItem(QGraphicsItemGroup):
         execution_time_pen = QPen()  # used by execution time outline
         execution_time_pen.setColor(execution_time_color)
         execution_time_pen.setWidthF(3 / self._scale)
+        execution_time_pen.setStyle(Qt.DashLine)
 
         latency, execution_time = self._operation.get_plot_coordinates()
         input_coordinates = self._operation.get_input_coordinates()
@@ -450,6 +462,9 @@ class OperationItem(QGraphicsItemGroup):
             self._execution_time_path = execution_time_path
             self._execution_time_item = QGraphicsPathItem(execution_time_path)
             self._execution_time_item.setPen(execution_time_pen)
+            execution_fill = QColor(execution_time_color)
+            execution_fill.setAlpha(45)
+            self._execution_time_item.setBrush(execution_fill)
 
         # component item
         self._set_background(LATENCY_COLOR_TYPE.DEFAULT)  # used by component filling
@@ -477,6 +492,7 @@ class OperationItem(QGraphicsItemGroup):
                 # Add port numbers
                 port_item = QGraphicsSimpleTextItem(str(i))
                 port_item.setScale(port_item.scale() / self._scale)
+                port_item.setBrush(current_theme().text)
                 self._ports[key] = {"pos": pos, "item": new_port, "number": port_item}
 
         create_ports(input_coordinates, "in")
@@ -484,6 +500,9 @@ class OperationItem(QGraphicsItemGroup):
 
         # op-id/label
         self._label_item = QGraphicsSimpleTextItem(self._operation.graph_id)
+        self._label_item.setBrush(
+            FONT.color if FONT.changed else QColor(current_theme().text)
+        )
         self._label_item.setScale(self._label_item.scale() / self._scale)
         self._label_center = self._latency_item.boundingRect().center()
         self._position_label()
@@ -539,6 +558,20 @@ class OperationItem(QGraphicsItemGroup):
             self._execution_time_item.setPath(
                 self._combine_path_fragments(fragments(self._execution_time_path))
             )
+        self._update_tooltip()
+
+    def _update_tooltip(self) -> None:
+        """Describe the operation's schedule metadata on hover."""
+        schedule = self._parent.schedule
+        duration = self._operation.execution_time
+        self.setToolTip(
+            "<b>{}</b><br>Start cycle: {}<br>Duration: {}<br>Latency: {}".format(
+                self._operation.graph_id,
+                schedule.laps.get(self._operation.graph_id, 0),
+                duration if duration is not None else "not set",
+                self._operation.latency,
+            )
+        )
 
     def _wrapped_start_time(self, start_time: float, period: int) -> float:
         """Choose the same displayed cycle during dragging and after dropping."""

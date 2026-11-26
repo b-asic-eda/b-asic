@@ -23,6 +23,8 @@ from b_asic.gui_utils.theme import current_theme
 from b_asic.scheduler_gui._preferences import SCHEDULE_INDENT
 from b_asic.scheduler_gui.timeline_item import TimelineItem
 
+MAJOR_TICK_INTERVAL = 5
+
 
 class AxesItem(QGraphicsItemGroup):
     f"""
@@ -59,7 +61,10 @@ class AxesItem(QGraphicsItemGroup):
     _y_axis: QGraphicsLineItem
     _event_items: list[QGraphicsItem]
     _base_pen: QPen
+    _minor_tick_pen: QPen
+    _major_tick_pen: QPen
     _ledger_pen: QPen
+    _major_ledger_pen: QPen
     _timeline_pen: QPen
 
     def __init__(
@@ -103,8 +108,15 @@ class AxesItem(QGraphicsItemGroup):
         self._base_pen = QPen(current_theme().text)
         self._base_pen.setWidthF(2 / self._scale)
         self._base_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        self._minor_tick_pen = QPen(current_theme().text_muted)
+        self._minor_tick_pen.setWidthF(1 / self._scale)
+        self._major_tick_pen = QPen(current_theme().text)
+        self._major_tick_pen.setWidthF(2 / self._scale)
         self._ledger_pen = QPen(current_theme().border)
         self._ledger_pen.setWidthF(0)  # 0 = cosmetic pen 1px width
+        self._ledger_pen.setStyle(Qt.PenStyle.DotLine)
+        self._major_ledger_pen = QPen(current_theme().text_muted)
+        self._major_ledger_pen.setWidthF(0)
         self._timeline_pen = QPen(current_theme().wire)
         self._timeline_pen.setWidthF(2 / self._scale)
         self._timeline_pen.setStyle(Qt.PenStyle.DashLine)
@@ -115,16 +127,29 @@ class AxesItem(QGraphicsItemGroup):
         """Refresh axis colors after the application theme changes."""
         colors = current_theme()
         self._base_pen.setColor(colors.text)
+        self._minor_tick_pen.setColor(colors.text_muted)
+        self._major_tick_pen.setColor(colors.text)
         self._ledger_pen.setColor(colors.border)
+        self._major_ledger_pen.setColor(colors.text_muted)
         self._timeline_pen.setColor(colors.wire)
         for index, item in enumerate(self._x_ledger):
             item.setPen(
                 self._timeline_pen
                 if index == len(self._x_ledger) - 1
-                else self._ledger_pen
+                else (
+                    self._major_ledger_pen
+                    if index % MAJOR_TICK_INTERVAL == 0
+                    else self._ledger_pen
+                )
             )
-        for item in (self._x_axis, self._y_axis, self._x_arrow, *self._x_scale):
+        for item in (self._x_axis, self._y_axis, self._x_arrow):
             item.setPen(self._base_pen)
+        for index, item in enumerate(self._x_scale):
+            item.setPen(
+                self._major_tick_pen
+                if index % MAJOR_TICK_INTERVAL == 0
+                else self._minor_tick_pen
+            )
         self._x_arrow.setBrush(colors.text)
         for item in self._x_scale_labels:
             item.setBrush(colors.text)
@@ -243,8 +268,12 @@ class AxesItem(QGraphicsItemGroup):
 
         # make a new x-tick
         # x-axis scale line
-        self._x_scale.insert(index, QGraphicsLineItem(0, 0, 0, 0.05))
-        self._x_scale[index].setPen(self._base_pen)
+        is_major = index % MAJOR_TICK_INTERVAL == 0
+        tick_height = 0.09 if is_major else 0.05
+        self._x_scale.insert(index, QGraphicsLineItem(0, 0, 0, tick_height))
+        self._x_scale[index].setPen(
+            self._major_tick_pen if is_major else self._minor_tick_pen
+        )
         pos = self.mapToScene(QPointF(self._width_indent + index, 0))
         self._x_scale[index].setPos(pos)
         self.addToGroup(self._x_scale[index])
@@ -282,7 +311,9 @@ class AxesItem(QGraphicsItemGroup):
             self._x_ledger[index].set_text_color(current_theme().text)
             self._register_event_item(self._x_ledger[index])
         else:
-            self._x_ledger[index].setPen(self._ledger_pen)
+            self._x_ledger[index].setPen(
+                self._major_ledger_pen if is_major else self._ledger_pen
+            )
             self._x_ledger[index].setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         pos = self.mapToScene(QPointF(self._width_indent + index, 0))
         self._x_ledger[index].setPos(pos)

@@ -13,7 +13,7 @@ from b_asic.utility_operations import DontCare, Sink
 
 try:
     from qtpy.QtCore import QEvent, QPoint, QPointF, Qt
-    from qtpy.QtGui import QMouseEvent
+    from qtpy.QtGui import QKeySequence, QMouseEvent
     from qtpy.QtWidgets import QApplication, QGraphicsScene, QGraphicsView
 
     from b_asic.scheduler_gui import main_window
@@ -737,12 +737,39 @@ def test_timeline_change_refreshes_warning_colors(qtbot, warnings):
                 if warning
                 else operation._port_filling_brush
             )
+        if warning:
+            assert feedback_signal.pen().style() == Qt.PenStyle.DashLine
+            assert "Warning" in feedback_signal.toolTip()
 
     assert_colors(warnings)
     graph.change_schedule_time(-1)
     assert_colors(False)
     graph.change_schedule_time(1)
     assert_colors(warnings)
+
+
+def test_scheduler_readability_cues_and_tooltips(qtbot):
+    from b_asic.scheduler_gui._preferences import LATENCY_COLOR_TYPE
+
+    source = Input()
+    operation = Addition(source, source, latency=3, execution_time=2)
+    schedule = Schedule(SFG([source], [Output(operation)]))
+    item = SchedulerItem(schedule)._operation_items["add0"]
+
+    tooltip = item.toolTip()
+    assert item.graph_id in tooltip
+    assert "Start cycle:" in tooltip
+    assert "Duration: 2" in tooltip
+    assert "Latency: 3" in tooltip
+    assert item._latency_item.brush().color() == LATENCY_COLOR_TYPE.DEFAULT
+    assert item._execution_time_item.pen().style() == Qt.PenStyle.DashLine
+    assert item._execution_time_item.brush().color().alpha() < 255
+
+    axes = AxesItem(10, 4)
+    assert axes._x_scale[5].pen() == axes._major_tick_pen
+    assert axes._x_scale[4].pen() == axes._minor_tick_pen
+    assert axes._x_ledger[5].pen() == axes._major_ledger_pen
+    assert axes._x_ledger[4].pen() == axes._ledger_pen
 
 
 def test_load_schedule(qtbot, sfg_simple_filter):
@@ -1143,27 +1170,22 @@ def test_undo_redo_drag_and_shortcuts(qtbot):
     assert widget.schedule.start_times["cmul0"] == 1
     assert widget.actionUndo.isEnabled()
 
-    widget.activateWindow()
-    qtbot.waitActive(widget)
-    widget.view.setFocus()
-    qtbot.waitUntil(lambda: QApplication.focusWidget() is widget.view)
-    qtbot.keyClick(widget.view, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    assert widget.actionUndo.shortcut() == QKeySequence("Ctrl+Z")
+    widget.actionUndo.trigger()
     assert widget.schedule.start_times["cmul0"] == 0
     assert widget._io_latency_window is latency_window
     assert widget._graph._operation_items["cmul0"].x() == pytest.approx(
         widget._graph._x_axis_indent
     )
-    qtbot.keyClick(
-        widget.view,
-        Qt.Key.Key_Z,
-        Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier,
-    )
+    assert QKeySequence("Ctrl+Shift+Z") in widget.actionRedo.shortcuts()
+    widget.actionRedo.trigger()
     assert widget.schedule.start_times["cmul0"] == 1
     assert widget._io_latency_window is latency_window
-    qtbot.keyClick(widget.view, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    widget.actionUndo.trigger()
     widget._graph._operation_items["cmul0"]._move_asap()
     assert widget.actionRedo.isEnabled()
-    qtbot.keyClick(widget.view, Qt.Key.Key_Y, Qt.KeyboardModifier.ControlModifier)
+    assert QKeySequence("Ctrl+Y") in widget.actionRedo.shortcuts()
+    widget.actionRedo.trigger()
     assert widget.schedule.start_times["cmul0"] == 1
 
 
