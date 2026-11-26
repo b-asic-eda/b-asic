@@ -7,7 +7,7 @@ Contains a GUI class for arrows.
 from typing import TYPE_CHECKING, cast
 
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QPainterPath, QPainterPathStroker, QPen
+from qtpy.QtGui import QBrush, QPainterPath, QPainterPathStroker, QPen
 from qtpy.QtWidgets import QGraphicsPathItem, QMenu
 
 from b_asic.gui_utils.theme import current_theme
@@ -322,5 +322,5 @@ class Arrow(QGraphicsPathItem):
         if self.isSelected():
             pen = QPen(current_theme().wire_active, 3)
         painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)
+        painter.setBrush(QBrush())
         painter.drawPath(self._paint_path)

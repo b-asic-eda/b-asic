@@ -62,6 +62,10 @@ class SignalItem(QGraphicsPathItem):
         self._src_operation = src_operation
         self._dest_operation = dest_operation
         self._signal = signal
+        self._active = False
+        self._wraps = False
+        self._wrap_end = QPointF()
+        self._wrap_start = QPointF()
         self._refresh_pens()
         self._parent = parent
         self.update_path()
@@ -92,10 +96,13 @@ class SignalItem(QGraphicsPathItem):
             and schedule.schedule_time > 0
             and lifetime - displayed_gap >= schedule.schedule_time - 1e-9
         )
+        self._wraps = wraps
         if wraps:
             offset = self._parent._x_axis_indent
-            path.lineTo(schedule.schedule_time + offset, source_y)
-            path.moveTo(offset, dest_y)
+            self._wrap_end = QPointF(schedule.schedule_time + offset, source_y)
+            self._wrap_start = QPointF(offset, dest_y)
+            path.lineTo(self._wrap_end)
+            path.moveTo(self._wrap_start)
             path.lineTo(dest_x, dest_y)
         else:
             if abs(source_x - dest_x) <= 0.1:  # "== 0"
@@ -118,9 +125,10 @@ class SignalItem(QGraphicsPathItem):
             return pen
 
         self._active_pen = make_pen(ACTIVE_COLOR_TYPE, SIGNAL_WIDTH_ACTIVE)
+        self._active_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        self._active_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         self._inactive_pen = make_pen(SIGNAL_COLOR_TYPE, SIGNAL_WIDTH)
         self._warning_pen = make_pen(SIGNAL_WARNING_COLOR_TYPE, SIGNAL_WIDTH_WARNING)
-        self._warning_pen.setStyle(Qt.PenStyle.DashLine)
 
     def refresh_theme(self) -> None:
         """Refresh wire pens after a theme change."""
@@ -131,12 +139,17 @@ class SignalItem(QGraphicsPathItem):
         """
         Set the signal color to represent that a connected operation is selected.
         """
+        self._active = True
         self.setPen(self._active_pen)
+        self.setZValue(2)
+        self.update()
         self._src_operation.set_port_active(self._src_key)
         self._dest_operation.set_port_active(self._dest_key)
 
     def set_inactive(self) -> None:
         """Set the signal color to the default color."""
+        self._active = False
+        self.setZValue(0)
         warning = self._parent._warnings and (
             self._parent._schedule._input_slacks(self._signal.destination)[self._signal]
             > self._parent._schedule.schedule_time
@@ -147,3 +160,15 @@ class SignalItem(QGraphicsPathItem):
         )
         self._src_operation.set_port_inactive(self._src_key, warning)
         self._dest_operation.set_port_inactive(self._dest_key, warning)
+
+    def paint(self, painter, option, widget=None) -> None:
+        """Add explicit boundary markers to selected wrapped wires."""
+        if self._active and self._wraps:
+            painter.save()
+            marker_radius = SIGNAL_WIDTH_ACTIVE
+            painter.setBrush(self._active_pen.color())
+            painter.setPen(QPen(self._active_pen.color(), 0))
+            for point in (self._wrap_end, self._wrap_start):
+                painter.drawEllipse(point, marker_radius, marker_radius)
+            painter.restore()
+        super().paint(painter, option, widget)

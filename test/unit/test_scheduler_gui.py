@@ -14,7 +14,13 @@ from b_asic.utility_operations import DontCare, Sink
 try:
     from qtpy.QtCore import QEvent, QPoint, QPointF, Qt
     from qtpy.QtGui import QKeySequence, QMouseEvent
-    from qtpy.QtWidgets import QApplication, QGraphicsScene, QGraphicsView
+    from qtpy.QtWidgets import (
+        QApplication,
+        QGraphicsPathItem,
+        QGraphicsScene,
+        QGraphicsSimpleTextItem,
+        QGraphicsView,
+    )
 
     from b_asic.scheduler_gui import main_window
     from b_asic.scheduler_gui.axes_item import AxesItem
@@ -738,7 +744,7 @@ def test_timeline_change_refreshes_warning_colors(qtbot, warnings):
                 else operation._port_filling_brush
             )
         if warning:
-            assert feedback_signal.pen().style() == Qt.PenStyle.DashLine
+            assert feedback_signal.pen().style() == Qt.PenStyle.SolidLine
             assert "Warning" in feedback_signal.toolTip()
 
     assert_colors(warnings)
@@ -762,8 +768,8 @@ def test_scheduler_readability_cues_and_tooltips(qtbot):
     assert "Duration: 2" in tooltip
     assert "Latency: 3" in tooltip
     assert item._latency_item.brush().color() == LATENCY_COLOR_TYPE.DEFAULT
-    assert item._execution_time_item.pen().style() == Qt.PenStyle.DashLine
-    assert item._execution_time_item.brush().color().alpha() < 255
+    assert item._execution_time_item.pen().style() == Qt.PenStyle.SolidLine
+    assert item._execution_time_item.brush().style() == Qt.BrushStyle.NoBrush
 
     axes = AxesItem(10, 4)
     assert axes._x_scale[5].pen() == axes._major_tick_pen
@@ -1643,6 +1649,8 @@ def test_cyclic_io_signal_endpoints_use_wrapped_ports(qtbot, precedence_sfg_dela
 def test_signal_wraps_port_immediately_after_schedule_time(
     qtbot, precedence_sfg_delays
 ):
+    from b_asic.scheduler_gui._preferences import LATENCY_COLOR_TYPE, SIGNAL_WIDTH
+
     precedence_sfg_delays.set_latency_of_type_name(Addition.type_name(), 1)
     precedence_sfg_delays.set_latency_of_type_name(
         ConstantMultiplication.type_name(), 3
@@ -1667,6 +1675,80 @@ def test_signal_wraps_port_immediately_after_schedule_time(
     source_item.setX(indent + period + 0.5 - output_time)
     signal_item.update_path()
     assert signal_item.path().elementAt(0).x == pytest.approx(indent + 0.5)
+
+    feedback = next(item for item in scheduler_item._get_all_signals() if item._wraps)
+    feedback.set_active()
+    assert feedback._active
+    assert feedback._wrap_end.x() == pytest.approx(period + indent)
+    assert feedback._wrap_start.x() == pytest.approx(indent)
+    assert feedback.pen().widthF() > SIGNAL_WIDTH
+
+    selected = feedback._src_operation
+    scheduler_item.set_item_active(selected)
+    wrapped = [
+        signal for signal in scheduler_item._signal_dict[selected] if signal._wraps
+    ]
+    assert len(scheduler_item._wrap_ghosts) == 2 * len(wrapped)
+    ghost = scheduler_item._wrap_ghosts[0]
+    ghost_label = next(
+        child
+        for child in ghost.childItems()
+        if isinstance(child, QGraphicsSimpleTextItem)
+    )
+    rendered_center = (
+        ghost_label.pos() + ghost_label.boundingRect().center() * ghost_label.scale()
+    )
+    assert rendered_center == ghost.boundingRect().center()
+    connector = scheduler_item._wrap_ghosts[1]
+    endpoint = (
+        feedback._wrap_end
+        if feedback._src_operation is selected
+        else feedback._wrap_start
+    )
+    assert connector.path().elementAt(0).x == pytest.approx(endpoint.x())
+    assert connector.path().elementAt(0).y == pytest.approx(endpoint.y())
+    selected.setX(scheduler_item._x_axis_indent + period + 0.5)
+    selected._update_cycle_paths()
+    assert selected._latency_item.path().toSubpathPolygons()
+    scheduler_item._show_wrap_ghosts(selected)
+    assert selected._latency_item.brush().color() == (
+        LATENCY_COLOR_TYPE.current_color
+        if LATENCY_COLOR_TYPE.changed
+        else LATENCY_COLOR_TYPE.DEFAULT
+    )
+    ghost_body = next(
+        ghost
+        for ghost in scheduler_item._wrap_ghosts
+        if isinstance(ghost, QGraphicsPathItem)
+        and ghost.path() != selected._latency_path
+        and ghost.pen().style() == Qt.PenStyle.DashLine
+    )
+    assert ghost_body.path().boundingRect().left() >= period - (
+        selected.x() - scheduler_item._x_axis_indent
+    )
+    assert len(scheduler_item._wrap_ghosts) >= 3
+    crossed_endpoint = selected.mapToItem(
+        scheduler_item, selected._ports[feedback._src_key]["pos"]
+    )
+    connectors = [
+        ghost
+        for ghost in scheduler_item._wrap_ghosts
+        if isinstance(ghost, QGraphicsPathItem)
+        and ghost.pen().style() == Qt.PenStyle.SolidLine
+    ]
+    assert any(
+        connector.path().elementAt(0).x == pytest.approx(crossed_endpoint.x())
+        and connector.path().elementAt(0).y == pytest.approx(crossed_endpoint.y())
+        for connector in connectors
+    )
+    scheduler_item.set_item_inactive(selected)
+    assert not scheduler_item._wrap_ghosts
+
+    scheduler_item.set_show_all_wrap_ghosts(True)
+    wrapped_count = sum(signal._wraps for signal in scheduler_item._get_all_signals())
+    assert len(scheduler_item._wrap_ghosts) >= 2 * wrapped_count
+    scheduler_item.set_show_all_wrap_ghosts(False)
+    assert not scheduler_item._wrap_ghosts
 
 
 def test_open_long_chain(qtbot):
@@ -1750,6 +1832,8 @@ def test_increase_time_resolution(qtbot, monkeypatch, sfg_simple_filter):
     }
     monkeypatch.setattr(main_window.QInputDialog, "getInt", lambda *args: (2, True))
 
+    widget._sync_scene_rect()
+    old_scene_right = widget._scene.sceneRect().right()
     widget._increase_time_resolution()
 
     assert gui_schedule.schedule_time == original_schedule_time * 2
@@ -1767,10 +1851,52 @@ def test_increase_time_resolution(qtbot, monkeypatch, sfg_simple_filter):
     assert graph.axes.event_items[0].x() == pytest.approx(
         graph._x_axis_indent + gui_schedule.schedule_time
     )
+    assert widget._scene.sceneRect().right() > old_scene_right
+    assert widget._scene.sceneRect().right() == pytest.approx(
+        graph.scenePos().x()
+        + graph._x_axis_indent
+        + widget.schedule.schedule_time
+        + graph.axes._width_padding
+    )
+    widget._zoom_to_fit()
+    visible = widget.view.mapToScene(widget.view.viewport().rect()).boundingRect()
+    assert visible.right() >= widget._scene.sceneRect().right()
     assert schedule.schedule_time == original_schedule_time
     assert (
         widget.statusbar.currentMessage() == "Time resolution increased by a factor 2"
     )
+
+
+def test_tick_labels_follow_view_zoom(qtbot):
+    source = Input()
+    operation = Addition(source, source, latency=1)
+    widget = ScheduleMainWindow()
+    qtbot.addWidget(widget)
+    widget.open(Schedule(SFG([source], [Output(operation)]), schedule_time=6))
+    axes = widget._graph.axes
+
+    axes.set_tick_label_density(60)
+    assert all(label.isVisible() for label in axes._x_scale_labels)
+    normal_major_scale = axes._x_scale_labels[0].scale()
+    axes.set_tick_label_density(40)
+    assert axes._x_scale_labels[0].isVisible()
+    assert not axes._x_scale_labels[1].isVisible()
+    assert axes._x_scale_labels[5].isVisible()
+    assert axes._x_scale_labels[0].scale() > normal_major_scale
+    assert axes._x_scale_labels[0].font().bold()
+    assert not axes._x_scale[1].isVisible()
+    assert not axes._x_ledger[1].isVisible()
+
+    widget.view.resetTransform()
+    widget.view.scale(40, 40)
+    widget._update_tick_label_density()
+    widget._sync_scene_rect()
+    assert not axes._x_scale_labels[1].isVisible()
+    widget._graph.change_schedule_time(2)
+    widget._graph._signals.schedule_time_changed.emit()
+    assert not axes._x_scale_labels[1].isVisible()
+    assert not axes._x_scale[6].isVisible()
+    assert not axes._x_ledger[6].isVisible()
 
 
 def test_decrease_time_resolution(qtbot, monkeypatch, sfg_simple_filter):
