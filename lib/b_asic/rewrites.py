@@ -19,6 +19,7 @@ from b_asic.core_operations import (
     ComplexConjugate,
     Constant,
     ConstantMultiplication,
+    Division,
     ImaginaryMultiplication,
     LeftShift,
     Multiplication,
@@ -763,17 +764,11 @@ def _complex_product_template(
     from b_asic.complex_conversion import _product  # noqa: PLC0415
 
     real, imag = _product(_ComplexPair(a, b), _ComplexPair(c, d), method)
-    real_operation = cast(Operation, real)
-    real_operation.name = "real"
+    cast(Operation, real).name = "real"
     cast(Operation, imag).name = "imag"
-    product_names = ("k2", "k1") if method == "threealt" else ("ac", "bd")
-    for name, port in zip(product_names, real_operation.inputs, strict=True):
-        assert port.connected_source is not None
-        port.connected_source.operation.name = name
     if method == "threealt":
         source = cast(Operation, imag).input(1).connected_source
         assert source is not None
-        source.operation.name = "k3"
     return {"real": real, "imag": imag}
 
 
@@ -837,8 +832,6 @@ def _complex_rewrites() -> Iterator[RewriteRule]:
             ),
             anchor="real",
             preserve={
-                "ac": "k2" if method == "threealt" else "ac",
-                "bd": "k1" if method == "threealt" else "bd",
                 "real": "real",
                 "imag": "imag",
             },
@@ -888,10 +881,15 @@ def _shift_rewrites() -> Iterator[RewriteRule]:
             replacement=lambda x: x,
         )
     for left, right in product(shifts, repeat=2):
+        if {left, right} == {LeftShift, RightShift}:
+            continue
         for suffix, arithmetic in (
             ("addition", Addition),
             ("subtraction", Subtraction),
         ):
+            # Addition matches either input order; prefer an explicit shift type.
+            if arithmetic is Addition and left is Shift and right is not Shift:
+                continue
             yield _share_unary_rule(
                 f"shifts.share_{left.type_name()}_{right.type_name()}_{suffix}",
                 arithmetic,
@@ -913,6 +911,28 @@ def _right_shift_amount(operation: Operation) -> int:
 @lru_cache(maxsize=1)
 def _default_registry() -> RewriteRegistry:
     result = RewriteRegistry()
+
+    def negated_product(a, b):
+        shared = Multiplication(a, b, name="shared")
+        return {"shared": shared, "opposite": Negation(shared, name="negative")}
+
+    # Reuse an existing product before consumer rules absorb its input sign.
+    result.register(
+        RewriteRule.from_builders(
+            "arithmetic.share_negated_product",
+            inputs=("a", "b"),
+            pattern=lambda a, b: {
+                "shared": Multiplication(a, b, name="shared"),
+                "opposite": Multiplication(
+                    Negation(a, name="negative"), b, name="opposite"
+                ),
+            },
+            replacement=negated_product,
+            anchor="shared",
+            preserve={"shared": "shared", "negative": "negative"},
+        ),
+        collections=("arithmetic", "sharing"),
+    )
     result.register(
         _NegatedProductRule.from_builders(
             "arithmetic.negated_product",
@@ -999,6 +1019,33 @@ def _default_registry() -> RewriteRegistry:
         ),
         collections=("arithmetic", "negations"),
     )
+    for rewrite_name, product_pattern, product_replacement in (
+        (
+            "arithmetic.negated_product_subtraction",
+            lambda a, b, c: Multiplication(Negation(a), Subtraction(b, c), name="root"),
+            lambda a, b, c: Multiplication(a, Subtraction(c, b), name="root"),
+        ),
+        (
+            "arithmetic.negated_dividend_difference",
+            lambda a, b, c: Division(Negation(a), Subtraction(b, c), name="root"),
+            lambda a, b, c: Division(a, Subtraction(c, b), name="root"),
+        ),
+        (
+            "arithmetic.negated_divisor_difference",
+            lambda a, b, c: Division(a, Negation(Subtraction(b, c)), name="root"),
+            lambda a, b, c: Division(a, Subtraction(c, b), name="root"),
+        ),
+    ):
+        result.register(
+            RewriteRule.from_builders(
+                rewrite_name,
+                inputs=("a", "b", "c"),
+                pattern=product_pattern,
+                replacement=product_replacement,
+                preserve={"root": "root"},
+            ),
+            collections=("arithmetic", "negations"),
+        )
     result.register(
         RewriteRule.from_builders(
             "arithmetic.negated_product_minus_difference",

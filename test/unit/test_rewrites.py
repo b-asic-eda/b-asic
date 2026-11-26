@@ -12,6 +12,7 @@ from b_asic import (
     ComplexConjugate,
     Constant,
     ConstantMultiplication,
+    Division,
     ImaginaryMultiplication,
     Input,
     LeftShift,
@@ -255,6 +256,35 @@ def test_subtract_negated_product(rules, negated_input):
         )
     assert type(original_root) is Subtraction
     assert graph.find_by_type(Negation)
+
+
+@pytest.mark.parametrize(
+    ("rule_name", "expression"),
+    [
+        (
+            "arithmetic.negated_product_subtraction",
+            lambda a, b, c: Multiplication(Negation(a), Subtraction(b, c)),
+        ),
+        (
+            "arithmetic.negated_dividend_difference",
+            lambda a, b, c: Division(Negation(a), Subtraction(b, c)),
+        ),
+        (
+            "arithmetic.negated_divisor_difference",
+            lambda a, b, c: Division(a, Negation(Subtraction(b, c))),
+        ),
+    ],
+)
+def test_negation_moves_across_difference(rule_name, expression):
+    inputs = [Input(name) for name in ("a", "b", "c")]
+    graph = SFG(inputs, [Output(expression(*inputs))])
+
+    (match,) = graph.find_rewrites(rule_name)
+    rewritten = graph.apply_rewrites(match)
+
+    for values in [(2, 7, 3), (-2, 7, 3), (2, 3, 7)]:
+        assert rewritten.evaluate(*values) == pytest.approx(graph.evaluate(*values))
+    assert not rewritten.find_by_type(Negation)
 
 
 @pytest.mark.parametrize("extra", ["negative", "product"])
@@ -2977,20 +3007,23 @@ def test_unary_factor_sharing_rejects_shared_or_nonordinary_operations(rule_name
         assert graph.find_rewrites(rule) == []
 
 
-@pytest.mark.parametrize("arithmetic", [Addition, Subtraction])
 @pytest.mark.parametrize(
-    ("left", "left_amount", "right", "right_amount"),
+    ("arithmetic", "left", "left_amount", "right", "right_amount"),
     [
-        (LeftShift, 3, LeftShift, 3),
-        (RightShift, 3, RightShift, 3),
-        (Shift, -3, Shift, -3),
-        (Shift, 2, Shift, 2),
-        (LeftShift, 3, Shift, -3),
-        (Shift, -3, LeftShift, 3),
-        (RightShift, 3, Shift, 3),
-        (Shift, 3, RightShift, 3),
-        (LeftShift, 0, RightShift, 0),
-        (RightShift, 0, LeftShift, 0),
+        *[
+            (arithmetic, left, left_amount, right, right_amount)
+            for arithmetic in (Addition, Subtraction)
+            for left, left_amount, right, right_amount in (
+                (LeftShift, 3, LeftShift, 3),
+                (RightShift, 3, RightShift, 3),
+                (Shift, -3, Shift, -3),
+                (Shift, 2, Shift, 2),
+                (LeftShift, 3, Shift, -3),
+                (RightShift, 3, Shift, 3),
+            )
+        ],
+        (Subtraction, Shift, -3, LeftShift, 3),
+        (Subtraction, Shift, 3, RightShift, 3),
     ],
 )
 def test_common_shift_sharing_matches_effective_amounts(
@@ -3012,6 +3045,60 @@ def test_common_shift_sharing_matches_effective_amounts(
         result.output_operations[0].input(0).connected_source.operation.value
         == left_amount
     )
+    assert result.evaluate(2 + 3j, 1 - 2j) == pytest.approx(
+        graph.evaluate(2 + 3j, 1 - 2j)
+    )
+
+
+@pytest.mark.parametrize("explicit_type", [LeftShift, RightShift])
+@pytest.mark.parametrize("reverse_inputs", [False, True])
+def test_mixed_shift_addition_sharing_retains_explicit_type(
+    explicit_type, reverse_inputs
+):
+    a, b = Input(), Input()
+    explicit = explicit_type(2, a, name="explicit", latency=3, execution_time=2)
+    signed = Shift(-2 if explicit_type is LeftShift else 2, b)
+    operands = (signed, explicit) if reverse_inputs else (explicit, signed)
+    graph = SFG([a, b], [Output(Addition(*operands, name="sum"))])
+    original_explicit = graph.find_by_name("explicit")[0]
+    original_sum = graph.find_by_name("sum")[0]
+
+    result = graph.transform("shifts", repeat=True)
+
+    shifts = [
+        op for op in result.operations if isinstance(op, (LeftShift, RightShift, Shift))
+    ]
+    (retained,) = shifts
+    assert type(retained) is explicit_type
+    assert retained.graph_id == original_explicit.graph_id
+    assert retained.execution_time == original_explicit.execution_time
+    assert (
+        retained.output(0).latency_offset == original_explicit.output(0).latency_offset
+    )
+    assert retained.input(0).connected_source is result.find_by_id(
+        original_sum.graph_id
+    ).output(0)
+    assert result.evaluate(2 + 3j, 1 - 2j) == pytest.approx(
+        graph.evaluate(2 + 3j, 1 - 2j)
+    )
+
+
+@pytest.mark.parametrize("arithmetic", [Addition, Subtraction])
+@pytest.mark.parametrize("reverse_inputs", [False, True])
+def test_zero_shifted_operands_simplify_to_arithmetic(arithmetic, reverse_inputs):
+    a, b = Input(), Input()
+    operands = [LeftShift(0, a), RightShift(0, b)]
+    if reverse_inputs:
+        operands.reverse()
+    graph = SFG([a, b], [Output(arithmetic(*operands, name="root"))])
+    original_root = graph.find_by_name("root")[0]
+
+    result = graph.transform("shifts", repeat=True)
+
+    assert not any(
+        isinstance(op, (LeftShift, RightShift, Shift)) for op in result.operations
+    )
+    assert type(result.find_by_id(original_root.graph_id)) is arithmetic
     assert result.evaluate(2 + 3j, 1 - 2j) == pytest.approx(
         graph.evaluate(2 + 3j, 1 - 2j)
     )
@@ -3855,6 +3942,207 @@ def test_opposite_differences_share_one_subtraction(rules, reverse_outputs):
     assert result.find_rewrites("sharing") == []
     assert len(graph.find_by_type(Subtraction)) == 2
     assert graph.find_by_type(Negation) == []
+
+
+@pytest.mark.parametrize(
+    "rules", [None, "arithmetic", "sharing", "arithmetic.share_negated_product"]
+)
+@pytest.mark.parametrize("swap_shared", [False, True])
+@pytest.mark.parametrize("swap_opposite", [False, True])
+@pytest.mark.parametrize("negated_factor", [0, 1])
+@pytest.mark.parametrize("reverse_outputs", [False, True])
+def test_negated_products_share_one_multiplier(
+    rules, swap_shared, swap_opposite, negated_factor, reverse_outputs
+):
+    a, b = inputs = [Input("a"), Input("b")]
+    factors = [a, b]
+    if swap_shared:
+        factors.reverse()
+    shared = Multiplication(*factors, name="shared", latency=3, execution_time=2)
+    shared.input(0).latency_offset = 1
+    shared.input(1).latency_offset = 2
+    negative = Negation(
+        inputs[negated_factor], name="negative", latency=2, execution_time=1
+    )
+    negative.input(0).latency_offset = 1
+    factors = [negative, inputs[1 - negated_factor]]
+    if swap_opposite:
+        factors.reverse()
+    opposite = Multiplication(*factors, name="opposite")
+    outputs = [Output(shared, name="forward"), Output(opposite, name="reverse")]
+    for output in outputs:
+        signal = output.input(0).signals[0]
+        signal.name = output.name + "_wire"
+        signal.set_param("custom", [output.name])
+    if reverse_outputs:
+        outputs.reverse()
+    Sink(shared, name="forward_sink")
+    Sink(opposite, name="reverse_sink")
+    graph = SFG(inputs, outputs)
+    original_shared, original_negative, original_opposite = (
+        graph.find_by_name(name)[0] for name in ("shared", "negative", "opposite")
+    )
+
+    (match,) = graph.find_rewrites(rules, target=original_shared)
+    result = graph.transform(rules, repeat=True)
+
+    assert match.rule.name == "arithmetic.share_negated_product"
+    assert match.anchor is original_shared
+    (retained,) = result.find_by_type(Multiplication)
+    (moved_negative,) = result.find_by_type(Negation)
+    assert result.find_by_id(original_opposite.graph_id) is None
+    for original, retained_operation in (
+        (original_shared, retained),
+        (original_negative, moved_negative),
+    ):
+        assert retained_operation.graph_id == original.graph_id
+        assert retained_operation.name == original.name
+        assert retained_operation.execution_time == original.execution_time
+        assert (
+            retained_operation.output(0).latency_offset
+            == original.output(0).latency_offset
+        )
+    index = negated_factor ^ swap_shared
+    assert [port.latency_offset for port in retained.inputs] == [
+        original_shared.input(index).latency_offset,
+        original_shared.input(1 - index).latency_offset,
+    ]
+    assert (
+        moved_negative.input(0).latency_offset
+        == original_negative.input(0).latency_offset
+    )
+    assert moved_negative.input(0).connected_source is retained.output(0)
+    assert result.find_by_name("forward_sink")[0].input(
+        0
+    ).connected_source is retained.output(0)
+    assert result.find_by_name("reverse_sink")[0].input(
+        0
+    ).connected_source is moved_negative.output(0)
+    for output in result.output_operations:
+        expected = retained if output.name == "forward" else moved_negative
+        signal = output.input(0).signals[0]
+        original_signal = graph.find_by_name(signal.name)[0]
+        assert signal.source is expected.output(0)
+        assert signal.graph_id == original_signal.graph_id
+        assert signal.param("custom") == [output.name]
+    for values in [(2, 3), (-5, 7), (0, 0), (2 + 3j, 1 - 2j)]:
+        assert result.evaluate_outputs(values) == pytest.approx(
+            graph.evaluate_outputs(values)
+        )
+    assert result.find_rewrites("sharing") == []
+    assert len(graph.find_by_type(Multiplication)) == 2
+    assert original_negative.input(0).connected_source is graph.input_operations[
+        negated_factor
+    ].output(0)
+
+
+def test_negated_product_sharing_rejects_shared_input_negation():
+    rule = get_rewrite("arithmetic.share_negated_product")
+    graph = rule.pattern
+    Sink(graph.find_by_name("negative")[0])
+    graph = SFG(graph.input_operations, graph.output_operations)
+
+    assert graph.find_rewrites(rule) == []
+    assert graph.transform(rule).evaluate(2, 3) == graph.evaluate(2, 3) == [6, -6]
+
+
+@pytest.mark.parametrize("node", ["shared", "negative", "opposite"])
+def test_negated_product_sharing_keeps_parameters_exact(node):
+    rule = get_rewrite("arithmetic.share_negated_product")
+    graph = rule.pattern
+    operation = next(
+        op for op in graph.find_by_name(node) if not isinstance(op, Output)
+    )
+    operation.set_param("custom", 1)
+
+    assert graph.find_rewrites(rule) == []
+
+
+def test_negated_product_sharing_targets_and_scopes_both_products():
+    rule = get_rewrite("arithmetic.share_negated_product")
+    graph = rule.pattern
+    shared = next(
+        op for op in graph.find_by_name("shared") if isinstance(op, Multiplication)
+    )
+    (match,) = graph.find_rewrites(rule, target=shared)
+    members = list(match.operations.values())
+
+    assert graph.find_rewrites(rule, target=shared, within=members)
+    opposite = next(
+        op for op in graph.find_by_name("opposite") if isinstance(op, Multiplication)
+    )
+    assert graph.find_rewrites(rule, target=opposite) == []
+    for excluded in members:
+        assert (
+            graph.find_rewrites(
+                rule, target=shared, within=[op for op in members if op is not excluded]
+            )
+            == []
+        )
+
+
+def test_repeated_negated_product_sharing_reuses_internal_products_and_source_ports():
+    x, y, c = Input(), Input(), Input()
+    butterfly = R2Butterfly(x, y)
+    a, b = butterfly.outputs
+    shared = Multiplication(a, b, name="shared")
+    opposite = Multiplication(Negation(a), b)
+    graph = SFG(
+        [x, y, c],
+        [Output(Multiplication(shared, c)), Output(Multiplication(opposite, c))],
+    )
+    original_shared = graph.find_by_name("shared")[0]
+
+    result = graph.transform("arithmetic.share_negated_product", repeat=True)
+
+    assert len(result.find_by_type(Multiplication)) == 2
+    assert len(result.find_by_type(Negation)) == 1
+    assert result.find_by_id(original_shared.graph_id) is not None
+    assert result.find_rewrites("sharing") == []
+    assert result.evaluate(2, 3, 7) == graph.evaluate(2, 3, 7) == [-35, 35]
+
+
+def test_negated_product_sharing_distinguishes_source_output_ports():
+    x, y, b = Input(), Input(), Input()
+    butterfly = R2Butterfly(x, y)
+    shared = Multiplication(butterfly.output(0), b)
+    opposite = Multiplication(Negation(butterfly.output(1)), b)
+    graph = SFG([x, y, b], [Output(shared), Output(opposite)])
+
+    assert graph.find_rewrites("arithmetic.share_negated_product") == []
+
+
+def test_negated_product_sharing_supports_repeated_factors():
+    source = Input()
+    graph = SFG(
+        [source],
+        [
+            Output(Multiplication(source, source)),
+            Output(Multiplication(Negation(source), source)),
+        ],
+    )
+
+    result = graph.transform("arithmetic.share_negated_product", repeat=True)
+
+    assert len(result.find_by_type(Multiplication)) == 1
+    assert len(result.find_by_type(Negation)) == 1
+    assert result.evaluate(2 + 3j) == pytest.approx(graph.evaluate(2 + 3j))
+
+
+@pytest.mark.parametrize(
+    "rules", [None, "arithmetic", "sharing", "arithmetic.share_negated_product"]
+)
+@pytest.mark.parametrize("consumer", [Addition, Subtraction])
+def test_negated_product_sharing_precedes_consumer_sign_absorption(rules, consumer):
+    a, b, c = inputs = [Input() for _ in range(3)]
+    shared = Multiplication(a, b)
+    opposite = Multiplication(Negation(a), b)
+    graph = SFG(inputs, [Output(shared), Output(consumer(c, opposite))])
+
+    result = graph.transform(rules, repeat=True)
+
+    assert len(result.find_by_type(Multiplication)) == 1
+    assert result.evaluate(2, 3, 7) == graph.evaluate(2, 3, 7)
 
 
 @pytest.mark.parametrize("reverse_outputs", [False, True])

@@ -232,6 +232,10 @@ Rows with ``*`` group rule families with generated variants;
      - ``arithmetic``, ``sharing``
      - ``(a-b, b-a)``
      - ``(u, -u)``, where ``u=a-b`` is computed once
+   * - ``arithmetic.share_negated_product``
+     - ``arithmetic``, ``sharing``
+     - ``(a*b, (-a)*b)``
+     - ``(u, -u)``, where ``u=a*b`` is computed once
    * - ``complex.double_conjugate``
      - ``arithmetic``, ``complex``
      - ``conj(conj(x))``
@@ -429,11 +433,14 @@ addition or subtraction. Repeated passes handle larger trees of these factors.
 The two original unary operations must not feed outside consumers. Constant
 coefficients must compare equal. Shift-sharing names have the form
 ``shifts.share_<left-type>_<right-type>_<addition-or-subtraction>`` and cover
-all pairs of :class:`~b_asic.core_operations.LeftShift`,
-:class:`~b_asic.core_operations.RightShift`, and
-:class:`~b_asic.core_operations.Shift`. The effective scales must be equal,
-including matching signed shifts with left or right shifts. The replacement
-retains the left shift's type and parameters.
+same-type pairs of :class:`~b_asic.core_operations.LeftShift`,
+:class:`~b_asic.core_operations.RightShift`, or
+:class:`~b_asic.core_operations.Shift`, plus compatible pairs of a signed shift
+with an explicit left or right shift. The effective scales must be equal.
+Addition accepts either input order, with the explicit shift type retained
+for mixed pairs. Subtraction provides both input orders and retains the left
+shift's type and parameters. Zero shifts are handled by the
+``shifts.remove_zero_*`` rules.
 
 These algebraic rewrites do not model rounding or overflow at intermediate
 operations. Moving scales or reassociating arithmetic may change quantized
@@ -473,6 +480,16 @@ neither needs to be an SFG output. ``within`` must include both subtractions.
 The retained subtraction keeps its ID, name, and timing, while the new negation
 receives a fresh ID. Repeated passes reuse one subtraction across several
 opposite differences.
+
+``arithmetic.share_negated_product`` similarly reuses ``a*b`` when ``(-a)*b``
+is also computed. Multiplier inputs may be swapped, so negating either factor
+is supported. The anchor is the product to retain; ``within`` must include
+both multipliers and the input negation. Both product results may feed
+arbitrary outside consumers. The input negation must feed only the removed
+multiplier. The retained multiplier and the negation moved to its output keep
+their IDs, names, and timing; the redundant multiplier is removed.
+The default and ``arithmetic`` selections try this sharing before absorbing
+product signs into consumer additions/subtractions.
 
 Conjugate sharing likewise handles larger trees with repeated passes.
 The ``complex`` collection includes double-negation cancellation so four
