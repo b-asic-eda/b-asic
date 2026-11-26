@@ -7,7 +7,7 @@ in the schedule.
 
 from typing import TYPE_CHECKING
 
-from qtpy.QtCore import QPointF
+from qtpy.QtCore import QPointF, Qt
 from qtpy.QtGui import QPainterPath, QPen
 from qtpy.QtWidgets import QGraphicsPathItem
 
@@ -120,6 +120,7 @@ class SignalItem(QGraphicsPathItem):
         self._active_pen = make_pen(ACTIVE_COLOR_TYPE, SIGNAL_WIDTH_ACTIVE)
         self._inactive_pen = make_pen(SIGNAL_COLOR_TYPE, SIGNAL_WIDTH)
         self._warning_pen = make_pen(SIGNAL_WARNING_COLOR_TYPE, SIGNAL_WIDTH_WARNING)
+        self._warning_pen.setStyle(Qt.PenStyle.DashLine)
 
     def refresh_theme(self) -> None:
         """Refresh wire pens after a theme change."""
@@ -141,5 +142,8 @@ class SignalItem(QGraphicsPathItem):
             > self._parent._schedule.schedule_time
         )
         self.setPen(self._warning_pen if warning else self._inactive_pen)
+        self.setToolTip(
+            "Warning: this connection exceeds the schedule period" if warning else ""
+        )
         self._src_operation.set_port_inactive(self._src_key, warning)
         self._dest_operation.set_port_inactive(self._dest_key, warning)
