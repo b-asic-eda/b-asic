@@ -764,11 +764,13 @@ def _complex_product_template(
     from b_asic.complex_conversion import _product  # noqa: PLC0415
 
     real, imag = _product(_ComplexPair(a, b), _ComplexPair(c, d), method)
-    cast(Operation, real).name = "real"
+    real_operation = cast(Operation, real)
+    real_operation.name = "real"
     cast(Operation, imag).name = "imag"
-    if method == "threealt":
-        source = cast(Operation, imag).input(1).connected_source
+    for index, name in enumerate(("ac", "bd")):
+        source = real_operation.input(index).connected_source
         assert source is not None
+        source.operation.name = name
     return {"real": real, "imag": imag}
 
 
@@ -832,6 +834,8 @@ def _complex_rewrites() -> Iterator[RewriteRule]:
             ),
             anchor="real",
             preserve={
+                "ac": "ac",
+                "bd": "bd",
                 "real": "real",
                 "imag": "imag",
             },
@@ -908,6 +912,64 @@ def _right_shift_amount(operation: Operation) -> int:
     return -amount if type(operation) is LeftShift else amount
 
 
+def _negated_expression_rewrites() -> Iterator[RewriteRule]:
+    """Absorb a sign through products and differences into their consumer."""
+    for suffix, negative, positive, preserved in (
+        (
+            "product_chain",
+            lambda a, b, c: Multiplication(
+                Multiplication(Negation(a, name="negative"), b, name="inner_product"),
+                c,
+                name="product",
+            ),
+            lambda a, b, c: Multiplication(
+                Multiplication(a, b, name="inner_product"), c, name="product"
+            ),
+            ("inner_product", "product"),
+        ),
+        (
+            "product_difference",
+            lambda a, b, c: Subtraction(
+                Multiplication(Negation(a, name="negative"), b, name="product"),
+                c,
+                name="inner",
+            ),
+            lambda a, b, c: Addition(
+                Multiplication(a, b, name="product"), c, name="inner"
+            ),
+            ("product", "inner"),
+        ),
+        (
+            "sum_product",
+            lambda a, b, c: Multiplication(
+                Subtraction(Negation(a, name="negative"), b, name="inner"),
+                c,
+                name="product",
+            ),
+            lambda a, b, c: Multiplication(
+                Addition(a, b, name="inner"), c, name="product"
+            ),
+            ("inner", "product"),
+        ),
+    ):
+        for prefix, consumer, replacement in (
+            ("", Addition, Subtraction),
+            ("subtract_", Subtraction, Addition),
+        ):
+            yield RewriteRule.from_builders(
+                f"arithmetic.{prefix}negated_{suffix}",
+                inputs=("a", "b", "c", "d"),
+                pattern=lambda a, b, c, d, build=negative, root=consumer: root(
+                    d, build(a, b, c), name="root"
+                ),
+                replacement=lambda a, b, c, d, build=positive, root=replacement: root(
+                    d, build(a, b, c), name="root"
+                ),
+                anchor="root",
+                preserve={name: name for name in (*preserved, "root")},
+            )
+
+
 @lru_cache(maxsize=1)
 def _default_registry() -> RewriteRegistry:
     result = RewriteRegistry()
@@ -948,39 +1010,9 @@ def _default_registry() -> RewriteRegistry:
         ),
         collections=("arithmetic", "negations"),
     )
-    for name, arithmetic, replacement in (
-        ("negated_product_chain", Addition, Subtraction),
-        ("subtract_negated_product_chain", Subtraction, Addition),
-    ):
+    for rule in _negated_expression_rewrites():
         result.register(
-            RewriteRule.from_builders(
-                f"arithmetic.{name}",
-                inputs=("a", "b", "c", "d"),
-                pattern=lambda a, b, c, d, arithmetic=arithmetic: arithmetic(
-                    d,
-                    Multiplication(
-                        Multiplication(
-                            Negation(a, name="negative"), b, name="inner_product"
-                        ),
-                        c,
-                        name="product",
-                    ),
-                    name="root",
-                ),
-                replacement=lambda a, b, c, d, replacement=replacement: replacement(
-                    d,
-                    Multiplication(
-                        Multiplication(a, b, name="inner_product"), c, name="product"
-                    ),
-                    name="root",
-                ),
-                anchor="root",
-                preserve={
-                    "inner_product": "inner_product",
-                    "product": "product",
-                    "root": "root",
-                },
-            ),
+            rule,
             collections=("arithmetic", "negations"),
         )
     result.register(
@@ -995,27 +1027,6 @@ def _default_registry() -> RewriteRegistry:
             ),
             anchor="root",
             preserve={"product": "product", "root": "root"},
-        ),
-        collections=("arithmetic", "negations"),
-    )
-    result.register(
-        RewriteRule.from_builders(
-            "arithmetic.negated_product_difference",
-            inputs=("a", "b", "c", "d"),
-            pattern=lambda a, b, c, d: Addition(
-                Subtraction(
-                    Multiplication(Negation(a), b, name="product"), c, name="inner"
-                ),
-                d,
-                name="root",
-            ),
-            replacement=lambda a, b, c, d: Subtraction(
-                d,
-                Addition(Multiplication(a, b, name="product"), c, name="inner"),
-                name="root",
-            ),
-            anchor="root",
-            preserve={"product": "product", "inner": "inner", "root": "root"},
         ),
         collections=("arithmetic", "negations"),
     )
@@ -1058,27 +1069,6 @@ def _default_registry() -> RewriteRegistry:
             replacement=lambda a, b, c, d: Subtraction(
                 Subtraction(d, c, name="inner"),
                 Multiplication(a, b, name="product"),
-                name="root",
-            ),
-            anchor="root",
-            preserve={"product": "product", "inner": "inner", "root": "root"},
-        ),
-        collections=("arithmetic", "negations"),
-    )
-    result.register(
-        RewriteRule.from_builders(
-            "arithmetic.subtract_negated_product_difference",
-            inputs=("a", "b", "c", "d"),
-            pattern=lambda a, b, c, d: Subtraction(
-                d,
-                Subtraction(
-                    Multiplication(Negation(a), b, name="product"), c, name="inner"
-                ),
-                name="root",
-            ),
-            replacement=lambda a, b, c, d: Addition(
-                d,
-                Addition(Multiplication(a, b, name="product"), c, name="inner"),
                 name="root",
             ),
             anchor="root",

@@ -470,6 +470,192 @@ def test_subtract_negated_product_chain_requires_product_on_negative_input():
     assert graph.find_rewrites("arithmetic.subtract_negated_product_chain") == []
 
 
+@pytest.mark.parametrize(
+    ("consumer", "product_input"),
+    [(Addition, 0), (Addition, 1), (Subtraction, 1)],
+)
+@pytest.mark.parametrize("sum_input", [0, 1])
+@pytest.mark.parametrize("selection", [None, "arithmetic", "negations", "rule"])
+def test_negated_sum_product(consumer, product_input, sum_input, selection):
+    a, b, c, d = inputs = [Input(name) for name in ("a", "b", "c", "d")]
+    negative = Negation(a, name="negative")
+    inner = Subtraction(negative, b, name="inner", latency=3, execution_time=2)
+    factors = (inner, c) if sum_input == 0 else (c, inner)
+    product = Multiplication(*factors, name="product", latency=5, execution_time=3)
+    terms = (product, d) if product_input == 0 else (d, product)
+    root = consumer(*terms, name="root", latency=7, execution_time=4)
+    for operation in (inner, product, root):
+        operation.input(0).latency_offset = 1
+        operation.input(1).latency_offset = 2
+    for name, port in (
+        ("a_wire", negative.input(0)),
+        ("b_wire", inner.input(1)),
+        ("c_wire", product.input(1 - sum_input)),
+        ("d_wire", root.input(1 - product_input)),
+    ):
+        port.signals[0].name = name
+        port.signals[0].set_param("custom", [name])
+    output = Output(root)
+    output.input(0).signals[0].name = "result_wire"
+    Sink(root, name="root_sink")
+    for source in inputs:
+        Sink(source)
+    graph = SFG(inputs, [output])
+    old_inner, old_product, old_root = (
+        graph.find_by_name(name)[0] for name in ("inner", "product", "root")
+    )
+    rule_name = (
+        "arithmetic.negated_sum_product"
+        if consumer is Addition
+        else "arithmetic.subtract_negated_sum_product"
+    )
+    rules = rule_name if selection == "rule" else selection
+
+    (match,) = graph.find_rewrites(rules, target=old_root)
+    result = graph.transform(rules)
+
+    assert match.rule.name == rule_name
+    assert match.anchor is old_root
+    assert not result.find_by_type(Negation)
+    assert len(result.operations) == len(graph.operations) - 1
+    inner = result.find_by_name("inner")[0]
+    product = result.find_by_id(old_product.graph_id)
+    root = result.find_by_name("root")[0]
+    assert type(inner) is Addition
+    assert type(product) is Multiplication
+    assert type(root) is (Subtraction if consumer is Addition else Addition)
+    assert result.find_by_id(old_inner.graph_id) is None
+    assert result.find_by_id(old_root.graph_id) is None
+    for original, retained in (
+        (old_inner, inner),
+        (old_product, product),
+        (old_root, root),
+    ):
+        assert retained.graph_id.removeprefix(retained.type_name()).isdigit()
+        assert retained.name == original.name
+        assert retained.execution_time == original.execution_time
+        assert retained.output(0).latency_offset == original.output(0).latency_offset
+    assert [port.latency_offset for port in inner.inputs] == [1, 2]
+    assert [port.latency_offset for port in product.inputs] == [
+        old_product.input(sum_input).latency_offset,
+        old_product.input(1 - sum_input).latency_offset,
+    ]
+    assert [port.latency_offset for port in root.inputs] == [
+        old_root.input(1 - product_input).latency_offset,
+        old_root.input(product_input).latency_offset,
+    ]
+    assert inner.input(0).connected_source is result.input_operations[0].output(0)
+    assert inner.input(1).connected_source is result.input_operations[1].output(0)
+    assert product.input(0).connected_source is inner.output(0)
+    assert product.input(1).connected_source is result.input_operations[2].output(0)
+    assert root.input(0).connected_source is result.input_operations[3].output(0)
+    assert root.input(1).connected_source is product.output(0)
+    assert result.output_operations[0].input(0).connected_source is root.output(0)
+    assert result.find_by_name("root_sink")[0].input(0).connected_source is root.output(
+        0
+    )
+    for name in ("a_wire", "b_wire", "c_wire", "d_wire", "result_wire"):
+        assert (
+            result.find_by_name(name)[0].graph_id
+            == graph.find_by_name(name)[0].graph_id
+        )
+        if name != "result_wire":
+            assert result.find_by_name(name)[0].param("custom") == [name]
+    for a, b, c, d in [(2, 3, 7, 11), (-2, 0, 5, 7), (2j, 1 - 2j, 5j, 3)]:
+        expected = d - (a + b) * c if consumer is Addition else d + (a + b) * c
+        assert result.evaluate(a, b, c, d) == pytest.approx(expected)
+        assert result.evaluate(a, b, c, d) == pytest.approx(graph.evaluate(a, b, c, d))
+    assert type(old_inner) is Subtraction
+    assert type(old_root) is consumer
+    assert graph.find_by_type(Negation)
+    assert result.find_rewrites(rules) == []
+
+
+@pytest.mark.parametrize(
+    "rule_name",
+    ["arithmetic.negated_sum_product", "arithmetic.subtract_negated_sum_product"],
+)
+@pytest.mark.parametrize("node", ["negative", "inner", "product"])
+def test_negated_sum_product_rejects_internal_fanout(rule_name, node):
+    rule = get_rewrite(rule_name)
+    graph = rule.pattern
+    Sink(graph.find_by_name(node)[0])
+    graph = SFG(graph.input_operations, graph.output_operations)
+
+    assert graph.find_rewrites(rule) == []
+
+
+@pytest.mark.parametrize(
+    "rule_name",
+    ["arithmetic.negated_sum_product", "arithmetic.subtract_negated_sum_product"],
+)
+@pytest.mark.parametrize("node", ["inner", "root"])
+@pytest.mark.parametrize("parameter", ["in0_scale", "in1_scale", "out0_scale", "mul_j"])
+def test_negated_sum_product_requires_ordinary_arithmetic(rule_name, node, parameter):
+    rule = get_rewrite(rule_name)
+    graph = rule.pattern
+    graph.find_by_name(node)[0].set_param(
+        parameter, True if parameter == "mul_j" else 1
+    )
+
+    assert graph.find_rewrites(rule) == []
+
+
+@pytest.mark.parametrize("wrong_subtraction", ["inner", "root"])
+def test_negated_sum_product_requires_negative_subtraction_input(wrong_subtraction):
+    a, b, c, d = inputs = [Input() for _ in range(4)]
+    terms = (b, Negation(a)) if wrong_subtraction == "inner" else (Negation(a), b)
+    product = Multiplication(Subtraction(*terms), c)
+    terms = (product, d) if wrong_subtraction == "root" else (d, product)
+    graph = SFG(inputs, [Output(Subtraction(*terms))])
+
+    assert graph.find_rewrites("arithmetic.subtract_negated_sum_product") == []
+
+
+@pytest.mark.parametrize(
+    "rule_name",
+    ["arithmetic.negated_sum_product", "arithmetic.subtract_negated_sum_product"],
+)
+def test_negated_sum_product_target_and_scope(rule_name):
+    graph = get_rewrite(rule_name).pattern
+    root = graph.find_by_name("root")[0]
+    members = {
+        graph.find_by_name(name)[0] for name in ("negative", "inner", "product", "root")
+    }
+
+    assert len(graph.find_rewrites(rule_name, target=root, within=members)) == 1
+    assert not graph.find_rewrites(rule_name, target=members - {root})
+    for missing in members:
+        assert not graph.find_rewrites(rule_name, within=members - {missing})
+
+
+@pytest.mark.parametrize("consumer", [Addition, Subtraction])
+@pytest.mark.parametrize("sum_input", [0, 1])
+@pytest.mark.parametrize("form", ["difference", "negative_sum", "sum_of_negatives"])
+def test_negated_sum_product_related_forms_converge(consumer, sum_input, form):
+    a, b, c, d = inputs = [Input() for _ in range(4)]
+    if form == "difference":
+        inner = Subtraction(Negation(a), b)
+    elif form == "negative_sum":
+        inner = Negation(Addition(a, b))
+    else:
+        inner = Addition(Negation(a), Negation(b))
+    factors = (inner, c) if sum_input == 0 else (c, inner)
+    product = Multiplication(*factors)
+    graph = SFG(inputs, [Output(consumer(d, product))])
+
+    result = graph.transform("negations", repeat=True)
+
+    assert not result.find_by_type(Negation)
+    assert len(result.find_by_type(Multiplication)) == 1
+    assert type(result.output_operations[0].input(0).connected_source.operation) is (
+        Subtraction if consumer is Addition else Addition
+    )
+    for values in [(2, 3, 7, 11), (2j, 1 - 2j, 5j, 3)]:
+        assert result.evaluate(*values) == pytest.approx(graph.evaluate(*values))
+    assert result.find_rewrites("negations") == []
+
+
 def shared_negated_product_graph(*, negated_input=0, blocker=None):
     inputs = [Input(name) for name in ("a", "b", "c", "d", "e")]
     negative = Negation(inputs[0], name="negative")
@@ -3304,6 +3490,7 @@ def test_real_complex_multiplier_rewrite(swaps, swap_imag, reverse_outputs, meth
     assert [output.name for output in result.output_operations] == [
         output.name for output in graph.output_operations
     ]
+    rewritten_real = result.find_by_name(original_operations["real"].name)[0]
     for name, original in original_operations.items():
         rewritten = result.find_by_name(original.name)[0]
         assert rewritten.name == name
@@ -3315,6 +3502,9 @@ def test_real_complex_multiplier_rewrite(swaps, swap_imag, reverse_outputs, meth
         assert rewritten.execution_time == original.execution_time
         assert rewritten.output(0).latency_offset == original.output(0).latency_offset
         if name in {"ac", "bd"}:
+            assert rewritten_real.input(0 if name == "ac" else 1).connected_source is (
+                rewritten.output(0)
+            )
             offsets = {
                 port.connected_source.operation.graph_id: port.latency_offset
                 for port in original.inputs

@@ -60,8 +60,8 @@ def test_matrix_inverse_memory_layout_and_values(
         assert type(write) is (MemoryWrite if mem else Output)
         assert read.name == f"A[{row},{col}]"
         assert write.name == f"res[{row},{col}]"
-        assert read.real_valued is bool(row == col)
-        assert write.real_valued is bool(row == col)
+        assert read.real_valued is (data_type == "real" or bool(row == col))
+        assert write.real_valued is (data_type == "real" or bool(row == col))
         if mem:
             assert read.address == write.address == address
             assert read.memory_name == write.memory_name == ""
@@ -142,6 +142,33 @@ def test_matrix_inverse_split_avoids_redundant_products(generator, mode, method)
     assert len(direct.find_by_type(Multiplication)) < len(
         converted.find_by_type(Multiplication)
     )
+
+
+@pytest.mark.parametrize(
+    "generator", [cholesky_matrix_inverse, block_cholesky_matrix_inverse]
+)
+@pytest.mark.parametrize("mode", ["eqs", "mult"])
+@pytest.mark.parametrize("pe", [None, "addsub", "mads"])
+@pytest.mark.parametrize("method", ["three", "threealt"])
+def test_cholesky_two_by_two_uses_real_diagonal_products(generator, mode, pe, method):
+    # Every complex-complex product in this size contributes only a real part.
+    reference = generator(2, mode=mode, pe=pe, data_type="split")
+    graph = generator(
+        2, mode=mode, pe=pe, data_type="split", multiplication_method=method
+    )
+    assert graph.operation_counter() == reference.operation_counter()
+
+
+@pytest.mark.parametrize(("generator", "mode"), _GENERATORS_AND_MODES)
+@pytest.mark.parametrize("mem", [False, True])
+def test_real_matrix_conversion_ignores_all_imaginary_inputs(generator, mode, mem):
+    graph = generator(2, mode=mode, mem=mem, data_type="real").complex_to_real()
+    assert all(operation.real_valued for operation in graph.input_operations)
+    assert all(operation.real_valued for operation in graph.output_operations)
+    actual = graph.evaluate_outputs([4, 23, 1, -17, 3, 11])
+    inverse = np.linalg.inv([[4, 1], [1, 3]])[np.tril_indices(2)]
+    expected = np.column_stack((inverse, np.zeros(3))).ravel()
+    np.testing.assert_allclose(actual, expected, atol=1e-12)
 
 
 @pytest.mark.parametrize(("generator", "mode"), _GENERATORS_AND_MODES)
