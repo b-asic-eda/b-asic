@@ -128,6 +128,14 @@ Rows with ``*`` group rule families with generated variants;
      - ``arithmetic``, ``negations``
      - ``d - ((-a) * b - c)``
      - ``d + (a * b + c)``
+   * - ``arithmetic.negated_sum_product``
+     - ``arithmetic``, ``negations``
+     - ``((-a) - b) * c + d``
+     - ``d - (a + b) * c``
+   * - ``arithmetic.subtract_negated_sum_product``
+     - ``arithmetic``, ``negations``
+     - ``d - ((-a) - b) * c``
+     - ``d + (a + b) * c``
    * - ``arithmetic.double_negation``
      - ``arithmetic``, ``negations``, ``complex``
      - ``-(-a)``
@@ -376,6 +384,17 @@ Their anchor is that consumer, so ``target`` selects the downstream addition
 or subtraction. The multiplier retains its ID. Arithmetic operations that
 change type receive fresh IDs; all three operations retain their names and
 timing through the rules' ``preserve`` mappings.
+
+The ``negated_sum_product`` and ``subtract_negated_sum_product`` rules absorb
+the sign of ``(-a) - b`` through a multiplication into its consumer, replacing
+the inner subtraction with ``a + b``. Multiplication and addition operands may
+be swapped; a subtraction consumer requires the product on its second input.
+The input negation, inner subtraction, and multiplier must have no other
+consumers. Boundary inputs and the final result may have arbitrary fanout.
+The multiplier retains its ID, name, and timing. The changed arithmetic
+operations receive fresh IDs and retain their names and timing.
+With ``repeat=True``, the negation rules also normalize
+``((-a) + (-b)) * c + d`` to ``d - (a + b) * c``.
 
 Select a rule explicitly, for example with
 ``sfg.transform("arithmetic.subtract_negated_product")``.

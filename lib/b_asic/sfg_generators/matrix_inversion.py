@@ -8,8 +8,11 @@ Hermitian input matrices. The default ``data_type="real"`` uses symmetric
 matrices. Cholesky algorithms require positive definite input matrices.
 Scalar inverses use explicit :class:`~b_asic.core_operations.Reciprocal`
 operations marked real-valued: diagonal pivots and Hermitian block determinants
-are real. Diagonal input and output entries are also marked real-valued,
-including memory interfaces.
+are real. Real matrices have real-valued input and output interfaces; Hermitian
+matrices have real-valued diagonal interfaces, including memory interfaces.
+When only the real part of a product is needed, including diagonal inverse
+updates, it is generated directly in split mode regardless of the selected
+complex multiplication method.
 
 When ``mem=True``, the input matrix and its inverse use the same packed
 lower-triangular layout in the default unnamed memory. For zero-based row and
@@ -107,15 +110,20 @@ def ldlt_matrix_inverse(
                         in1=M[j][k],
                         in2=l_conj,
                         do_addsub=True,
+                        real_valued=True,
                     )
                 elif pe == "addsub":
                     D[j] = arithmetic.addsub(
                         is_add=False,
                         in0=D[j],
-                        in1=M[j][k] * l_conj,
+                        in1=arithmetic.multiplication(
+                            M[j][k], l_conj, real_valued=True
+                        ),
                     )
                 else:
-                    D[j] = D[j] - M[j][k] * l_conj
+                    D[j] = D[j] - arithmetic.multiplication(
+                        M[j][k], l_conj, real_valued=True
+                    )
 
             D_inv[j] = arithmetic.reciprocal(D[j], name=f"D_inv[{j}]", real_valued=True)
 
@@ -220,17 +228,22 @@ def ldlt_matrix_inverse(
                             in1=t0,
                             in2=L_inv[k][j],
                             do_addsub=True,
+                            real_valued=i == j,
                         )
                     elif pe == "addsub":
                         t0 = l_inv_conj * D_inv[k]
                         res[i][j] = arithmetic.addsub(
                             is_add=True,
                             in0=res[i][j],
-                            in1=t0 * L_inv[k][j],
+                            in1=arithmetic.multiplication(
+                                t0, L_inv[k][j], real_valued=i == j
+                            ),
                         )
                     else:
                         t0 = l_inv_conj * D_inv[k]
-                        res[i][j] = res[i][j] + t0 * L_inv[k][j]
+                        res[i][j] = res[i][j] + arithmetic.multiplication(
+                            t0, L_inv[k][j], real_valued=i == j
+                        )
 
         return res
 
@@ -254,15 +267,20 @@ def ldlt_matrix_inverse(
                                 in1=l_conj,
                                 in2=res[k][i],
                                 do_addsub=True,
+                                real_valued=True,
                             )
                         elif pe == "addsub":
                             val = arithmetic.addsub(
                                 is_add=False,
                                 in0=val,
-                                in1=l_conj * res[k][i],
+                                in1=arithmetic.multiplication(
+                                    l_conj, res[k][i], real_valued=True
+                                ),
                             )
                         else:
-                            val = val - l_conj * res[k][i]
+                            val = val - arithmetic.multiplication(
+                                l_conj, res[k][i], real_valued=True
+                            )
                 else:
                     for k in range(n - 1, j, -1):
                         res_ik = arithmetic.matrix_entry(res, i, k)
@@ -399,11 +417,20 @@ def cholesky_matrix_inverse(
                         in1=L[j][k],
                         in2=l_conj,
                         do_addsub=True,
+                        real_valued=True,
                     )
                 elif pe == "addsub":
-                    acc = arithmetic.addsub(is_add=False, in0=acc, in1=L[j][k] * l_conj)
+                    acc = arithmetic.addsub(
+                        is_add=False,
+                        in0=acc,
+                        in1=arithmetic.multiplication(
+                            L[j][k], l_conj, real_valued=True
+                        ),
+                    )
                 else:
-                    acc = acc - L[j][k] * l_conj
+                    acc = acc - arithmetic.multiplication(
+                        L[j][k], l_conj, real_valued=True
+                    )
 
             L_inv[j][j] = arithmetic.reciprocal_square_root(acc, real_valued=True)
 
@@ -566,13 +593,20 @@ def cholesky_matrix_inverse(
                                 in1=l_conj,
                                 in2=res[k][i],
                                 do_addsub=True,
+                                real_valued=True,
                             )
                         elif pe == "addsub":
                             acc = arithmetic.addsub(
-                                is_add=False, in0=acc, in1=l_conj * res[k][i]
+                                is_add=False,
+                                in0=acc,
+                                in1=arithmetic.multiplication(
+                                    l_conj, res[k][i], real_valued=True
+                                ),
                             )
                         else:
-                            acc = acc - l_conj * res[k][i]
+                            acc = acc - arithmetic.multiplication(
+                                l_conj, res[k][i], real_valued=True
+                            )
                     if pe == "mads":
                         acc = arithmetic.mads(
                             is_add=True,
@@ -580,11 +614,16 @@ def cholesky_matrix_inverse(
                             in1=acc,
                             in2=L_inv[i][i],
                             do_addsub=False,
+                            real_valued=True,
                         )
                     elif pe == "addsub":
-                        acc = arithmetic.multiplication(acc, L_inv[i][i])
+                        acc = arithmetic.multiplication(
+                            acc, L_inv[i][i], real_valued=True
+                        )
                     else:
-                        acc = acc * L_inv[i][i]
+                        acc = arithmetic.multiplication(
+                            acc, L_inv[i][i], real_valued=True
+                        )
                 else:
                     res_last = arithmetic.matrix_entry(res, i, n - 1)
                     if pe == "mads":
@@ -624,7 +663,7 @@ def cholesky_matrix_inverse(
                         for k in range(n - 2, j, -1):
                             acc = acc - L[k][j] * arithmetic.matrix_entry(res, i, k)
                         acc = acc * L_inv[j][j]
-                res[i][j] = acc
+                res[i][j] = arithmetic.real(acc) if i == j else acc
 
         return res
 
@@ -778,6 +817,7 @@ def block_ldlt_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
+                                real_valued=lower_triangular and r == c,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = arithmetic.mads(
@@ -786,6 +826,7 @@ def block_ldlt_matrix_inverse(
                                     in1=xv1,
                                     in2=xv2,
                                     do_addsub=True,
+                                    real_valued=lower_triangular and r == c,
                                 )
                         else:
                             acc = arithmetic.mads(
@@ -794,6 +835,7 @@ def block_ldlt_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
+                                real_valued=lower_triangular and r == c,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = arithmetic.mads(
@@ -802,6 +844,7 @@ def block_ldlt_matrix_inverse(
                                     in1=xv1,
                                     in2=xv2,
                                     do_addsub=True,
+                                    real_valued=lower_triangular and r == c,
                                 )
                     else:
                         if acc_block[r][c] is not None:
@@ -811,6 +854,7 @@ def block_ldlt_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=True,
+                                real_valued=lower_triangular and r == c,
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
@@ -820,11 +864,19 @@ def block_ldlt_matrix_inverse(
                                 in1=xv1,
                                 in2=xv2,
                                 do_addsub=True,
+                                real_valued=lower_triangular and r == c,
                             )
                 else:
-                    acc = v1[0] * v2[0]
+                    acc = arithmetic.multiplication(
+                        v1[0], v2[0], real_valued=lower_triangular and r == c
+                    )
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                        acc = _add_nodes(acc, xv1 * xv2)
+                        acc = _add_nodes(
+                            acc,
+                            arithmetic.multiplication(
+                                xv1, xv2, real_valued=lower_triangular and r == c
+                            ),
+                        )
                     if acc_block is not None:
                         if acc_block[r][c] is not None:
                             acc = (
@@ -1186,6 +1238,7 @@ def block_cholesky_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
+                                real_valued=lower_triangular and r == c,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = arithmetic.mads(
@@ -1194,6 +1247,7 @@ def block_cholesky_matrix_inverse(
                                     in1=xv1,
                                     in2=xv2,
                                     do_addsub=True,
+                                    real_valued=lower_triangular and r == c,
                                 )
                         else:
                             acc = arithmetic.mads(
@@ -1202,6 +1256,7 @@ def block_cholesky_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
+                                real_valued=lower_triangular and r == c,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = arithmetic.mads(
@@ -1210,6 +1265,7 @@ def block_cholesky_matrix_inverse(
                                     in1=xv1,
                                     in2=xv2,
                                     do_addsub=True,
+                                    real_valued=lower_triangular and r == c,
                                 )
                     else:
                         if acc_block[r][c] is not None:
@@ -1219,6 +1275,7 @@ def block_cholesky_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=True,
+                                real_valued=lower_triangular and r == c,
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
@@ -1228,11 +1285,19 @@ def block_cholesky_matrix_inverse(
                                 in1=xv1,
                                 in2=xv2,
                                 do_addsub=True,
+                                real_valued=lower_triangular and r == c,
                             )
                 else:
-                    acc = v1[0] * v2[0]
+                    acc = arithmetic.multiplication(
+                        v1[0], v2[0], real_valued=lower_triangular and r == c
+                    )
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                        acc = _add_nodes(acc, xv1 * xv2)
+                        acc = _add_nodes(
+                            acc,
+                            arithmetic.multiplication(
+                                xv1, xv2, real_valued=lower_triangular and r == c
+                            ),
+                        )
                     if acc_block is not None:
                         if acc_block[r][c] is not None:
                             acc = (
@@ -1530,19 +1595,17 @@ def tile_ldlt_matrix_inverse(
             return arithmetic.addsub(False, a, b)
         return a - b
 
-    def _mul_nodes(a, b):
+    def _mul_nodes(a, b, *, real_valued=False):
         if pe == "mads":
-            # Pure multiplication. Do NOT rely on is_add when do_addsub=False.
             return arithmetic.mads(
                 is_add=True,
                 in0=None,
                 in1=a,
                 in2=b,
                 do_addsub=False,
+                real_valued=real_valued,
             )
-        if pe == "addsub":
-            return arithmetic.multiplication(a, b)
-        return a * b
+        return arithmetic.multiplication(a, b, real_valued=real_valued)
 
     def _mac_tiles(
         is_add: bool,
@@ -1571,7 +1634,9 @@ def tile_ldlt_matrix_inverse(
                 if pe == "mads":
                     # First build the dot product positively.
                     if acc_tile is None or acc_tile[r][c] is None:
-                        acc = _mul_nodes(v1[0], v2[0])
+                        acc = _mul_nodes(
+                            v1[0], v2[0], real_valued=lower_triangular and r == c
+                        )
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                             acc = arithmetic.mads(
                                 is_add=True,
@@ -1579,6 +1644,7 @@ def tile_ldlt_matrix_inverse(
                                 in1=xv1,
                                 in2=xv2,
                                 do_addsub=True,
+                                real_valued=lower_triangular and r == c,
                             )
                     else:
                         acc = arithmetic.mads(
@@ -1587,6 +1653,7 @@ def tile_ldlt_matrix_inverse(
                             in1=v1[0],
                             in2=v2[0],
                             do_addsub=True,
+                            real_valued=lower_triangular and r == c,
                         )
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                             acc = arithmetic.mads(
@@ -1595,12 +1662,20 @@ def tile_ldlt_matrix_inverse(
                                 in1=xv1,
                                 in2=xv2,
                                 do_addsub=True,
+                                real_valued=lower_triangular and r == c,
                             )
 
                 elif pe == "addsub":
-                    acc = v1[0] * v2[0]
+                    acc = arithmetic.multiplication(
+                        v1[0], v2[0], real_valued=lower_triangular and r == c
+                    )
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                        acc = _add_nodes(acc, xv1 * xv2)
+                        acc = _add_nodes(
+                            acc,
+                            arithmetic.multiplication(
+                                xv1, xv2, real_valued=lower_triangular and r == c
+                            ),
+                        )
 
                     if acc_tile is not None and acc_tile[r][c] is not None:
                         acc = arithmetic.addsub(
@@ -1609,9 +1684,13 @@ def tile_ldlt_matrix_inverse(
                             in1=acc,
                         )
                 else:
-                    acc = v1[0] * v2[0]
+                    acc = arithmetic.multiplication(
+                        v1[0], v2[0], real_valued=lower_triangular and r == c
+                    )
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                        acc = acc + xv1 * xv2
+                        acc = acc + arithmetic.multiplication(
+                            xv1, xv2, real_valued=lower_triangular and r == c
+                        )
 
                     if acc_tile is not None and acc_tile[r][c] is not None:
                         acc = acc_tile[r][c] + acc if is_add else acc_tile[r][c] - acc
@@ -1680,14 +1759,23 @@ def tile_ldlt_matrix_inverse(
 
         if pe == "mads":
             D11 = arithmetic.mads(
-                is_add=False, in0=A_kk[1][1], in1=L10, in2=offdiag_conj, do_addsub=True
+                is_add=False,
+                in0=A_kk[1][1],
+                in1=L10,
+                in2=offdiag_conj,
+                do_addsub=True,
+                real_valued=True,
             )
         elif pe == "addsub":
             D11 = arithmetic.addsub(
-                is_add=False, in0=A_kk[1][1], in1=L10 * offdiag_conj
+                is_add=False,
+                in0=A_kk[1][1],
+                in1=arithmetic.multiplication(L10, offdiag_conj, real_valued=True),
             )
         else:
-            D11 = A_kk[1][1] - L10 * offdiag_conj
+            D11 = A_kk[1][1] - arithmetic.multiplication(
+                L10, offdiag_conj, real_valued=True
+            )
 
         D11 = arithmetic.real(D11)
         D_inv11 = arithmetic.reciprocal(D11, real_valued=True)
@@ -1793,10 +1881,16 @@ def tile_ldlt_matrix_inverse(
                             in1=t0,
                             in2=L_inv[k][j],
                             do_addsub=True,
+                            real_valued=i == j,
                         )
                     else:
                         t0 = l_inv_conj * D_inv[k]
-                        res[i][j] = _add_nodes(res[i][j], t0 * L_inv[k][j])
+                        res[i][j] = _add_nodes(
+                            res[i][j],
+                            arithmetic.multiplication(
+                                t0, L_inv[k][j], real_valued=i == j
+                            ),
+                        )
 
     else:  # mode == "eqs"
         for s in range(2 * (N - 1), -1, -1):
@@ -1815,9 +1909,15 @@ def tile_ldlt_matrix_inverse(
                                 in1=l_conj,
                                 in2=res[k][i],
                                 do_addsub=True,
+                                real_valued=True,
                             )
                         else:
-                            val = _sub_nodes(val, l_conj * res[k][i])
+                            val = _sub_nodes(
+                                val,
+                                arithmetic.multiplication(
+                                    l_conj, res[k][i], real_valued=True
+                                ),
+                            )
                 elif j == i - 1 and i % 2 == 1:
                     if pe == "mads":
                         val = _mul_nodes(D_inv[i], L_inv[i][j])
@@ -1988,6 +2088,7 @@ def analytical_block_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
+                                real_valued=lower_triangular and r == c,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = arithmetic.mads(
@@ -1996,6 +2097,7 @@ def analytical_block_matrix_inverse(
                                     in1=xv1,
                                     in2=xv2,
                                     do_addsub=True,
+                                    real_valued=lower_triangular and r == c,
                                 )
                         else:
                             acc = arithmetic.mads(
@@ -2004,6 +2106,7 @@ def analytical_block_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
+                                real_valued=lower_triangular and r == c,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
                                 acc = arithmetic.mads(
@@ -2012,6 +2115,7 @@ def analytical_block_matrix_inverse(
                                     in1=xv1,
                                     in2=xv2,
                                     do_addsub=True,
+                                    real_valued=lower_triangular and r == c,
                                 )
                     else:
                         if acc_block[r][c] is not None:
@@ -2021,6 +2125,7 @@ def analytical_block_matrix_inverse(
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=True,
+                                real_valued=lower_triangular and r == c,
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
@@ -2030,11 +2135,19 @@ def analytical_block_matrix_inverse(
                                 in1=xv1,
                                 in2=xv2,
                                 do_addsub=True,
+                                real_valued=lower_triangular and r == c,
                             )
                 else:
-                    acc = v1[0] * v2[0]
+                    acc = arithmetic.multiplication(
+                        v1[0], v2[0], real_valued=lower_triangular and r == c
+                    )
                     for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                        acc = _add_nodes(acc, xv1 * xv2)
+                        acc = _add_nodes(
+                            acc,
+                            arithmetic.multiplication(
+                                xv1, xv2, real_valued=lower_triangular and r == c
+                            ),
+                        )
                     if acc_block is not None:
                         if acc_block[r][c] is not None:
                             acc = (
