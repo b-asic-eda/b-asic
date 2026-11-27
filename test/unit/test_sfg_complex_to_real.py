@@ -656,16 +656,16 @@ def test_split_join_cancellation_respects_ports_and_real_fanout(swap):
 @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
 @pytest.mark.parametrize("mode", ["eqs", "mult"])
 @pytest.mark.parametrize("split_io", [True, False])
-@pytest.mark.parametrize("cmplx", [False, True])
-def test_cholesky_inverse_conversion(generator, method, pe, mode, split_io, cmplx):
-    graph = generator(N=4, mode=mode, pe=pe, mem=not split_io, cmplx=cmplx)
+@pytest.mark.parametrize("data_type", ["real", "complex"])
+def test_cholesky_inverse_conversion(generator, method, pe, mode, split_io, data_type):
+    graph = generator(N=4, mode=mode, pe=pe, mem=not split_io, data_type=data_type)
     roots = graph.find_by_type(ReciprocalSquareRoot)
     assert len(roots) == 4
     assert all(op.real_valued for op in roots)
     converted = graph.complex_to_real(multiplication_method=method, split_io=split_io)
     rng = np.random.default_rng(42)
     factor = rng.normal(size=(4, 4))
-    if cmplx:
+    if data_type == "complex":
         factor = factor + 1j * rng.normal(size=(4, 4))
     matrix = factor @ factor.conj().T + np.eye(4)
     lower = np.tril_indices(4)
@@ -683,7 +683,9 @@ def test_cholesky_inverse_conversion(generator, method, pe, mode, split_io, cmpl
 @pytest.mark.parametrize("mode", ["eqs", "mult"])
 @pytest.mark.parametrize("split_io", [True, False])
 def test_ldlt_inverse_conversion_keeps_real_reciprocals(pe, mode, split_io):
-    graph = ldlt_matrix_inverse(N=3, mode=mode, pe=pe, cmplx=True, mem=not split_io)
+    graph = ldlt_matrix_inverse(
+        N=3, mode=mode, pe=pe, data_type="complex", mem=not split_io
+    )
     reciprocals = graph.find_by_type(Reciprocal)
     assert len(reciprocals) == 3
     assert all(op.real_valued is True for op in reciprocals)

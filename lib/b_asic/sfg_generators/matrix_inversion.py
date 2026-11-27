@@ -3,7 +3,8 @@ B-ASIC signal flow graph generators.
 
 This module contains a number of functions generating SFGs for matrix inversion.
 
-With ``cmplx=True``, the generators use complex conjugates for Hermitian input
+With ``data_type="complex"`` or ``data_type="split"``, the generators invert
+Hermitian input matrices. The default ``data_type="real"`` uses symmetric
 matrices. Cholesky algorithms require positive definite input matrices.
 Scalar inverses use explicit :class:`~b_asic.core_operations.Reciprocal`
 operations marked real-valued: diagonal pivots and Hermitian block determinants
@@ -16,63 +17,21 @@ column indices :math:`i \ge j`, the address is :math:`\frac{i(i+1)}{2} + j`. Thu
 0, 1, 2, 3, 4, 5 correspond to entries (0, 0), (1, 0), (1, 1), (2, 0), (2, 1),
 (2, 2), respectively. Each matrix occupies :math:`\frac{N(N+1)}{2}` locations;
 upper-triangular entries follow by symmetry, or conjugate symmetry when
-``cmplx=True``. Block and tile algorithms use this same external layout regardless
-of their internal partitioning.
+``data_type="complex"`` or ``data_type="split"``. Split graphs store each real
+component at twice the packed address and its imaginary component at the next
+address, occupying :math:`N(N+1)` real locations. Block and tile algorithms use
+this same external layout regardless of their internal partitioning.
+
+For example, generate a Hermitian inverse directly in real arithmetic with
+three real multiplications per general complex product using::
+
+    sfg = ldlt_matrix_inverse(4, data_type="split", multiplication_method="three")
 """
 
 from typing import Literal
 
-from b_asic.core_operations import (
-    MADS,
-    AddSub,
-    ComplexConjugate,
-    Multiplication,
-    Name,
-    Negation,
-    Reciprocal,
-    ReciprocalSquareRoot,
-)
-from b_asic.port import SignalSourceProvider
 from b_asic.sfg import SFG
-from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
-from b_asic.utility_operations import DontCare
-
-
-def _conjugate(value: SignalSourceProvider, cmplx: bool) -> SignalSourceProvider:
-    """Conjugate a signal when generating a complex matrix inverse."""
-    return ComplexConjugate(value) if cmplx else value
-
-
-def _matrix_entry(matrix, row: int, col: int, cmplx: bool) -> SignalSourceProvider:
-    """Read a symmetric or Hermitian entry from a lower-triangular matrix."""
-    if row >= col:
-        return matrix[row][col]
-    return _conjugate(matrix[col][row], cmplx)
-
-
-def _matrix_input(row: int, col: int, mem: bool) -> Input:
-    """Create an input for a packed lower-triangular matrix entry."""
-    name = f"A[{row},{col}]"
-    if mem:
-        return MemoryRead(
-            address=row * (row + 1) // 2 + col, name=name, real_valued=row == col
-        )
-    return Input(name=name, real_valued=row == col)
-
-
-def _matrix_output(
-    row: int, col: int, value: SignalSourceProvider, mem: bool
-) -> Output:
-    """Create an output for a packed lower-triangular inverse entry."""
-    name = f"res[{row},{col}]"
-    if mem:
-        return MemoryWrite(
-            address=row * (row + 1) // 2 + col,
-            in0=value,
-            name=name,
-            real_valued=row == col,
-        )
-    return Output(value, name=name, real_valued=row == col)
+from b_asic.sfg_generators._matrix_arithmetic import _MatrixArithmetic
 
 
 def ldlt_matrix_inverse(
@@ -81,7 +40,8 @@ def ldlt_matrix_inverse(
     mode: Literal["eqs", "mult"] = "eqs",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
-    cmplx: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
 ) -> SFG:
     r"""
     Generate an SFG for the LDLT matrix inverse algorithm.
@@ -104,15 +64,28 @@ def ldlt_matrix_inverse(
         use packed lower-triangular row order in the default unnamed memory:
         entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
         Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
-    cmplx : bool, default: False
-        Add complex conjugates for Hermitian input matrices, using an
-        :math:`LDL^H` factorization instead of :math:`LDL^T`.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Generate scalar real arithmetic for symmetric matrices, native complex
+        arithmetic for Hermitian matrices, or real arithmetic with separate
+        real and imaginary components for Hermitian matrices. Split interfaces
+        are ordered ``real0, imag0, real1, imag1, ...``. Diagonal imaginary inputs
+        are unused and diagonal imaginary outputs are zero. With ``mem=True``,
+        components of packed entry address ``p`` use addresses ``2*p`` and
+        ``2*p + 1`` in the same memory.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Complex product implementation for ``data_type="split"``, matching
+        :meth:`~b_asic.sfg.SFG.complex_to_real` and :meth:`~b_asic.sfg.SFG.transform`.
+        General complex products use four real multiplications or three with
+        extra additions. Real-real and real-complex products use only one and
+        two real multiplications, respectively, regardless of this setting.
+        Conjugate self-products use two squares and produce a real result.
 
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     if name is None:
         name = "LDLT matrix-inversion"
 
@@ -126,9 +99,9 @@ def ldlt_matrix_inverse(
         for j in range(N_local):
             D[j] = A[j][j]
             for k in range(j):
-                l_conj = _conjugate(L[j][k], cmplx)
+                l_conj = arithmetic.conjugate(L[j][k])
                 if pe == "mads":
-                    D[j] = MADS(
+                    D[j] = arithmetic.mads(
                         is_add=False,
                         in0=D[j],
                         in1=M[j][k],
@@ -136,7 +109,7 @@ def ldlt_matrix_inverse(
                         do_addsub=True,
                     )
                 elif pe == "addsub":
-                    D[j] = AddSub(
+                    D[j] = arithmetic.addsub(
                         is_add=False,
                         in0=D[j],
                         in1=M[j][k] * l_conj,
@@ -144,14 +117,14 @@ def ldlt_matrix_inverse(
                 else:
                     D[j] = D[j] - M[j][k] * l_conj
 
-            D_inv[j] = Reciprocal(D[j], name=f"D_inv[{j}]", real_valued=True)
+            D_inv[j] = arithmetic.reciprocal(D[j], name=f"D_inv[{j}]", real_valued=True)
 
             for i in range(j + 1, N_local):
                 M[i][j] = A[i][j]
                 for k in range(j):
-                    l_conj = _conjugate(L[j][k], cmplx)
+                    l_conj = arithmetic.conjugate(L[j][k])
                     if pe == "mads":
-                        M[i][j] = MADS(
+                        M[i][j] = arithmetic.mads(
                             is_add=False,
                             in0=M[i][j],
                             in1=M[i][k],
@@ -159,7 +132,7 @@ def ldlt_matrix_inverse(
                             do_addsub=True,
                         )
                     elif pe == "addsub":
-                        M[i][j] = AddSub(
+                        M[i][j] = arithmetic.addsub(
                             is_add=False,
                             in0=M[i][j],
                             in1=M[i][k] * l_conj,
@@ -168,9 +141,9 @@ def ldlt_matrix_inverse(
                         M[i][j] = M[i][j] - M[i][k] * l_conj
 
                 if pe == "mads":
-                    L[i][j] = MADS(
+                    L[i][j] = arithmetic.mads(
                         is_add=True,
-                        in0=DontCare(),
+                        in0=None,
                         in1=M[i][j],
                         in2=D_inv[j],
                         do_addsub=False,
@@ -188,7 +161,7 @@ def ldlt_matrix_inverse(
                 if pe == "mads":
                     acc = L[i][j]
                     for k in range(j + 1, i):
-                        acc = MADS(
+                        acc = arithmetic.mads(
                             is_add=True,
                             in0=acc,
                             in1=L[i][k],
@@ -199,7 +172,7 @@ def ldlt_matrix_inverse(
                 elif pe == "addsub":
                     acc = L[i][j]
                     for k in range(j + 1, i):
-                        acc = AddSub(
+                        acc = arithmetic.addsub(
                             is_add=True,
                             in0=acc,
                             in1=L[i][k] * L_inv[k][j],
@@ -221,9 +194,9 @@ def ldlt_matrix_inverse(
                 if i == j:
                     res[i][j] = D_inv[i]
                 elif pe == "mads":
-                    res[i][j] = MADS(
+                    res[i][j] = arithmetic.mads(
                         is_add=True,
-                        in0=DontCare(),
+                        in0=None,
                         in1=D_inv[i],
                         in2=L_inv[i][j],
                         do_addsub=False,
@@ -232,16 +205,16 @@ def ldlt_matrix_inverse(
                     res[i][j] = D_inv[i] * L_inv[i][j]
 
                 for k in range(i + 1, n):
-                    l_inv_conj = _conjugate(L_inv[k][i], cmplx)
+                    l_inv_conj = arithmetic.conjugate(L_inv[k][i])
                     if pe == "mads":
-                        t0 = MADS(
+                        t0 = arithmetic.mads(
                             is_add=True,
-                            in0=DontCare(),
+                            in0=None,
                             in1=l_inv_conj,
                             in2=D_inv[k],
                             do_addsub=False,
                         )
-                        res[i][j] = MADS(
+                        res[i][j] = arithmetic.mads(
                             is_add=True,
                             in0=res[i][j],
                             in1=t0,
@@ -250,7 +223,7 @@ def ldlt_matrix_inverse(
                         )
                     elif pe == "addsub":
                         t0 = l_inv_conj * D_inv[k]
-                        res[i][j] = AddSub(
+                        res[i][j] = arithmetic.addsub(
                             is_add=True,
                             in0=res[i][j],
                             in1=t0 * L_inv[k][j],
@@ -273,9 +246,9 @@ def ldlt_matrix_inverse(
                 if i == j:
                     val = D_inv[i]
                     for k in range(n - 1, i, -1):
-                        l_conj = _conjugate(L[k][i], cmplx)
+                        l_conj = arithmetic.conjugate(L[k][i])
                         if pe == "mads":
-                            val = MADS(
+                            val = arithmetic.mads(
                                 is_add=False,
                                 in0=val,
                                 in1=l_conj,
@@ -283,7 +256,7 @@ def ldlt_matrix_inverse(
                                 do_addsub=True,
                             )
                         elif pe == "addsub":
-                            val = AddSub(
+                            val = arithmetic.addsub(
                                 is_add=False,
                                 in0=val,
                                 in1=l_conj * res[k][i],
@@ -292,18 +265,18 @@ def ldlt_matrix_inverse(
                             val = val - l_conj * res[k][i]
                 else:
                     for k in range(n - 1, j, -1):
-                        res_ik = _matrix_entry(res, i, k, cmplx)
+                        res_ik = arithmetic.matrix_entry(res, i, k)
                         if pe == "mads":
                             if k == n - 1:
-                                val = MADS(
+                                val = arithmetic.mads(
                                     is_add=False,
-                                    in0=DontCare(),
+                                    in0=None,
                                     in1=L[k][j],
                                     in2=res_ik,
                                     do_addsub=False,
                                 )
                             else:
-                                val = MADS(
+                                val = arithmetic.mads(
                                     is_add=False,
                                     in0=val,
                                     in1=L[k][j],
@@ -314,7 +287,7 @@ def ldlt_matrix_inverse(
                             if k == n - 1:
                                 val = -(L[k][j] * res_ik)
                             else:
-                                val = AddSub(
+                                val = arithmetic.addsub(
                                     is_add=False,
                                     in0=val,
                                     in1=L[k][j] * res_ik,
@@ -324,17 +297,15 @@ def ldlt_matrix_inverse(
                                 val = -L[k][j] * res_ik
                             else:
                                 val = val - L[k][j] * res_ik
-                res[i][j] = val
+                res[i][j] = arithmetic.real(val) if i == j else val
 
         return res
 
-    inputs = []
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = _matrix_input(i, j, mem)
+            in_op = arithmetic.input(i, j, mem)
             A[i][j] = in_op
-            inputs.append(in_op)
 
     L, _, D_inv = ldl_decomposition(A)
 
@@ -342,15 +313,19 @@ def ldlt_matrix_inverse(
         L_inv = ldl_l_inv(L)
         res = ldl_matmul(L_inv, D_inv)
         outputs = [
-            _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
+            arithmetic.output(i, j, res[i][j], mem)
+            for i in range(N)
+            for j in range(i + 1)
         ]
     else:
         res = ldl_eqs(L, D_inv)
         outputs = [
-            _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
+            arithmetic.output(i, j, res[i][j], mem)
+            for i in range(N)
+            for j in range(i + 1)
         ]
 
-    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+    return arithmetic.graph(outputs, name)
 
 
 def cholesky_matrix_inverse(
@@ -359,7 +334,8 @@ def cholesky_matrix_inverse(
     mode: Literal["eqs", "mult"] = "eqs",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
-    cmplx: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
 ) -> SFG:
     r"""
     Generate an SFG for the Cholesky matrix inverse algorithm.
@@ -382,15 +358,28 @@ def cholesky_matrix_inverse(
         use packed lower-triangular row order in the default unnamed memory:
         entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
         Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
-    cmplx : bool, default: False
-        Add complex conjugates for Hermitian positive definite input matrices,
-        using an :math:`LL^H` factorization instead of :math:`LL^T`.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Generate scalar real arithmetic for symmetric matrices, native complex
+        arithmetic for Hermitian matrices, or real arithmetic with separate
+        real and imaginary components for Hermitian matrices. Split interfaces
+        are ordered ``real0, imag0, real1, imag1, ...``. Diagonal imaginary inputs
+        are unused and diagonal imaginary outputs are zero. With ``mem=True``,
+        components of packed entry address ``p`` use addresses ``2*p`` and
+        ``2*p + 1`` in the same memory.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Complex product implementation for ``data_type="split"``, matching
+        :meth:`~b_asic.sfg.SFG.complex_to_real` and :meth:`~b_asic.sfg.SFG.transform`.
+        General complex products use four real multiplications or three with
+        extra additions. Real-real and real-complex products use only one and
+        two real multiplications, respectively, regardless of this setting.
+        Conjugate self-products use two squares and produce a real result.
 
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     if name is None:
         name = "Cholesky matrix-inversion"
 
@@ -402,9 +391,9 @@ def cholesky_matrix_inverse(
         for j in range(N_local):
             acc = A[j][j]
             for k in range(j):
-                l_conj = _conjugate(L[j][k], cmplx)
+                l_conj = arithmetic.conjugate(L[j][k])
                 if pe == "mads":
-                    acc = MADS(
+                    acc = arithmetic.mads(
                         is_add=False,
                         in0=acc,
                         in1=L[j][k],
@@ -412,18 +401,18 @@ def cholesky_matrix_inverse(
                         do_addsub=True,
                     )
                 elif pe == "addsub":
-                    acc = AddSub(is_add=False, in0=acc, in1=L[j][k] * l_conj)
+                    acc = arithmetic.addsub(is_add=False, in0=acc, in1=L[j][k] * l_conj)
                 else:
                     acc = acc - L[j][k] * l_conj
 
-            L_inv[j][j] = ReciprocalSquareRoot(acc, real_valued=True)
+            L_inv[j][j] = arithmetic.reciprocal_square_root(acc, real_valued=True)
 
             for i in range(j + 1, N_local):
                 acc2 = A[i][j]
                 for k in range(j):
-                    l_conj = _conjugate(L[j][k], cmplx)
+                    l_conj = arithmetic.conjugate(L[j][k])
                     if pe == "mads":
-                        acc2 = MADS(
+                        acc2 = arithmetic.mads(
                             is_add=False,
                             in0=acc2,
                             in1=L[i][k],
@@ -431,20 +420,22 @@ def cholesky_matrix_inverse(
                             do_addsub=True,
                         )
                     elif pe == "addsub":
-                        acc2 = AddSub(is_add=False, in0=acc2, in1=L[i][k] * l_conj)
+                        acc2 = arithmetic.addsub(
+                            is_add=False, in0=acc2, in1=L[i][k] * l_conj
+                        )
                     else:
                         acc2 = acc2 - L[i][k] * l_conj
 
                 if pe == "mads":
-                    L[i][j] = MADS(
+                    L[i][j] = arithmetic.mads(
                         is_add=True,
-                        in0=DontCare(),
+                        in0=None,
                         in1=acc2,
                         in2=L_inv[j][j],
                         do_addsub=False,
                     )
                 elif pe == "addsub":
-                    L[i][j] = Multiplication(
+                    L[i][j] = arithmetic.multiplication(
                         acc2,
                         L_inv[j][j],
                     )
@@ -462,24 +453,24 @@ def cholesky_matrix_inverse(
         for i in range(1, N_local):
             for j in range(i):
                 if pe == "mads":
-                    acc = MADS(
+                    acc = arithmetic.mads(
                         is_add=True,
-                        in0=DontCare(),
+                        in0=None,
                         in1=L[i][j],
                         in2=L_inv[j][j],
                         do_addsub=False,
                     )
                     for k in range(j + 1, i):
-                        acc = MADS(
+                        acc = arithmetic.mads(
                             is_add=True,
                             in0=acc,
                             in1=L[i][k],
                             in2=L_inv[k][j],
                             do_addsub=True,
                         )
-                    L_inv[i][j] = MADS(
+                    L_inv[i][j] = arithmetic.mads(
                         is_add=False,
-                        in0=DontCare(),
+                        in0=None,
                         in1=acc,
                         in2=L_inv[i][i],
                         do_addsub=False,
@@ -487,8 +478,10 @@ def cholesky_matrix_inverse(
                 elif pe == "addsub":
                     acc = L[i][j] * L_inv[j][j]
                     for k in range(j + 1, i):
-                        acc = AddSub(is_add=True, in0=acc, in1=L[i][k] * L_inv[k][j])
-                    L_inv[i][j] = Negation(
+                        acc = arithmetic.addsub(
+                            is_add=True, in0=acc, in1=L[i][k] * L_inv[k][j]
+                        )
+                    L_inv[i][j] = arithmetic.negation(
                         acc * L_inv[i][i],
                     )
                 else:
@@ -507,26 +500,26 @@ def cholesky_matrix_inverse(
             for j in range(i, -1, -1):
                 if pe == "mads":
                     if i + 1 == n:
-                        res[i][j] = MADS(
+                        res[i][j] = arithmetic.mads(
                             is_add=True,
-                            in0=DontCare(),
+                            in0=None,
                             in1=L_inv[i][i],
                             in2=L_inv[i][j],
                             do_addsub=False,
                         )
                     else:
-                        acc = MADS(
+                        acc = arithmetic.mads(
                             is_add=True,
-                            in0=DontCare(),
+                            in0=None,
                             in1=L_inv[i][i],
                             in2=L_inv[i][j],
                             do_addsub=False,
                         )
                         for k in range(i + 1, n):
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=True,
                                 in0=acc,
-                                in1=_conjugate(L_inv[k][i], cmplx),
+                                in1=arithmetic.conjugate(L_inv[k][i]),
                                 in2=L_inv[k][j],
                                 do_addsub=True,
                             )
@@ -537,10 +530,10 @@ def cholesky_matrix_inverse(
                     else:
                         acc = L_inv[i][i] * L_inv[i][j]
                         for k in range(i + 1, n):
-                            acc = AddSub(
+                            acc = arithmetic.addsub(
                                 is_add=True,
                                 in0=acc,
-                                in1=_conjugate(L_inv[k][i], cmplx) * L_inv[k][j],
+                                in1=arithmetic.conjugate(L_inv[k][i]) * L_inv[k][j],
                             )
                         res[i][j] = acc
                 else:
@@ -549,7 +542,7 @@ def cholesky_matrix_inverse(
                     else:
                         acc = L_inv[i][i] * L_inv[i][j]
                         for k in range(i + 1, n):
-                            acc = acc + _conjugate(L_inv[k][i], cmplx) * L_inv[k][j]
+                            acc = acc + arithmetic.conjugate(L_inv[k][i]) * L_inv[k][j]
                         res[i][j] = acc
         return res
 
@@ -565,9 +558,9 @@ def cholesky_matrix_inverse(
                 if i == j:
                     acc = L_inv[i][i]
                     for k in range(n - 1, i, -1):
-                        l_conj = _conjugate(L[k][i], cmplx)
+                        l_conj = arithmetic.conjugate(L[k][i])
                         if pe == "mads":
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=False,
                                 in0=acc,
                                 in1=l_conj,
@@ -575,42 +568,44 @@ def cholesky_matrix_inverse(
                                 do_addsub=True,
                             )
                         elif pe == "addsub":
-                            acc = AddSub(is_add=False, in0=acc, in1=l_conj * res[k][i])
+                            acc = arithmetic.addsub(
+                                is_add=False, in0=acc, in1=l_conj * res[k][i]
+                            )
                         else:
                             acc = acc - l_conj * res[k][i]
                     if pe == "mads":
-                        acc = MADS(
+                        acc = arithmetic.mads(
                             is_add=True,
-                            in0=DontCare(),
+                            in0=None,
                             in1=acc,
                             in2=L_inv[i][i],
                             do_addsub=False,
                         )
                     elif pe == "addsub":
-                        acc = Multiplication(acc, L_inv[i][i])
+                        acc = arithmetic.multiplication(acc, L_inv[i][i])
                     else:
                         acc = acc * L_inv[i][i]
                 else:
-                    res_last = _matrix_entry(res, i, n - 1, cmplx)
+                    res_last = arithmetic.matrix_entry(res, i, n - 1)
                     if pe == "mads":
-                        acc = MADS(
+                        acc = arithmetic.mads(
                             is_add=False,
-                            in0=DontCare(),
+                            in0=None,
                             in1=L[n - 1][j],
                             in2=res_last,
                             do_addsub=False,
                         )
                         for k in range(n - 2, j, -1):
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=False,
                                 in0=acc,
                                 in1=L[k][j],
-                                in2=_matrix_entry(res, i, k, cmplx),
+                                in2=arithmetic.matrix_entry(res, i, k),
                                 do_addsub=True,
                             )
-                        acc = MADS(
+                        acc = arithmetic.mads(
                             is_add=True,
-                            in0=DontCare(),
+                            in0=None,
                             in1=acc,
                             in2=L_inv[j][j],
                             do_addsub=False,
@@ -618,28 +613,26 @@ def cholesky_matrix_inverse(
                     elif pe == "addsub":
                         acc = -(L[n - 1][j] * res_last)
                         for k in range(n - 2, j, -1):
-                            acc = AddSub(
+                            acc = arithmetic.addsub(
                                 is_add=False,
                                 in0=acc,
-                                in1=L[k][j] * _matrix_entry(res, i, k, cmplx),
+                                in1=L[k][j] * arithmetic.matrix_entry(res, i, k),
                             )
                         acc = acc * L_inv[j][j]
                     else:
                         acc = -L[n - 1][j] * res_last
                         for k in range(n - 2, j, -1):
-                            acc = acc - L[k][j] * _matrix_entry(res, i, k, cmplx)
+                            acc = acc - L[k][j] * arithmetic.matrix_entry(res, i, k)
                         acc = acc * L_inv[j][j]
                 res[i][j] = acc
 
         return res
 
-    inputs = []
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = _matrix_input(i, j, mem)
+            in_op = arithmetic.input(i, j, mem)
             A[i][j] = in_op
-            inputs.append(in_op)
 
     L, L_inv_diag = chol_decomposition(A)
 
@@ -647,15 +640,19 @@ def cholesky_matrix_inverse(
         L_inv = chol_l_inv(L, L_inv_diag)
         res = chol_matmul(L_inv)
         outputs = [
-            _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
+            arithmetic.output(i, j, res[i][j], mem)
+            for i in range(N)
+            for j in range(i + 1)
         ]
     else:
         res = chol_eqs(L, L_inv_diag)
         outputs = [
-            _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
+            arithmetic.output(i, j, res[i][j], mem)
+            for i in range(N)
+            for j in range(i + 1)
         ]
 
-    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+    return arithmetic.graph(outputs, name)
 
 
 def block_ldlt_matrix_inverse(
@@ -664,7 +661,8 @@ def block_ldlt_matrix_inverse(
     mode: Literal["eqs", "mult"] = "eqs",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
-    cmplx: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
 ) -> SFG:
     r"""
     Generate an SFG for the block LDLT matrix inverse algorithm.
@@ -687,15 +685,28 @@ def block_ldlt_matrix_inverse(
         use packed lower-triangular row order in the default unnamed memory:
         entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
         Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
-    cmplx : bool, default: False
-        Add complex conjugates for Hermitian input matrices, using a block
-        :math:`LDL^H` factorization instead of :math:`LDL^T`.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Generate scalar real arithmetic for symmetric matrices, native complex
+        arithmetic for Hermitian matrices, or real arithmetic with separate
+        real and imaginary components for Hermitian matrices. Split interfaces
+        are ordered ``real0, imag0, real1, imag1, ...``. Diagonal imaginary inputs
+        are unused and diagonal imaginary outputs are zero. With ``mem=True``,
+        components of packed entry address ``p`` use addresses ``2*p`` and
+        ``2*p + 1`` in the same memory.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Complex product implementation for ``data_type="split"``, matching
+        :meth:`~b_asic.sfg.SFG.complex_to_real` and :meth:`~b_asic.sfg.SFG.transform`.
+        General complex products use four real multiplications or three with
+        extra additions. Real-real and real-complex products use only one and
+        two real multiplications, respectively, regardless of this setting.
+        Conjugate self-products use two squares and produce a real result.
 
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     BLOCK_SIZE = 2
     if N % BLOCK_SIZE != 0:
         raise ValueError("Block size needs to be a positive divisor of N.")
@@ -729,38 +740,47 @@ def block_ldlt_matrix_inverse(
                     v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
                 elif mult_mode == "T":
                     v1 = [A_block[r][x] for x in range(BLOCK_SIZE)]
-                    v2 = [_conjugate(B_block[c][x], cmplx) for x in range(BLOCK_SIZE)]
+                    v2 = [
+                        arithmetic.conjugate(B_block[c][x]) for x in range(BLOCK_SIZE)
+                    ]
                 elif mult_mode == "T_blocks":
-                    v1 = [_conjugate(A_block[x][r], cmplx) for x in range(BLOCK_SIZE)]
+                    v1 = [
+                        arithmetic.conjugate(A_block[x][r]) for x in range(BLOCK_SIZE)
+                    ]
                     v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
                 elif mult_mode == "diag_block":
                     v1 = [
-                        _matrix_entry(A_block, r, x, cmplx) for x in range(BLOCK_SIZE)
+                        arithmetic.matrix_entry(A_block, r, x)
+                        for x in range(BLOCK_SIZE)
                     ]
                     v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
                 elif mult_mode == "block_diag":
                     v1 = A_block[r]
                     v2 = [
-                        _matrix_entry(B_block, x, c, cmplx) for x in range(BLOCK_SIZE)
+                        arithmetic.matrix_entry(B_block, x, c)
+                        for x in range(BLOCK_SIZE)
                     ]
                 elif mult_mode == "T_block_diag":
-                    v1 = [_conjugate(A_block[x][r], cmplx) for x in range(BLOCK_SIZE)]
+                    v1 = [
+                        arithmetic.conjugate(A_block[x][r]) for x in range(BLOCK_SIZE)
+                    ]
                     v2 = [
-                        _matrix_entry(B_block, x, c, cmplx) for x in range(BLOCK_SIZE)
+                        arithmetic.matrix_entry(B_block, x, c)
+                        for x in range(BLOCK_SIZE)
                     ]
 
                 if pe == "mads":
                     if acc_block is None:
                         if is_add:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=True,
-                                in0=DontCare(),
+                                in0=None,
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                                acc = MADS(
+                                acc = arithmetic.mads(
                                     is_add=True,
                                     in0=acc,
                                     in1=xv1,
@@ -768,15 +788,15 @@ def block_ldlt_matrix_inverse(
                                     do_addsub=True,
                                 )
                         else:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=False,
-                                in0=DontCare(),
+                                in0=None,
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                                acc = MADS(
+                                acc = arithmetic.mads(
                                     is_add=False,
                                     in0=acc,
                                     in1=xv1,
@@ -785,7 +805,7 @@ def block_ldlt_matrix_inverse(
                                 )
                     else:
                         if acc_block[r][c] is not None:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=is_add,
                                 in0=acc_block[r][c],
                                 in1=v1[0],
@@ -794,7 +814,7 @@ def block_ldlt_matrix_inverse(
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=is_add,
                                 in0=acc,
                                 in1=xv1,
@@ -814,7 +834,7 @@ def block_ldlt_matrix_inverse(
                             )
                     else:
                         acc = acc if is_add else -acc
-                res[r][c] = acc
+                res[r][c] = arithmetic.real(acc) if lower_triangular and r == c else acc
         return res
 
     def _copy_block(A_block):
@@ -829,12 +849,12 @@ def block_ldlt_matrix_inverse(
 
     def _add_nodes(a, b):
         if pe == "addsub":
-            return AddSub(True, a, b)
+            return arithmetic.addsub(True, a, b)
         return a + b
 
     def _sub_nodes(a, b):
         if pe == "addsub":
-            return AddSub(False, a, b)
+            return arithmetic.addsub(False, a, b)
         return a - b
 
     def _neg_block(A_block):
@@ -842,59 +862,57 @@ def block_ldlt_matrix_inverse(
 
     def _inv_2x2_symmetric(d_val):
         res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
-        offdiag_conj = _conjugate(d_val[1][0], cmplx)
+        offdiag_conj = arithmetic.conjugate(d_val[1][0])
         if pe == "mads":
-            tmp = MADS(
+            tmp = arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=d_val[0][0],
                 in2=d_val[1][1],
                 do_addsub=False,
             )
-            det = MADS(
+            det = arithmetic.mads(
                 is_add=False,
                 in0=tmp,
                 in1=d_val[1][0],
                 in2=offdiag_conj,
                 do_addsub=True,
             )
-            inv_det = Reciprocal(det, real_valued=True)
-            res[0][0] = MADS(
+            inv_det = arithmetic.reciprocal(det, real_valued=True)
+            res[0][0] = arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=d_val[1][1],
                 in2=inv_det,
                 do_addsub=False,
             )
-            res[1][0] = MADS(
+            res[1][0] = arithmetic.mads(
                 is_add=False,
-                in0=DontCare(),
+                in0=None,
                 in1=d_val[1][0],
                 in2=inv_det,
                 do_addsub=False,
             )
-            res[1][1] = MADS(
+            res[1][1] = arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=d_val[0][0],
                 in2=inv_det,
                 do_addsub=False,
             )
         else:
             det = _sub_nodes(d_val[0][0] * d_val[1][1], d_val[1][0] * offdiag_conj)
-            inv_det = Reciprocal(det, real_valued=True)
+            inv_det = arithmetic.reciprocal(det, real_valued=True)
             res[0][0] = d_val[1][1] * inv_det
             res[1][0] = -d_val[1][0] * inv_det
             res[1][1] = d_val[0][0] * inv_det
         return res
 
-    inputs = []
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = _matrix_input(i, j, mem)
+            in_op = arithmetic.input(i, j, mem)
             A[i][j] = in_op
-            inputs.append(in_op)
 
     L = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
     D_inv = [None for _ in range(N_blocks)]
@@ -911,7 +929,7 @@ def block_ldlt_matrix_inverse(
                     if row >= col:
                         block[r][c] = A[row][col]
                     else:
-                        block[r][c] = _conjugate(A[col][row], cmplx)
+                        block[r][c] = arithmetic.conjugate(A[col][row])
             A_blk[i][j] = block
 
     for j in range(N_blocks):
@@ -1011,18 +1029,18 @@ def block_ldlt_matrix_inverse(
                         val = res_blk[i][j][r][c]
                         row = i * BLOCK_SIZE + r
                         col = j * BLOCK_SIZE + c
-                        res[row][col] = _matrix_output(row, col, val, mem)
+                        res[row][col] = arithmetic.output(row, col, val, mem)
             else:
                 for r in range(BLOCK_SIZE):
                     for c in range(BLOCK_SIZE):
                         val = res_blk[i][j][r][c]
                         row = i * BLOCK_SIZE + r
                         col = j * BLOCK_SIZE + c
-                        res[row][col] = _matrix_output(row, col, val, mem)
+                        res[row][col] = arithmetic.output(row, col, val, mem)
 
     outputs = [res[i][j] for i in range(N) for j in range(i + 1)]
 
-    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+    return arithmetic.graph(outputs, name)
 
 
 def block_cholesky_matrix_inverse(
@@ -1031,7 +1049,8 @@ def block_cholesky_matrix_inverse(
     mode: Literal["eqs", "mult"] = "eqs",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
-    cmplx: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
 ) -> SFG:
     r"""
     Generate an SFG for the block Cholesky matrix inverse algorithm.
@@ -1054,15 +1073,28 @@ def block_cholesky_matrix_inverse(
         use packed lower-triangular row order in the default unnamed memory:
         entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
         Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
-    cmplx : bool, default: False
-        Add complex conjugates for Hermitian positive definite input matrices,
-        using a block :math:`LL^H` factorization instead of :math:`LL^T`.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Generate scalar real arithmetic for symmetric matrices, native complex
+        arithmetic for Hermitian matrices, or real arithmetic with separate
+        real and imaginary components for Hermitian matrices. Split interfaces
+        are ordered ``real0, imag0, real1, imag1, ...``. Diagonal imaginary inputs
+        are unused and diagonal imaginary outputs are zero. With ``mem=True``,
+        components of packed entry address ``p`` use addresses ``2*p`` and
+        ``2*p + 1`` in the same memory.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Complex product implementation for ``data_type="split"``, matching
+        :meth:`~b_asic.sfg.SFG.complex_to_real` and :meth:`~b_asic.sfg.SFG.transform`.
+        General complex products use four real multiplications or three with
+        extra additions. Real-real and real-complex products use only one and
+        two real multiplications, respectively, regardless of this setting.
+        Conjugate self-products use two squares and produce a real result.
 
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     BLOCK_SIZE = 2
     if N % BLOCK_SIZE != 0:
         raise ValueError("Block size needs to be a positive divisor of N.")
@@ -1081,12 +1113,12 @@ def block_cholesky_matrix_inverse(
 
     def _add_nodes(a, b):
         if pe == "addsub":
-            return AddSub(True, a, b)
+            return arithmetic.addsub(True, a, b)
         return a + b
 
     def _sub_nodes(a, b):
         if pe == "addsub":
-            return AddSub(False, a, b)
+            return arithmetic.addsub(False, a, b)
         return a - b
 
     def _mac_blocks(
@@ -1108,49 +1140,55 @@ def block_cholesky_matrix_inverse(
                     v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
                 elif mult_mode == "T":
                     v1 = [A_block[r][x] for x in range(BLOCK_SIZE)]
-                    v2 = [_conjugate(B_block[c][x], cmplx) for x in range(BLOCK_SIZE)]
+                    v2 = [
+                        arithmetic.conjugate(B_block[c][x]) for x in range(BLOCK_SIZE)
+                    ]
                 elif mult_mode == "T_blocks":
-                    v1 = [_conjugate(A_block[x][r], cmplx) for x in range(BLOCK_SIZE)]
+                    v1 = [
+                        arithmetic.conjugate(A_block[x][r]) for x in range(BLOCK_SIZE)
+                    ]
                     v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
                 elif mult_mode == "block_tri":
                     v1 = [A_block[r][x] for x in range(c, BLOCK_SIZE)]
                     v2 = [B_block[x][c] for x in range(c, BLOCK_SIZE)]
                 elif mult_mode == "block_tri_T":
                     v1 = [A_block[r][x] for x in range(c + 1)]
-                    v2 = [_conjugate(B_block[c][x], cmplx) for x in range(c + 1)]
+                    v2 = [arithmetic.conjugate(B_block[c][x]) for x in range(c + 1)]
                 elif mult_mode == "tri_block":
                     v1 = [A_block[r][x] for x in range(r + 1)]
                     v2 = [B_block[x][c] for x in range(r + 1)]
                 elif mult_mode == "tri_T_block":
                     v1 = [
-                        _conjugate(A_block[x][r], cmplx) for x in range(r, BLOCK_SIZE)
+                        arithmetic.conjugate(A_block[x][r])
+                        for x in range(r, BLOCK_SIZE)
                     ]
                     v2 = [B_block[x][c] for x in range(r, BLOCK_SIZE)]
                 elif mult_mode == "tri_T_tri":
                     start = max(r, c)
                     v1 = [
-                        _conjugate(A_block[x][r], cmplx)
+                        arithmetic.conjugate(A_block[x][r])
                         for x in range(start, BLOCK_SIZE)
                     ]
                     v2 = [B_block[x][c] for x in range(start, BLOCK_SIZE)]
                 elif mult_mode == "diag_block":
                     v1 = [
-                        _matrix_entry(A_block, r, x, cmplx) for x in range(BLOCK_SIZE)
+                        arithmetic.matrix_entry(A_block, r, x)
+                        for x in range(BLOCK_SIZE)
                     ]
                     v2 = [B_block[x][c] for x in range(BLOCK_SIZE)]
 
                 if pe == "mads":
                     if acc_block is None:
                         if is_add:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=True,
-                                in0=DontCare(),
+                                in0=None,
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                                acc = MADS(
+                                acc = arithmetic.mads(
                                     is_add=True,
                                     in0=acc,
                                     in1=xv1,
@@ -1158,15 +1196,15 @@ def block_cholesky_matrix_inverse(
                                     do_addsub=True,
                                 )
                         else:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=False,
-                                in0=DontCare(),
+                                in0=None,
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                                acc = MADS(
+                                acc = arithmetic.mads(
                                     is_add=False,
                                     in0=acc,
                                     in1=xv1,
@@ -1175,7 +1213,7 @@ def block_cholesky_matrix_inverse(
                                 )
                     else:
                         if acc_block[r][c] is not None:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=is_add,
                                 in0=acc_block[r][c],
                                 in1=v1[0],
@@ -1184,7 +1222,7 @@ def block_cholesky_matrix_inverse(
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=is_add,
                                 in0=acc,
                                 in1=xv1,
@@ -1204,7 +1242,7 @@ def block_cholesky_matrix_inverse(
                             )
                     else:
                         acc = acc if is_add else -acc
-                res[r][c] = acc
+                res[r][c] = arithmetic.real(acc) if lower_triangular and r == c else acc
         return res
 
     def _copy_block(A_block):
@@ -1219,63 +1257,67 @@ def block_cholesky_matrix_inverse(
 
     def _chol_inv_2x2(acc):
         res = [[None for _ in range(BLOCK_SIZE)] for _ in range(BLOCK_SIZE)]
-        inv_L00 = ReciprocalSquareRoot(acc[0][0], real_valued=True)
+        inv_L00 = arithmetic.reciprocal_square_root(acc[0][0], real_valued=True)
         if pe == "mads":
-            L10 = MADS(
+            L10 = arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=acc[1][0],
                 in2=inv_L00,
                 do_addsub=False,
             )
-            tmp1 = MADS(
+            tmp1 = arithmetic.mads(
                 is_add=False,
                 in0=acc[1][1],
                 in1=L10,
-                in2=_conjugate(L10, cmplx),
+                in2=arithmetic.conjugate(L10),
                 do_addsub=True,
             )
-            inv_L11 = ReciprocalSquareRoot(tmp1, real_valued=True)
-            tmp2 = MADS(
+            inv_L11 = arithmetic.reciprocal_square_root(tmp1, real_valued=True)
+            tmp2 = arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=L10,
                 in2=inv_L00,
                 do_addsub=False,
             )
             res[0][0] = inv_L00
-            res[1][0] = MADS(
+            res[1][0] = arithmetic.mads(
                 is_add=False,
-                in0=DontCare(),
+                in0=None,
                 in1=tmp2,
                 in2=inv_L11,
                 do_addsub=False,
             )
             res[1][1] = inv_L11
         elif pe == "addsub":
-            L10 = Multiplication(acc[1][0], inv_L00)
-            tmp1 = _sub_nodes(acc[1][1], Multiplication(L10, _conjugate(L10, cmplx)))
-            inv_L11 = ReciprocalSquareRoot(tmp1, real_valued=True)
+            L10 = arithmetic.multiplication(acc[1][0], inv_L00)
+            tmp1 = _sub_nodes(
+                acc[1][1], arithmetic.multiplication(L10, arithmetic.conjugate(L10))
+            )
+            inv_L11 = arithmetic.reciprocal_square_root(tmp1, real_valued=True)
             res[0][0] = inv_L00
-            res[1][0] = Negation(Multiplication(Multiplication(L10, inv_L00), inv_L11))
+            res[1][0] = arithmetic.negation(
+                arithmetic.multiplication(
+                    arithmetic.multiplication(L10, inv_L00), inv_L11
+                )
+            )
             res[1][1] = inv_L11
         else:
             L10 = acc[1][0] * inv_L00
-            inv_L11 = ReciprocalSquareRoot(
-                _sub_nodes(acc[1][1], L10 * _conjugate(L10, cmplx)), real_valued=True
+            inv_L11 = arithmetic.reciprocal_square_root(
+                _sub_nodes(acc[1][1], L10 * arithmetic.conjugate(L10)), real_valued=True
             )
             res[0][0] = inv_L00
             res[1][0] = -(L10 * inv_L00 * inv_L11)
             res[1][1] = inv_L11
         return res
 
-    inputs = []
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = _matrix_input(i, j, mem)
+            in_op = arithmetic.input(i, j, mem)
             A[i][j] = in_op
-            inputs.append(in_op)
 
     L = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
     L_inv = [[None for _ in range(N_blocks)] for _ in range(N_blocks)]
@@ -1291,7 +1333,7 @@ def block_cholesky_matrix_inverse(
                     if row >= col:
                         block[r][c] = A[row][col]
                     else:
-                        block[r][c] = _conjugate(A[col][row], cmplx)
+                        block[r][c] = arithmetic.conjugate(A[col][row])
             A_blk[i][j] = block
 
     for j in range(N_blocks):
@@ -1398,18 +1440,18 @@ def block_cholesky_matrix_inverse(
                         val = res_blk[i][j][r][c]
                         row = i * BLOCK_SIZE + r
                         col = j * BLOCK_SIZE + c
-                        res[row][col] = _matrix_output(row, col, val, mem)
+                        res[row][col] = arithmetic.output(row, col, val, mem)
             else:
                 for r in range(BLOCK_SIZE):
                     for c in range(BLOCK_SIZE):
                         val = res_blk[i][j][r][c]
                         row = i * BLOCK_SIZE + r
                         col = j * BLOCK_SIZE + c
-                        res[row][col] = _matrix_output(row, col, val, mem)
+                        res[row][col] = arithmetic.output(row, col, val, mem)
 
     outputs = [res[i][j] for i in range(N) for j in range(i + 1)]
 
-    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+    return arithmetic.graph(outputs, name)
 
 
 def tile_ldlt_matrix_inverse(
@@ -1418,7 +1460,8 @@ def tile_ldlt_matrix_inverse(
     mode: Literal["eqs", "mult"] = "eqs",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
-    cmplx: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
 ) -> SFG:
     r"""
     Generate an SFG for the tile LDLT matrix inverse algorithm.
@@ -1441,15 +1484,28 @@ def tile_ldlt_matrix_inverse(
         use packed lower-triangular row order in the default unnamed memory:
         entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
         Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
-    cmplx : bool, default: False
-        Add complex conjugates for Hermitian input matrices, using a tiled
-        :math:`LDL^H` factorization instead of :math:`LDL^T`.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Generate scalar real arithmetic for symmetric matrices, native complex
+        arithmetic for Hermitian matrices, or real arithmetic with separate
+        real and imaginary components for Hermitian matrices. Split interfaces
+        are ordered ``real0, imag0, real1, imag1, ...``. Diagonal imaginary inputs
+        are unused and diagonal imaginary outputs are zero. With ``mem=True``,
+        components of packed entry address ``p`` use addresses ``2*p`` and
+        ``2*p + 1`` in the same memory.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Complex product implementation for ``data_type="split"``, matching
+        :meth:`~b_asic.sfg.SFG.complex_to_real` and :meth:`~b_asic.sfg.SFG.transform`.
+        General complex products use four real multiplications or three with
+        extra additions. Real-real and real-complex products use only one and
+        two real multiplications, respectively, regardless of this setting.
+        Conjugate self-products use two squares and produce a real result.
 
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     TILE_SIZE = 2
     if N % TILE_SIZE != 0:
         raise ValueError("Tile size needs to be a positive divisor of N.")
@@ -1466,26 +1522,26 @@ def tile_ldlt_matrix_inverse(
 
     def _add_nodes(a, b):
         if pe == "addsub":
-            return AddSub(True, a, b)
+            return arithmetic.addsub(True, a, b)
         return a + b
 
     def _sub_nodes(a, b):
         if pe == "addsub":
-            return AddSub(False, a, b)
+            return arithmetic.addsub(False, a, b)
         return a - b
 
     def _mul_nodes(a, b):
         if pe == "mads":
             # Pure multiplication. Do NOT rely on is_add when do_addsub=False.
-            return MADS(
+            return arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=a,
                 in2=b,
                 do_addsub=False,
             )
         if pe == "addsub":
-            return Multiplication(a, b)
+            return arithmetic.multiplication(a, b)
         return a * b
 
     def _mac_tiles(
@@ -1504,10 +1560,10 @@ def tile_ldlt_matrix_inverse(
 
                 if mult_mode == "T":
                     v1 = [A_tile[r][x] for x in range(TILE_SIZE)]
-                    v2 = [_conjugate(B_tile[c][x], cmplx) for x in range(TILE_SIZE)]
+                    v2 = [arithmetic.conjugate(B_tile[c][x]) for x in range(TILE_SIZE)]
                 elif mult_mode == "tile_tri_T":
                     v1 = [A_tile[r][x] for x in range(c + 1)]
-                    v2 = [_conjugate(B_tile[c][x], cmplx) for x in range(c + 1)]
+                    v2 = [arithmetic.conjugate(B_tile[c][x]) for x in range(c + 1)]
                 elif mult_mode == "tile_diag":
                     v1 = [A_tile[r][c]]
                     v2 = [B_tile[c][c]]
@@ -1517,7 +1573,7 @@ def tile_ldlt_matrix_inverse(
                     if acc_tile is None or acc_tile[r][c] is None:
                         acc = _mul_nodes(v1[0], v2[0])
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=True,
                                 in0=acc,
                                 in1=xv1,
@@ -1525,7 +1581,7 @@ def tile_ldlt_matrix_inverse(
                                 do_addsub=True,
                             )
                     else:
-                        acc = MADS(
+                        acc = arithmetic.mads(
                             is_add=is_add,
                             in0=acc_tile[r][c],
                             in1=v1[0],
@@ -1533,7 +1589,7 @@ def tile_ldlt_matrix_inverse(
                             do_addsub=True,
                         )
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=is_add,
                                 in0=acc,
                                 in1=xv1,
@@ -1547,7 +1603,7 @@ def tile_ldlt_matrix_inverse(
                         acc = _add_nodes(acc, xv1 * xv2)
 
                     if acc_tile is not None and acc_tile[r][c] is not None:
-                        acc = AddSub(
+                        acc = arithmetic.addsub(
                             is_add=is_add,
                             in0=acc_tile[r][c],
                             in1=acc,
@@ -1560,16 +1616,14 @@ def tile_ldlt_matrix_inverse(
                     if acc_tile is not None and acc_tile[r][c] is not None:
                         acc = acc_tile[r][c] + acc if is_add else acc_tile[r][c] - acc
 
-                res[r][c] = acc
+                res[r][c] = arithmetic.real(acc) if lower_triangular and r == c else acc
         return res
 
-    inputs = []
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = _matrix_input(i, j, mem)
+            in_op = arithmetic.input(i, j, mem)
             A[i][j] = in_op
-            inputs.append(in_op)
 
     L_tiles = [
         [
@@ -1610,7 +1664,7 @@ def tile_ldlt_matrix_inverse(
                     if row >= col:
                         A_tiles[i][j][r][c] = A[row][col]
                     else:
-                        A_tiles[i][j][r][c] = _conjugate(A[col][row], cmplx)
+                        A_tiles[i][j][r][c] = arithmetic.conjugate(A[col][row])
 
     for k in range(N_tiles):
         # xSYTRF2
@@ -1618,22 +1672,25 @@ def tile_ldlt_matrix_inverse(
 
         D00 = A_kk[0][0]
 
-        D_inv00 = Reciprocal(D00, real_valued=True)
+        D_inv00 = arithmetic.reciprocal(D00, real_valued=True)
 
         L10 = _mul_nodes(A_kk[1][0], D_inv00)
         L_inv10 = -L10
-        offdiag_conj = _conjugate(A_kk[1][0], cmplx)
+        offdiag_conj = arithmetic.conjugate(A_kk[1][0])
 
         if pe == "mads":
-            D11 = MADS(
+            D11 = arithmetic.mads(
                 is_add=False, in0=A_kk[1][1], in1=L10, in2=offdiag_conj, do_addsub=True
             )
         elif pe == "addsub":
-            D11 = AddSub(is_add=False, in0=A_kk[1][1], in1=L10 * offdiag_conj)
+            D11 = arithmetic.addsub(
+                is_add=False, in0=A_kk[1][1], in1=L10 * offdiag_conj
+            )
         else:
             D11 = A_kk[1][1] - L10 * offdiag_conj
 
-        D_inv11 = Reciprocal(D11, real_valued=True)
+        D11 = arithmetic.real(D11)
+        D_inv11 = arithmetic.reciprocal(D11, real_valued=True)
 
         L_tiles[k][k][1][0] = L10
         L_inv_tiles[k][k][1][0] = L_inv10
@@ -1706,7 +1763,7 @@ def tile_ldlt_matrix_inverse(
                 acc = L[i][j]
                 for k in range(j + 1, i):
                     if pe == "mads":
-                        acc = MADS(
+                        acc = arithmetic.mads(
                             is_add=True,
                             in0=acc,
                             in1=L[i][k],
@@ -1727,10 +1784,10 @@ def tile_ldlt_matrix_inverse(
                     res[i][j] = D_inv[i] * L_inv[i][j]
 
                 for k in range(i + 1, N):
-                    l_inv_conj = _conjugate(L_inv[k][i], cmplx)
+                    l_inv_conj = arithmetic.conjugate(L_inv[k][i])
                     if pe == "mads":
                         t0 = _mul_nodes(l_inv_conj, D_inv[k])
-                        res[i][j] = MADS(
+                        res[i][j] = arithmetic.mads(
                             is_add=True,
                             in0=res[i][j],
                             in1=t0,
@@ -1750,9 +1807,9 @@ def tile_ldlt_matrix_inverse(
                 if i == j:
                     val = D_inv[i]
                     for k in range(N - 1, i, -1):
-                        l_conj = _conjugate(L[k][i], cmplx)
+                        l_conj = arithmetic.conjugate(L[k][i])
                         if pe == "mads":
-                            val = MADS(
+                            val = arithmetic.mads(
                                 is_add=False,
                                 in0=val,
                                 in1=l_conj,
@@ -1768,9 +1825,9 @@ def tile_ldlt_matrix_inverse(
                         val = D_inv[i] * L_inv[i][j]
 
                     for k in range(N - 1, i, -1):
-                        l_conj = _conjugate(L[k][i], cmplx)
+                        l_conj = arithmetic.conjugate(L[k][i])
                         if pe == "mads":
-                            val = MADS(
+                            val = arithmetic.mads(
                                 is_add=False,
                                 in0=val,
                                 in1=l_conj,
@@ -1780,33 +1837,33 @@ def tile_ldlt_matrix_inverse(
                         else:
                             val = _sub_nodes(val, l_conj * res[k][j])
                 else:
-                    res_last = _matrix_entry(res, i, N - 1, cmplx)
+                    res_last = arithmetic.matrix_entry(res, i, N - 1)
                     if pe == "mads":
                         val = -_mul_nodes(
                             L[N - 1][j],
                             res_last,
                         )
                         for k in range(N - 2, j, -1):
-                            val = MADS(
+                            val = arithmetic.mads(
                                 is_add=False,
                                 in0=val,
                                 in1=L[k][j],
-                                in2=_matrix_entry(res, i, k, cmplx),
+                                in2=arithmetic.matrix_entry(res, i, k),
                                 do_addsub=True,
                             )
                     else:
                         val = -L[N - 1][j] * res_last
                         for k in range(N - 2, j, -1):
                             val = _sub_nodes(
-                                val, L[k][j] * _matrix_entry(res, i, k, cmplx)
+                                val, L[k][j] * arithmetic.matrix_entry(res, i, k)
                             )
-                res[i][j] = val
+                res[i][j] = arithmetic.real(val) if i == j else val
 
     outputs = [
-        _matrix_output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
+        arithmetic.output(i, j, res[i][j], mem) for i in range(N) for j in range(i + 1)
     ]
 
-    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+    return arithmetic.graph(outputs, name)
 
 
 def analytical_block_matrix_inverse(
@@ -1815,7 +1872,8 @@ def analytical_block_matrix_inverse(
     mode: Literal["top", "bot", "mid"] = "mid",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
-    cmplx: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
 ) -> SFG:
     r"""
     Generate an SFG for the analytical block matrix inverse algorithm.
@@ -1838,15 +1896,28 @@ def analytical_block_matrix_inverse(
         use packed lower-triangular row order in the default unnamed memory:
         entry :math:`(i, j)` has address :math:`\frac{i(i+1)}{2} + j` for :math:`i \ge j`.
         Each matrix occupies :math:`\frac{N(N+1)}{2}` locations.
-    cmplx : bool, default: False
-        Add complex conjugates for Hermitian input matrices and their Schur
-        complements.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Generate scalar real arithmetic for symmetric matrices, native complex
+        arithmetic for Hermitian matrices, or real arithmetic with separate
+        real and imaginary components for Hermitian matrices. Split interfaces
+        are ordered ``real0, imag0, real1, imag1, ...``. Diagonal imaginary inputs
+        are unused and diagonal imaginary outputs are zero. With ``mem=True``,
+        components of packed entry address ``p`` use addresses ``2*p`` and
+        ``2*p + 1`` in the same memory.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Complex product implementation for ``data_type="split"``, matching
+        :meth:`~b_asic.sfg.SFG.complex_to_real` and :meth:`~b_asic.sfg.SFG.transform`.
+        General complex products use four real multiplications or three with
+        extra additions. Real-real and real-complex products use only one and
+        two real multiplications, respectively, regardless of this setting.
+        Conjugate self-products use two squares and produce a real result.
 
     Returns
     -------
     :class:`~b_asic.sfg.SFG`
         Signal Flow Graph
     """
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     if name is None:
         name = "Analytical block matrix-inversion"
 
@@ -1855,12 +1926,12 @@ def analytical_block_matrix_inverse(
 
     def _add_nodes(a, b):
         if pe == "addsub":
-            return AddSub(True, a, b)
+            return arithmetic.addsub(True, a, b)
         return a + b
 
     def _sub_nodes(a, b):
         if pe == "addsub":
-            return AddSub(False, a, b)
+            return arithmetic.addsub(False, a, b)
         return a - b
 
     def _mac_block(
@@ -1893,29 +1964,33 @@ def analytical_block_matrix_inverse(
 
                 if mult_mode == "T":
                     v1 = [A_block[r][x] for x in range(bs_inner)]
-                    v2 = [_conjugate(B_block[c][x], cmplx) for x in range(bs_inner)]
+                    v2 = [arithmetic.conjugate(B_block[c][x]) for x in range(bs_inner)]
                 elif mult_mode == "T_blocks":
-                    v1 = [_conjugate(A_block[x][r], cmplx) for x in range(bs_inner)]
+                    v1 = [arithmetic.conjugate(A_block[x][r]) for x in range(bs_inner)]
                     v2 = [B_block[x][c] for x in range(bs_inner)]
                 elif mult_mode == "diag_block":
-                    v1 = [_matrix_entry(A_block, r, x, cmplx) for x in range(bs_inner)]
+                    v1 = [
+                        arithmetic.matrix_entry(A_block, r, x) for x in range(bs_inner)
+                    ]
                     v2 = [B_block[x][c] for x in range(bs_inner)]
                 elif mult_mode == "block_diag":
                     v1 = [A_block[r][x] for x in range(bs_inner)]
-                    v2 = [_matrix_entry(B_block, x, c, cmplx) for x in range(bs_inner)]
+                    v2 = [
+                        arithmetic.matrix_entry(B_block, x, c) for x in range(bs_inner)
+                    ]
 
                 if pe == "mads":
                     if acc_block is None:
                         if is_add:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=True,
-                                in0=DontCare(),
+                                in0=None,
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                                acc = MADS(
+                                acc = arithmetic.mads(
                                     is_add=True,
                                     in0=acc,
                                     in1=xv1,
@@ -1923,15 +1998,15 @@ def analytical_block_matrix_inverse(
                                     do_addsub=True,
                                 )
                         else:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=False,
-                                in0=DontCare(),
+                                in0=None,
                                 in1=v1[0],
                                 in2=v2[0],
                                 do_addsub=False,
                             )
                             for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                                acc = MADS(
+                                acc = arithmetic.mads(
                                     is_add=False,
                                     in0=acc,
                                     in1=xv1,
@@ -1940,7 +2015,7 @@ def analytical_block_matrix_inverse(
                                 )
                     else:
                         if acc_block[r][c] is not None:
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=is_add,
                                 in0=acc_block[r][c],
                                 in1=v1[0],
@@ -1949,7 +2024,7 @@ def analytical_block_matrix_inverse(
                             )
 
                         for xv1, xv2 in zip(v1[1:], v2[1:], strict=True):
-                            acc = MADS(
+                            acc = arithmetic.mads(
                                 is_add=is_add,
                                 in0=acc,
                                 in1=xv1,
@@ -1969,7 +2044,7 @@ def analytical_block_matrix_inverse(
                             )
                     else:
                         acc = acc if is_add else -acc
-                res[r][c] = acc
+                res[r][c] = arithmetic.real(acc) if lower_triangular and r == c else acc
 
         return res
 
@@ -1992,40 +2067,40 @@ def analytical_block_matrix_inverse(
 
     def _inv_2x2_explicit(A_block):
         res = [[None for _ in range(2)] for _ in range(2)]
-        offdiag_conj = _conjugate(A_block[1][0], cmplx)
+        offdiag_conj = arithmetic.conjugate(A_block[1][0])
         if pe == "mads":
-            tmp = MADS(
+            tmp = arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=A_block[0][0],
                 in2=A_block[1][1],
                 do_addsub=False,
             )
-            det = MADS(
+            det = arithmetic.mads(
                 is_add=False,
                 in0=tmp,
                 in1=A_block[1][0],
                 in2=offdiag_conj,
                 do_addsub=True,
             )
-            inv_det = Reciprocal(det, real_valued=True)
-            res[0][0] = MADS(
+            inv_det = arithmetic.reciprocal(det, real_valued=True)
+            res[0][0] = arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=A_block[1][1],
                 in2=inv_det,
                 do_addsub=False,
             )
-            res[1][0] = MADS(
+            res[1][0] = arithmetic.mads(
                 is_add=False,
-                in0=DontCare(),
+                in0=None,
                 in1=A_block[1][0],
                 in2=inv_det,
                 do_addsub=False,
             )
-            res[1][1] = MADS(
+            res[1][1] = arithmetic.mads(
                 is_add=True,
-                in0=DontCare(),
+                in0=None,
                 in1=A_block[0][0],
                 in2=inv_det,
                 do_addsub=False,
@@ -2034,7 +2109,7 @@ def analytical_block_matrix_inverse(
             det = _sub_nodes(
                 A_block[0][0] * A_block[1][1], A_block[1][0] * offdiag_conj
             )
-            inv_det = Reciprocal(det, real_valued=True)
+            inv_det = arithmetic.reciprocal(det, real_valued=True)
             res[0][0] = A_block[1][1] * inv_det
             res[1][0] = -A_block[1][0] * inv_det
             res[1][1] = A_block[0][0] * inv_det
@@ -2044,7 +2119,7 @@ def analytical_block_matrix_inverse(
         n = len(matrix)
 
         if n == 1:
-            inv_val = Reciprocal(matrix[0][0], real_valued=True)
+            inv_val = arithmetic.reciprocal(matrix[0][0], real_valued=True)
             return [[inv_val]]
 
         if n == 2:
@@ -2081,7 +2156,7 @@ def analytical_block_matrix_inverse(
         # X = B @ V
         X = _mac_block(True, None, B_blk, V, "block_diag")
 
-        # schur = D - B @ X.T (X.conj().T when cmplx=True)
+        # schur = D - B @ X.T (X.conj().T for Hermitian matrices)
         schur = _mac_block(False, D_blk, B_blk, X, "T", lower_triangular=True)
 
         # H = inv(schur)
@@ -2090,7 +2165,7 @@ def analytical_block_matrix_inverse(
         # F = -H @ X (which is -Z)
         F = _mac_block(False, None, H, X, "diag_block")
 
-        # E = V - X.T @ F (X.conj().T when cmplx=True)
+        # E = V - X.T @ F (X.conj().T for Hermitian matrices)
         E = _mac_block(False, V, X, F, "T_blocks", lower_triangular=True)
 
         # Assemble result (only lower triangular for diagonal blocks)
@@ -2137,18 +2212,18 @@ def analytical_block_matrix_inverse(
 
         return matrix_inv
 
-    inputs = []
     A = [[None for _ in range(N)] for _ in range(N)]
     for i in range(N):
         for j in range(i + 1):
-            in_op = _matrix_input(i, j, mem)
+            in_op = arithmetic.input(i, j, mem)
             A[i][j] = in_op
-            inputs.append(in_op)
 
     result = _analytical_block_inv_inner(A)
 
     outputs = [
-        _matrix_output(i, j, result[i][j], mem) for i in range(N) for j in range(i + 1)
+        arithmetic.output(i, j, result[i][j], mem)
+        for i in range(N)
+        for j in range(i + 1)
     ]
 
-    return SFG(inputs=inputs, outputs=outputs, name=Name(name))
+    return arithmetic.graph(outputs, name)

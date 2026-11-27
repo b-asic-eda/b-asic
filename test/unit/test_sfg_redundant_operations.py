@@ -350,7 +350,9 @@ def test_merging_equal_output_producers_preserves_channels_and_signals(automatic
     "error:^Two signals connected to the same output port$:UserWarning"
 )
 def test_cholesky_rewrite_and_merge_pipeline_preserves_shared_zero_outputs():
-    complex_graph = cholesky_matrix_inverse(N=2, mode="mult", pe="mads", cmplx=True)
+    complex_graph = cholesky_matrix_inverse(
+        N=2, mode="mult", pe="mads", data_type="complex"
+    )
     real_four = complex_graph.complex_to_real(multiplication_method="four")
     prepared = (
         real_four.constant_propagation()

@@ -5,7 +5,7 @@ Convert a 4 x 4 Cholesky inverse to real arithmetic
 
 Split each complex signal into real and imaginary signals, choosing the
 ``four``, ``three``, or ``threealt`` method for complex products in MADS operations.
-With ``cmplx=True``, the Cholesky generator expects a Hermitian positive definite
+With ``data_type="complex"``, the Cholesky generator expects a Hermitian positive definite
 matrix, supplied in packed lower-triangular row order. This example uses complex
 matrix entries with nonzero imaginary parts.
 """
@@ -20,7 +20,7 @@ from b_asic.sfg_generators import cholesky_matrix_inverse
 # have real_valued=True: conversion terminates their imaginary inputs at Sinks
 # and produces zero constants for their imaginary outputs.
 
-complex_sfg = cholesky_matrix_inverse(N=4, mode="mult", pe="mads", cmplx=True)
+complex_sfg = cholesky_matrix_inverse(N=4, mode="mult", pe="mads", data_type="complex")
 assert all(op.real_valued for op in complex_sfg.find_by_type(ReciprocalSquareRoot))
 
 # %%
@@ -56,11 +56,34 @@ for graph in (real_four, real_three, real_threealt):
     np.testing.assert_allclose(inverse, expected, atol=1e-12)
 
 # %%
+# Generate the split graph directly. Real diagonal values and real-complex
+# products are handled during construction, so no conversion or propagation
+# pass is needed to remove products with zero imaginary components. The
+# multiplication method applies to general complex products; conjugate
+# self-products use two squares. The same interleaved input/output layout is
+# used for all three methods.
+
+for method in ("four", "three", "threealt"):
+    direct_sfg = cholesky_matrix_inverse(
+        N=4,
+        mode="mult",
+        pe="mads",
+        data_type="split",
+        multiplication_method=method,
+    )
+    split_outputs = np.asarray(direct_sfg.evaluate(*split_inputs))
+    inverse = split_outputs[0::2] + 1j * split_outputs[1::2]
+    np.testing.assert_allclose(inverse, expected, atol=1e-12)
+    print(f"Direct {method} operations:", direct_sfg.operation_counter())
+
+# %%
 # Keep the original complex interface with split_io=False. Boundary operations
 # extract and join real/imaginary signals while internal arithmetic stays real.
 # With memory interfaces, addresses and memory names are preserved as well.
 
-memory_sfg = cholesky_matrix_inverse(N=4, mode="mult", pe="mads", mem=True, cmplx=True)
+memory_sfg = cholesky_matrix_inverse(
+    N=4, mode="mult", pe="mads", mem=True, data_type="complex"
+)
 real_memory_sfg = memory_sfg.complex_to_real(
     multiplication_method="three", split_io=False
 )
