@@ -58,17 +58,31 @@ def test_literal_dropdowns_preserve_values_and_defaults(qtbot):
     assert [pe.itemData(i) for i in range(pe.count())] == ["addsub", "mads", None]
     assert pe.currentData() is None
     assert mode.currentData() == "eqs"
+    data_type = window._fields["data_type"]
+    multiplication_method = window._fields["multiplication_method"]
+    assert isinstance(data_type, QComboBox)
+    assert isinstance(multiplication_method, QComboBox)
+    assert [data_type.itemData(i) for i in range(data_type.count())] == [
+        "real",
+        "complex",
+        "split",
+    ]
+    assert data_type.currentData() == "real"
+    assert multiplication_method.currentData() == "four"
     window._fields["N"].setText("2")
     mode.setCurrentIndex(1)
     pe.setCurrentIndex(1)
     mem.setChecked(True)
+    data_type.setCurrentIndex(2)
+    multiplication_method.setCurrentIndex(1)
     assert window.configuration() == {
         "N": 2,
         "name": None,
         "mode": "mult",
         "pe": "mads",
         "mem": True,
-        "cmplx": False,
+        "data_type": "split",
+        "multiplication_method": "three",
     }
     with qtbot.waitSignal(window.generated):
         window._generate()
