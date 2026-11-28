@@ -41,12 +41,15 @@ jobs:
         if: matrix.optional-dependencies
         run: |
           python -m pip install cocotb
+          if ! command -v clang >/dev/null 2>&1; then
+            sudo apt-get install -yy clang
+          fi
       - name: Install B-ASIC
         run: |
           git fetch --tags
           export CPPFLAGS='-O0 --coverage -fprofile-abs-path'
           if [ "${{ matrix.optional-dependencies }}" = "true" ]; then
-            python -m pip install --no-build-isolation -v --editable '.[cp]'
+            python -m pip install --no-build-isolation -v --editable '.[cp,llvm]'
           else
             python -m pip install --no-deps --no-build-isolation -v --editable .
           fi

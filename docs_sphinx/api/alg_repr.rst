@@ -11,6 +11,7 @@ representations, such as state-space and transfer functions.
     rewrites.rst
     signal.rst
     sfg_generators.rst
+    llvm.rst
     graph_component.rst
     operation.rst
     port.rst

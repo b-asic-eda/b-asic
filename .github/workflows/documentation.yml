@@ -28,10 +28,13 @@ jobs:
         run: |
           sudo apt-get update -yy
           sudo apt-get install -yy doxygen graphviz python3-pyqt6
+          if ! command -v clang >/dev/null 2>&1; then
+            sudo apt-get install -yy clang
+          fi
           python -m pip install --upgrade pip
       - name: Install B-ASIC
         run: |
-          python -m pip install -v .[pyqt6,doc]
+          python -m pip install -v .[pyqt6,doc,llvm]
       - name: Sphinx build
         run: |
           sphinx-build -b html docs_sphinx public

@@ -61,15 +61,34 @@ jobs:
         run: |
           sudo apt-get update -yy
           sudo apt-get install -yy graphviz python3-pyqt6 xvfb xdg-utils libxcb-cursor-dev cmake
+          if ! command -v clang >/dev/null 2>&1; then
+            sudo apt-get install -yy clang
+          fi
       - name: Install macOS dependencies
         if: contains(matrix.os, 'macos')
         run: |
           brew update
           brew install graphviz cmake
+          if ! command -v clang >/dev/null 2>&1; then
+            brew install llvm
+            echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+          fi
+      - name: Install Windows Clang if missing
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
+            $clangBin = Join-Path $env:ProgramFiles 'LLVM/bin'
+            if (-not (Test-Path (Join-Path $clangBin 'clang.exe'))) {
+              choco install llvm --yes --no-progress
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+            $clangBin >> $env:GITHUB_PATH
+          }
       - name: Install B-ASIC
         run: |
           git fetch --tags
-          python -m pip install .[test,${{ matrix.qt-version }}] -v
+          python -m pip install '.[test,llvm,${{ matrix.qt-version }}]' -v
       - name: Set environment variables for QT
         if: contains(matrix.os, 'macos') || contains(matrix.os, 'ubuntu')
         run: |

@@ -1,4 +1,4 @@
-![tests](https://github.com/b-asic-eda/b-asic/actions/workflows/tests.yml/badge.svg) [![codecov](https://codecov.io/gh/b-asic-eda/b-asic/graph/badge.svg?token=4OETEUSUCM)](https://codecov.io/gh/b-asic-eda/b-asic) ![GitHub License](https://img.shields.io/github/license/b-asic-eda/b-asic) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/b-asic-eda/b-asic/documentation.yml?label=documentation)](https://b-asic-eda.github.io/b-asic)
+![tests](https://github.com/b-asic-eda/b-asic/actions/workflows/tests.yml/badge.svg) [![codecov](https://codecov.io/gh/b-asic-eda/b-asic/graph/badge.svg?token=4OETEUSUCM)](https://codecov.io/gh/b-asic-eda/b-asic) ![GitHub License](https://img.shields.io/github/license/b-asic-eda/b-asic) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/b-asic-eda/b-asic/documentation.yml?label=documentation)](https://b-asic.org/)
 
 <img src="logos/logo.png" width="278" height="100">
 
@@ -11,18 +11,79 @@ It provides a path from algorithm to RTL code while giving the designer full con
 
 ## Installation
 
-```bash
-pip install git+https://github.com/b-asic-eda/b-asic.git
-```
-
-Rendering graphs requires [Graphviz](https://graphviz.org/download/) to be
-installed separately.
-
-A Qt binding is required for GUIs (optional feature) — install either `PyQt6` or `PySide6`:
+B-ASIC requires Python 3.12 or newer. Install the current source version with:
 
 ```bash
-pip install PyQt6
+python -m pip install git+https://github.com/b-asic-eda/b-asic.git
 ```
+
+This installs the core Python dependencies, including NumPy, SciPy, Matplotlib,
+NetworkX, APyTypes, and PuLP with HiGHS. The native simulation extension is built
+from C++ sources, so source installations need a C++17 compiler, such as GCC,
+Clang, or MSVC. Pip installs the Python build requirements automatically.
+
+Choose optional extras for the features you use. They can be combined in one
+installation; for example, this enables the PySide6 GUIs, constraint-programming
+schedulers, and LLVM import:
+
+```bash
+python -m pip install "b-asic[pyside6,cp,llvm] @ git+https://github.com/b-asic-eda/b-asic.git"
+```
+
+| Extra           | Features and Python dependencies                                                                                           |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `pyqt6`         | GUI support using PyQt6.                                                                                                   |
+| `pyside6`       | GUI support using PySide6. Choose either this or `pyqt6`.                                                                  |
+| `cp`            | Constraint-programming schedulers and resource assignment using CPMpy, OR-Tools, and compatible HiGHS bindings.            |
+| `llvm`          | LLVM IR import and C/C++ frontends using llvmlite. Clang is needed to compile C/C++.                                       |
+| `hdl`           | HDL testbench and simulation tools: cocotb and VUnit.                                                                      |
+| `test`          | pytest, coverage, Qt testing, timeout, virtual-display, and parallel-test plugins. Add a Qt binding to run the full suite. |
+| `test_optional` | Additional HDL test dependencies; currently the same packages as `hdl`.                                                    |
+| `doc`           | Sphinx, the documentation theme, Sphinx-Gallery, and other documentation extensions.                                       |
+| `dev`           | Meson-Python, Ninja, and pre-commit for development builds and checks.                                                     |
+
+Some features also require system tools that pip does not install:
+
+| System tool                                                                                           | When it is needed                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Graphviz](https://graphviz.org/download/) (`dot`)                                                    | Rendering SFGs and other graphs, including the examples below. The Python `graphviz` package alone does not provide it.                                  |
+| [Clang](https://releases.llvm.org/) (`clang`)                                                         | Compiling C/C++ to LLVM IR. Reading an existing LLVM IR file only needs the `llvm` extra. Clang's output must be compatible with llvmlite's LLVM reader. |
+| An HDL simulator, such as [GHDL](https://github.com/ghdl/ghdl) or [NVC](https://github.com/nickg/nvc) | Executing HDL simulations and the corresponding tests. Installing `hdl` does not install a simulator.                                                    |
+
+Put the required executables on `PATH`. QtPy and QtAwesome are installed with
+the core package, but a Qt binding is optional and must be selected through
+`pyqt6` or `pyside6` to use the GUIs. Interactive Qt applications also need a
+desktop display; Linux CI can use Xvfb for GUI tests.
+
+The [C-to-SFG gallery example](galleries/examples/creating_and_transforming_sfgs/c_to_sfg.py)
+shows a [C function](galleries/examples/creating_and_transforming_sfgs/llvm_kernel.c)
+and its generated graph, and skips conversion if Clang is unavailable. See the
+[LLVM import guide](docs_sphinx/llvm.rst) for source-writing restrictions and C++
+`constexpr` examples.
+
+Arrays can be mapped explicitly to named `MemoryRead`/`MemoryWrite` interfaces,
+ordinary streaming `Input`/`Output` ports, or internal `Delay` state using
+`LLVMArray`. An in-place FFT buffer uses `role="inout"`; it is distinct from
+`role="state"`, which persists between iterations. See the
+[array-interface gallery example](galleries/examples/creating_and_transforming_sfgs/c_arrays_to_sfg.py).
+Streaming arrays expose one scalar port per element per SFG iteration.
+Combining persistent state with external arrays is currently unsupported.
+
+For a development checkout with GUI, test, and documentation dependencies:
+
+```bash
+git clone https://github.com/b-asic-eda/b-asic.git
+cd b-asic
+python -m pip install meson-python ninja setuptools_scm
+python -m pip install --no-build-isolation --editable ".[dev,test,doc,pyqt6,llvm]"
+pre-commit install
+pytest
+python -m sphinx -b html docs_sphinx public
+```
+
+Add `cp` or `hdl` to the extras as needed. The documentation executes gallery
+examples, so install Graphviz and Clang to render the LLVM example fully.
+Further setup details are in the [contributing guide](docs_sphinx/contributing.rst).
 
 ## Example
 

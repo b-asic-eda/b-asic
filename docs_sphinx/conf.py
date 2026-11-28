@@ -104,6 +104,7 @@ sphinx_gallery_conf = {
         "../galleries/tutorial",
     ],
     "gallery_dirs": ["examples", "tutorial"],
+    "copyfile_regex": r".*\.c$",
     "capture_repr": (),
     "subsection_order": [
         "../galleries/examples/design_examples",
