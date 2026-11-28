@@ -42,6 +42,7 @@ See :doc:`publications` for how to cite B-ASIC and a list of publications that h
 
    tutorial/index
    examples/index
+   llvm
 
 .. toctree::
    :maxdepth: 3
