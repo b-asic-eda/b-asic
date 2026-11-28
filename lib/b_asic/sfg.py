@@ -17,16 +17,20 @@ from io import StringIO
 from queue import PriorityQueue
 from typing import TYPE_CHECKING, Any, Literal, Union, cast
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from graphviz import Digraph, escape
+from matplotlib.axes import Axes
+from matplotlib.ticker import MaxNLocator
 
 from b_asic._preferences import (
     DEFAULT_FONT_FAMILY,
     IO_CLUSTER_COLOR,
     MEMORY_CLUSTER_COLOR,
     PE_CLUSTER_COLOR,
+    _with_default_plot_font,
 )
 from b_asic._subexpressions import _SumTerm
 from b_asic.data_type import DataType
@@ -2753,6 +2757,57 @@ class SFG(AbstractOperation):
         self._precedence_list = self._traverse_for_precedence_list(first_iter_ports)
 
         return self._precedence_list
+
+    @_with_default_plot_font
+    def precedence_histogram(self, ax: Axes | None = None, **kwargs) -> Axes:
+        """
+        Plot the number of operations in each precedence step as bars.
+
+        Steps are numbered from zero, as in :attr:`precedence_graph`. Counts
+        follow :meth:`get_precedence_list`, excluding Delay, Input, DontCare,
+        Constant, Output, and Sink operations (including their subclasses).
+        Step positions are preserved even when a step's count is zero.
+        An operation with multiple output ports is counted once per step. Precedence steps
+        describe dependencies, without accounting for operation latencies or
+        resource limits.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes, optional
+            Axes to draw on. If omitted, create a new figure and axes.
+        **kwargs
+            Keyword arguments passed to :meth:`matplotlib.axes.Axes.bar`,
+            such as ``color``, ``width``, and ``label``.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            Axes containing the bar diagram. Access its figure through
+            ``ax.figure`` to display or save the plot.
+        """
+        from b_asic.core_operations import Constant  # noqa: PLC0415
+        from b_asic.utility_operations import DontCare, Sink  # noqa: PLC0415
+
+        excluded = (Delay, Input, DontCare, Constant, Output, Sink)
+        counts = [
+            len(
+                {
+                    port.operation
+                    for port in ports
+                    if not isinstance(port.operation, excluded)
+                }
+            )
+            for ports in self.get_precedence_list()
+        ]
+        if ax is None:
+            _, ax = plt.subplots(layout="constrained")
+        ax.bar(range(len(counts)), counts, **kwargs)
+        ax.set_xlabel("Precedence step")
+        ax.set_ylabel("Number of operations")
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.set_ylim(bottom=0)
+        return ax
 
     def show_precedence_graph(self) -> None:
         """
