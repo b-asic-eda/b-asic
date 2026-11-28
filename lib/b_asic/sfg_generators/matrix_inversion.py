@@ -6,11 +6,12 @@ This module contains a number of functions generating SFGs for matrix inversion.
 With ``data_type="complex"`` or ``data_type="split"``, the generators invert
 Hermitian input matrices. The default ``data_type="real"`` uses symmetric
 matrices. Cholesky algorithms require positive definite input matrices.
-The QR generator supports real symmetric nonsingular matrices, with
+The QR generator supports symmetric or Hermitian nonsingular matrices, with
 ``method="householder"`` or ``method="givens"`` selecting the decomposition.
 Scalar inverses use explicit :class:`~b_asic.core_operations.Reciprocal`
-operations marked real-valued: diagonal pivots and Hermitian block determinants
-are real. Real matrices have real-valued input and output interfaces; Hermitian
+operations marked real-valued: LDLT pivots and Hermitian block determinants
+are real, while complex QR pivots use conjugates and reciprocal squared
+magnitudes. Real matrices have real-valued input and output interfaces; Hermitian
 matrices have real-valued diagonal interfaces, including memory interfaces.
 When only the real part of a product is needed, including diagonal inverse
 updates, it is generated directly in split mode regardless of the selected
@@ -35,7 +36,6 @@ three real multiplications per general complex product using::
 
 from typing import Literal
 
-from b_asic.core_operations import Constant
 from b_asic.sfg import SFG
 from b_asic.sfg_generators._matrix_arithmetic import _MatrixArithmetic
 from b_asic.sfg_generators.matrix_decomposition import (
@@ -43,6 +43,7 @@ from b_asic.sfg_generators.matrix_decomposition import (
     _ldlt_decomposition,
     _qr_factorization,
     _qr_mac,
+    _qr_reciprocal,
     _validate_qr_arguments,
 )
 
@@ -55,11 +56,13 @@ def qr_matrix_inverse(
     method: Literal["householder", "givens"] = "householder",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
 ) -> SFG:
     r"""
-    Generate an SFG for real symmetric matrix inversion using QR decomposition.
+    Generate an SFG for symmetric or Hermitian inversion using QR decomposition.
 
-    Factor the input as :math:`A=QR`, then compute :math:`A^{-1}=R^{-1}Q^T`
+    Factor the input as :math:`A=QR`, then compute :math:`A^{-1}=R^{-1}Q^H`
     using the selected mode. The matrix must be nonsingular; positive definiteness is
     unnecessary. Normalization uses reciprocal square roots and reciprocals.
 
@@ -71,11 +74,11 @@ def qr_matrix_inverse(
         Graph name. Defaults to "Householder QR matrix-inversion" or
         "Givens QR matrix-inversion".
     mode : {"eqs", "mult", "implicitq"}, default: "eqs"
-        "eqs" forms Q transpose and solves RX = Q transpose by back
-        substitution. "mult" forms Q transpose, inverts R, and multiplies
-        R inverse by Q transpose. "implicitq" inverts R and applies the stored
+        "eqs" forms Q conjugate transpose and solves RX = Q conjugate transpose
+        by back substitution. "mult" forms Q conjugate transpose, inverts R,
+        and multiplies R inverse by Q conjugate transpose. "implicitq" inverts R and applies the stored
         Householder reflections or Givens rotations from the right in reverse
-        factorization order, without forming Q transpose or a general matrix
+        factorization order, without forming Q conjugate transpose or a general matrix
         product. Only the lower triangle of the inverse is output; implicit
         updates can also require upper-triangular intermediate entries.
     method : {"householder", "givens"}, default: "householder"
@@ -89,31 +92,41 @@ def qr_matrix_inverse(
         Use MemoryRead/MemoryWrite interfaces in the default unnamed memory.
         Inputs and inverse outputs use packed lower-triangular row order:
         entry :math:`(i,j)` has address :math:`i(i+1)/2+j`, for :math:`i\ge j`.
-        Each matrix occupies :math:`N(N+1)/2` real locations. Without memory,
+        Each matrix occupies :math:`N(N+1)/2` entries. Without memory,
         Input/Output interfaces use the same order.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Symmetric real, Hermitian complex, or Hermitian split real arithmetic.
+        Split interfaces interleave real/imaginary components
+        of every packed entry. Diagonal imaginary inputs are ignored and
+        outputs are zero. Split memory components use addresses ``2*p`` and
+        ``2*p+1`` for packed entry address ``p``.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Split complex product implementation, matching the other inverses.
 
     Returns
     -------
     SFG
-        Signal flow graph with real-valued inputs and inverse outputs.
+        Signal flow graph with packed lower-triangular input and inverse output.
     """
     _validate_qr_arguments(N, method, pe)
     if mode not in ("eqs", "mult", "implicitq"):
         raise ValueError('mode must be "eqs", "mult", or "implicitq"')
-    arithmetic = _MatrixArithmetic("real", "four", pe)
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     lower = [[arithmetic.input(i, j, mem) for j in range(i + 1)] for i in range(N)]
-    matrix = [[lower[max(i, j)][min(i, j)] for j in range(N)] for i in range(N)]
-    R, QT, transformations = _qr_factorization(
+    matrix = [
+        [arithmetic.matrix_entry(lower, i, j) for j in range(N)] for i in range(N)
+    ]
+    R, QH, transformations = _qr_factorization(
         matrix, arithmetic, method, form_q=mode != "implicitq"
     )
 
     if mode == "eqs":
         inverse = [[None] * N for _ in range(N)]
         for i in range(N - 1, -1, -1):
-            pivot_inverse = arithmetic.reciprocal(R[i][i], real_valued=True)
+            pivot_inverse = _qr_reciprocal(arithmetic, R[i][i])
             # Only the lower triangle is needed, including intermediate solutions.
             for j in range(i + 1):
-                value = QT[i][j]
+                value = QH[i][j]
                 for k in range(i + 1, N):
                     value = _qr_mac(arithmetic, value, R[i][k], inverse[k][j], False)
                 inverse[i][j] = _qr_mac(arithmetic, None, value, pivot_inverse)
@@ -126,7 +139,7 @@ def qr_matrix_inverse(
                     value = None
                     for k in range(i, N):
                         value = _qr_mac(
-                            arithmetic, value, triangular_inverse[i][k], QT[k][j]
+                            arithmetic, value, triangular_inverse[i][k], QH[k][j]
                         )
                     inverse[i][j] = value
         else:
@@ -136,7 +149,12 @@ def qr_matrix_inverse(
 
     return arithmetic.graph(
         [
-            arithmetic.output(i, j, inverse[i][j], mem)
+            arithmetic.output(
+                i,
+                j,
+                arithmetic.real_part(inverse[i][j]) if i == j else inverse[i][j],
+                mem,
+            )
             for i in range(N)
             for j in range(i + 1)
         ],
@@ -147,9 +165,9 @@ def qr_matrix_inverse(
 def _qr_upper_inverse(R, arithmetic):
     """Invert an upper triangular matrix with one reciprocal per diagonal."""
     N = len(R)
-    result = [[Constant(0) for _ in range(N)] for _ in range(N)]
+    result = [[arithmetic.constant(0) for _ in range(N)] for _ in range(N)]
     for i in range(N - 1, -1, -1):
-        result[i][i] = arithmetic.reciprocal(R[i][i], real_valued=True)
+        result[i][i] = _qr_reciprocal(arithmetic, R[i][i])
         for j in range(i + 1, N):
             value = None
             for k in range(i + 1, j + 1):
@@ -159,7 +177,7 @@ def _qr_upper_inverse(R, arithmetic):
 
 
 def _qr_apply_right(matrix, transformations, arithmetic, method):
-    """Apply implicit Q transpose to a matrix from the right."""
+    """Apply implicit Q conjugate transpose to a matrix from the right."""
     result = [row.copy() for row in matrix]
     for transformation in reversed(transformations):
         if method == "householder":
@@ -171,7 +189,11 @@ def _qr_apply_right(matrix, transformations, arithmetic, method):
                 scale = _qr_mac(arithmetic, None, beta, projection)
                 for offset, value in enumerate(vector):
                     row[k + offset] = _qr_mac(
-                        arithmetic, row[k + offset], scale, value, False
+                        arithmetic,
+                        row[k + offset],
+                        scale,
+                        arithmetic.conjugate(value),
+                        False,
                     )
         else:
             k, i, cosine, sine = transformation
@@ -180,12 +202,15 @@ def _qr_apply_right(matrix, transformations, arithmetic, method):
                 row[k] = _qr_mac(
                     arithmetic,
                     _qr_mac(arithmetic, None, cosine, left),
-                    sine,
+                    arithmetic.conjugate(sine),
                     right,
                     False,
                 )
                 row[i] = _qr_mac(
-                    arithmetic, _qr_mac(arithmetic, None, cosine, right), sine, left
+                    arithmetic,
+                    _qr_mac(arithmetic, None, arithmetic.conjugate(cosine), right),
+                    sine,
+                    left,
                 )
     return result
 

@@ -3,7 +3,7 @@ Signal flow graph generators for Cholesky, LDLT, and QR decompositions.
 
 Cholesky and LDLT accept packed lower-triangular inputs for symmetric (real)
 or Hermitian (complex/split) matrices, like the matrix inverse generators.
-QR accepts every entry of a general real square matrix in row-major order.
+QR accepts every entry of a general real or complex square matrix in row-major order.
 All generators use reciprocals and reciprocal square roots for normalization.
 
 With memory interfaces, each output factor uses its own named memory, starting
@@ -12,10 +12,8 @@ at address zero. Split components occupy consecutive real/imaginary addresses.
 
 from typing import Literal
 
-from b_asic.core_operations import Constant, CopySign
 from b_asic.sfg import SFG
 from b_asic.sfg_generators._matrix_arithmetic import _MatrixArithmetic
-from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
 
 
 def cholesky_decomposition(
@@ -145,9 +143,11 @@ def qr_decomposition(
     method: Literal["householder", "givens"] = "householder",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
 ) -> SFG:
     r"""
-    Generate a QR factorization :math:`A=QR` of a general real square matrix.
+    Generate a QR factorization :math:`A=QR` of a general square matrix.
 
     Parameters
     ----------
@@ -166,47 +166,59 @@ def qr_decomposition(
         in row-major order, address ``i*N+j``. R occupies N*(N+1)//2 entries
         in packed upper-triangular row order, address
         ``i*(2*N-i+1)//2+j-i`` for ``i <= j``.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Real arithmetic, native complex arithmetic, or separate real/imaginary
+        arithmetic. Complex Q is unitary. Split interfaces interleave real and
+        imaginary parts of every entry, including diagonals of A, Q, and R.
+        Split memory addresses are twice the entry address and the next address.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Split complex product implementation, matching the inverse generators.
 
     Returns
     -------
     SFG
         N*N row-major inputs ``A[i,j]``; outputs are all N*N entries of Q in
         row-major order followed by R's packed upper triangle. Outputs are
-        named ``Q[i,j]`` and ``R[i,j]``. Every interface is real-valued.
+        named ``Q[i,j]`` and ``R[i,j]``, with ``_real``/``_imag`` suffixes for
+        split arithmetic. Complex diagonal components are preserved.
     """
     _validate_qr_arguments(N, method, pe)
-    arithmetic = _MatrixArithmetic("real", "four", pe)
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     matrix = [
         [
-            MemoryRead(i * N + j, memory_name="A", name=f"A[{i},{j}]", real_valued=True)
-            if mem
-            else Input(name=f"A[{i},{j}]", real_valued=True)
+            arithmetic.input(
+                i, j, mem, address=i * N + j, memory_name="A", real_valued=False
+            )
             for j in range(N)
         ]
         for i in range(N)
     ]
-    R, QT = _qr_decomposition(matrix, arithmetic, method)
-    entries = [("Q", i, j, i * N + j, QT[j][i]) for i in range(N) for j in range(N)] + [
+    R, QH = _qr_decomposition(matrix, arithmetic, method)
+    entries = [
+        ("Q", i, j, i * N + j, arithmetic.conjugate(QH[j][i]))
+        for i in range(N)
+        for j in range(N)
+    ] + [
         ("R", i, j, i * (2 * N - i + 1) // 2 + j - i, R[i][j])
         for i in range(N)
         for j in range(i, N)
     ]
     outputs = [
-        MemoryWrite(
-            address,
+        arithmetic.output(
+            i,
+            j,
             value,
+            mem,
+            address=address,
             memory_name=factor,
             name=f"{factor}[{i},{j}]",
-            real_valued=True,
+            real_valued=False,
         )
-        if mem
-        else Output(value, name=f"{factor}[{i},{j}]", real_valued=True)
         for factor, i, j, address, value in entries
     ]
-    return SFG(
-        [value for row in matrix for value in row],
+    return arithmetic.graph(
         outputs,
-        name=f"{method.capitalize()} QR decomposition" if name is None else name,
+        f"{method.capitalize()} QR decomposition" if name is None else name,
     )
 
 
@@ -364,13 +376,18 @@ def _validate_qr_arguments(N, method, pe):
         raise ValueError('method must be "householder" or "givens"')
 
 
-def _qr_mac(arithmetic, accumulator, left, right, is_add=True):
+def _qr_mac(arithmetic, accumulator, left, right, is_add=True, *, real_valued=False):
     """Emit a product or accumulated product using the selected PE."""
     if arithmetic.pe == "mads":
         return arithmetic.mads(
-            is_add, accumulator, left, right, accumulator is not None
+            is_add,
+            accumulator,
+            left,
+            right,
+            accumulator is not None,
+            real_valued=real_valued,
         )
-    product = arithmetic.multiplication(left, right)
+    product = arithmetic.multiplication(left, right, real_valued=real_valued)
     if accumulator is None:
         return product if is_add else -product
     return _qr_addsub(arithmetic, accumulator, product, is_add)
@@ -386,25 +403,54 @@ def _qr_safe_norm(arithmetic, norm):
     """Replace a zero squared norm with one, returning its zero indicator."""
     # For a nonnegative squared norm, 0 - norm has a negative sign exactly
     # when norm is nonzero. Subtraction also maps +0 to +0, unlike negation.
-    sign = CopySign(Constant(1), _qr_addsub(arithmetic, Constant(0), norm, False))
+    sign = arithmetic.copy_sign(
+        arithmetic.constant(1),
+        _qr_addsub(arithmetic, arithmetic.constant(0), norm, False),
+    )
     is_zero = _qr_mac(
-        arithmetic, None, Constant(0.5), _qr_addsub(arithmetic, Constant(1), sign)
+        arithmetic,
+        None,
+        arithmetic.constant(0.5),
+        _qr_addsub(arithmetic, arithmetic.constant(1), sign),
     )
     return _qr_addsub(arithmetic, norm, is_zero), is_zero
 
 
+def _qr_squared_norm(arithmetic, values):
+    """Accumulate squared magnitudes as an explicitly real expression."""
+    norm = None
+    for value in values:
+        norm = _qr_mac(
+            arithmetic, norm, value, arithmetic.conjugate(value), real_valued=True
+        )
+    return arithmetic.real_part(norm)
+
+
+def _qr_reciprocal(arithmetic, value):
+    """Invert a QR pivot, whose phase need not be real."""
+    if arithmetic.data_type == "real":
+        return arithmetic.reciprocal(value, real_valued=True)
+    norm = _qr_squared_norm(arithmetic, [value])
+    return _qr_mac(
+        arithmetic,
+        None,
+        arithmetic.conjugate(value),
+        arithmetic.reciprocal(norm, real_valued=True),
+    )
+
+
 def _qr_decomposition(matrix, arithmetic, method):
-    """Return R and Q transpose, applying every orthogonal update to both."""
-    R, QT, _ = _qr_factorization(matrix, arithmetic, method)
-    return R, QT
+    """Return R and Q conjugate transpose, applying every unitary update to both."""
+    R, QH, _ = _qr_factorization(matrix, arithmetic, method)
+    return R, QH
 
 
 def _qr_factorization(matrix, arithmetic, method, *, form_q=True):
-    """Return R, optional Q transpose, and parameters for implicit Q updates."""
+    """Return R, optional Q conjugate transpose, and implicit Q parameters."""
     N = len(matrix)
     R = [row.copy() for row in matrix]
-    QT = (
-        [[Constant(int(i == j)) for j in range(N)] for i in range(N)]
+    QH = (
+        [[arithmetic.constant(int(i == j)) for j in range(N)] for i in range(N)]
         if form_q
         else None
     )
@@ -412,39 +458,49 @@ def _qr_factorization(matrix, arithmetic, method, *, form_q=True):
 
     if method == "householder":
         for k in range(N - 1):
-            norm = None
-            for i in range(k, N):
-                norm = _qr_mac(arithmetic, norm, R[i][k], R[i][k])
+            norm = _qr_squared_norm(arithmetic, [R[i][k] for i in range(k, N)])
             safe_norm, _ = _qr_safe_norm(arithmetic, norm)
             norm_inverse = arithmetic.reciprocal_square_root(
                 safe_norm, real_valued=True
             )
             magnitude = _qr_mac(arithmetic, None, norm, norm_inverse)
-            alpha = -CopySign(magnitude, R[k][k])
+            if arithmetic.data_type == "real":
+                alpha = -arithmetic.copy_sign(magnitude, R[k][k])
+            else:
+                # phase(a) = a / |a|, with phase(0) = 1. Choosing the
+                # opposite phase avoids cancellation in the leading entry.
+                leading_norm = _qr_squared_norm(arithmetic, [R[k][k]])
+                safe_leading_norm, is_zero = _qr_safe_norm(arithmetic, leading_norm)
+                leading_inverse = arithmetic.reciprocal_square_root(
+                    safe_leading_norm, real_valued=True
+                )
+                phase = _qr_mac(arithmetic, is_zero, R[k][k], leading_inverse)
+                alpha = -_qr_mac(arithmetic, None, phase, magnitude)
             vector = [_qr_addsub(arithmetic, R[k][k], alpha, False)] + [
                 R[i][k] for i in range(k + 1, N)
             ]
-            vector_norm = None
-            for value in vector:
-                vector_norm = _qr_mac(arithmetic, vector_norm, value, value)
+            vector_norm = _qr_squared_norm(arithmetic, vector)
             safe_vector_norm, _ = _qr_safe_norm(arithmetic, vector_norm)
             beta = _qr_mac(
                 arithmetic,
                 None,
-                Constant(2),
+                arithmetic.constant(2),
                 arithmetic.reciprocal(safe_vector_norm, real_valued=True),
             )
             if not form_q:
                 transformations.append((k, vector, beta))
             targets = [(R, range(k + 1, N))]
             if form_q:
-                targets.append((QT, range(N)))
+                targets.append((QH, range(N)))
             for target, columns in targets:
                 for j in columns:
                     projection = None
                     for offset, value in enumerate(vector):
                         projection = _qr_mac(
-                            arithmetic, projection, value, target[k + offset][j]
+                            arithmetic,
+                            projection,
+                            arithmetic.conjugate(value),
+                            target[k + offset][j],
                         )
                     scale = _qr_mac(arithmetic, None, beta, projection)
                     for offset, value in enumerate(vector):
@@ -453,24 +509,26 @@ def _qr_factorization(matrix, arithmetic, method, *, form_q=True):
                         )
             R[k][k] = alpha
             for i in range(k + 1, N):
-                R[i][k] = Constant(0)
+                R[i][k] = arithmetic.constant(0)
     else:
         for k in range(N - 1):
             for i in range(N - 1, k, -1):
                 a, b = R[k][k], R[i][k]
-                norm = _qr_mac(arithmetic, _qr_mac(arithmetic, None, a, a), b, b)
+                norm = _qr_squared_norm(arithmetic, [a, b])
                 safe_norm, is_zero = _qr_safe_norm(arithmetic, norm)
                 norm_inverse = arithmetic.reciprocal_square_root(
                     safe_norm, real_valued=True
                 )
                 # A zero pair selects the identity rotation.
-                cosine = _qr_mac(arithmetic, is_zero, a, norm_inverse)
-                sine = _qr_mac(arithmetic, None, b, norm_inverse)
+                cosine = _qr_mac(
+                    arithmetic, is_zero, arithmetic.conjugate(a), norm_inverse
+                )
+                sine = _qr_mac(arithmetic, None, arithmetic.conjugate(b), norm_inverse)
                 if not form_q:
                     transformations.append((k, i, cosine, sine))
                 targets = [(R, range(k + 1, N))]
                 if form_q:
-                    targets.append((QT, range(N)))
+                    targets.append((QH, range(N)))
                 for target, columns in targets:
                     for j in columns:
                         top, bottom = target[k][j], target[i][j]
@@ -482,11 +540,13 @@ def _qr_factorization(matrix, arithmetic, method, *, form_q=True):
                         )
                         target[i][j] = _qr_mac(
                             arithmetic,
-                            _qr_mac(arithmetic, None, cosine, bottom),
-                            sine,
+                            _qr_mac(
+                                arithmetic, None, arithmetic.conjugate(cosine), bottom
+                            ),
+                            arithmetic.conjugate(sine),
                             top,
                             False,
                         )
                 R[k][k] = _qr_mac(arithmetic, None, norm, norm_inverse)
-                R[i][k] = Constant(0)
-    return R, QT, transformations
+                R[i][k] = arithmetic.constant(0)
+    return R, QH, transformations

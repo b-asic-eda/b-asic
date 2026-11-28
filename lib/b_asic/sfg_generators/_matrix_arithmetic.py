@@ -13,6 +13,7 @@ from b_asic.core_operations import (
     AddSub,
     ComplexConjugate,
     Constant,
+    CopySign,
     Multiplication,
     Negation,
     Reciprocal,
@@ -23,7 +24,7 @@ from b_asic.port import SignalSourceProvider
 from b_asic.sfg import SFG
 from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
 from b_asic.types import Name
-from b_asic.utility_operations import DontCare, Sink
+from b_asic.utility_operations import ComplexToReal, DontCare, Sink
 
 
 @dataclass(eq=False)
@@ -274,6 +275,18 @@ class _MatrixArithmetic:
             return Constant(value)
         return _SplitValue(self, _Expression(lambda: Constant(value)))
 
+    def real_part(self, value):
+        """Extract a real signal, including for native complex expressions."""
+        if self.data_type == "complex":
+            return ComplexToReal(value).output(0)
+        return self.real(value)
+
+    def copy_sign(self, magnitude, sign):
+        """Copy the sign between two real expressions."""
+        if self.data_type != "split":
+            return CopySign(magnitude, sign)
+        return _SplitValue(self, _node(CopySign, magnitude.re, sign.re))
+
     def matrix_entry(self, matrix, row: int, col: int):
         if row == col:
             return self.real(matrix[row][col])
@@ -281,13 +294,30 @@ class _MatrixArithmetic:
             return matrix[row][col]
         return self.conjugate(matrix[col][row])
 
-    def input(self, row: int, col: int, mem: bool):
-        name = f"A[{row},{col}]"
-        address = row * (row + 1) // 2 + col
+    def input(
+        self,
+        row: int,
+        col: int,
+        mem: bool,
+        *,
+        name: str | None = None,
+        address: int | None = None,
+        memory_name: str = "",
+        real_valued: bool | None = None,
+    ):
+        name = f"A[{row},{col}]" if name is None else name
+        address = row * (row + 1) // 2 + col if address is None else address
+        real_valued = self.data_type == "real" or (
+            row == col if real_valued is None else real_valued
+        )
         if self.data_type != "split":
-            real_valued = self.data_type == "real" or row == col
             operation = (
-                MemoryRead(address=address, name=name, real_valued=real_valued)
+                MemoryRead(
+                    address=address,
+                    name=name,
+                    real_valued=real_valued,
+                    memory_name=memory_name,
+                )
                 if mem
                 else Input(name=name, real_valued=real_valued)
             )
@@ -298,6 +328,7 @@ class _MatrixArithmetic:
             operation = (
                 MemoryRead(
                     address=2 * address + index,
+                    memory_name=memory_name,
                     name=f"{name}_{part}",
                     real_valued=True,
                 )
@@ -306,7 +337,7 @@ class _MatrixArithmetic:
             )
             self.inputs.append(operation)
             parts.append(_Expression(lambda operation=operation: operation))
-        if row == col:
+        if real_valued:
             Sink(parts[1].source)
             return _SplitValue(self, parts[0])
         return _SplitValue(self, *parts)
@@ -321,13 +352,17 @@ class _MatrixArithmetic:
         name: str | None = None,
         address: int | None = None,
         memory_name: str = "",
+        real_valued: bool | None = None,
     ) -> tuple[Output, ...]:
         name = f"res[{row},{col}]" if name is None else name
         address = row * (row + 1) // 2 + col if address is None else address
+        real_valued = self.data_type == "real" or (
+            row == col if real_valued is None else real_valued
+        )
         if self.data_type == "split":
             parts = (
                 value.re.source,
-                Constant(0) if row == col or value.im is None else value.im.source,
+                Constant(0) if real_valued or value.im is None else value.im.source,
             )
             return tuple(
                 MemoryWrite(
@@ -343,7 +378,6 @@ class _MatrixArithmetic:
                     zip(parts, ("real", "imag"), strict=True)
                 )
             )
-        real_valued = self.data_type == "real" or row == col
         return (
             MemoryWrite(
                 address=address,
