@@ -3,6 +3,7 @@
 from inspect import isclass
 
 from b_asic import (
+    comparison_operations,
     core_operations,
     fft_operations,
     ops,
@@ -15,6 +16,7 @@ from b_asic.operation import Operation
 
 def test_module_exports_all_builtin_operations():
     modules = (
+        comparison_operations,
         core_operations,
         fft_operations,
         special_operations,

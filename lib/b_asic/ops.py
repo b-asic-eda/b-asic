@@ -7,6 +7,7 @@ Contains built-in operations for constructing SFGs.
 from inspect import isclass as _isclass
 from typing import TYPE_CHECKING as _TYPE_CHECKING
 
+from b_asic import comparison_operations as _comparison_operations
 from b_asic import core_operations as _core_operations
 from b_asic import fft_operations as _fft_operations
 from b_asic import special_operations as _special_operations
@@ -15,6 +16,7 @@ from b_asic import wdf_operations as _wdf_operations
 from b_asic.operation import Operation as _Operation
 
 if _TYPE_CHECKING:
+    from b_asic.comparison_operations import *  # noqa: F403
     from b_asic.core_operations import *  # noqa: F403
     from b_asic.fft_operations import *  # noqa: F403
     from b_asic.special_operations import *  # noqa: F403
@@ -24,6 +26,7 @@ if _TYPE_CHECKING:
 _operations = {
     name: value
     for module in (
+        _comparison_operations,
         _core_operations,
         _fft_operations,
         _special_operations,

@@ -401,19 +401,9 @@ def _qr_addsub(arithmetic, left, right, is_add=True):
 
 def _qr_safe_norm(arithmetic, norm):
     """Replace a zero squared norm with one, returning its zero indicator."""
-    # For a nonnegative squared norm, 0 - norm has a negative sign exactly
-    # when norm is nonzero. Subtraction also maps +0 to +0, unlike negation.
-    sign = arithmetic.copy_sign(
-        arithmetic.constant(1),
-        _qr_addsub(arithmetic, arithmetic.constant(0), norm, False),
-    )
-    is_zero = _qr_mac(
-        arithmetic,
-        None,
-        arithmetic.constant(0.5),
-        _qr_addsub(arithmetic, arithmetic.constant(1), sign),
-    )
-    return _qr_addsub(arithmetic, norm, is_zero), is_zero
+    safe_norm = arithmetic.replace_zero(norm, 1)
+    is_zero = _qr_addsub(arithmetic, safe_norm, norm, False)
+    return safe_norm, is_zero
 
 
 def _qr_squared_norm(arithmetic, values):
