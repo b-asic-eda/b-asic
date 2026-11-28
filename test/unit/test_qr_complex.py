@@ -112,7 +112,7 @@ def test_complex_qr_factors(method, pe, data_type, multiplication_method, mem, s
 
 
 @pytest.mark.parametrize("method", ["householder", "givens"])
-@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq"])
+@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq", "implicitq_eqs"])
 @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
 @pytest.mark.parametrize(
     ("data_type", "multiplication_method"),
