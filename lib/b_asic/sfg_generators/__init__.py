@@ -12,12 +12,14 @@ from .matrix_decomposition import (
     qr_decomposition,
 )
 from .matrix_inversion import (
+    Leaf,
     analytical_block_matrix_inverse,
     block_cholesky_matrix_inverse,
     block_ldlt_matrix_inverse,
     cholesky_matrix_inverse,
     ldlt_matrix_inverse,
     qr_matrix_inverse,
+    schur_matrix_inverse,
     tile_ldlt_matrix_inverse,
 )
 from .matrix_operations import matrix_multiplication, strassen_matrix_multiplication
@@ -32,6 +34,7 @@ from .sorting import (
 from .wave_digital_filters import lattice_wdf, richards, wdf_allpass
 
 __all__ = [
+    "Leaf",
     "analytical_block_matrix_inverse",
     "bitonic_sort",
     "block_cholesky_matrix_inverse",
@@ -54,6 +57,7 @@ __all__ = [
     "qr_matrix_inverse",
     "radix_2_dif_fft",
     "richards",
+    "schur_matrix_inverse",
     "shell_sort",
     "strassen_matrix_multiplication",
     "tile_ldlt_matrix_inverse",

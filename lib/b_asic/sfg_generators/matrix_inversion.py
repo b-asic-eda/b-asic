@@ -4,13 +4,15 @@ B-ASIC signal flow graph generators.
 This module contains a number of functions generating SFGs for matrix inversion.
 
 With ``data_type="complex"`` or ``data_type="split"``, the generators invert
-Hermitian input matrices. The default ``data_type="real"`` uses symmetric
-matrices. Cholesky algorithms require positive definite input matrices.
+Hermitian input matrices by default. The default ``data_type="real"`` uses
+symmetric matrices. :func:`schur_matrix_inverse` additionally supports general
+and complex symmetric matrices through its ``structure`` argument.
+Cholesky algorithms require positive definite input matrices.
 The QR generator supports symmetric or Hermitian nonsingular matrices, with
 ``method="householder"`` or ``method="givens"`` selecting the decomposition.
 Scalar inverses use explicit :class:`~b_asic.core_operations.Reciprocal`
-operations marked real-valued: LDLT pivots and Hermitian block determinants
-are real, while complex QR pivots use conjugates and reciprocal squared
+operations marked real-valued: Hermitian LDLT pivots and block determinants
+are real, while other complex pivots use conjugates and reciprocal squared
 magnitudes. Real matrices have real-valued input and output interfaces; Hermitian
 matrices have real-valued diagonal interfaces, including memory interfaces.
 When only the real part of a product is needed, including diagonal inverse
@@ -26,7 +28,8 @@ upper-triangular entries follow by symmetry, or conjugate symmetry when
 ``data_type="complex"`` or ``data_type="split"``. Split graphs store each real
 component at twice the packed address and its imaginary component at the next
 address, occupying :math:`N(N+1)` real locations. Block and tile algorithms use
-this same external layout regardless of their internal partitioning.
+this same external layout regardless of their internal partitioning. Schur
+inversion with ``structure="general"`` instead uses full row-major interfaces.
 
 For example, generate a Hermitian inverse directly in real arithmetic with
 three real multiplications per general complex product using::
@@ -34,6 +37,10 @@ three real multiplications per general complex product using::
     sfg = ldlt_matrix_inverse(4, data_type="split", multiplication_method="three")
 """
 
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Literal
 
 from b_asic.sfg import SFG
@@ -121,50 +128,7 @@ def qr_matrix_inverse(
     matrix = [
         [arithmetic.matrix_entry(lower, i, j) for j in range(N)] for i in range(N)
     ]
-    R, QH, transformations = _qr_factorization(
-        matrix, arithmetic, method, form_q=mode in ("eqs", "mult")
-    )
-
-    if mode == "eqs":
-        inverse = [[None] * N for _ in range(N)]
-        for i in range(N - 1, -1, -1):
-            pivot_inverse = _qr_reciprocal(arithmetic, R[i][i])
-            # Only the lower triangle is needed, including intermediate solutions.
-            for j in range(i + 1):
-                value = QH[i][j]
-                for k in range(i + 1, N):
-                    value = _qr_mac(arithmetic, value, R[i][k], inverse[k][j], False)
-                inverse[i][j] = _qr_mac(arithmetic, None, value, pivot_inverse)
-    elif mode == "implicitq_eqs":
-        inverse = [[None] * N for _ in range(N)]
-        pivot_inverses = [_qr_reciprocal(arithmetic, R[i][i]) for i in range(N)]
-        for j in range(N):
-            right_hand_side = [arithmetic.constant(int(i == j)) for i in range(N)]
-            right_hand_side = _qr_apply_left(
-                right_hand_side, transformations, arithmetic, method
-            )
-            # The lower-triangular output needs only this tail of column j.
-            for i in range(N - 1, j - 1, -1):
-                value = right_hand_side[i]
-                for k in range(i + 1, N):
-                    value = _qr_mac(arithmetic, value, R[i][k], inverse[k][j], False)
-                inverse[i][j] = _qr_mac(arithmetic, None, value, pivot_inverses[i])
-    else:
-        triangular_inverse = _qr_upper_inverse(R, arithmetic)
-        if mode == "mult":
-            inverse = [[None] * N for _ in range(N)]
-            for i in range(N):
-                for j in range(i + 1):
-                    value = None
-                    for k in range(i, N):
-                        value = _qr_mac(
-                            arithmetic, value, triangular_inverse[i][k], QH[k][j]
-                        )
-                    inverse[i][j] = value
-        else:
-            inverse = _qr_apply_right(
-                triangular_inverse, transformations, arithmetic, method
-            )
+    inverse = _qr_inverse(matrix, arithmetic, method, mode)
 
     return arithmetic.graph(
         [
@@ -179,6 +143,57 @@ def qr_matrix_inverse(
         ],
         name if name is not None else f"{method.capitalize()} QR matrix-inversion",
     )
+
+
+def _qr_inverse(matrix, arithmetic, method, mode, *, lower_only=True):
+    """Invert matrix sources, optionally retaining the full inverse."""
+    N = len(matrix)
+    R, QH, transformations = _qr_factorization(
+        matrix, arithmetic, method, form_q=mode in ("eqs", "mult")
+    )
+
+    if mode == "eqs":
+        inverse = [[None] * N for _ in range(N)]
+        for i in range(N - 1, -1, -1):
+            pivot_inverse = _qr_reciprocal(arithmetic, R[i][i])
+            # Structured inverses need only the lower triangle of each solution.
+            for j in range(i + 1 if lower_only else N):
+                value = QH[i][j]
+                for k in range(i + 1, N):
+                    value = _qr_mac(arithmetic, value, R[i][k], inverse[k][j], False)
+                inverse[i][j] = _qr_mac(arithmetic, None, value, pivot_inverse)
+    elif mode == "implicitq_eqs":
+        inverse = [[None] * N for _ in range(N)]
+        pivot_inverses = [_qr_reciprocal(arithmetic, R[i][i]) for i in range(N)]
+        for j in range(N):
+            right_hand_side = [arithmetic.constant(int(i == j)) for i in range(N)]
+            right_hand_side = _qr_apply_left(
+                right_hand_side, transformations, arithmetic, method
+            )
+            # Structured output needs only the tail of column j.
+            for i in range(N - 1, (j if lower_only else 0) - 1, -1):
+                value = right_hand_side[i]
+                for k in range(i + 1, N):
+                    value = _qr_mac(arithmetic, value, R[i][k], inverse[k][j], False)
+                inverse[i][j] = _qr_mac(arithmetic, None, value, pivot_inverses[i])
+    else:
+        triangular_inverse = _qr_upper_inverse(R, arithmetic)
+        if mode == "mult":
+            inverse = [[None] * N for _ in range(N)]
+            for i in range(N):
+                for j in range(i + 1 if lower_only else N):
+                    value = None
+                    for k in range(i, N):
+                        value = _qr_mac(
+                            arithmetic, value, triangular_inverse[i][k], QH[k][j]
+                        )
+                    inverse[i][j] = value
+        else:
+            inverse = _qr_apply_right(
+                triangular_inverse, transformations, arithmetic, method
+            )
+
+    return inverse
 
 
 def _qr_apply_left(vector, transformations, arithmetic, method):
@@ -325,6 +340,32 @@ def ldlt_matrix_inverse(
     if name is None:
         name = "LDLT matrix-inversion"
 
+    A = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N):
+        for j in range(i + 1):
+            A[i][j] = arithmetic.input(i, j, mem)
+    res = _ldlt_inverse(A, arithmetic, mode)
+    return arithmetic.graph(
+        [
+            arithmetic.output(i, j, res[i][j], mem)
+            for i in range(N)
+            for j in range(i + 1)
+        ],
+        name,
+    )
+
+
+def _ldlt_inverse(A, arithmetic, mode, *, hermitian=True):
+    """Build inverse sources shared by scalar and Schur generators."""
+    pe = arithmetic.pe
+    real_diagonal = hermitian or arithmetic.data_type == "real"
+
+    def transpose_value(value):
+        return arithmetic.conjugate(value) if hermitian else value
+
+    def entry(matrix, i, j):
+        return matrix[i][j] if i >= j else transpose_value(matrix[j][i])
+
     def ldl_l_inv(L):
         N_local = len(L)
         L_inv = [[None for _ in range(N_local)] for _ in range(N_local)]
@@ -377,7 +418,7 @@ def ldlt_matrix_inverse(
                     res[i][j] = D_inv[i] * L_inv[i][j]
 
                 for k in range(i + 1, n):
-                    l_inv_conj = arithmetic.conjugate(L_inv[k][i])
+                    l_inv_conj = transpose_value(L_inv[k][i])
                     if pe == "mads":
                         t0 = arithmetic.mads(
                             is_add=True,
@@ -392,7 +433,7 @@ def ldlt_matrix_inverse(
                             in1=t0,
                             in2=L_inv[k][j],
                             do_addsub=True,
-                            real_valued=i == j,
+                            real_valued=real_diagonal and i == j,
                         )
                     elif pe == "addsub":
                         t0 = l_inv_conj * D_inv[k]
@@ -400,13 +441,13 @@ def ldlt_matrix_inverse(
                             is_add=True,
                             in0=res[i][j],
                             in1=arithmetic.multiplication(
-                                t0, L_inv[k][j], real_valued=i == j
+                                t0, L_inv[k][j], real_valued=real_diagonal and i == j
                             ),
                         )
                     else:
                         t0 = l_inv_conj * D_inv[k]
                         res[i][j] = res[i][j] + arithmetic.multiplication(
-                            t0, L_inv[k][j], real_valued=i == j
+                            t0, L_inv[k][j], real_valued=real_diagonal and i == j
                         )
 
         return res
@@ -423,7 +464,7 @@ def ldlt_matrix_inverse(
                 if i == j:
                     val = D_inv[i]
                     for k in range(n - 1, i, -1):
-                        l_conj = arithmetic.conjugate(L[k][i])
+                        l_conj = transpose_value(L[k][i])
                         if pe == "mads":
                             val = arithmetic.mads(
                                 is_add=False,
@@ -431,23 +472,23 @@ def ldlt_matrix_inverse(
                                 in1=l_conj,
                                 in2=res[k][i],
                                 do_addsub=True,
-                                real_valued=True,
+                                real_valued=real_diagonal,
                             )
                         elif pe == "addsub":
                             val = arithmetic.addsub(
                                 is_add=False,
                                 in0=val,
                                 in1=arithmetic.multiplication(
-                                    l_conj, res[k][i], real_valued=True
+                                    l_conj, res[k][i], real_valued=real_diagonal
                                 ),
                             )
                         else:
                             val = val - arithmetic.multiplication(
-                                l_conj, res[k][i], real_valued=True
+                                l_conj, res[k][i], real_valued=real_diagonal
                             )
                 else:
                     for k in range(n - 1, j, -1):
-                        res_ik = arithmetic.matrix_entry(res, i, k)
+                        res_ik = entry(res, i, k)
                         if pe == "mads":
                             if k == n - 1:
                                 val = arithmetic.mads(
@@ -479,35 +520,19 @@ def ldlt_matrix_inverse(
                                 val = -L[k][j] * res_ik
                             else:
                                 val = val - L[k][j] * res_ik
-                res[i][j] = arithmetic.real(val) if i == j else val
+                res[i][j] = arithmetic.real(val) if real_diagonal and i == j else val
 
         return res
 
-    A = [[None for _ in range(N)] for _ in range(N)]
-    for i in range(N):
-        for j in range(i + 1):
-            in_op = arithmetic.input(i, j, mem)
-            A[i][j] = in_op
-
-    L, _, D_inv = _ldlt_decomposition(A, arithmetic)
+    L, _, D_inv = _ldlt_decomposition(A, arithmetic, hermitian=hermitian)
 
     if mode == "mult":
         L_inv = ldl_l_inv(L)
         res = ldl_matmul(L_inv, D_inv)
-        outputs = [
-            arithmetic.output(i, j, res[i][j], mem)
-            for i in range(N)
-            for j in range(i + 1)
-        ]
     else:
         res = ldl_eqs(L, D_inv)
-        outputs = [
-            arithmetic.output(i, j, res[i][j], mem)
-            for i in range(N)
-            for j in range(i + 1)
-        ]
 
-    return arithmetic.graph(outputs, name)
+    return res
 
 
 def cholesky_matrix_inverse(
@@ -564,6 +589,25 @@ def cholesky_matrix_inverse(
     arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     if name is None:
         name = "Cholesky matrix-inversion"
+
+    A = [[None for _ in range(N)] for _ in range(N)]
+    for i in range(N):
+        for j in range(i + 1):
+            A[i][j] = arithmetic.input(i, j, mem)
+    res = _cholesky_inverse(A, arithmetic, mode)
+    return arithmetic.graph(
+        [
+            arithmetic.output(i, j, res[i][j], mem)
+            for i in range(N)
+            for j in range(i + 1)
+        ],
+        name,
+    )
+
+
+def _cholesky_inverse(A, arithmetic, mode):
+    """Build inverse sources shared by scalar and Schur generators."""
+    pe = arithmetic.pe
 
     def chol_l_inv(L, L_inv_diag):
         N_local = len(L)
@@ -761,31 +805,15 @@ def cholesky_matrix_inverse(
 
         return res
 
-    A = [[None for _ in range(N)] for _ in range(N)]
-    for i in range(N):
-        for j in range(i + 1):
-            in_op = arithmetic.input(i, j, mem)
-            A[i][j] = in_op
-
     L, L_inv_diag = _cholesky_decomposition(A, arithmetic)
 
     if mode == "mult":
         L_inv = chol_l_inv(L, L_inv_diag)
         res = chol_matmul(L_inv)
-        outputs = [
-            arithmetic.output(i, j, res[i][j], mem)
-            for i in range(N)
-            for j in range(i + 1)
-        ]
     else:
         res = chol_eqs(L, L_inv_diag)
-        outputs = [
-            arithmetic.output(i, j, res[i][j], mem)
-            for i in range(N)
-            for j in range(i + 1)
-        ]
 
-    return arithmetic.graph(outputs, name)
+    return res
 
 
 def block_ldlt_matrix_inverse(
@@ -2058,6 +2086,399 @@ def tile_ldlt_matrix_inverse(
     ]
 
     return arithmetic.graph(outputs, name)
+
+
+@dataclass(frozen=True)
+class Leaf:
+    """
+    Specify a terminal block in a Schur inversion partition.
+
+    Parameters
+    ----------
+    size : int
+        Positive block dimension.
+    method : {"analytical", "ldlt", "cholesky", "qr"}, optional
+        Inversion method. None inherits the generator's ``leaf_method``.
+        Selecting a method explicitly resets its options to that method's
+        defaults, before applying ``options``.
+    options : mapping, optional
+        Algorithm-specific keyword arguments. With an inherited method, these
+        override the generator's ``leaf_options``. QR accepts ``method``
+        ("householder" or "givens") and ``mode`` ("eqs", "mult", "implicitq",
+        or "implicitq_eqs"). LDLT and Cholesky accept ``mode`` ("eqs" or
+        "mult"). Analytical leaves accept no options and have size at most 2.
+    """
+
+    size: int
+    method: Literal["analytical", "ldlt", "cholesky", "qr"] | None = None
+    options: Mapping[str, str] | None = None
+
+
+type _SchurPartition = int | Leaf | tuple[_SchurPartition, _SchurPartition] | list[int]
+
+
+def _schur_partition(
+    N, partition, block_size, leaf_method, leaf_options, structure, data_type
+):
+    """Resolve every partition and leaf option before creating operations."""
+    methods = ("analytical", "ldlt", "cholesky", "qr")
+    if leaf_method not in methods:
+        raise ValueError(f"leaf_method must be one of {methods}")
+    if (
+        isinstance(block_size, bool)
+        or not isinstance(block_size, int)
+        or block_size < 1
+    ):
+        raise ValueError("block_size must be a positive integer")
+
+    def options_for(method, options):
+        if options is not None and not isinstance(options, Mapping):
+            raise ValueError("leaf options must be a mapping")
+        options = dict(options or {})
+        allowed = (
+            {"mode", "method"}
+            if method == "qr"
+            else {"mode"}
+            if method != "analytical"
+            else set()
+        )
+        if options.keys() - allowed:
+            raise ValueError(
+                f"Unsupported {method} leaf options: {sorted(options.keys() - allowed)}"
+            )
+        if method != "analytical":
+            options.setdefault("mode", "eqs")
+            modes = (
+                ("eqs", "mult", "implicitq", "implicitq_eqs")
+                if method == "qr"
+                else ("eqs", "mult")
+            )
+            if options["mode"] not in modes:
+                raise ValueError(f"{method} leaf mode must be one of {modes}")
+        if method == "qr":
+            options.setdefault("method", "householder")
+            if options["method"] not in ("householder", "givens"):
+                raise ValueError('QR leaf method must be "householder" or "givens"')
+        return options
+
+    # Validate global options even when every explicit leaf overrides them.
+    options_for(leaf_method, leaf_options)
+
+    def resolve_leaf(leaf):
+        if (
+            isinstance(leaf.size, bool)
+            or not isinstance(leaf.size, int)
+            or leaf.size < 1
+        ):
+            raise ValueError("Leaf sizes must be positive integers")
+        method = leaf_method if leaf.method is None else leaf.method
+        if method not in methods:
+            raise ValueError(f"Leaf method must be one of {methods}")
+        if leaf.options is not None and not isinstance(leaf.options, Mapping):
+            raise ValueError("leaf options must be a mapping")
+        options = dict(leaf_options or {}) if leaf.method is None else {}
+        options.update(leaf.options or {})
+        options = options_for(method, options)
+        if method == "analytical" and leaf.size > 2:
+            raise ValueError("Analytical leaf size must be at most 2")
+        if structure == "general" and method in ("ldlt", "cholesky"):
+            raise ValueError(
+                f"{method} leaves require symmetric or Hermitian structure"
+            )
+        if method == "cholesky" and structure == "symmetric" and data_type != "real":
+            raise ValueError(
+                "Cholesky leaves require real symmetric or Hermitian structure"
+            )
+        return Leaf(leaf.size, method, options), leaf.size
+
+    def explicit(plan):
+        if isinstance(plan, (int, Leaf)):
+            return resolve_leaf(plan if isinstance(plan, Leaf) else Leaf(plan))
+        if isinstance(plan, list):
+            if not plan or any(
+                isinstance(size, bool) or not isinstance(size, int) for size in plan
+            ):
+                raise ValueError(
+                    "A partition list must contain positive integer block sizes"
+                )
+            tree = plan[-1]
+            for size in reversed(plan[:-1]):
+                tree = (size, tree)
+            return explicit(tree)
+        if isinstance(plan, tuple) and len(plan) == 2:
+            left, n_left = explicit(plan[0])
+            right, n_right = explicit(plan[1])
+            return (left, right), n_left + n_right
+        raise ValueError(
+            "partition must be a preset, positive size, Leaf, size list, or pair of partitions"
+        )
+
+    def preset(n):
+        if n <= block_size:
+            return resolve_leaf(Leaf(n))[0]
+        split = (
+            block_size
+            if partition == "top"
+            else n - block_size
+            if partition == "bot"
+            else n // 2
+        )
+        return preset(split), preset(n - split)
+
+    if isinstance(partition, str):
+        if partition not in ("balanced", "top", "bot"):
+            raise ValueError('partition preset must be "balanced", "top", or "bot"')
+        return preset(N)
+    tree, size = explicit(partition)
+    if size != N:
+        raise ValueError(f"Partition sizes must sum to N ({N}), got {size}")
+    return tree
+
+
+def schur_matrix_inverse(
+    N: int,
+    name: str | None = None,
+    *,
+    partition: Literal["balanced", "top", "bot"] | _SchurPartition = "balanced",
+    block_size: int = 2,
+    leaf_method: Literal["analytical", "ldlt", "cholesky", "qr"] = "analytical",
+    leaf_options: Mapping[str, str] | None = None,
+    structure: Literal["general", "symmetric", "hermitian"] = "hermitian",
+    pe: Literal["addsub", "mads"] | None = None,
+    mem: bool = False,
+    data_type: Literal["real", "complex", "split"] = "real",
+    multiplication_method: Literal["four", "three", "threealt"] = "four",
+) -> SFG:
+    r"""
+    Generate a recursively partitioned Schur-complement matrix inverse.
+
+    All partitions are fixed at graph generation. For a block matrix
+    :math:`M=[A,B;C,D]`, invert A, form :math:`S=D-CA^{-1}B`, and invert S.
+    Both selected pivot blocks must be nonsingular at every recursion level.
+    There is no dynamic pivoting. Positive definite Hermitian matrices satisfy
+    these conditions for every contiguous principal partition. Cholesky leaves
+    additionally require positive definiteness; LDLT leaves require nonzero
+    scalar pivots. Scalar inversion and normalization use Reciprocals and
+    ReciprocalSquareRoots rather than divisions and square roots.
+
+    Parameters
+    ----------
+    N : int
+        Positive square matrix dimension.
+    name : str, optional
+        Graph name. Defaults to "Schur matrix-inversion".
+    partition : {"balanced", "top", "bot"}, int, Leaf, list, or tuple
+        "balanced" recursively halves blocks until their sizes are at most
+        ``block_size``. "top" repeatedly splits off a leading block of that
+        size; "bot" repeatedly leaves a trailing block of that size.
+        A list gives exact leaf sizes, eliminated left to right, e.g.
+        ``[2, 3, 3]`` means ``(2, (3, 3))``. Nested pairs specify the complete
+        recursion tree. In each pair, the left child inverts A and the right
+        child inverts S, not the original D. Integers denote terminal blocks;
+        :class:`Leaf` additionally overrides their method and options.
+        Explicit leaf sizes must sum to N. A single integer or Leaf selects
+        an unpartitioned inverse. All blocks use contiguous indices.
+    block_size : int, default: 2
+        Maximum leaf size for presets only. Explicit partitions determine
+        their own leaf sizes; a final remainder need not equal this size.
+    leaf_method : {"analytical", "ldlt", "cholesky", "qr"}, default: "analytical"
+        Default leaf algorithm. Analytical leaves have sizes 1 or 2. LDLT
+        supports symmetric and Hermitian matrices. Cholesky supports real
+        symmetric and Hermitian positive definite matrices. QR supports all
+        structures, including general matrices.
+    leaf_options : mapping, optional
+        Default algorithm-specific options; see :class:`Leaf`. An explicit
+        leaf method starts with its own defaults. Otherwise leaf options
+        override these defaults. Arithmetic settings always come from the
+        outer generator. Leaves have no separate input/output memory interface.
+    structure : {"general", "symmetric", "hermitian"}, default: "hermitian"
+        Mathematical assumption, independent of data_type. General matrices
+        use full row-major interfaces. Symmetric and Hermitian matrices use
+        packed lower-triangular row order. Symmetric matrices use transpose
+        symmetry, including complex diagonals; Hermitian matrices use conjugate
+        transpose symmetry and real diagonals. Values are not checked at runtime.
+    pe : {"addsub", "mads", None}, optional
+        AddSub, multiply-add/subtract, or separate arithmetic operations.
+    mem : bool, default: False
+        Use MemoryRead/MemoryWrite in the default unnamed memory. Addresses
+        follow the interface order: ``i*N+j`` for general matrices and
+        ``i*(i+1)//2+j`` for packed matrices. Both input and output use this layout.
+    data_type : {"real", "complex", "split"}, default: "real"
+        Native real, native complex, or split real arithmetic. Split interfaces
+        interleave real/imaginary components, at addresses ``2*p`` and ``2*p+1``.
+        Only Hermitian (and real) diagonals ignore imaginary inputs and output zero.
+    multiplication_method : {"four", "three", "threealt"}, default: "four"
+        Split complex product implementation, matching the other generators.
+
+    Returns
+    -------
+    SFG
+        Signal flow graph for the inverse with the selected external layout.
+
+    Examples
+    --------
+    >>> graph = schur_matrix_inverse(8)  # Balanced analytical 2x2 leaves.
+    >>> graph = schur_matrix_inverse(
+    ...     8, partition=[2, 3, 3], leaf_method="qr",
+    ...     leaf_options={"method": "givens", "mode": "implicitq"},
+    ... )
+    >>> graph = schur_matrix_inverse(
+    ...     8, partition=(Leaf(3, method="qr"), Leaf(5, method="cholesky")),
+    ... )
+    """
+    _validate_qr_arguments(N, "householder", pe)
+    if structure not in ("general", "symmetric", "hermitian"):
+        raise ValueError('structure must be "general", "symmetric", or "hermitian"')
+    arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
+    tree = _schur_partition(
+        N, partition, block_size, leaf_method, leaf_options, structure, data_type
+    )
+    structured = structure != "general"
+    real_diagonal = data_type == "real" or structure == "hermitian"
+
+    def transpose_value(value):
+        return arithmetic.conjugate(value) if structure == "hermitian" else value
+
+    def complete(matrix):
+        if not structured:
+            return matrix
+        return [
+            [
+                arithmetic.real_part(matrix[i][j])
+                if i == j and real_diagonal
+                else matrix[i][j]
+                if i >= j
+                else transpose_value(matrix[j][i])
+                for j in range(len(matrix))
+            ]
+            for i in range(len(matrix))
+        ]
+
+    def product(left, right, accumulator=None, *, is_add=True, lower=False):
+        result = [[None] * len(right[0]) for _ in left]
+        for i in range(len(left)):
+            for j in range(i + 1 if lower else len(right[0])):
+                value = None if accumulator is None else accumulator[i][j]
+                for k in range(len(right)):
+                    value = _qr_mac(
+                        arithmetic,
+                        value,
+                        left[i][k],
+                        right[k][j],
+                        is_add,
+                        real_valued=lower and real_diagonal and i == j,
+                    )
+                result[i][j] = value
+        return complete(result) if lower else result
+
+    def reciprocal(value):
+        return (
+            arithmetic.reciprocal(value, real_valued=True)
+            if real_diagonal
+            else _qr_reciprocal(arithmetic, value)
+        )
+
+    def invert_leaf(matrix, leaf):
+        options = leaf.options
+        if leaf.method == "analytical":
+            if len(matrix) == 1:
+                return [[reciprocal(matrix[0][0])]]
+            a, b = matrix[0]
+            c, d = matrix[1]
+            det = _qr_mac(
+                arithmetic,
+                _qr_mac(arithmetic, None, a, d),
+                b,
+                c,
+                False,
+                real_valued=real_diagonal and structured,
+            )
+            inv_det = reciprocal(det)
+            result = [
+                [_qr_mac(arithmetic, None, d, inv_det), None],
+                [
+                    _qr_mac(arithmetic, None, c, inv_det, False),
+                    _qr_mac(arithmetic, None, a, inv_det),
+                ],
+            ]
+            if not structured:
+                result[0][1] = _qr_mac(arithmetic, None, b, inv_det, False)
+            return complete(result)
+        if leaf.method == "qr":
+            return complete(
+                _qr_inverse(
+                    matrix,
+                    arithmetic,
+                    options["method"],
+                    options["mode"],
+                    lower_only=structured,
+                )
+            )
+        if leaf.method == "ldlt":
+            return complete(
+                _ldlt_inverse(
+                    matrix,
+                    arithmetic,
+                    options["mode"],
+                    hermitian=structure == "hermitian",
+                )
+            )
+        return complete(_cholesky_inverse(matrix, arithmetic, options["mode"]))
+
+    def size(plan):
+        return plan.size if isinstance(plan, Leaf) else size(plan[0]) + size(plan[1])
+
+    def invert(matrix, plan):
+        if isinstance(plan, Leaf):
+            return invert_leaf(matrix, plan)
+        n_a = size(plan[0])
+        A = [row[:n_a] for row in matrix[:n_a]]
+        B = [row[n_a:] for row in matrix[:n_a]]
+        C = [row[:n_a] for row in matrix[n_a:]]
+        D = [row[n_a:] for row in matrix[n_a:]]
+        V = invert(A, plan[0])
+        X = product(C, V)
+        S = product(X, B, D, is_add=False, lower=structured)
+        H = invert(S, plan[1])
+        F = product(H, X, is_add=False)
+        Y = (
+            [[transpose_value(X[j][i]) for j in range(len(X))] for i in range(n_a)]
+            if structured
+            else product(V, B)
+        )
+        E = product(Y, F, V, is_add=False, lower=structured)
+        G = (
+            [[transpose_value(F[j][i]) for j in range(len(F))] for i in range(n_a)]
+            if structured
+            else product(Y, H, is_add=False)
+        )
+        return [E[i] + G[i] for i in range(n_a)] + [F[i] + H[i] for i in range(len(H))]
+
+    indices = [(i, j) for i in range(N) for j in range(i + 1 if structured else N)]
+    matrix = [[None] * N for _ in range(N)]
+    for address, (i, j) in enumerate(indices):
+        matrix[i][j] = arithmetic.input(
+            i,
+            j,
+            mem,
+            address=address,
+            real_valued=data_type == "real" or (real_diagonal and i == j),
+        )
+    result = invert(complete(matrix), tree)
+    return arithmetic.graph(
+        [
+            arithmetic.output(
+                i,
+                j,
+                result[i][j],
+                mem,
+                address=address,
+                real_valued=data_type == "real" or (real_diagonal and i == j),
+            )
+            for address, (i, j) in enumerate(indices)
+        ],
+        name if name is not None else "Schur matrix-inversion",
+    )
 
 
 def analytical_block_matrix_inverse(
