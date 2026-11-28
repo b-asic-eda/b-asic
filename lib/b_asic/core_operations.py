@@ -1817,6 +1817,66 @@ class Comparator(AbstractOperation):
         )
 
 
+class CopySign(AbstractOperation):
+    """
+    Copy the sign of the second real input to the magnitude of the first.
+
+    Signed zeros follow :func:`math.copysign`. Complex inputs are unsupported.
+
+    Parameters
+    ----------
+    in0, in1 : SignalSourceProvider, optional
+        Magnitude and sign inputs, respectively.
+    name : Name, optional
+        Operation name.
+    latency : int, optional
+        Operation latency.
+    latency_offsets : dict[str, int], optional
+        Input and output latency offsets.
+    execution_time : int, optional
+        Time before the operation can be reused.
+    """
+
+    def __init__(
+        self,
+        in0: SignalSourceProvider | None = None,
+        in1: SignalSourceProvider | None = None,
+        name: Name = Name(""),
+        latency: int | None = None,
+        latency_offsets: dict[str, int] | None = None,
+        execution_time: int | None = None,
+    ) -> None:
+        """Construct a CopySign operation."""
+        super().__init__(
+            input_count=2,
+            output_count=1,
+            name=Name(name),
+            input_sources=[in0, in1],
+            latency=latency,
+            latency_offsets=latency_offsets,
+            execution_time=execution_time,
+        )
+
+    @classmethod
+    def type_name(cls) -> TypeName:
+        return TypeName("copysign")
+
+    def evaluate(self, a, b, data_type=None) -> Num:
+        if isinstance(a, complex) or isinstance(b, complex):
+            raise ValueError(
+                "core_operations.CopySign does not support complex numbers."
+            )
+        return self._cast_to_data_type(math.copysign(a, b), data_type)
+
+    def _complex_to_real(
+        self, inputs: Sequence[_ComplexPair], sinks: list["Sink"], **kwargs
+    ) -> Sequence[_ComplexPair]:
+        """Apply this real operation to the real input components."""
+        from b_asic.complex_conversion import _real_valued  # noqa: PLC0415
+
+        return _real_valued(self, inputs, sinks)
+
+
 class SquareRoot(_RealValuedOperation):
     r"""
     Square root operation.

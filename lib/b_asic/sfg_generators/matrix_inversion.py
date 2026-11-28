@@ -6,6 +6,8 @@ This module contains a number of functions generating SFGs for matrix inversion.
 With ``data_type="complex"`` or ``data_type="split"``, the generators invert
 Hermitian input matrices. The default ``data_type="real"`` uses symmetric
 matrices. Cholesky algorithms require positive definite input matrices.
+The QR generator supports real symmetric nonsingular matrices, with
+``method="householder"`` or ``method="givens"`` selecting the decomposition.
 Scalar inverses use explicit :class:`~b_asic.core_operations.Reciprocal`
 operations marked real-valued: diagonal pivots and Hermitian block determinants
 are real. Real matrices have real-valued input and output interfaces; Hermitian
@@ -33,8 +35,192 @@ three real multiplications per general complex product using::
 
 from typing import Literal
 
+from b_asic.core_operations import Constant, CopySign
 from b_asic.sfg import SFG
 from b_asic.sfg_generators._matrix_arithmetic import _MatrixArithmetic
+
+
+def qr_matrix_inverse(
+    N: int,
+    name: str | None = None,
+    *,
+    method: Literal["householder", "givens"] = "householder",
+    pe: Literal["addsub", "mads"] | None = None,
+    mem: bool = False,
+) -> SFG:
+    r"""
+    Generate an SFG for real symmetric matrix inversion using QR decomposition.
+
+    Factor the input as :math:`A=QR`, then solve :math:`RX=Q^T` by back
+    substitution. The matrix must be nonsingular; positive definiteness is
+    unnecessary. Normalization uses reciprocal square roots and reciprocals.
+
+    Parameters
+    ----------
+    N : int
+        Positive dimension of the square input matrix.
+    name : str, optional
+        Graph name. Defaults to "Householder QR matrix-inversion" or
+        "Givens QR matrix-inversion".
+    method : {"householder", "givens"}, default: "householder"
+        Use Householder reflections or Givens rotations. Householder uses
+        :class:`~b_asic.core_operations.CopySign` to avoid cancellation when
+        constructing a reflector.
+    pe : {"addsub", "mads", None}, optional
+        Use AddSub operations, multiply-add/subtract operations, or separate
+        additions, subtractions and multiplications.
+    mem : bool, default: False
+        Use MemoryRead/MemoryWrite interfaces in the default unnamed memory.
+        Inputs and inverse outputs use packed lower-triangular row order:
+        entry :math:`(i,j)` has address :math:`i(i+1)/2+j`, for :math:`i\ge j`.
+        Each matrix occupies :math:`N(N+1)/2` real locations. Without memory,
+        Input/Output interfaces use the same order.
+
+    Returns
+    -------
+    SFG
+        Signal flow graph with real-valued inputs and inverse outputs.
+    """
+    _validate_qr_arguments(N, method, pe)
+    arithmetic = _MatrixArithmetic("real", "four", pe)
+    lower = [[arithmetic.input(i, j, mem) for j in range(i + 1)] for i in range(N)]
+    matrix = [[lower[max(i, j)][min(i, j)] for j in range(N)] for i in range(N)]
+    R, QT = _qr_decomposition(matrix, arithmetic, method)
+
+    inverse = [[None] * N for _ in range(N)]
+    for i in range(N - 1, -1, -1):
+        pivot_inverse = arithmetic.reciprocal(R[i][i], real_valued=True)
+        # Only the lower triangle is needed, including intermediate solutions.
+        for j in range(i + 1):
+            value = QT[i][j]
+            for k in range(i + 1, N):
+                value = _qr_mac(arithmetic, value, R[i][k], inverse[k][j], False)
+            inverse[i][j] = _qr_mac(arithmetic, None, value, pivot_inverse)
+
+    return arithmetic.graph(
+        [
+            arithmetic.output(i, j, inverse[i][j], mem)
+            for i in range(N)
+            for j in range(i + 1)
+        ],
+        name if name is not None else f"{method.capitalize()} QR matrix-inversion",
+    )
+
+
+def _validate_qr_arguments(N, method, pe):
+    if isinstance(N, bool) or not isinstance(N, int) or N < 1:
+        raise ValueError("N must be a positive integer")
+    if method not in ("householder", "givens"):
+        raise ValueError('method must be "householder" or "givens"')
+    if pe not in (None, "addsub", "mads"):
+        raise ValueError('pe must be "addsub", "mads", or None')
+
+
+def _qr_mac(arithmetic, accumulator, left, right, is_add=True):
+    """Emit a product or accumulated product using the selected PE."""
+    if arithmetic.pe == "mads":
+        return arithmetic.mads(
+            is_add, accumulator, left, right, accumulator is not None
+        )
+    product = arithmetic.multiplication(left, right)
+    if accumulator is None:
+        return product if is_add else -product
+    return _qr_addsub(arithmetic, accumulator, product, is_add)
+
+
+def _qr_addsub(arithmetic, left, right, is_add=True):
+    if arithmetic.pe == "addsub":
+        return arithmetic.addsub(is_add, left, right)
+    return left + right if is_add else left - right
+
+
+def _qr_safe_norm(arithmetic, norm):
+    """Replace a zero squared norm with one, returning its zero indicator."""
+    # For a nonnegative squared norm, 0 - norm has a negative sign exactly
+    # when norm is nonzero. Subtraction also maps +0 to +0, unlike negation.
+    sign = CopySign(Constant(1), _qr_addsub(arithmetic, Constant(0), norm, False))
+    is_zero = _qr_mac(
+        arithmetic, None, Constant(0.5), _qr_addsub(arithmetic, Constant(1), sign)
+    )
+    return _qr_addsub(arithmetic, norm, is_zero), is_zero
+
+
+def _qr_decomposition(matrix, arithmetic, method):
+    """Return R and Q transpose, applying every orthogonal update to both."""
+    N = len(matrix)
+    R = [row.copy() for row in matrix]
+    QT = [[Constant(int(i == j)) for j in range(N)] for i in range(N)]
+
+    if method == "householder":
+        for k in range(N - 1):
+            norm = None
+            for i in range(k, N):
+                norm = _qr_mac(arithmetic, norm, R[i][k], R[i][k])
+            safe_norm, _ = _qr_safe_norm(arithmetic, norm)
+            norm_inverse = arithmetic.reciprocal_square_root(
+                safe_norm, real_valued=True
+            )
+            magnitude = _qr_mac(arithmetic, None, norm, norm_inverse)
+            alpha = -CopySign(magnitude, R[k][k])
+            vector = [_qr_addsub(arithmetic, R[k][k], alpha, False)] + [
+                R[i][k] for i in range(k + 1, N)
+            ]
+            vector_norm = None
+            for value in vector:
+                vector_norm = _qr_mac(arithmetic, vector_norm, value, value)
+            safe_vector_norm, _ = _qr_safe_norm(arithmetic, vector_norm)
+            beta = _qr_mac(
+                arithmetic,
+                None,
+                Constant(2),
+                arithmetic.reciprocal(safe_vector_norm, real_valued=True),
+            )
+            for target, columns in ((R, range(k + 1, N)), (QT, range(N))):
+                for j in columns:
+                    projection = None
+                    for offset, value in enumerate(vector):
+                        projection = _qr_mac(
+                            arithmetic, projection, value, target[k + offset][j]
+                        )
+                    scale = _qr_mac(arithmetic, None, beta, projection)
+                    for offset, value in enumerate(vector):
+                        target[k + offset][j] = _qr_mac(
+                            arithmetic, target[k + offset][j], value, scale, False
+                        )
+            R[k][k] = alpha
+            for i in range(k + 1, N):
+                R[i][k] = Constant(0)
+    else:
+        for k in range(N - 1):
+            for i in range(N - 1, k, -1):
+                a, b = R[k][k], R[i][k]
+                norm = _qr_mac(arithmetic, _qr_mac(arithmetic, None, a, a), b, b)
+                safe_norm, is_zero = _qr_safe_norm(arithmetic, norm)
+                norm_inverse = arithmetic.reciprocal_square_root(
+                    safe_norm, real_valued=True
+                )
+                # A zero pair selects the identity rotation.
+                cosine = _qr_mac(arithmetic, is_zero, a, norm_inverse)
+                sine = _qr_mac(arithmetic, None, b, norm_inverse)
+                for target, columns in ((R, range(k + 1, N)), (QT, range(N))):
+                    for j in columns:
+                        top, bottom = target[k][j], target[i][j]
+                        target[k][j] = _qr_mac(
+                            arithmetic,
+                            _qr_mac(arithmetic, None, cosine, top),
+                            sine,
+                            bottom,
+                        )
+                        target[i][j] = _qr_mac(
+                            arithmetic,
+                            _qr_mac(arithmetic, None, cosine, bottom),
+                            sine,
+                            top,
+                            False,
+                        )
+                R[k][k] = _qr_mac(arithmetic, None, norm, norm_inverse)
+                R[i][k] = Constant(0)
+    return R, QT
 
 
 def ldlt_matrix_inverse(
