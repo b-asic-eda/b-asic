@@ -23,7 +23,7 @@ from b_asic.architecture import Architecture, Memory
 from b_asic.core_operations import Addition, AddSub, Subtraction
 from b_asic.resource_assigner import assign_processing_elements_and_memories
 from b_asic.schedule import Schedule
-from b_asic.scheduler import CPRecursiveScheduler
+from b_asic.scheduler import CPScheduler
 from b_asic.sfg_generators import cic
 from b_asic.simulation import Simulation
 from b_asic.special_operations import Input, Output
@@ -77,7 +77,7 @@ np.testing.assert_allclose(
 # Serialize the four logical input ports at cycles 0, 2, 4, and 6. Let the
 # scheduler place the output as soon as its result is ready. Repeating this
 # cyclic schedule gives an input every two cycles and an output every eight.
-# CPRecursiveScheduler handles the integrator feedback and computations
+# CPScheduler handles the integrator feedback and computations
 # spanning the period boundary while minimizing concurrent resource use.
 input_times = {
     operation.graph_id: phase * input_interval
@@ -85,7 +85,7 @@ input_times = {
 }
 schedule = Schedule(
     sfg,
-    scheduler=CPRecursiveScheduler(
+    scheduler=CPScheduler(
         input_times=input_times,
         time_limit=10,
         num_search_workers=1,
@@ -181,7 +181,7 @@ unfolded_output_delta_times = {
 }
 unfolded_schedule = Schedule(
     unfolded_sfg,
-    scheduler=CPRecursiveScheduler(
+    scheduler=CPScheduler(
         input_times=unfolded_input_times,
         output_delta_times=unfolded_output_delta_times,
         time_limit=10,
