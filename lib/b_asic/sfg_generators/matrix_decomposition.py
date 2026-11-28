@@ -395,9 +395,20 @@ def _qr_safe_norm(arithmetic, norm):
 
 def _qr_decomposition(matrix, arithmetic, method):
     """Return R and Q transpose, applying every orthogonal update to both."""
+    R, QT, _ = _qr_factorization(matrix, arithmetic, method)
+    return R, QT
+
+
+def _qr_factorization(matrix, arithmetic, method, *, form_q=True):
+    """Return R, optional Q transpose, and parameters for implicit Q updates."""
     N = len(matrix)
     R = [row.copy() for row in matrix]
-    QT = [[Constant(int(i == j)) for j in range(N)] for i in range(N)]
+    QT = (
+        [[Constant(int(i == j)) for j in range(N)] for i in range(N)]
+        if form_q
+        else None
+    )
+    transformations = []
 
     if method == "householder":
         for k in range(N - 1):
@@ -423,7 +434,12 @@ def _qr_decomposition(matrix, arithmetic, method):
                 Constant(2),
                 arithmetic.reciprocal(safe_vector_norm, real_valued=True),
             )
-            for target, columns in ((R, range(k + 1, N)), (QT, range(N))):
+            if not form_q:
+                transformations.append((k, vector, beta))
+            targets = [(R, range(k + 1, N))]
+            if form_q:
+                targets.append((QT, range(N)))
+            for target, columns in targets:
                 for j in columns:
                     projection = None
                     for offset, value in enumerate(vector):
@@ -450,7 +466,12 @@ def _qr_decomposition(matrix, arithmetic, method):
                 # A zero pair selects the identity rotation.
                 cosine = _qr_mac(arithmetic, is_zero, a, norm_inverse)
                 sine = _qr_mac(arithmetic, None, b, norm_inverse)
-                for target, columns in ((R, range(k + 1, N)), (QT, range(N))):
+                if not form_q:
+                    transformations.append((k, i, cosine, sine))
+                targets = [(R, range(k + 1, N))]
+                if form_q:
+                    targets.append((QT, range(N)))
+                for target, columns in targets:
                     for j in columns:
                         top, bottom = target[k][j], target[i][j]
                         target[k][j] = _qr_mac(
@@ -468,4 +489,4 @@ def _qr_decomposition(matrix, arithmetic, method):
                         )
                 R[k][k] = _qr_mac(arithmetic, None, norm, norm_inverse)
                 R[i][k] = Constant(0)
-    return R, QT
+    return R, QT, transformations

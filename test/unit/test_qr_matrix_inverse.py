@@ -14,11 +14,14 @@ from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
 
 
 @pytest.mark.parametrize("method", ["householder", "givens"])
+@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq"])
 @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
 @pytest.mark.parametrize("mem", [False, True])
 @pytest.mark.parametrize("size", [1, 2, 3, 5])
-def test_qr_inverse_values_and_layout(method, pe, mem, size):
-    graph = qr_matrix_inverse(size, method=method, pe=pe, mem=mem, name="QR test")
+def test_qr_inverse_values_and_layout(method, mode, pe, mem, size):
+    graph = qr_matrix_inverse(
+        size, mode=mode, method=method, pe=pe, mem=mem, name="QR test"
+    )
     assert graph.name == "QR test"
     rows, cols = np.tril_indices(size)
     for index, (row, col) in enumerate(zip(rows, cols, strict=True)):
@@ -53,6 +56,7 @@ def test_qr_inverse_values_and_layout(method, pe, mem, size):
 
 
 @pytest.mark.parametrize("method", ["householder", "givens"])
+@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq"])
 @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
 @pytest.mark.parametrize(
     "matrix",
@@ -65,9 +69,9 @@ def test_qr_inverse_values_and_layout(method, pe, mem, size):
         np.array([[1.0, 1e-10], [1e-10, -2.0]]),
     ],
 )
-def test_sparse_inputs_and_small_householder_tails(method, pe, matrix):
+def test_sparse_inputs_and_small_householder_tails(method, mode, pe, matrix):
     rows, cols = np.tril_indices(len(matrix))
-    graph = qr_matrix_inverse(len(matrix), method=method, pe=pe)
+    graph = qr_matrix_inverse(len(matrix), method=method, mode=mode, pe=pe)
     np.testing.assert_allclose(
         graph.evaluate_outputs(matrix[rows, cols]),
         np.linalg.inv(matrix)[rows, cols],
@@ -105,11 +109,48 @@ def test_qr_factors(method, pe):
         {"N": True},
         {"N": 2, "method": "unknown"},
         {"N": 2, "pe": "unknown"},
+        {"N": 2, "mode": "unknown"},
     ],
 )
 def test_invalid_arguments(kwargs):
     with pytest.raises(ValueError, match="must be"):
         qr_matrix_inverse(**kwargs)
+
+
+@pytest.mark.parametrize("method", ["householder", "givens"])
+@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq"])
+def test_implicit_mode_does_not_form_q(monkeypatch, method, mode):
+    from b_asic.sfg_generators import matrix_inversion
+
+    factorization = matrix_inversion._qr_factorization
+    calls = []
+
+    def record_factorization(*args, **kwargs):
+        result = factorization(*args, **kwargs)
+        calls.append((kwargs["form_q"], result[1], result[2]))
+        return result
+
+    monkeypatch.setattr(matrix_inversion, "_qr_factorization", record_factorization)
+    qr_matrix_inverse(4, method=method, mode=mode)
+    assert len(calls) == 1
+    form_q, qt, transformations = calls[0]
+    assert form_q is (mode != "implicitq")
+    assert (qt is None) is (mode == "implicitq")
+    assert bool(transformations) is (mode == "implicitq")
+
+
+@pytest.mark.parametrize("method", ["householder", "givens"])
+def test_modes_have_different_operation_graphs(method):
+    graphs = [
+        qr_matrix_inverse(4, method=method, mode=mode)
+        for mode in ("eqs", "mult", "implicitq")
+    ]
+    counts = [tuple(sorted(graph.operation_counter().items())) for graph in graphs]
+    assert len(set(counts)) == 3
+    assert (
+        qr_matrix_inverse(4, method=method).operation_counter()
+        == graphs[0].operation_counter()
+    )
 
 
 @pytest.mark.parametrize("magnitude", [-3.0, 3.0, -0.0, 0.0])
