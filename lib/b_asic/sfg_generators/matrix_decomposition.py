@@ -222,9 +222,10 @@ def qr_decomposition(
     )
 
 
-def _ldlt_decomposition(A, arithmetic):
+def _ldlt_decomposition(A, arithmetic, *, hermitian=True):
     """Build factor sources shared by decomposition and inversion graphs."""
     pe = arithmetic.pe
+    real_diagonal = hermitian or arithmetic.data_type == "real"
     N_local = len(A)
     L = [[None for _ in range(N_local)] for _ in range(N_local)]
     D = [None for _ in range(N_local)]
@@ -234,7 +235,7 @@ def _ldlt_decomposition(A, arithmetic):
     for j in range(N_local):
         D[j] = A[j][j]
         for k in range(j):
-            l_conj = arithmetic.conjugate(L[j][k])
+            l_conj = arithmetic.conjugate(L[j][k]) if hermitian else L[j][k]
             if pe == "mads":
                 D[j] = arithmetic.mads(
                     is_add=False,
@@ -242,25 +243,31 @@ def _ldlt_decomposition(A, arithmetic):
                     in1=M[j][k],
                     in2=l_conj,
                     do_addsub=True,
-                    real_valued=True,
+                    real_valued=real_diagonal,
                 )
             elif pe == "addsub":
                 D[j] = arithmetic.addsub(
                     is_add=False,
                     in0=D[j],
-                    in1=arithmetic.multiplication(M[j][k], l_conj, real_valued=True),
+                    in1=arithmetic.multiplication(
+                        M[j][k], l_conj, real_valued=real_diagonal
+                    ),
                 )
             else:
                 D[j] = D[j] - arithmetic.multiplication(
-                    M[j][k], l_conj, real_valued=True
+                    M[j][k], l_conj, real_valued=real_diagonal
                 )
 
-        D_inv[j] = arithmetic.reciprocal(D[j], name=f"D_inv[{j}]", real_valued=True)
+        D_inv[j] = (
+            arithmetic.reciprocal(D[j], name=f"D_inv[{j}]", real_valued=True)
+            if real_diagonal
+            else _qr_reciprocal(arithmetic, D[j])
+        )
 
         for i in range(j + 1, N_local):
             M[i][j] = A[i][j]
             for k in range(j):
-                l_conj = arithmetic.conjugate(L[j][k])
+                l_conj = arithmetic.conjugate(L[j][k]) if hermitian else L[j][k]
                 if pe == "mads":
                     M[i][j] = arithmetic.mads(
                         is_add=False,
