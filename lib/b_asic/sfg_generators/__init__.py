@@ -12,6 +12,7 @@ from .matrix_inversion import (
     block_ldlt_matrix_inverse,
     cholesky_matrix_inverse,
     ldlt_matrix_inverse,
+    qr_matrix_inverse,
     tile_ldlt_matrix_inverse,
 )
 from .matrix_operations import matrix_multiplication, strassen_matrix_multiplication
@@ -42,6 +43,7 @@ __all__ = [
     "matrix_multiplication",
     "odd_even_merge_sort",
     "pairwise_sort",
+    "qr_matrix_inverse",
     "radix_2_dif_fft",
     "richards",
     "shell_sort",
