@@ -4,6 +4,7 @@ B-ASIC signal flow graph generators.
 This module contains a number of functions generating SFGs for specific functions.
 """
 
+from .adaptive_filters import adaptive_fir
 from .digital_filters import cic, direct_form_1_iir, direct_form_2_iir, fir
 from .fft import radix_2_dif_fft
 from .matrix_decomposition import (
@@ -32,6 +33,7 @@ from .sorting import (
 from .wave_digital_filters import lattice_wdf, richards, wdf_allpass
 
 __all__ = [
+    "adaptive_fir",
     "analytical_block_matrix_inverse",
     "bitonic_sort",
     "block_cholesky_matrix_inverse",
