@@ -10,11 +10,12 @@ import os
 import re
 import subprocess
 import warnings
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
+from b_asic._llvm_memory import LLVMArray, _ArrayContext, _UnsupportedMemory
 from b_asic.core_operations import (
     Absolute,
     Addition,
@@ -26,7 +27,7 @@ from b_asic.core_operations import (
     Subtraction,
 )
 from b_asic.sfg import SFG
-from b_asic.special_operations import Input, Output
+from b_asic.special_operations import Output
 
 if TYPE_CHECKING:
     from llvmlite.binding import ValueRef
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from b_asic.port import SignalSourceProvider
 
 __all__ = [
+    "LLVMArray",
     "LLVMImportWarning",
     "UnsupportedLLVMError",
     "c_to_sfg",
@@ -76,7 +78,12 @@ def _binding():
     return binding
 
 
-def llvm_to_sfg(ir: str, function_name: str | None = None) -> SFG:
+def llvm_to_sfg(
+    ir: str,
+    function_name: str | None = None,
+    *,
+    arrays: Mapping[str, LLVMArray] | None = None,
+) -> SFG:
     """
     Convert textual LLVM IR to an SFG using llvmlite.
 
@@ -86,11 +93,17 @@ def llvm_to_sfg(ir: str, function_name: str | None = None) -> SFG:
         LLVM assembly text, already optimized to scalar straight-line code.
     function_name : str, optional
         Exact LLVM symbol to import. Required if several definitions exist.
+    arrays : mapping of str to LLVMArray, optional
+        Interpret pointer arguments by name and globals by ``@name``. Input
+        and output arrays can use memory or ordinary stream ports. State
+        arrays use delays and cannot be combined with input/output arrays.
+        Different configured names denote disjoint storage.
 
     Returns
     -------
     SFG
-        One input per argument, in declaration order, and one return output.
+        Arguments in declaration order, with input/inout pointers expanded into
+        element ports. A scalar return, if any, precedes output-array writes.
         Constants are Python floats; LLVM precision is not retained as a
         simulation data type. Unused arguments remain SFG inputs.
 
@@ -108,9 +121,10 @@ def llvm_to_sfg(ir: str, function_name: str | None = None) -> SFG:
     -----
     Supports scalar ``float``/``double`` arguments, return values and constants,
     ``fadd``, ``fsub``, ``fmul``, ``fdiv``, ``fneg``, and ``llvm.sqrt``/``llvm.fabs``.
-    Runtime control flow, memory, vectors, integer data, conversions, and other
-    calls are rejected, including unsupported instructions whose results are
-    unused. Other functions in the module are not imported or inspected.
+    Configured arrays support constant-address GEPs, scalar loads and stores,
+    and void returns. Runtime control flow, dynamic addressing, vectors,
+    integer data, conversions, and other calls are rejected, including unused
+    instructions. Other functions are not imported or inspected.
     """
     binding = _binding()
     try:
@@ -136,22 +150,27 @@ def llvm_to_sfg(ir: str, function_name: str | None = None) -> SFG:
                 raise ValueError(
                     f"No LLVM function definition named {function_name!r}."
                 )
-        return _function_to_sfg(function)
+        return _function_to_sfg(function, list(module.global_variables), arrays or {})
 
 
-def _function_to_sfg(function: "ValueRef") -> SFG:
+def _function_to_sfg(
+    function: "ValueRef",
+    globals_: Sequence["ValueRef"],
+    arrays: Mapping[str, LLVMArray],
+) -> SFG:
     """Validate the entire function before constructing any graph."""
     issues = []
     signature = function.global_value_type
     if signature.is_function_vararg:
         issues.append("Variadic functions are unsupported.")
-    if str(signature.get_function_return()) not in _FLOAT_TYPES:
-        issues.append("The function must return one scalar float or double.")
+    if str(signature.get_function_return()) not in {*_FLOAT_TYPES, "void"}:
+        issues.append("The function must return a scalar float/double or void.")
     arguments = list(function.arguments)
+    memory = _ArrayContext(function, globals_, arrays, issues)
     issues.extend(
-        f"Unsupported argument {argument}: expected float or double."
+        f"Unsupported argument {argument}: expected float/double or a configured array pointer."
         for argument in arguments
-        if str(argument.type) not in _FLOAT_TYPES
+        if str(argument.type) not in _FLOAT_TYPES and argument not in memory.pointers
     )
     blocks = list(function.blocks)
     if len(blocks) != 1:
@@ -163,6 +182,12 @@ def _function_to_sfg(function: "ValueRef") -> SFG:
     for inst in instructions:
         operands = list(inst.operands)
         opcode = inst.opcode
+        if opcode in {"getelementptr", "load", "store"}:
+            try:
+                memory.plan(inst)
+            except _UnsupportedMemory as exc:
+                issues.append(f"{exc} Instruction: {str(inst).strip()}")
+            continue
         if opcode == "call":
             supported = (
                 operands[-1].name in _INTRINSICS
@@ -199,13 +224,7 @@ def _function_to_sfg(function: "ValueRef") -> SFG:
             f"Cannot import {function.name!r}: {len(issues)} unsupported construct(s)."
         )
 
-    inputs = [
-        Input(name=arg.name or f"arg{index}", real_valued=True)
-        for index, arg in enumerate(arguments)
-    ]
-    values: dict[ValueRef, SignalSourceProvider] = dict(
-        zip(arguments, inputs, strict=True)
-    )
+    inputs, values = memory.create_inputs()
 
     def source(value: "ValueRef") -> "SignalSourceProvider":
         if value not in values:
@@ -215,11 +234,23 @@ def _function_to_sfg(function: "ValueRef") -> SFG:
     for inst in instructions:
         operands = list(inst.operands)
         if inst.opcode == "ret":
+            outputs = (
+                [Output(source(operands[0]), real_valued=True)] if operands else []
+            )
+            outputs.extend(memory.outputs())
             return SFG(
                 inputs,
-                [Output(source(operands[0]), real_valued=True)],
+                outputs,
                 name=function.name,
             )
+        if inst.opcode == "getelementptr":
+            continue
+        if inst.opcode == "load":
+            values[inst] = memory.load(inst)
+            continue
+        if inst.opcode == "store":
+            memory.store(inst, source(operands[0]))
+            continue
         if inst.opcode == "call":
             operation = _INTRINSICS[operands[-1].name]
             operands = operands[:-1]
@@ -233,10 +264,15 @@ def _function_to_sfg(function: "ValueRef") -> SFG:
 
 
 def llvm_file_to_sfg(
-    path: str | os.PathLike[str], function_name: str | None = None
+    path: str | os.PathLike[str],
+    function_name: str | None = None,
+    *,
+    arrays: Mapping[str, LLVMArray] | None = None,
 ) -> SFG:
     """Read a textual LLVM IR file and import it with :func:`llvm_to_sfg`."""
-    return llvm_to_sfg(Path(path).read_text(encoding="utf-8"), function_name)
+    return llvm_to_sfg(
+        Path(path).read_text(encoding="utf-8"), function_name, arrays=arrays
+    )
 
 
 def c_to_sfg(
@@ -246,6 +282,7 @@ def c_to_sfg(
     clang: str | os.PathLike[str] = "clang",
     language: str | None = None,
     extra_args: Sequence[str] = (),
+    arrays: Mapping[str, LLVMArray] | None = None,
 ) -> SFG:
     """
     Compile a C or C++ file to optimized LLVM IR, then attempt SFG import.
@@ -264,6 +301,8 @@ def c_to_sfg(
         Additional compiler arguments, for example ``["-Iinclude", "-DCOUNT=4"]``
         or ``["-std=c++20"]``. Paths are relative to the current working directory.
         Passed as individual arguments without a shell.
+    arrays : mapping of str to LLVMArray, optional
+        Array roles and interfaces, as for :func:`llvm_to_sfg`.
 
     Returns
     -------
@@ -324,7 +363,7 @@ def c_to_sfg(
             )
         if result.stderr.strip():
             warnings.warn(result.stderr.strip(), LLVMImportWarning, stacklevel=2)
-        return llvm_file_to_sfg(output, function_name)
+        return llvm_file_to_sfg(output, function_name, arrays=arrays)
 
 
 def cpp_to_sfg(
@@ -333,8 +372,14 @@ def cpp_to_sfg(
     *,
     clang: str | os.PathLike[str] = "clang",
     extra_args: Sequence[str] = (),
+    arrays: Mapping[str, LLVMArray] | None = None,
 ) -> SFG:
     """Compile C++ (including constexpr) using :func:`c_to_sfg` in C++ mode."""
     return c_to_sfg(
-        path, function_name, clang=clang, language="c++", extra_args=extra_args
+        path,
+        function_name,
+        clang=clang,
+        language="c++",
+        extra_args=extra_args,
+        arrays=arrays,
     )

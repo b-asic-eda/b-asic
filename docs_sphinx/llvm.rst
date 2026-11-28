@@ -1,7 +1,7 @@
 Importing C, C++, and LLVM IR
-===========================
+=============================
 
-The :mod:`b_asic.llvm` module converts a static scalar LLVM function into an
+The :mod:`b_asic.llvm` module converts a static LLVM function into an
 :class:`~b_asic.sfg.SFG`. Clang can serve as a frontend for both C and C++:
 constant expressions, templates, local variables, and loops are resolved by the
 compiler before B-ASIC reads the resulting IR.
@@ -102,10 +102,154 @@ variables, as above, to require constant evaluation. Calls that depend on runtim
 and reduce to supported arithmetic. C++ runtime machinery such as allocation,
 exceptions, virtual dispatch, and remaining library calls is unsupported.
 
-Writing code that becomes a static SFG
--------------------------------------
+Array interfaces: memory or streams
+-----------------------------------
 
-* Use scalar floating-point inputs and a scalar floating-point return. Both
+Pointer syntax does not specify whether an algorithm's arrays belong in a
+memory or on ordinary SFG ports. For example, the same FFT can use either
+interface. Supply an ``arrays`` mapping to any of the import helpers to make
+the interpretation explicit. Keys are LLVM argument names; prefix global
+symbols with ``@``. Array sizes count scalar elements, not bytes.
+
+Consider a two-point FFT butterfly operating in place:
+
+.. code-block:: c
+
+    void butterfly(float data[2]) {
+        float a = data[0];
+        float b = data[1];
+        data[0] = a + b;
+        data[1] = a - b;
+    }
+
+.. code-block:: python
+
+    from b_asic import LLVMArray, c_to_sfg
+
+    memory_sfg = c_to_sfg(
+        "butterfly.c", "butterfly",
+        arrays={"data": LLVMArray("inout", 2, interface="memory")},
+    )
+    stream_sfg = c_to_sfg(
+        "butterfly.c", "butterfly",
+        arrays={"data": LLVMArray("inout", 2, interface="stream")},
+    )
+    assert memory_sfg.evaluate(3.0, 1.0) == [4.0, 2.0]
+    assert stream_sfg.evaluate(3.0, 1.0) == [4.0, 2.0]
+
+``interface="memory"`` creates named
+:class:`~b_asic.special_operations.MemoryRead` and
+:class:`~b_asic.special_operations.MemoryWrite` operations with constant element
+addresses. These operations behave as SFG inputs and outputs during simulation;
+the importer does not allocate a Python RAM or feed outputs back automatically.
+
+``interface="stream"`` creates ordinary :class:`~b_asic.special_operations.Input`
+and :class:`~b_asic.special_operations.Output` ports. Each array element has a
+separate scalar port in the same SFG iteration. This is the ordinary B-ASIC
+dataflow interface; a serialized, one-sample-per-clock protocol is not inferred.
+Different input/output arrays may independently choose either interface.
+
+The ``role`` controls lifetime and access permissions:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 85
+
+   * - Role
+     - Interpretation
+   * - ``input``
+     - Fresh values supplied each iteration. Stores are rejected.
+   * - ``output``
+     - Final stored values become outputs. Reads require an earlier store
+       to the same location in the current invocation.
+   * - ``inout``
+     - Fresh input values and final output values share the same array name.
+       This models an in-place transform without introducing persistent state.
+   * - ``state``
+     - Internal values persist across SFG iterations through Delay operations.
+       There are no external array ports.
+
+All input/inout array elements become input ports, in ascending address order.
+Pointer arguments are expanded at their position in the function signature;
+scalar arguments keep their original positions. Configured global inputs follow
+arguments, ordered by global symbol name. A scalar return, when present, is the
+first output; output/inout arrays then follow argument/global order and ascending
+written address. Only locations actually written produce output ports.
+
+Within one invocation, loads after stores use the latest value, repeated loads
+share an input, and repeated stores to a location expose only its final value.
+Thus the graph models the computed transform, not a bus trace of every access.
+Untouched output locations are not overwritten. C functions with array outputs
+can return ``void``.
+
+All indices must resolve to constant addresses after optimization. Nested arrays
+are flattened in row-major order. Clang's constant byte-offset GEPs are accepted
+when they land on whole elements. Set ``element_type="double"`` for arrays of
+LLVM doubles; it defaults to ``"float"``. The importer validates access widths
+and bounds against the configured size. Values still use B-ASIC's generic data
+type, and reset values and constants are Python floats.
+
+Different configured names denote disjoint storage. Use C ``restrict`` or C++
+``__restrict`` where appropriate to express the same non-aliasing contract to
+Clang. An in-place algorithm should use one ``inout`` array rather than two
+names for overlapping buffers. Dynamic addresses, partial-element accesses,
+pointer reinterpretation to other element widths, volatile/atomic accesses,
+and memory-copy intrinsics are unsupported. Local scratch allocations must
+still be optimized away.
+
+Persistent state with delays
+----------------------------
+
+Use ``role="state"`` when values belong to the algorithm across calls, rather
+than arriving in a new input buffer. For example:
+
+.. code-block:: c
+
+    float accumulate(float x, float *state) {
+        *state = *state + x;
+        return *state;
+    }
+
+.. code-block:: python
+
+    from b_asic import LLVMArray, Simulation, c_to_sfg
+
+    state_sfg = c_to_sfg(
+        "accumulate.c", "accumulate",
+        arrays={"state": LLVMArray("state", 1, initial_values=[0.0])},
+    )
+    simulation = Simulation(state_sfg, [2.0])
+    assert [simulation.step()[0] for _ in range(3)] == [2.0, 4.0, 6.0]
+
+The state pointer is removed from the external interface. A
+:class:`~b_asic.special_operations.Delay` holds each used state element's
+previous-iteration value, with its input connected to the final store for that
+element. A location without a store retains its value. Stores are visible to
+later loads in the same invocation, while delay updates take effect together
+at the iteration boundary. Use :class:`~b_asic.simulation.Simulation` to retain
+state across iterations; standalone ``sfg.evaluate`` starts from reset values.
+
+Pointer state defaults to zero initialization. ``initial_values`` can specify
+one reset value per element. A mapped C global or static variable requires
+explicit reset values, since LLVM initializers are not inferred. For example,
+Clang may emit a local static named ``@kernel.history``; configure it with
+``arrays={"@kernel.history": LLVMArray("state", 1, initial_values=[1.5])}``.
+Use the exact emitted LLVM symbol, including any C++ name mangling. The supplied
+reset values define the SFG initialization independently of the C initializer.
+
+State arrays and external input/output/inout arrays cannot currently be combined
+in one imported function. Scalar arguments and scalar returns may accompany
+either mode. Unknown or unconfigured pointer accesses produce warnings and are
+rejected rather than guessed to be state.
+
+The :doc:`array gallery example <examples/creating_and_transforming_sfgs/c_arrays_to_sfg>`
+shows the same butterfly with memory and ordinary ports, plus a separate
+stateful accumulator and its delay feedback.
+
+Writing code that becomes a static SFG
+--------------------------------------
+
+* Use scalar floating-point inputs/returns or explicitly configured arrays. Both
   LLVM ``float`` and ``double`` are accepted. Prefer consistent C ``float``
   arithmetic; mixed precision can introduce unsupported conversion instructions.
 * Loops must have a fixed, compile-time trip count and be fully unrolled by
@@ -116,15 +260,14 @@ Writing code that becomes a static SFG
   their conditions resolve at compile time. Runtime comparisons, branches,
   selects, and phi nodes are rejected, even if they could be represented by a
   more general hardware implementation.
-* Local scalar variables and temporary arrays are useful when optimization can
-  eliminate every load, store, allocation, and address calculation. Pointer or
-  array arguments, global memory accesses, volatile data, and persistent state
-  are unsupported. For a small fixed-size input, expose separate scalar
-  arguments and create any temporary array inside the function.
+* Configure pointer arguments and globals with ``LLVMArray``. Keep their
+  addresses constant after loop unrolling, and distinguish input/output buffers
+  from persistent state. Local temporary arrays are useful when optimization
+  can eliminate their allocations and accesses.
 * Small helper functions must inline. Avoid recursion depending on runtime
   values and external calls. ``sqrtf`` and ``fabsf`` can work when Clang lowers
   them to the supported LLVM intrinsics; inspect the IR if a call remains.
-* Keep I/O, assertions that survive optimization, allocation, and other side
+* Keep device/file I/O, assertions that survive optimization, allocation, and other side
   effects outside the imported function. Use ``extra_args`` for include paths
   and compile-time definitions, e.g. ``["-Iinclude", "-DCOUNT=4"]``. These paths
   are relative to the Python process's current working directory.
@@ -139,12 +282,15 @@ the importer always checks the final result.
 Supported LLVM and diagnostics
 ------------------------------
 
-The selected function must have exactly one basic block, fixed scalar
-``float``/``double`` arguments, and one scalar floating-point return. Supported
+The selected function must have exactly one basic block, scalar
+``float``/``double`` arguments or configured pointers, and a scalar
+floating-point or ``void`` return. Supported arithmetic
 instructions are ``fadd``, ``fsub``, ``fmul``, ``fdiv``, ``fneg``, and calls to
 ``llvm.sqrt.f32``, ``llvm.sqrt.f64``, ``llvm.fabs.f32``, or ``llvm.fabs.f64``.
-Floating-point constants become Python ``float`` constants. Integer data,
-casts, vectors, aggregates, undefined/poison values, memory, runtime control
+Constant-address ``getelementptr``, scalar ``load``, and scalar ``store`` are
+also supported for configured arrays. Floating-point constants become Python
+``float`` constants. Integer signal data,
+casts, vectors, aggregates, undefined/poison values, runtime control
 flow, and other calls (including fused multiply-add) are unsupported.
 
 Each unsupported construct in the selected function produces an
@@ -159,10 +305,11 @@ The graph represents arithmetic using B-ASIC operations and its generic data
 type. LLVM widths, rounding at individual instructions, fast-math assumptions,
 NaN/poison semantics, and C exception/``errno`` behavior are not reproduced as a
 bit-exact model. Select a B-ASIC simulation data type later as appropriate.
-This frontend does not infer delays, state, or a streaming memory interface.
+Array roles and interfaces are explicit; the frontend does not infer a hardware
+bus protocol, memory arbitration, or serialization schedule.
 
 Importing LLVM directly
-----------------------
+-----------------------
 
 .. code-block:: python
 

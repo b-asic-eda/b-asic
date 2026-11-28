@@ -1,4 +1,4 @@
-![tests](https://github.com/b-asic-eda/b-asic/actions/workflows/tests.yml/badge.svg) [![codecov](https://codecov.io/gh/b-asic-eda/b-asic/graph/badge.svg?token=4OETEUSUCM)](https://codecov.io/gh/b-asic-eda/b-asic) ![GitHub License](https://img.shields.io/github/license/b-asic-eda/b-asic) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/b-asic-eda/b-asic/documentation.yml?label=documentation)](https://b-asic-eda.github.io/b-asic)
+![tests](https://github.com/b-asic-eda/b-asic/actions/workflows/tests.yml/badge.svg) [![codecov](https://codecov.io/gh/b-asic-eda/b-asic/graph/badge.svg?token=4OETEUSUCM)](https://codecov.io/gh/b-asic-eda/b-asic) ![GitHub License](https://img.shields.io/github/license/b-asic-eda/b-asic) [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/b-asic-eda/b-asic/documentation.yml?label=documentation)](https://b-asic.org/)
 
 <img src="logos/logo.png" width="278" height="100">
 
@@ -60,6 +60,14 @@ shows a [C function](galleries/examples/creating_and_transforming_sfgs/llvm_kern
 and its generated graph, and skips conversion if Clang is unavailable. See the
 [LLVM import guide](docs_sphinx/llvm.rst) for source-writing restrictions and C++
 `constexpr` examples.
+
+Arrays can be mapped explicitly to named `MemoryRead`/`MemoryWrite` interfaces,
+ordinary streaming `Input`/`Output` ports, or internal `Delay` state using
+`LLVMArray`. An in-place FFT buffer uses `role="inout"`; it is distinct from
+`role="state"`, which persists between iterations. See the
+[array-interface gallery example](galleries/examples/creating_and_transforming_sfgs/c_arrays_to_sfg.py).
+Streaming arrays expose one scalar port per element per SFG iteration.
+Combining persistent state with external arrays is currently unsupported.
 
 For a development checkout with GUI, test, and documentation dependencies:
 
