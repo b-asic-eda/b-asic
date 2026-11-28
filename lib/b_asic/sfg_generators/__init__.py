@@ -6,6 +6,11 @@ This module contains a number of functions generating SFGs for specific function
 
 from .digital_filters import cic, direct_form_1_iir, direct_form_2_iir, fir
 from .fft import radix_2_dif_fft
+from .matrix_decomposition import (
+    cholesky_decomposition,
+    ldlt_decomposition,
+    qr_decomposition,
+)
 from .matrix_inversion import (
     analytical_block_matrix_inverse,
     block_cholesky_matrix_inverse,
@@ -32,6 +37,7 @@ __all__ = [
     "block_cholesky_matrix_inverse",
     "block_ldlt_matrix_inverse",
     "bubble_sort",
+    "cholesky_decomposition",
     "cholesky_matrix_inverse",
     "cic",
     "direct_form_1_iir",
@@ -39,10 +45,12 @@ __all__ = [
     "fir",
     "insertion_sort",
     "lattice_wdf",
+    "ldlt_decomposition",
     "ldlt_matrix_inverse",
     "matrix_multiplication",
     "odd_even_merge_sort",
     "pairwise_sort",
+    "qr_decomposition",
     "qr_matrix_inverse",
     "radix_2_dif_fft",
     "richards",

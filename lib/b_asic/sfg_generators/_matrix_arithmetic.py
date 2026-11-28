@@ -1,4 +1,4 @@
-"""Scalar arithmetic and interfaces used while generating matrix inverses."""
+"""Scalar arithmetic and interfaces used while generating matrix algorithms."""
 
 from __future__ import annotations
 
@@ -268,6 +268,12 @@ class _MatrixArithmetic:
             return value
         return _SplitValue(self, value.re)
 
+    def constant(self, value):
+        """Build a real constant in the selected arithmetic representation."""
+        if self.data_type != "split":
+            return Constant(value)
+        return _SplitValue(self, _Expression(lambda: Constant(value)))
+
     def matrix_entry(self, matrix, row: int, col: int):
         if row == col:
             return self.real(matrix[row][col])
@@ -305,9 +311,19 @@ class _MatrixArithmetic:
             return _SplitValue(self, parts[0])
         return _SplitValue(self, *parts)
 
-    def output(self, row: int, col: int, value, mem: bool) -> tuple[Output, ...]:
-        name = f"res[{row},{col}]"
-        address = row * (row + 1) // 2 + col
+    def output(
+        self,
+        row: int,
+        col: int,
+        value,
+        mem: bool,
+        *,
+        name: str | None = None,
+        address: int | None = None,
+        memory_name: str = "",
+    ) -> tuple[Output, ...]:
+        name = f"res[{row},{col}]" if name is None else name
+        address = row * (row + 1) // 2 + col if address is None else address
         if self.data_type == "split":
             parts = (
                 value.re.source,
@@ -316,6 +332,7 @@ class _MatrixArithmetic:
             return tuple(
                 MemoryWrite(
                     address=2 * address + index,
+                    memory_name=memory_name,
                     in0=part,
                     name=f"{name}_{suffix}",
                     real_valued=True,
@@ -328,7 +345,13 @@ class _MatrixArithmetic:
             )
         real_valued = self.data_type == "real" or row == col
         return (
-            MemoryWrite(address=address, in0=value, name=name, real_valued=real_valued)
+            MemoryWrite(
+                address=address,
+                in0=value,
+                name=name,
+                real_valued=real_valued,
+                memory_name=memory_name,
+            )
             if mem
             else Output(value, name=name, real_valued=real_valued),
         )
