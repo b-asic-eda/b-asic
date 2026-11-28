@@ -9,7 +9,7 @@ from b_asic.core_operations import CopySign
 from b_asic.sfg import SFG
 from b_asic.sfg_generators import qr_matrix_inverse
 from b_asic.sfg_generators._matrix_arithmetic import _MatrixArithmetic
-from b_asic.sfg_generators.matrix_inversion import _qr_decomposition
+from b_asic.sfg_generators.matrix_decomposition import _qr_decomposition
 from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
 
 
