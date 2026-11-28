@@ -15,6 +15,7 @@ from b_asic._version import *
 
 # Python modules.
 from b_asic.architecture import *
+from b_asic.comparison_operations import *
 from b_asic.core_operations import *
 from b_asic.fft_operations import *
 from b_asic.graph_component import *

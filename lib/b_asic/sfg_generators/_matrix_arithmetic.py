@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import overload
 
+from b_asic.comparison_operations import ReplaceZero
 from b_asic.core_operations import (
     MADS,
     Addition,
@@ -286,6 +287,15 @@ class _MatrixArithmetic:
         if self.data_type != "split":
             return CopySign(magnitude, sign)
         return _SplitValue(self, _node(CopySign, magnitude.re, sign.re))
+
+    def replace_zero(self, in0, value=1):
+        """Replace zero in a real expression without expanding the comparison."""
+        if self.data_type != "split":
+            return ReplaceZero(value, in0, real_valued=True)
+        return _SplitValue(
+            self,
+            _node(lambda source: ReplaceZero(value, source, real_valued=True), in0.re),
+        )
 
     def matrix_entry(self, matrix, row: int, col: int):
         if row == col:

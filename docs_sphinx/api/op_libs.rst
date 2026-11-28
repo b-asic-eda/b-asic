@@ -12,6 +12,7 @@ module, for example::
     :maxdepth: 1
 
     core_operations.rst
+    comparison_operations.rst
     special_operations.rst
     utility_operations.rst
     wdf_operations.rst
