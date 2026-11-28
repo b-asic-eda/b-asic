@@ -14,7 +14,7 @@ from b_asic.special_operations import Input, MemoryRead, MemoryWrite, Output
 
 
 @pytest.mark.parametrize("method", ["householder", "givens"])
-@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq"])
+@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq", "implicitq_eqs"])
 @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
 @pytest.mark.parametrize("mem", [False, True])
 @pytest.mark.parametrize("size", [1, 2, 3, 5])
@@ -56,7 +56,7 @@ def test_qr_inverse_values_and_layout(method, mode, pe, mem, size):
 
 
 @pytest.mark.parametrize("method", ["householder", "givens"])
-@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq"])
+@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq", "implicitq_eqs"])
 @pytest.mark.parametrize("pe", [None, "addsub", "mads"])
 @pytest.mark.parametrize(
     "matrix",
@@ -118,7 +118,7 @@ def test_invalid_arguments(kwargs):
 
 
 @pytest.mark.parametrize("method", ["householder", "givens"])
-@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq"])
+@pytest.mark.parametrize("mode", ["eqs", "mult", "implicitq", "implicitq_eqs"])
 def test_implicit_mode_does_not_form_q(monkeypatch, method, mode):
     from b_asic.sfg_generators import matrix_inversion
 
@@ -134,9 +134,46 @@ def test_implicit_mode_does_not_form_q(monkeypatch, method, mode):
     qr_matrix_inverse(4, method=method, mode=mode)
     assert len(calls) == 1
     form_q, qt, transformations = calls[0]
-    assert form_q is (mode != "implicitq")
-    assert (qt is None) is (mode == "implicitq")
-    assert bool(transformations) is (mode == "implicitq")
+    implicit = mode in ("implicitq", "implicitq_eqs")
+    assert form_q is (not implicit)
+    assert (qt is None) is implicit
+    assert bool(transformations) is implicit
+
+
+@pytest.mark.parametrize("method", ["householder", "givens"])
+@pytest.mark.parametrize("data_type", ["real", "complex", "split"])
+def test_implicit_eqs_processes_columns_without_inverting_r(
+    monkeypatch, method, data_type
+):
+    from b_asic.sfg_generators import matrix_inversion
+
+    apply_left = matrix_inversion._qr_apply_left
+    right_hand_sides = []
+
+    def record_apply_left(vector, *args):
+        right_hand_sides.append(vector)
+        return apply_left(vector, *args)
+
+    def reject_triangular_inverse(*args):
+        pytest.fail("implicitq_eqs must not construct R inverse")
+
+    monkeypatch.setattr(matrix_inversion, "_qr_apply_left", record_apply_left)
+    monkeypatch.setattr(
+        matrix_inversion, "_qr_upper_inverse", reject_triangular_inverse
+    )
+    graph = qr_matrix_inverse(
+        3, method=method, data_type=data_type, mode="implicitq_eqs"
+    )
+    assert len(right_hand_sides) == 3
+    for j, vector in enumerate(right_hand_sides):
+        for i, value in enumerate(vector):
+            source = value.re.source if data_type == "split" else value
+            assert source.value == int(i == j)
+    # Pivot reciprocals are shared across columns, as in the default solver.
+    default_graph = qr_matrix_inverse(3, method=method, data_type=data_type)
+    assert graph.operation_counter().get(
+        "rec", 0
+    ) == default_graph.operation_counter().get("rec", 0)
 
 
 @pytest.mark.parametrize("method", ["householder", "givens"])

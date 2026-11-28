@@ -52,7 +52,7 @@ def qr_matrix_inverse(
     N: int,
     name: str | None = None,
     *,
-    mode: Literal["eqs", "mult", "implicitq"] = "eqs",
+    mode: Literal["eqs", "mult", "implicitq", "implicitq_eqs"] = "eqs",
     method: Literal["householder", "givens"] = "householder",
     pe: Literal["addsub", "mads"] | None = None,
     mem: bool = False,
@@ -73,14 +73,19 @@ def qr_matrix_inverse(
     name : str, optional
         Graph name. Defaults to "Householder QR matrix-inversion" or
         "Givens QR matrix-inversion".
-    mode : {"eqs", "mult", "implicitq"}, default: "eqs"
+    mode : {"eqs", "mult", "implicitq", "implicitq_eqs"}, default: "eqs"
         "eqs" forms Q conjugate transpose and solves RX = Q conjugate transpose
         by back substitution. "mult" forms Q conjugate transpose, inverts R,
         and multiplies R inverse by Q conjugate transpose. "implicitq" inverts R and applies the stored
         Householder reflections or Givens rotations from the right in reverse
         factorization order, without forming Q conjugate transpose or a general matrix
-        product. Only the lower triangle of the inverse is output; implicit
-        updates can also require upper-triangular intermediate entries.
+        product. "implicitq_eqs" applies the stored transformations from the
+        left to each unit right-hand side, then solves the triangular system
+        for that inverse column. It forms neither Q conjugate transpose as a
+        matrix nor R inverse. Only the lower triangle of the inverse is output;
+        implicit updates can also require upper-triangular intermediate entries.
+        Computing every right-hand side in an unrolled SFG can yield the same
+        arithmetic as "eqs" despite the different construction order.
     method : {"householder", "givens"}, default: "householder"
         Use Householder reflections or Givens rotations. Householder uses
         :class:`~b_asic.core_operations.CopySign` to avoid cancellation when
@@ -109,15 +114,15 @@ def qr_matrix_inverse(
         Signal flow graph with packed lower-triangular input and inverse output.
     """
     _validate_qr_arguments(N, method, pe)
-    if mode not in ("eqs", "mult", "implicitq"):
-        raise ValueError('mode must be "eqs", "mult", or "implicitq"')
+    if mode not in ("eqs", "mult", "implicitq", "implicitq_eqs"):
+        raise ValueError('mode must be "eqs", "mult", "implicitq", or "implicitq_eqs"')
     arithmetic = _MatrixArithmetic(data_type, multiplication_method, pe)
     lower = [[arithmetic.input(i, j, mem) for j in range(i + 1)] for i in range(N)]
     matrix = [
         [arithmetic.matrix_entry(lower, i, j) for j in range(N)] for i in range(N)
     ]
     R, QH, transformations = _qr_factorization(
-        matrix, arithmetic, method, form_q=mode != "implicitq"
+        matrix, arithmetic, method, form_q=mode in ("eqs", "mult")
     )
 
     if mode == "eqs":
@@ -130,6 +135,20 @@ def qr_matrix_inverse(
                 for k in range(i + 1, N):
                     value = _qr_mac(arithmetic, value, R[i][k], inverse[k][j], False)
                 inverse[i][j] = _qr_mac(arithmetic, None, value, pivot_inverse)
+    elif mode == "implicitq_eqs":
+        inverse = [[None] * N for _ in range(N)]
+        pivot_inverses = [_qr_reciprocal(arithmetic, R[i][i]) for i in range(N)]
+        for j in range(N):
+            right_hand_side = [arithmetic.constant(int(i == j)) for i in range(N)]
+            right_hand_side = _qr_apply_left(
+                right_hand_side, transformations, arithmetic, method
+            )
+            # The lower-triangular output needs only this tail of column j.
+            for i in range(N - 1, j - 1, -1):
+                value = right_hand_side[i]
+                for k in range(i + 1, N):
+                    value = _qr_mac(arithmetic, value, R[i][k], inverse[k][j], False)
+                inverse[i][j] = _qr_mac(arithmetic, None, value, pivot_inverses[i])
     else:
         triangular_inverse = _qr_upper_inverse(R, arithmetic)
         if mode == "mult":
@@ -160,6 +179,42 @@ def qr_matrix_inverse(
         ],
         name if name is not None else f"{method.capitalize()} QR matrix-inversion",
     )
+
+
+def _qr_apply_left(vector, transformations, arithmetic, method):
+    """Apply implicit Q conjugate transpose to one right-hand side."""
+    result = vector.copy()
+    # R = T_m ... T_1 A, so a right-hand side first encounters T_1.
+    for transformation in transformations:
+        if method == "householder":
+            k, reflector, beta = transformation
+            projection = None
+            for offset, value in enumerate(reflector):
+                projection = _qr_mac(
+                    arithmetic,
+                    projection,
+                    arithmetic.conjugate(value),
+                    result[k + offset],
+                )
+            scale = _qr_mac(arithmetic, None, beta, projection)
+            for offset, value in enumerate(reflector):
+                result[k + offset] = _qr_mac(
+                    arithmetic, result[k + offset], value, scale, False
+                )
+        else:
+            k, i, cosine, sine = transformation
+            top, bottom = result[k], result[i]
+            result[k] = _qr_mac(
+                arithmetic, _qr_mac(arithmetic, None, cosine, top), sine, bottom
+            )
+            result[i] = _qr_mac(
+                arithmetic,
+                _qr_mac(arithmetic, None, arithmetic.conjugate(cosine), bottom),
+                arithmetic.conjugate(sine),
+                top,
+                False,
+            )
+    return result
 
 
 def _qr_upper_inverse(R, arithmetic):
